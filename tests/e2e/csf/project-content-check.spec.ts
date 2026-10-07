@@ -11,7 +11,21 @@ import {
   watchBrowserFailures,
 } from "./helpers";
 
-async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
+const privateColumns = ["review_notes", "reviewed_by", "reviewed_at"];
+
+function expectPrivateReviewAbsent(body: string, reviewNote: string) {
+  expect(body.trim().length).toBeGreaterThan(0);
+  for (const forbidden of [...privateColumns, reviewNote])
+    expect(body).not.toContain(forbidden);
+}
+
+async function verifyProjectReviewPrivacy(
+  page: Page,
+  projectId: string,
+  ownerId: string,
+  title: string,
+  deniedInsertId: string,
+) {
   const local = getCsfIsolatedSupabaseEnv();
   const browser = page.context().browser();
   if (!browser) throw new Error("The local browser is unavailable.");
@@ -32,15 +46,18 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
       await route.abort("blockedbyclient");
     }
   });
-  const privateColumns = ["review_notes", "reviewed_by", "reviewed_at"];
+  const expectedDenialUrls = new Set(
+    privateColumns.map(
+      (column) =>
+        `${local.url}/rest/v1/projects?id=eq.${projectId}&select=${column}`,
+    ),
+  );
   const isExpectedRefusal = (raw: string) => {
     try {
       const url = new URL(raw);
       return (
         url.origin === new URL(local.url).origin &&
-        url.pathname === "/rest/v1/projects" &&
-        url.searchParams.get("id") === `eq.${projectId}` &&
-        privateColumns.includes(url.searchParams.get("select") ?? "")
+        expectedDenialUrls.has(url.href)
       );
     } catch {
       return false;
@@ -105,6 +122,13 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
       const bearer = signedIn.data.session?.access_token;
       if (signedIn.error || !bearer)
         throw new Error("The fictional REST session is unavailable.");
+      if (actor === "admin") {
+        expect(signedIn.data.user?.id).toBe(ownerId);
+        expectedDenialUrls.add(
+          `${local.url}/rest/v1/projects?id=eq.${projectId}&select=id`,
+        );
+        expectedDenialUrls.add(`${local.url}/rest/v1/projects?select=id`);
+      }
       const result = await publicPage.evaluate(
         async ({
           url,
@@ -113,6 +137,10 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
           projectId,
           publicProjectId,
           privateColumns,
+          ownerId,
+          title,
+          deniedInsertId,
+          verifyOwnerWrites,
         }) => {
           const headers = {
             apikey: anonKey,
@@ -132,7 +160,79 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
             const body = await response.json();
             refusals.push({ column, status: response.status, code: body.code });
           }
-          return { readableStatus: readable.status, readableBody, refusals };
+          const writes = [];
+          let ordinaryWrite = null;
+          if (verifyOwnerWrites) {
+            const writeHeaders = {
+              ...headers,
+              "Content-Type": "application/json",
+              Prefer: "return=representation",
+            };
+            const patchUrl = `${url}/rest/v1/projects?id=eq.${projectId}&select=id`;
+            const control = await fetch(patchUrl, {
+              method: "PATCH",
+              headers: writeHeaders,
+              body: JSON.stringify({ title }),
+            });
+            ordinaryWrite = {
+              status: control.status,
+              body: await control.json(),
+            };
+            const insert = {
+              id: deniedInsertId,
+              creator_id: ownerId,
+              title: `${title} denied insert`,
+              location: "Local fixture venue",
+              description: "Fictional column-permission probe.",
+              event_type: "oneTime",
+              verification_method: "manual",
+              schedule: {
+                oneTime: {
+                  date: "2090-06-15",
+                  startTime: "09:00",
+                  endTime: "10:00",
+                  volunteers: 2,
+                },
+              },
+              visibility: "unlisted",
+              workflow_status: "draft",
+            };
+            for (const [column, value] of Object.entries({
+              review_notes: "Synthetic forged review",
+              reviewed_by: null,
+              reviewed_at: "2039-02-03T04:05:06Z",
+            })) {
+              for (const method of ["PATCH", "POST"]) {
+                const response = await fetch(
+                  method === "PATCH"
+                    ? patchUrl
+                    : `${url}/rest/v1/projects?select=id`,
+                  {
+                    method,
+                    headers: writeHeaders,
+                    body: JSON.stringify({
+                      ...(method === "POST" ? insert : {}),
+                      [column]: value,
+                    }),
+                  },
+                );
+                const body = await response.json();
+                writes.push({
+                  column,
+                  method,
+                  status: response.status,
+                  code: body.code,
+                });
+              }
+            }
+          }
+          return {
+            readableStatus: readable.status,
+            readableBody,
+            refusals,
+            ordinaryWrite,
+            writes,
+          };
         },
         {
           url: local.url,
@@ -141,6 +241,10 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
           projectId,
           publicProjectId,
           privateColumns,
+          ownerId,
+          title,
+          deniedInsertId,
+          verifyOwnerWrites: actor === "admin",
         },
       );
       expect(result.readableStatus).toBe(200);
@@ -154,6 +258,22 @@ async function verifyProjectReviewPrivacy(page: Page, projectId: string) {
           code: "42501",
         })),
       );
+      if (actor === "admin") {
+        expect(result.ordinaryWrite).toEqual({
+          status: 200,
+          body: [{ id: projectId }],
+        });
+        expect(result.writes).toEqual(
+          privateColumns.flatMap((column) =>
+            ["PATCH", "POST"].map((method) => ({
+              column,
+              method,
+              status: 403,
+              code: "42501",
+            })),
+          ),
+        );
+      }
     }
     expect(errors).toEqual([]);
   } finally {
@@ -174,6 +294,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
 
   const ownerId = owner.id;
   const draftId = randomUUID();
+  const deniedInsertId = randomUUID();
   const title = `E2E local content ${randomUUID()}`;
   const editedTitle = `${title} revised`;
   const content = {
@@ -230,6 +351,11 @@ test("content rejection keeps the draft and a valid retry creates one project", 
         .delete()
         .eq("id", draftId)
         .eq("user_id", ownerId),
+      fixture.admin
+        .from("projects")
+        .delete()
+        .eq("id", deniedInsertId)
+        .eq("creator_id", ownerId),
       projects.length
         ? fixture.admin
             .from("projects")
@@ -369,19 +495,132 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     expect(detail.status()).toBe(200);
     const html = await detail.text();
     expect(html).toContain(title);
-    expect(html).not.toContain(reviewNote);
-    await verifyProjectReviewPrivacy(page, projectId);
+    expectPrivateReviewAbsent(html, reviewNote);
+    await verifyProjectReviewPrivacy(
+      page,
+      projectId,
+      ownerId,
+      title,
+      deniedInsertId,
+    );
+    const reviewReadback = await fixture.admin
+      .from("projects")
+      .select("review_notes,reviewed_by,reviewed_at")
+      .eq("id", projectId)
+      .single();
+    expect(reviewReadback.error).toBeNull();
+    expect(reviewReadback.data).toEqual({
+      review_notes: reviewNote,
+      reviewed_by: ownerId,
+      reviewed_at: "2038-02-03T04:05:06+00:00",
+    });
+    const deniedInsert = await fixture.admin
+      .from("projects")
+      .select("id")
+      .eq("id", deniedInsertId);
+    expect(deniedInsert.error).toBeNull();
+    expect(deniedInsert.data).toEqual([]);
 
     await page.goto("/projects", { waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: "Created", exact: true }).click();
     await expect(
       page.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
-    await page.goto(`/projects/${projectId}/edit`, {
-      waitUntil: "domcontentloaded",
+    await page.getByRole("heading", { name: title, exact: true }).click();
+    await page.waitForURL(`**/projects/${projectId}`);
+    let editRscRequest:
+      { url: string; headers: Record<string, string> } | undefined;
+    page.on("request", (request) => {
+      const headers = request.headers();
+      if (
+        new URL(request.url()).pathname !== `/projects/${projectId}/edit` ||
+        request.method() !== "GET" ||
+        headers.rsc !== "1" ||
+        headers["next-router-prefetch"] ||
+        headers["next-router-segment-prefetch"]
+      )
+        return;
+      editRscRequest ??= {
+        url: request.url(),
+        headers: Object.fromEntries(
+          ["rsc", "next-router-state-tree", "next-url"].flatMap((name) =>
+            headers[name] ? [[name, headers[name]]] : [],
+          ),
+        ),
+      };
     });
+    await page
+      .getByRole("button", { name: "Edit Project", exact: true })
+      .click();
     const titleInput = page.getByLabel("Project Title", { exact: true });
     await expect(titleInput).toHaveValue(title);
+    expect(editRscRequest).toBeDefined();
+    const rsc = await page.evaluate(
+      async ({ observed, projectId }) => {
+        if (!observed)
+          throw new Error("Project edit navigation request missing.");
+        const url = new URL(observed.url);
+        if (
+          url.origin !== window.location.origin ||
+          url.pathname !== `/projects/${projectId}/edit`
+        )
+          throw new Error(
+            "Project edit request is not the expected local route.",
+          );
+        const response = await fetch(url.href, {
+          headers: observed.headers,
+          credentials: "same-origin",
+          redirect: "error",
+          cache: "no-store",
+        });
+        return {
+          status: response.status,
+          redirected: response.redirected,
+          type: response.headers.get("content-type") ?? "",
+          body: await response.text(),
+        };
+      },
+      { observed: editRscRequest, projectId },
+    );
+    expect(rsc.status).toBe(200);
+    expect(rsc.redirected).toBe(false);
+    expect(rsc.type).toContain("text/x-component");
+    expect(rsc.body).toContain(title);
+    expectPrivateReviewAbsent(rsc.body, reviewNote);
+    const updateResponses: Array<{
+      status: number;
+      type: string;
+      body: string;
+    }> = [];
+    await page.route(`**/projects/${projectId}/edit`, async (route) => {
+      const request = route.request();
+      let args: unknown;
+      try {
+        args = request.postDataJSON();
+      } catch {
+        args = null;
+      }
+      if (
+        new URL(request.url()).origin !== origin ||
+        request.method() !== "POST" ||
+        !request.headers()["next-action"] ||
+        !Array.isArray(args) ||
+        args.length !== 2 ||
+        args[0] !== projectId ||
+        args[1]?.title !== editedTitle
+      ) {
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch({ maxRedirects: 0 });
+      const body = await response.text();
+      updateResponses.push({
+        status: response.status(),
+        type: response.headers()["content-type"] ?? "",
+        body,
+      });
+      await route.fulfill({ response, body });
+    });
     await titleInput.fill(editedTitle);
     const save = page.getByRole("button", {
       name: "Save Changes",
@@ -398,6 +637,11 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     expect(await readProjects()).toEqual([
       { id: projectId, title: editedTitle, workflow_status: "published" },
     ]);
+    expect(updateResponses).toHaveLength(1);
+    expect(updateResponses[0].status).toBe(200);
+    expect(updateResponses[0].type).toContain("text/x-component");
+    expect(updateResponses[0].body).toContain('"success":true');
+    expectPrivateReviewAbsent(updateResponses[0].body, reviewNote);
 
     await page.goto(`/projects/${projectId}/edit`, {
       waitUntil: "domcontentloaded",
