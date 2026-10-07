@@ -1708,7 +1708,8 @@ CREATE FUNCTION plugin_data.csf_project_attendance_inline(
   p_organization_id uuid,
   p_project_id uuid,
   p_certificate_ids uuid[],
-  p_guest_certificate_ids uuid[]
+  p_guest_certificate_ids uuid[],
+  p_deadline timestamptz
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -1717,6 +1718,9 @@ SET search_path = ''
 SET lock_timeout = '200ms'
 AS $$
 BEGIN
+  PERFORM pg_catalog.set_config('lock_timeout',
+    greatest(1, least(200, floor(extract(epoch FROM
+      (p_deadline - pg_catalog.clock_timestamp())) * 1000)::integer))::text || 'ms', true);
   RETURN plugin_data.csf_project_attendance_run(
     p_organization_id, p_project_id, p_certificate_ids, true, p_guest_certificate_ids
   );
@@ -1726,6 +1730,30 @@ $$;
 -- ---------------------------------------------------------------------------
 -- I. Statement triggers on public.certificates
 -- ---------------------------------------------------------------------------
+
+-- Serialize account binding with attendance enable/backfill. Publication already
+-- holds this project lock. Guest claims acquire it before projection can inspect
+-- the enabled activities, so neither transaction misses the other's commit.
+CREATE FUNCTION plugin_data.csf_lock_attendance_certificate_account()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM 1 FROM public.projects WHERE id = NEW.project_id FOR KEY SHARE;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_lock_attendance_certificate_account()
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_lock_attendance_certificate_account() TO postgres;
+CREATE TRIGGER csf_lock_attendance_certificate_account
+  BEFORE UPDATE OF user_id ON public.certificates
+  FOR EACH ROW
+  WHEN (OLD.user_id IS NULL AND NEW.user_id IS NOT NULL
+    AND NEW.type = 'verified' AND NEW.project_id IS NOT NULL)
+  EXECUTE FUNCTION plugin_data.csf_lock_attendance_certificate_account();
 
 CREATE FUNCTION plugin_data.csf_certificates_attendance_projection()
 RETURNS trigger
@@ -1739,8 +1767,7 @@ DECLARE
   v_sqlstate text;
   v_guest_ids uuid[] := ARRAY[]::uuid[];
   v_started timestamptz := pg_catalog.clock_timestamp();
-  v_contended boolean := false;
-  v_result jsonb;
+
 BEGIN
   -- Collect changed certificates as (id, old project, new project).
   IF TG_OP = 'INSERT' THEN
@@ -1818,12 +1845,17 @@ BEGIN
       pg_catalog.array_agg(DISTINCT targets.certificate_id) AS certificate_ids
     FROM targets
     GROUP BY targets.organization_id, targets.project_id
-    ORDER BY targets.organization_id, targets.project_id
+    -- Deferred pairs recorded last on the previous statement get the first
+    -- attempt next time. A repeatedly locked chapter cannot monopolize the budget.
+    ORDER BY (SELECT max(prior.last_attempt_at)
+      FROM plugin_data.csf_attendance_projection_outcomes AS prior
+      WHERE prior.organization_id = targets.organization_id
+        AND prior.project_id = targets.project_id
+        AND prior.outcome = 'deferred') DESC NULLS LAST,
+      targets.organization_id, targets.project_id
   LOOP
-    -- N1: one wait budget per host statement. After 250 ms, or once any
-    -- chapter was contended, the remaining pairs are deferred unattempted.
-    IF v_contended
-      OR pg_catalog.clock_timestamp() - v_started >= interval '250 milliseconds' THEN
+    -- One wait budget per statement; uncontended chapters still get a turn.
+    IF pg_catalog.clock_timestamp() - v_started >= interval '250 milliseconds' THEN
       PERFORM plugin_data.csf_record_attendance_failure(
         v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, '55P03',
         'deferred', v_guest_ids
@@ -1834,13 +1866,12 @@ BEGIN
     -- Contention (55P03) is deferred for replay; any other error is a
     -- recorded failure.
     BEGIN
-      v_result := plugin_data.csf_project_attendance_inline(
-        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_guest_ids
+      PERFORM plugin_data.csf_project_attendance_inline(
+        v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_guest_ids,
+        v_started + interval '250 milliseconds'
       );
-      v_contended := coalesce((v_result ->> 'contended')::boolean, false);
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
-      v_contended := v_sqlstate = '55P03';
       PERFORM plugin_data.csf_record_attendance_failure(
         v_pair.organization_id, v_pair.project_id, v_pair.certificate_ids, v_sqlstate,
         CASE WHEN v_sqlstate = '55P03' THEN 'deferred' ELSE 'failed' END, v_guest_ids
@@ -1898,7 +1929,7 @@ BEGIN
   -- The host publication transaction locks the project, then the publisher's
   -- membership row, then fires the projection. Take the project first.
   IF v_project_id IS NOT NULL THEN
-    PERFORM 1 FROM public.projects AS project WHERE project.id = v_project_id FOR KEY SHARE;
+    PERFORM 1 FROM public.projects AS project WHERE project.id = v_project_id FOR UPDATE;
   END IF;
   PERFORM pg_catalog.pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
   SELECT member.user_id INTO v_member
@@ -1986,7 +2017,7 @@ BEGIN
     RAISE EXCEPTION 'CSF activity was not found in this organization.';
   END IF;
   IF v_before.linked_project_id IS DISTINCT FROM v_project_id THEN
-    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = '40001';
+    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = 'PT409';
   END IF;
 
   IF p_mode = 'pending_submission' THEN
@@ -2144,7 +2175,7 @@ BEGIN
   WHERE activity.organization_id = p_organization_id AND activity.id = p_opportunity_id
   FOR SHARE;
   IF v_activity.linked_project_id IS DISTINCT FROM v_project_id THEN
-    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = '40001';
+    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = 'PT409';
   END IF;
   IF v_activity.attendance_submission_mode <> 'pending_submission' OR v_project_id IS NULL THEN
     RAISE EXCEPTION 'Automatic submissions from attendance are off for this activity.';
@@ -2315,8 +2346,8 @@ REVOKE ALL ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uui
 GRANT EXECUTE ON FUNCTION plugin_data.csf_record_attendance_failure(uuid, uuid, uuid[], text, text, uuid[]) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_run(uuid, uuid, uuid[], boolean, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_run(uuid, uuid, uuid[], boolean, uuid[]) TO postgres;
-REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[]) FROM PUBLIC, anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[]) TO postgres;
+REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[], timestamptz) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_inline(uuid, uuid, uuid[], uuid[], timestamptz) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_project_attendance_sources(uuid, uuid, uuid[]) FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION plugin_data.csf_project_attendance_sources(uuid, uuid, uuid[]) TO postgres;
 REVOKE ALL ON FUNCTION plugin_data.csf_certificates_attendance_projection() FROM PUBLIC, anon, authenticated, service_role;
@@ -2445,7 +2476,7 @@ BEGIN
       RAISE EXCEPTION 'CSF activity belongs to a different organization or semester.';
     END IF;
     IF (coalesce(p_allow_closed_activity, false)
-        AND v_opportunity.status NOT IN ('published', 'closed'))
+        AND v_opportunity.status NOT IN ('published', 'closed', 'archived'))
       OR (NOT coalesce(p_allow_closed_activity, false)
         AND v_opportunity.status <> 'published') THEN
       RAISE EXCEPTION 'This CSF activity is not available for this point action.';
@@ -2871,6 +2902,8 @@ DECLARE
   v_has_finalized_proof boolean := false;
   v_resolution_notes text := nullif(pg_catalog.btrim(coalesce(p_resolution_notes, '')), '');
   v_lock_term_id uuid;
+  v_result jsonb;
+  v_decided_status text;
 BEGIN
   IF p_decision IS NULL
     OR p_decision NOT IN ('approved', 'rejected', 'under_review') THEN
@@ -3015,7 +3048,7 @@ BEGIN
   LIMIT 1
   FOR UPDATE;
 
-  RETURN plugin_data.csf_review_point_appeal_authority_base_20260810(
+  v_result := plugin_data.csf_review_point_appeal_authority_base_20260810(
     p_organization_id,
     p_appeal_id,
     p_decision,
@@ -3023,6 +3056,14 @@ BEGIN
     p_actor_user_id,
     p_correlation_id
   );
+  IF p_decision IN ('approved', 'rejected') AND v_submission.source = 'attendance' THEN
+    SELECT status INTO v_decided_status FROM plugin_data.csf_point_submissions
+    WHERE organization_id = p_organization_id AND id = v_submission.id;
+    PERFORM plugin_data.csf_redrive_attendance_after_review(
+      p_organization_id, v_submission.id, v_decided_status
+    );
+  END IF;
+  RETURN v_result;
 END;
 $function$;
 REVOKE ALL ON FUNCTION plugin_data.csf_review_point_appeal(
@@ -3069,7 +3110,7 @@ BEGIN
     FROM plugin_data.csf_attendance_projection_outcomes AS outcome
     WHERE outcome.organization_id = p_organization_id
       AND outcome.submission_id = p_submission_id
-      AND outcome.outcome = 'awaiting_decision'
+      AND outcome.outcome IN ('awaiting_decision', 'prior_decision')
       AND outcome.project_id IS NOT NULL
     GROUP BY outcome.project_id
     ORDER BY outcome.project_id
@@ -4003,5 +4044,351 @@ REVOKE ALL ON FUNCTION plugin_data.csf_set_activity_status_locked_impl(uuid, uui
 GRANT EXECUTE ON FUNCTION plugin_data.csf_set_activity_status_locked_impl(uuid, uuid, text, text, uuid, uuid) TO postgres;
 
 NOTIFY pgrst, 'reload schema';
+
+-- Keep authorization rechecks after project locks and before every write.
+CREATE OR REPLACE FUNCTION plugin_data.csf_create_activity(
+  p_organization_id uuid,
+  p_term_id uuid,
+  p_cohort_id uuid,
+  p_activity jsonb,
+  p_actor_user_id uuid,
+  p_request_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_membership_user_id uuid;
+  v_locked_project_id uuid;
+  v_requested_project_id uuid;
+BEGIN
+  -- Preserve the auth-first boundary before inspecting caller-controlled input.
+  IF p_actor_user_id IS NULL
+    OR plugin_data.csf_actor_has_permission(
+      p_organization_id,
+      p_actor_user_id,
+      'manage_opportunities'
+    ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  -- Match hours publication: project rows before staff membership rows.
+  BEGIN
+    v_requested_project_id := nullif(p_activity ->> 'linkedProjectId', '')::uuid;
+  EXCEPTION WHEN invalid_text_representation THEN
+    RAISE EXCEPTION 'Activity dates and linked project must be valid.';
+  END;
+  SELECT activity.linked_project_id INTO v_locked_project_id
+  FROM plugin_data.csf_opportunities AS activity
+  WHERE activity.organization_id = p_organization_id AND activity.id = NULL;
+  PERFORM 1 FROM public.projects AS project
+  WHERE project.id IN (v_locked_project_id, v_requested_project_id)
+  ORDER BY project.id FOR UPDATE;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  -- Hold the host membership row so it cannot be deactivated or deleted
+  -- between the recheck below and this transaction's commit.
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  -- Authorization is mutable state. Re-read it only after this request owns
+  -- the shared staff-access lock and the actor's membership row.
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id,
+    p_actor_user_id,
+    'manage_opportunities'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  RETURN plugin_data.csf_create_activity_locked_impl(
+    p_organization_id,
+    p_term_id,
+    p_cohort_id,
+    p_activity,
+    p_actor_user_id,
+    p_request_id
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_create_activity(uuid, uuid, uuid, jsonb, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_create_activity(uuid, uuid, uuid, jsonb, uuid, uuid) TO postgres, service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_update_activity(
+  p_organization_id uuid,
+  p_activity_id uuid,
+  p_term_id uuid,
+  p_cohort_id uuid,
+  p_activity jsonb,
+  p_actor_user_id uuid,
+  p_request_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_membership_user_id uuid;
+  v_locked_project_id uuid;
+  v_requested_project_id uuid;
+BEGIN
+  IF p_actor_user_id IS NULL
+    OR plugin_data.csf_actor_has_permission(
+      p_organization_id,
+      p_actor_user_id,
+      'manage_opportunities'
+    ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  -- Match hours publication: project rows before staff membership rows.
+  BEGIN
+    v_requested_project_id := nullif(p_activity ->> 'linkedProjectId', '')::uuid;
+  EXCEPTION WHEN invalid_text_representation THEN
+    RAISE EXCEPTION 'Activity dates and linked project must be valid.';
+  END;
+  SELECT activity.linked_project_id INTO v_locked_project_id
+  FROM plugin_data.csf_opportunities AS activity
+  WHERE activity.organization_id = p_organization_id AND activity.id = p_activity_id;
+  PERFORM 1 FROM public.projects AS project
+  WHERE project.id IN (v_locked_project_id, v_requested_project_id)
+  ORDER BY project.id FOR UPDATE;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id,
+    p_actor_user_id,
+    'manage_opportunities'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF (SELECT linked_project_id FROM plugin_data.csf_opportunities
+      WHERE organization_id = p_organization_id AND id = p_activity_id)
+      IS DISTINCT FROM v_locked_project_id THEN
+    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = 'PT409';
+  END IF;
+
+  RETURN plugin_data.csf_update_activity_locked_impl(
+    p_organization_id,
+    p_activity_id,
+    p_term_id,
+    p_cohort_id,
+    p_activity,
+    p_actor_user_id,
+    p_request_id
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_update_activity(uuid, uuid, uuid, uuid, jsonb, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_update_activity(uuid, uuid, uuid, uuid, jsonb, uuid, uuid) TO postgres, service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_set_activity_status(
+  p_organization_id uuid,
+  p_activity_id uuid,
+  p_status text,
+  p_reason text,
+  p_actor_user_id uuid,
+  p_request_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_membership_user_id uuid;
+  v_locked_project_id uuid;
+  v_requested_project_id uuid;
+BEGIN
+  IF p_actor_user_id IS NULL
+    OR plugin_data.csf_actor_has_permission(
+      p_organization_id,
+      p_actor_user_id,
+      'manage_opportunities'
+    ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  -- Match hours publication: project rows before staff membership rows.
+  SELECT activity.linked_project_id INTO v_locked_project_id
+  FROM plugin_data.csf_opportunities AS activity
+  WHERE activity.organization_id = p_organization_id AND activity.id = p_activity_id;
+  PERFORM 1 FROM public.projects AS project
+  WHERE project.id IN (v_locked_project_id, NULL)
+  ORDER BY project.id FOR UPDATE;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id,
+    p_actor_user_id,
+    'manage_opportunities'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF (SELECT linked_project_id FROM plugin_data.csf_opportunities
+      WHERE organization_id = p_organization_id AND id = p_activity_id)
+      IS DISTINCT FROM v_locked_project_id THEN
+    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = 'PT409';
+  END IF;
+
+  RETURN plugin_data.csf_set_activity_status_locked_impl(
+    p_organization_id,
+    p_activity_id,
+    p_status,
+    p_reason,
+    p_actor_user_id,
+    p_request_id
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_set_activity_status(uuid, uuid, text, text, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_set_activity_status(uuid, uuid, text, text, uuid, uuid) TO postgres, service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_link_activity_project(
+  p_organization_id uuid,
+  p_activity_id uuid,
+  p_project_id uuid,
+  p_actor_user_id uuid,
+  p_request_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_membership_user_id uuid;
+  v_locked_project_id uuid;
+  v_requested_project_id uuid;
+BEGIN
+  IF p_actor_user_id IS NULL
+    OR plugin_data.csf_actor_has_permission(
+      p_organization_id,
+      p_actor_user_id,
+      'manage_opportunities'
+    ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  -- Match hours publication: project rows before staff membership rows.
+  SELECT activity.linked_project_id INTO v_locked_project_id
+  FROM plugin_data.csf_opportunities AS activity
+  WHERE activity.organization_id = p_organization_id AND activity.id = p_activity_id;
+  PERFORM 1 FROM public.projects AS project
+  WHERE project.id IN (v_locked_project_id, p_project_id)
+  ORDER BY project.id FOR UPDATE;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    plugin_data.csf_staff_access_lock_key(p_organization_id)
+  );
+
+  SELECT member.user_id
+  INTO v_actor_membership_user_id
+  FROM public.organization_members AS member
+  WHERE member.organization_id = p_organization_id
+    AND member.user_id = p_actor_user_id
+    AND member.status = 'active'
+  FOR SHARE;
+
+  IF NOT FOUND OR v_actor_membership_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF plugin_data.csf_actor_has_permission(
+    p_organization_id,
+    p_actor_user_id,
+    'manage_opportunities'
+  ) IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Not authorized to manage CSF activities.';
+  END IF;
+
+  IF (SELECT linked_project_id FROM plugin_data.csf_opportunities
+      WHERE organization_id = p_organization_id AND id = p_activity_id)
+      IS DISTINCT FROM v_locked_project_id THEN
+    RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE = 'PT409';
+  END IF;
+
+  RETURN plugin_data.csf_link_activity_project_locked_impl(
+    p_organization_id,
+    p_activity_id,
+    p_project_id,
+    p_actor_user_id,
+    p_request_id
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION plugin_data.csf_link_activity_project(uuid, uuid, uuid, uuid, uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_link_activity_project(uuid, uuid, uuid, uuid, uuid) TO postgres, service_role;
+
+CREATE OR REPLACE FUNCTION plugin_data.csf_set_activity_status_with_email(
+ p_organization_id uuid,p_activity_id uuid,p_status text,p_reason text,p_actor_user_id uuid,p_request_id uuid,p_email_requested boolean,p_email_topic jsonb
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_result jsonb;v_had_event boolean;v_locked_project_id uuid;
+BEGIN
+ IF p_email_requested IS NULL THEN RAISE EXCEPTION 'Choose whether to email this publication.'; END IF;
+ IF p_actor_user_id IS NULL OR plugin_data.csf_actor_has_permission(p_organization_id,p_actor_user_id,'manage_opportunities') IS DISTINCT FROM true THEN
+   RAISE EXCEPTION 'Not authorized to manage CSF activities.' USING ERRCODE='42501'; END IF;
+ SELECT linked_project_id INTO v_locked_project_id FROM plugin_data.csf_opportunities
+   WHERE organization_id=p_organization_id AND id=p_activity_id;
+ PERFORM 1 FROM public.projects WHERE id=v_locked_project_id FOR UPDATE;
+ PERFORM pg_catalog.pg_advisory_xact_lock(plugin_data.csf_staff_access_lock_key(p_organization_id));
+ IF (SELECT linked_project_id FROM plugin_data.csf_opportunities WHERE organization_id=p_organization_id AND id=p_activity_id)
+   IS DISTINCT FROM v_locked_project_id THEN
+   RAISE EXCEPTION 'CSF activity changed; refresh and try again.' USING ERRCODE='PT409'; END IF;
+ SELECT EXISTS(SELECT 1 FROM plugin_data.csf_publication_events WHERE organization_id=p_organization_id AND source_kind='activity' AND source_id=p_activity_id AND event_key='') INTO v_had_event;
+ v_result:=plugin_data.csf_set_activity_status(p_organization_id,p_activity_id,p_status,p_reason,p_actor_user_id,p_request_id);
+ RETURN v_result||plugin_data.csf_capture_activity_email_intent(p_organization_id,p_activity_id,p_actor_user_id,p_request_id,p_email_requested,p_email_topic,
+   NOT v_had_event AND coalesce((v_result->>'idempotent')::boolean,false)=false);
+END; $$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_set_activity_status_with_email(uuid,uuid,text,text,uuid,uuid,boolean,jsonb) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_set_activity_status_with_email(uuid,uuid,text,text,uuid,uuid,boolean,jsonb) TO postgres,service_role;
 
 COMMIT;

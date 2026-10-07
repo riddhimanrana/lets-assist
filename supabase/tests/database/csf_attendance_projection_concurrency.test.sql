@@ -6,7 +6,7 @@
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS dblink WITH SCHEMA extensions;
 
-SELECT extensions.plan(22);
+SELECT extensions.plan(48);
 
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_race_fixtures()
 RETURNS void
@@ -548,6 +548,196 @@ SELECT extensions.is(
   1,
   'N3: the replay creates exactly one pending claim'
 );
+-- A busy first chapter must not defer every later chapter without an attempt.
+SELECT extensions.dblink_connect('attendance_fair', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_fair', 'BEGIN');
+SELECT extensions.dblink_exec('attendance_fair', $q$DO $hold$ BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('a8c10000-0000-4000-8000-000000000001:a8c20000-0000-4000-8000-000000000001',0));
+END $hold$ $q$);
+UPDATE public.certificates SET event_end=event_end+interval '1 minute'
+WHERE signup_id='a8600000-0000-4000-8000-000000000010';
+SELECT extensions.ok(EXISTS(SELECT 1 FROM plugin_data.csf_point_submissions
+  WHERE organization_id::text LIKE 'a8c10000-%'
+    AND organization_id<>'a8c10000-0000-4000-8000-000000000001' AND source='attendance'),
+  'uncontended chapters progress while the first chapter stays locked');
+SELECT extensions.dblink_exec('attendance_fair','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_fair');
+
+-- csf_create_activity waits on the project before taking membership authority locks.
+SELECT extensions.dblink_connect('attendance_order_0', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_order_0','BEGIN');
+INSERT INTO attendance_race_pids SELECT 'attendance_order_0',pid
+  FROM extensions.dblink('attendance_order_0','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_order_0', $q$SELECT plugin_data.csf_create_activity('a8100000-0000-4000-8000-000000000001','a8200000-0000-4000-8000-000000000001',NULL,'{"title":"Race edited","signupMode":"lets_assist_project","linkedProjectId":"a8500000-0000-4000-8000-000000000001","pointValue":1,"pointType":"non_drive"}'::jsonb,'a8000000-0000-4000-8000-000000000001',gen_random_uuid())::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='attendance_order_0')),
+  'csf_create_activity waits for the project');
+SELECT extensions.lives_ok($q$SELECT user_id FROM public.organization_members
+  WHERE organization_id='a8100000-0000-4000-8000-000000000001' AND user_id='a8000000-0000-4000-8000-000000000001' FOR UPDATE NOWAIT$q$,
+  'csf_create_activity holds no membership lock while waiting for publication');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_order_0'), 'csf_create_activity completes after project release');
+SELECT * FROM extensions.dblink_get_result('attendance_order_0',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_order_0',false) AS t(payload text);
+SELECT extensions.dblink_exec('attendance_order_0','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_order_0');
+
+-- csf_update_activity waits on the project before taking membership authority locks.
+SELECT extensions.dblink_connect('attendance_order_1', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_order_1','BEGIN');
+INSERT INTO attendance_race_pids SELECT 'attendance_order_1',pid
+  FROM extensions.dblink('attendance_order_1','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_order_1', $q$SELECT plugin_data.csf_update_activity('a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000001','a8200000-0000-4000-8000-000000000001',NULL,'{"title":"Race edited","signupMode":"lets_assist_project","linkedProjectId":"a8500000-0000-4000-8000-000000000001","pointValue":1,"pointType":"non_drive"}'::jsonb,'a8000000-0000-4000-8000-000000000001',gen_random_uuid())::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='attendance_order_1')),
+  'csf_update_activity waits for the project');
+SELECT extensions.lives_ok($q$SELECT user_id FROM public.organization_members
+  WHERE organization_id='a8100000-0000-4000-8000-000000000001' AND user_id='a8000000-0000-4000-8000-000000000001' FOR UPDATE NOWAIT$q$,
+  'csf_update_activity holds no membership lock while waiting for publication');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_order_1'), 'csf_update_activity completes after project release');
+SELECT * FROM extensions.dblink_get_result('attendance_order_1',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_order_1',false) AS t(payload text);
+SELECT extensions.dblink_exec('attendance_order_1','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_order_1');
+
+-- csf_set_activity_status waits on the project before taking membership authority locks.
+SELECT extensions.dblink_connect('attendance_order_2', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_order_2','BEGIN');
+INSERT INTO attendance_race_pids SELECT 'attendance_order_2',pid
+  FROM extensions.dblink('attendance_order_2','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_order_2', $q$SELECT plugin_data.csf_set_activity_status('a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000001','closed',NULL,'a8000000-0000-4000-8000-000000000001',gen_random_uuid())::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='attendance_order_2')),
+  'csf_set_activity_status waits for the project');
+SELECT extensions.lives_ok($q$SELECT user_id FROM public.organization_members
+  WHERE organization_id='a8100000-0000-4000-8000-000000000001' AND user_id='a8000000-0000-4000-8000-000000000001' FOR UPDATE NOWAIT$q$,
+  'csf_set_activity_status holds no membership lock while waiting for publication');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_order_2'), 'csf_set_activity_status completes after project release');
+SELECT * FROM extensions.dblink_get_result('attendance_order_2',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_order_2',false) AS t(payload text);
+SELECT extensions.dblink_exec('attendance_order_2','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_order_2');
+
+-- csf_link_activity_project waits on the project before taking membership authority locks.
+SELECT extensions.dblink_connect('attendance_order_3', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_order_3','BEGIN');
+INSERT INTO attendance_race_pids SELECT 'attendance_order_3',pid
+  FROM extensions.dblink('attendance_order_3','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_order_3', $q$SELECT plugin_data.csf_link_activity_project('a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000001','a8500000-0000-4000-8000-000000000001','a8000000-0000-4000-8000-000000000001',gen_random_uuid())::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='attendance_order_3')),
+  'csf_link_activity_project waits for the project');
+SELECT extensions.lives_ok($q$SELECT user_id FROM public.organization_members
+  WHERE organization_id='a8100000-0000-4000-8000-000000000001' AND user_id='a8000000-0000-4000-8000-000000000001' FOR UPDATE NOWAIT$q$,
+  'csf_link_activity_project holds no membership lock while waiting for publication');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_order_3'), 'csf_link_activity_project completes after project release');
+SELECT * FROM extensions.dblink_get_result('attendance_order_3',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_order_3',false) AS t(payload text);
+SELECT extensions.dblink_exec('attendance_order_3','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_order_3');
+
+-- csf_set_activity_status_with_email waits on the project before taking membership authority locks.
+SELECT extensions.dblink_connect('attendance_order_4', pg_temp.attendance_race_dsn());
+SELECT extensions.dblink_exec('attendance_order_4','BEGIN');
+INSERT INTO attendance_race_pids SELECT 'attendance_order_4',pid
+  FROM extensions.dblink('attendance_order_4','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_order_4', $q$SELECT plugin_data.csf_set_activity_status_with_email('a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000001','closed',NULL,'a8000000-0000-4000-8000-000000000001',gen_random_uuid(),false,NULL)::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='attendance_order_4')),
+  'csf_set_activity_status_with_email waits for the project');
+SELECT extensions.lives_ok($q$SELECT user_id FROM public.organization_members
+  WHERE organization_id='a8100000-0000-4000-8000-000000000001' AND user_id='a8000000-0000-4000-8000-000000000001' FOR UPDATE NOWAIT$q$,
+  'csf_set_activity_status_with_email holds no membership lock while waiting for publication');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_order_4'), 'csf_set_activity_status_with_email completes after project release');
+SELECT * FROM extensions.dblink_get_result('attendance_order_4',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_order_4',false) AS t(payload text);
+SELECT extensions.dblink_exec('attendance_order_4','ROLLBACK');
+SELECT extensions.dblink_disconnect('attendance_order_4');
+
+-- A link changed while the wrapper waited must fail once as a business conflict.
+SELECT extensions.dblink_connect('attendance_stale',pg_temp.attendance_race_dsn());
+INSERT INTO attendance_race_pids SELECT 'stale',pid FROM extensions.dblink('attendance_stale','SELECT pg_backend_pid()') AS t(pid integer);
+SELECT extensions.dblink_exec('attendance_stale',$q$CREATE FUNCTION pg_temp.stale_activity_result()
+RETURNS text LANGUAGE plpgsql AS $body$ BEGIN
+ PERFORM plugin_data.csf_set_activity_status('a8100000-0000-4000-8000-000000000001',
+  'a8700000-0000-4000-8000-000000000001','closed',NULL,'a8000000-0000-4000-8000-000000000001',
+  'a8900000-0000-4000-8000-000000000090');
+ RETURN 'unexpected_success'; EXCEPTION WHEN OTHERS THEN RETURN SQLSTATE; END $body$ $q$);
+BEGIN;
+SELECT id FROM public.projects WHERE id='a8500000-0000-4000-8000-000000000001' FOR UPDATE;
+SELECT extensions.dblink_send_query('attendance_stale','SELECT pg_temp.stale_activity_result()');
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='stale')),
+ 'stale-link request waits on its captured project');
+UPDATE plugin_data.csf_opportunities SET linked_project_id='a8500000-0000-4000-8000-000000000002'
+WHERE id='a8700000-0000-4000-8000-000000000001';
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_stale'),'stale-link request returns after project release');
+SELECT extensions.is((SELECT result FROM extensions.dblink_get_result('attendance_stale',false) AS t(result text)),
+ 'PT409','changed project returns a business conflict instead of a retryable engine error');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events
+ WHERE correlation_id='a8900000-0000-4000-8000-000000000090'),0,'stale-link refusal creates no audit receipt');
+SELECT extensions.dblink_disconnect('attendance_stale');
+UPDATE plugin_data.csf_opportunities SET linked_project_id='a8500000-0000-4000-8000-000000000001'
+WHERE id='a8700000-0000-4000-8000-000000000001';
+
+-- Certificate account binding and enable backfill cannot pass each other.
+SELECT plugin_data.csf_set_activity_attendance_submissions(
+  'a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000002','off',
+  'a8000000-0000-4000-8000-000000000001',gen_random_uuid());
+UPDATE public.certificates SET user_id=NULL WHERE signup_id='a8600000-0000-4000-8000-000000000002';
+SELECT extensions.dblink_connect('attendance_guest',pg_temp.attendance_race_dsn());
+INSERT INTO attendance_race_pids SELECT 'guest',pid FROM extensions.dblink('attendance_guest','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+SELECT plugin_data.csf_set_activity_attendance_submissions(
+  'a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000002','pending_submission',
+  'a8000000-0000-4000-8000-000000000001',gen_random_uuid());
+SELECT extensions.dblink_send_query('attendance_guest',$q$UPDATE public.certificates
+  SET user_id='a8000000-0000-4000-8000-000000000002'
+  WHERE signup_id='a8600000-0000-4000-8000-000000000002' RETURNING id::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='guest')),
+  'guest binding waits for the enabling transaction');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_guest'),'guest binding completes after enable commits');
+SELECT * FROM extensions.dblink_get_result('attendance_guest',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_guest',false) AS t(payload text);
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_evidence
+  WHERE signup_id='a8600000-0000-4000-8000-000000000002' AND state='active'),1,
+  'enable-first guest race produces one active evidence row without staff retry');
+SELECT extensions.dblink_disconnect('attendance_guest');
+
+-- Reverse the order: enable must wait and then see the committed account.
+SELECT plugin_data.csf_set_activity_attendance_submissions(
+  'a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000002','off',
+  'a8000000-0000-4000-8000-000000000001',gen_random_uuid());
+UPDATE public.certificates SET user_id=NULL WHERE signup_id='a8600000-0000-4000-8000-000000000002';
+SELECT extensions.dblink_connect('attendance_guest_first',pg_temp.attendance_race_dsn());
+INSERT INTO attendance_race_pids SELECT 'guest_first',pid FROM extensions.dblink('attendance_guest_first','SELECT pg_backend_pid()') AS t(pid integer);
+BEGIN;
+UPDATE public.certificates SET user_id='a8000000-0000-4000-8000-000000000002'
+WHERE signup_id='a8600000-0000-4000-8000-000000000002';
+SELECT extensions.dblink_send_query('attendance_guest_first',$q$SELECT plugin_data.csf_set_activity_attendance_submissions(
+  'a8100000-0000-4000-8000-000000000001','a8700000-0000-4000-8000-000000000002','pending_submission',
+  'a8000000-0000-4000-8000-000000000001',gen_random_uuid())::text$q$);
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_lock((SELECT pid FROM attendance_race_pids WHERE label='guest_first')),
+  'enable waits for an uncommitted guest binding');
+COMMIT;
+SELECT extensions.ok(pg_temp.wait_for_attendance_race_result('attendance_guest_first'),'enable completes after guest commits');
+SELECT * FROM extensions.dblink_get_result('attendance_guest_first',false) AS t(payload text);
+SELECT * FROM extensions.dblink_get_result('attendance_guest_first',false) AS t(payload text);
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_evidence
+  WHERE signup_id='a8600000-0000-4000-8000-000000000002' AND state='active'),1,
+  'guest-first race backfills one active evidence row without staff retry');
+SELECT extensions.dblink_disconnect('attendance_guest_first');
+
 DROP TABLE attendance_race_record;
 DROP TABLE attendance_race_multi;
 

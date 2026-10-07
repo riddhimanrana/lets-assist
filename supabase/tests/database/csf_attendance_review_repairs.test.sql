@@ -6,7 +6,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(19);
+SELECT extensions.plan(24);
 
 -- ---------------------------------------------------------------------------
 -- ---------------------------------------------------------------------------
@@ -343,13 +343,26 @@ SELECT extensions.is(
 );
 SELECT pg_temp.review(
   pg_temp.claim('a7400000-0000-4000-8000-000000000007', 'a7700000-0000-4000-8000-000000000003'),
-  'approved', 'a7900000-0000-4000-8000-000000000132');
+  'rejected', 'a7900000-0000-4000-8000-000000000132');
+SELECT extensions.is(pg_temp.outcome_for('a7600000-0000-4000-8000-000000000012'),
+  'prior_decision', 'rejection holds the waiting shift pending a successful appeal');
+SELECT plugin_data.csf_submit_point_appeal(
+  'a7100000-0000-4000-8000-000000000001',
+  (SELECT id FROM plugin_data.csf_point_submissions WHERE profile_id='a7400000-0000-4000-8000-000000000007'
+    AND opportunity_id='a7700000-0000-4000-8000-000000000003' AND status='rejected'),
+  'The organizer verified this shift.', NULL,
+  'a7000000-0000-4000-8000-000000000007', 'a7900000-0000-4000-8000-000000000133');
+SELECT plugin_data.csf_review_point_appeal(
+  'a7100000-0000-4000-8000-000000000001',
+  (SELECT id FROM plugin_data.csf_point_appeals WHERE profile_id='a7400000-0000-4000-8000-000000000007' AND status='submitted'),
+  'approved', 'Organizer evidence confirms this shift.',
+  'a7000000-0000-4000-8000-000000000001', 'a7900000-0000-4000-8000-000000000134');
 SELECT extensions.ok(
   (SELECT status = 'submitted' AND earning_selection = '{"version":1,"items":[{"key":"midday"}]}'::jsonb
    FROM plugin_data.csf_point_submissions
    WHERE profile_id = 'a7400000-0000-4000-8000-000000000007'
      AND opportunity_id = 'a7700000-0000-4000-8000-000000000003' AND status = 'submitted'),
-  'R7: approving the first shift re-drives the waiting slot into its own claim'
+  'R7: appeal approval re-drives the separate waiting shift into a pending claim'
 );
 
 -- ---------------------------------------------------------------------------
@@ -407,6 +420,17 @@ SELECT extensions.is(
 );
 
 -- ---------------------------------------------------------------------------
+-- A removed activity keeps its existing submissions reviewable.
+UPDATE plugin_data.csf_opportunities SET status='archived'
+WHERE id='a7700000-0000-4000-8000-000000000001';
+SELECT extensions.lives_ok($$SELECT plugin_data.csf_assert_point_submission_eligibility(
+  'a7100000-0000-4000-8000-000000000001','a7400000-0000-4000-8000-000000000006',
+  'a7200000-0000-4000-8000-000000000001','a7700000-0000-4000-8000-000000000001',NULL,
+  'attendance',1,'non_drive',true,true,true)$$,
+  'the forward draft preserves review of archived-activity submissions');
+UPDATE plugin_data.csf_opportunities SET status='published'
+WHERE id='a7700000-0000-4000-8000-000000000001';
+
 -- R8: removed chapter members get no automatic claim
 -- ---------------------------------------------------------------------------
 
@@ -466,6 +490,34 @@ SELECT extensions.ok(
    ) AS source(definition)),
   'R12: the invalidation pass locks profile and account before submissions and evidence'
 );
+
+INSERT INTO public.projects(id,creator_id,organization_id,title,location,description,event_type,verification_method,schedule,require_login,visibility)
+SELECT 'a7500000-0000-4000-8000-000000000005',creator_id,organization_id,'Fictional cap event',location,description,event_type,verification_method,schedule,require_login,visibility
+FROM public.projects WHERE id='a7500000-0000-4000-8000-000000000003';
+UPDATE plugin_data.csf_opportunities SET linked_project_id='a7500000-0000-4000-8000-000000000005'
+WHERE id='a7700000-0000-4000-8000-000000000004';
+-- Exactly 200 certificates run inline; the remaining source stays visible for replay.
+INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status)
+SELECT ('a7ca0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
+ 'a7500000-0000-4000-8000-000000000005','a7000000-0000-4000-8000-000000000006',
+ 'cap-fixture-'||i,'approved' FROM generate_series(1,201) i;
+INSERT INTO public.certificates(id,project_id,signup_id,user_id,schedule_id,type,event_start,event_end,volunteer_name,project_title,organization_name,creator_name,is_certified,check_in_method)
+SELECT ('a7cb0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
+ 'a7500000-0000-4000-8000-000000000005',('a7ca0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
+ 'a7000000-0000-4000-8000-000000000006','cap-fixture-'||i,'verified',
+ '2041-08-30T17:00:00Z'::timestamptz,'2041-08-30T19:00:00Z'::timestamptz,
+ 'Fixture Guest','Fictional cap event','Fictional partner','Fixture organizer',true,'manual'
+FROM generate_series(1,201) i;
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_evidence
+ WHERE certificate_id::text LIKE 'a7cb0000-%' AND state='active'),200,
+ 'inline projection processes the first 200 certificates');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_projection_outcomes
+ WHERE certificate_id::text LIKE 'a7cb0000-%' AND outcome='deferred' AND sqlstate='54000'),1,
+ 'the 201st certificate remains a recorded deferred source');
+SELECT pg_temp.retry('a7700000-0000-4000-8000-000000000004',gen_random_uuid());
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_evidence
+ WHERE certificate_id::text LIKE 'a7cb0000-%' AND state='active'),201,
+ 'a staff replay processes the overflow without duplicating prior evidence');
 
 SELECT * FROM extensions.finish();
 ROLLBACK;
