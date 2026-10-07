@@ -15,6 +15,17 @@ BEGIN
     CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
     WHERE configured.setrole IN (0, authenticator_oid)
       AND configured.setdatabase IN (0, database_oid)
+      AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_config'
+      AND entry.setting <> 'pgrst.db_pre_config='
+  ) THEN
+    RAISE EXCEPTION 'An existing application pre-config hook requires separate review.' USING ERRCODE = '55000';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_db_role_setting AS configured
+    CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
+    WHERE configured.setrole IN (0, authenticator_oid)
+      AND configured.setdatabase IN (0, database_oid)
       AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_request'
       AND (
         configured.setdatabase <> 0
