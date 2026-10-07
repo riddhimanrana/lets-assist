@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { editableConfigProperties } from "@/lib/plugins/config-fields";
 import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
 
 import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
@@ -334,7 +335,7 @@ export default function OrganizationPluginSettings({
     const schema = activeSettingsPlugin.configSchema;
     const required = new Set(schema.required ?? []);
 
-    return Object.entries(schema.properties).map(([key, property]) => ({
+    return editableConfigProperties(schema).map(([key, property]) => ({
       key,
       label: property.title ?? formatFieldLabel(key),
       required: required.has(key),
