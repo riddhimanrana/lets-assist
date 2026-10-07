@@ -29,7 +29,7 @@ function renderTrigger(ready: boolean, canDelete = true, isDeleting = false) {
 
 test("server rendering disables deletion until the handler is ready", () => {
   const { button, html } = renderTrigger(false);
-  expect(html).toContain("Delete Project");
+  expect(html).toContain("Delete project");
   expect(button).toContain('disabled=""');
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Pencil, Trash2, Users } from "lucide-react";
+import { Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -19,12 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Empty,
@@ -96,13 +91,13 @@ function CellValue({
   confidence: number;
 }) {
   if (value === null || value.length === 0) {
-    return <Badge variant="outline">unreadable</Badge>;
+    return <Badge variant="secondary">Unreadable</Badge>;
   }
   return (
     <span
       className={cn(
         confidence < LOW_CONFIDENCE &&
-          "rounded ring-2 ring-amber-400/70 px-1 -mx-1",
+          "ring-warning/70 -mx-1 rounded px-1 ring-2",
       )}
       title={
         confidence < LOW_CONFIDENCE
@@ -210,18 +205,17 @@ export function ReviewTable({
 
   const rowHighlights = (row: PaperScanRowView) =>
     row.outcomeDetail?.startsWith("duplicate_of_row_") ? (
-      <Badge variant="secondary" className="gap-1">
-        <AlertTriangle className="size-3" />
-        duplicate of row {row.outcomeDetail.replace("duplicate_of_row_", "")}
+      <Badge variant="warning">
+        Duplicate of row {row.outcomeDetail.replace("duplicate_of_row_", "")}
       </Badge>
     ) : row.matchScore !== null && row.matchScore < 0.82 ? (
-      <Badge variant="outline">verify match</Badge>
+      <Badge variant="warning">Verify match</Badge>
     ) : row.matchKind !== "none" ? (
-      <Badge variant="secondary">matched</Badge>
+      <Badge variant="success">Matched</Badge>
     ) : null;
 
   return (
-    <div className="space-y-4 pb-28">
+    <div className="grid gap-4 pb-28">
       {/* Source photos: reviewing a transcription without the photo in view
           is not review. */}
       {images.length > 0 && (
@@ -266,17 +260,15 @@ export function ReviewTable({
       )}
 
       {sessionPublished && (
-        <Card className="ring-amber-400/60">
-          <CardHeader className="py-4">
-            <CardTitle className="text-sm">
-              This session&apos;s hours are already published
-            </CardTitle>
-            <CardDescription>
-              Confirmed rows will get certificates immediately instead of going
-              through the hours review page.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="warning">
+          <AlertTitle>
+            This session&apos;s hours are already published
+          </AlertTitle>
+          <AlertDescription>
+            Confirmed rows will get certificates immediately instead of going
+            through the hours review page.
+          </AlertDescription>
+        </Alert>
       )}
 
       {rows.length === 0 ? (
@@ -439,8 +431,8 @@ export function ReviewTable({
 
       {/* Sticky commit bar: the consequence must be legible at the moment of
           the click. */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur">
-        <div className="container mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="bg-background fixed inset-x-0 bottom-0 z-40 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-md">
+        <div className="container mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:px-3">
           <p className="text-sm text-muted-foreground">
             <strong>{summary.withEmail.length}</strong> will become attendance
             records · <strong>{summary.rosterOnly.length}</strong> roster-only
@@ -451,12 +443,11 @@ export function ReviewTable({
           </p>
           <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
-              size="sm"
+              variant="destructive-ghost"
               onClick={onDiscard}
               disabled={discarding || committing}
             >
-              <Trash2 className="size-4" />
+              <Trash2 data-icon="inline-start" aria-hidden="true" />
               Discard
             </Button>
             <AlertDialog>

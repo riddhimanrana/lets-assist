@@ -11,42 +11,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
-import { getSlotDetails } from "@/utils/project";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   getProjectStartDateTime,
   getProjectEndDateTime,
 } from "@/utils/project";
-import { formatTimeTo12Hour } from "@/lib/utils";
-import {
-  differenceInHours,
-  differenceInMinutes,
-  isBefore,
-  isAfter,
-  parseISO,
-  format,
-  formatDistanceToNowStrict,
-} from "date-fns";
-import {
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  Camera,
-  Hourglass,
-  CalendarCheck,
-  Info,
-  TicketCheck,
-  FileText,
-  Award,
-  Download,
-  Eye,
-  Mail,
-} from "lucide-react";
-import Link from "next/link";
-import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal"; // Import the new component
-import { createClient } from "@/lib/supabase/client"; // 🆕 add supabase client
+import { differenceInHours, isBefore, isAfter } from "date-fns";
+import { CheckCircle, Clock, Download, Eye, Info } from "lucide-react";
+import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { getMyProjectFeedback, getMyWaiverSignatures } from "./actions";
 import { ProjectFeedbackDialog } from "@/components/projects/ProjectFeedbackDialog";
@@ -56,96 +30,18 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel"; // Import shadcn carousel
-
-// Helper function to format remaining time (copied from AttendanceClient)
-function formatRemainingTime(minutes: number): string {
-  if (minutes <= 0) return "Session ended";
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = Math.round(minutes % 60) + 1;
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h `;
-  }
-  if (remainingMinutes > 0 || hours === 0) {
-    result += `${remainingMinutes}m`;
-  }
-  return result.trim() || "0m"; // Ensure "0m" if exactly 0
-}
-
-// Helper function to get combined DateTime from date and time strings
-function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
-  if (!dateStr || !timeStr) return null;
-  try {
-    // Use date-fns parse which is more robust
-    const dateTime = parseISO(`${dateStr}T${timeStr}`);
-    return isNaN(dateTime.getTime()) ? null : dateTime;
-  } catch (e) {
-    safeConsole.error("Error parsing date/time:", e);
-    return null;
-  }
-}
-
-// Helper function to calculate and format duration between check-in and check-out
-function calculateVolunteerDuration(
-  checkIn: string | null,
-  checkOut: string | null,
-): {
-  text: string;
-  isValid: boolean;
-  totalMinutes: number;
-} {
-  if (!checkIn || !checkOut) {
-    return { text: "Incomplete", isValid: false, totalMinutes: 0 };
-  }
-
-  try {
-    const checkInDate = parseISO(checkIn);
-    const checkOutDate = parseISO(checkOut);
-
-    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      return { text: "Invalid times", isValid: false, totalMinutes: 0 };
-    }
-
-    const diffMinutes = differenceInMinutes(checkOutDate, checkInDate);
-
-    if (diffMinutes < 0) {
-      return { text: "Invalid duration", isValid: false, totalMinutes: 0 };
-    }
-
-    if (diffMinutes > 24 * 60) {
-      return { text: "Over 24h", isValid: false, totalMinutes: diffMinutes };
-    }
-
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-
-    if (hours > 0 && minutes > 0) {
-      return {
-        text: `${hours}h ${minutes}m`,
-        isValid: true,
-        totalMinutes: diffMinutes,
-      };
-    } else if (hours > 0) {
-      return { text: `${hours}h`, isValid: true, totalMinutes: diffMinutes };
-    } else {
-      return { text: `${minutes}m`, isValid: true, totalMinutes: diffMinutes };
-    }
-  } catch {
-    return { text: "Error calculating", isValid: false, totalMinutes: 0 };
-  }
-}
+} from "@/components/ui/carousel";
+import { getSignupStatuses } from "./user-dashboard-status";
+import {
+  UserSignupStatusCard,
+  signupStatusHasCard,
+} from "./UserSignupStatusCard";
 
 interface Props {
   project: Project;
   user: AuthUser;
   signups: Signup[]; // Array of user's approved signups for this project
 }
-
-type SlotDetails =
-  | NonNullable<Project["schedule"]["oneTime"]>
-  | NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]
-  | NonNullable<Project["schedule"]["sameDayMultiArea"]>["roles"][number];
 
 export default function UserDashboard({
   project,
@@ -306,1024 +202,66 @@ export default function UserDashboard({
   }, [isProjectCompleted, attendedFeedbackSignupId, project.id]);
   // --- END feedback ---
 
-  // --- Process Each Signup ---
-  const signupStatuses = useMemo(() => {
-    return signups
-      .map((signup) => {
-        // First check if signup status is valid for processing
-        // Using type-safe approach with Array.includes
-        const validStatuses: Signup["status"][] = [
-          "approved",
-          "attended",
-          "pending",
-        ];
-        if (!validStatuses.includes(signup.status)) {
-          return null; // Skip signups that are not approved, attended, or pending
-        }
+  const signupStatuses = useMemo(
+    () => getSignupStatuses(signups, project, now, certMap),
+    [signups, project, now, certMap],
+  );
 
-        // Handle pending signups (e.g., from linked anonymous profiles)
-        if (signup.status === "pending") {
-          const details = getSlotDetails(project, signup.schedule_id);
-          if (!details) return null; // Skip if slot details not found
+  const hideReminder = isSignupOnly && isProjectStartingSoon;
+  const visibleStatuses = signupStatuses.flatMap((status) =>
+    status && signupStatusHasCard(status, project, hideReminder)
+      ? [status]
+      : [],
+  );
+  const openScanner = (scheduleId: string) => {
+    setSelectedScheduleForScan(scheduleId);
+    setIsCameraModalOpen(true);
+  };
 
-          // Find the date for the slot
-          let slotDate: string | undefined;
-          if (project.schedule?.multiDay) {
-            for (const day of project.schedule.multiDay) {
-              if (day.slots.some((slot) => slot === details)) {
-                slotDate = day.date;
-                break;
-              }
-            }
-          } else if (project.schedule?.oneTime) {
-            slotDate = project.schedule.oneTime.date;
-          } else if (project.schedule?.sameDayMultiArea) {
-            slotDate = project.schedule.sameDayMultiArea.date;
-          }
-
-          if (!slotDate || !details.startTime || !details.endTime) {
-            return null; // Skip if essential time info is missing
-          }
-
-          const startTime = getCombinedDateTime(slotDate, details.startTime);
-          const endTime = getCombinedDateTime(slotDate, details.endTime);
-
-          if (!startTime || !endTime) {
-            return null; // Skip if dates are invalid
-          }
-
-          return {
-            signup,
-            slotDetails: details,
-            sessionStartTime: startTime,
-            sessionEndTime: endTime,
-            renderState: "pendingLinked" as const,
-            sessionDisplayName: getSessionDisplayName(
-              project,
-              startTime,
-              details,
-            ),
-          };
-        }
-
-        const details = getSlotDetails(project, signup.schedule_id);
-        if (!details) return null; // Skip if slot details not found
-
-        // Find the date for the slot
-        let slotDate: string | undefined;
-        if (project.schedule?.multiDay) {
-          for (const day of project.schedule.multiDay) {
-            if (day.slots.some((slot) => slot === details)) {
-              slotDate = day.date;
-              break;
-            }
-          }
-        } else if (project.schedule?.oneTime) {
-          slotDate = project.schedule.oneTime.date;
-        } else if (project.schedule?.sameDayMultiArea) {
-          slotDate = project.schedule.sameDayMultiArea.date;
-        }
-
-        if (!slotDate || !details.startTime || !details.endTime) {
-          return null; // Skip if essential time info is missing
-        }
-
-        const startTime = getCombinedDateTime(slotDate, details.startTime);
-        const endTime = getCombinedDateTime(slotDate, details.endTime);
-
-        // Use type-safe comparison for status
-        const isAttended = signup.status === "attended";
-        const isApproved = signup.status === "approved";
-        const checkIn = signup.check_in_time
-          ? new Date(signup.check_in_time)
-          : null;
-        const checkOut = signup.check_out_time
-          ? new Date(signup.check_out_time)
-          : null;
-
-        if (!startTime || !endTime) {
-          return null; // Skip if dates are invalid
-        }
-
-        const diffHours = differenceInHours(startTime, now);
-        const diffMinutes = differenceInMinutes(startTime, now);
-        const sessionOver = isAfter(now, endTime);
-        const sessionInProgress =
-          isAfter(now, startTime) && isBefore(now, endTime);
-
-        // Check if we're in the post-event window (first 48 hours after event)
-        const hoursSinceEnd = differenceInHours(now, endTime);
-        const isInPostEventWindow =
-          sessionOver && hoursSinceEnd >= 0 && hoursSinceEnd < 48;
-
-        // Check if we're past the post-event window
-        const isPastPostEventWindow = sessionOver && hoursSinceEnd >= 48;
-
-        // --- ADDED: Check if hours are published for this specific schedule_id ---
-        const areHoursPublished =
-          project.published && project.published[signup.schedule_id] === true;
-
-        // --- Check for corresponding certificate based on signup_id ---
-        const certificateId = certMap[signup.id] ?? null;
-        // --- END ADDED ---
-
-        // --- For approved users who didn't attend, show no-show message after event ---
-        // --- MODIFIED: Only show missedEvent if hours are NOT published ---
-        if (isApproved && !isAttended && sessionOver && !areHoursPublished) {
-          return {
-            signup,
-            slotDetails: details,
-            sessionStartTime: startTime,
-            sessionEndTime: endTime,
-            isSessionOver: sessionOver,
-            renderState: "missedEvent",
-            sessionDisplayName: getSessionDisplayName(
-              project,
-              startTime,
-              details,
-            ),
-            certificateId,
-          };
-        }
-
-        // --- For attended users, show hours editing message during editing window ---
-        // --- MODIFIED: Only show postEventHours if hours are NOT published ---
-        if (isAttended && isInPostEventWindow && !areHoursPublished) {
-          return {
-            signup,
-            slotDetails: details,
-            sessionStartTime: startTime,
-            sessionEndTime: endTime,
-            hoursSinceEnd,
-            checkInTime: checkIn,
-            renderState: "postEventHours",
-            sessionDisplayName: getSessionDisplayName(
-              project,
-              startTime,
-              details,
-            ),
-          };
-        }
-
-        // Skip rendering if the session is over and the user never attended (and hours aren't published)
-        if (sessionOver && !isAttended && !areHoursPublished) {
-          return null;
-        }
-
-        // Skip rendering if the session is more than 24 hours away (unless already attended or hours published)
-        if (diffHours > 24 && !isAttended && !areHoursPublished) {
-          return null;
-        }
-
-        let progress = 0;
-        let remainingFormatted = "";
-        // Calculate progress based on check-in time if available, even if attended
-        if (checkIn) {
-          const checkInTimeForCalc =
-            isAttended && !checkIn ? startTime : checkIn; // Use start time if attended but no check-in logged (fallback)
-          const totalDurationMinutes = differenceInMinutes(
-            endTime,
-            checkInTimeForCalc,
-          );
-          const elapsedSinceCheckInMinutes = differenceInMinutes(
-            now,
-            checkInTimeForCalc,
-          );
-          if (totalDurationMinutes > 0) {
-            progress = Math.max(
-              0,
-              Math.min(
-                100,
-                (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100,
-              ),
-            );
-          } else {
-            progress = now >= endTime ? 100 : 0;
-          }
-          const remainingMinutes = differenceInMinutes(endTime, now);
-          remainingFormatted = formatRemainingTime(remainingMinutes);
-        } else if (isAttended && now >= endTime) {
-          // If attended but no check-in time, show 100% progress after session ends
-          progress = 100;
-          remainingFormatted = "Session ended";
-        }
-
-        let untilStartFormatted = "";
-        if (diffMinutes > 0) {
-          untilStartFormatted = formatDistanceToNowStrict(startTime, {
-            unit: diffHours >= 1 ? "hour" : "minute",
-          });
-        }
-
-        // --- MODIFIED: Determine state for rendering with type-safe comparisons and published hours check ---
-        let renderState:
-          | "checkedIn"
-          | "checkInOpen"
-          | "reminder"
-          | "none"
-          | "postEventHours"
-          | "missedEvent"
-          | "hoursPublished"
-          | "pendingLinked" = "none";
-
-        if (areHoursPublished) {
-          renderState = "hoursPublished"; // Highest priority if hours are published
-        } else if (isAttended && isInPostEventWindow) {
-          renderState = "postEventHours"; // Show processing message during the 48hr window
-        } else if (isAttended) {
-          renderState = "checkedIn"; // Show checked-in status (during event or after 48hrs if not published)
-        } else if (isApproved) {
-          // Only apply time logic if status is 'approved' and hours not published
-          if (sessionOver) {
-            renderState = "missedEvent"; // Show missed event if approved, session over, not attended, not published
-          } else {
-            const totalDurationMinutes = differenceInMinutes(
-              endTime,
-              startTime,
-            );
-            // Check-in available: <= 2 hours before start AND before the session ends
-            if (diffMinutes <= 120 && diffMinutes > -totalDurationMinutes) {
-              renderState = "checkInOpen";
-            }
-            // Reminder state: > 2 hours before start AND <= 24 hours before start
-            else if (diffMinutes > 120 && diffHours <= 24) {
-              renderState = "reminder";
-            }
-          }
-        }
-
-        // Return all necessary data for rendering this specific signup
-        return {
-          signup,
-          slotDetails: details,
-          sessionStartTime: startTime,
-          sessionEndTime: endTime,
-          hoursUntilStart: diffHours,
-          minutesUntilStart: diffMinutes,
-          isCheckedIn: isAttended,
-          checkInTime: checkIn,
-          checkOutTime: checkOut,
-          isSessionOver: sessionOver,
-          isSessionInProgress: sessionInProgress,
-          progressPercentage: progress,
-          remainingTimeFormatted: remainingFormatted,
-          timeUntilStartFormatted: untilStartFormatted,
-          hoursSinceEnd,
-          isInPostEventWindow,
-          isPastPostEventWindow,
-          sessionDisplayName: getSessionDisplayName(
-            project,
-            startTime,
-            details,
-          ),
-          renderState,
-          certificateId, // 🆕 include here
-          areHoursPublished,
-        };
-      })
-      .filter((status) => status !== null && status.renderState !== "none"); // Filter out nulls and 'none' state
-  }, [signups, project, now, certMap]);
-
-  // Create card elements array for the carousel
-  const eventCards = useMemo(() => {
-    if (!signupStatuses || signupStatuses.length === 0) {
-      return [];
-    }
-
-    return signupStatuses
-      .map((status) => {
-        if (!status) return null; // Should not happen due to filter, but good practice
-
-        switch (status.renderState) {
-          // --- ADDED: New case for pending linked signups ---
-          case "pendingLinked":
-            return (
-              <Card key={status.signup.id} className="ring-info/30">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-info/10 p-2 rounded-full">
-                      <Mail className="h-5 w-5 text-info" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Signup Pending Approval
-                      </CardTitle>
-                      <CardDescription>
-                        Your signup for {project.title} is awaiting project
-                        coordinator confirmation.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  {/* Session info */}
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Session:
-                      </span>
-                      <span>{status.sessionDisplayName}</span>
-                    </div>
-                  </div>
-                  {/* Information with visual timeline */}
-                  <div className="relative pl-6 border-info/30 mt-3 space-y-3">
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-info"></div>
-                      </div>
-                      <p className="text-sm font-medium">How it got here</p>
-                      <p className="text-xs text-muted-foreground">
-                        This signup was linked from your anonymous profile or
-                        created through an email notification. The project
-                        coordinator will review and approve it soon.
-                      </p>
-                    </div>
-
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-info"></div>
-                      </div>
-                      <p className="text-sm font-medium">What to expect</p>
-                      <p className="text-xs text-muted-foreground">
-                        Once approved, you'll be able to check in for the event
-                        and track your volunteer hours. You can check the status
-                        of your signup anytime.
-                      </p>
-                    </div>
-
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-info/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-info"></div>
-                      </div>
-                      <p className="text-sm font-medium">Questions?</p>
-                      <p className="text-xs text-muted-foreground">
-                        If you have any questions about your signup, you can
-                        reach out to the project coordinator directly.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Status badge */}
-                  <div className="mt-4 px-3 py-2 bg-info/10 rounded-md border border-info/25">
-                    <p className="text-xs font-medium text-info">
-                      Status:{" "}
-                      <span className="font-semibold">
-                        Pending Coordinator Review
-                      </span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          // --- END ADDED ---
-          // --- ADDED: New case for published hours ---
-          case "hoursPublished":
-            return (
-              <Card
-                key={status.signup.id}
-                className="ring-success/30 bg-success/5"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-success/10 p-2 rounded-full">
-                      <Award className="h-5 w-5 text-success" />{" "}
-                      {/* Using Award icon */}
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Volunteer Hours Published!
-                      </CardTitle>
-                      <CardDescription>
-                        Your hours for {project.title} have been finalized.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  {/* Session info */}
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Session:
-                      </span>
-                      <span>{status.sessionDisplayName}</span>
-                    </div>
-                    {status.checkInTime && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-muted-foreground">
-                          Check-in:
-                        </span>
-                        <span>
-                          {format(status.checkInTime, "MMM d, h:mm a")}
-                        </span>
-                      </div>
-                    )}
-                    {status.checkOutTime && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-muted-foreground">
-                          Check-out:
-                        </span>
-                        <span>
-                          {format(status.checkOutTime, "MMM d, h:mm a")}
-                        </span>
-                      </div>
-                    )}
-                    {status.checkInTime &&
-                      status.checkOutTime &&
-                      (() => {
-                        const duration = calculateVolunteerDuration(
-                          status.checkInTime.toISOString(),
-                          status.checkOutTime.toISOString(),
-                        );
-                        return (
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-muted-foreground">
-                              Total Hours:
-                            </span>
-                            <span
-                              className={`font-semibold ${duration.isValid ? "text-success" : "text-destructive"}`}
-                            >
-                              {duration.text}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                  </div>
-
-                  {/* Info Section */}
-                  <div className="relative pl-6 border-success/30 mt-3 space-y-3">
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-success/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-success"></div>
-                      </div>
-                      <p className="text-sm font-medium">View Your Record</p>
-                      <p className="text-xs text-muted-foreground">
-                        Your participation details and hours are now available
-                        in your volunteer dashboard
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Link to Profile */}
-                  <div className="mt-3 flex justify-end">
-                    <Link
-                      href={`/certificates/${status.certificateId}`}
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" }),
-                      )}
-                    >
-                      <TicketCheck className="size-4 mr-1.5" />
-                      View Certificate
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          // --- END ADDED ---
-
-          // Add new case for post-event hours state
-          case "postEventHours":
-            return (
-              <Card
-                key={status.signup.id}
-                className="ring-warning/30 bg-warning/5"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-warning/10 p-2 rounded-full">
-                      <FileText className="h-5 w-5 text-warning" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Hours Being Processed
-                      </CardTitle>
-                      <CardDescription>
-                        Thank you for your participation in {project.title}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  {/* Session info */}
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Session:
-                      </span>
-                      <span>{status.sessionDisplayName}</span>
-                    </div>
-                    {status.checkInTime && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-muted-foreground">
-                          Check-in:
-                        </span>
-                        <span>
-                          {format(status.checkInTime, "MMM d, h:mm a")}
-                        </span>
-                      </div>
-                    )}
-                    {status.checkOutTime && (
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-muted-foreground">
-                          Check-out:
-                        </span>
-                        <span>
-                          {format(status.checkOutTime, "MMM d, h:mm a")}
-                        </span>
-                      </div>
-                    )}
-                    {status.checkInTime &&
-                      status.checkOutTime &&
-                      (() => {
-                        const duration = calculateVolunteerDuration(
-                          status.checkInTime.toISOString(),
-                          status.checkOutTime.toISOString(),
-                        );
-                        return (
-                          <div className="flex justify-between items-center">
-                            <span className="font-medium text-muted-foreground">
-                              Total Hours:
-                            </span>
-                            <span
-                              className={`font-semibold ${duration.isValid ? "text-warning" : "text-destructive"}`}
-                            >
-                              {duration.text}
-                            </span>
-                          </div>
-                        );
-                      })()}
-                  </div>
-
-                  {/* Processing information with visual timeline */}
-                  <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-warning/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-warning"></div>
-                      </div>
-                      <p className="text-sm font-medium">Processing Period</p>
-                      <p className="text-xs text-muted-foreground">
-                        The project owner is reviewing hours and all records
-                        will be finalized within 48 hours after the event.
-                      </p>
-                    </div>
-
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-warning/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-warning"></div>
-                      </div>
-                      <p className="text-sm font-medium">Need Adjustments?</p>
-                      <p className="text-xs text-muted-foreground">
-                        If your recorded hours need correction, please contact
-                        the project owner directly.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Approx time remaining */}
-                  <div className="bg-warning/10 rounded-md p-3 flex items-center justify-between mt-2">
-                    <span className="text-xs font-medium text-warning">
-                      Processing time remaining:
-                    </span>
-                    <span className="text-xs font-medium text-warning">
-                      {48 - (status.hoursSinceEnd || 0)} hours
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-
-          // Add new case for missed event state
-          case "missedEvent":
-            return (
-              <Card
-                key={status.signup.id}
-                className="ring-destructive/30 bg-destructive/5"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-destructive/10 p-2 rounded-full">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        Event Not Attended
-                      </CardTitle>
-                      <CardDescription>
-                        You were signed up for {project.title} but no attendance
-                        was recorded.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  {/* Session info */}
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Session:
-                      </span>
-                      <span>{status.sessionDisplayName}</span>
-                    </div>
-                  </div>
-                  {/* Timeline style info */}
-                  <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
-                    <div className="relative">
-                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-destructive/20 flex items-center justify-center">
-                        <div className="size-2 rounded-full bg-destructive"></div>
-                      </div>
-                      <p className="text-sm font-medium">
-                        Think This Is a Mistake?
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        If you believe this is an error, please contact the
-                        project organizer directly. Your signup status might be
-                        updated if there was a check-in issue.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-
-          // 1. Checked-in State (Triggered by signup.status === 'attended')
-          case "checkedIn":
-            // Use checkInTime if available, otherwise indicate attendance without specific time
-            const checkInDisplayTime = status.checkInTime
-              ? format(status.checkInTime, "h:mm a")
-              : "Confirmed";
-            const checkOutDisplayTime = status.checkOutTime
-              ? format(status.checkOutTime, "h:mm a")
-              : null;
-
-            // --- MODIFIED: Don't show progress if session is over (and hours not published yet) OR checked out ---
-            const showProgress = !status.isSessionOver && !status.checkOutTime;
-            return (
-              <Card
-                key={status.signup.id}
-                className="ring-primary/30 bg-primary/5"
-              >
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <CheckCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        {status.checkOutTime
-                          ? "Attendance Completed"
-                          : "Attendance Confirmed"}
-                      </CardTitle>{" "}
-                      {/* Updated Title */}
-                      <CardDescription>
-                        Your attendance for {project.title} is confirmed.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="font-medium text-muted-foreground">
-                      Session:
-                    </span>
-                    <span className="sm:max-w-[65%] sm:text-right wrap-break-word">
-                      {status.sessionDisplayName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-muted-foreground">
-                      Status:
-                    </span>
-                    {/* Display check-in time if available */}
-                    <span>
-                      {checkInDisplayTime === "Confirmed"
-                        ? "Attended"
-                        : `Checked in at ${checkInDisplayTime}`}
-                    </span>
-                  </div>
-                  {checkOutDisplayTime && (
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Check-out:
-                      </span>
-                      <span>Checked out at {checkOutDisplayTime}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-muted-foreground">
-                      Session Time:
-                    </span>
-                    <span>
-                      {formatTimeTo12Hour(status.slotDetails.startTime)} -{" "}
-                      {formatTimeTo12Hour(status.slotDetails.endTime)}
-                    </span>
-                  </div>
-                  {/* Progress Bar - Conditionally render based on session progress */}
-                  {showProgress && (
-                    <div className="space-y-1 pt-2">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-medium text-muted-foreground">
-                          Session Progress:
-                        </span>
-                        <span>{status.remainingTimeFormatted} remaining</span>
-                      </div>
-                      <Progress
-                        value={status.progressPercentage ?? 0}
-                        aria-label={`Session progress: ${Math.round(status.progressPercentage ?? 0)}%`}
-                      />
-                    </div>
-                  )}
-                  {/* Show message when session ended (and hours not published) */}
-                  {!showProgress && !status.areHoursPublished && (
-                    <p className="text-xs text-muted-foreground text-center pt-2">
-                      Session concluded. Awaiting final hours processing.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-
-          // 2. Check-in Available State (Triggered by approved status + time window)
-          case "checkInOpen":
-            // Don't show check-in info for cancelled projects or sign-up only projects
-            if (
-              project.status === "cancelled" ||
-              project.verification_method === "signup-only"
-            ) {
-              return null;
-            }
-
-            // Get check-in information text based on verification method
-            let checkInInfoText;
-            let buttonContent = null;
-            let alertTitle = "Check-in is open!";
-
-            switch (project.verification_method) {
-              case "qr-code":
-                alertTitle = "Check-in is open!";
-                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available. Scan the QR code provided by the organizer to check in.`;
-                buttonContent = (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-label={`Open camera to scan QR code for session ${status.sessionDisplayName}`}
-                    onClick={() => {
-                      setSelectedScheduleForScan(status.signup.schedule_id);
-                      setIsCameraModalOpen(true);
-                    }}
-                  >
-                    <Camera className="size-4 mr-1.5" />
-                    Scan QR Code
-                  </Button>
-                );
-                break;
-
-              case "manual":
-                alertTitle = "Check-in Required";
-                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} needs to be done in person. Please find the project organizer when you arrive at the venue.`;
-                break;
-
-              case "auto":
-                alertTitle = "Upcoming Session";
-                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} will happen automatically at the start time. No action is required from you.`;
-                break;
-
-              default:
-                checkInInfoText = `Check-in for your session ${status.sessionDisplayName} starting at ${formatTimeTo12Hour(status.slotDetails.startTime)} is now available.`;
-            }
-
-            return (
-              <Card
-                key={status.signup.id}
-                className="ring-primary/30 bg-primary/5"
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <Hourglass className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{alertTitle}</CardTitle>
-                      <CardDescription>
-                        Check-in available for {project.title}
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-2">
-                  <div className="flex flex-col gap-2 text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Session:
-                      </span>
-                      <span>{status.sessionDisplayName}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-muted-foreground">
-                        Starts At:
-                      </span>
-                      <span>
-                        {formatTimeTo12Hour(status.slotDetails.startTime)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-sm text-muted-foreground">
-                    {checkInInfoText}
-                  </p>
-
-                  {buttonContent && <div className="mt-2">{buttonContent}</div>}
-                </CardContent>
-              </Card>
-            );
-
-          // 3. Reminder State (Triggered by approved status + time window)
-          case "reminder":
-            // --- ADDED: Skip reminder card if general 'starting soon' alert is shown for signup-only ---
-            if (isSignupOnly && isProjectStartingSoon) {
-              return null;
-            }
-            // --- END ADDED ---
-            return (
-              <Card key={status.signup.id} className="ring-info/30 bg-info/5">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <CalendarCheck className="h-6 w-6 text-info shrink-0" />
-                    <div>
-                      <CardTitle className="text-lg">
-                        Upcoming Session
-                      </CardTitle>
-                      <CardDescription>
-                        Your scheduled session for {project.title} is
-                        approaching.
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-muted-foreground">
-                      Session:
-                    </span>
-                    <>{status.sessionDisplayName}</>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-muted-foreground">
-                      Starts In:
-                    </span>
-                    <span className="font-semibold text-info">
-                      {status.timeUntilStartFormatted}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-muted-foreground">
-                      Session Time:
-                    </span>
-                    <span>
-                      {formatTimeTo12Hour(status.slotDetails.startTime)} -{" "}
-                      {formatTimeTo12Hour(status.slotDetails.endTime)}
-                    </span>
-                  </div>
-                  <div className="pt-2">
-                    {/* --- MODIFIED: Add conditional text for auto check-in --- */}
-                    {project.verification_method === "auto" ? (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Check-in will happen automatically at the start time. No
-                        action needed.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Check-in will be available 2 hours before start time.
-                      </p>
-                    )}
-                    {/* --- END MODIFIED --- */}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-
-          default:
-            return null;
-        }
-      })
-      .filter(Boolean); // Remove null values
-  }, [
-    signupStatuses,
-    project,
-    setSelectedScheduleForScan,
-    setIsCameraModalOpen,
-    isSignupOnly,
-    isProjectStartingSoon,
-  ]);
-
-  // Helper function to get a consistent session display name
-  function getSessionDisplayName(
-    project: Project,
-    startTime: Date | null,
-    details: SlotDetails,
-  ): string {
-    // If multiRole event with named roles, keep using the role name
-    if ("name" in details && details.name) {
-      return details.name;
-    }
-    // For oneTime events, show "Main Event"
-    else if (project.schedule?.oneTime) {
-      return "Main Event";
-    }
-    // For multiDay events, format the date nicely with time
-    else if (project.schedule?.multiDay && startTime) {
-      // Format the date from the session start time and include time info
-      const formattedDate = format(startTime, "MMMM d, yyyy");
-      const formattedStartTime = formatTimeTo12Hour(details.startTime);
-      const formattedEndTime = formatTimeTo12Hour(details.endTime);
-      return `${formattedDate} (${formattedStartTime} - ${formattedEndTime})`;
-    }
-    // Default fallback
-    return "Session";
-  }
-
-  // --- Render Logic ---
-
-  // Don't show any signup statuses if the project is cancelled
-  // if (project.status === 'cancelled') {
-  //   return null;
-  // }
-  // NOTE: 'cancelled' is not a valid status. Remove or update this check if you add 'cancelled' to the Project type.
-
-  // --- MODIFIED: Render general signup-only alerts first ---
+  // One notice about the whole event, shown only for sign-up only projects.
   const renderGeneralSignupOnlyAlert = () => {
     if (!isSignupOnly || project.status === "cancelled") return null;
 
     if (isProjectStartingSoon) {
       return (
-        <Card className="mb-6 ring-info/30 bg-info/5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-info/10 p-2 rounded-full">
-                <Info className="h-5 w-5 text-info" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Event Starting Soon!</CardTitle>
-                <CardDescription>
-                  The signup-only event &quot;{project.title}&quot; is scheduled
-                  to start within 24 hours.
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <Alert variant="info">
+          <Info aria-hidden="true" />
+          <AlertTitle>Event starting soon!</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; is scheduled to
+            start within 24 hours.
+          </AlertDescription>
+        </Alert>
       );
     }
     if (isProjectProgressing) {
       return (
-        <Card className="mb-6 ring-warning/30 bg-warning/5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-warning/10 p-2 rounded-full">
-                <Clock className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Event in Progress</CardTitle>
-                <CardDescription>
-                  The signup-only event &quot;{project.title}&quot; is currently
-                  in progress.
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <Alert variant="warning">
+          <Clock aria-hidden="true" />
+          <AlertTitle>Event in progress</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; is currently in
+            progress.
+          </AlertDescription>
+        </Alert>
       );
     }
     if (isProjectCompleted) {
       return (
-        <Card className="mb-6 ring-success/30 bg-success/5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
-            <div className="flex items-center gap-4">
-              <div className="bg-success/10 p-2 rounded-full">
-                <CheckCircle className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Event Completed</CardTitle>
-                <CardDescription>
-                  The signup-only event &quot;{project.title}&quot; has finished
-                  based on its schedule.
-                </CardDescription>
-              </div>
-            </div>
-          </div>
-        </Card>
+        <Alert variant="success">
+          <CheckCircle aria-hidden="true" />
+          <AlertTitle>Event completed</AlertTitle>
+          <AlertDescription>
+            The signup-only event &quot;{project.title}&quot; has finished based
+            on its schedule.
+          </AlertDescription>
+        </Alert>
       );
     }
 
     return null;
   };
-  // --- END MODIFIED ---
 
-  // Don't show any signup statuses if the project is cancelled
-  // if (project.status === 'cancelled') {
-  //   return null;
-  // }
-
-  // Handle case where there are no event cards
   if (!isMounted) {
     return null;
   }
@@ -1346,79 +284,84 @@ export default function UserDashboard({
       />
     ) : null;
 
-  if (!eventCards || eventCards.length === 0) {
+  if (visibleStatuses.length === 0) {
     // Render general alerts and feedback even if no specific signup cards show
     if (!feedbackPrompt && !renderGeneralSignupOnlyAlert()) {
       return null;
     }
     return (
-      <div className="space-y-4 mb-6">
+      <div className="mb-6 grid gap-4">
         {renderGeneralSignupOnlyAlert()}
         {feedbackPrompt}
       </div>
     );
   }
 
+  const cards = visibleStatuses.map((status) => (
+    <UserSignupStatusCard
+      key={status.signup.id}
+      status={status}
+      project={project}
+      hideReminder={hideReminder}
+      onScan={openScanner}
+    />
+  ));
+
   return (
-    <div className="space-y-4 mb-6">
-      {/* --- ADDED: Render general signup-only alert --- */}
+    <section className="mb-6 grid gap-4" aria-label="Your signup">
       {renderGeneralSignupOnlyAlert()}
-      {/* --- END ADDED --- */}
 
       {feedbackPrompt}
 
-      {/* Event Cards Carousel */}
-      <Carousel
-        className="w-full"
-        opts={{
-          align: "start",
-          loop: false,
-        }}
-      >
-        <CarouselContent className="-ml-2 md:-ml-4">
-          {eventCards.map((card, index) => (
-            <CarouselItem key={index} className="pl-2 md:pl-4">
-              {card}
-            </CarouselItem>
-          ))}
-        </CarouselContent>
-        {/* On mobile, rely on swipe/drag to avoid buttons overlaying card content */}
-        <CarouselPrevious className="hidden md:flex -left-3 h-8 w-8" />
-        <CarouselNext className="hidden md:flex -right-3 h-8 w-8" />
-      </Carousel>
+      {cards.length === 1 ? (
+        cards[0]
+      ) : (
+        <Carousel className="w-full" opts={{ align: "start", loop: false }}>
+          <CarouselContent className="-ml-2 md:-ml-4">
+            {cards.map((card) => (
+              <CarouselItem key={card.key} className="pl-2 md:pl-4">
+                {card}
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          {/* On phones, swipe instead of buttons that would cover the card. */}
+          <CarouselPrevious className="-left-3 hidden md:flex" />
+          <CarouselNext className="-right-3 hidden md:flex" />
+        </Carousel>
+      )}
 
-      {/* Replace placeholder Dialog with the actual QRCodeScannerModal - only render for QR code verification method */}
       {project.verification_method === "qr-code" && (
         <QRCodeScannerModal
           isOpen={isCameraModalOpen}
           onClose={() => {
             setIsCameraModalOpen(false);
-            setSelectedScheduleForScan(null); // Clear selected schedule on close
+            setSelectedScheduleForScan(null);
           }}
           projectId={project.id}
           expectedScheduleId={selectedScheduleForScan}
         />
       )}
 
-      {/* Signed Waivers Section */}
       <Card>
         <CardHeader>
-          <CardTitle>My Signed Waivers</CardTitle>
+          <CardTitle>My signed waivers</CardTitle>
           <CardDescription>
             Download copies of waivers you&apos;ve signed
           </CardDescription>
         </CardHeader>
         <CardContent>
           {waiverSignatures.length > 0 ? (
-            <div className="space-y-2">
+            <ul className="divide-y">
               {waiverSignatures.map((sig) => (
-                <div
+                <li
                   key={sig.id}
-                  className="flex items-center justify-between p-3 border rounded"
+                  className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
                 >
-                  <div>
-                    <p className="font-medium">{project.title}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="grid min-w-0 gap-0.5">
+                    <p className="text-sm font-medium wrap-break-word">
+                      {project.title}
+                    </p>
+                    <p className="text-muted-foreground text-sm">
                       Signed{" "}
                       {new Date(
                         sig.signed_at || sig.created_at,
@@ -1427,32 +370,30 @@ export default function UserDashboard({
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      size="sm"
                       variant="outline"
                       onClick={() => viewWaiver(sig.id)}
                     >
-                      <Eye className="size-4 mr-2" />
+                      <Eye data-icon="inline-start" aria-hidden="true" />
                       View
                     </Button>
                     <Button
-                      size="sm"
                       variant="outline"
                       onClick={() => downloadWaiver(sig.id)}
                     >
-                      <Download className="size-4 mr-2" />
+                      <Download data-icon="inline-start" aria-hidden="true" />
                       Download
                     </Button>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               No signed waivers found.
             </p>
           )}
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }

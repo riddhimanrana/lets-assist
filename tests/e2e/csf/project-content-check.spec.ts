@@ -554,9 +554,9 @@ test("content rejection keeps the draft and a valid retry creates one project", 
       };
     });
     await page
-      .getByRole("button", { name: "Edit Project", exact: true })
+      .getByRole("button", { name: "Edit project", exact: true })
       .click();
-    const titleInput = page.getByLabel("Project Title", { exact: true });
+    const titleInput = page.getByLabel("Project title", { exact: true });
     await expect(titleInput).toHaveValue(title);
     expect(editRscRequest).toBeDefined();
     const rsc = await page.evaluate(
@@ -628,7 +628,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     await page.route(`**/projects/${projectId}/edit`, captureUpdateResponse);
     await titleInput.fill(editedTitle);
     const save = page.getByRole("button", {
-      name: "Save Changes",
+      name: "Save changes",
       exact: true,
     });
     await expect(save).toBeEnabled();
@@ -660,7 +660,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
       await route.continue();
     });
     const deleteProject = page.getByRole("button", {
-      name: "Delete Project",
+      name: "Delete project",
       exact: true,
     });
     try {
@@ -676,7 +676,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     const confirmation = page.getByRole("alertdialog");
     await expect(confirmation).toBeVisible();
     await confirmation
-      .getByRole("button", { name: "Delete Project", exact: true })
+      .getByRole("button", { name: "Delete project", exact: true })
       .click();
     await page.waitForURL("**/home", { waitUntil: "domcontentloaded" });
     expect(await readProjects()).toEqual([]);

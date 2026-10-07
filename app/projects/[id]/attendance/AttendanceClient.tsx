@@ -3,46 +3,35 @@ import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { escapeHtml } from "@/lib/security/html";
 import {
-  Search,
-  ArrowLeft,
-  Clock,
-  CheckCircle,
+  AlertCircle,
+  CalendarClock,
   Printer,
   RefreshCw,
-  ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
-  Loader2,
+  Search,
   UserRoundCheck,
-  CalendarClock,
-  AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
-import { format, parseISO, addHours } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
+import { format, addHours } from "date-fns";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { StatStrip } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -56,6 +45,14 @@ import {
   checkInParticipant,
   checkOutParticipant,
 } from "@/app/projects/[id]/actions";
+import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
+import { formatSessionName, type Attendance } from "./attendance-format";
+import { printAttendance as printAttendanceRecords } from "./attendance-print";
+import {
+  AttendanceTable,
+  type AttendanceSort as Sort,
+  type AttendanceSortField as SortField,
+} from "./AttendanceTable";
 
 interface Props {
   projectId: string;
@@ -64,35 +61,6 @@ interface Props {
     earliestTime?: string;
     project?: Project;
   };
-}
-
-type Attendance = {
-  id: string;
-  check_in_time: string | null;
-  check_out_time: string | null;
-  schedule_id: string;
-  user_id: string | null;
-  anonymous_id: string | null;
-  profile?: {
-    full_name: string;
-    username: string;
-    email: string;
-    phone?: string;
-  };
-  anonymous_signup?: {
-    id: string;
-    name: string;
-    email: string;
-    phone_number?: string | null;
-  };
-};
-
-type SortField = "check_in_time" | "name";
-type SortDirection = "asc" | "desc";
-
-interface Sort {
-  field: SortField;
-  direction: SortDirection;
 }
 
 export function AttendanceClient({
@@ -126,111 +94,6 @@ export function AttendanceClient({
       direction:
         current.field === field && current.direction === "asc" ? "desc" : "asc",
     }));
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sort.field !== field) return <ArrowUpDown className="size-4" />;
-    return sort.direction === "asc" ? (
-      <ChevronUp className="size-4" />
-    ) : (
-      <ChevronDown className="size-4" />
-    );
-  };
-
-  // Print attendance list
-  const printAttendance = () => {
-    // Create a hidden print-only container if it doesn't exist yet
-    let printContainer = document.getElementById("print-container");
-    if (!printContainer) {
-      printContainer = document.createElement("div");
-      printContainer.id = "print-container";
-      printContainer.className = "hidden print:block";
-      document.body.appendChild(printContainer);
-    }
-
-    const safeProjectTitle = escapeHtml(project?.title || "Project");
-    const printedAt = escapeHtml(
-      `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
-    );
-
-    // Generate HTML content for printing
-    const printContent = `
-      <div class="print-content">
-      <style>
-        @media print {
-        body > *:not(#print-container) { display: none !important; }
-        #print-container { display: block !important; font-family: Arial, sans-serif; margin: 10px; color: black !important; }
-        h1 { font-size: 18px; margin-bottom: 5px; }
-        h2 { font-size: 14px; margin: 10px 0 5px; }
-        table { width: 100%; border-collapse: collapse; margin: 5px 0; }
-        th, td { border: 1px solid #ddd; padding: 4px; font-size: 12px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        }
-      </style>
-      <h1>Attendance Record - ${safeProjectTitle}</h1>
-      <div>Printed: ${printedAt}</div>
-      ${Object.entries(filteredAttendanceBySession)
-        .map(([session, sessionAttendance]) => {
-          const safeSessionLabel = project
-            ? escapeHtml(formatSessionName(project, session))
-            : escapeHtml(session);
-          return sessionAttendance.length > 0
-            ? `
-        <div class="session-attendance">
-          <h2>${safeSessionLabel}</h2>
-          <table>
-          <thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Check-in Time</th><th>Check-out Time</th></tr></thead>
-          <tbody>
-            ${sessionAttendance
-              .map((a) => {
-                const isRegistered = !!a.user_id;
-                const name = isRegistered
-                  ? a.profile?.full_name
-                  : a.anonymous_signup?.name;
-                const email = isRegistered
-                  ? a.profile?.email
-                  : a.anonymous_signup?.email;
-                const type = isRegistered ? "Registered" : "Anonymous";
-                const checkInTime = a.check_in_time
-                  ? format(parseISO(a.check_in_time), "MMM d, yyyy h:mm a")
-                  : "N/A";
-                const checkOutTime = a.check_out_time
-                  ? format(parseISO(a.check_out_time), "MMM d, yyyy h:mm a")
-                  : "N/A";
-                const safeName = escapeHtml(name || "N/A");
-                const safeEmail = escapeHtml(email || "N/A");
-
-                return `
-              <tr>
-          <td>${safeName}</td>
-          <td>${safeEmail}</td>
-          <td>${escapeHtml(type)}</td>
-          <td>${escapeHtml(checkInTime)}</td>
-          <td>${escapeHtml(checkOutTime)}</td>
-              </tr>
-              `;
-              })
-              .join("")}
-          </tbody>
-          </table>
-        </div>
-        `
-            : "";
-        })
-        .join("")}
-      ${Object.keys(filteredAttendanceBySession).length === 0 ? "<p>No attendance records found.</p>" : ""}
-      </div>
-    `;
-
-    // Set the content and trigger print
-    if (printContainer) {
-      printContainer.innerHTML = printContent;
-
-      // Give the browser a moment to render the content before printing
-      setTimeout(() => {
-        window.print();
-      }, 100);
-    }
   };
 
   // Group attendance by session
@@ -438,441 +301,208 @@ export function AttendanceClient({
     }
   };
 
-  const formatTimeTo12Hour = (time: string) => {
-    if (!time) return "";
-    const [hours, minutes] = time.split(":").map(Number);
-    const period = hours >= 12 ? "PM" : "AM";
-    const adjustedHours = hours % 12 || 12;
-    return `${adjustedHours}:${minutes.toString().padStart(2, "0")} ${period}`;
-  };
+  const printAttendance = () =>
+    printAttendanceRecords(project, filteredAttendanceBySession);
 
-  const formatSessionName = (project: Project, sessionId: string) => {
-    if (sessionId === "all") return "All Sessions";
-    if (!project) return sessionId;
+  const method = project?.verification_method;
+  const manualDisabled = method === "auto" || method === "signup-only";
+  const sessionEntries = Object.entries(filteredAttendanceBySession);
+  const checkedIn = attendance.filter((record) => record.check_in_time).length;
+  const checkedOut = attendance.filter(
+    (record) => record.check_out_time,
+  ).length;
+  const breadcrumb = (
+    <ProjectToolBreadcrumb
+      projectId={projectId}
+      projectTitle={project?.title}
+      current="Attendance"
+    />
+  );
 
-    if (project.event_type === "oneTime") {
-      if (
-        (sessionId === "oneTime" ||
-          sessionId === "0" ||
-          sessionId === "default") &&
-        project.schedule.oneTime
-      ) {
-        const dateStr = project.schedule.oneTime.date;
-        const [year, month, day] = dateStr.split("-").map(Number);
-        const date = new Date(year, month - 1, day);
-        return `${format(date, "MMMM d, yyyy")} from ${formatTimeTo12Hour(project.schedule.oneTime.startTime)} to ${formatTimeTo12Hour(project.schedule.oneTime.endTime)}`;
-      }
-    }
-
-    if (project.event_type === "multiDay") {
-      // Handle day-X-slot-Y format
-      if (sessionId.startsWith("day-") && project.schedule.multiDay) {
-        const parts = sessionId.split("-");
-        if (parts.length >= 4) {
-          const dayIndex = parseInt(parts[1], 10);
-          const slotIndex = parseInt(parts[3], 10);
-          const day = project.schedule.multiDay[dayIndex];
-          const slot = day?.slots[slotIndex];
-          if (day && slot) {
-            const [year, month, d] = day.date.split("-").map(Number);
-            const utcDate = new Date(year, month - 1, d);
-            return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
-          }
-        }
-      }
-
-      // Handle legacy date-slotIndex format or simplified format
-      const parts = sessionId.split("-");
-
-      if (parts.length >= 2) {
-        const slotPart = parts.pop();
-        const date = parts.join("-");
-
-        const day = project.schedule.multiDay?.find((d) => d.date === date);
-
-        if (day && slotPart !== undefined) {
-          const slotIdx = parseInt(slotPart, 10);
-          const slot = day.slots[slotIdx];
-
-          if (slot) {
-            const [year, month, dayNum] = date.split("-").map(Number);
-            const utcDate = new Date(year, month - 1, dayNum);
-            return `${format(utcDate, "EEEE, MMMM d, yyyy")} from ${formatTimeTo12Hour(slot.startTime)} to ${formatTimeTo12Hour(slot.endTime)}`;
-          }
-        }
-      }
-    }
-
-    if (project.event_type === "sameDayMultiArea") {
-      const role = project.schedule.sameDayMultiArea?.roles.find(
-        (r) => r.name === sessionId,
-      );
-
-      if (role) {
-        const eventDate = project.schedule.sameDayMultiArea?.date;
-        if (eventDate) {
-          const [year, month, day] = eventDate.split("-").map(Number);
-          const utcDate = new Date(year, month - 1, day);
-          return `${format(utcDate, "EEEE, MMMM d, yyyy")} - Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
-        } else {
-          return `Role: ${role.name} (${formatTimeTo12Hour(role.startTime)} to ${formatTimeTo12Hour(role.endTime)})`;
-        }
-      }
-    }
-
-    return sessionId;
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="mb-6">
-        <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="size-4" />
-          Back to Project
-        </Button>
-      </div>
-
-      {!isAttendanceActive ? (
-        <Card className="min-h-100 relative">
-          <CardHeader>
-            <CardTitle>Attendance Records</CardTitle>
-            <CardDescription>
-              Attendance management will be available soon
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-            <div className="rounded-full bg-muted p-6 w-fit">
-              <CalendarClock className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mt-6">
-              Attendance management not yet available
-            </h3>
-            <p className="text-muted-foreground max-w-md">
+  if (!isAttendanceActive) {
+    return (
+      <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+        <PageHeader
+          breadcrumb={breadcrumb}
+          title="Attendance records"
+          description="Attendance management will be available soon"
+        />
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CalendarClock aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>Attendance management not yet available</EmptyTitle>
+            <EmptyDescription>
               Attendance records will be available 2 hours before the event
               starts.
               {earliestSessionTime && timeUntilOpen && (
                 <>
-                  <br />
-                  <br />
-                  <span className="block">
-                    <AlertCircle className="inline-block size-4 mr-2 mb-1" />
-                    Attendance will open in {timeUntilOpen}
-                  </span>
-                  <span className="block mt-2 text-sm">
-                    First session starts at:{" "}
-                    {format(earliestSessionTime, "MMMM d, yyyy 'at' h:mm a")}
-                  </span>
+                  {" "}
+                  Attendance will open in {timeUntilOpen}. First session starts
+                  at: {format(earliestSessionTime, "MMMM d, yyyy 'at' h:mm a")}
                 </>
               )}
-            </p>
-          </CardContent>
-          <CardFooter className="justify-center border-t p-4">
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
             <Button variant="outline" onClick={() => router.back()}>
-              Return to Project
+              Return to project
             </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card className="min-h-100 relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-2 mt-10">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  Loading attendance records...
-                </span>
-              </div>
-            </div>
-          )}
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <CardTitle>Attendance Records</CardTitle>
-                <CardDescription>
-                  {project?.verification_method === "manual"
-                    ? "Check in volunteers and manage attendee records"
-                    : project?.verification_method === "auto"
-                      ? "View volunteer attendance (check-ins are automatic)"
-                      : project?.verification_method === "signup-only"
-                        ? "View volunteer attendance records"
-                        : "View and track check-ins for your project"}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
+          </EmptyContent>
+        </Empty>
+      </div>
+    );
+  }
 
-          {/* Display explanatory message for automatic or signup-only methods */}
-          {(project?.verification_method === "auto" ||
-            project?.verification_method === "signup-only") && (
-            <div className="mx-6 mb-4">
-              <Alert>
-                <AlertCircle className="size-4" />
-                <AlertTitle>
-                  {project?.verification_method === "auto"
-                    ? "Automatic Check-in Enabled"
-                    : "Sign-up Only Project"}
-                </AlertTitle>
-                <AlertDescription>
-                  {project?.verification_method === "auto"
-                    ? "Volunteers will be automatically checked in at their scheduled start time. Manual check-in is not required."
-                    : "This project is configured for sign-up tracking only. No check-in functionality is available."}
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
+  return (
+    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+      <PageHeader
+        breadcrumb={breadcrumb}
+        title="Attendance records"
+        description={
+          method === "manual"
+            ? "Check in volunteers and manage attendee records"
+            : method === "auto"
+              ? "View volunteer attendance (check-ins are automatic)"
+              : method === "signup-only"
+                ? "View volunteer attendance records"
+                : "View and track check-ins for your project"
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={loadAttendance}
+              disabled={refreshing}
+              aria-label="Refresh"
+            >
+              <RefreshCw
+                data-icon="inline-start"
+                className={refreshing ? "animate-spin" : undefined}
+                aria-hidden="true"
+              />
+              Refresh
+            </Button>
+            <Button
+              onClick={printAttendance}
+              disabled={sessionEntries.length === 0}
+              aria-label="Print Attendance"
+            >
+              <Printer data-icon="inline-start" aria-hidden="true" />
+              Print attendance
+            </Button>
+          </>
+        }
+      />
 
-          <CardContent className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
-              {/* Search input always full width on mobile */}
-              <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
-                <div className="relative w-full">
-                  <Search className="absolute left-2.5 top-3 size-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name or email..."
-                    className="pl-8 w-full"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    aria-label="Search by name or email"
-                  />
-                </div>
-                {/* Session filter and action buttons row */}
-                <div className="flex flex-row gap-2 w-full sm:w-auto items-center">
-                  <Select
-                    value={sessionFilter}
-                    onValueChange={(val) => setSessionFilter(val || "all")}
-                  >
-                    <SelectTrigger
-                      className="w-full sm:min-w-60 sm:w-auto"
-                      aria-label="Filter by session"
-                    >
-                      <SelectValue placeholder="Filter by session">
-                        {sessionFilter === "all"
-                          ? "All Sessions"
-                          : project
-                            ? formatSessionName(project, sessionFilter)
-                            : "Filter by session"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="max-w-100">
-                      <SelectItem value="all">All Sessions</SelectItem>
-                      {availableSessions.map((session) => (
-                        <SelectItem key={session} value={session}>
-                          {formatSessionName(project as Project, session)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {/* Action buttons: icons only on mobile, icons+text on desktop */}
-                  <div className="flex flex-row gap-1 sm:gap-2">
-                    <Button
-                      variant="outline"
-                      className="p-3 sm:gap-2"
-                      onClick={printAttendance}
-                      disabled={
-                        Object.keys(filteredAttendanceBySession).length === 0
-                      }
-                      aria-label="Print Attendance"
-                    >
-                      <Printer className="size-4" />
-                      <span className="hidden sm:inline">Print Attendance</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="p-3 sm:gap-2"
-                      onClick={loadAttendance}
-                      disabled={refreshing}
-                      aria-label="Refresh"
-                    >
-                      <RefreshCw
-                        className={`size-4 ${refreshing ? "animate-spin" : ""}`}
-                      />
-                      <span className="hidden sm:inline">Refresh</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <StatStrip
+        items={[
+          { label: "Signed up", value: loading ? "–" : attendance.length },
+          { label: "Checked in", value: loading ? "–" : checkedIn },
+          { label: "Checked out", value: loading ? "–" : checkedOut },
+          {
+            label: "Not checked in",
+            value: loading ? "–" : attendance.length - checkedIn,
+          },
+        ]}
+      />
 
-            {Object.entries(filteredAttendanceBySession).map(
-              ([session, sessionAttendance]) => (
-                <div key={session} className="space-y-2">
-                  <h3 className="font-medium text-sm text-muted-foreground">
-                    {project && formatSessionName(project, session)}
-                  </h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead
-                          className="cursor-pointer hover:text-foreground transition-colors"
-                          onClick={() => toggleSort("name")}
-                        >
-                          <div className="flex items-center min-w-30">
-                            Name
-                            {getSortIcon("name")}
-                          </div>
-                        </TableHead>
-                        <TableHead
-                          className="cursor-pointer hover:text-foreground transition-colors"
-                          onClick={() => toggleSort("check_in_time")}
-                        >
-                          <div className="flex items-center min-w-[115px]">
-                            Check-in Time
-                            {getSortIcon("check_in_time")}
-                          </div>
-                        </TableHead>
-                        <TableHead>Check-out Time</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sessionAttendance.map((record) => {
-                        const isRegistered = !!record.user_id;
-                        const name = isRegistered
-                          ? record.profile?.full_name
-                          : record.anonymous_signup?.name;
-                        const email = isRegistered
-                          ? record.profile?.email
-                          : record.anonymous_signup?.email;
-                        const phone = isRegistered
-                          ? record.profile?.phone
-                          : record.anonymous_signup?.phone_number;
-                        const checkInTime = record.check_in_time
-                          ? format(parseISO(record.check_in_time), "h:mm a")
-                          : "N/A";
-                        const checkOutTime = record.check_out_time
-                          ? format(parseISO(record.check_out_time), "h:mm a")
-                          : "N/A";
-
-                        return (
-                          <TableRow key={record.id}>
-                            <TableCell className="font-medium">
-                              {name || "N/A"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  checkInTime !== "N/A" ? "default" : "outline"
-                                }
-                                className="gap-1"
-                              >
-                                {checkInTime !== "N/A" ? (
-                                  <CheckCircle
-                                    className="h-3 w-3 shrink-0"
-                                    aria-label="Checked in"
-                                  />
-                                ) : (
-                                  <Clock
-                                    className="h-3 w-3 shrink-0"
-                                    aria-label="Not checked in"
-                                  />
-                                )}
-                                {checkInTime}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  checkOutTime !== "N/A" ? "default" : "outline"
-                                }
-                                className="gap-1"
-                              >
-                                {checkOutTime !== "N/A" ? (
-                                  <CheckCircle
-                                    className="h-3 w-3 shrink-0"
-                                    aria-label="Checked out"
-                                  />
-                                ) : (
-                                  <Clock
-                                    className="h-3 w-3 shrink-0"
-                                    aria-label="Not checked out"
-                                  />
-                                )}
-                                {checkOutTime}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-0.5">
-                                <span>{email}</span>
-                                {isRegistered && phone && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {phone.replace(
-                                      /^(\d{3})(\d{3})(\d{4})$/,
-                                      "$1-$2-$3",
-                                    )}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleManualCheckIn(record.id)}
-                                  disabled={
-                                    !!record.check_in_time ||
-                                    project?.verification_method === "auto" ||
-                                    project?.verification_method ===
-                                      "signup-only"
-                                  }
-                                  className={cn(
-                                    (record.check_in_time ||
-                                      project?.verification_method === "auto" ||
-                                      project?.verification_method ===
-                                        "signup-only") &&
-                                      "opacity-50 cursor-not-allowed",
-                                  )}
-                                >
-                                  Check in
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleManualCheckOut(record.id)
-                                  }
-                                  disabled={
-                                    !record.check_in_time ||
-                                    project?.verification_method === "auto" ||
-                                    project?.verification_method ===
-                                      "signup-only"
-                                  }
-                                  className={cn(
-                                    (!record.check_in_time ||
-                                      project?.verification_method === "auto" ||
-                                      project?.verification_method ===
-                                        "signup-only") &&
-                                      "opacity-50 cursor-not-allowed",
-                                  )}
-                                >
-                                  Check out
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              ),
-            )}
-
-            {Object.keys(filteredAttendanceBySession).length === 0 &&
-              !loading && (
-                <div className="flex flex-col items-center text-muted-foreground gap-2 py-10">
-                  <UserRoundCheck className="h-8 w-8 mt-10" />
-                  <p className="text-lg font-medium">
-                    No attendance records found
-                  </p>
-                  <p className="text-sm">
-                    No one has checked in yet or no records match your filters.
-                  </p>
-                </div>
-              )}
-          </CardContent>
-        </Card>
+      {(method === "auto" || method === "signup-only") && (
+        <Alert>
+          <AlertCircle aria-hidden="true" />
+          <AlertTitle>
+            {method === "auto"
+              ? "Automatic check-in enabled"
+              : "Sign-up only project"}
+          </AlertTitle>
+          <AlertDescription>
+            {method === "auto"
+              ? "Volunteers will be automatically checked in at their scheduled start time. Manual check-in is not required."
+              : "This project is configured for sign-up tracking only. No check-in functionality is available."}
+          </AlertDescription>
+        </Alert>
       )}
+
+      <section className="grid gap-4" aria-label="Attendance">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <InputGroup className="sm:max-w-xs">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search by name or email"
+            />
+          </InputGroup>
+          <Select
+            value={sessionFilter}
+            onValueChange={(val) => setSessionFilter(val || "all")}
+          >
+            <SelectTrigger
+              className="w-full sm:w-auto sm:min-w-60"
+              aria-label="Filter by session"
+            >
+              <SelectValue placeholder="Filter by session">
+                {sessionFilter === "all"
+                  ? "All sessions"
+                  : project
+                    ? formatSessionName(project, sessionFilter)
+                    : "Filter by session"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-w-100">
+              <SelectItem value="all">All sessions</SelectItem>
+              {availableSessions.map((session) => (
+                <SelectItem key={session} value={session}>
+                  {formatSessionName(project as Project, session)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {loading ? (
+          <div className="grid gap-2" aria-busy="true">
+            <span className="sr-only">Loading attendance records...</span>
+            <Skeleton className="h-5 w-64" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        ) : sessionEntries.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <UserRoundCheck aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>No attendance records found</EmptyTitle>
+              <EmptyDescription>
+                No one has checked in yet or no records match your filters.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          sessionEntries.map(([session, sessionAttendance]) => (
+            <div key={session} className="grid gap-2">
+              <h2 className="text-sm font-medium">
+                {project && formatSessionName(project, session)}{" "}
+                <span className="text-muted-foreground font-normal tabular-nums">
+                  ({sessionAttendance.length})
+                </span>
+              </h2>
+              <AttendanceTable
+                records={sessionAttendance}
+                sort={sort}
+                onSort={toggleSort}
+                manualDisabled={manualDisabled}
+                onCheckIn={handleManualCheckIn}
+                onCheckOut={handleManualCheckOut}
+              />
+            </div>
+          ))
+        )}
+      </section>
     </div>
   );
 }

@@ -17,7 +17,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Clock,
@@ -26,13 +28,10 @@ import {
   UserCheck,
   ClipboardList,
   AlertTriangle,
-  CalendarClock,
-  CalendarDays,
   GanttChart,
   CheckCheck,
   CalendarCheck,
   Star,
-  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -781,34 +780,14 @@ export default function ProjectTimeline({
     );
   }, [milestones, activeTab]);
 
-  // Function to get event type display
-  const getEventTypeDisplay = () => {
-    switch (project.event_type) {
-      case "oneTime":
-        return (
-          <div className="flex items-center gap-2">
-            <Clock className="size-4 text-primary" />
-            <span>One-time Event</span>
-          </div>
-        );
-      case "multiDay":
-        return (
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-primary" />
-            <span>Multi-day Event</span>
-          </div>
-        );
-      case "sameDayMultiArea":
-        return (
-          <div className="flex items-center gap-2">
-            <GanttChart className="size-4 text-primary" />
-            <span>Multi-role Event</span>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  const eventTypeLabel =
+    project.event_type === "oneTime"
+      ? "One-time event"
+      : project.event_type === "multiDay"
+        ? "Multi-day event"
+        : project.event_type === "sameDayMultiArea"
+          ? "Multi-role event"
+          : null;
 
   // Get formatted event dates
   const getFormattedEventDates = () => {
@@ -834,42 +813,35 @@ export default function ProjectTimeline({
 
   return (
     <Dialog open={open} onOpenChange={onOpenAction}>
-      <DialogContent className="sm:max-w-200 max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-            <CalendarClock className="h-5 w-5" />
-            Project Timeline
-          </DialogTitle>
+          <DialogTitle>Project timeline</DialogTitle>
           <DialogDescription>
             View the complete lifecycle of your project from creation to
             completion
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-2">
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <Badge variant="outline" className="flex items-center gap-1.5">
-              {getEventTypeDisplay()}
-            </Badge>
-            <Badge variant="secondary" className="flex items-center gap-1.5">
-              <Calendar className="size-4" />
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {eventTypeLabel ? (
+              <Badge variant="outline">{eventTypeLabel}</Badge>
+            ) : null}
+            <Badge variant="secondary">
+              <Calendar aria-hidden="true" />
               {getFormattedEventDates()}
             </Badge>
           </div>
 
           {/* Tabs for multi-day or multi-role events */}
           {tabs.length > 1 && (
-            <Tabs
-              defaultValue="all"
-              className="w-full mb-4"
-              onValueChange={setActiveTab}
-            >
-              <TabsList className="mb-2 overflow-x-auto flex whitespace-nowrap w-full justify-start">
+            <Tabs defaultValue="all" onValueChange={setActiveTab}>
+              <TabsList className="w-full justify-start">
                 {tabs.map((tab) => (
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="min-w-fit"
+                    className="min-w-fit flex-none"
                   >
                     {tab.label}
                   </TabsTrigger>
@@ -878,7 +850,6 @@ export default function ProjectTimeline({
             </Tabs>
           )}
 
-          {/* Main timeline container - Replaced with new Timeline component */}
           <Timeline data-testid="timeline-container">
             {filteredMilestones.map((milestone, index) => {
               const status = milestone.isCurrent
@@ -890,9 +861,8 @@ export default function ProjectTimeline({
                 <TimelineItem
                   key={`${milestone.id}-${milestone.category}`}
                   status={status}
-                  className="group" // Add group class for connector styling
+                  className="group"
                 >
-                  {/* Render connector unless it's the last item */}
                   {index < filteredMilestones.length - 1 && (
                     <TimelineConnector />
                   )}
@@ -901,142 +871,82 @@ export default function ProjectTimeline({
                     <TimelineIcon status={status}>
                       {milestone.icon}
                     </TimelineIcon>
-                    <div className="flex-1">
+                    <div className="grid flex-1 gap-0.5">
                       <TimelineTitle>{milestone.title}</TimelineTitle>
-                      <div className="flex items-center text-sm text-muted-foreground mt-1">
-                        <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                        <span>
-                          {milestone.startDate &&
-                          milestone.endDate &&
-                          !isSameDay(milestone.startDate, milestone.endDate)
-                            ? `${format(milestone.startDate, "MMM d")} - ${format(milestone.endDate, "MMM d, yyyy")}`
-                            : format(
-                                milestone.date,
-                                isSameDay(milestone.date, now)
-                                  ? "'Today,' MMMM d, yyyy"
-                                  : "MMMM d, yyyy",
-                              )}
-                        </span>
-                      </div>
+                      <p className="text-muted-foreground text-sm">
+                        {milestone.startDate &&
+                        milestone.endDate &&
+                        !isSameDay(milestone.startDate, milestone.endDate)
+                          ? `${format(milestone.startDate, "MMM d")} - ${format(milestone.endDate, "MMM d, yyyy")}`
+                          : format(
+                              milestone.date,
+                              isSameDay(milestone.date, now)
+                                ? "'Today,' MMMM d, yyyy"
+                                : "MMMM d, yyyy",
+                            )}
+                      </p>
                     </div>
                   </TimelineHeader>
 
-                  <TimelineContent>
-                    <p className="text-sm mb-2 text-muted-foreground">
+                  <TimelineContent className="grid gap-3">
+                    <p className="text-muted-foreground text-sm">
                       {milestone.description}
                     </p>
 
-                    {/* Milestone children events */}
                     {milestone.children && milestone.children.length > 0 && (
-                      <div className="mt-4 space-y-3 pl-2 border-l-2 border-muted">
+                      <ul className="grid gap-3 border-l pl-4">
                         {milestone.children.map((event) => {
-                          const eventStatus = event.isCurrent
-                            ? "current"
-                            : event.isPassed
-                              ? "passed"
-                              : "future";
+                          const reached = event.isCurrent || event.isPassed;
                           return (
-                            <div
+                            <li
                               key={event.id}
                               className={cn(
-                                "flex items-start gap-3 relative pl-6",
-                                eventStatus === "current" ||
-                                  eventStatus === "passed"
-                                  ? "text-primary"
-                                  : "text-muted-foreground",
+                                "flex items-start gap-3",
+                                !reached && "text-muted-foreground",
                               )}
                             >
-                              {/* Event connector */}
-                              <div
+                              <span
                                 className={cn(
-                                  "absolute left-[-5px] top-2.5 h-px w-5 transition-colors duration-300",
-                                  eventStatus === "current" ||
-                                    eventStatus === "passed"
-                                    ? "bg-primary"
+                                  "flex size-6 shrink-0 items-center justify-center rounded-full",
+                                  reached
+                                    ? "bg-primary/10 text-primary"
                                     : "bg-muted",
-                                )}
-                              />
-
-                              {/* Event marker */}
-                              <div
-                                className={cn(
-                                  "absolute left-[-10px] top-1 w-2.5 h-2.5 rounded-full transition-colors duration-300",
-                                  eventStatus === "current"
-                                    ? "bg-primary ring-2 ring-primary/50" // Current style
-                                    : eventStatus === "passed"
-                                      ? "bg-primary" // Passed style
-                                      : "bg-muted", // Future style
-                                )}
-                              />
-
-                              {/* Event icon */}
-                              <div
-                                className={cn(
-                                  "min-w-6.5 h-6.5 rounded-full flex items-center justify-center transition-colors duration-300",
-                                  eventStatus === "current"
-                                    ? "bg-primary/20 text-primary" // Current style
-                                    : eventStatus === "passed"
-                                      ? "bg-primary/15 text-primary" // Passed style
-                                      : "bg-muted/30 text-muted-foreground", // Future style
+                                  event.isCurrent && "ring-primary/40 ring-2",
                                 )}
                               >
                                 {event.icon}
-                              </div>
-
-                              {/* Event content */}
-                              <div className="flex-1">
-                                <div className="flex items-center gap-1">
-                                  <h4
-                                    className={cn(
-                                      "text-sm font-medium",
-                                      eventStatus === "current" ||
-                                        eventStatus === "passed"
-                                        ? "text-primary"
-                                        : "",
-                                    )}
-                                  >
-                                    {event.title}
-                                  </h4>
+                              </span>
+                              <div className="grid flex-1 gap-0.5">
+                                <p className="flex flex-wrap items-baseline gap-x-2 text-sm font-medium">
+                                  {event.title}
                                   {event.startDate && event.endDate && (
-                                    <span className="flex items-center text-xs">
-                                      <ChevronRight className="h-3 w-3" />
-                                      <span
-                                        className={
-                                          eventStatus === "current" ||
-                                          eventStatus === "passed"
-                                            ? "text-primary"
-                                            : ""
-                                        }
-                                      >
-                                        {format(event.startDate, "h:mm a")} -{" "}
-                                        {format(event.endDate, "h:mm a")}
-                                      </span>
+                                    <span className="text-muted-foreground font-normal tabular-nums">
+                                      {format(event.startDate, "h:mm a")} -{" "}
+                                      {format(event.endDate, "h:mm a")}
                                     </span>
                                   )}
-                                </div>
+                                </p>
                                 {!event.startDate && !event.endDate && (
-                                  <p className="text-xs mt-0.5">
+                                  <p className="text-muted-foreground text-sm">
                                     {event.description}
                                   </p>
                                 )}
-                                {event.details && (
-                                  <div className="mt-1">{event.details}</div>
-                                )}
+                                {event.details}
                               </div>
-                            </div>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ul>
                     )}
 
                     {project.pause_signups &&
                       milestone.id.startsWith("signup") && (
-                        <div className="mt-3 flex items-center bg-warning/10 text-foreground px-3 py-2 rounded-md text-xs">
-                          <AlertTriangle className="h-3.5 w-3.5 mr-2 shrink-0" />
-                          <span>
+                        <Alert variant="warning">
+                          <AlertTriangle aria-hidden="true" />
+                          <AlertDescription>
                             Sign-ups are currently paused by project coordinator
-                          </span>
-                        </div>
+                          </AlertDescription>
+                        </Alert>
                       )}
                   </TimelineContent>
                 </TimelineItem>
@@ -1045,9 +955,9 @@ export default function ProjectTimeline({
           </Timeline>
         </div>
 
-        <div className="mt-4 flex justify-end">
-          <DialogClose render={<Button>Close</Button>} />
-        </div>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline">Close</Button>} />
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

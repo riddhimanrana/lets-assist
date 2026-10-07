@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -411,24 +412,25 @@ export function CaptureStep({
           Add every page of the sheet before scanning.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="grid gap-4">
         {pendingCleanup && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            <p>
-              The scan failed and its uploaded photos still need to be released.
-              Retry cleanup before leaving this page.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              disabled={cleanupBusy}
-              onClick={retryOrphanCleanup}
-            >
-              {cleanupBusy ? "Retrying cleanup…" : "Retry cleanup"}
-            </Button>
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription className="grid gap-3">
+              <p>
+                The scan failed and its uploaded photos still need to be
+                released. Retry cleanup before leaving this page.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="justify-self-start"
+                disabled={cleanupBusy}
+                onClick={retryOrphanCleanup}
+              >
+                {cleanupBusy ? "Retrying cleanup…" : "Retry cleanup"}
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
         {existingBatch && existingBatch.status !== "review" && (
           <p className="text-sm text-muted-foreground">
@@ -465,9 +467,9 @@ export function CaptureStep({
                     variant="secondary"
                     aria-label={`Remove page ${index + 1}`}
                     onClick={() => removePhoto(photo.key)}
-                    className="absolute right-1 top-1 size-7 text-destructive"
+                    className="text-destructive absolute top-1 right-1"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 aria-hidden="true" />
                   </Button>
                 )}
               </li>
@@ -476,7 +478,7 @@ export function CaptureStep({
         )}
 
         {busy && (
-          <div className="space-y-2">
+          <div className="grid gap-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Spinner className="size-4" />
               {phase.kind === "compressing" &&
@@ -498,7 +500,7 @@ export function CaptureStep({
       </CardContent>
       <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onBack} disabled={busy}>
-          <ArrowLeft className="size-4" />
+          <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Change session
         </Button>
         <Button
@@ -506,7 +508,7 @@ export function CaptureStep({
           disabled={busy || pendingCleanup !== null || photos.length === 0}
           className="w-full sm:w-auto"
         >
-          <ScanText className="size-4" />
+          <ScanText data-icon="inline-start" aria-hidden="true" />
           Scan{" "}
           {photos.length > 0
             ? `${photos.length} photo${photos.length === 1 ? "" : "s"}`
