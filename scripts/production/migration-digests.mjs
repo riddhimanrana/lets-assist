@@ -1384,4 +1384,28 @@ export const migrationDigests = {
     "fec4982c4bd1836bdbcbb1cad28412263ecc97b76f5a9d1bfe50a43a19263e8b",
   "20260929051500_csf_review_removed_activity_submissions.sql":
     "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
+  "20261007034144_preserve_reference_scope_on_deletion.sql":
+    "221fd0044551e8c4798b2dcdb84549d74c475bb5bb7687b5948cc7814b96801e",
+  "20261007035204_bounded_project_occupancy.sql":
+    "50879cea65568381df6e9e85f47d9e6fcd8b1725e4a7a96208d90e91f2e305dc",
+  "20261007040314_durable_account_deletion.sql":
+    "ccc6638445748a359a60005d668268350df68e5ddc6d70e75b01dd216342c4d7",
+  "20261007043000_organization_suppression_cascade.sql":
+    "02ac18723b2cea4cbabda727f57da3c6ccbc6015a6d9c376cd6e942c0f3d7666",
+  "20261007044000_project_schedule_health.sql":
+    "6ab649bdd994d670406e02e62cf031743c8f4da8d35c3af27306e24417f74f56",
+  "20261007045000_csf_sheet_scope_observation.sql":
+    "b40d1db3a851715373379606c5b599416ae1e73718a92b21c3a9ab6ff01e3609",
+  "20261007050000_personal_calendar_sync_receipts.sql":
+    "756bfa649dfaa51d671bbbbfb24c8e3e4c77a3a946af2ffe41c69535463965b3",
+  "20261007050200_organization_calendar_destination.sql":
+    "cbbd63fb2bb2d2a973e4c59f7e730afe6681c826443cdc8636860f229d906095",
+  "20261007050600_account_export_snapshot.sql":
+    "345eea7aee0c367749672564668cb843f6ba97ba718177a9b21968135322a7e7",
+  "20261007051000_worker_run_health_receipts.sql":
+    "37863f1fa9262b33ac944296a396d8a5331b79da147505e4d8e1f6ef0163bdea",
+  "20261007052000_csf_decision_receipt_run_index.sql":
+    "f1670cfa9bbd4f97b0ba5b2718569ee206e19d1f1dc026025aaccdbe31326e3e",
+  "20261007200000_dv_atomic_membership_application.sql":
+    "c702cfaa4af34dac3ee935f88e7b26b1cae2d29a1dc843cb51b2806cc5522ab4",
 };
