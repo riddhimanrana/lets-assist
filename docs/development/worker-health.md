@@ -105,7 +105,8 @@ be enabled as part of these source tests.
 
 Focused unit tests cover classification, timeout-safe observation, response
 preservation, missing telemetry, deployment binding, stale/crashed runs and
-activation evidence refusal. The authored database tests still require an
-owned database replay; source validation does not replace execution. Broader
-worker coverage, physical retention during a prolonged pause, and independent
-alert provisioning remain follow-up work.
+activation evidence refusal. The database tests passed in the owned 699-migration
+replay. The [cleanup register](cleanup-register.md) records current acceptance;
+local execution does not prove hosted monitoring. Broader worker coverage,
+physical retention during a prolonged pause, and independent alert provisioning
+remain follow-up work.

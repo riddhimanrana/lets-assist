@@ -84,6 +84,7 @@ and UI suites on the integrated candidate. Inspect legacy pending/processing job
 before enabling the scheduler: activation can send queued notification emails.
 A local unit test does not prove the hosted scheduler is running.
 
-During implementation, unit, caller, access, and recovery tests passed. Database
-replay and browser acceptance remain pending while the owned Docker stack is
-unavailable. Nothing in this document records a hosted or Production release.
+Unit, caller, access, recovery and database protocol tests passed on the owned
+local candidate. Integrated worker and browser acceptance remain pending. The
+[cleanup register](cleanup-register.md) records current acceptance and release
+status. Nothing here establishes a hosted or Production release.
