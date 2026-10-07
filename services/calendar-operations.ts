@@ -29,7 +29,7 @@ import {
   getValidAccessToken,
   hasRequiredScopes,
   isTokenExpired,
-  refreshAccessToken,
+  requestGoogleAccessTokenRefresh,
 } from "./calendar";
 
 export async function ensureOrganizationCalendar(
@@ -166,14 +166,18 @@ export async function revokeGoogleCalendarAccess(
   refreshToken: string,
 ): Promise<boolean> {
   try {
-    const response = await fetch(
-      `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(refreshToken)}`,
-      { method: "POST" },
-    );
+    const response = await fetch(GOOGLE_REVOKE_URL, {
+      method: "POST",
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ token: refreshToken }),
+    });
 
     return response.ok;
-  } catch (error) {
-    safeConsole.error("Error revoking access:", error);
+  } catch {
+    safeConsole.error("Error revoking access:");
     return false;
   }
 }
@@ -443,17 +447,10 @@ export async function getGoogleAccessTokenForUser(
       .eq("refresh_token", connection.refresh_token);
     if (error) safeConsole.error("Failed to rotate Google refresh credential");
   }
-  const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
-
-  if (!refreshed) {
-    await supabase
-      .from("user_calendar_connections")
-      .update({ is_active: false })
-      .eq("id", connection.id)
-      .eq("user_id", userId)
-      .eq("provider", "google");
-    return null;
-  }
+  const refreshed = await requestGoogleAccessTokenRefresh(
+    decryptedRefresh.plaintext,
+  );
+  if (refreshed.status === "unavailable") return null;
 
   // Refresh is an external network boundary. Membership, plugin access, or a
   // CSF capability can be revoked while Google is responding, so repeat the
@@ -480,12 +477,34 @@ export async function getGoogleAccessTokenForUser(
   if (
     !currentConnection ||
     currentConnection.id !== connection.id ||
+    currentConnection.access_token !== connection.access_token ||
+    currentConnection.refresh_token !==
+      (decryptedRefresh.reencrypted ?? connection.refresh_token) ||
+    currentConnection.token_expires_at !== connection.token_expires_at ||
     !googleOAuthConnectionHasVerifiedCsfIdentity(options.expectedBinding, {
       connectionEmail: currentConnection.calendar_email,
       identityEmail: currentConnection.binding_identity_email,
       identityVerifiedAt: currentConnection.binding_identity_verified_at,
     })
   ) {
+    return null;
+  }
+
+  if (refreshed.status === "invalid_grant") {
+    // A reconnect or another successful refresh must win over this stale failure.
+    await supabase
+      .from("user_calendar_connections")
+      .update({ is_active: false })
+      .eq("id", connection.id)
+      .eq("user_id", userId)
+      .eq("provider", "google")
+      .eq("is_active", true)
+      .eq("access_token", connection.access_token)
+      .eq(
+        "refresh_token",
+        decryptedRefresh.reencrypted ?? connection.refresh_token,
+      )
+      .eq("token_expires_at", connection.token_expires_at);
     return null;
   }
 
@@ -501,6 +520,13 @@ export async function getGoogleAccessTokenForUser(
     .eq("id", connection.id)
     .eq("user_id", userId)
     .eq("provider", "google")
+    .eq("is_active", true)
+    .eq("access_token", connection.access_token)
+    .eq(
+      "refresh_token",
+      decryptedRefresh.reencrypted ?? connection.refresh_token,
+    )
+    .eq("token_expires_at", connection.token_expires_at)
     .select("id")
     .maybeSingle();
 

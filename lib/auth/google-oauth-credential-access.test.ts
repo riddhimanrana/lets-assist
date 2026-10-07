@@ -9,8 +9,14 @@ let bound: boolean;
 let expires: string;
 let revokeDuringRefresh: boolean;
 let disconnectDuringRefresh: boolean;
+let replaceCredentialsDuringRefresh: boolean;
+let currentAccessToken: string;
 let writeFailure: "error" | "missing" | null;
 let providerCalls: number;
+let providerStatus: number;
+let providerBody: unknown;
+let providerFailure: Error | null;
+const requests: Array<{ url: string; init: RequestInit | undefined }> = [];
 const reads: Array<{ table: string; filters: Record<string, unknown> }> = [];
 const writes: Array<{
   table: string;
@@ -71,7 +77,7 @@ mock.module("@/lib/supabase/admin", () => ({
               id: connectionId,
               user_id: owner,
               provider: "google",
-              access_token: "fictional-access-ciphertext",
+              access_token: currentAccessToken,
               refresh_token: "fictional-refresh-ciphertext",
               calendar_email: "owner@local.test",
               token_expires_at: expires,
@@ -118,16 +124,22 @@ mock.module("@/lib/encryption", () => ({
   encrypt: (value: string) => `encrypted:${value}`,
 }));
 const originalFetch = globalThis.fetch;
-const provider = mock(async (url: string | URL | Request) => {
-  expect(String(url)).toBe("https://oauth2.googleapis.com/token");
-  providerCalls++;
-  if (revokeDuringRefresh) sessionUser = other;
-  if (disconnectDuringRefresh) bound = false;
-  return Response.json({
-    access_token: "fictional-refreshed",
-    expires_in: 3600,
-  });
-});
+const provider = mock(
+  async (url: string | URL | Request, init?: RequestInit) => {
+    expect([
+      "https://oauth2.googleapis.com/token",
+      "https://oauth2.googleapis.com/revoke",
+    ]).toContain(String(url));
+    providerCalls++;
+    requests.push({ url: String(url), init });
+    if (revokeDuringRefresh) sessionUser = other;
+    if (disconnectDuringRefresh) bound = false;
+    if (replaceCredentialsDuringRefresh)
+      currentAccessToken = "fictional-reconnected-ciphertext";
+    if (providerFailure) throw providerFailure;
+    return Response.json(providerBody, { status: providerStatus });
+  },
+);
 globalThis.fetch = provider as unknown as typeof fetch;
 afterAll(() => {
   globalThis.fetch = originalFetch;
@@ -138,11 +150,13 @@ const {
   hasUnboundActiveGoogleOAuthConnection,
   hasOtherActiveGoogleOAuthConnection,
 } = await import("./google-oauth-connection-store");
-const { getValidAccessToken } = await import("@/services/calendar");
+const { getValidAccessToken, refreshAccessToken, isTokenExpired } =
+  await import("@/services/calendar");
 const {
   getGoogleAccessTokenForUser,
   deactivateGoogleConnection,
   markPersonalCalendarConnectionSynced,
+  revokeGoogleCalendarAccess,
 } = await import("@/services/calendar-operations");
 beforeEach(() => {
   sessionUser = owner;
@@ -151,8 +165,14 @@ beforeEach(() => {
   expires = "2020-01-01T00:00:00Z";
   revokeDuringRefresh = false;
   disconnectDuringRefresh = false;
+  replaceCredentialsDuringRefresh = false;
+  currentAccessToken = "fictional-access-ciphertext";
   writeFailure = null;
   providerCalls = 0;
+  providerStatus = 200;
+  providerBody = { access_token: "fictional-refreshed", expires_in: 3600 };
+  providerFailure = null;
+  requests.length = 0;
   reads.length = 0;
   writes.length = 0;
   order.length = 0;
@@ -266,6 +286,10 @@ test("server refresh preserves explicit service access and exact binding predica
     id: connectionId,
     user_id: owner,
     provider: "google",
+    is_active: true,
+    access_token: "fictional-access-ciphertext",
+    refresh_token: "fictional-refresh-ciphertext",
+    token_expires_at: expires,
   });
 });
 
@@ -295,6 +319,12 @@ test("personal refresh refuses a concurrently disconnected binding", async () =>
   expect(writes).toEqual([]);
 });
 
+test("a successful refresh cannot replace a reconnected grant on the same row", async () => {
+  replaceCredentialsDuringRefresh = true;
+  expect(await getValidAccessToken(owner)).toBeNull();
+  expect(writes).toEqual([]);
+});
+
 test.each(["error", "missing"] as const)(
   "personal refresh requires confirmed persistence after %s result",
   async (failure) => {
@@ -304,3 +334,130 @@ test.each(["error", "missing"] as const)(
     expect(writes).toHaveLength(1);
   },
 );
+
+test.each([429, 500, 503])(
+  "HTTP %s leaves a valid connection available for retry",
+  async (status) => {
+    providerStatus = status;
+    providerBody = { error: "invalid_grant" };
+    expect(await getValidAccessToken(owner)).toBeNull();
+    expect(writes).toEqual([]);
+  },
+);
+
+test.each(["invalid_client", "invalid_request"])(
+  "%s does not revoke the user's grant",
+  async (error) => {
+    providerStatus = 400;
+    providerBody = { error };
+    expect(await getValidAccessToken(owner)).toBeNull();
+    expect(writes).toEqual([]);
+  },
+);
+
+test.each([
+  new TypeError("fictional transport failure"),
+  new DOMException("fictional timeout", "TimeoutError"),
+])("transport failure %s preserves the connection", async (error) => {
+  providerFailure = error;
+  expect(await getValidAccessToken(owner)).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+test.each([
+  null,
+  {},
+  { access_token: "", expires_in: 3600 },
+  { access_token: "fictional-token", expires_in: "3600" },
+  { access_token: "fictional-token", expires_in: 0 },
+  { access_token: "fictional-token", expires_in: -1 },
+  { access_token: "fictional-token", expires_in: 1.5 },
+  { access_token: "fictional-token", expires_in: Number.MAX_SAFE_INTEGER },
+])(
+  "malformed token response %# cannot update or deactivate credentials",
+  async (body) => {
+    providerBody = body;
+    expect(await getValidAccessToken(owner)).toBeNull();
+    expect(writes).toEqual([]);
+  },
+);
+
+test("an explicit invalid grant deactivates only the unchanged credential after revalidation", async () => {
+  providerStatus = 400;
+  providerBody = { error: "invalid_grant" };
+  expect(await getValidAccessToken(owner)).toBeNull();
+  expect(writes).toEqual([
+    {
+      table: "user_calendar_connections",
+      filters: {
+        id: connectionId,
+        user_id: owner,
+        provider: "google",
+        is_active: true,
+        access_token: "fictional-access-ciphertext",
+        refresh_token: "fictional-refresh-ciphertext",
+        token_expires_at: expires,
+      },
+      data: { is_active: false },
+    },
+  ]);
+  expect(
+    order.filter((step) => step === "authenticate").length,
+  ).toBeGreaterThanOrEqual(3);
+});
+
+test.each(["subject", "binding"])(
+  "an invalid grant cannot mutate credentials after %s changes",
+  async (change) => {
+    providerStatus = 400;
+    providerBody = { error: "invalid_grant" };
+    revokeDuringRefresh = change === "subject";
+    disconnectDuringRefresh = change === "binding";
+    expect(await getValidAccessToken(owner)).toBeNull();
+    expect(writes).toEqual([]);
+  },
+);
+
+test("refresh preserves its public contract and sends a bounded form request", async () => {
+  expect(await refreshAccessToken("fictional-refresh")).toEqual({
+    accessToken: "fictional-refreshed",
+    expiresIn: 3600,
+  });
+  const request = requests[0];
+  expect(request.url).toBe("https://oauth2.googleapis.com/token");
+  expect(request.init).toMatchObject({
+    method: "POST",
+    redirect: "error",
+    cache: "no-store",
+  });
+  expect(request.init?.signal).toBeInstanceOf(AbortSignal);
+  expect(
+    new URLSearchParams(String(request.init?.body)).get("refresh_token"),
+  ).toBe("fictional-refresh");
+  expect(
+    new URLSearchParams(String(request.init?.body)).get("grant_type"),
+  ).toBe("refresh_token");
+});
+
+test("revocation keeps the token out of URLs and refuses transport failures", async () => {
+  expect(await revokeGoogleCalendarAccess("fictional-refresh&+token")).toBe(
+    true,
+  );
+  expect(requests[0].url).toBe("https://oauth2.googleapis.com/revoke");
+  expect(requests[0].init).toMatchObject({
+    method: "POST",
+    redirect: "error",
+    cache: "no-store",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+  expect(requests[0].init?.signal).toBeInstanceOf(AbortSignal);
+  expect(new URLSearchParams(String(requests[0].init?.body)).get("token")).toBe(
+    "fictional-refresh&+token",
+  );
+  providerFailure = new TypeError("fictional network failure");
+  expect(await revokeGoogleCalendarAccess("fictional-refresh")).toBe(false);
+});
+
+test("invalid stored expiry never treats a token as fresh", () => {
+  expect(isTokenExpired("not-a-date")).toBe(true);
+});

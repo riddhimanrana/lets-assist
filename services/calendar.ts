@@ -150,18 +150,24 @@ export function isTokenExpired(expiresAt: string): boolean {
   const now = Date.now();
   const fiveMinutes = 5 * 60 * 1000;
 
-  return expiryTime - now < fiveMinutes;
+  return !Number.isFinite(expiryTime) || expiryTime - now < fiveMinutes;
 }
 
-/**
- * Refresh the access token using the refresh token
- */
-export async function refreshAccessToken(
+type GoogleTokenRefreshResult =
+  | { status: "refreshed"; accessToken: string; expiresIn: number }
+  | { status: "invalid_grant" }
+  | { status: "unavailable" };
+
+/** Preserve valid grants when the provider is temporarily unavailable. */
+export async function requestGoogleAccessTokenRefresh(
   refreshToken: string,
-): Promise<{ accessToken: string; expiresIn: number } | null> {
+): Promise<GoogleTokenRefreshResult> {
   try {
     const response = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -179,18 +185,54 @@ export async function refreshAccessToken(
       safeConsole.error("Failed to refresh Google access token", {
         status: response.status,
       });
-      return null;
+      if (response.status === 400 || response.status === 401) {
+        const failure: unknown = await response.json();
+        if (
+          failure &&
+          typeof failure === "object" &&
+          "error" in failure &&
+          failure.error === "invalid_grant"
+        ) {
+          return { status: "invalid_grant" };
+        }
+      }
+      return { status: "unavailable" };
     }
 
-    const data = await response.json();
+    const data: unknown = await response.json();
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("access_token" in data) ||
+      typeof data.access_token !== "string" ||
+      !data.access_token.trim() ||
+      !("expires_in" in data) ||
+      typeof data.expires_in !== "number" ||
+      !Number.isSafeInteger(data.expires_in) ||
+      data.expires_in <= 0 ||
+      !Number.isFinite(new Date(Date.now() + data.expires_in * 1000).getTime())
+    ) {
+      return { status: "unavailable" };
+    }
     return {
+      status: "refreshed",
       accessToken: data.access_token,
       expiresIn: data.expires_in,
     };
-  } catch (error) {
-    safeConsole.error("Error refreshing access token:", error);
-    return null;
+  } catch {
+    safeConsole.error("Error refreshing access token:");
+    return { status: "unavailable" };
   }
+}
+
+/** Refresh the access token while preserving the existing public result. */
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{ accessToken: string; expiresIn: number } | null> {
+  const result = await requestGoogleAccessTokenRefresh(refreshToken);
+  return result.status === "refreshed"
+    ? { accessToken: result.accessToken, expiresIn: result.expiresIn }
+    : null;
 }
 
 /**
