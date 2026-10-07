@@ -1,4 +1,6 @@
-const FORMULA_LEADING_TEXT = /^[\t\r ]*[=+\-@]/u;
+// Spreadsheet importers can ignore leading control characters before a formula.
+// eslint-disable-next-line no-control-regex
+const FORMULA_LEADING_TEXT = /^[\s\u0000-\u001f\u007f]*[=+\-@]/u;
 
 export function neutralizeSpreadsheetFormula(value: string): string {
   return FORMULA_LEADING_TEXT.test(value) ? `'${value}` : value;

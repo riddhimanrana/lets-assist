@@ -13,10 +13,12 @@ import {
 /** Shown after a signup that still needs its emailed confirmation link. */
 export function ProjectEmailConfirmationDialog({
   open,
+  confirmationEmailAccepted,
   onOpenChange,
   onCopyLink,
 }: {
   open: boolean;
+  confirmationEmailAccepted: boolean;
   onOpenChange: (open: boolean) => void;
   onCopyLink: () => void;
 }) {
@@ -24,10 +26,15 @@ export function ProjectEmailConfirmationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Check your email</DialogTitle>
+          <DialogTitle>
+            {confirmationEmailAccepted
+              ? "Check your email"
+              : "Confirm your signup"}
+          </DialogTitle>
           <DialogDescription>
-            We&apos;ve sent a confirmation link to your email address. Please
-            click the link to finalize your signup for this project.
+            {confirmationEmailAccepted
+              ? "A confirmation email has been sent. Open its link to finish signing up for this project."
+              : "Your signup is saved, but email delivery could not be confirmed. Check your inbox or request a new confirmation link from this project."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2 text-sm">

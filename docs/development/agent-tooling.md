@@ -46,3 +46,22 @@ Manual dispatch and reusable Production preflight calls run the full quality and
 The Codex worktree cache currently contains 60 unregistered directories using about 332 MB. Twenty-six contain `.git` files that point into retired nested worktrees. They are excluded from active Git worktrees, but have not been deleted because unique-file recovery has not been proven. Inventory and preserve any unique content before removing them.
 
 The `Production` environment still requires a human review. Scheduled workflows that target it therefore wait for approval. A separate scheduled environment needs its own scoped secrets before those workflows can move; GitHub does not expose existing secret values for copying. Do not remove the Production review or redirect jobs before that environment is provisioned.
+
+## Codex pull request review
+
+Use the repository's connected Codex GitHub integration for automatic review.
+Enable automatic review and review-on-push for both the platform and private
+plugin repositories in Codex code review settings. `AGENTS.md` supplies the
+repository review guidelines. Keep branch protection and `ci-gate` independent
+of the AI review; resolved review threads and successful tests remain required.
+
+A repository owner must confirm those provider settings. As of the October 7
+integration, the inspected brand PR had no Codex review and the audit PR had
+only Vercel and GitGuardian comments. That does not prove the integration is
+disabled, but it does not establish automatic review on new commits either.
+Do not add a privileged `pull_request_target` job that executes candidate code
+or a second API-key workflow to claim the native integration is configured.
+
+After settings are confirmed, verify a Codex review against the candidate's
+current head SHA and address its findings in the same PR. A queued request,
+comment or older review is not an exact-commit review receipt.

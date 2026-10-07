@@ -239,45 +239,49 @@ test("manual request requires the reviewed workflow revision and bounded unique 
     );
 });
 
-test("both authority checks refuse changed PR identity, base, head, state or competing integration", (t) => {
-  const f = authorityFixture(t);
-  for (const step of [names.authority, names.publish]) {
-    git(
-      f.work,
-      "checkout",
-      "--detach",
-      step === names.authority ? f.candidate : f.result,
-    );
-    for (const modify of [
-      (p) => (p.number = 868),
-      (p) => (p.state = "closed"),
-      (p) => (p.merged = true),
-      (p) => (p.head.repo.full_name = "foreign/root"),
-      (p) => (p.base.repo.full_name = "foreign/root"),
-      (p) => (p.head.ref = "codex/other"),
-      (p) => (p.head.sha = "b".repeat(40)),
-      (p) => (p.base.ref = "main"),
-      (p) => (p.base.sha = "c".repeat(40)),
-    ]) {
-      const p = structuredClone(f.pr);
-      modify(p);
-      writeFileSync(f.prPath, JSON.stringify(p));
-      assert.notEqual(run(step, f.work, f.env).status, 0, step);
+test(
+  "both authority checks refuse changed PR identity, base, head, state or competing integration",
+  { timeout: 30_000 },
+  (t) => {
+    const f = authorityFixture(t);
+    for (const step of [names.authority, names.publish]) {
+      git(
+        f.work,
+        "checkout",
+        "--detach",
+        step === names.authority ? f.candidate : f.result,
+      );
+      for (const modify of [
+        (p) => (p.number = 868),
+        (p) => (p.state = "closed"),
+        (p) => (p.merged = true),
+        (p) => (p.head.repo.full_name = "foreign/root"),
+        (p) => (p.base.repo.full_name = "foreign/root"),
+        (p) => (p.head.ref = "codex/other"),
+        (p) => (p.head.sha = "b".repeat(40)),
+        (p) => (p.base.ref = "main"),
+        (p) => (p.base.sha = "c".repeat(40)),
+      ]) {
+        const p = structuredClone(f.pr);
+        modify(p);
+        writeFileSync(f.prPath, JSON.stringify(p));
+        assert.notEqual(run(step, f.work, f.env).status, 0, step);
+        assert.equal(f.remoteHead(), f.candidate);
+      }
+      writeFileSync(f.prPath, JSON.stringify(f.pr));
+      writeFileSync(
+        f.openPath,
+        JSON.stringify([
+          [{ number: 999, head: { ref: "codex/plugin-release-other" } }],
+        ]),
+      );
+      assert.notEqual(run(step, f.work, f.env).status, 0);
       assert.equal(f.remoteHead(), f.candidate);
+      writeFileSync(f.openPath, "[[]]");
     }
-    writeFileSync(f.prPath, JSON.stringify(f.pr));
-    writeFileSync(
-      f.openPath,
-      JSON.stringify([
-        [{ number: 999, head: { ref: "codex/plugin-release-other" } }],
-      ]),
-    );
-    assert.notEqual(run(step, f.work, f.env).status, 0);
-    assert.equal(f.remoteHead(), f.candidate);
-    writeFileSync(f.openPath, "[[]]");
-  }
-  assert(!f.called().some((args) => args[0] === "git" && args[1] === "push"));
-});
+    assert(!f.called().some((args) => args[0] === "git" && args[1] === "push"));
+  },
+);
 
 test("the valid authority proof permits only the exact descendant result on the existing branch", (t) => {
   const f = authorityFixture(t);

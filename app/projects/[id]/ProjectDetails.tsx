@@ -1631,6 +1631,7 @@ export default function ProjectDetails({
       <div className="container mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <ProjectEmailConfirmationDialog
           open={showConfirmationAlert}
+          confirmationEmailAccepted={confirmationEmailAccepted}
           onOpenChange={setShowConfirmationAlert}
           onCopyLink={() => {
             copyToClipboard(window.location.href);

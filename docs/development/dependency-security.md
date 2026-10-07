@@ -115,3 +115,15 @@ reachability review; local CI cannot attest to future provider changes.
 Remove the exception when upstream publishes a verified fix. Any extension or
 fingerprint update requires a new review of the advisory, source import paths,
 operator inputs, and deployment metadata. Acceptance expires without renewal.
+
+The October 7 integration updates Next.js to 16.4.0, React to 19.3.0,
+Supabase clients to 2.117.3 and 0.12.7, and shadcn to 4.21.4. The root and
+CSF lockfile fingerprints now cover those graphs. `bun pm why braces` still
+resolves only 3.0.3 through micromatch 4.0.8 and fast-glob. The shadcn registry
+update adds code-block-writer and removes its direct ts-morph dependency;
+shadcn itself retains ts-morph. Next ESLint retains fast-glob 3.3.1. Runtime
+microfrontends and next-sitemap versions are unchanged. Every pinned source
+input is unchanged from the reviewed audit candidate. The same-day provider
+metadata readback above remains the last hosted evidence; no provider setting
+was changed during this integration. The advisory still has no patched release.
+The acceptance scope, operator-input restriction and expiry are unchanged.
