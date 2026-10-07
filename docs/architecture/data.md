@@ -86,6 +86,24 @@ Anonymous signup retention clears optional paper scan identity links while prese
 
 An organization sheet sync requires its creator for OAuth and authorization. Deleting that profile is blocked until an authorized workflow removes the sync or transfers ownership. Account deletion must check this dependency before making other destructive changes.
 
+## Personal calendar receipts
+
+Personal project and signup calendar sync stores its complete event plan in
+`app_private.personal_calendar_sync_receipts` before any event write to Google.
+The service-only claim derives ownership from the source row, serializes with
+account deletion, and leases one worker. The plan pins the destination calendar,
+a fresh generation, every event ID, and the payload snapshot. Confirmed provider
+steps survive retries; the source's sync timestamp is set only when all planned
+events have completed. Removal confirms every planned ID before clearing the
+source marker. A later add uses a new generation so deleted Google IDs are never
+reused.
+
+Deleting a project or signup preserves its receipt for external cleanup. Account
+deletion must refuse unresolved provider plans before deleting the Auth user.
+Browser roles cannot read or mutate these receipts, or invoke either actor-taking
+RPC. Legacy records can remove their one stored event ID; occurrences that old
+code created without storing an ID still require provider reconciliation.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

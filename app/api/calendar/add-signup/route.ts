@@ -6,9 +6,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import {
-  createGoogleCalendarEvent,
-  markPersonalCalendarConnectionSynced,
-} from "@/services/calendar";
+  CalendarSyncError,
+  synchronizePersonalCalendar,
+} from "@/services/personal-calendar";
 import { syncSignupSchema } from "@/schemas/calendar-schema";
 import type { Project } from "@/types";
 
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     }
 
     // Validate request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const validation = syncSignupSchema.safeParse(body);
 
     if (!validation.success) {
@@ -60,14 +60,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if already synced
-    if (signup.volunteer_calendar_event_id) {
-      return NextResponse.json(
-        { error: "Signup is already synced to calendar" },
-        { status: 400 },
-      );
-    }
-
     // Get the project
     const { data: project, error: projectError } = (await supabase
       .from("projects")
@@ -82,39 +74,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Create calendar event
-    const eventId = await createGoogleCalendarEvent(
-      user.id,
+    const { eventId } = await synchronizePersonalCalendar({
+      userId: user.id,
+      sourceKind: "signup",
+      sourceId: signup_id,
+      operation: "sync",
       project,
-      schedule_id,
-    );
-
-    if (!eventId) {
-      return NextResponse.json(
-        { error: "Failed to create calendar event" },
-        { status: 500 },
-      );
-    }
-
-    // Update signup with calendar event ID
-    const { error: updateError } = (await supabase
-      .from("project_signups")
-      .update({
-        volunteer_calendar_event_id: eventId,
-        volunteer_synced_at: new Date().toISOString(),
-      })
-      .eq("id", signup_id)) as { error: { message?: string } | null };
-
-    if (updateError) {
-      console.error("Failed to update signup:", updateError);
-      return NextResponse.json(
-        { error: "Failed to save sync status" },
-        { status: 500 },
-      );
-    }
-
-    // Update last_synced_at in calendar connection
-    await markPersonalCalendarConnectionSynced(user.id);
+      scheduleId: schedule_id,
+    });
 
     return NextResponse.json({
       success: true,
@@ -122,17 +89,12 @@ export async function POST(request: Request) {
       message: "Signup added to calendar successfully",
     });
   } catch (error) {
-    console.error("Error adding signup to calendar:", error);
-
-    if (error instanceof Error) {
-      if (error.message.includes("No valid calendar connection")) {
-        return NextResponse.json(
-          { error: "Please connect your Google Calendar first" },
-          { status: 400 },
-        );
-      }
+    if (error instanceof CalendarSyncError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
-
     return NextResponse.json(
       { error: "Failed to add signup to calendar" },
       { status: 500 },

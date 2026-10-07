@@ -100,7 +100,7 @@ export default function CreatorDashboard({
   // Calendar integration states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [isCalendarSynced, setIsCalendarSynced] = useState(
-    !!project.creator_calendar_event_id,
+    !!project.creator_calendar_event_id && !!project.creator_synced_at,
   );
 
   // Auto-sync calendar on page load if user is connected and project isn't synced

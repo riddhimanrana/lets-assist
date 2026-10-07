@@ -39,14 +39,14 @@ export const oauthCallbackSchema = z.object({
 // Sync Project to Calendar Schema
 export const syncProjectSchema = z.object({
   project_id: z.string().uuid("Invalid project ID"),
-  schedule_id: z.string().optional(), // Optional: specific slot/role to sync
+  schedule_id: z.string().min(1).max(300).optional(), // Optional: specific slot/role to sync
 });
 
 // Sync Signup to Calendar Schema
 export const syncSignupSchema = z.object({
   signup_id: z.string().uuid("Invalid signup ID"),
   project_id: z.string().uuid("Invalid project ID"),
-  schedule_id: z.string().min(1, "Schedule ID is required"),
+  schedule_id: z.string().min(1, "Schedule ID is required").max(300),
 });
 
 // Remove Event from Calendar Schema

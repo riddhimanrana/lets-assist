@@ -47,6 +47,7 @@ export async function GET(_request: Request) {
 
     if (!projectsError && projects) {
       for (const project of projects) {
+        if (!project.creator_synced_at) continue;
         // Parse schedule to get time information
         let startTime = "";
         let endTime = "";
@@ -127,6 +128,7 @@ export async function GET(_request: Request) {
 
     if (!signupsError && signups) {
       for (const signup of signups) {
+        if (!signup.volunteer_synced_at) continue;
         if (!signup.projects) continue;
 
         const project = Array.isArray(signup.projects)

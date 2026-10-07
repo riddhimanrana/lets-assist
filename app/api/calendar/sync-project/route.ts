@@ -6,9 +6,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import {
-  createGoogleCalendarEvent,
-  markPersonalCalendarConnectionSynced,
-} from "@/services/calendar";
+  CalendarSyncError,
+  synchronizePersonalCalendar,
+} from "@/services/personal-calendar";
 import { syncProjectSchema } from "@/schemas/calendar-schema";
 
 export async function POST(request: Request) {
@@ -26,12 +26,12 @@ export async function POST(request: Request) {
     }
 
     // Validate request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     // Support both camelCase (legacy) and snake_case
     const normalizedBody = {
-      project_id: body.project_id || body.projectId,
-      schedule_id: body.schedule_id || body.scheduleId,
+      project_id: body?.project_id || body?.projectId,
+      schedule_id: body?.schedule_id || body?.scheduleId,
     };
 
     const validation = syncProjectSchema.safeParse(normalizedBody);
@@ -49,15 +49,6 @@ export async function POST(request: Request) {
     }
 
     const { project_id, schedule_id } = validation.data;
-
-    console.log(
-      "[Sync Project] Syncing project:",
-      project_id,
-      "schedule:",
-      schedule_id,
-      "for user:",
-      user.id,
-    );
 
     // Get the project
     const { data: project, error: projectError } = await supabase
@@ -78,48 +69,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if already synced
-    if (project.creator_calendar_event_id) {
-      return NextResponse.json(
-        { error: "Project is already synced to calendar" },
-        { status: 400 },
-      );
-    }
-
-    // For one-time events or when schedule_id is provided, create single event
-    // For multiDay/sameDayMultiArea without schedule_id, create all events
-    const eventId = await createGoogleCalendarEvent(
-      user.id,
+    const { eventId } = await synchronizePersonalCalendar({
+      userId: user.id,
+      sourceKind: "project",
+      sourceId: project_id,
+      operation: "sync",
       project,
-      schedule_id, // undefined will create all events for multi-day/multi-area
-    );
-
-    if (!eventId) {
-      return NextResponse.json(
-        { error: "Failed to create calendar event" },
-        { status: 500 },
-      );
-    }
-
-    // Update project with calendar event ID
-    const { error: updateError } = (await supabase
-      .from("projects")
-      .update({
-        creator_calendar_event_id: eventId,
-        creator_synced_at: new Date().toISOString(),
-      })
-      .eq("id", project_id)) as { error: { message?: string } | null };
-
-    if (updateError) {
-      console.error("Failed to update project:", updateError);
-      return NextResponse.json(
-        { error: "Failed to save sync status" },
-        { status: 500 },
-      );
-    }
-
-    // Update last_synced_at in calendar connection
-    await markPersonalCalendarConnectionSynced(user.id);
+      scheduleId: schedule_id,
+    });
 
     return NextResponse.json({
       success: true,
@@ -127,17 +84,12 @@ export async function POST(request: Request) {
       message: "Project synced to calendar successfully",
     });
   } catch (error) {
-    console.error("Error syncing project to calendar:", error);
-
-    if (error instanceof Error) {
-      if (error.message.includes("No valid calendar connection")) {
-        return NextResponse.json(
-          { error: "Please connect your Google Calendar first" },
-          { status: 400 },
-        );
-      }
+    if (error instanceof CalendarSyncError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
     }
-
     return NextResponse.json(
       { error: "Failed to sync project to calendar" },
       { status: 500 },

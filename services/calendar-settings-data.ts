@@ -116,7 +116,7 @@ export async function getCalendarData(userId: string) {
           ...dates,
           location: project.location ?? null,
           creator_calendar_event_id: project.creator_calendar_event_id,
-          creator_synced_at: project.creator_synced_at ?? dates.start_date,
+          creator_synced_at: project.creator_synced_at,
           schedule_type: project.event_type,
         },
       ];
@@ -140,8 +140,7 @@ export async function getCalendarData(userId: string) {
       return {
         id: signup.id,
         volunteer_calendar_event_id: signup.volunteer_calendar_event_id,
-        volunteer_synced_at:
-          signup.volunteer_synced_at ?? signup.scheduled_start,
+        volunteer_synced_at: signup.volunteer_synced_at,
         scheduled_start: signup.scheduled_start,
         scheduled_end: signup.scheduled_end,
         projects: {

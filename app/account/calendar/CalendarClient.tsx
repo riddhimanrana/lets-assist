@@ -46,13 +46,13 @@ interface CalendarClientProps {
     end_date: string | null;
     location: string | null;
     creator_calendar_event_id: string;
-    creator_synced_at: string;
+    creator_synced_at: string | null;
     schedule_type: string;
   }>;
   volunteerSignups: Array<{
     id: string;
     volunteer_calendar_event_id: string;
-    volunteer_synced_at: string;
+    volunteer_synced_at: string | null;
     scheduled_start: string;
     scheduled_end: string;
     projects: {
@@ -291,7 +291,9 @@ export default function CalendarClient({
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-1">
-                            Synced {formatDate(project.creator_synced_at)}
+                            {project.creator_synced_at
+                              ? `Synced ${formatDate(project.creator_synced_at)}`
+                              : "Sync incomplete. Reopen the project to retry, or remove it."}
                           </p>
                         </div>
                         <Button
@@ -338,7 +340,9 @@ export default function CalendarClient({
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground mt-1">
-                            Synced {formatDate(signup.volunteer_synced_at)}
+                            {signup.volunteer_synced_at
+                              ? `Synced ${formatDate(signup.volunteer_synced_at)}`
+                              : "Sync incomplete. Reopen the signup to retry, or remove it."}
                           </p>
                         </div>
                         <Button

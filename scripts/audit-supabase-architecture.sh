@@ -938,6 +938,23 @@ reviewed_service_rpc_drift="$(
 )"
 fail_if_rows "reviewed service-only public RPC contract drift" "$reviewed_service_rpc_drift"
 
+personal_calendar_receipt_drift="$(
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
+    with expected(signature) as (values
+      ('public.claim_personal_calendar_sync(uuid,text,uuid,text,text,text)'),
+      ('public.advance_personal_calendar_sync(uuid,text,uuid,uuid,text,jsonb)')
+    )
+    select expected.signature
+    from expected left join pg_catalog.pg_proc p on p.oid = pg_catalog.to_regprocedure(expected.signature)
+    where p.oid is null or p.prosecdef
+      or not coalesce(p.proconfig, array[]::text[]) @> array['search_path=\"\"']::text[]
+      or not has_function_privilege('service_role', p.oid, 'EXECUTE')
+      or has_function_privilege('anon', p.oid, 'EXECUTE')
+      or has_function_privilege('authenticated', p.oid, 'EXECUTE');
+  "
+)"
+fail_if_rows "personal calendar receipt RPC privilege drift" "$personal_calendar_receipt_drift"
+
 summary="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select 'base_tables_with_rls', count(*)
