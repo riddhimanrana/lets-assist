@@ -144,6 +144,14 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
   await expect(
     page.getByRole("combobox").filter({ hasText: "DVHS CSF" }),
   ).toBeVisible();
+  const creationId = new URL(page.url()).searchParams.get("creation");
+  expect(creationId).toMatch(uuid);
+  const actionUrls: URL[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (request.method() === "POST" && url.pathname === "/projects/create")
+      actionUrls.push(url);
+  });
   await page
     .getByRole("button", { name: "Save as new draft", exact: true })
     .click();
@@ -152,11 +160,20 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
     .not.toBe(originalId);
   const copyId = draftId(page);
   expect(copyId).toMatch(uuid);
+  expect(new URL(page.url()).searchParams.get("creation")).toBe(creationId);
   const editedTitle = `${prefix} copied and edited`;
   await title.fill(editedTitle);
   await expect
     .poll(async () => (await readDraft(copyId!)).title, { timeout: 15_000 })
     .toBe(editedTitle);
+  await expect(title).toHaveValue(editedTitle);
+  expect(actionUrls.length).toBeGreaterThanOrEqual(2);
+  expect(
+    actionUrls.every((url) => url.searchParams.get("creation") === creationId),
+  ).toBe(true);
+  expect(
+    actionUrls.some((url) => url.searchParams.get("draft") === copyId),
+  ).toBe(true);
   expect((await readDraft(originalId)).title).toBe(`${prefix} original`);
   expect((await readDraft(copyId!)).draft_data.basicInfo.organizationId).toBe(
     fixture.organizationId,

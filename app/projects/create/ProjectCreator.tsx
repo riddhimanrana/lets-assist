@@ -186,7 +186,7 @@ export default function ProjectCreator({
       )
         return;
       window.history.replaceState(
-        window.history.state,
+        null,
         "",
         projectCreationUrl(window.location.href, creationSessionId, draftId),
       );
