@@ -4,9 +4,23 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { updateOrganizationVerifiedStatus } from "../actions";
+import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 
@@ -80,112 +94,115 @@ export function OrganizationsTab({ organizations }: OrganizationsTabProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder="Search organizations by name, username, or type..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="max-w-xl"
-        />
-        <p className="text-sm text-muted-foreground whitespace-nowrap">
+    <div className="grid gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <InputGroup className="sm:max-w-sm">
+          <InputGroupAddon>
+            <Search aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            aria-label="Search organizations"
+            placeholder="Search organizations by name, username, or type..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </InputGroup>
+        <p className="text-muted-foreground text-sm whitespace-nowrap">
           {filteredRows.length} organization
           {filteredRows.length === 1 ? "" : "s"}
         </p>
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">
-                  Organization
-                </th>
-                <th className="px-4 py-3 text-left font-medium">Type</th>
-                <th className="px-4 py-3 text-left font-medium">Created</th>
-                <th className="px-4 py-3 text-left font-medium">Verified</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-12 text-center text-muted-foreground"
-                  >
-                    No organizations match your search.
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((org) => {
-                  const isUpdatingThisRow = updatingId === org.id;
-                  const createdAtText = org.created_at
-                    ? new Date(org.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "—";
+      <div className="overflow-hidden rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="pl-4">Organization</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="pr-4">Verified</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRows.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={4} className="whitespace-normal">
+                  <Empty className="p-8">
+                    <EmptyHeader>
+                      <EmptyTitle className="text-base">
+                        No organizations match your search.
+                      </EmptyTitle>
+                    </EmptyHeader>
+                  </Empty>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredRows.map((org) => {
+                const isUpdatingThisRow = updatingId === org.id;
+                const createdAtText = org.created_at
+                  ? new Date(org.created_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "—";
 
-                  return (
-                    <tr
-                      key={org.id}
-                      className="border-t hover:bg-muted/10 transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="size-9 border">
-                            <AvatarImage
-                              src={org.logo_url || undefined}
-                              alt={org.name}
-                            />
-                            <AvatarFallback>
-                              <NoAvatar fullName={org.name} />
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{org.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              @{org.username}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline" className="capitalize">
-                          {org.type}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {createdAtText}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Switch
-                            checked={org.verified === true}
-                            onCheckedChange={(checked) =>
-                              handleToggle(org.id, checked)
-                            }
-                            disabled={isPending || isUpdatingThisRow}
-                            aria-label={`Toggle verification for ${org.name}`}
+                return (
+                  <TableRow key={org.id}>
+                    <TableCell className="pl-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="size-8">
+                          <AvatarImage
+                            src={org.logo_url || undefined}
+                            alt={org.name}
                           />
-                          <span className="text-xs text-muted-foreground">
-                            {isUpdatingThisRow
-                              ? "Saving..."
-                              : org.verified
-                                ? "Verified"
-                                : "Unverified"}
-                          </span>
+                          <AvatarFallback>
+                            <NoAvatar fullName={org.name} />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="max-w-64 truncate font-medium">
+                            {org.name}
+                          </p>
+                          <p className="text-muted-foreground max-w-64 truncate text-xs">
+                            @{org.username}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {org.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {createdAtText}
+                    </TableCell>
+                    <TableCell className="pr-4">
+                      <div className="flex min-h-9 items-center gap-3">
+                        <Switch
+                          checked={org.verified === true}
+                          onCheckedChange={(checked) =>
+                            handleToggle(org.id, checked)
+                          }
+                          disabled={isPending || isUpdatingThisRow}
+                          aria-label={`Toggle verification for ${org.name}`}
+                        />
+                        <span className="text-muted-foreground text-xs">
+                          {isUpdatingThisRow
+                            ? "Saving..."
+                            : org.verified
+                              ? "Verified"
+                              : "Unverified"}
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

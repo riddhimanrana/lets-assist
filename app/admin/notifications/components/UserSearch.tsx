@@ -44,12 +44,6 @@ export function UserSearch({
   React.useEffect(() => {
     if (!open) return;
 
-    // Initial fetch to show some users or if needed
-    if (query.trim() === "" && items.length === 0) {
-      // Optional: fetch recent users?
-      // For now, let's wait for typing
-    }
-
     const timer = setTimeout(async () => {
       if (query.trim().length < 2) return;
 
@@ -85,7 +79,7 @@ export function UserSearch({
       <PopoverTrigger
         className={cn(
           buttonVariants({ variant: "outline" }),
-          "w-full justify-between h-auto py-2",
+          "h-auto min-h-9 w-full justify-between py-1.5 font-normal",
           className,
         )}
         role="combobox"
@@ -98,7 +92,7 @@ export function UserSearch({
                 <Avatar className="size-6">
                   <AvatarImage
                     src={selectedAvatar}
-                    alt={selectedLabel || "Selected User"}
+                    alt={selectedLabel || "Selected user"}
                   />
                   <AvatarFallback>
                     <NoAvatar fullName={selectedLabel} />
@@ -107,7 +101,7 @@ export function UserSearch({
               )}
               <div className="flex flex-col">
                 <span className="font-medium">
-                  {selectedLabel || "Selected User"}
+                  {selectedLabel || "Selected user"}
                 </span>
                 {value && (
                   <span className="text-xs text-muted-foreground hidden sm:inline-block">
@@ -122,7 +116,10 @@ export function UserSearch({
         </div>
         <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="w-75 p-0" align="start">
+      <PopoverContent
+        className="w-75 max-w-[calc(100vw-2rem)] p-0"
+        align="start"
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search users..."

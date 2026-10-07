@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@/lib/table/legacy";
-import { ArrowUpDown, Eye, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowUpDown, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -12,6 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { humanize, levelTone, statusTone } from "../components/admin-status";
 
 export type ContentReport = {
   id: string;
@@ -69,45 +70,64 @@ const formatConfidence = (val?: number | string | null) => {
   return `${Math.round(Math.max(0, Math.min(100, normalized)))}%`;
 };
 
+function SortableHeader({
+  label,
+  onToggle,
+}: {
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <Button variant="ghost" onClick={onToggle} className="-ml-2.5">
+      {label}
+      <ArrowUpDown data-icon="inline-end" />
+    </Button>
+  );
+}
+
+function aiVerdictTone(verdict?: string) {
+  if (verdict === "Safe") return "success" as const;
+  if (verdict?.includes("Violat")) return "destructive" as const;
+  return "info" as const;
+}
+
 export const getReportColumns = (
   onViewDetails: (report: ContentReport) => void,
 ): ColumnDef<ContentReport>[] => [
   {
     accessorKey: "reason",
-    header: "Subject & Reporter",
+    header: "Subject & reporter",
     cell: ({ row }) => {
       const report = row.original;
       return (
-        <div className="flex flex-col gap-1.5 py-1">
-          <span className="font-medium line-clamp-1 text-base">
+        <div className="grid gap-0.5 py-1">
+          <span className="line-clamp-1 font-medium">
             {report.reason || "No reason provided"}
           </span>
-          <div className="flex items-center text-sm text-muted-foreground gap-2">
-            <span className="capitalize text-xs font-semibold bg-secondary px-1.5 py-0.5 rounded-sm">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
+            <span className="capitalize">
               {report.content_type?.replace("_", " ") || "Content"}
             </span>
-            <span className="text-muted-foreground/50 text-[10px]">•</span>
-            <div className="flex items-center gap-1">
-              <span className="text-xs">Reported by</span>
-              {report.reporter ? (
-                <ProfileHoverCard
-                  username={report.reporter.username || "unknown"}
-                  fullName={report.reporter.full_name || "Anonymous"}
-                  avatarUrl={report.reporter.avatar_url || undefined}
-                  variant="profile"
-                >
-                  <span className="text-primary hover:underline cursor-pointer font-medium text-xs">
-                    {report.reporter.full_name || report.reporter.username}
-                  </span>
-                </ProfileHoverCard>
-              ) : (
-                <span className="text-xs font-medium">
-                  {report.reporter_label || "Anonymous"}
+            <span aria-hidden="true">·</span>
+            <span>Reported by</span>
+            {report.reporter ? (
+              <ProfileHoverCard
+                username={report.reporter.username || "unknown"}
+                fullName={report.reporter.full_name || "Anonymous"}
+                avatarUrl={report.reporter.avatar_url || undefined}
+                variant="profile"
+              >
+                <span className="text-foreground cursor-pointer font-medium hover:underline">
+                  {report.reporter.full_name || report.reporter.username}
                 </span>
-              )}
-            </div>
-            <span className="text-muted-foreground/50 text-[10px]">•</span>
-            <span className="text-xs">
+              </ProfileHoverCard>
+            ) : (
+              <span className="font-medium">
+                {report.reporter_label || "Anonymous"}
+              </span>
+            )}
+            <span aria-hidden="true">·</span>
+            <span>
               {report.created_at
                 ? format(new Date(report.created_at), "MMM d")
                 : "-"}
@@ -119,14 +139,12 @@ export const getReportColumns = (
   },
   {
     accessorKey: "ai_analysis",
-    header: "AI Recommendation",
+    header: "AI recommendation",
     cell: ({ row }) => {
       const ai = row.original.ai_metadata;
       if (!ai)
         return (
-          <span className="text-xs text-muted-foreground italic">
-            Pending...
-          </span>
+          <span className="text-muted-foreground text-xs">Pending...</span>
         );
 
       const recommendedAction = ai.recommendedAction || ai.suggestedAction;
@@ -139,30 +157,16 @@ export const getReportColumns = (
 
       return (
         <div className="flex items-center gap-2">
-          <div
-            className={`text-xs font-medium px-2.5 py-1 rounded-md border flex items-center gap-1.5
-            ${
-              ai.verdict === "Safe"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900"
-                : ai.verdict?.includes("Violat")
-                  ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900"
-                  : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900"
-            }`}
-          >
-            <Sparkles className="size-3" />
+          <Badge variant={aiVerdictTone(ai.verdict)} className="capitalize">
+            <Sparkles data-icon="inline-start" aria-hidden="true" />
             {action}
-          </div>
+          </Badge>
           <TooltipProvider>
             <Tooltip>
-              <TooltipTrigger>
-                <Badge
-                  variant="outline"
-                  className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
-                >
-                  {formatConfidence(ai.confidence)}
-                </Badge>
+              <TooltipTrigger className="text-muted-foreground text-xs tabular-nums">
+                {formatConfidence(ai.confidence)}
               </TooltipTrigger>
-              <TooltipContent>Confidence Score</TooltipContent>
+              <TooltipContent>Confidence score</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -171,50 +175,27 @@ export const getReportColumns = (
   },
   {
     accessorKey: "status",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-2.5"
-        >
-          Status
-          <ArrowUpDown data-icon="inline-end" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <SortableHeader
+        label="Status"
+        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      />
+    ),
     cell: ({ row }) => {
       const status = row.original.status || "pending";
-      const variant =
-        status === "resolved"
-          ? "default"
-          : status === "dismissed"
-            ? "outline"
-            : "secondary";
-      return (
-        <Badge variant={variant} className="capitalize font-normal">
-          {status.replace("_", " ")}
-        </Badge>
-      );
+      return <Badge variant={statusTone(status)}>{humanize(status)}</Badge>;
     },
   },
   {
     id: "actions",
     cell: ({ row }) => {
       return (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onViewDetails(row.original)}
-          className="group rounded-full"
-        >
-          <Eye data-icon="inline-start" className="size-3.5" />
-          Open Case
-          <ChevronRight
-            data-icon="inline-end"
-            className="size-3.5 transition-transform group-hover:translate-x-0.5"
-          />
-        </Button>
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onViewDetails(row.original)}>
+            Open case
+            <ChevronRight data-icon="inline-end" />
+          </Button>
+        </div>
       );
     },
   },
@@ -237,32 +218,25 @@ export const getFlaggedColumns = (
         .filter(Boolean)
         .join(" ");
     },
-    header: "Content Details",
+    header: "Content details",
     cell: ({ row }) => {
       const item = row.original;
       const title =
         item.content_details?.title ||
         item.content_details?.full_name ||
         item.content_details?.username ||
-        "Untitled Content";
+        "Untitled content";
 
       return (
-        <div className="flex flex-col gap-1.5 py-1">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-base">{title}</span>
-              {item.content_type && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] capitalize h-5 px-1.5"
-                >
-                  {item.content_type}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="grid gap-0.5 py-1">
+          <span className="line-clamp-1 font-medium">{title}</span>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
+            {item.content_type && (
+              <>
+                <span className="capitalize">{item.content_type}</span>
+                <span aria-hidden="true">·</span>
+              </>
+            )}
             <span>Created by</span>
             {item.creator_details ? (
               <ProfileHoverCard
@@ -271,15 +245,15 @@ export const getFlaggedColumns = (
                 avatarUrl={item.creator_details.avatar_url || undefined}
                 variant="profile"
               >
-                <span className="text-primary hover:underline cursor-pointer font-medium">
+                <span className="text-foreground cursor-pointer font-medium hover:underline">
                   {item.creator_details.full_name ||
                     item.creator_details.username}
                 </span>
               </ProfileHoverCard>
             ) : (
-              <span className="italic">Unknown User</span>
+              <span>Unknown user</span>
             )}
-            <span className="text-muted-foreground/50">•</span>
+            <span aria-hidden="true">·</span>
             <span>
               {item.created_at ? format(new Date(item.created_at), "PPP") : "-"}
             </span>
@@ -290,80 +264,40 @@ export const getFlaggedColumns = (
   },
   {
     accessorKey: "status",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-2.5"
-        >
-          Status
-          <ArrowUpDown data-icon="inline-end" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <SortableHeader
+        label="Status"
+        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      />
+    ),
     cell: ({ row }) => {
       const status = row.original.status || "pending";
-      const variant =
-        status === "blocked"
-          ? "destructive"
-          : status === "confirmed"
-            ? "default"
-            : status === "dismissed"
-              ? "outline"
-              : "secondary";
-      return (
-        <Badge variant={variant} className="capitalize">
-          {status}
-        </Badge>
-      );
+      return <Badge variant={statusTone(status)}>{humanize(status)}</Badge>;
     },
   },
   {
     accessorKey: "severity",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-2.5"
-        >
-          Severity
-          <ArrowUpDown data-icon="inline-end" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <SortableHeader
+        label="Severity"
+        onToggle={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      />
+    ),
     cell: ({ row }) => {
       const severity = row.original.severity || "unknown";
-      const color = ["high", "critical"].includes(severity.toLowerCase())
-        ? "destructive"
-        : severity === "medium"
-          ? "default"
-          : "secondary";
-      return (
-        <Badge variant={color} className="capitalize text-[11px]">
-          {severity}
-        </Badge>
-      );
+      return <Badge variant={levelTone(severity)}>{humanize(severity)}</Badge>;
     },
   },
   {
     id: "actions",
     cell: ({ row }) => {
       return (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onViewDetails(row.original)}
-          className="group rounded-full"
-        >
-          <Eye data-icon="inline-start" className="size-3.5" />
-          Open Flag
-          <ChevronRight
-            data-icon="inline-end"
-            className="size-3.5 transition-transform group-hover:translate-x-0.5"
-          />
-        </Button>
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onViewDetails(row.original)}>
+            Open flag
+            <ChevronRight data-icon="inline-end" />
+          </Button>
+        </div>
       );
     },
   },

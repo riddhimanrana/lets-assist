@@ -10,6 +10,8 @@ import {
   getContentReports,
   getContentReportsStats,
 } from "./moderation/actions";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminLoadError, AdminPage } from "./components/AdminPage";
 import { OverviewTab } from "./components/OverviewTab";
 
 export const metadata = {
@@ -18,7 +20,7 @@ export const metadata = {
     "Unified admin dashboard for managing feedback, trusted members, and content moderation",
 };
 
-export default async function AdminPage() {
+export default async function AdminOverviewPage() {
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
 
@@ -65,12 +67,10 @@ export default async function AdminPage() {
 
   if (firstError) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">Error loading admin data</p>
-          <p className="mt-2 text-sm opacity-90">{firstError}</p>
-        </div>
-      </div>
+      <AdminPage>
+        <PageHeader title="Admin overview" />
+        <AdminLoadError title="Error loading admin data" message={firstError} />
+      </AdminPage>
     );
   }
 
@@ -92,22 +92,11 @@ export default async function AdminPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 py-8 px-4 md:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Overview</h1>
-        <p className="text-muted-foreground">
-          Platform activity and pending actions across feedback, trusted
-          members, and moderation.
-        </p>
-      </div>
-      <section className="rounded-2xl border bg-card p-4 sm:p-6">
-        <OverviewTab
-          stats={overviewStats}
-          flaggedContent={flaggedContentData}
-          reportPreview={reportPreview}
-          reportsStats={aggregateReportStats}
-        />
-      </section>
-    </div>
+    <OverviewTab
+      stats={overviewStats}
+      flaggedContent={flaggedContentData}
+      reportPreview={reportPreview}
+      reportsStats={aggregateReportStats}
+    />
   );
 }
