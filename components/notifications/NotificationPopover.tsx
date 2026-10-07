@@ -32,6 +32,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NotificationDetailDialog } from "./NotificationDetailDialog";
 import { NotificationInbox } from "./NotificationInbox";
 import type { Notification } from "./notification-format";
+import { resolveNotificationAction } from "./notification-action-url";
 
 /** Drawer below this width, Popover above it. */
 export const NOTIFICATION_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
@@ -219,9 +220,22 @@ export function NotificationPopover({
     setOpen(false);
   }
 
+  function followNotificationAction(notification: Notification) {
+    const target = resolveNotificationAction(
+      notification.action_url,
+      window.location.origin,
+    );
+    if (!target) return false;
+    if (target.kind === "internal") {
+      router.push(target.href);
+    } else {
+      window.open(target.href, "_blank", "noopener,noreferrer");
+    }
+    return true;
+  }
+
   function handleNotificationAction(notification: Notification) {
-    if (!notification.action_url) return;
-    router.push(notification.action_url);
+    if (!followNotificationAction(notification)) return;
     setOpen(false);
     if (!notification.read) {
       markAsRead(notification.id);
@@ -239,8 +253,7 @@ export function NotificationPopover({
       open={detailOpen}
       onOpenChange={handleDetailDialogChange}
       onAction={(notification) => {
-        if (!notification.action_url) return;
-        router.push(notification.action_url);
+        if (!followNotificationAction(notification)) return;
         handleDetailDialogChange(false);
         setOpen(false);
       }}
