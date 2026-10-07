@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { safeConsole } from "@/lib/safe-console";
 import { isNotificationDedupeConflict } from "@/services/notification-dedupe";
 import type {
   NotificationData,
@@ -50,31 +51,18 @@ export const NotificationService = {
           .select("*")
           .eq("user_id", userId)
           .single<NotificationPreferences>();
-        console.log("Notification preferences:", preferences);
 
         if (prefsError && prefsError.code !== "PGRST116") {
           // PGRST116 means "no rows returned"
-          console.error("Error fetching notification settings:", prefsError);
+          safeConsole.error("Notification preferences lookup failed");
           return { error: prefsError };
         }
 
         // If user has disabled this notification type, don't create notification
         if (preferences?.[notification.type] === false) {
-          console.log(
-            `User has disabled ${notification.type} notifications, skipping`,
-          );
           return { success: false, skipped: true };
         }
       }
-
-      // if (!user || user?.id !== userId) {
-      //   console.log(user?.id)
-      //   console.log(userId)
-      //   console.error('User ID mismatch or missing');
-      //   return { error: new Error('Authentication error') };
-      // }
-
-      console.log("Creating new notification for user:", userId);
 
       // Insert into notifications table without showing toast directly
       // The real-time listener will handle showing the toast
@@ -95,21 +83,14 @@ export const NotificationService = {
           return { success: true, existing: true, replayed: true };
         }
 
-        console.error(
-          "Notification insert error details:",
-          error.message,
-          error.code,
-        );
         throw error;
       }
-
-      console.log("Notification created successfully, ID:", userId);
 
       // Don't manually show toast here - let the realtime listener handle it
 
       return { success: true, data };
     } catch (error) {
-      console.error("Error creating notification:", error);
+      safeConsole.error("Notification creation failed");
       return { error };
     }
   },
@@ -131,12 +112,8 @@ export const NotificationService = {
       if (dedupeKey) query = query.eq("dedupe_key", dedupeKey);
 
       await query;
-
-      console.log(
-        `Marked ${type} notification as displayed for user ${userId}`,
-      );
-    } catch (error) {
-      console.error("Error marking notification as displayed:", error);
+    } catch {
+      safeConsole.error("Notification display update failed");
     }
   },
 
@@ -151,7 +128,7 @@ export const NotificationService = {
         error: authError,
       } = await supabase.auth.getUser();
       if (authError || !user || user.id !== userId) {
-        console.error("User ID mismatch or missing");
+        safeConsole.error("Notification username authentication unavailable");
         return;
       }
 
@@ -163,16 +140,11 @@ export const NotificationService = {
         .single();
 
       if (error) {
-        console.error("Error fetching profile:", error);
         throw error;
       }
 
       // Only proceed if username is default or not set
       if (!profile?.username || profile.username.startsWith("user_")) {
-        console.log(
-          "Username needs customization, checking for existing notification",
-        );
-
         // Check for existing notification
         const { data: existingNotifications, error: notifError } =
           await supabase
@@ -183,7 +155,9 @@ export const NotificationService = {
             .limit(1);
 
         if (notifError) {
-          console.error("Error checking existing notifications:", notifError);
+          safeConsole.error(
+            "Notification username existing notice lookup failed",
+          );
           return;
         }
 
@@ -191,9 +165,6 @@ export const NotificationService = {
           // Notification exists - only show toast if not displayed before
           const notification = existingNotifications[0];
           if (!notification.displayed) {
-            console.log(
-              "Existing notification found but not displayed, showing toast",
-            );
             toast.info("Set Your Custom Username", {
               description:
                 "Personalize your profile by setting a custom username in your account settings.",
@@ -210,7 +181,6 @@ export const NotificationService = {
           }
         } else {
           // No notification exists, create one with toast
-          console.log("No existing notification, creating new one with toast");
           await this.createNotification(
             {
               title: "Set Your Custom Username",
@@ -225,8 +195,8 @@ export const NotificationService = {
           );
         }
       }
-    } catch (error) {
-      console.error("Error checking username setting:", error);
+    } catch {
+      safeConsole.error("Notification username check failed");
     }
   },
 };
