@@ -4,7 +4,7 @@ import { safeConsole } from "@/lib/safe-console";
  * Handles OAuth token management and calendar event operations
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { getGoogleOAuthCredentialClient } from "@/lib/auth/google-oauth-credential-client";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
 import { hasGoogleCalendarWriteScope } from "@/lib/auth/google-oauth-scopes";
@@ -201,7 +201,8 @@ export async function refreshAccessToken(
 export async function getValidAccessToken(
   userId: string,
 ): Promise<string | null> {
-  const supabase = await createClient();
+  const supabase = await getGoogleOAuthCredentialClient(userId);
+  if (!supabase) return null;
   const connection = await getCalendarConnection(userId);
 
   if (!connection) {
@@ -216,6 +217,8 @@ export async function getValidAccessToken(
         .from("user_calendar_connections")
         .update({ access_token: decrypted.reencrypted })
         .eq("id", connection.id)
+        .eq("user_id", userId)
+        .eq("provider", "google")
         .eq("access_token", connection.access_token);
       if (error) safeConsole.error("Failed to rotate Google access credential");
     }
@@ -229,6 +232,8 @@ export async function getValidAccessToken(
       .from("user_calendar_connections")
       .update({ refresh_token: decryptedRefresh.reencrypted })
       .eq("id", connection.id)
+      .eq("user_id", userId)
+      .eq("provider", "google")
       .eq("refresh_token", connection.refresh_token);
     if (error) safeConsole.error("Failed to rotate Google refresh credential");
   }
@@ -239,7 +244,9 @@ export async function getValidAccessToken(
     await supabase
       .from("user_calendar_connections")
       .update({ is_active: false })
-      .eq("id", connection.id);
+      .eq("id", connection.id)
+      .eq("user_id", userId)
+      .eq("provider", "google");
     return null;
   }
 
@@ -253,7 +260,9 @@ export async function getValidAccessToken(
       access_token: encryptedAccessToken,
       token_expires_at: newExpiresAt.toISOString(),
     })
-    .eq("id", connection.id);
+    .eq("id", connection.id)
+    .eq("user_id", userId)
+    .eq("provider", "google");
 
   return refreshed.accessToken;
 }

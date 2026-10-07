@@ -1,6 +1,5 @@
 import { safeConsole } from "@/lib/safe-console";
-import { createClient } from "@/lib/supabase/server";
-import { getAdminClient } from "@/lib/supabase/admin";
+import { getGoogleOAuthCredentialClient } from "@/lib/auth/google-oauth-credential-client";
 import {
   getGoogleOAuthConnectionForBinding,
   hasOtherActiveGoogleOAuthConnection,
@@ -206,13 +205,17 @@ export async function deactivateGoogleConnection(
     return { success: false, error: "No active Google connection found" };
   }
 
-  const supabase = options.useServiceRole
-    ? getAdminClient()
-    : await createClient();
+  const supabase = await getGoogleOAuthCredentialClient(
+    userId,
+    options.useServiceRole,
+  );
+  if (!supabase)
+    return { success: false, error: "Google connection access is unavailable" };
 
   const hasOtherActiveConnection = await hasOtherActiveGoogleOAuthConnection(
     userId,
     connection.id,
+    { useServiceRole: options.useServiceRole },
   );
   const shouldRevoke = shouldRevokeGoogleOAuthGrant({
     requested: options.revokeAccess !== false,
@@ -292,7 +295,8 @@ export async function markPersonalCalendarConnectionSynced(
   const connection = await getCalendarConnection(userId);
   if (!connection) return;
 
-  const supabase = await createClient();
+  const supabase = await getGoogleOAuthCredentialClient(userId);
+  if (!supabase) return;
   await supabase
     .from("user_calendar_connections")
     .update({ last_synced_at: new Date().toISOString() })
@@ -359,6 +363,8 @@ export async function getGoogleAccessTokenForUser(
     requestedCapability?: GoogleOAuthCsfImportCapability;
   },
 ): Promise<string | null> {
+  const supabase = await getGoogleOAuthCredentialClient(userId, useServiceRole);
+  if (!supabase) return null;
   if (options.expectedBinding.organizationId) {
     if (
       options.expectedBinding.purpose === "csf_import" &&
@@ -377,7 +383,6 @@ export async function getGoogleAccessTokenForUser(
     if (!authorization.allowed) return null;
   }
 
-  const supabase = useServiceRole ? getAdminClient() : await createClient();
   const connection = await getGoogleOAuthConnectionForBinding(
     userId,
     options.expectedBinding,
@@ -419,6 +424,8 @@ export async function getGoogleAccessTokenForUser(
         .from("user_calendar_connections")
         .update({ access_token: decrypted.reencrypted })
         .eq("id", connection.id)
+        .eq("user_id", userId)
+        .eq("provider", "google")
         .eq("access_token", connection.access_token);
       if (error) safeConsole.error("Failed to rotate Google access credential");
     }
@@ -431,6 +438,8 @@ export async function getGoogleAccessTokenForUser(
       .from("user_calendar_connections")
       .update({ refresh_token: decryptedRefresh.reencrypted })
       .eq("id", connection.id)
+      .eq("user_id", userId)
+      .eq("provider", "google")
       .eq("refresh_token", connection.refresh_token);
     if (error) safeConsole.error("Failed to rotate Google refresh credential");
   }
@@ -440,7 +449,9 @@ export async function getGoogleAccessTokenForUser(
     await supabase
       .from("user_calendar_connections")
       .update({ is_active: false })
-      .eq("id", connection.id);
+      .eq("id", connection.id)
+      .eq("user_id", userId)
+      .eq("provider", "google");
     return null;
   }
 

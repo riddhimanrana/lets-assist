@@ -2,7 +2,7 @@ import "server-only";
 import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getGoogleOAuthCredentialClient } from "./google-oauth-credential-client";
 import type { CalendarConnection } from "@/types/calendar";
 
 import type { GoogleOAuthConnectionBindingExpectation } from "./google-oauth-connection-binding";
@@ -41,8 +41,8 @@ type GoogleOAuthBindingEvidence = {
 async function findGoogleOAuthBindingEvidence(
   userId: string,
   expected: GoogleOAuthConnectionBindingExpectation,
+  admin: ReturnType<typeof getAdminClient>,
 ): Promise<GoogleOAuthBindingEvidence | null> {
-  const admin = getAdminClient();
   let query = admin
     .from("user_google_oauth_connection_bindings")
     .select("connection_id, identity_email, identity_verified_at")
@@ -83,12 +83,17 @@ export async function getGoogleOAuthConnectionForBinding(
   expected: GoogleOAuthConnectionBindingExpectation,
   options: BoundGoogleConnectionOptions = {},
 ): Promise<BoundGoogleOAuthConnection | null> {
-  const binding = await findGoogleOAuthBindingEvidence(userId, expected);
+  const client = await getGoogleOAuthCredentialClient(
+    userId,
+    options.useServiceRole,
+  );
+  if (!client) return null;
+  const binding = await findGoogleOAuthBindingEvidence(
+    userId,
+    expected,
+    client,
+  );
   if (!binding) return null;
-
-  const client = options.useServiceRole
-    ? getAdminClient()
-    : await createClient();
   let query = client
     .from("user_calendar_connections")
     .select("*")
@@ -115,8 +120,13 @@ export async function getGoogleOAuthConnectionForBinding(
  */
 export async function hasUnboundActiveGoogleOAuthConnection(
   userId: string,
+  options: Pick<BoundGoogleConnectionOptions, "useServiceRole"> = {},
 ): Promise<boolean> {
-  const admin = getAdminClient();
+  const admin = await getGoogleOAuthCredentialClient(
+    userId,
+    options.useServiceRole,
+  );
+  if (!admin) return false;
   const { data: activeConnections, error: connectionError } = await admin
     .from("user_calendar_connections")
     .select("id")
@@ -146,8 +156,13 @@ export async function hasUnboundActiveGoogleOAuthConnection(
 export async function hasOtherActiveGoogleOAuthConnection(
   userId: string,
   excludedConnectionId: string,
+  options: Pick<BoundGoogleConnectionOptions, "useServiceRole"> = {},
 ): Promise<boolean> {
-  const admin = getAdminClient();
+  const admin = await getGoogleOAuthCredentialClient(
+    userId,
+    options.useServiceRole,
+  );
+  if (!admin) return true;
   const { count, error } = await admin
     .from("user_calendar_connections")
     .select("id", { count: "exact", head: true })
