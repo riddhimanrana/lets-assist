@@ -3,7 +3,10 @@
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
+import {
+  accountDeletionFailureMessage,
+  deleteUserWithCleanup,
+} from "@/lib/supabase/delete-user-with-cleanup";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { passwordSchema } from "@/lib/auth/password-policy";
 import { runOnCanonicalAuthOrigin } from "@/app/signup/canonical-auth-request";
@@ -335,40 +338,19 @@ export async function getDataExportJobs() {
 }
 
 export async function deleteAccount() {
-  try {
-    // Use getAuthUser with sensitive: true for account deletion
-    const { user, error: authError } = await getAuthUser({
-      sensitive: true,
-      checkMfa: true,
-    });
-
-    if (authError || !user) {
-      throw new Error("Not authenticated");
-    }
-
-    // Use centralized admin client
-    const supabaseAdmin = getAdminClient();
-
-    const report = await deleteUserWithCleanup(supabaseAdmin, user.id, {
-      deleteProjects: true,
-      deleteOrganizations: false,
-    });
-
-    if (report.blockedBySoleAdminOrgs.length > 0) {
-      const orgs = report.blockedBySoleAdminOrgs
-        .map((org) => org.organization_name ?? org.organization_id)
-        .join(", ");
-      throw new Error(
-        `Cannot delete account until another admin is added to: ${orgs}`,
-      );
-    }
-
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-
-    return { success: true };
-  } catch (error) {
-    console.error("Delete account error:", error);
-    throw error;
-  }
+  const { user, error: authError } = await getAuthUser({
+    sensitive: true,
+    checkMfa: true,
+    allowAccountDeletion: true,
+  });
+  if (authError || !user) throw new Error("Not authenticated");
+  const report = await deleteUserWithCleanup(getAdminClient(), user.id, {
+    deleteProjects: true,
+    deleteOrganizations: false,
+  });
+  if (report.phase !== "completed")
+    throw new Error(accountDeletionFailureMessage(report));
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  return { success: true };
 }

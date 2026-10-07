@@ -4,7 +4,10 @@ import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
-import { detachContentReportReporter } from "@/lib/moderation/content-report-retention";
+import {
+  accountDeletionFailureMessage,
+  deleteUserWithCleanup,
+} from "@/lib/supabase/delete-user-with-cleanup";
 import { sendEmail } from "@/services/email";
 import AccountAccessUpdateEmail from "@/emails/account-access-update";
 import { checkSuperAdmin } from "./auth";
@@ -200,152 +203,59 @@ export async function updateUserAccessControl(input: {
   };
 }
 
-/**
- * Permanently deletes all public data for a user AND adds their email to the
- * banned_emails blacklist so they can never register again with that address.
- * The auth.users row is preserved (banned) so any active sessions are killed.
- */
+/** Remove personal records through the same recoverable protocol as self-deletion. */
 export async function deleteAndBlacklistUser(input: {
   userId: string;
   reason?: string;
   sendEmail?: boolean;
 }): Promise<{ success?: boolean; error?: string }> {
   "use server";
-  const service = getAdminClient();
   const { isAdmin, userId: adminUserId } = await checkSuperAdmin();
-
-  if (!isAdmin || !adminUserId) {
-    return { error: "Unauthorized" };
-  }
-
-  if (!input.userId) {
-    return { error: "User ID is required" };
-  }
-
-  if (input.userId === adminUserId) {
+  if (!isAdmin || !adminUserId) return { error: "Unauthorized" };
+  if (!input.userId) return { error: "User ID is required" };
+  if (input.userId === adminUserId)
     return { error: "You cannot delete your own account via this panel." };
-  }
-
-  const normalizedReason = input.reason?.trim() || null;
-
-  const [{ data: profile }, authResult] = await Promise.all([
-    service
-      .from("profiles")
-      .select("id, full_name, username, email")
-      .eq("id", input.userId)
-      .maybeSingle(),
-    service.auth.admin.getUserById(input.userId),
-  ]);
-
-  const targetAuthUser = authResult.data.user;
-  if (authResult.error || !targetAuthUser) {
-    return { error: "User not found" };
-  }
-
-  const userEmail = targetAuthUser.email || profile?.email || null;
-  const userName = profile?.full_name || profile?.username || "there";
-  const supportUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`;
-  const normalizedEmail = userEmail?.trim().toLowerCase() ?? null;
-
-  // Reports filed by this account are evidence about other people's content,
-  // so enforcement detaches the reporter instead of deleting the rows.
-  //
-  // This runs first, and a failure aborts the whole action. Unlike account
-  // deletion, this path bans the auth row rather than removing it, so the
-  // `ON DELETE SET NULL` foreign key never fires and nothing downstream would
-  // repeat the detachment: continuing past a failure would delete the profile
-  // and ban the account while leaving the reports still pointing at a
-  // now-unreachable identity. Aborting here destroys nothing — the detach
-  // itself is idempotent and is a subset of the intended end state — so the
-  // action can simply be retried.
+  const service = getAdminClient();
   try {
-    await detachContentReportReporter(service, input.userId);
-  } catch (detachError) {
-    console.error("Enforcement: content_reports detach failed:", detachError);
+    const report = await deleteUserWithCleanup(service, input.userId, {
+      actorId: adminUserId,
+      mode: "admin_blacklist",
+      reason: input.reason,
+      deleteProjects: true,
+    });
+    if (report.phase !== "completed")
+      return { error: accountDeletionFailureMessage(report) };
+    // Send only after confirmed completion. A retry of a completed receipt does
+    // not send again. A failed notification does not undo account removal.
+    if (report.completedNow && input.sendEmail !== false) {
+      try {
+        const { data } = await service.auth.admin.getUserById(input.userId);
+        if (data.user?.email) {
+          await sendEmail({
+            to: data.user.email,
+            subject: "Your Let's Assist account has been permanently removed",
+            react: AccountAccessUpdateEmail({
+              userName: "there",
+              status: "banned",
+              reason: input.reason?.trim() || null,
+              banDuration: "indefinitely",
+              supportUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`,
+            }),
+            userId: input.userId,
+            type: "transactional",
+          });
+        }
+      } catch {
+        console.warn(
+          "Account removal completed; its notification could not be delivered.",
+        );
+      }
+    }
+    return { success: true };
+  } catch {
     return {
       error:
-        "Could not detach this account from its moderation reports. No data was removed. Please retry.",
+        "Account cleanup could not be confirmed. Retry the saved operation.",
     };
   }
-
-  // Email before deleting data
-  if (input.sendEmail !== false && userEmail) {
-    await sendEmail({
-      to: userEmail,
-      subject: "Your Let's Assist account has been permanently removed",
-      react: AccountAccessUpdateEmail({
-        userName,
-        status: "banned",
-        reason: normalizedReason,
-        banDuration: "indefinitely",
-        supportUrl,
-      }),
-      userId: input.userId,
-      type: "transactional",
-    });
-  }
-
-  // Add email to blacklist (upsert in case it already exists)
-  if (normalizedEmail) {
-    const { error: blacklistError } = await service
-      .from("banned_emails")
-      .upsert(
-        {
-          email: normalizedEmail,
-          reason: normalizedReason,
-          banned_by: adminUserId,
-        },
-        { onConflict: "email" },
-      );
-    if (blacklistError) {
-      console.error("Error adding email to blacklist:", blacklistError);
-    }
-  }
-
-  // Delete all public user data
-  const tables: Array<{ table: string; field: string }> = [
-    { table: "feedback", field: "user_id" },
-    { table: "notifications", field: "user_id" },
-    { table: "notification_settings", field: "user_id" },
-    { table: "user_calendar_connections", field: "user_id" },
-    { table: "user_emails", field: "user_id" },
-    { table: "trusted_member", field: "user_id" },
-    { table: "certificates", field: "user_id" },
-    { table: "project_signups", field: "user_id" },
-  ];
-  for (const { table, field } of tables) {
-    const { error } = await service
-      .from(table)
-      .delete()
-      .eq(field, input.userId);
-    if (error) console.error(`Delete cleanup: ${table}:`, error);
-  }
-  await service
-    .from("organization_members")
-    .delete()
-    .eq("user_id", input.userId);
-  await service.from("projects").delete().eq("creator_id", input.userId);
-  await service.from("profiles").delete().eq("id", input.userId);
-
-  // Ban auth row so active sessions are immediately invalidated
-  const updatedAt = new Date().toISOString();
-  const { error: banError } = await service.auth.admin.updateUserById(
-    input.userId,
-    {
-      ban_duration: "876000h",
-      app_metadata: {
-        account_access: {
-          status: "banned",
-          reason: normalizedReason,
-          updated_at: updatedAt,
-          updated_by: adminUserId,
-        },
-      },
-    },
-  );
-  if (banError) {
-    console.error("Error banning auth row after data deletion:", banError);
-  }
-
-  return { success: true };
 }

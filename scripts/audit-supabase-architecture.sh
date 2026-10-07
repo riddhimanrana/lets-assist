@@ -921,15 +921,19 @@ fail_if_rows "public client-callable function ACL drift" "$public_client_functio
 
 reviewed_service_rpc_drift="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
-    with reviewed(signature) as (
-      values ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)')
+    with reviewed(signature, security_definer, volatility) as (
+      values ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)', false, 's'),
+        ('public.preflight_account_deletion(uuid,uuid,text,boolean)', true, 's'),
+        ('public.begin_account_deletion(uuid,uuid,text,boolean,text)', true, 'v'),
+        ('public.claim_account_deletion_cleanup(uuid)', true, 'v'),
+        ('public.advance_account_deletion_cleanup(uuid,uuid,text,uuid[])', true, 'v')
     )
     select reviewed.signature
     from reviewed
     left join pg_proc routine on routine.oid = to_regprocedure(reviewed.signature)
     where routine.oid is null
-      or routine.prosecdef
-      or routine.provolatile <> 's'
+      or routine.prosecdef <> reviewed.security_definer
+      or routine.provolatile::text <> reviewed.volatility
       or not coalesce(routine.proconfig @> array['search_path=\"\"'], false)
       or not has_function_privilege('service_role', routine.oid, 'EXECUTE')
       or has_function_privilege('anon', routine.oid, 'EXECUTE')

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(92);
+SELECT extensions.plan(93);
 
 -- Organization bearer capabilities must never be readable through the Data API.
 WITH client_roles(role_name) AS (
@@ -400,7 +400,7 @@ SELECT extensions.throws_ok(
     WHERE id = 'fd200000-0000-4000-8000-000000000001'
   $$,
   '23514',
-  'cannot demote the final organization admin',
+  'cannot remove the final active organization admin',
   'the database prevents demoting the final organization admin'
 );
 
@@ -771,10 +771,18 @@ SELECT extensions.is(
   'service-role issuer binding is persisted'
 );
 
-UPDATE public.organization_members
+SELECT extensions.throws_ok($$UPDATE public.organization_members
 SET status = 'inactive'
 WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
-  AND user_id = 'fd000000-0000-4000-8000-000000000001';
+  AND user_id = 'fd000000-0000-4000-8000-000000000001'$$,
+ '23514', 'cannot remove the final active organization admin',
+ 'service writes cannot deactivate the final active admin');
+
+-- Model a legacy inactive-admin row with the fixture owner for the issuer test.
+RESET ROLE;
+UPDATE public.organization_members SET status='inactive'
+WHERE organization_id='fd100000-0000-4000-8000-000000000001'
+ AND user_id='fd000000-0000-4000-8000-000000000001';
 
 RESET ROLE;
 SET LOCAL request.jwt.claims =
