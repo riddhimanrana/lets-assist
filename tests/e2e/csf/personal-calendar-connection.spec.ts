@@ -11,7 +11,7 @@ function checked(error: unknown, operation: string) {
     throw new Error(`Fictional connected calendar ${operation} failed.`);
 }
 
-test("connected calendar renders safe display fields and denies browser credential access", async ({
+test("connected calendar protects credentials and supports local-only disconnect", async ({
   page,
 }) => {
   const local = getCsfIsolatedSupabaseEnv();
@@ -225,6 +225,47 @@ test("connected calendar renders safe display fields and denies browser credenti
       access_token: accessToken,
       refresh_token: refreshToken,
     });
+    const disconnected = await page.evaluate(async () => {
+      const response = await fetch("/api/google/oauth/disconnect", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revoke_access: false }),
+      });
+      return { status: response.status, body: await response.json() };
+    });
+    expect(disconnected).toMatchObject({
+      status: 200,
+      body: { success: true, remoteRevocation: "not_requested" },
+    });
+    const removedCredential = await admin
+      .from("user_calendar_connections")
+      .select("id")
+      .eq("id", connectionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const removedBinding = await admin
+      .from("user_google_oauth_connection_bindings")
+      .select("connection_id")
+      .eq("connection_id", connectionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    checked(removedCredential.error, "disconnected credential readback");
+    checked(removedBinding.error, "disconnected binding readback");
+    expect(removedCredential.data).toBeNull();
+    expect(removedBinding.data).toBeNull();
+    await page.reload({ waitUntil: "networkidle" });
+    await expect(
+      page.getByText("Not connected", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", {
+        name: "Connect Google Calendar",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText(calendarEmail, { exact: true })).toHaveCount(0);
+    await Promise.all(calendarBodies);
     expect(externalRequests).toEqual([]);
     expect(browserFailures).toEqual([]);
   } catch (error) {
