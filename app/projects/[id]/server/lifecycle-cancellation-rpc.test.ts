@@ -17,6 +17,7 @@ mock.module("@/lib/security/html.server", () => ({
 }));
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const SIGNUP_ID = "33333333-3333-4333-8333-333333333333";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
 
 let rpcResult: { data: unknown; error: unknown };
@@ -53,12 +54,15 @@ mock.module("./access-helpers", () => ({
 }));
 
 mock.module("@/utils/calendar-helpers", () => ({
+  removeCalendarEventForSignup: async (signupId: string) => {
+    calendarRemovals.push(signupId);
+  },
   removeCalendarEventForProject: async (projectId: string) => {
     calendarRemovals.push(projectId);
   },
 }));
 
-function unusedBuilder() {
+function unusedBuilder(table?: string) {
   let operation: "select" | "update" = "select";
   const builder = {
     select: () => builder,
@@ -66,14 +70,16 @@ function unusedBuilder() {
     maybeSingle: async () => ({
       data:
         operation === "select"
-          ? {
-              id: PROJECT_ID,
-              creator_id: USER_ID,
-              organization_id: null,
-              organization: null,
-              status: projectStatus,
-              title: "Cancellation RPC fixture",
-            }
+          ? table === "project_signups"
+            ? { id: SIGNUP_ID, project_id: PROJECT_ID }
+            : {
+                id: PROJECT_ID,
+                creator_id: USER_ID,
+                organization_id: null,
+                organization: null,
+                status: projectStatus,
+                title: "Cancellation RPC fixture",
+              }
           : { id: PROJECT_ID },
       error: null,
     }),
@@ -92,7 +98,7 @@ mock.module("@/lib/supabase/server", () => ({
       rpcCalls.push({ name, args });
       return rpcResult;
     },
-    from: () => unusedBuilder(),
+    from: (table: string) => unusedBuilder(table),
   }),
 }));
 
@@ -101,6 +107,7 @@ mock.module("@/lib/supabase/admin", () => ({
 }));
 
 const { updateProjectStatus } = await import("./lifecycle");
+const { rejectSignup } = await import("./cancellation");
 
 beforeEach(() => {
   rpcCalls.length = 0;
@@ -142,12 +149,19 @@ describe("updateProjectStatus cancellation boundary", () => {
     expect(calendarRemovals).toEqual([PROJECT_ID]);
   });
 
-  test("RPC error cannot produce calendar or queue side effects", async () => {
-    rpcResult = { data: null, error: { code: "40001" } };
-    const result = await updateProjectStatus(PROJECT_ID, "cancelled", "Storm");
-    expect(result).toEqual({ error: "Failed to cancel project" });
-    expect(calendarRemovals).toHaveLength(0);
-  });
+  test.each(["40001", "PT409"])(
+    "RPC error %s cannot produce calendar or queue side effects",
+    async (code) => {
+      rpcResult = { data: null, error: { code } };
+      const result = await updateProjectStatus(
+        PROJECT_ID,
+        "cancelled",
+        "Storm",
+      );
+      expect(result).toEqual({ error: "Failed to cancel project" });
+      expect(calendarRemovals).toHaveLength(0);
+    },
+  );
 
   test("an impossible success envelope is rejected", async () => {
     rpcResult = { data: { accepted: true }, error: null };
@@ -207,3 +221,19 @@ describe("updateProjectStatus cancellation boundary", () => {
     });
   });
 });
+
+for (const code of ["PT409", "40001"]) {
+  test(`signup rejection retains its reload message for ${code}`, async () => {
+    rpcResult = { data: null, error: { code } };
+    expect(await rejectSignup(SIGNUP_ID)).toEqual({
+      outcome: "rejected",
+      error:
+        "The signup changed while it was being rejected. Refresh the signups list and try again.",
+    });
+    expect(rpcCalls).toEqual([
+      { name: "reject_project_signup", args: { p_signup_id: SIGNUP_ID } },
+    ]);
+    expect(calendarRemovals).toHaveLength(0);
+    expect(workerKicks).toHaveLength(0);
+  });
+}
