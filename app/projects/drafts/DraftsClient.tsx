@@ -134,7 +134,7 @@ export default function DraftsClient({
             </p>
           </div>
           <Link href="/projects/create" className={cn(buttonVariants())}>
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="size-4 mr-2" />
             New Project
           </Link>
         </div>
@@ -165,7 +165,7 @@ export default function DraftsClient({
           </p>
         </div>
         <Link href="/projects/create" className={cn(buttonVariants())}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="size-4 mr-2" />
           New Project
         </Link>
       </div>
@@ -207,14 +207,14 @@ export default function DraftsClient({
                     {draft.organization && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                         {draft.organization.logo_url ? (
-                          <Avatar className="h-4 w-4">
+                          <Avatar className="size-4">
                             <AvatarImage src={draft.organization.logo_url} />
                             <AvatarFallback>
                               <Building2 className="h-3 w-3" />
                             </AvatarFallback>
                           </Avatar>
                         ) : (
-                          <Building2 className="h-4 w-4" />
+                          <Building2 className="size-4" />
                         )}
                         {draft.organization.name}
                       </div>
@@ -222,19 +222,19 @@ export default function DraftsClient({
 
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="size-4" />
                         {getSchedulePreview(draft)}
                       </div>
                       {draft.location && (
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          <span className="truncate max-w-[200px]">
+                          <MapPin className="size-4" />
+                          <span className="truncate max-w-50">
                             {draft.location}
                           </span>
                         </div>
                       )}
                       <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="size-4" />
                         Saved{" "}
                         {format(new Date(draft.created_at), "MMM d, yyyy")}
                       </div>
@@ -254,7 +254,7 @@ export default function DraftsClient({
                         "shrink-0",
                       )}
                     >
-                      <MoreVertical className="h-4 w-4" />
+                      <MoreVertical className="size-4" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>
@@ -262,7 +262,7 @@ export default function DraftsClient({
                           href={`/projects/${draft.id}/edit`}
                           className="flex w-full items-center"
                         >
-                          <Edit className="h-4 w-4 mr-2" />
+                          <Edit className="size-4 mr-2" />
                           Continue Editing
                         </Link>
                       </DropdownMenuItem>
@@ -270,7 +270,7 @@ export default function DraftsClient({
                         onClick={() => handlePublish(draft.id)}
                         disabled={isPublishing === draft.id}
                       >
-                        <Send className="h-4 w-4 mr-2" />
+                        <Send className="size-4 mr-2" />
                         {isPublishing === draft.id
                           ? "Publishing..."
                           : "Publish Now"}
@@ -280,7 +280,7 @@ export default function DraftsClient({
                         onClick={() => setDraftToDelete(draft.id)}
                         className="text-destructive focus:text-destructive text-destructive-foreground focus:bg-destructive/10"
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
+                        <Trash2 className="size-4 mr-2" />
                         Delete Draft
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -297,7 +297,7 @@ export default function DraftsClient({
                     "flex-1",
                   )}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit className="size-4 mr-2" />
                   Edit
                 </Link>
                 <Button
@@ -306,7 +306,7 @@ export default function DraftsClient({
                   onClick={() => handlePublish(draft.id)}
                   disabled={isPublishing === draft.id}
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send className="size-4 mr-2" />
                   Publish
                 </Button>
               </div>

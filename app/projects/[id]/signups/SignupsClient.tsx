@@ -154,11 +154,11 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
   };
 
   const getSortIcon = (field: SortField) => {
-    if (sort.field !== field) return <ArrowUpDown className="h-4 w-4" />;
+    if (sort.field !== field) return <ArrowUpDown className="size-4" />;
     return sort.direction === "asc" ? (
-      <ChevronUp className="h-4 w-4" />
+      <ChevronUp className="size-4" />
     ) : (
-      <ChevronDown className="h-4 w-4" />
+      <ChevronDown className="size-4" />
     );
   };
 
@@ -692,7 +692,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     if (status === "rejected") {
       return (
         <Badge variant="destructive" className="gap-1">
-          <XCircle className="h-4 w-4" />
+          <XCircle className="size-4" />
           Rejected
         </Badge>
       );
@@ -700,7 +700,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     if (status === "pending") {
       return (
         <Badge variant="secondary" className="gap-1">
-          <Clock className="h-4 w-4" />
+          <Clock className="size-4" />
           Pending
         </Badge>
       );
@@ -708,7 +708,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     // Approved status
     return (
       <Badge className="gap-1">
-        <CheckCircle2 className="h-4 w-4" />
+        <CheckCircle2 className="size-4" />
         Approved
       </Badge>
     );
@@ -745,7 +745,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       <div className="mb-6 flex items-center justify-between">
         <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           Back to Project
         </Button>
         <Button
@@ -753,7 +753,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           className="gap-2"
           onClick={() => router.push(`/projects/${projectId}/paper-signups`)}
         >
-          <ScanText className="h-4 w-4" />
+          <ScanText className="size-4" />
           <span className="hidden sm:inline">Scan paper sheet</span>
           <span className="sm:hidden">Paper sheet</span>
         </Button>
@@ -781,7 +781,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <Switch
                   id="pause-signups"
                   checked={pausedSignups}
@@ -794,17 +794,17 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 >
                   {pausedSignups ? (
                     <>
-                      <Pause className="h-4 w-4 text-warning" />
+                      <Pause className="size-4 text-warning" />
                       <span>Signups Paused</span>
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4 text-success" />
+                      <Play className="size-4 text-success" />
                       <span>Accepting Signups</span>
                     </>
                   )}
                   {isPausingSignups && (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="ml-2 size-4 animate-spin" />
                   )}
                 </Label>
               </div>
@@ -814,7 +814,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
             <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-3 size-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name..."
                 className="pl-8"
@@ -829,7 +829,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 onClick={printVolunteers}
                 disabled={Object.keys(filteredSignupsBySlot).length === 0}
               >
-                <Printer className="h-4 w-4" />
+                <Printer className="size-4" />
                 Print Volunteer List
               </Button>
               <Button
@@ -839,7 +839,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                 disabled={refreshing}
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                  className={`size-4 ${refreshing ? "animate-spin" : ""}`}
                 />
                 Refresh
               </Button>
@@ -848,7 +848,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
           {project?.pause_signups && (
             <Alert className="bg-warning/15 border-warning/50 mb-4">
-              <Pause className="h-4 w-4 text-warning" />
+              <Pause className="size-4 text-warning" />
               <AlertTitle className="text-warning/90">
                 Signups are currently paused
               </AlertTitle>
@@ -978,7 +978,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                         <span className="sr-only">
                                           Open menu
                                         </span>
-                                        <MoreVertical className="h-4 w-4" />
+                                        <MoreVertical className="size-4" />
                                       </Button>
                                     }
                                   />
@@ -988,7 +988,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                         handleOpenWaiverPreview(signup)
                                       }
                                     >
-                                      <Eye className="mr-2 h-4 w-4" />
+                                      <Eye className="mr-2 size-4" />
                                       View Waiver
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
@@ -998,9 +998,9 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
                                     >
                                       {waiverSignature?.id &&
                                       waiverDownloads[waiverSignature.id] ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <Loader2 className="mr-2 size-4 animate-spin" />
                                       ) : (
-                                        <Download className="mr-2 h-4 w-4" />
+                                        <Download className="mr-2 size-4" />
                                       )}
                                       Download PDF
                                     </DropdownMenuItem>
@@ -1096,7 +1096,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           ))}
 
           {Object.keys(filteredSignupsBySlot).length === 0 && !loading && (
-            <div className="flex flex-col items-center text-muted-foreground space-y-2">
+            <div className="flex flex-col items-center text-muted-foreground gap-2">
               <UserRoundSearch className="h-8 w-8 mt-10" />
               <p className="text-lg font-medium">No signups found</p>
               <p className="text-sm">

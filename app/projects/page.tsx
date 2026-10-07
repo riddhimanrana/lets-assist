@@ -2,6 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import UserProjects from "./UserProjects";
 async function getUserData() {
@@ -43,15 +44,12 @@ export default async function ProjectsPage() {
           <div className="flex gap-3 items-center text-muted-foreground text-sm">
             <Link
               href="/login"
-              className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md text-sm font-medium transition-colors"
+              className={buttonVariants({ variant: "outline" })}
             >
               Log in
             </Link>
             or
-            <Link
-              href="/signup"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
+            <Link href="/signup" className={buttonVariants()}>
               Sign Up
             </Link>
             <span className="text-sm text-muted-foreground">

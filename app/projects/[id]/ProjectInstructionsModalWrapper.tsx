@@ -56,11 +56,11 @@ export default function ProjectInstructionsModalWrapper({
         disabled
       >
         <span className="flex items-center gap-2">
-          <HelpCircle className="h-4 w-4" />
+          <HelpCircle className="size-4" />
           {Label}
         </span>
         {showChevron && (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <ChevronRight className="size-4 text-muted-foreground" />
         )}
       </Button>
     );

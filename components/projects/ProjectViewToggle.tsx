@@ -110,30 +110,24 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
           {filteredProjects.map((project) => (
             <div key={project.id} className="relative group">
               <Link href={`/projects/${project.id}`}>
-                <Card className="hover:shadow-xl dark:hover:shadow-primary/10 transition-all cursor-pointer h-full flex flex-col group/project-card border-muted/40">
+                <Card className="hover:bg-muted/40 transition-colors cursor-pointer h-full group/project-card">
                   <div className="px-4 py-1 flex flex-col h-full">
                     <h3 className="text-xl font-bold mb-1 line-clamp-2 pr-8 leading-tight">
                       {project.title}
                     </h3>
                     <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <MapPin className="size-4 text-muted-foreground shrink-0" />
                       <span className="text-sm text-muted-foreground truncate">
                         {project.location}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                      <Badge
-                        variant="outline"
-                        className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs"
-                      >
+                      <Badge variant="outline" className="gap-1.5 px-2.5">
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDateDisplay(project)}
                       </Badge>
-                      <Badge
-                        variant="outline"
-                        className="gap-1.5 py-1 px-2.5 font-medium border-muted-foreground/20 text-xs"
-                      >
+                      <Badge variant="outline" className="gap-1.5 px-2.5">
                         <Users className="h-3.5 w-3.5" />
                         {formatSpots(getRemainingSpots(project))}
                       </Badge>
@@ -142,7 +136,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     {/* User info with hover card - updated to show organization if available */}
                     <div className="mt-auto">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
+                        <Avatar className="size-8">
                           <AvatarImage
                             src={getCreatorAvatarUrl(project) || undefined}
                             alt={getProjectCreator(project)}
@@ -193,7 +187,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             )}
                             {project.organization_id &&
                               isOrganizationVerified(project) && (
-                                <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
+                                <BadgeCheck className="size-4 shrink-0 text-success" />
                               )}
                           </div>
                         </div>
@@ -214,7 +208,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <MoreVertical className="h-4 w-4" />
+                        <MoreVertical className="size-4" />
                         <span className="sr-only">Open menu</span>
                       </Button>
                     }
@@ -223,7 +217,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                     <DropdownMenuItem
                       onClick={() => setReportingProject(project)}
                     >
-                      <Flag className="mr-2 h-4 w-4" />
+                      <Flag className="mr-2 size-4" />
                       <span>Report Project</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -248,7 +242,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                           {project.title}
                         </h3>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2 md:mb-3 project-location">
-                          <MapPin className="h-4 w-4 shrink-0" />
+                          <MapPin className="size-4 shrink-0" />
                           <span className="truncate">{project.location}</span>
                         </div>
                       </div>
@@ -270,7 +264,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 mt-3 project-avatar">
-                      <Avatar className="h-7 w-7">
+                      <Avatar className="size-7">
                         <AvatarImage
                           src={getCreatorAvatarUrl(project) || undefined}
                           alt={getProjectCreator(project)}
@@ -320,7 +314,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         )}
                         {project.organization_id &&
                           isOrganizationVerified(project) && (
-                            <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
+                            <BadgeCheck className="size-4 shrink-0 text-success" />
                           )}
                       </div>
                     </div>
@@ -338,7 +332,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               e.stopPropagation();
                             }}
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <MoreVertical className="size-4" />
                             <span className="sr-only">Open menu</span>
                           </Button>
                         }
@@ -351,7 +345,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                             setReportingProject(project);
                           }}
                         >
-                          <Flag className="mr-2 h-4 w-4" />
+                          <Flag className="mr-2 size-4" />
                           <span>Report Project</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -362,7 +356,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                       size="icon"
                       className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="size-4" />
                     </Button>
                   </div>
                 </div>
@@ -457,7 +451,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         }}
                       >
                         <div className="flex items-center gap-2 cursor-pointer">
-                          <Avatar className="h-7 w-7">
+                          <Avatar className="size-7">
                             <AvatarImage
                               src={getCreatorAvatarUrl(project) || undefined}
                               alt={getProjectCreator(project)}
@@ -471,7 +465,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                               {getProjectCreator(project)}
                             </span>
                             {isOrganizationVerified(project) && (
-                              <BadgeCheck className="h-4 w-4 shrink-0 text-success" />
+                              <BadgeCheck className="size-4 shrink-0 text-success" />
                             )}
                           </div>
                         </div>
@@ -484,7 +478,7 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                         createdAt={project.profiles?.created_at || undefined}
                       >
                         <div className="flex items-center gap-2 cursor-pointer">
-                          <Avatar className="h-7 w-7">
+                          <Avatar className="size-7">
                             <AvatarImage
                               src={getCreatorAvatarUrl(project) || undefined}
                               alt={getProjectCreator(project)}

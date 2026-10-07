@@ -127,11 +127,11 @@ export function AttendanceClient({
   };
 
   const getSortIcon = (field: SortField) => {
-    if (sort.field !== field) return <ArrowUpDown className="h-4 w-4" />;
+    if (sort.field !== field) return <ArrowUpDown className="size-4" />;
     return sort.direction === "asc" ? (
-      <ChevronUp className="h-4 w-4" />
+      <ChevronUp className="size-4" />
     ) : (
-      <ChevronDown className="h-4 w-4" />
+      <ChevronDown className="size-4" />
     );
   };
 
@@ -526,20 +526,20 @@ export function AttendanceClient({
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="mb-6">
         <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           Back to Project
         </Button>
       </div>
 
       {!isAttendanceActive ? (
-        <Card className="min-h-[400px] relative">
+        <Card className="min-h-100 relative">
           <CardHeader>
             <CardTitle>Attendance Records</CardTitle>
             <CardDescription>
               Attendance management will be available soon
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
             <div className="rounded-full bg-muted p-6 w-fit">
               <CalendarClock className="h-10 w-10 text-muted-foreground" />
             </div>
@@ -554,7 +554,7 @@ export function AttendanceClient({
                   <br />
                   <br />
                   <span className="block">
-                    <AlertCircle className="inline-block h-4 w-4 mr-2 mb-1" />
+                    <AlertCircle className="inline-block size-4 mr-2 mb-1" />
                     Attendance will open in {timeUntilOpen}
                   </span>
                   <span className="block mt-2 text-sm">
@@ -572,7 +572,7 @@ export function AttendanceClient({
           </CardFooter>
         </Card>
       ) : (
-        <Card className="min-h-[400px] relative">
+        <Card className="min-h-100 relative">
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center z-10">
               <div className="flex flex-col items-center gap-2 mt-10">
@@ -605,7 +605,7 @@ export function AttendanceClient({
             project?.verification_method === "signup-only") && (
             <div className="mx-6 mb-4">
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="size-4" />
                 <AlertTitle>
                   {project?.verification_method === "auto"
                     ? "Automatic Check-in Enabled"
@@ -625,7 +625,7 @@ export function AttendanceClient({
               {/* Search input always full width on mobile */}
               <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
                 <div className="relative w-full">
-                  <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2.5 top-3 size-4 text-muted-foreground" />
                   <Input
                     placeholder="Search by name or email..."
                     className="pl-8 w-full"
@@ -641,7 +641,7 @@ export function AttendanceClient({
                     onValueChange={(val) => setSessionFilter(val || "all")}
                   >
                     <SelectTrigger
-                      className="w-full sm:min-w-[240px] sm:w-auto"
+                      className="w-full sm:min-w-60 sm:w-auto"
                       aria-label="Filter by session"
                     >
                       <SelectValue placeholder="Filter by session">
@@ -652,7 +652,7 @@ export function AttendanceClient({
                             : "Filter by session"}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent className="max-w-[400px]">
+                    <SelectContent className="max-w-100">
                       <SelectItem value="all">All Sessions</SelectItem>
                       {availableSessions.map((session) => (
                         <SelectItem key={session} value={session}>
@@ -672,7 +672,7 @@ export function AttendanceClient({
                       }
                       aria-label="Print Attendance"
                     >
-                      <Printer className="h-4 w-4" />
+                      <Printer className="size-4" />
                       <span className="hidden sm:inline">Print Attendance</span>
                     </Button>
                     <Button
@@ -683,7 +683,7 @@ export function AttendanceClient({
                       aria-label="Refresh"
                     >
                       <RefreshCw
-                        className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                        className={`size-4 ${refreshing ? "animate-spin" : ""}`}
                       />
                       <span className="hidden sm:inline">Refresh</span>
                     </Button>
@@ -705,7 +705,7 @@ export function AttendanceClient({
                           className="cursor-pointer hover:text-foreground transition-colors"
                           onClick={() => toggleSort("name")}
                         >
-                          <div className="flex items-center min-w-[120px]">
+                          <div className="flex items-center min-w-30">
                             Name
                             {getSortIcon("name")}
                           </div>
@@ -859,7 +859,7 @@ export function AttendanceClient({
 
             {Object.keys(filteredAttendanceBySession).length === 0 &&
               !loading && (
-                <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
+                <div className="flex flex-col items-center text-muted-foreground gap-2 py-10">
                   <UserRoundCheck className="h-8 w-8 mt-10" />
                   <p className="text-lg font-medium">
                     No attendance records found

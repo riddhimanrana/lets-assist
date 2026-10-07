@@ -596,7 +596,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-blue-300/30 bg-blue-50/5 overflow-hidden"
+                className="ring-blue-300/30 bg-blue-50/5"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -616,7 +616,7 @@ export default function UserDashboard({
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
-                  <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex flex-col gap-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-muted-foreground">
                         Session:
@@ -627,8 +627,8 @@ export default function UserDashboard({
                   {/* Information with visual timeline */}
                   <div className="relative pl-6 border-blue-300/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-blue-600"></div>
                       </div>
                       <p className="text-sm font-medium">How it got here</p>
                       <p className="text-xs text-muted-foreground">
@@ -639,8 +639,8 @@ export default function UserDashboard({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-blue-600"></div>
                       </div>
                       <p className="text-sm font-medium">What to expect</p>
                       <p className="text-xs text-muted-foreground">
@@ -651,8 +651,8 @@ export default function UserDashboard({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-blue-200/40 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-blue-200/40 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-blue-600"></div>
                       </div>
                       <p className="text-sm font-medium">Questions?</p>
                       <p className="text-xs text-muted-foreground">
@@ -680,7 +680,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-success/30 bg-success/5 overflow-hidden"
+                className="ring-success/30 bg-success/5"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -700,7 +700,7 @@ export default function UserDashboard({
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
-                  <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex flex-col gap-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-muted-foreground">
                         Session:
@@ -752,8 +752,8 @@ export default function UserDashboard({
                   {/* Info Section */}
                   <div className="relative pl-6 border-success/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-success"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-success/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-success"></div>
                       </div>
                       <p className="text-sm font-medium">View Your Record</p>
                       <p className="text-xs text-muted-foreground">
@@ -771,7 +771,7 @@ export default function UserDashboard({
                         buttonVariants({ variant: "outline", size: "sm" }),
                       )}
                     >
-                      <TicketCheck className="h-4 w-4 mr-1.5" />
+                      <TicketCheck className="size-4 mr-1.5" />
                       View Certificate
                     </Link>
                   </div>
@@ -785,7 +785,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-warning/30 bg-warning/5 overflow-hidden"
+                className="ring-warning/30 bg-warning/5"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -804,7 +804,7 @@ export default function UserDashboard({
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
-                  <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex flex-col gap-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-muted-foreground">
                         Session:
@@ -856,8 +856,8 @@ export default function UserDashboard({
                   {/* Processing information with visual timeline */}
                   <div className="relative pl-6 border-warning/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-warning"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-warning/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Processing Period</p>
                       <p className="text-xs text-muted-foreground">
@@ -867,8 +867,8 @@ export default function UserDashboard({
                     </div>
 
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-warning/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-warning"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-warning/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-warning"></div>
                       </div>
                       <p className="text-sm font-medium">Need Adjustments?</p>
                       <p className="text-xs text-muted-foreground">
@@ -896,7 +896,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-destructive/30 bg-destructive/5 overflow-hidden"
+                className="ring-destructive/30 bg-destructive/5"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -916,7 +916,7 @@ export default function UserDashboard({
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                   {/* Session info */}
-                  <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex flex-col gap-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-muted-foreground">
                         Session:
@@ -927,8 +927,8 @@ export default function UserDashboard({
                   {/* Timeline style info */}
                   <div className="relative pl-6 border-destructive/30 mt-3 space-y-3">
                     <div className="relative">
-                      <div className="absolute -left-7 top-0 w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-destructive"></div>
+                      <div className="absolute -left-7 top-0 size-5 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <div className="size-2 rounded-full bg-destructive"></div>
                       </div>
                       <p className="text-sm font-medium">
                         Think This Is a Mistake?
@@ -959,7 +959,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-primary/30 bg-primary/5"
+                className="ring-primary/30 bg-primary/5"
               >
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -1070,7 +1070,7 @@ export default function UserDashboard({
                       setIsCameraModalOpen(true);
                     }}
                   >
-                    <Camera className="h-4 w-4 mr-1.5" />
+                    <Camera className="size-4 mr-1.5" />
                     Scan QR Code
                   </Button>
                 );
@@ -1093,7 +1093,7 @@ export default function UserDashboard({
             return (
               <Card
                 key={status.signup.id}
-                className="border-primary/30 bg-primary/5 overflow-hidden"
+                className="ring-primary/30 bg-primary/5"
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-3">
@@ -1109,7 +1109,7 @@ export default function UserDashboard({
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
-                  <div className="flex flex-col space-y-2 text-sm">
+                  <div className="flex flex-col gap-2 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="font-medium text-muted-foreground">
                         Session:
@@ -1143,7 +1143,7 @@ export default function UserDashboard({
             }
             // --- END ADDED ---
             return (
-              <Card key={status.signup.id} className="border-info/30 bg-info/5">
+              <Card key={status.signup.id} className="ring-info/30 bg-info/5">
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <CalendarCheck className="h-6 w-6 text-info shrink-0" />
@@ -1254,7 +1254,7 @@ export default function UserDashboard({
 
     if (isProjectStartingSoon) {
       return (
-        <Card className="mb-6 border-info/30 bg-info/5 overflow-hidden">
+        <Card className="mb-6 ring-info/30 bg-info/5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
             <div className="flex items-center gap-4">
               <div className="bg-info/10 p-2 rounded-full">
@@ -1274,7 +1274,7 @@ export default function UserDashboard({
     }
     if (isProjectProgressing) {
       return (
-        <Card className="mb-6 border-warning/30 bg-warning/5 overflow-hidden">
+        <Card className="mb-6 ring-warning/30 bg-warning/5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
             <div className="flex items-center gap-4">
               <div className="bg-warning/10 p-2 rounded-full">
@@ -1294,7 +1294,7 @@ export default function UserDashboard({
     }
     if (isProjectCompleted) {
       return (
-        <Card className="mb-6 border-success/30 bg-success/5 overflow-hidden">
+        <Card className="mb-6 ring-success/30 bg-success/5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4">
             <div className="flex items-center gap-4">
               <div className="bg-success/10 p-2 rounded-full">
@@ -1430,7 +1430,7 @@ export default function UserDashboard({
                       variant="outline"
                       onClick={() => viewWaiver(sig.id)}
                     >
-                      <Eye className="h-4 w-4 mr-2" />
+                      <Eye className="size-4 mr-2" />
                       View
                     </Button>
                     <Button
@@ -1438,7 +1438,7 @@ export default function UserDashboard({
                       variant="outline"
                       onClick={() => downloadWaiver(sig.id)}
                     >
-                      <Download className="h-4 w-4 mr-2" />
+                      <Download className="size-4 mr-2" />
                       Download
                     </Button>
                   </div>

@@ -57,7 +57,7 @@ export function ProjectCard({
   return (
     <Card
       className={cn(
-        "overflow-hidden flex flex-col h-full py-0 gap-0 dark:ring-0 dark:shadow-md ",
+        "overflow-hidden flex flex-col h-full py-0 gap-0",
         className,
       )}
     >
@@ -87,7 +87,7 @@ export function ProjectCard({
 
         {showIdentity && (
           <div className="flex items-center gap-2 pt-1">
-            <Avatar className="h-6 w-6 ring-1 ring-border/50">
+            <Avatar className="size-6 ring-1 ring-border/50">
               <AvatarImage
                 src={
                   project.organization?.logo_url ||

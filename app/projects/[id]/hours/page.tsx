@@ -230,7 +230,7 @@ export default async function HoursPage({
             href={`/projects/${projectId}`}
             className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
             Back to Project
           </Link>
         </div>
@@ -244,7 +244,7 @@ export default async function HoursPage({
               variant="default"
               className="border-secondary/50 bg-secondary/10"
             >
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="size-4" />
               <AlertTitle>Automatic Check-in</AlertTitle>
               <AlertDescription>
                 This project uses automatic check-in. Volunteer hours are
@@ -341,11 +341,11 @@ export default async function HoursPage({
             href={`/projects/${projectId}`}
             className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="size-4" />
             Back to Project
           </Link>
         </div>
-        <Card className="min-h-[400px] relative">
+        <Card className="min-h-100 relative">
           <CardHeader>
             <CardTitle>Manage Volunteer Hours</CardTitle>
             <CardDescription>
@@ -354,7 +354,7 @@ export default async function HoursPage({
                 : "Volunteer hours can be edited after the event concludes."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+          <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
             <div className="rounded-full bg-muted p-6 w-fit">
               <CalendarClock className="h-10 w-10 text-muted-foreground" />
             </div>

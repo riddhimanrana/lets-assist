@@ -324,7 +324,7 @@ export function ProjectQRCodeModal({
                   <div className="w-full max-w-70 rounded-3xl border bg-muted/20 p-4 sm:p-6 flex flex-col items-center">
                     <div
                       ref={printRef}
-                      className="rounded-xl border-4 border-muted/30 bg-white p-3 shadow-inner"
+                      className="rounded-xl border-4 border-muted/30 bg-white p-3"
                     >
                       {selectedQRCode.isAvailable && selectedQRCode.qrUrl ? (
                         <QRCode
@@ -340,7 +340,7 @@ export function ProjectQRCodeModal({
                           ecLevel="L"
                         />
                       ) : (
-                        <div className="w-45 h-45 flex flex-col items-center justify-center p-4 text-center">
+                        <div className="size-45 flex flex-col items-center justify-center p-4 text-center">
                           <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
                           <p className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wider font-semibold">
                             {selectedQRCode.isAvailable && !selectedQRCode.qrUrl
@@ -367,7 +367,7 @@ export function ProjectQRCodeModal({
                       className="mt-6 w-full gap-2"
                       size="lg"
                     >
-                      <Printer className="h-4 w-4" /> Print QR Code
+                      <Printer className="size-4" /> Print QR Code
                     </Button>
                   </div>
                 </div>

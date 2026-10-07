@@ -337,7 +337,7 @@ function MapContent({
       <div className="w-full h-full rounded-md flex items-center justify-center bg-muted p-4">
         <div className="max-w-md">
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="size-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -370,9 +370,9 @@ function MapContent({
           typeof userLocation.lng === "number" && (
             <AdvancedMarker position={userLocation} title="Your location">
               <div className="relative">
-                <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"></div>
+                <div className="size-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"></div>
                 <div
-                  className="absolute top-0 left-0 w-4 h-4 rounded-full bg-blue-400 opacity-70 animate-ping"
+                  className="absolute top-0 left-0 size-4 rounded-full bg-blue-400 opacity-70 animate-ping"
                   style={{ animationDuration: "2s" }}
                 ></div>
               </div>
@@ -396,7 +396,7 @@ function MapContent({
               onClick={() => setSelectedProject(project)}
             >
               <div
-                className="w-5 h-5 bg-green-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white"
+                className="size-5 bg-green-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white"
                 aria-label={`Project marker for ${project.title}`}
               ></div>
             </AdvancedMarker>
@@ -428,7 +428,7 @@ function MapContent({
 
       {/* Always show radius notice when we have user location */}
       {userLocation && (
-        <div className="hidden sm:inline absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
+        <div className="hidden sm:inline absolute top-2 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-xs text-center font-medium">
             Showing projects within {radiusMiles} miles
           </span>
@@ -444,7 +444,7 @@ function MapContent({
             variant="outline"
             className="absolute bottom-16 left-4 gap-2 shadow-md"
           >
-            <Sliders className="h-4 w-4" />
+            <Sliders className="size-4" />
             <span className="hidden sm:inline">Adjust Distance</span>
           </Button>
 

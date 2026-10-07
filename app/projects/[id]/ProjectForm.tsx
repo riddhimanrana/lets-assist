@@ -468,7 +468,7 @@ export function ProjectSignupForm({
           onClick={() => setStep("anonymous-info")}
           className="gap-2 -ml-2"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           Back
         </Button>
         <ModernFormRenderer
@@ -690,14 +690,14 @@ export function ProjectSignupForm({
               variant="outline"
               className="w-full sm:w-auto"
             >
-              <PenTool className="h-4 w-4 mr-2" />
+              <PenTool className="size-4 mr-2" />
               Sign Waiver
             </Button>
           ) : (
             <div className="flex items-center justify-between p-3 bg-success/10 border border-success rounded-lg">
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
-                  <Check className="h-4 w-4" />
+                <div className="size-8 rounded-full bg-success/20 flex items-center justify-center text-success">
+                  <Check className="size-4" />
                 </div>
                 <div className="text-sm font-medium text-success">
                   Signature Captured
@@ -708,7 +708,7 @@ export function ProjectSignupForm({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsWaiverDialogOpen(true)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground"
               >
                 Review
               </Button>
@@ -732,7 +732,7 @@ export function ProjectSignupForm({
       {showTurnstileWidget && (
         <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-4">
           <div className="flex items-start gap-2 text-sm text-muted-foreground">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+            <Shield className="mt-0.5 size-4 shrink-0" />
             <div>
               <p className="font-medium text-foreground">Security check</p>
               <p className="text-xs text-muted-foreground">
@@ -796,7 +796,7 @@ export function ProjectSignupForm({
             (showTurnstileWidget && !turnstileToken)
           }
         >
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
           Sign Up
         </Button>
       </DialogFooter>

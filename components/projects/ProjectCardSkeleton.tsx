@@ -17,7 +17,7 @@ export function ProjectCardSkeleton({ className }: ProjectCardSkeletonProps) {
   return (
     <Card
       className={cn(
-        "overflow-hidden flex flex-col h-full py-0 gap-0 dark:ring-0 dark:shadow-md",
+        "overflow-hidden flex flex-col h-full py-0 gap-0",
         className,
       )}
     >
@@ -32,12 +32,12 @@ export function ProjectCardSkeleton({ className }: ProjectCardSkeletonProps) {
 
       <CardContent className="p-4 pt-2 grow space-y-4">
         <div className="flex items-center gap-2">
-          <Skeleton className="h-3.5 w-3.5 rounded-full" />
+          <Skeleton className="size-3.5 rounded-full" />
           <Skeleton className="h-4 w-32" />
         </div>
 
         <div className="flex items-center gap-2 pt-1">
-          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="size-6 rounded-full" />
           <Skeleton className="h-3.5 w-24" />
         </div>
 

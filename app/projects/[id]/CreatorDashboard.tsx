@@ -514,7 +514,7 @@ export default function CreatorDashboard({
 
   return (
     <div className="space-y-4 sm:space-y-6 mb-4 px-2 sm:px-0">
-      <Card className="overflow-hidden shadow-sm">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="space-y-1">
             <div className="flex items-center justify-between gap-3">
@@ -612,10 +612,10 @@ export default function CreatorDashboard({
                     onClick={() => router.push(`/projects/${project.id}/edit`)}
                   >
                     <span className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
+                      <Edit className="size-4" />
                       Edit Project
                     </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <ChevronRight className="size-4 text-muted-foreground" />
                   </Button>
                 </div>
                 <div>
@@ -628,10 +628,10 @@ export default function CreatorDashboard({
                     }
                   >
                     <span className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
+                      <Users className="size-4" />
                       Manage Signups
                     </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <ChevronRight className="size-4 text-muted-foreground" />
                   </Button>
                 </div>
                 {isCompleted && !isCancelled && (
@@ -645,10 +645,10 @@ export default function CreatorDashboard({
                       }
                     >
                       <span className="flex items-center gap-2">
-                        <ScanText className="h-4 w-4" />
+                        <ScanText className="size-4" />
                         Scan Paper Signups
                       </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="size-4 text-muted-foreground" />
                     </Button>
                   </div>
                 )}
@@ -663,10 +663,10 @@ export default function CreatorDashboard({
                       }
                     >
                       <span className="flex items-center gap-2">
-                        <MessageSquareText className="h-4 w-4" />
+                        <MessageSquareText className="size-4" />
                         Volunteer Feedback
                       </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <ChevronRight className="size-4 text-muted-foreground" />
                     </Button>
                   </div>
                 )}
@@ -684,10 +684,10 @@ export default function CreatorDashboard({
                               disabled={isCancelled}
                             >
                               <span className="flex items-center gap-2">
-                                <Mail className="h-4 w-4" />
+                                <Mail className="size-4" />
                                 Contact All Signups
                               </span>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <ChevronRight className="size-4 text-muted-foreground" />
                             </Button>
                           </span>
                         }
@@ -726,15 +726,15 @@ export default function CreatorDashboard({
                               >
                                 <span className="flex items-center gap-2">
                                   {isCalendarSynced ? (
-                                    <CalendarCheck className="h-4 w-4 text-success" />
+                                    <CalendarCheck className="size-4 text-success" />
                                   ) : (
-                                    <Calendar className="h-4 w-4" />
+                                    <Calendar className="size-4" />
                                   )}
                                   {isCalendarSynced
                                     ? "Synced to Calendar"
                                     : "Add to Calendar"}
                                 </span>
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="size-4 text-muted-foreground" />
                               </Button>
                             </span>
                           }
@@ -767,10 +767,10 @@ export default function CreatorDashboard({
                                   }
                                 >
                                   <span className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4" />
+                                    <Clock className="size-4" />
                                     Manage Hours
                                   </span>
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  <ChevronRight className="size-4 text-muted-foreground" />
                                 </Button>
                               </span>
                             }
@@ -806,74 +806,74 @@ export default function CreatorDashboard({
             <div className="hidden sm:grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-2 xl:grid-cols-3 sm:px-4 sm:pb-4">
               <Button
                 variant="outline"
-                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                className="h-10 w-full justify-between gap-2"
                 onClick={() => router.push(`/projects/${project.id}/edit`)}
               >
                 <span className="flex items-center gap-2">
-                  <Edit className="h-4 w-4" />
+                  <Edit className="size-4" />
                   Edit Project
                 </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="size-4 text-muted-foreground" />
               </Button>
 
               <Button
                 variant="outline"
-                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                className="h-10 w-full justify-between gap-2"
                 onClick={handleClone}
                 disabled={isCloning}
               >
                 <span className="flex items-center gap-2">
                   {isCloning ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    <Copy className="h-4 w-4" />
+                    <Copy className="size-4" />
                   )}
                   Clone Project
                 </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="size-4 text-muted-foreground" />
               </Button>
 
               <Button
                 variant="outline"
-                className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                className="h-10 w-full justify-between gap-2"
                 onClick={() => router.push(`/projects/${project.id}/signups`)}
               >
                 <span className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
+                  <Users className="size-4" />
                   Manage Signups
                 </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="size-4 text-muted-foreground" />
               </Button>
 
               {isCompleted && !isCancelled && (
                 <Button
                   variant="outline"
-                  className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                  className="h-10 w-full justify-between gap-2"
                   onClick={() =>
                     router.push(`/projects/${project.id}/paper-signups`)
                   }
                 >
                   <span className="flex items-center gap-2">
-                    <ScanText className="h-4 w-4" />
+                    <ScanText className="size-4" />
                     Scan Paper Signups
                   </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 </Button>
               )}
 
               {isCompleted && !isCancelled && (
                 <Button
                   variant="outline"
-                  className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                  className="h-10 w-full justify-between gap-2"
                   onClick={() =>
                     router.push(`/projects/${project.id}/feedback`)
                   }
                 >
                   <span className="flex items-center gap-2">
-                    <MessageSquareText className="h-4 w-4" />
+                    <MessageSquareText className="size-4" />
                     Volunteer Feedback
                   </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 </Button>
               )}
 
@@ -884,15 +884,15 @@ export default function CreatorDashboard({
                       <span className="w-full">
                         <Button
                           variant="outline"
-                          className="h-10 w-full justify-between gap-2 bg-background/60 shadow-none"
+                          className="h-10 w-full justify-between gap-2"
                           onClick={handleContactAllSignups}
                           disabled={isCancelled}
                         >
                           <span className="flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
+                            <Mail className="size-4" />
                             Contact All Signups
                           </span>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <ChevronRight className="size-4 text-muted-foreground" />
                         </Button>
                       </span>
                     }
@@ -909,7 +909,7 @@ export default function CreatorDashboard({
               <ProjectInstructionsModal
                 project={project}
                 isCreator={true}
-                buttonClassName="h-10 w-full justify-between px-2 bg-background/60 shadow-none"
+                buttonClassName="h-10 w-full justify-between px-2"
                 buttonVariant="outline"
                 showChevron
               />
@@ -922,7 +922,7 @@ export default function CreatorDashboard({
                         <span className="w-full">
                           <Button
                             variant="outline"
-                            className={`h-10 w-full justify-between gap-2 bg-background/60 shadow-none ${
+                            className={`h-10 w-full justify-between gap-2 ${
                               isCalendarSynced
                                 ? "bg-success/10 hover:bg-success/20 border-success/80"
                                 : ""
@@ -931,15 +931,15 @@ export default function CreatorDashboard({
                           >
                             <span className="flex items-center gap-2">
                               {isCalendarSynced ? (
-                                <CalendarCheck className="h-4 w-4 text-success" />
+                                <CalendarCheck className="size-4 text-success" />
                               ) : (
-                                <Calendar className="h-4 w-4" />
+                                <Calendar className="size-4" />
                               )}
                               {isCalendarSynced
                                 ? "Synced to Calendar"
                                 : "Add to Calendar"}
                             </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <ChevronRight className="size-4 text-muted-foreground" />
                           </Button>
                         </span>
                       }
@@ -964,16 +964,16 @@ export default function CreatorDashboard({
                           <span className="w-full">
                             <Button
                               variant="outline"
-                              className="h-10 w-full justify-between gap-2 bg-primary/10 hover:bg-primary/20 border-primary/80 shadow-none"
+                              className="h-10 w-full justify-between gap-2 bg-primary/10 hover:bg-primary/20 border-primary/80"
                               onClick={() =>
                                 router.push(`/projects/${project.id}/hours`)
                               }
                             >
                               <span className="flex items-center gap-2">
-                                <Clock className="h-4 w-4" />
+                                <Clock className="size-4" />
                                 Manage Hours
                               </span>
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <ChevronRight className="size-4 text-muted-foreground" />
                             </Button>
                           </span>
                         }
@@ -1020,13 +1020,13 @@ export default function CreatorDashboard({
                         onClick={() => router.push(`/projects/${project.id}/attendance`)}
                         disabled={!isAttendanceAvailable}
                       >
-                        <UserCheck className="h-4 w-4" />
+                        <UserCheck className="size-4" />
                         {project.verification_method === 'manual' ? 'Check-in Volunteers' : 'Manage Attendance'}
                       </Button>
                     </span>
                   </TooltipTrigger>
                   {!isAttendanceAvailable && (
-                    <TooltipContent className="max-w-[250px] p-2">
+                    <TooltipContent className="max-w-62.5 p-2">
                       <p>Attendance management will be available 2 hours before the event starts</p>
                       {timeUntilAttendanceOpens && (
                         <p className="text-xs mt-1">{timeUntilAttendanceOpens}</p>
@@ -1048,21 +1048,21 @@ export default function CreatorDashboard({
                       disabled={isDeleting || !canDelete || isInDeletionRestrictionPeriod}
                     >
                       {isDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin" />
                       ) : (
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="size-4" />
                       )}
                       Delete Project
                     </Button>
                   </span>
                 </TooltipTrigger>
                 {isInDeletionRestrictionPeriod && (
-                  <TooltipContent className="max-w-[250px] text-center p-2">
+                  <TooltipContent className="max-w-62.5 text-center p-2">
                     <p>Projects cannot be deleted during the 72-hour window around the event</p>
                   </TooltipContent>
                 )}
                  {!canDelete && !isInDeletionRestrictionPeriod && ( // Add tooltip if deletion is disallowed for other reasons
-                  <TooltipContent className="max-w-[250px] text-center p-2">
+                  <TooltipContent className="max-w-62.5 text-center p-2">
                     <p>Project cannot be deleted at this time (e.g., too close to start).</p>
                   </TooltipContent>
                 )}
@@ -1078,7 +1078,7 @@ export default function CreatorDashboard({
                   variant="default"
                   className="border-info/50 bg-info/10 mt-4"
                 >
-                  <Info className="h-4 w-4 text-info" />
+                  <Info className="size-4 text-info" />
                   <AlertTitle className="text-info">
                     Event Starting Soon!
                   </AlertTitle>
@@ -1095,7 +1095,7 @@ export default function CreatorDashboard({
                           "no-underline! hover:no-underline!",
                         )}
                       >
-                        <Pause className="h-4 w-4 mr-1.5" /> Pause/View Signups
+                        <Pause className="size-4 mr-1.5" /> Pause/View Signups
                       </Link>
                       <Link
                         href={`/projects/${project.id}/signups`}
@@ -1104,7 +1104,7 @@ export default function CreatorDashboard({
                           "no-underline! hover:no-underline!",
                         )}
                       >
-                        <Printer className="h-4 w-4 mr-1.5" /> Print List
+                        <Printer className="size-4 mr-1.5" /> Print List
                       </Link>
                     </div>
                   </AlertDescription>
@@ -1115,7 +1115,7 @@ export default function CreatorDashboard({
                   variant="default"
                   className="border-warning/50 bg-warning/10 mt-4"
                 >
-                  <Info className="h-4 w-4 text-warning" />
+                  <Info className="size-4 text-warning" />
                   <AlertTitle className="text-warning">
                     Event In Progress
                   </AlertTitle>
@@ -1131,7 +1131,7 @@ export default function CreatorDashboard({
                   variant="default"
                   className="border-success/50 bg-success/10 mt-4"
                 >
-                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  <CheckCircle2 className="size-4 text-success" />
                   <AlertTitle className="text-success">
                     Event Completed
                   </AlertTitle>
@@ -1161,7 +1161,7 @@ export default function CreatorDashboard({
                                       "no-underline! hover:no-underline!",
                                     )}
                                   >
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage
+                                    <Clock className="size-4 mr-1.5" /> Manage
                                     Hours
                                   </Link>
                                 ) : (
@@ -1171,7 +1171,7 @@ export default function CreatorDashboard({
                                     disabled
                                     className="pointer-events-none opacity-60"
                                   >
-                                    <Clock className="h-4 w-4 mr-1.5" /> Manage
+                                    <Clock className="size-4 mr-1.5" /> Manage
                                     Hours
                                   </Button>
                                 )}
@@ -1206,7 +1206,7 @@ export default function CreatorDashboard({
                       variant="default"
                       className="border-info/50 bg-info/10 mt-4"
                     >
-                      <Info className="h-4 w-4 text-info" />
+                      <Info className="size-4 text-info" />
                       <AlertTitle className="text-info">
                         Event Starting Soon!
                       </AlertTitle>
@@ -1224,7 +1224,7 @@ export default function CreatorDashboard({
                               className="w-full sm:w-auto"
                               onClick={() => setQrCodeOpen(true)}
                             >
-                              <QrCode className="h-4 w-4 mr-1.5" /> Preview QR
+                              <QrCode className="size-4 mr-1.5" /> Preview QR
                               Codes
                             </Button>
                           )}
@@ -1238,7 +1238,7 @@ export default function CreatorDashboard({
                               "no-underline! hover:no-underline! w-full sm:w-auto",
                             )}
                           >
-                            <Users className="h-4 w-4 mr-1.5" /> View Signups
+                            <Users className="size-4 mr-1.5" /> View Signups
                           </Link>
                         </div>
                       </AlertDescription>
@@ -1251,7 +1251,7 @@ export default function CreatorDashboard({
                       variant="default"
                       className="border-primary/50 bg-primary/10 mt-4"
                     >
-                      <Hourglass className="h-4 w-4 text-primary" />
+                      <Hourglass className="size-4 text-primary" />
                       <AlertTitle className="text-primary">
                         Check-in Window Open!
                       </AlertTitle>
@@ -1269,8 +1269,7 @@ export default function CreatorDashboard({
                               size="sm"
                               onClick={() => setQrCodeOpen(true)}
                             >
-                              <QrCode className="h-4 w-4 mr-1.5" /> View QR
-                              Codes
+                              <QrCode className="size-4 mr-1.5" /> View QR Codes
                             </Button>
                           )}
                           <Link
@@ -1283,7 +1282,7 @@ export default function CreatorDashboard({
                               "no-underline! hover:no-underline!",
                             )}
                           >
-                            <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                            <UserCheck className="size-4 mr-1.5" /> Manage
                             Attendance
                           </Link>
                         </div>
@@ -1295,7 +1294,7 @@ export default function CreatorDashboard({
                     variant="default"
                     className="border-warning/50 bg-warning/10 mt-4"
                   >
-                    <Info className="h-4 w-4 text-warning" />
+                    <Info className="size-4 text-warning" />
                     <AlertTitle className="text-warning">
                       Event In Progress
                     </AlertTitle>
@@ -1309,7 +1308,7 @@ export default function CreatorDashboard({
                             size="sm"
                             onClick={() => setQrCodeOpen(true)}
                           >
-                            <QrCode className="h-4 w-4 mr-1.5" /> View QR Codes
+                            <QrCode className="size-4 mr-1.5" /> View QR Codes
                           </Button>
                         )}
                         <Link
@@ -1319,7 +1318,7 @@ export default function CreatorDashboard({
                             "no-underline! hover:no-underline!",
                           )}
                         >
-                          <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                          <UserCheck className="size-4 mr-1.5" /> Manage
                           Attendance
                         </Link>
                       </div>
@@ -1336,7 +1335,7 @@ export default function CreatorDashboard({
                       className={`border-${hasActiveUnpublishedSessions ? "info" : "success"}/50 bg-${hasActiveUnpublishedSessions ? "info" : "success"}/10 mt-4`}
                     >
                       <CheckCircle2
-                        className={`h-4 w-4 text-${hasActiveUnpublishedSessions ? "info" : "success"}`}
+                        className={`size-4 text-${hasActiveUnpublishedSessions ? "info" : "success"}`}
                       />
                       <AlertTitle
                         className={`text-${hasActiveUnpublishedSessions ? "info" : "success"}`}
@@ -1359,7 +1358,7 @@ export default function CreatorDashboard({
                               "no-underline! hover:no-underline!",
                             )}
                           >
-                            <UserCheck className="h-4 w-4 mr-1.5" /> Manage
+                            <UserCheck className="size-4 mr-1.5" /> Manage
                             Attendance
                           </Link>
                           <TooltipProvider>
@@ -1383,7 +1382,7 @@ export default function CreatorDashboard({
                                           "no-underline! hover:no-underline!",
                                         )}
                                       >
-                                        <Clock className="h-4 w-4 mr-1.5" />{" "}
+                                        <Clock className="size-4 mr-1.5" />{" "}
                                         Manage Hours
                                       </Link>
                                     ) : (
@@ -1393,7 +1392,7 @@ export default function CreatorDashboard({
                                         disabled
                                         className="pointer-events-none opacity-60"
                                       >
-                                        <Clock className="h-4 w-4 mr-1.5" />{" "}
+                                        <Clock className="size-4 mr-1.5" />{" "}
                                         Manage Hours
                                       </Button>
                                     )}
@@ -1424,7 +1423,7 @@ export default function CreatorDashboard({
               variant="default"
               className="border-secondary/50 bg-secondary/10 mt-4"
             >
-              <Zap className="h-4 w-4 text-secondary" />
+              <Zap className="size-4 text-secondary" />
               <AlertTitle className="text-secondary">
                 Automatic Check-in Enabled
               </AlertTitle>
@@ -1439,7 +1438,7 @@ export default function CreatorDashboard({
                       "no-underline! hover:no-underline!",
                     )}
                   >
-                    <Users className="h-4 w-4 mr-1.5" /> View Attendance
+                    <Users className="size-4 mr-1.5" /> View Attendance
                   </Link>
                 </div>
               </AlertDescription>
@@ -1502,7 +1501,7 @@ export default function CreatorDashboard({
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
