@@ -44,9 +44,9 @@ VALUES (
   'Source Retention Project',
   'Local',
   'Source retention fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true
 );
 

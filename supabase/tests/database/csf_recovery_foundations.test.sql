@@ -314,9 +314,9 @@ INSERT INTO public.projects (
     'Recovery Calendar Project',
     'Local',
     'Calendar generalization fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   ),
   (
@@ -326,9 +326,9 @@ INSERT INTO public.projects (
     'Other Organization Project',
     'Local',
     'Cross-tenant calendar fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   );
 
