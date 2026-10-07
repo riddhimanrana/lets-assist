@@ -526,8 +526,12 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     await expect(
       page.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
-    await page.getByRole("heading", { name: title, exact: true }).click();
-    await page.waitForURL(`**/projects/${projectId}`);
+    const projectLink = page.locator(`a[href="/projects/${projectId}"]`);
+    await expect(projectLink).toHaveAccessibleName("View Project");
+    await projectLink.click();
+    await page.waitForURL(`**/projects/${projectId}`, {
+      waitUntil: "domcontentloaded",
+    });
     let editRscRequest:
       { url: string; headers: Record<string, string> } | undefined;
     page.on("request", (request) => {
