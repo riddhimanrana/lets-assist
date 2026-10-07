@@ -179,7 +179,7 @@ export function getMultiDaySlotDisplayName(
 }
 
 export function getMultiDaySlotByScheduleId(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule">,
   scheduleId: string,
 ): {
   day: NonNullable<Project["schedule"]["multiDay"]>[number];
@@ -239,7 +239,7 @@ export function getMultiDaySlotByScheduleId(
  * If it's a legacy ID (YYYY-MM-DD-slotIndex), it tries to find the best match.
  */
 export function resolveScheduleId(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule">,
   scheduleId: string,
 ): string {
   if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
