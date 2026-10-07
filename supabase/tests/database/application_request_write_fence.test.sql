@@ -2,7 +2,7 @@
 -- exercised separately by the isolated maintenance acceptance runner.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(25);
+SELECT extensions.plan(26);
 
 SELECT extensions.has_function('public', 'enforce_application_request_write_fence', ARRAY[]::text[],
   'the permanent request hook has no arguments');
@@ -16,6 +16,14 @@ SELECT extensions.is((SELECT pg_catalog.array_to_string(proconfig, ',') FROM pg_
   WHERE oid = 'public.enforce_application_request_write_fence()'::regprocedure), 'search_path=""', 'the hook has an empty search path');
 SELECT extensions.ok((SELECT 'pgrst.db_pre_request=public.enforce_application_request_write_fence' = ANY (rolconfig)
   FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'), 'the global authenticator hook is configured');
+SELECT extensions.ok(NOT EXISTS (
+  SELECT 1 FROM pg_catalog.pg_db_role_setting AS configured
+  CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
+  WHERE configured.setrole IN (0, 'authenticator'::regrole::oid)
+    AND configured.setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()))
+    AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_config'
+    AND entry.setting <> 'pgrst.db_pre_config='
+), 'no effective pre-config hook can replace the reviewed request configuration');
 SELECT extensions.ok(NOT EXISTS (
   SELECT 1 FROM pg_catalog.pg_db_role_setting AS configured
   CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
