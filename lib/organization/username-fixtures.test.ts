@@ -32,6 +32,7 @@ const JAVASCRIPT_ORGANIZATION_WRITERS = [
   "scripts/local-dev/seed-dvsd.mjs",
   "scripts/local-dev/seed-platform.mjs",
   "scripts/local-dev/test-dvhs-csf-scale.mjs",
+  "tests/e2e/csf/account-deletion.spec.ts",
   "tests/e2e/csf/chapter-staff-invitation.spec.ts",
   "tests/e2e/csf/home-organization-links.spec.ts",
 ];
@@ -433,6 +434,35 @@ function javascriptOrganizationUsernameFixtures(): UsernameFixture[] {
     value: `csf-scale-${"9".repeat(9)}`,
   });
 
+  const deletionFile = "tests/e2e/csf/account-deletion.spec.ts";
+  const deletionSource = readFileSync(deletionFile, "utf8");
+  const deletionExpression = "username: `del-${organizationId.slice(0, 12)}`";
+  expect(deletionSource).toContain("const organizationId = randomUUID();");
+  expect(deletionSource).toContain(deletionExpression);
+  expect(deletionSource).toContain(
+    "const local = getCsfIsolatedSupabaseEnv();",
+  );
+  expect(deletionSource).toContain(
+    "createClient(local.url, local.serviceRoleKey",
+  );
+  expect(deletionSource).toContain(
+    "const email = `deletion.${randomUUID()}@local.test`;",
+  );
+  expect(deletionSource).toContain("password: localTestPassword()");
+  expect(deletionSource).toContain("await loginWithEmail(page, account.email");
+  expect(deletionSource).toContain(
+    '.from("organizations").delete().eq("id", organizationId)',
+  );
+  fixtures.push({
+    expression: deletionExpression,
+    file: deletionFile,
+    line: lineNumber(
+      deletionSource,
+      deletionSource.indexOf(deletionExpression),
+    ),
+    value: "del-abcdef09-abc",
+  });
+
   const invitationFile = "tests/e2e/csf/chapter-staff-invitation.spec.ts";
   const invitationSource = readFileSync(invitationFile, "utf8");
   expect(invitationSource).toContain("const organizationId = randomUUID();");
@@ -525,7 +555,7 @@ describe("organization username fixture inventory", () => {
 
   test("every JavaScript seed and scale write satisfies the shared product schema", () => {
     const fixtures = javascriptOrganizationUsernameFixtures();
-    expect(fixtures).toHaveLength(10);
+    expect(fixtures).toHaveLength(11);
 
     const invalid = fixtures.filter(
       ({ value }) =>
