@@ -50,7 +50,7 @@ SELECT id,CASE WHEN n<=9 THEN ('fb950000-0000-4000-8000-'||lpad(n::text,12,'0'))
  CASE WHEN n=12 THEN 'fb940000-0000-4000-8000-000000000001'::uuid END FROM retention_cases;
 INSERT INTO public.project_signups(id,project_id,anonymous_id,schedule_id,status)
 SELECT ('fb970000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
- ('fb950000-0000-4000-8000-'||lpad((CASE WHEN n=12 THEN 5 WHEN n=13 THEN 3 ELSE n END)::text,12,'0'))::uuid,id,'oneTime','approved'
+ ('fb950000-0000-4000-8000-'||lpad((CASE WHEN n=12 THEN 5 WHEN n=13 THEN 3 ELSE n END)::text,12,'0'))::uuid,id,'oneTime','pending'
 FROM retention_cases WHERE n IN(1,4,5,8,12,13);
 SELECT extensions.is(private.anonymous_signup_retention_eligible(id),expected,label) FROM retention_cases ORDER BY n;
 INSERT INTO public.waiver_signatures(id,project_id,signup_id,anonymous_id,signer_name,signer_email,
@@ -126,7 +126,7 @@ INSERT INTO public.anonymous_signups(id,project_id,email,name,created_at) VALUES
  ('fb960000-0000-4000-8000-000000000021','fb950000-0000-4000-8000-000000000001','rollback-waiver@local.test','Synthetic waiver',now()-interval '60 days');
 INSERT INTO public.project_signups(id,project_id,anonymous_id,schedule_id,status) VALUES
  ('fb970000-0000-4000-8000-000000000021','fb950000-0000-4000-8000-000000000001',
- 'fb960000-0000-4000-8000-000000000021','oneTime','approved');
+ 'fb960000-0000-4000-8000-000000000021','oneTime','pending');
 INSERT INTO public.waiver_signatures(id,project_id,signup_id,anonymous_id,signer_name,signer_email,signature_type,signature_storage_path,waiver_pdf_storage_path)
 VALUES('fb980000-0000-4000-8000-000000000021','fb950000-0000-4000-8000-000000000001',
  'fb970000-0000-4000-8000-000000000021','fb960000-0000-4000-8000-000000000021',
