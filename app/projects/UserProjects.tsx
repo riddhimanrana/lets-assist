@@ -277,7 +277,7 @@ export default async function UserProjects() {
           inProgressVolunteered.length === 0 &&
           pastVolunteered.length === 0 ? (
             <div className="text-center py-10">
-              <div className="mx-auto w-14 h-14 bg-muted flex items-center justify-center rounded-full mb-3">
+              <div className="mx-auto size-14 bg-muted flex items-center justify-center rounded-full mb-3">
                 <Calendar className="h-7 w-7 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium mb-2">
@@ -355,16 +355,13 @@ export default async function UserProjects() {
                           project.areHoursPublished ? (
                             <Badge
                               variant="default"
-                              className="text-xs bg-success text-success-foreground hover:bg-success/90"
+                              className="bg-success text-success-foreground"
                             >
                               <Award className="h-3 w-3 mr-1" />
                               Hours Published
                             </Badge>
                           ) : (
-                            <Badge
-                              variant="outline"
-                              className="bg-muted text-xs"
-                            >
+                            <Badge variant="secondary">
                               {project.status === "cancelled"
                                 ? "Cancelled"
                                 : "Past Event"}
@@ -388,7 +385,7 @@ export default async function UserProjects() {
           inProgressCreated.length === 0 &&
           pastCreated.length === 0 ? (
             <div className="text-center py-10">
-              <div className="mx-auto w-14 h-14 bg-muted flex items-center justify-center rounded-full mb-3">
+              <div className="mx-auto size-14 bg-muted flex items-center justify-center rounded-full mb-3">
                 <Users className="h-7 w-7 text-muted-foreground" />
               </div>
               <h3 className="text-lg font-medium mb-2">
@@ -429,7 +426,7 @@ export default async function UserProjects() {
                       >
                         <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-linear-to-r from-primary/5 to-transparent hover:from-primary/10 hover:border-primary/30 transition-all duration-200">
                           <div className="shrink-0">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                            <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                               <Repeat className="h-5 w-5 text-primary" />
                             </div>
                           </div>
@@ -544,9 +541,7 @@ export default async function UserProjects() {
                         href={`/projects/${project.id}`}
                         showIdentity={false}
                         topLeftBadge={
-                          <Badge variant="outline" className="bg-muted text-xs">
-                            Past Event
-                          </Badge>
+                          <Badge variant="secondary">Past Event</Badge>
                         }
                         className="bg-muted/30"
                         actionVariant="outline"

@@ -1480,7 +1480,7 @@ export default function ProjectDetails({
           <HoverCardTrigger
             render={
               <span className="flex items-center gap-1.5">
-                <XCircle className="h-4 w-4" />
+                <XCircle className="size-4" />
                 Rejected
               </span>
             }
@@ -1515,7 +1515,7 @@ export default function ProjectDetails({
           <HoverCardTrigger
             render={
               <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="size-4" />
                 Attended
               </span>
             }
@@ -1536,7 +1536,7 @@ export default function ProjectDetails({
           <HoverCardTrigger
             render={
               <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
+                <Clock className="size-4" />
                 Pending Approval
               </span>
             }
@@ -1554,7 +1554,7 @@ export default function ProjectDetails({
     if (hasSignedUp[scheduleId]) {
       return (
         <>
-          <XCircle className="h-4 w-4" />
+          <XCircle className="size-4" />
           Cancel Signup
         </>
       );
@@ -1567,7 +1567,7 @@ export default function ProjectDetails({
     if (loadingStates[scheduleId]) {
       return (
         <>
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin" />
           Processing...
         </>
       );
@@ -1579,7 +1579,7 @@ export default function ProjectDetails({
 
     return (
       <>
-        <UserPlus className="h-4 w-4" />
+        <UserPlus className="size-4" />
         Sign Up
       </>
     );
@@ -1652,7 +1652,7 @@ export default function ProjectDetails({
               </h1>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2 sm:mb-0">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 shrink-0" />
+                  <MapPin className="size-4 shrink-0" />
                   <span>{project.location}</span>
                 </div>
               </div>
@@ -1665,7 +1665,7 @@ export default function ProjectDetails({
               />
               <div className="flex gap-2">
                 <Button variant="outline" size="icon" onClick={handleShare}>
-                  <Share2 className="h-4 w-4 shrink-0" />
+                  <Share2 className="size-4 shrink-0" />
                 </Button>
 
                 {/* Report button - only show for people who do not manage this project */}
@@ -1678,7 +1678,7 @@ export default function ProjectDetails({
                           size="icon"
                           suppressHydrationWarning
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <MoreVertical className="size-4" />
                           <span className="sr-only">More options</span>
                         </Button>
                       }
@@ -1687,7 +1687,7 @@ export default function ProjectDetails({
                       <DropdownMenuItem
                         onClick={() => setIsReportDialogOpen(true)}
                       >
-                        <Flag className="mr-2 h-4 w-4" />
+                        <Flag className="mr-2 size-4" />
                         <span>Report Project</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -1767,7 +1767,7 @@ export default function ProjectDetails({
               <CardContent>
                 {project.pause_signups && (
                   <Alert className="bg-warning/15 border-warning/50 mb-4">
-                    <Pause className="h-4 w-4 text-warning" />
+                    <Pause className="size-4 text-warning" />
                     <AlertTitle className="text-warning/90">
                       Signups are currently paused
                     </AlertTitle>
@@ -2260,7 +2260,7 @@ export default function ProjectDetails({
                           );
                         }}
                       >
-                        <Eye className="h-4 w-4 mr-1" /> View
+                        <Eye className="size-4 mr-1" /> View
                       </Button>
                     </div>
                   </div>
@@ -2281,7 +2281,7 @@ export default function ProjectDetails({
                         href={`/profile/${creator?.username || ""}`}
                         className="flex items-center gap-3"
                       >
-                        <Avatar className="h-10 w-10">
+                        <Avatar className="size-10">
                           {creator?.avatar_url ? (
                             <AvatarImage
                               src={creator.avatar_url}
@@ -2311,7 +2311,7 @@ export default function ProjectDetails({
                         <div className="flex items-center my-2">
                           <Separator className="shrink" />
                           <span className="px-2 text-xs text-muted-foreground flex items-center">
-                            <Building2 className="h-4 w-4 mr-1 shrink-0" />{" "}
+                            <Building2 className="size-4 mr-1 shrink-0" />{" "}
                             Organization
                           </span>
                           <Separator className="shrink" />
@@ -2323,7 +2323,7 @@ export default function ProjectDetails({
                             href={`/organization/${project.organization.username}`}
                             className="flex items-center gap-3"
                           >
-                            <Avatar className="h-9 w-9 border border-muted">
+                            <Avatar className="size-9 border border-muted">
                               {project.organization.logo_url ? (
                                 <AvatarImage
                                   src={project.organization.logo_url}
@@ -2343,7 +2343,7 @@ export default function ProjectDetails({
                                   {project.organization.name}
                                 </p>
                                 {project.organization.verified && (
-                                  <BadgeCheck className="h-4 w-4 text-primary" />
+                                  <BadgeCheck className="size-4 text-primary" />
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
@@ -2376,7 +2376,7 @@ export default function ProjectDetails({
                         }}
                         className="mt-1 flex items-center gap-2"
                       >
-                        <Mail className="h-4 w-4" />
+                        <Mail className="size-4" />
                         Contact Project Coordinator
                       </Button>
                     </div>
@@ -2456,7 +2456,7 @@ export default function ProjectDetails({
 
             {/* Project Documents Section */}
             {project.documents && project.documents.length > 0 && (
-              <Card className="bg-card">
+              <Card>
                 <CardHeader className="">
                   <CardTitle>Project Documents</CardTitle>
                 </CardHeader>
@@ -2491,7 +2491,7 @@ export default function ProjectDetails({
                                   openPreview(doc.url, doc.name, doc.type)
                                 }
                               >
-                                <Eye className="h-4 w-4" />
+                                <Eye className="size-4" />
                               </Button>
                             )}
                             <Button
@@ -2500,7 +2500,7 @@ export default function ProjectDetails({
                               className="h-8 w-8"
                               onClick={() => downloadFile(doc.url, doc.name)}
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className="size-4" />
                             </Button>
                           </div>
                         </div>
@@ -2529,7 +2529,7 @@ export default function ProjectDetails({
                 onClick={() => redirectToAuth("login")}
                 className="flex items-center justify-center"
               >
-                <LogIn className="h-4 w-4" />
+                <LogIn className="size-4" />
                 Login to Your Account
               </Button>
               <Button
@@ -2537,7 +2537,7 @@ export default function ProjectDetails({
                 variant="outline"
                 className="flex items-center justify-center"
               >
-                <UserPlus className="h-4 w-4" />
+                <UserPlus className="size-4" />
                 Create New Account
               </Button>
             </div>
@@ -2697,12 +2697,12 @@ export default function ProjectDetails({
               >
                 {isResending ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Sending...
                   </>
                 ) : (
                   <>
-                    <MailCheck className="h-4 w-4" />
+                    <MailCheck className="size-4" />
                     Resend Email
                   </>
                 )}
@@ -2712,7 +2712,7 @@ export default function ProjectDetails({
             {showResendTurnstile && (
               <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
                 <div className="mb-3 flex items-start gap-2 text-sm text-muted-foreground">
-                  <Shield className="mt-0.5 h-4 w-4 shrink-0" />
+                  <Shield className="mt-0.5 size-4 shrink-0" />
                   <div>
                     <p className="font-medium text-foreground">
                       Verify before resending

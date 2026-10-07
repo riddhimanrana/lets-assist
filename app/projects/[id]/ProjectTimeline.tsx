@@ -214,7 +214,7 @@ export default function ProjectTimeline({
             startDate: checkInStartTime,
             endDate: startDateTime,
             description: `${format(checkInStartTime, "h:mm a")}`,
-            icon: <UserCheck className="h-4 w-4" />,
+            icon: <UserCheck className="size-4" />,
             isPassed: isAfter(now, startDateTime),
             isCurrent:
               isAfter(now, checkInStartTime) && isBefore(now, startDateTime),
@@ -227,14 +227,14 @@ export default function ProjectTimeline({
             startDate: startDateTime,
             endDate: endDateTime,
             description: `${format(startDateTime, "h:mm a")} - ${format(endDateTime, "h:mm a")}`,
-            icon: <Clock className="h-4 w-4" />,
+            icon: <Clock className="size-4" />,
             isPassed: isAfter(now, endDateTime),
             isCurrent:
               isAfter(now, startDateTime) && isBefore(now, endDateTime),
             details: (
               <div className="mt-2 bg-muted/40 rounded-md p-3">
                 <div className="flex items-center">
-                  <UsersRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <UsersRound className="size-4 mr-2 text-muted-foreground" />
                   <span className="text-sm">
                     {project.schedule.oneTime.volunteers} volunteer spots
                   </span>
@@ -267,7 +267,7 @@ export default function ProjectTimeline({
             date: attendanceEditDeadline, // Position at the deadline time
             startDate: attendanceEditDeadline,
             description: `Must be submitted by ${format(attendanceEditDeadline, "MMMM d, yyyy, h:mm a")}`,
-            icon: <CalendarCheck className="h-4 w-4" />,
+            icon: <CalendarCheck className="size-4" />,
             isPassed: isAfter(now, attendanceEditDeadline),
             // Deadline itself isn't 'current', the period before it is
             isCurrent: false,
@@ -366,7 +366,7 @@ export default function ProjectTimeline({
             startDate: checkInTime,
             endDate: slotStart,
             description: format(checkInTime, "h:mm a"),
-            icon: <UserCheck className="h-4 w-4" />,
+            icon: <UserCheck className="size-4" />,
             isPassed: isAfter(now, slotStart),
             isCurrent: isAfter(now, checkInTime) && isBefore(now, slotStart),
             category: category, // Belongs to specific day tab
@@ -380,13 +380,13 @@ export default function ProjectTimeline({
             startDate: slotStart,
             endDate: slotEnd,
             description: `${format(slotStart, "h:mm a")} - ${format(slotEnd, "h:mm a")}`,
-            icon: <Clock className="h-4 w-4" />,
+            icon: <Clock className="size-4" />,
             isPassed: isAfter(now, slotEnd),
             isCurrent: isAfter(now, slotStart) && isBefore(now, slotEnd),
             details: (
               <div className="mt-2 bg-muted/40 rounded-md p-3">
                 <div className="flex items-center">
-                  <UsersRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <UsersRound className="size-4 mr-2 text-muted-foreground" />
                   <span className="text-sm">
                     {slot.volunteers} volunteer spots
                   </span>
@@ -417,7 +417,7 @@ export default function ProjectTimeline({
                 date: editDeadline,
                 startDate: editDeadline,
                 description: format(editDeadline, "MMMM d, yyyy, h:mm a"),
-                icon: <CalendarCheck className="h-4 w-4" />,
+                icon: <CalendarCheck className="size-4" />,
                 isPassed: isAfter(now, editDeadline),
                 isCurrent: false,
                 category: "all",
@@ -488,7 +488,7 @@ export default function ProjectTimeline({
               date: latestDayDeadline,
               startDate: latestDayDeadline,
               description: `Submit by ${format(latestDayDeadline, "MMMM d, yyyy, h:mm a")}`,
-              icon: <CalendarCheck className="h-4 w-4" />,
+              icon: <CalendarCheck className="size-4" />,
               isPassed: isAfter(now, latestDayDeadline),
               isCurrent: false,
               category: category,
@@ -602,13 +602,13 @@ export default function ProjectTimeline({
           startDate: roleStart,
           endDate: roleEnd,
           description: `${format(roleStart, "h:mm a")} - ${format(roleEnd, "h:mm a")}`,
-          icon: <GanttChart className="h-4 w-4" />,
+          icon: <GanttChart className="size-4" />,
           isPassed: isAfter(now, roleEnd),
           isCurrent: isRoleActiveCurrent,
           details: (
             <div className="mt-2 bg-muted/40 rounded-md p-3">
               <div className="flex items-center">
-                <UsersRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                <UsersRound className="size-4 mr-2 text-muted-foreground" />
                 <span className="text-sm">
                   {role.volunteers} volunteer spots
                 </span>
@@ -638,7 +638,7 @@ export default function ProjectTimeline({
               startDate: roleCheckIn,
               endDate: roleStart,
               description: format(roleCheckIn, "h:mm a"),
-              icon: <UserCheck className="h-4 w-4" />,
+              icon: <UserCheck className="size-4" />,
               isPassed: isAfter(now, roleStart),
               isCurrent: isRoleCheckinCurrent,
               category: category,
@@ -650,13 +650,13 @@ export default function ProjectTimeline({
               startDate: roleStart,
               endDate: roleEnd,
               description: `${format(roleStart, "h:mm a")} - ${format(roleEnd, "h:mm a")}`,
-              icon: <Clock className="h-4 w-4" />,
+              icon: <Clock className="size-4" />,
               isPassed: isAfter(now, roleEnd),
               isCurrent: isRoleActiveCurrent,
               details: (
                 <div className="mt-2 bg-muted/40 rounded-md p-3">
                   <div className="flex items-center">
-                    <UsersRound className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <UsersRound className="size-4 mr-2 text-muted-foreground" />
                     <span className="text-sm">
                       {role.volunteers} volunteer spots
                     </span>
@@ -688,7 +688,7 @@ export default function ProjectTimeline({
               date: roleEditDeadline,
               startDate: roleEditDeadline,
               description: format(roleEditDeadline, "MMMM d, yyyy, h:mm a"),
-              icon: <CalendarCheck className="h-4 w-4" />,
+              icon: <CalendarCheck className="size-4" />,
               isPassed: isAfter(now, roleEditDeadline),
               isCurrent: false,
               category: "all",
@@ -715,7 +715,7 @@ export default function ProjectTimeline({
               date: roleEditDeadline,
               startDate: roleEditDeadline,
               description: `Submit by ${format(roleEditDeadline, "MMMM d, yyyy, h:mm a")}`,
-              icon: <CalendarCheck className="h-4 w-4" />,
+              icon: <CalendarCheck className="size-4" />,
               isPassed: isAfter(now, roleEditDeadline),
               isCurrent: false,
               category: category,
@@ -787,21 +787,21 @@ export default function ProjectTimeline({
       case "oneTime":
         return (
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
+            <Clock className="size-4 text-primary" />
             <span>One-time Event</span>
           </div>
         );
       case "multiDay":
         return (
           <div className="flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-primary" />
+            <CalendarDays className="size-4 text-primary" />
             <span>Multi-day Event</span>
           </div>
         );
       case "sameDayMultiArea":
         return (
           <div className="flex items-center gap-2">
-            <GanttChart className="h-4 w-4 text-primary" />
+            <GanttChart className="size-4 text-primary" />
             <span>Multi-role Event</span>
           </div>
         );
@@ -834,7 +834,7 @@ export default function ProjectTimeline({
 
   return (
     <Dialog open={open} onOpenChange={onOpenAction}>
-      <DialogContent className="sm:max-w-[800px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-200 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl flex items-center gap-2">
             <CalendarClock className="h-5 w-5" />
@@ -852,7 +852,7 @@ export default function ProjectTimeline({
               {getEventTypeDisplay()}
             </Badge>
             <Badge variant="secondary" className="flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="size-4" />
               {getFormattedEventDates()}
             </Badge>
           </div>
@@ -960,7 +960,7 @@ export default function ProjectTimeline({
                               {/* Event marker */}
                               <div
                                 className={cn(
-                                  "absolute left-[-10px] top-1 w-[10px] h-[10px] rounded-full transition-colors duration-300",
+                                  "absolute left-[-10px] top-1 w-2.5 h-2.5 rounded-full transition-colors duration-300",
                                   eventStatus === "current"
                                     ? "bg-primary ring-2 ring-primary/50" // Current style
                                     : eventStatus === "passed"
@@ -972,7 +972,7 @@ export default function ProjectTimeline({
                               {/* Event icon */}
                               <div
                                 className={cn(
-                                  "min-w-[26px] h-[26px] rounded-full flex items-center justify-center transition-colors duration-300",
+                                  "min-w-6.5 h-6.5 rounded-full flex items-center justify-center transition-colors duration-300",
                                   eventStatus === "current"
                                     ? "bg-primary/20 text-primary" // Current style
                                     : eventStatus === "passed"

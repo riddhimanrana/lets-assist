@@ -50,7 +50,7 @@ export function ProjectFeedMobileFilters(props: ProjectFeedFilterProps) {
   return (
     <div className="flex flex-col gap-3 md:hidden">
       <div className="relative w-full">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           placeholder="Search projects..."
           className="pl-8"
@@ -75,35 +75,35 @@ export function ProjectFeedMobileFilters(props: ProjectFeedFilterProps) {
           <div className="flex items-center gap-1 shrink-0">
             <Button
               variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8", view === "card" && "bg-muted")}
+              size="icon-sm"
+              className={cn(view === "card" && "bg-muted")}
               onClick={() => setView("card")}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="size-4" />
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8", view === "list" && "bg-muted")}
+              size="icon-sm"
+              className={cn(view === "list" && "bg-muted")}
               onClick={() => setView("list")}
             >
-              <List className="h-4 w-4" />
+              <List className="size-4" />
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8", view === "table" && "bg-muted")}
+              size="icon-sm"
+              className={cn(view === "table" && "bg-muted")}
               onClick={() => setView("table")}
             >
-              <Table2 className="h-4 w-4" />
+              <Table2 className="size-4" />
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className={cn("h-8 w-8", view === "map" && "bg-muted")}
+              size="icon-sm"
+              className={cn(view === "map" && "bg-muted")}
               onClick={() => setView("map")}
             >
-              <Map className="h-4 w-4" />
+              <Map className="size-4" />
             </Button>
           </div>
         )}
@@ -117,9 +117,9 @@ export function ProjectFeedMobileFilters(props: ProjectFeedFilterProps) {
                 size="icon"
                 className="relative h-8 w-8 shrink-0"
               >
-                <SlidersHorizontal className="h-4 w-4" />
+                <SlidersHorizontal className="size-4" />
                 {activeFilterCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
                     {activeFilterCount}
                   </span>
                 )}

@@ -46,7 +46,7 @@ export default function ProjectUnauthorized({
   return (
     <div className="flex items-center justify-center w-full min-h-screen px-4 py-6">
       <div className="w-full max-w-md mx-auto">
-        <Card className="border-destructive/20 shadow-md w-full">
+        <Card className="ring-destructive/20 w-full">
           <CardHeader className="pb-2 pt-5">
             <div className="flex items-center justify-center mb-4">
               <div className="bg-destructive/10 rounded-full p-3">
@@ -67,7 +67,7 @@ export default function ProjectUnauthorized({
                 variant="destructive"
                 className="bg-destructive/5 border-destructive/20 py-2"
               >
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="size-4" />
                 <AlertTitle className="text-sm">
                   Authentication required
                 </AlertTitle>
@@ -79,13 +79,13 @@ export default function ProjectUnauthorized({
 
             <div className="p-3 bg-muted/50 rounded-lg border border-border">
               <h3 className="font-medium mb-2 flex items-center justify-center text-sm">
-                <Users className="h-4 w-4 mr-2" />
+                <Users className="size-4 mr-2" />
                 Access Requirements
               </h3>
               <Separator className="my-1.5" />
               <ul className="mt-2 space-y-2 text-left text-sm">
                 <li className="flex items-center">
-                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center size-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     1
                   </span>
                   <span>
@@ -94,7 +94,7 @@ export default function ProjectUnauthorized({
                 </li>
                 {!isLoggedIn && (
                   <li className="flex items-center">
-                    <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                    <span className="shrink-0 inline-flex items-center justify-center size-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                       2
                     </span>
                     <span>
@@ -104,7 +104,7 @@ export default function ProjectUnauthorized({
                   </li>
                 )}
                 <li className="flex items-center">
-                  <span className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
+                  <span className="shrink-0 inline-flex items-center justify-center size-6 rounded-full bg-primary/10 text-xs font-medium text-primary mr-2">
                     {!isLoggedIn ? "3" : "2"}
                   </span>
                   <span>
@@ -119,7 +119,7 @@ export default function ProjectUnauthorized({
                 <TooltipTrigger
                   render={
                     <div className="flex items-center justify-center p-2 bg-muted/30 rounded-lg border border-border/50 hover:bg-muted/50 transition-colors cursor-help">
-                      <Shield className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
+                      <Shield className="size-4 text-muted-foreground mr-2 shrink-0" />
                       <p className="text-xs text-muted-foreground">
                         Private projects help organizations maintain
                         confidentiality
@@ -149,7 +149,7 @@ export default function ProjectUnauthorized({
                 className="w-full"
                 size="sm"
               >
-                <LogIn className="mr-2 h-4 w-4" />
+                <LogIn className="mr-2 size-4" />
                 {isRedirecting ? "Redirecting..." : "Log In to Access"}
               </Button>
             )}

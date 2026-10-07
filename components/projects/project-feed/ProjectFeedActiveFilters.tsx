@@ -27,7 +27,7 @@ export function ProjectFeedActiveFilters(props: ProjectFeedFilterProps) {
         <div className="flex flex-wrap items-center gap-2 mt-3">
           {activeFilterCount > 0 && (
             <Badge variant="secondary" className="gap-1">
-              <Filter className="h-3 w-3" />
+              <Filter className="size-3" />
               {activeFilterCount}{" "}
               {activeFilterCount === 1 ? "filter" : "filters"} applied
             </Badge>
@@ -35,79 +35,79 @@ export function ProjectFeedActiveFilters(props: ProjectFeedFilterProps) {
 
           {debouncedSearchTerm && (
             <Badge variant="outline" className="gap-1">
-              <Search className="h-3 w-3" />
+              <Search className="size-3" />
               &quot;{debouncedSearchTerm}&quot;
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 ml-1 p-0"
+                className="size-3 ml-1 p-0"
                 onClick={() => setSearchTerm("")}
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             </Badge>
           )}
 
           {eventTypeFilter && (
             <Badge variant="outline" className="gap-1">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="size-3" />
               {eventTypeFilter === "oneTime" && "Single Event"}
               {eventTypeFilter === "multiDay" && "Multi-day Event"}
               {eventTypeFilter === "sameDayMultiArea" && "Multi-role Event"}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 ml-1 p-0"
+                className="size-3 ml-1 p-0"
                 onClick={() => setEventTypeFilter(undefined)}
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             </Badge>
           )}
 
           {dateFilter?.from && (
             <Badge variant="outline" className="gap-1">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="size-3" />
               {dateFilterLabel}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 ml-1 p-0"
+                className="size-3 ml-1 p-0"
                 onClick={() => setDateFilter(undefined)}
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             </Badge>
           )}
 
           {dateSort && (
             <Badge variant="outline" className="gap-1">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="size-3" />
               {dateSort === "desc" ? "Most recent first" : "Future dates first"}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 ml-1 p-0"
+                className="size-3 ml-1 p-0"
                 onClick={() => setDateSort(undefined)}
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             </Badge>
           )}
 
           {volunteersSort && (
             <Badge variant="outline" className="gap-1">
-              <Users className="h-3 w-3" />
+              <Users className="size-3" />
               {volunteersSort === "desc"
                 ? "Most volunteers needed"
                 : "Least volunteers needed"}
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-3 w-3 ml-1 p-0"
+                className="size-3 ml-1 p-0"
                 onClick={() => setVolunteersSort(undefined)}
               >
-                <X className="h-3 w-3" />
+                <X className="size-3" />
               </Button>
             </Badge>
           )}

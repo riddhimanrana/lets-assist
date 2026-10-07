@@ -1039,7 +1039,7 @@ export function HoursClient({
           href={`/projects/${project.id}`}
           className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           <span className="hidden sm:inline">Back to Project</span>
           <span className="sm:hidden">Back</span>
         </Link>
@@ -1047,7 +1047,7 @@ export function HoursClient({
           href={`/projects/${project.id}/paper-signups`}
           className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
         >
-          <ScanText className="h-4 w-4" />
+          <ScanText className="size-4" />
           <span className="hidden sm:inline">Add from paper sheet</span>
           <span className="sm:hidden">Paper sheet</span>
         </Link>
@@ -1103,7 +1103,7 @@ export function HoursClient({
 
             <div className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground border">
               <div className="flex items-center gap-2 mb-2 font-semibold">
-                <Info className="h-4 w-4" />
+                <Info className="size-4" />
                 Verification Info
               </div>
               Each certificate includes a unique ID and verification link inside
@@ -1139,7 +1139,7 @@ export function HoursClient({
             </div>
 
             <Alert variant="default" className="mt-4">
-              <Info className="h-4 w-4" />
+              <Info className="size-4" />
               <AlertTitle className="font-semibold">
                 What happens next?
               </AlertTitle>
@@ -1238,7 +1238,7 @@ export function HoursClient({
         <DialogContent className="w-[95vw] max-w-4xl flex flex-col">
           <DialogHeader className="shrink-0">
             <DialogTitle className="text-lg sm:text-xl flex items-center">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary mr-2 shrink-0" />
+              <FileText className="size-4 sm:h-5 sm:w-5 text-primary mr-2 shrink-0" />
               <span className="truncate">Certificate Details</span>
             </DialogTitle>
             <DialogDescription className="text-sm">
@@ -1263,26 +1263,20 @@ export function HoursClient({
 
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
             {certificatesModalData ? (
-              <div className="flex flex-col h-full space-y-4">
+              <div className="flex flex-col h-full gap-4">
                 <div className="flex-1 overflow-auto min-h-0">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
-                        <TableHead className="w-[120px] sm:w-[150px]">
-                          Name
-                        </TableHead>
-                        <TableHead className="w-[150px] sm:w-[200px] hidden sm:table-cell">
+                        <TableHead className="w-30 sm:w-37.5">Name</TableHead>
+                        <TableHead className="w-37.5 sm:w-50 hidden sm:table-cell">
                           Email
                         </TableHead>
-                        <TableHead className="w-[100px] sm:w-[140px]">
-                          Check-in
-                        </TableHead>
-                        <TableHead className="w-[100px] sm:w-[140px]">
+                        <TableHead className="w-25 sm:w-35">Check-in</TableHead>
+                        <TableHead className="w-25 sm:w-35">
                           Check-out
                         </TableHead>
-                        <TableHead className="w-[80px] sm:w-[100px]">
-                          Hours
-                        </TableHead>
+                        <TableHead className="w-20 sm:w-25">Hours</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1450,7 +1444,7 @@ export function HoursClient({
         </DialogContent>
       </Dialog>
 
-      <Card className="min-h-[400px] relative">
+      <Card className="min-h-100 relative">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
             <div className="flex flex-col items-center gap-2 mt-10">
@@ -1478,7 +1472,7 @@ export function HoursClient({
             <div className="space-y-4">
               <div className="mt-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Edit className="h-4 w-4 text-warning" aria-hidden="true" />
+                  <Edit className="size-4 text-warning" aria-hidden="true" />
                   <span className="text-sm sm:text-base font-semibold text-warning">
                     Editing Windows Open
                   </span>
@@ -1492,7 +1486,7 @@ export function HoursClient({
                   <button
                     key={session.id}
                     onClick={() => setSessionFilter(session.id)}
-                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-warning/30 bg-linear-to-br from-warning/10 to-white/80 dark:to-background shadow-xs transition hover:shadow-lg"
+                    className="flex flex-col gap-1 p-3 sm:p-4 rounded-xl border border-warning/30 bg-warning/10 text-left transition-colors hover:bg-warning/20"
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="font-medium text-sm text-warning line-clamp-1">
@@ -1522,7 +1516,7 @@ export function HoursClient({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
             <div className="flex flex-col gap-2 flex-1 sm:flex-row sm:items-center">
               <div className="relative w-full">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name or email..."
                   className="pl-8 w-full"
@@ -1537,7 +1531,7 @@ export function HoursClient({
                   onValueChange={(val) => setSessionFilter(val || "all")}
                 >
                   <SelectTrigger
-                    className="w-full sm:min-w-[240px] sm:w-auto"
+                    className="w-full sm:min-w-60 sm:w-auto"
                     aria-label="Filter by session"
                   >
                     <SelectValue>
@@ -1552,7 +1546,7 @@ export function HoursClient({
                       }}
                     </SelectValue>
                   </SelectTrigger>
-                  <SelectContent className="max-w-[400px]">
+                  <SelectContent className="max-w-100">
                     <SelectItem value="all">All Sessions</SelectItem>
 
                     {/* Group sessions by status */}
@@ -1768,7 +1762,7 @@ export function HoursClient({
                                     size="sm"
                                     className="whitespace-nowrap"
                                   >
-                                    <Clock className="h-4 w-4 mr-2" />
+                                    <Clock className="size-4 mr-2" />
                                     <span className="hidden sm:inline">
                                       Adjust All Times
                                     </span>
@@ -1864,7 +1858,7 @@ export function HoursClient({
                                   >
                                     {applyingBatchAdjustment[session.id] ? (
                                       <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <Loader2 className="mr-2 size-4 animate-spin" />
                                         Applying...
                                       </>
                                     ) : (
@@ -1892,12 +1886,12 @@ export function HoursClient({
                           >
                             {isPublishing ? (
                               <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="size-4 animate-spin" />
                                 Publishing...
                               </>
                             ) : (
                               <>
-                                <CheckCircle className="h-4 w-4 mr-1.5" />
+                                <CheckCircle className="size-4 mr-1.5" />
                                 <span>Publish Hours</span>
                               </>
                             )}
@@ -1916,12 +1910,12 @@ export function HoursClient({
                           >
                             {loadingCertificates ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                <Loader2 className="size-4 mr-1.5 animate-spin" />
                                 Loading...
                               </>
                             ) : (
                               <>
-                                <FileText className="h-4 w-4 mr-1.5" />
+                                <FileText className="size-4 mr-1.5" />
                                 <span className="hidden sm:inline">
                                   View Certificates
                                 </span>
@@ -1946,12 +1940,12 @@ export function HoursClient({
                                 >
                                   {resendingSessions[session.id] ? (
                                     <>
-                                      <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                      <Loader2 className="size-4 mr-1.5 animate-spin" />
                                       Resending...
                                     </>
                                   ) : (
                                     <>
-                                      <Mail className="h-4 w-4 mr-1.5" />
+                                      <Mail className="size-4 mr-1.5" />
                                       <span className="hidden sm:inline">
                                         Resend
                                       </span>
@@ -1994,12 +1988,12 @@ export function HoursClient({
                                 >
                                   {resendingSessions[session.id] ? (
                                     <>
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      <Loader2 className="size-4 mr-2 animate-spin" />
                                       Resending...
                                     </>
                                   ) : (
                                     <>
-                                      <Mail className="h-4 w-4 mr-2" />
+                                      <Mail className="size-4 mr-2" />
                                       Resend All Certificates
                                     </>
                                   )}
@@ -2031,7 +2025,7 @@ export function HoursClient({
 
                 {hasInvalidTimes && (
                   <Alert variant="destructive" className="mb-4">
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="size-4" />
                     <AlertTitle>Invalid Hours Detected</AlertTitle>
                     <AlertDescription>
                       Some volunteers have invalid hours (negative or over 24
@@ -2059,7 +2053,7 @@ export function HoursClient({
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="whitespace-nowrap min-w-[140px]">
+                            <TableHead className="whitespace-nowrap min-w-35">
                               Name
                             </TableHead>
                             <TableHead className="whitespace-nowrap">
@@ -2084,7 +2078,7 @@ export function HoursClient({
                                             aria-label="Duration info"
                                           >
                                             <Info
-                                              className="h-4 w-4 cursor-pointer"
+                                              className="size-4 cursor-pointer"
                                               aria-hidden="true"
                                             />
                                           </span>
@@ -2141,12 +2135,12 @@ export function HoursClient({
                                   )}
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <span className="truncate max-w-[120px] sm:max-w-none block">
+                                  <span className="truncate max-w-30 sm:max-w-none block">
                                     {email || "N/A"}
                                   </span>
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <div className="max-w-[120px]">
+                                  <div className="max-w-30">
                                     <TimePicker
                                       value={
                                         currentEdit.check_in_time
@@ -2170,7 +2164,7 @@ export function HoursClient({
                                   </div>
                                 </TableCell>
                                 <TableCell className="py-2.5 px-3 sm:p-4">
-                                  <div className="max-w-[120px]">
+                                  <div className="max-w-30">
                                     <TimePicker
                                       value={
                                         currentEdit.check_out_time
@@ -2250,7 +2244,7 @@ export function HoursClient({
           })}
 
           {getAllProjectSessions.length === 0 && !loading && (
-            <div className="flex flex-col items-center text-muted-foreground space-y-2 py-10">
+            <div className="flex flex-col items-center text-muted-foreground gap-2 py-10">
               <UserRoundCheck className="h-8 w-8 mt-10" />
               <p className="text-lg font-medium">No Sessions Found</p>
               <p className="text-sm">

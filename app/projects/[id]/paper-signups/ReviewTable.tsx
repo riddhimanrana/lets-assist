@@ -266,7 +266,7 @@ export function ReviewTable({
       )}
 
       {sessionPublished && (
-        <Card className="border-amber-400/60">
+        <Card className="ring-amber-400/60">
           <CardHeader className="py-4">
             <CardTitle className="text-sm">
               This session&apos;s hours are already published

@@ -170,7 +170,7 @@ export function CancelSignupModal({
             </h4>
             <div className="space-y-2">
               <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <Calendar className="size-4 text-muted-foreground mt-0.5" />
                 <div>
                   <div className="text-sm font-medium">{project.title}</div>
                   <div className="text-sm text-muted-foreground">
@@ -180,7 +180,7 @@ export function CancelSignupModal({
               </div>
               {(project.start_time || project.end_time) && (
                 <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Clock className="size-4 text-muted-foreground" />
                   <span className="text-sm">
                     {project.start_time && formatTime(project.start_time)}
                     {project.start_time && project.end_time && " - "}
@@ -189,7 +189,7 @@ export function CancelSignupModal({
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <MapPin className="size-4 text-muted-foreground" />
                 <span className="text-sm">{project.location}</span>
               </div>
             </div>
@@ -218,7 +218,7 @@ export function CancelSignupModal({
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="size-4 animate-spin mr-2" />
                 Cancelling...
               </>
             ) : (

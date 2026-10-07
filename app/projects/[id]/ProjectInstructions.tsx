@@ -102,7 +102,7 @@ export default function ProjectInstructionsModal({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="size-4" />
                   Event Date & Time
                 </CardTitle>
               </CardHeader>
@@ -114,7 +114,7 @@ export default function ProjectInstructionsModal({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
+                  <MapPin className="size-4" />
                   Single Location
                 </CardTitle>
               </CardHeader>
@@ -131,16 +131,14 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-primary/20 text-primary border-primary/30">
-                Multi-Day Event
-              </Badge>
+              <Badge variant="outline">Multi-Day Event</Badge>
             </div>
             <p>This event spans multiple days with different time slots.</p>
 
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarClock className="h-4 w-4" />
+                  <CalendarClock className="size-4" />
                   Multiple Sessions
                 </CardTitle>
               </CardHeader>
@@ -156,7 +154,7 @@ export default function ProjectInstructionsModal({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
+                  <Clock className="size-4" />
                   Flexible Scheduling
                 </CardTitle>
               </CardHeader>
@@ -171,9 +169,7 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-primary/20 text-primary border-primary/30">
-                Multi-Role Event
-              </Badge>
+              <Badge variant="outline">Multi-Role Event</Badge>
             </div>
             <p>
               This event happens on a single day with multiple roles for
@@ -183,7 +179,7 @@ export default function ProjectInstructionsModal({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <UsersRound className="h-4 w-4" />
+                  <UsersRound className="size-4" />
                   Different Roles
                 </CardTitle>
               </CardHeader>
@@ -198,7 +194,7 @@ export default function ProjectInstructionsModal({
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="size-4" />
                   Single Day
                 </CardTitle>
               </CardHeader>
@@ -226,7 +222,7 @@ export default function ProjectInstructionsModal({
         <div className="space-y-2">
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">
+              <div className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center shrink-0">
                 1
               </div>
               <div>
@@ -240,7 +236,7 @@ export default function ProjectInstructionsModal({
 
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">
+              <div className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center shrink-0">
                 2
               </div>
               <div>
@@ -258,7 +254,7 @@ export default function ProjectInstructionsModal({
 
           <div className="rounded-lg bg-primary/5 border p-4">
             <div className="flex items-start gap-3">
-              <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">
+              <div className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center shrink-0">
                 3
               </div>
               <div>
@@ -276,7 +272,7 @@ export default function ProjectInstructionsModal({
           {verification_method !== "signup-only" && (
             <div className="rounded-lg bg-primary/5 border p-4">
               <div className="flex items-start gap-3">
-                <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center shrink-0">
+                <div className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center shrink-0">
                   4
                 </div>
                 <div>
@@ -315,7 +311,7 @@ export default function ProjectInstructionsModal({
 
         <div className="grid gap-4">
           {/* Project Setup */}
-          <Card className="bg-primary/5 border-primary/20">
+          <Card className="bg-primary/5 ring-primary/20">
             <CardHeader className="">
               <CardTitle className="text-base flex items-center gap-2">
                 <Settings className="h-5 w-5 text-primary" />
@@ -496,7 +492,7 @@ export default function ProjectInstructionsModal({
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     1
                   </div>
                   <div>
@@ -511,7 +507,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     2
                   </div>
                   <div>
@@ -526,7 +522,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     3
                   </div>
                   <div>
@@ -541,7 +537,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     4
                   </div>
                   <div>
@@ -589,7 +585,7 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <Badge className="bg-chart-6/20 text-chart-6 border-chart-6/30 mb-3">
+              <Badge variant="outline" className="mb-3">
                 Manual Check-In
               </Badge>
               <h3 className="text-lg font-semibold">How to Check In</h3>
@@ -601,7 +597,7 @@ export default function ProjectInstructionsModal({
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     1
                   </div>
                   <div>
@@ -618,7 +614,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     2
                   </div>
                   <div>
@@ -633,7 +629,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     3
                   </div>
                   <div>
@@ -678,7 +674,7 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 mb-3">
+              <Badge variant="outline" className="mb-3">
                 Automatic Check-In
               </Badge>
               <h3 className="text-lg font-semibold">Automatic Attendance</h3>
@@ -690,7 +686,7 @@ export default function ProjectInstructionsModal({
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     1
                   </div>
                   <div>
@@ -705,7 +701,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     2
                   </div>
                   <div>
@@ -720,7 +716,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     3
                   </div>
                   <div>
@@ -760,7 +756,7 @@ export default function ProjectInstructionsModal({
         return (
           <div className="space-y-4">
             <div className="text-center mb-6">
-              <Badge className="bg-info/20 text-info border-info/30 mb-3">
+              <Badge variant="outline" className="mb-3">
                 Sign-up Only Event
               </Badge>
               <h3 className="text-lg font-semibold">Just Show Up!</h3>
@@ -772,7 +768,7 @@ export default function ProjectInstructionsModal({
             <div className="space-y-4">
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     1
                   </div>
                   <div>
@@ -786,7 +782,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     2
                   </div>
                   <div>
@@ -801,7 +797,7 @@ export default function ProjectInstructionsModal({
 
               <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center shrink-0 font-semibold">
+                  <div className="bg-primary text-primary-foreground rounded-full size-8 flex items-center justify-center shrink-0 font-semibold">
                     3
                   </div>
                   <div>
@@ -857,16 +853,16 @@ export default function ProjectInstructionsModal({
             )}
           >
             <span className="flex items-center gap-2">
-              <HelpCircle className="h-4 w-4" />
+              <HelpCircle className="size-4" />
               {isCreator ? "Creator Guide" : "How It Works"}
             </span>
             {showChevron && (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <ChevronRight className="size-4 text-muted-foreground" />
             )}
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-[700px] p-0 max-h-[90vh]">
+      <DialogContent className="sm:max-w-175 p-0 max-h-[90vh]">
         <DialogHeader className="p-6 pb-2 flex flex-row items-center gap-2">
           <div
             className={`p-2 rounded-full ${isCreator ? "bg-secondary/20" : "bg-primary/10"}`}

@@ -35,7 +35,7 @@ export function LocationMapCard({
 
         <LocationMap
           location={locationData ?? { text: location }}
-          height="h-[200px]"
+          height="h-50"
         />
 
         <Button
@@ -45,7 +45,7 @@ export function LocationMapCard({
           onClick={() => window.open(createGoogleMapsUrl(), "_blank")}
           aria-label={`Open ${locationData?.display_name || location} in Google Maps`}
         >
-          <ExternalLink className="h-4 w-4 mr-2" aria-hidden="true" />
+          <ExternalLink className="size-4 mr-2" aria-hidden="true" />
           Open in Google Maps
         </Button>
       </CardContent>

@@ -288,7 +288,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
     return (
       <Card className="bg-muted/40 border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-16">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+          <div className="size-20 rounded-full bg-muted flex items-center justify-center mb-6">
             <PackageX className="h-10 w-10 text-muted-foreground opacity-80" />
           </div>
           <h3 className="text-xl font-medium mb-2">
@@ -333,7 +333,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           data-tour-id="home-project-list"
         >
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+            <div className="size-20 rounded-full bg-muted flex items-center justify-center mb-6">
               {activeFilterCount > 0 ? (
                 <Search className="h-10 w-10 text-muted-foreground opacity-80" />
               ) : (
@@ -354,7 +354,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   onClick={clearAllFilters}
                   className="gap-2"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                   Clear all filters
                 </Button>
               )}
@@ -368,7 +368,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                   "gap-2",
                 )}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="size-4" />
                 Create a project
               </Link>
             </div>
@@ -458,7 +458,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
                 });
               }}
             >
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="size-4" />
               Back to top
             </Button>
           </div>
