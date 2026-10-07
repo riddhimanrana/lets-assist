@@ -57,3 +57,30 @@ DV_TABROOM_TOURNAMENT_ID=12345 bun run dv:tabroom:smoke
 ## Release gate
 
 A DV release is blocked if migrations do not replay from empty, fixture data is nondeterministic, RLS permits cross-organization access or self-approval, credentials are committed, an AI proposal can persist without staff approval, or external integrations are required for local/CI tests.
+
+## October 2026 membership remediation
+
+The private candidate sends member draft saves and full application submissions
+to `plugin_data.save_dv_membership_application`. The host migration
+`20261007200000` depends on the account deletion write fence in `20261007040314`.
+Both must ship with the private caller change. This service-only function checks
+active membership, plugin access, the current season, and editable application
+status before identity changes. Account deletion and plugin control-plane locks
+serialize competing operations. Identity, household links, membership, audit,
+and the hashed retry receipt commit together or roll back together.
+
+A retry with the same actor, request ID, and payload returns the original result.
+Changing the payload requires a new request ID. A successful retry does not undo
+a later staff decision. Shared guardian contact corrections remain in application
+data for staff review; the member write does not overwrite a shared contact.
+
+The member form reopens drafts and applications returned for changes with their
+saved values. Other states show their actual decision and keep the form closed.
+This does not migrate legacy roster profiles or reconcile real household data.
+The unused server action that created account fixtures and exported passwords
+has been removed from the private candidate.
+
+Local evidence: 30 pgTAP checks passed on the owned isolated stack, including
+refused writes, partial failure rollback, retry identity, control-plane leases,
+and pending account deletion. Component and adapter regressions passed locally.
+These results do not establish a hosted Development or Production deployment.
