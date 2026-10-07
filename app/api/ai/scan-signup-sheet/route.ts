@@ -1,6 +1,9 @@
+import { extractImage } from "./scan-extraction";
+import { revalidateScanAccess, ScanAccessError } from "./scan-access";
+import { resolveAuthorizedAttendancePrintReferences } from "@/lib/attendance/print-manifest";
+import { loadScanCandidatePages } from "./scan-candidates";
 import { safeConsole } from "@/lib/safe-console";
 import { randomUUID } from "node:crypto";
-import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -12,19 +15,12 @@ import {
 } from "@/lib/projects/management-access";
 import { consumeAiQuota } from "@/lib/ai/rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
-import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import {
-  paperSignupExtractionSchema,
-  shouldEscalatePaperScan,
-  type PaperSignupExtraction,
+  PAPER_SCAN_MAX_ROWS_PER_BATCH,
   type PaperSignupRow,
 } from "@/lib/ai/paper-signup-schema";
-import { AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { buildPaperSignupExtractionPrompt } from "@/lib/ai/paper-signup-prompt";
-import {
-  normalizeTimeString,
-  resolveRowWindow,
-} from "@/lib/projects/paper-signup/normalize";
+import { transcribedTimeInstant } from "@/lib/projects/paper-signup/normalize";
 import {
   MATCH_AUTO_THRESHOLD,
   matchPaperRow,
@@ -34,25 +30,15 @@ import {
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import type { Project } from "@/types";
 
-// Ten sequential vision calls plus escalations exceed the default timeout.
-// Node runtime only: edge is incompatible with cacheComponents.
+// Allow time for ten sequential vision calls and their fallback attempts.
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
-
-/**
- * The escalation ladder. Tier 0 handles clean sheets at ~1/5 the cost;
- * tier 1 re-reads images the cheap tier could not transcribe confidently
- * (see shouldEscalatePaperScan) and doubles as the availability fallback.
- */
-const PAPER_SCAN_MODELS = AI_MODEL_FALLBACK_CHAIN;
 
 const SCAN_USER_LIMIT = 6;
 const SCAN_IP_LIMIT = 20;
 const SCAN_PROJECT_LIMIT = 10;
 const SCAN_WINDOW_SECONDS = 3600;
-const MAX_OUTPUT_TOKENS = 8000;
 const EXTRACTION_LEASE_MS = 10 * 60 * 1000;
-const MODEL_CALL_TIMEOUT_MS = 45 * 1000;
 const EXTRACTION_ROUTE_BUDGET_MS = 270 * 1000;
 /** Auto-include requires a confidently-read email; below this the reviewer decides. */
 const EMAIL_AUTO_INCLUDE_CONFIDENCE = 0.8;
@@ -63,124 +49,13 @@ const scanRequestSchema = z
   })
   .strict();
 
-interface ExtractionAttempt {
-  extraction: PaperSignupExtraction | null;
-  modelId: string | null;
-  modelsTried: string[];
-}
-
-async function extractImageWithModel(options: {
-  modelId: string;
-  prompt: string;
-  imageBytes: Uint8Array;
-  mediaType: string;
-  userId: string;
-  organizationId: string | undefined;
-  deadlineMs: number;
-}): Promise<PaperSignupExtraction | null> {
-  const tracked = prepareTrackedAiCall({
-    context: {
-      scope: "platform",
-      userId: options.userId,
-      organizationId: options.organizationId,
-      feature: "paper-signup-scan",
-    },
-    modelId: options.modelId,
-  });
-
-  const startedAt = Date.now();
-  try {
-    const remainingMs = options.deadlineMs - startedAt;
-    if (remainingMs <= 0) return null;
-
-    const result = await generateText({
-      model: tracked.model,
-      experimental_telemetry: tracked.telemetry,
-      providerOptions: { gateway: tracked.gatewayOptions },
-      output: Output.object({ schema: paperSignupExtractionSchema }),
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: options.prompt },
-            {
-              type: "file",
-              data: options.imageBytes,
-              mediaType: options.mediaType,
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      // The model ladder already supplies an availability fallback. Disabling
-      // hidden SDK retries keeps a ten-page scan inside the route budget, and
-      // the per-call timeout prevents one provider request from stranding the
-      // durable batch in `extracting` until its lease expires.
-      maxRetries: 0,
-      timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs),
-    });
-
-    await tracked.logUsage({
-      promptTokens: result.usage?.inputTokens,
-      completionTokens: result.usage?.outputTokens,
-      latencyMs: Date.now() - startedAt,
-      success: true,
-    });
-
-    const parsed = paperSignupExtractionSchema.safeParse(result.output);
-    return parsed.success ? parsed.data : null;
-  } catch (error) {
-    safeConsole.error(
-      "Application diagnostic from app/api/ai/scan-signup-sheet/route",
-      `Paper scan extraction failed on ${options.modelId}:`,
-      error instanceof Error ? `${error.name}: ${error.message}` : error,
-    );
-    await tracked.logUsage({
-      latencyMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: error instanceof Error ? error.name : "unknown",
-    });
-    return null;
-  }
-}
-
-/**
- * Tier 0 first; escalate to tier 1 when the cheap read is doubtful and take
- * the stronger result wholesale. A model that errors falls through to the
- * next tier, so one bad model id degrades cost, never availability.
- */
-async function extractImage(options: {
-  prompt: string;
-  imageBytes: Uint8Array;
-  mediaType: string;
-  userId: string;
-  organizationId: string | undefined;
-  deadlineMs: number;
-}): Promise<ExtractionAttempt> {
-  const modelsTried: string[] = [];
-  let best: PaperSignupExtraction | null = null;
-  let bestModel: string | null = null;
-
-  for (const modelId of PAPER_SCAN_MODELS) {
-    if (Date.now() >= options.deadlineMs) break;
-    modelsTried.push(modelId);
-    const extraction = await extractImageWithModel({ ...options, modelId });
-
-    if (extraction) {
-      best = extraction;
-      bestModel = modelId;
-      if (!shouldEscalatePaperScan(extraction)) break;
-      // Doubtful read: continue to the stronger tier, keeping this result
-      // as the fallback if the escalation itself fails.
-      continue;
-    }
-  }
-
-  return { extraction: best, modelId: bestModel, modelsTried };
-}
-
 type StagedRowInsert = {
+  attendance_intervals: Array<{
+    checkIn: string | null;
+    checkOut: string | null;
+  }>;
+  review_acknowledged: boolean;
+  identity_confirmed: boolean;
   batch_id: string;
   project_id: string;
   image_id: string;
@@ -393,29 +268,29 @@ export async function POST(req: NextRequest) {
     // (any slot — people sign the wrong sheet), plus anonymous identities.
     // Never a global name search; cross-tenant identity lookups are only by
     // exact email, inside the commit RPC.
-    const [
-      { data: signupCandidates, error: signupCandidatesError },
-      { data: anonCandidates, error: anonCandidatesError },
-    ] = await Promise.all([
-      admin
-        .from("project_signups")
-        .select(
-          "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
-        )
-        .eq("project_id", batch.project_id)
-        .neq("status", "rejected")
-        .order("created_at"),
-      admin
-        .from("anonymous_signups")
-        .select("id, name, email, phone_number, created_at")
-        .eq("project_id", batch.project_id)
-        .order("created_at"),
+    const [signupCandidates, anonCandidates] = await Promise.all([
+      loadScanCandidatePages((start, end) =>
+        admin
+          .from("project_signups")
+          .select(
+            "id, user_id, anonymous_id, created_at, profiles(full_name, email, phone), anonymous_signups(name, email, phone_number)",
+          )
+          .eq("project_id", batch.project_id)
+          .neq("status", "rejected")
+          .order("created_at")
+          .order("id")
+          .range(start, end),
+      ),
+      loadScanCandidatePages((start, end) =>
+        admin
+          .from("anonymous_signups")
+          .select("id, name, email, phone_number, created_at")
+          .eq("project_id", batch.project_id)
+          .order("created_at")
+          .order("id")
+          .range(start, end),
+      ),
     ]);
-    if (signupCandidatesError || anonCandidatesError) {
-      throw new Error(
-        `Failed to load scan match candidates: ${signupCandidatesError?.code ?? anonCandidatesError?.code ?? "unknown"}`,
-      );
-    }
 
     const candidates: PaperMatchCandidate[] = [];
     for (const signup of signupCandidates ?? []) {
@@ -504,13 +379,21 @@ export async function POST(req: NextRequest) {
         const name = row.name.value?.trim() || null;
         const phone = row.phone.value?.trim() || null;
 
-        const resolved = resolveRowWindow({
-          window,
-          timezone,
-          timeIn: normalizeTimeString(row.timeIn.value),
-          timeOut: normalizeTimeString(row.timeOut.value),
-        });
-
+        const writtenIntervals = row.intervals?.length
+          ? row.intervals
+          : [{ timeIn: row.timeIn, timeOut: row.timeOut }];
+        const intervals = writtenIntervals.map((interval) => ({
+          checkIn: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeIn.value,
+          ),
+          checkOut: transcribedTimeInstant(
+            window,
+            timezone,
+            interval.timeOut.value,
+          ),
+        }));
         const match = matchPaperRow({ name, email, phone }, candidates);
 
         // Same person transcribed twice in this batch: flag for the reviewer.
@@ -552,12 +435,11 @@ export async function POST(req: NextRequest) {
           name,
           email,
           phone,
-          check_in_time: resolved
-            ? new Date(resolved.checkInMs).toISOString()
-            : null,
-          check_out_time: resolved
-            ? new Date(resolved.checkOutMs).toISOString()
-            : null,
+          attendance_intervals: intervals,
+          review_acknowledged: false,
+          identity_confirmed: false,
+          check_in_time: intervals[0]?.checkIn ?? null,
+          check_out_time: intervals.at(-1)?.checkOut ?? null,
           signature_present: row.signaturePresent,
           match_kind: match.kind,
           match_signup_id: match.signupId,
@@ -574,12 +456,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (imagesProcessed === 0) {
+    if (imagesProcessed === 0 || stagedRows.length === 0) {
+      await revalidateScanAccess(admin, batch.project_id, user.id);
       const { data: failedBatch, error: failError } = await admin
         .from("project_paper_scan_batches")
         .update({
           status: "failed",
-          extraction_error: "no_images_extracted",
+          extraction_error:
+            imagesProcessed === 0
+              ? "no_images_extracted"
+              : "no_readable_attendance_rows",
           models_used: [...modelsUsed],
           extraction_claim_id: null,
         })
@@ -594,12 +480,66 @@ export async function POST(req: NextRequest) {
       }
       claimedBatch = null;
       return Response.json(
-        { error: "None of the photos could be read. Try clearer photos." },
+        {
+          error:
+            "No readable attendance rows were found. Try clearer photos or add attendance manually.",
+        },
         { status: 422 },
       );
     }
 
     if (stagedRows.length > 0) {
+      if (stagedRows.length > PAPER_SCAN_MAX_ROWS_PER_BATCH) {
+        await revalidateScanAccess(admin, batch.project_id, user.id);
+        const { error } = await admin
+          .from("project_paper_scan_batches")
+          .update({
+            status: "failed",
+            extraction_error: "too_many_rows",
+            extraction_claim_id: null,
+          })
+          .eq("id", batchId)
+          .eq("extraction_claim_id", claimId);
+        if (error)
+          throw new Error(`Failed to settle oversized scan: ${error.code}`);
+        claimedBatch = null;
+        return Response.json(
+          {
+            error:
+              "These photos contain more than 300 rows. Split them into smaller batches so every row can be reviewed.",
+          },
+          { status: 422 },
+        );
+      }
+      const referenceRows = stagedRows.filter(
+        (row) =>
+          row.raw_extraction.sheetReference || row.raw_extraction.rowReference,
+      );
+      const printedMatches = await resolveAuthorizedAttendancePrintReferences(
+        { admin, project, userId: user.id },
+        {
+          projectId: batch.project_id,
+          scheduleId: batch.schedule_id,
+          references: referenceRows.map((row) => ({
+            sheetReference: row.raw_extraction.sheetReference ?? "",
+            rowReference: row.raw_extraction.rowReference ?? "",
+          })),
+        },
+      );
+      referenceRows.forEach((row, index) => {
+        const printed = printedMatches[index];
+        if (!printed) row.outcome_detail = "printed_reference_needs_review";
+        else if (printed.signupId)
+          Object.assign(row, {
+            match_kind: "existing_signup",
+            match_signup_id: printed.signupId,
+            match_user_id: printed.userId,
+            match_anonymous_id: printed.anonymousId,
+            match_score: 1,
+            match_reasons: [],
+          });
+      });
+      await revalidateScanAccess(admin, batch.project_id, user.id);
       const { error: insertError } = await admin
         .from("project_paper_scan_rows")
         .insert(stagedRows);
@@ -608,6 +548,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await revalidateScanAccess(admin, batch.project_id, user.id);
     const { data: reviewBatch, error: reviewError } = await admin
       .from("project_paper_scan_batches")
       .update({
@@ -647,6 +588,9 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", claimedBatch.id)
         .eq("extraction_claim_id", claimedBatch.claimId);
+    }
+    if (error instanceof ScanAccessError) {
+      return Response.json({ error: error.message }, { status: error.status });
     }
     return Response.json(
       { error: "Scanning failed. Please try again." },
