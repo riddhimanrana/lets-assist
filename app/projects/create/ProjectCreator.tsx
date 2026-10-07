@@ -371,9 +371,6 @@ export default function ProjectCreator({
       return;
     }
 
-    // Update previous state reference
-    previousStateRef.current = stateSnapshot;
-
     // Clear existing timer
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
@@ -387,6 +384,7 @@ export default function ProjectCreator({
         const result = await draftSession.save(getDraftSafeState());
 
         if (result.autosaved && result.id) {
+          previousStateRef.current = stateSnapshot;
           setAutosaveDraftId(draftSession.id);
           updateDraftUrl(draftSession.id);
 

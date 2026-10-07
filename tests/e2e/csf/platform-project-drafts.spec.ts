@@ -130,6 +130,59 @@ test("new personal creation leaves the latest organization draft untouched throu
   expectNoBrowserFailures(failures);
 });
 
+test("edits made while the first autosave settles are persisted to that draft", async ({
+  page,
+}) => {
+  const failures = watchBrowserFailures(page);
+  await loginAs(page, "admin");
+  await page.goto("/projects/create", { waitUntil: "domcontentloaded" });
+  const title = page.getByLabel("Project Title", { exact: true });
+  await expect(title).toHaveValue("");
+  let held = false;
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let delivered = () => {};
+  const delivery = new Promise<void>((resolve) => {
+    delivered = resolve;
+  });
+  await page.route("**/projects/create?**", async (route) => {
+    if (route.request().method() !== "POST" || held) {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    held = true;
+    await released;
+    try {
+      await route.fulfill({ response });
+    } finally {
+      delivered();
+    }
+  });
+  try {
+    await title.fill(`${prefix} first write`);
+    await expect.poll(() => held, { timeout: 15_000 }).toBe(true);
+    const editedTitle = `${prefix} edited during first write`;
+    await title.fill(editedTitle);
+    release();
+    await delivery;
+    await expect.poll(() => draftId(page), { timeout: 15_000 }).toMatch(uuid);
+    const savedId = draftId(page)!;
+    await expect
+      .poll(async () => (await readDraft(savedId)).title, { timeout: 15_000 })
+      .toBe(editedTitle);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(title).toHaveValue(editedTitle);
+    expect((await readDraft(originalId)).title).toBe(`${prefix} original`);
+    expectNoBrowserFailures(failures);
+  } finally {
+    release();
+    if (held) await delivery;
+  }
+});
+
 test("save as new draft moves subsequent autosave to the copy and preserves explicit resume", async ({
   page,
 }) => {
