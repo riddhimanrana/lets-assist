@@ -266,6 +266,9 @@ test("the canonical current-season roster counts and pages all applications with
     ).toBeDisabled();
     await roster.getByRole("button", { name: "Next", exact: true }).click();
     await expect(roster.getByText("Page 2", { exact: true })).toBeVisible();
+    await expect(
+      roster.getByRole("button", { name: /^Review DV roster / }),
+    ).toHaveCount(1);
     const second = await roster
       .getByRole("button", { name: /^Review DV roster / })
       .evaluateAll((buttons) =>
@@ -283,6 +286,9 @@ test("the canonical current-season roster counts and pages all applications with
     ).toBeDisabled();
     await roster.getByRole("button", { name: "Previous", exact: true }).click();
     await expect(roster.getByText("Page 1", { exact: true })).toBeVisible();
+    await expect(
+      roster.getByRole("button", { name: /^Review DV roster / }),
+    ).toHaveCount(50);
     expect(
       await roster
         .getByRole("button", { name: /^Review DV roster / })
