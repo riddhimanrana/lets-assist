@@ -226,7 +226,11 @@ test("process execution suppresses raw output and keeps credentials out of argv"
       assert.equal(file, "psql");
       assert.deepEqual(args, ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"]);
       assert.ok(!args.join(" ").includes(syntheticPassword));
-      assert.equal(options.env.PGDATABASE, databaseUrl);
+      assert.equal(options.env.PGDATABASE, "postgres");
+      assert.equal(options.env.PGHOST, `db.${productionRef}.supabase.co`);
+      assert.equal(options.env.PGPORT, "5432");
+      assert.equal(options.env.PGUSER, "postgres");
+      assert.equal(options.env.PGPASSWORD, syntheticPassword);
       assert.equal(options.env.PGOPTIONS, undefined);
       assert.equal(options.env.PGSERVICE, undefined);
       assert.deepEqual(Object.keys(options.env).sort(), [
@@ -234,7 +238,11 @@ test("process execution suppresses raw output and keeps credentials out of argv"
         "PATH",
         "PGCONNECT_TIMEOUT",
         "PGDATABASE",
+        "PGHOST",
+        "PGPASSWORD",
+        "PGPORT",
         "PGSSLMODE",
+        "PGUSER",
       ]);
       assert.equal(options.env.PGSSLMODE, "require");
       assert.equal(options.timeout, 150_000);
@@ -252,6 +260,50 @@ test("process execution suppresses raw output and keeps credentials out of argv"
       error.message ===
       "Production maintenance preflight failed. Raw output was suppressed.",
   );
+});
+
+test("connection transport decodes credentials and honors reviewed TLS modes", () => {
+  for (const sslmode of ["require", "verify-ca", "verify-full"]) {
+    const url = new URL("postgresql://127.0.0.1:55722/postgres");
+    url.username = "postgres.example";
+    url.password = encodeURIComponent(`${syntheticPassword}:@/%`);
+    url.searchParams.set("sslmode", sslmode);
+    executeMaintenanceQuery(url.href, "SELECT 1;", (_, args, { env }) => {
+      assert.equal(env.PGHOST, "127.0.0.1");
+      assert.equal(env.PGPORT, "55722");
+      assert.equal(env.PGDATABASE, "postgres");
+      assert.equal(env.PGUSER, "postgres.example");
+      assert.equal(env.PGPASSWORD, `${syntheticPassword}:@/%`);
+      assert.equal(env.PGSSLMODE, sslmode);
+      assert.ok(!args.join(" ").includes(syntheticPassword));
+      return "1";
+    });
+  }
+});
+
+test("invalid connection transport configuration never starts psql", () => {
+  const emptyPassword = new URL(databaseUrl);
+  emptyPassword.password = "";
+  for (const url of [
+    "not a connection URL",
+    emptyPassword.href,
+    databaseUrl.replace("postgresql:", "https:"),
+    databaseUrl.replace("/postgres?", "/other%2Fdb?"),
+    databaseUrl.replace(syntheticPassword, "%00"),
+    databaseUrl.replace(syntheticPassword, "%ZZ"),
+    databaseUrl.replace("require", "disable"),
+    `${databaseUrl}&sslmode=require`,
+    `${databaseUrl}&host=elsewhere.test`,
+    `${databaseUrl}&options=-c%20role%3Dother`,
+    `${databaseUrl}#fragment`,
+  ]) {
+    let executions = 0;
+    assert.throws(
+      () => executeMaintenanceQuery(url, "SELECT 1;", () => executions++),
+      /Raw output was suppressed/u,
+    );
+    assert.equal(executions, 0);
+  }
 });
 
 test("successful verification returns only reviewed identity and safe posture", () => {

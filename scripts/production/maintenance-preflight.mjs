@@ -178,6 +178,25 @@ export function executeMaintenanceQuery(
   execute = execFileSync,
 ) {
   try {
+    const url = new URL(databaseUrl);
+    const username = decodeURIComponent(url.username);
+    const password = decodeURIComponent(url.password);
+    const database = decodeURIComponent(url.pathname.slice(1));
+    const sslmode = url.searchParams.get("sslmode") ?? "require";
+    if (
+      !["postgres:", "postgresql:"].includes(url.protocol) ||
+      !url.hostname ||
+      !username ||
+      !password ||
+      !/^[A-Za-z0-9_-]+$/u.test(database) ||
+      /[\u0000-\u001f\u007f]/u.test(username + password) ||
+      url.hash ||
+      (url.port && (Number(url.port) < 1 || Number(url.port) > 65535)) ||
+      [...url.searchParams.keys()].some((key) => key !== "sslmode") ||
+      url.searchParams.getAll("sslmode").length > 1 ||
+      !["require", "verify-ca", "verify-full"].includes(sslmode)
+    )
+      throw new Error("Invalid database connection parameters.");
     return execute("psql", ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"], {
       input: sql,
       encoding: "utf8",
@@ -189,8 +208,12 @@ export function executeMaintenanceQuery(
       env: {
         PATH: process.env.PATH,
         LANG: "C",
-        PGDATABASE: databaseUrl,
-        PGSSLMODE: "require",
+        PGHOST: url.hostname.replace(/^\[|\]$/gu, ""),
+        PGPORT: url.port || "5432",
+        PGUSER: username,
+        PGPASSWORD: password,
+        PGDATABASE: database,
+        PGSSLMODE: sslmode,
         PGCONNECT_TIMEOUT: "15",
       },
     }).trim();
