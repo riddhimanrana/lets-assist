@@ -28,6 +28,48 @@ integration PR containing the host changes and publication. Automatic dispatches
 continue to use Development. A candidate from another repository, an older
 Development lineage, or a different workflow revision is refused.
 
+## Application database preflight
+
+The signed application deployment workflow verifies the database before extracting
+or deploying the prebuilt artifact. Production must use the committed Production
+project ref and `main`. Development must use `development` and the exact repository
+variable `CSF_DEVELOPMENT_SUPABASE_PROJECT_REF`. The selected environment's
+`SUPABASE_PROJECT_ID` and API origin must match that target. Production accepts
+its canonical Supabase origin or the approved `api.lets-assist.com` alias;
+Development requires its canonical Supabase origin.
+
+Each GitHub environment must provide its own reviewed `SUPABASE_ACCESS_TOKEN`
+with access to that project's management query endpoints. The workflow exposes
+this credential only to the trusted database-preflight step. The object catalog
+uses the owner-query endpoint inside `BEGIN READ ONLY`, following the existing
+Production verifier. That endpoint carries broader authority than the dedicated
+read-only endpoint, so review and scope the credential to the selected project.
+The controller sends only fixed read queries. It does not pass
+it to artifact extraction, Vercel deployment, the child build or the application.
+A missing credential blocks deployment. Development credential setup remains
+unperformed; the controller does not borrow the protected Production credential.
+Configure and review that environment separately before attempting deployment.
+
+The preflight binds the signed `requiredPlatformSchemaVersion` to the published
+registry and requires that migration in the accepted host ledger. It reads the
+entire applied migration sequence and evaluates the existing exact object catalog
+inside a read-only transaction. Missing migrations, unexpected tails and catalog
+drift all refuse deployment. Production retains its existing preference-RPC and
+application-write-posture checks. A version number alone is insufficient evidence.
+
+A bounded GET of the immutable `plugin_versions` identity then uses the same
+API origin and observation credential as the later deployment-recording calls.
+It must return one matching published application version, source commit, build
+digest and required schema version. This proves that credential can read the
+publication on the selected target; it does not simulate or perform the later
+write. Provider denials, redirects, timeouts and inconsistent records fail before
+Vercel mutation. Logs contain only the verification outcome and public release
+coordinates, not provider responses or credentials.
+
+This gate verifies the database at preflight time. It does not replace signed
+artifact verification, child runtime health, hosted browser acceptance, or the
+separate leased organization activation action.
+
 ## Operator workflow
 
 For a normal release, the platform owner handles catalog publication and child
