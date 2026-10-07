@@ -114,13 +114,13 @@ describe("independent dependency audits", () => {
           log: () => {},
           spawn(command, args, options) {
             calls.push({ command, args, options });
-            return { status: calls.length === 1 ? 1 : 0 };
+            return { status: calls.length === 1 ? 1 : 0, stdout: "{}" };
           },
         },
       ),
     ).toThrow("Dependency audit failed: .");
     expect(calls).toHaveLength(2);
-    expect(calls[0].args).toEqual(["--no-env-file", "audit"]);
+    expect(calls[0].args).toEqual(["--no-env-file", "audit", "--json"]);
     expect(calls[0].options.env.PRIVATE_SUBMODULE_SSH_KEY).toBeUndefined();
     expect(calls[0].options.env.NODE_OPTIONS).toBeUndefined();
     expect(calls[0].options.env.npm_config_registry).toBeUndefined();

@@ -4,7 +4,7 @@
 the SDK, and every package in the exact private checkout. It audits runtime and
 development dependencies. It does not install packages, run lifecycle scripts,
 or pass ambient provider credentials to Bun. A missing lockfile, missing private
-checkout, advisory, or registry failure is an error. The daily dependency
+checkout, unaccepted advisory, or registry failure is an error. The daily dependency
 workflow scans both protected branches without running database or browser gates.
 
 ## October 2026 patches
@@ -73,8 +73,28 @@ No direct application request-to-pattern import was found in platform or private
 application source. This is a source reachability assessment, not proof that
 all future inputs or transitive paths are safe.
 
-The audit remains blocking. No exclusion, patched-version claim, or release
-waiver is implemented. Any proposed exception must name the exact advisory,
-package version, importer paths, bounded inputs, owner, expiry, and required
-regression evidence. Reassess it when package importers or configuration inputs
-change. A package-wide or severity-wide ignore is not acceptable.
+The repository owner accepted this specific build-tool denial-of-service risk
+until **2026-10-21 00:00 UTC**. The gate still prints the high-severity advisory
+and an accepted-risk result. It does not describe this package as patched or the
+scan as clean. `scripts/security/braces-exception.mjs` limits acceptance to this
+advisory, `braces@3.0.3`, the exact reviewed root and private application lockfiles,
+and the unchanged inventory including the clean SDK graph. New advisories,
+versions, graph changes, expired acceptance, malformed JSON, and registry errors
+fail the gate. There is no severity-wide or package-wide ignore.
+
+The policy pins the reviewed glob input scripts, Next/sitemap/ESLint
+configuration, and microfrontends entrypoints by SHA-256. Its source check refuses
+new literal imports of the affected glob packages or their reviewed importers.
+This check supplements the reviewed dependency paths; it is not a general proof
+that arbitrary computed imports or future transitive inputs are safe.
+
+On October 7, 2026, provider metadata readback covered all 119 root Vercel
+environment records and all 6 private application records. Neither project had
+`VC_MICROFRONTENDS_CONFIG_FILE_NAME`. No values were printed or saved. The gate
+also requires that variable to be absent from its own environment before
+accepting the exception. Adding it to a hosted environment requires another
+reachability review; local CI cannot attest to future provider changes.
+
+Remove the exception when upstream publishes a verified fix. Any extension or
+fingerprint update requires a new review of the advisory, source import paths,
+operator inputs, and deployment metadata. Acceptance expires without renewal.
