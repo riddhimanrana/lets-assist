@@ -51,7 +51,6 @@ import {
   linkProjectUploadedAssets,
 } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
-import { useRouter } from "next/navigation";
 import { createProjectDraftSession } from "@/lib/projects/draft-session";
 import {
   projectAttemptStorage,
@@ -174,7 +173,6 @@ export default function ProjectCreator({
     updatePluginData,
   } = useEventForm({ draft: initialDraftData, organizationId: initialOrgId });
 
-  const router = useRouter();
   const editorMountedRef = useRef(false);
   const updateDraftUrl = useCallback(
     (draftId?: string, initialize = false) => {
@@ -1328,9 +1326,6 @@ export default function ProjectCreator({
       setAutosaveDraftId(draftSession.id);
       toast.success("New draft saved. Further edits will update this draft.");
       updateDraftUrl(draftSession.id);
-
-      // Refresh the page to update the drafts list
-      router.refresh();
 
       setIsSavingDraft(false);
     } catch (error) {

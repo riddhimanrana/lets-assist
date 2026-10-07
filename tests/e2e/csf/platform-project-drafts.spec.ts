@@ -147,10 +147,17 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
   const creationId = new URL(page.url()).searchParams.get("creation");
   expect(creationId).toMatch(uuid);
   const actionUrls: URL[] = [];
+  const documentNavigations: URL[] = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
     if (request.method() === "POST" && url.pathname === "/projects/create")
       actionUrls.push(url);
+    if (
+      request.isNavigationRequest() &&
+      request.frame() === page.mainFrame() &&
+      url.pathname === "/projects/create"
+    )
+      documentNavigations.push(url);
   });
   await page
     .getByRole("button", { name: "Save as new draft", exact: true })
@@ -178,6 +185,7 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
   expect((await readDraft(copyId!)).draft_data.basicInfo.organizationId).toBe(
     fixture.organizationId,
   );
+  expect(documentNavigations).toEqual([]);
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(title).toHaveValue(editedTitle);
