@@ -38,7 +38,7 @@
     "plugin:sdk:test": "bun test scripts/plugins/plugin-sdk-package.test.mjs scripts/plugins/plugin-sdk-release-contract.test.mjs",
     "plugin:test:isolation": "bun scripts/local-dev/test-plugin-isolation-browser.ts",
     "plugin:test:registry": "bun scripts/local-dev/test-plugin-registry-gates.ts",
-    "plugin:test:release-integration": "node --test scripts/plugins/integrate-private-release.test.mjs",
+    "plugin:test:release-integration": "node --test scripts/plugins/integrate-private-release.test.mjs scripts/plugins/integrate-private-release-batch.test.mjs",
     "plugin:test:contracts": "bun scripts/local-dev/test-plugin-runtime-contracts.mjs",
     "plugin:test:unit": "bun run test:plugins",
     "csf:test:db:isolated": "bun run test:db:isolated",
