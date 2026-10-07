@@ -277,13 +277,16 @@ const SERVICE_AND_POINTS: LabelContract[] = [
   {
     component: "CsfSubmissionReviewDialog.tsx",
     labels: [
-      "Review",
+      "Review & proof",
       "Awarded points",
       "Review notes",
-      "Request changes",
       "Reject",
       "Approve award",
     ],
+  },
+  {
+    component: "CsfReviewRequestChanges.tsx",
+    labels: ["Request changes"],
   },
   {
     component: "CsfPointCorrectionDialog.tsx",
@@ -439,6 +442,11 @@ describe("CSF operator documentation label contract", () => {
 
   test("activities and point reviews preserve their decision labels", () => {
     assertContract(SERVICE_AND_POINTS);
+    for (const doc of OPERATOR_DOCUMENTS) {
+      expect(doc).toContain(
+        "Organizer attendance claims cannot return to the member for editing",
+      );
+    }
   });
 
   test("post persistence and email queue outcomes remain separate", () => {
