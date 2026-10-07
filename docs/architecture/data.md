@@ -72,6 +72,14 @@ stranded by it. The migration reports only an aggregate count of such rows and
 never identifies them; reviewing those pre-boundary projects is an operator
 task, not a repository defect.
 
+## Deletion and retention
+
+A composite foreign key with `ON DELETE SET NULL` must name only nullable reference columns. Never clear the required project or organization column alongside an optional pointer. The architecture audit and database catalog test enforce this rule.
+
+Anonymous signup retention clears optional paper scan identity links while preserving the scan row and its project scope until the separate paper scan retention job expires that evidence. CSF decision sync receipts remain immutable. Their application and import-row references restrict parent deletion, and receipt triggers still reject direct edits and deletes. Staged decision pointers can detach only when the referenced parent is otherwise eligible for deletion.
+
+An organization sheet sync requires its creator for OAuth and authorization. Deleting that profile is blocked until an authorized workflow removes the sync or transfers ownership. Account deletion must check this dependency before making other destructive changes.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

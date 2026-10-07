@@ -209,9 +209,10 @@ case, so a proven-clean failure never leaves a stale claim behind.
 - `bun run db:audit:architecture` to verify tenant indexes/FKs, RLS policy hygiene, and read-model view safety
   - Also hard-fails unexpected client-executable public `SECURITY DEFINER` functions while printing the reviewed allowlist.
   - Also verifies expected Storage buckets, public/private bucket posture, and absence of public/anon object-listing policies.
-- `bun run db:audit:remote-readiness` to check the stricter final production posture where `plugin_data` is removed from exposed Data API schemas and authenticated direct grants are gone
-  - This is a **separate, currently blocked release gate**. It is deterministically red while `plugin_data` remains in `supabase/config.toml` `api.schemas`, and removing that schema now would break the server-side service-role PostgREST reads the app still depends on.
-  - `bun run db:test:redesign` therefore does **not** run it by default; it prints `Remote readiness: NOT EVALUATED — separate blocked release gate.` instead. Set `CSF_REQUIRE_REMOTE_READINESS=1` to opt in and let its failure propagate. Any other nonempty value is refused before anything starts.
+- `bun run db:audit:remote-readiness` checks the approved service-only Data API contract on the configured database. The compatibility command name does not imply hosted deployment readiness.
+  - `plugin_data` must remain exposed for the reviewed server-side PostgREST helper. The audit rejects effective browser schema, relation, column, or sequence access, requires service-role schema access, and checks runtime contracts and source boundaries.
+  - Run it with `db:audit:architecture`, which checks public RPC execution and Storage policy boundaries. Neither audit proves hosted configuration, application behavior, or a release.
+  - `bun run db:test:redesign` does **not** run the access audit by default. Set `CSF_REQUIRE_REMOTE_READINESS=1` to opt in and let its failure propagate. Any other nonempty value is refused before anything starts.
 - `bun run plugin:audit:data-access` to verify browser/client code cannot directly construct `plugin_data` queries
 - `bun run plugin:test:registry` to verify every private plugin registry gate, including the server-only DV workspace
 - `bun run plugin:test:contracts` to sync registered plugin runtime contracts and verify no plugin declares raw `plugin_data` client access
@@ -245,7 +246,7 @@ local, non-CSF bootstrap, and it neither replays the isolated stack nor covers
 DVHS CSF.
 
 Remote readiness is **not** part of this gate. By default it prints
-`Remote readiness: NOT EVALUATED — separate blocked release gate.` Opt in with
+`Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence.` Opt in with
 exactly `CSF_REQUIRE_REMOTE_READINESS=1` to run
 `bun run db:audit:remote-readiness` and let its failure propagate; any other
 nonempty value is refused before anything starts.
@@ -258,7 +259,7 @@ Remote Supabase writes should wait until the local gate passes and the generated
 names itself and its final result that way on purpose: it replays migrations and
 SQL seeds on one local isolated stack and checks the local surfaces listed above.
 It is not a Supabase, Production, or preview readiness result, and it never
-prints a global PASS. Remote readiness is a separate, currently blocked gate (see
+prints a global PASS. Hosted readiness requires separate provider and runtime evidence (see
 above). DV Speech & Debate is registered again after its browser-facing data
 access was replaced with authenticated Server Actions and service-role-only
 backend reads.
