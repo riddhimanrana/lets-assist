@@ -165,3 +165,14 @@ passed 11,374 assertions. The accepted catalog query returned one on that
 replay, with local fixture helpers removed only inside a rolled-back transaction.
 The previous 699 catalog remains accepted for its exact historical ledger.
 Unknown future migrations and changed migration bytes still refuse release.
+
+Release 701 adds the service-only personal-calendar disconnect preparation
+function. The clean replay adds exactly one object and preserves all 1,350
+schema 700 object fingerprints. The new function retains cleanup coordinates
+without changing provider events, receipt phases or confirmations. It checks the
+exact credential revision, locks source rows before reading their markers and
+bounds both the scan and prepared metadata. The 700 catalog still requires its
+original exact ledger. All historical migration bytes remain unchanged.
+The fresh 456-file SQL suite passed 11,416 assertions at source `a6257a20`.
+The exact accepted catalog query returned one after transactional local-helper
+teardown; that transaction rolled back. Controller coverage passed 467 tests.

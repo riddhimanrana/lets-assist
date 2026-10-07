@@ -22,12 +22,12 @@ import {
 
 const fixture = historicalReleaseTestFixture();
 after(fixture.dispose);
-const reviewed = expectedVersions(fixture.cwd).slice(0, 700);
+const reviewed = expectedVersions(fixture.cwd).slice(0, 701);
 const load = (name) =>
   JSON.parse(readFileSync(new URL(name, import.meta.url), "utf8"));
-const before = load("./final-schema-699.json");
-const manifest = load("./final-schema-700.json");
-const name = "20261007210000_service_only_google_oauth_credentials";
+const before = load("./final-schema-700.json");
+const manifest = load("./final-schema-701.json");
+const name = "20261007220000_prepare_personal_calendar_disconnect";
 const filename = `${name}.sql`;
 const path = resolve(fixture.cwd, "supabase/migrations", filename);
 const sql = readFileSync(path, "utf8");
@@ -36,20 +36,20 @@ const catalog = (value, versions) =>
     csfSubmissionDeletionCatalog(finalSchemaCatalog(value, versions)),
   );
 
-test("credential release accepts its exact ledger and preserves accepted 699", () => {
-  assert.equal(reviewed.length, 700);
-  assert.equal(reviewed.at(-1), "20261007210000");
+test("disconnect preparation release accepts its exact ledger and preserves accepted 700", () => {
+  assert.equal(reviewed.length, 701);
+  assert.equal(reviewed.at(-1), "20261007220000");
   assert.equal(
     ledgerDigest(reviewed),
-    "6f1bb9f49dbf47df4b2ea156d742db007193a9f6def073034084e0f6058fb01d",
+    "3c63a5dc6ae15c10cce3a1fccf74dd461bef372477a76711113e8066c65ef7eb",
   );
   assert.equal(
     acceptedCatalogQuery("invalid predecessor", reviewed),
     catalog(manifest, reviewed),
   );
   assert.equal(
-    acceptedCatalogQuery("invalid predecessor", reviewed.slice(0, 699)),
-    catalog(before, reviewed.slice(0, 699)),
+    acceptedCatalogQuery("invalid predecessor", reviewed.slice(0, 700)),
+    catalog(before, reviewed.slice(0, 700)),
   );
   for (const changed of [
     [...reviewed, "20990101000000"],
@@ -62,27 +62,25 @@ test("credential release accepts its exact ledger and preserves accepted 699", (
     );
 });
 
-test("credential release changes only the reviewed relation ACL and client grant catalog", () => {
+test("disconnect preparation adds one reviewed function and preserves every prior object", () => {
   const previous = new Map(
     before.objects.map((row) => [row.identity, row.digest]),
   );
-  assert.equal(manifest.objects.length, 1350);
-  assert.deepEqual(
-    manifest.objects.map((row) => row.identity),
-    before.objects.map((row) => row.identity),
+  const current = new Map(
+    manifest.objects.map((row) => [row.identity, row.digest]),
   );
+  assert.equal(manifest.objects.length, 1351);
   assert.deepEqual(
-    manifest.objects
-      .filter((row) => previous.get(row.identity) !== row.digest)
-      .map((row) => row.identity),
+    [...current.keys()].filter((identity) => !previous.has(identity)),
     [
-      "function:app_private.client_relation_grant_catalog()",
-      "relation:public.user_calendar_connections",
+      "function:public.prepare_personal_calendar_disconnect(p_actor_user_id uuid, p_connection_id uuid, p_expected_updated_at timestamp with time zone)",
     ],
   );
+  for (const [identity, digest] of previous)
+    assert.equal(current.get(identity), digest, identity);
 });
 
-test("forward controller pins credential SQL, emits it once and refuses modified bytes", () => {
+test("forward controller pins disconnect preparation SQL, emits it once and refuses modified bytes", () => {
   const digest = createHash("sha256").update(sql).digest("hex");
   assert.deepEqual(
     approvedMigrations.find(([entry]) => entry === name),
@@ -94,10 +92,10 @@ test("forward controller pins credential SQL, emits it once and refuses modified
   const pending = prepareMigration(
     fixture.cwd,
     readFileSync,
-    reviewed.slice(0, 699),
+    reviewed.slice(0, 700),
   );
   const complete = prepareMigration(fixture.cwd, readFileSync, reviewed);
-  const write = "'20261007210000','service_only_google_oauth_credentials'";
+  const write = "'20261007220000','prepare_personal_calendar_disconnect'";
   assert.ok(pending.query.includes(write));
   assert.ok(!complete.query.includes(write));
   assert.equal(pending.query.split(write).length - 1, 1);
@@ -107,13 +105,13 @@ test("forward controller pins credential SQL, emits it once and refuses modified
         fixture.cwd,
         (candidate) =>
           readFileSync(candidate, "utf8") + (candidate === path ? "\n" : ""),
-        reviewed.slice(0, 699),
+        reviewed.slice(0, 700),
       ),
     /Approved migration bytes changed/u,
   );
 });
 
-test("a migration beyond reviewed credential access refuses before provider calls", async () => {
+test("a migration beyond reviewed disconnect preparation refuses before provider calls", async () => {
   const future = historicalReleaseTestFixture();
   try {
     writeFileSync(

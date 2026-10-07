@@ -929,4 +929,8 @@ export const approvedMigrations = [
     "20261007210000_service_only_google_oauth_credentials",
     "9db378fd836c7f8a4d196200eba8152f2718533c573b3de9aa8df24a9498988f",
   ],
+  [
+    "20261007220000_prepare_personal_calendar_disconnect",
+    "fa734e21002b3fed8cee9c43137395844aa7dd4cf5cd6f09fa7513ee75633f68",
+  ],
 ];
