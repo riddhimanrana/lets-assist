@@ -1,7 +1,7 @@
 {
   "reviewedAt": "2026-10-07",
   "revisions": {
-    "lets-assist": "5219196db3f967dd247f24199a1b88570bf2ae08",
+    "lets-assist": "b89603168ac82da76b565c89c37d3038345bc9b2",
     "private": "a1d5836fb800ad4afef7cfbfc6ed4a5f63e23f3d"
   },
   "repositories": {
@@ -27,7 +27,7 @@
       "app/organization/[id]/ReportsTab.tsx": 2368,
       "app/organization/[id]/settings/BulkImportDialog.tsx": 864,
       "app/organization/[id]/settings/EditOrganizationForm.tsx": 728,
-      "app/organization/[id]/settings/OrganizationPluginSettings.tsx": 1943,
+      "app/organization/[id]/settings/OrganizationPluginSettings.tsx": 1883,
       "app/organization/[id]/settings/OrganizationSheetsSettings.tsx": 710,
       "app/organization/[id]/settings/PendingInvitations.tsx": 641,
       "app/organization/[id]/settings/server/plugin-mutations.ts": 740,
