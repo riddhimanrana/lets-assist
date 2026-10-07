@@ -164,7 +164,7 @@ case "${MARKER_STATE}" in
 esac
 
 # One pinned, test-owned contract of exact resource names for Supabase CLI
-# 2.111.0, typed by kind and shared with the launcher so preflight and residual
+# 2.117.0, typed by kind and shared with the launcher so preflight and residual
 # checks stay identical.
 CANONICAL_CONTAINER_NAMES="$(node "${SCRIPT_DIR}/dv-local-env.mjs" --canonical-docker-names container "${PROJECT_ID}")" ||
   die "Unable to derive the pinned canonical Docker container names for ${PROJECT_ID}."

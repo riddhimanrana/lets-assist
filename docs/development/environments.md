@@ -6,7 +6,7 @@ Choose the environment before running commands. The shared local and isolated CS
 
 - Node.js `22.23.2`, pinned in `.node-version`; `package.json` accepts the supported Node 22 line only.
 - Bun `1.3.14`, pinned in `packageManager` and CI.
-- Supabase CLI `2.111.0`, pinned by the isolated-stack scripts and workflows.
+- Supabase CLI `2.117.0`, pinned by the isolated-stack scripts and workflows.
 
 CI installs the declared Node runtime explicitly before Bun so every `node`-backed script uses the same supported runtime as hosted application code.
 

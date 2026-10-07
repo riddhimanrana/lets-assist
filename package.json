@@ -14,6 +14,7 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
+    "local:doctor": "node scripts/local-dev/docker-health.mjs",
     "supabase:reset": "node scripts/local-dev/reset-supabase.mjs",
     "supabase:gateway:health": "node scripts/local-dev/ensure-supabase-gateway.mjs",
     "supabase:refresh:kong": "bun run supabase:gateway:health",

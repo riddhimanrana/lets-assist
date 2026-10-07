@@ -1,16 +1,16 @@
 /**
- * Pinned Supabase CLI v2.111.0 Docker resource oracle.
+ * Pinned Supabase CLI v2.117.0 Docker resource oracle.
  *
- * This is a literal transcription of the resources the pinned CLI's legacy shell
- * actually creates. It is deliberately independent of
+ * This is a literal transcription of the resources the pinned CLI actually
+ * creates. It is deliberately independent of
  * `scripts/local-dev/dv-local-env.mjs`: the implementation is asserted against
  * this file, and the hermetic fake CLI materializes its "observed" resources
  * from this file, so an implementation drift cannot be hidden by a fake that
  * drifted the same way.
  *
  * Provenance (verified against the tag, not inferred from local behaviour):
- * - Release workflow for `v2.111.0` selects the legacy shell.
- * - `apps/cli-go/internal/utils/config.go` @ `v2.111.0` assigns the identifiers:
+ * - `apps/cli-go/internal/utils/config.go` @ `v2.117.0` (byte-identical to
+ *   `v2.111.0`) assigns the identifiers:
  *   NetId "supabase_network_", DbId "supabase_db_", KongId "supabase_kong_",
  *   GotrueId "supabase_auth_", InbucketId "supabase_inbucket_",
  *   RealtimeId "supabase_realtime_", RestId "supabase_rest_",
@@ -21,10 +21,14 @@
  *   PoolerId "supabase_pooler_". Every identifier is `supabase_<name>_` +
  *   `Config.ProjectId` via GetId(); there is no `realtime-dev.` container form
  *   and no `storage_imgproxy_` container form at this tag.
- * - `apps/cli-go/internal/utils/docker.go` @ `v2.111.0` labels resources with
- *   `com.supabase.cli.project`.
- * - `apps/cli-go/internal/start/start.go` documents the legacy start topology;
- *   the distributed `v2.111.0` CLI creates named volumes for database, storage,
+ * - `supabase start` is served by the TypeScript shell at this tag; the Go
+ *   `apps/cli-go/internal/start/start.go` used for `v2.111.0` no longer exists.
+ *   `apps/cli/src/command-internal/legacy-docker-ids.ts` @ `v2.117.0` ports
+ *   GetId unchanged: the same thirteen service containers plus `db`, and the
+ *   `network`, all named `supabase_<service>_<project id>`.
+ * - `apps/cli-go/internal/utils/docker.go` @ `v2.117.0` and the TypeScript
+ *   port both label resources with `com.supabase.cli.project`.
+ * - The distributed `v2.117.0` CLI creates named volumes for database, storage,
  *   and edge runtime state. The launcher verifies the observed names and project
  *   labels before recording ownership.
  *
@@ -33,7 +37,7 @@
  * without stable container names. A constant alone is not a cleanup target.
  */
 
-export const PINNED_SUPABASE_CLI_VERSION = "2.111.0";
+export const PINNED_SUPABASE_CLI_VERSION = "2.117.0";
 
 export const PINNED_SUPABASE_CLI_RESOURCE_PREFIXES = {
   container: [
