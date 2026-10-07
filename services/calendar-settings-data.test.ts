@@ -1,6 +1,9 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
+mock.module("./personal-calendar/cleanup", () => ({
+  getPersonalCalendarCleanup: async () => [],
+}));
 const creator = {
   id: "fictional-project",
   title: "Park cleanup",

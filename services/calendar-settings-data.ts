@@ -1,4 +1,5 @@
 import "server-only";
+import { getPersonalCalendarCleanup } from "./personal-calendar/cleanup";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarConnection, EventType, ProjectSchedule } from "@/types";
 import {
@@ -154,7 +155,9 @@ export async function getCalendarData(userId: string) {
     })
     .filter((signup): signup is NonNullable<typeof signup> => signup !== null);
 
+  const cleanupEvents = await getPersonalCalendarCleanup(userId);
   return {
+    cleanupEvents,
     connection,
     legacyReconnectRequired,
     creatorProjects: normalizedCreatorProjects,
