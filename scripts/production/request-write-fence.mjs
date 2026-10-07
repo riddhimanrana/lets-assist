@@ -2,7 +2,35 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const applicationRequestWriteFenceBodySha256 =
-  "d7f7f99e83b8a82f4eb931389223f8fad361895731948c2127f4973b982d00a4";
+  "cd241775632f67399789f0161c57de9d01b80facaae190b9b1adebfec2000da7";
+
+// The legacy default breaks the schema listener and does not enforce API writes.
+// Refuse ambiguous database settings instead of silently changing them.
+const requestSettingsCompatible = `NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_roles AS request_role
+    CROSS JOIN LATERAL pg_catalog.unnest(request_role.rolconfig) AS entry(setting)
+    WHERE request_role.rolname = 'authenticator'
+      AND pg_catalog.split_part(entry.setting, '=', 1) = 'default_transaction_read_only'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_db_role_setting AS configured
+    CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
+    WHERE configured.setrole IN (0, 'authenticator'::regrole)
+      AND configured.setdatabase = (SELECT oid FROM pg_catalog.pg_database
+        WHERE datname = current_database())
+      AND pg_catalog.split_part(entry.setting, '=', 1)
+        IN ('default_transaction_read_only', 'app.maintenance_write_block')
+  )`;
+
+export const applicationRequestWritesOpenQuery = `SELECT
+  EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator')
+  AND ${requestSettingsCompatible}
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_roles AS request_role
+    CROSS JOIN LATERAL pg_catalog.unnest(request_role.rolconfig) AS entry(setting)
+    WHERE request_role.rolname = 'authenticator'
+      AND pg_catalog.split_part(entry.setting, '=', 1) = 'app.maintenance_write_block'
+      AND entry.setting <> 'app.maintenance_write_block=off'
+  ) AS valid`;
 
 // A flag alone cannot block PostgREST's explicitly writable transactions.
 // Validate the installed migration-owned hook before changing that flag.
@@ -47,7 +75,8 @@ export const applicationRequestWriteFenceQuery = `SELECT
         WHERE datname = current_database()))
       AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_request'
       AND (configured.setdatabase <> 0 OR configured.setrole <> 'authenticator'::regrole)
-  ) AS valid`;
+  )
+  AND ${requestSettingsCompatible} AS valid`;
 
 export const requireApplicationRequestWriteFenceSql = `DO $write_fence$
 BEGIN

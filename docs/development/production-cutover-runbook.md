@@ -547,6 +547,9 @@ already included in the 414 baseline.
    Restore schedules by reconciling the snapshot with the operator-approved
    current state instead of replaying it blindly.
 3. Before the final capture, run
+   verify the installed migration-owned request hook. An older database needs a
+   separately approved bootstrap before this window; the flag command refuses
+   a missing or altered hook. Run
    `scripts/production/set-application-write-block.sh enable`, then run
    `scripts/production/verify-postgrest-write-block.sh`. Keep the block active
    through the release. Record `application-writes-blocked:<exact main SHA>`
@@ -583,7 +586,7 @@ already included in the 414 baseline.
    build, proves the staged application's embedded SHA and Production
    environment, and retains a sanitized recovery manifest before arming the
    cutover. It then reasserts
-   `authenticator.default_transaction_read_only=on`, terminates existing
+   `authenticator.app.maintenance_write_block=on`, terminates existing
    authenticator sessions, and proves a fresh PostgREST mutation returns
    SQLSTATE `25006`. It then promotes and verifies the maintenance alias before
    starting the migration push.

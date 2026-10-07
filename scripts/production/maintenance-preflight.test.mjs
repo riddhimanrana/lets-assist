@@ -132,7 +132,7 @@ test("catalog, repeated ledger and every posture check share a read-only snapsho
   ])
     assert.ok(maintenancePostureQuery.includes(`${name} IS NOT FALSE`));
   for (const text of [
-    "default_transaction_read_only=on",
+    "app.maintenance_write_block=on",
     "cron.job WHERE active",
     "cron.job_run_details WHERE status = 'running'",
     "lease_expires_at > now()",
@@ -319,7 +319,7 @@ test("successful verification returns only reviewed identity and safe posture", 
   assert.equal(calls[0], maintenanceLedgerQuery);
   assert.equal(result.migrations, 687);
   assert.equal(result.targetMigrations, target.length);
-  assert.equal(result.writes, "configured-read-only");
+  assert.equal(result.writes, "configured-request-guard");
   assert.equal(result.workers, "disabled");
   assert.ok(!JSON.stringify(result).includes(syntheticPassword));
 });

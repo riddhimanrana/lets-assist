@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { applicationRequestWritesOpenQuery } from "./request-write-fence.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { verifyLocalValidationEnvelope } from "./local-validation-evidence.mjs";
 
@@ -450,10 +451,7 @@ export async function verifySchema(
     throw new ReleaseCheckError(
       "Production staff preference RPC is incompatible.",
     );
-  const writePosture = await query(`SELECT EXISTS (
-    SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
-      AND NOT ('default_transaction_read_only=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
-  ) AS valid;`);
+  const writePosture = await query(applicationRequestWritesOpenQuery);
   if (writePosture?.length !== 1 || writePosture[0].valid !== true)
     throw new ReleaseCheckError(
       "Production has an unresolved application write block.",
