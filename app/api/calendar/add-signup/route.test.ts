@@ -2,11 +2,14 @@ import { afterAll, describe, expect, mock, test } from "bun:test";
 const signupId = "11111111-1111-4111-8111-111111111111";
 const projectId = "22222222-2222-4222-8222-222222222222";
 const otherProjectId = "33333333-3333-4333-8333-333333333333";
-const createGoogleCalendarEvent = mock(async () => "event12345");
+const synchronizePersonalCalendar = mock(async () => ({
+  eventId: "event12345",
+  phase: "synced",
+}));
 const tables: string[] = [];
-mock.module("@/services/calendar", () => ({
-  createGoogleCalendarEvent,
-  markPersonalCalendarConnectionSynced: async () => undefined,
+mock.module("@/services/personal-calendar", () => ({
+  synchronizePersonalCalendar,
+  CalendarSyncError: class extends Error {},
 }));
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
@@ -44,7 +47,7 @@ describe("signup calendar binding", () => {
     "rejects project/schedule supplied independently of the owned signup: %j",
     async (input) => {
       tables.length = 0;
-      createGoogleCalendarEvent.mockClear();
+      synchronizePersonalCalendar.mockClear();
       const result = await POST(
         new Request("https://lets-assist.test/api/calendar/add-signup", {
           method: "POST",
@@ -53,7 +56,7 @@ describe("signup calendar binding", () => {
       );
       expect(result.status).toBe(400);
       expect(tables).toEqual(["project_signups"]);
-      expect(createGoogleCalendarEvent).not.toHaveBeenCalled();
+      expect(synchronizePersonalCalendar).not.toHaveBeenCalled();
     },
   );
 });

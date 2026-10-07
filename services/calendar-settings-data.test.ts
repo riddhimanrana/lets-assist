@@ -118,3 +118,15 @@ test("does not invent event dates for missing or malformed schedules", async () 
   ];
   expect((await getCalendarData("fictional-user")).creatorProjects).toEqual([]);
 });
+
+test("keeps incomplete calendar records available for removal without inventing a sync timestamp", async () => {
+  const result = await getCalendarData("fictional-user");
+  expect(result.creatorProjects[0].creator_calendar_event_id).toBe(
+    "fictional-event",
+  );
+  expect(result.creatorProjects[0].creator_synced_at).toBeNull();
+  expect(result.volunteerSignups[0].volunteer_calendar_event_id).toBe(
+    "signup-event",
+  );
+  expect(result.volunteerSignups[0].volunteer_synced_at).toBeNull();
+});
