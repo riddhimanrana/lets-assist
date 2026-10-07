@@ -166,6 +166,123 @@ SELECT extensions.throws_ok($q$SELECT plugin_data.csf_approve_individual_term_ap
 'de300000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000001',
 'de600000-0000-4000-8000-000000000001', '2000-01-01'::timestamptz, 'Officer reviewed',
 'de900000-0000-4000-8000-000000000001')$q$, '55000', 'The application changed. Review it again before approving.', 'stale previews cannot approve');
+
+-- The unique profile/term key prevents a duplicate from reaching approval.
+SELECT extensions.throws_ok($q$INSERT INTO plugin_data.csf_term_applications (
+  id, organization_id, profile_id, cohort_id, term_id, source, status
+) VALUES (
+  'de600000-0000-4000-8000-000000000006',
+  'de100000-0000-4000-8000-000000000001',
+  'de300000-0000-4000-8000-000000000002',
+  'de500000-0000-4000-8000-000000000001',
+  'de200000-0000-4000-8000-000000000001', 'manual', 'submitted'
+)$q$, '23505', 'duplicate key value violates unique constraint "csf_term_applications_profile_id_term_id_key"',
+  'the database refuses a duplicate application before it can be approved');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_term_applications
+  WHERE organization_id = 'de100000-0000-4000-8000-000000000001'
+    AND profile_id = 'de300000-0000-4000-8000-000000000002'
+    AND term_id = 'de200000-0000-4000-8000-000000000001'), 1,
+  'duplicate refusal retains the original application');
+
+-- Keep each outcome refusal on a pending application so its guard is reached.
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, cohort_id, application_id, status, completed_at
+) VALUES
+  ('de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000003',
+   'de200000-0000-4000-8000-000000000001', 'de500000-0000-4000-8000-000000000001',
+   'de600000-0000-4000-8000-000000000003', 'completed', now()),
+  ('de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000004',
+   'de200000-0000-4000-8000-000000000001', 'de500000-0000-4000-8000-000000000001',
+   'de600000-0000-4000-8000-000000000004', 'not_completed', now());
+
+-- Close through the real workflow, retaining its snapshot and revision pointers.
+INSERT INTO plugin_data.csf_terms (
+  id, organization_id, code, label, school_year, semester, is_current
+) VALUES (
+  'de200000-0000-4000-8000-000000000002', 'de100000-0000-4000-8000-000000000001',
+  'S30', 'Spring 2030', '2029-2030', 'spring', false
+);
+INSERT INTO plugin_data.csf_term_policies (
+  organization_id, term_id, policy_version, dues_required, total_points_required, required_meetings
+) VALUES (
+  'de100000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000002',
+  1, false, 5, 1
+);
+INSERT INTO plugin_data.csf_term_memberships (
+  organization_id, profile_id, term_id, cohort_id, status
+) VALUES (
+  'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000005',
+  'de200000-0000-4000-8000-000000000002', 'de500000-0000-4000-8000-000000000001', 'accepted'
+);
+INSERT INTO plugin_data.csf_term_applications (
+  id, organization_id, profile_id, cohort_id, term_id, source, status, decision_status
+) VALUES (
+  'de600000-0000-4000-8000-000000000007',
+  'de100000-0000-4000-8000-000000000001', 'de300000-0000-4000-8000-000000000005',
+  'de500000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000002',
+  'manual', 'rejected', 'rejected'
+);
+SELECT extensions.lives_ok($q$SELECT plugin_data.csf_close_term_v2(
+  'de100000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000002', 1,
+  plugin_data.csf_term_closure_readiness(
+    'de100000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000002'
+  )->>'evidenceHash', 'de000000-0000-4000-8000-000000000001'
+)$q$, 'the closed-semester fixture uses the canonical close operation');
+SELECT extensions.ok((SELECT lifecycle_status = 'closed' AND active_closure_id IS NOT NULL
+  AND active_closure_id = latest_closure_id AND closure_revision = 1
+  FROM plugin_data.csf_terms WHERE id = 'de200000-0000-4000-8000-000000000002'),
+  'the closed-semester fixture has its real closure snapshot');
+
+CREATE TEMP TABLE approval_denial_before AS
+SELECT
+  (SELECT jsonb_agg(to_jsonb(application) ORDER BY id)
+   FROM plugin_data.csf_term_applications AS application
+   WHERE organization_id = 'de100000-0000-4000-8000-000000000001') AS applications,
+  (SELECT jsonb_agg(to_jsonb(membership) ORDER BY id)
+   FROM plugin_data.csf_term_memberships AS membership
+   WHERE organization_id = 'de100000-0000-4000-8000-000000000001') AS memberships,
+  (SELECT count(*) FROM plugin_data.csf_admin_audit_events
+   WHERE organization_id = 'de100000-0000-4000-8000-000000000001') AS audit_count;
+
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_approve_individual_term_application(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de300000-0000-4000-8000-000000000005', 'de200000-0000-4000-8000-000000000002',
+  'de600000-0000-4000-8000-000000000007',
+  (SELECT updated_at FROM plugin_data.csf_term_applications WHERE id = 'de600000-0000-4000-8000-000000000007'),
+  'Officer reviewed', 'de900000-0000-4000-8000-000000000002'
+)$q$, '55000', 'Only an open semester can receive an application approval.',
+  'a closed semester refuses approval before the existing decision check');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_approve_individual_term_application(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de300000-0000-4000-8000-000000000003', 'de200000-0000-4000-8000-000000000001',
+  'de600000-0000-4000-8000-000000000003',
+  (SELECT updated_at FROM plugin_data.csf_term_applications WHERE id = 'de600000-0000-4000-8000-000000000003'),
+  'Officer reviewed', 'de900000-0000-4000-8000-000000000004'
+)$q$, '55000', 'A finalized semester keeps its published outcome.',
+  'completed membership refuses a pending application approval');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_approve_individual_term_application(
+  'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
+  'de300000-0000-4000-8000-000000000004', 'de200000-0000-4000-8000-000000000001',
+  'de600000-0000-4000-8000-000000000004',
+  (SELECT updated_at FROM plugin_data.csf_term_applications WHERE id = 'de600000-0000-4000-8000-000000000004'),
+  'Officer reviewed', 'de900000-0000-4000-8000-000000000005'
+)$q$, '55000', 'A finalized semester keeps its published outcome.',
+  'not-completed membership refuses a pending application approval');
+SELECT extensions.is((SELECT jsonb_agg(to_jsonb(application) ORDER BY id)
+  FROM plugin_data.csf_term_applications AS application
+  WHERE organization_id = 'de100000-0000-4000-8000-000000000001'),
+  (SELECT applications FROM approval_denial_before), 'refusals preserve every application');
+SELECT extensions.is((SELECT jsonb_agg(to_jsonb(membership) ORDER BY id)
+  FROM plugin_data.csf_term_memberships AS membership
+  WHERE organization_id = 'de100000-0000-4000-8000-000000000001'),
+  (SELECT memberships FROM approval_denial_before), 'refusals preserve every membership outcome');
+SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_admin_audit_events
+  WHERE organization_id = 'de100000-0000-4000-8000-000000000001'),
+  (SELECT audit_count FROM approval_denial_before), 'refusals do not append success audit events');
+SELECT extensions.is((SELECT count(*)::int FROM plugin_data.csf_individual_application_approvals
+  WHERE organization_id = 'de100000-0000-4000-8000-000000000001'), 0,
+  'refusals do not create approval receipts');
+
 SELECT extensions.lives_ok($q$SELECT plugin_data.csf_approve_individual_term_application(
 'de100000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001',
 'de300000-0000-4000-8000-000000000001', 'de200000-0000-4000-8000-000000000001',
