@@ -3,26 +3,30 @@
 import React, { useState } from "react";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Award,
   Calendar,
   Clock,
-  Award,
-  TicketCheck,
   FileCheck,
-  AlertTriangle,
-  CircleCheck,
-  UserCheck,
-  Trash2,
   Loader2,
+  TicketCheck,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
@@ -149,39 +153,28 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
 
     return (
       <>
-        <div className="border rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-          <div className="flex-1 space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              {isSelfReported ? (
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-warning/10 text-warning"
-                >
-                  Self-Reported
-                </Badge>
-              ) : (
-                <Badge variant="default" className="text-xs">
-                  Platform
-                </Badge>
-              )}
+        <div className="flex flex-col items-start justify-between gap-3 py-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="grid min-w-0 flex-1 gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="min-w-0 font-medium">{cert.project_title}</span>
+              <Badge variant={isSelfReported ? "outline" : "secondary"}>
+                {isSelfReported ? "Self-reported" : "Platform"}
+              </Badge>
               {!isSelfReported && cert.is_certified && (
-                <Badge variant="default" className="text-xs bg-chart-2">
-                  <Award className="h-3 w-3 mr-1" /> Official Org
+                <Badge>
+                  <Award aria-hidden="true" /> Official org
                 </Badge>
               )}
             </div>
-            <div className="font-medium text-sm sm:text-base">
-              {cert.project_title}
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground truncate">
+            <p className="text-muted-foreground truncate text-sm">
               {cert.organization_name ||
                 cert.creator_name ||
-                "Unknown Organizer"}
+                "Unknown organizer"}
             </p>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
+                  <Calendar className="size-3" aria-hidden="true" />
                   {format(parseISO(cert.event_start), "MMM d, yyyy")}
                 </span>
                 <TimezoneBadge
@@ -192,30 +185,33 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               </div>
               {formattedDuration !== "0m" && (
                 <span className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" /> {formattedDuration}
+                  <Clock className="size-3" aria-hidden="true" />{" "}
+                  {formattedDuration}
                 </span>
               )}
             </div>
           </div>
-          <div className="shrink-0 w-full sm:w-auto flex gap-2">
-            <Link
-              href={`/certificates/${cert.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                "flex-1 sm:flex-initial",
-              )}
+          <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+            <Button
+              asChild
+              variant="outline"
+              className="flex-1 sm:flex-initial"
             >
-              <TicketCheck className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">View</span>
-              <span className="sm:hidden">Certificate</span>
-            </Link>
+              <Link
+                href={`/certificates/${cert.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <TicketCheck data-icon="inline-start" aria-hidden="true" />
+                <span className="hidden sm:inline">View</span>
+                <span className="sm:hidden">Certificate</span>
+              </Link>
+            </Button>
             {isSelfReported && (
               <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                variant="destructive-ghost"
+                size="icon"
+                aria-label={`Delete ${cert.project_title}`}
                 onClick={() => {
                   setConfirmDeleteId(cert.id);
                   setDeletingTitle(cert.project_title);
@@ -223,9 +219,9 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                 disabled={deletingId === cert.id}
               >
                 {deletingId === cert.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="animate-spin" aria-hidden="true" />
                 ) : (
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 aria-hidden="true" />
                 )}
               </Button>
             )}
@@ -240,7 +236,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
           >
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Self-Reported Hours?</AlertDialogTitle>
+                <AlertDialogTitle>Delete self-reported hours?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This will permanently delete &quot;{cert.project_title}&quot;
                   and its associated certificate. This action cannot be undone.
@@ -249,13 +245,17 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
+                  variant="destructive"
                   onClick={() => handleDeleteSelfReported(cert.id)}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   disabled={deletingId === cert.id}
                 >
                   {deletingId === cert.id ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2
+                        data-icon="inline-start"
+                        className="animate-spin"
+                        aria-hidden="true"
+                      />
                       Deleting...
                     </>
                   ) : (
@@ -271,30 +271,28 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Verified Hours Section */}
+    <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <CircleCheck className="h-5 w-5 text-primary shrink-0" />
-            <CardTitle>Let&apos;s Assist Platform Hours</CardTitle>
-            <Badge variant="secondary">{totalVerified}</Badge>
-          </div>
+          <CardTitle>Let&apos;s Assist platform hours</CardTitle>
           <CardDescription>
             Hours from Let&apos;s Assist platform projects and organizations
           </CardDescription>
+          <CardAction>
+            <Badge variant="secondary">{totalVerified}</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {verifiedCertificates.length > 0 ? (
             verifiedCertificates.length <= 3 ? (
-              <div className="space-y-3 sm:space-y-4">
+              <div className="divide-y *:first:pt-0 *:last:pb-0">
                 {verifiedCertificates.map((cert) => (
                   <CertificateItem key={cert.id} cert={cert} />
                 ))}
               </div>
             ) : (
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-3 sm:space-y-4">
+              <ScrollArea className="h-96 pr-4">
+                <div className="divide-y *:first:pt-0 *:last:pb-0">
                   {verifiedCertificates.map((cert) => (
                     <CertificateItem key={cert.id} cert={cert} />
                   ))}
@@ -302,44 +300,44 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               </ScrollArea>
             )
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center">
-              <FileCheck className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-              <h3 className="font-medium text-sm sm:text-base">
-                No Verified Hours Yet
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
-                Complete Let&apos;s Assist volunteer opportunities to earn
-                verified certificates.
-              </p>
-            </div>
+            <Empty className="p-6">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FileCheck aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>No verified hours yet</EmptyTitle>
+                <EmptyDescription>
+                  Complete Let&apos;s Assist volunteer opportunities to earn
+                  verified certificates.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </CardContent>
       </Card>
 
-      {/* Self-Reported Hours Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-warning dark:text-warning" />
-            <CardTitle>Self-Reported Hours</CardTitle>
-            <Badge variant="secondary">{totalSelfReported}</Badge>
-          </div>
+          <CardTitle>Self-reported hours</CardTitle>
           <CardDescription>
             Volunteer hours you&apos;ve added from activities outside Let&apos;s
             Assist
           </CardDescription>
+          <CardAction>
+            <Badge variant="secondary">{totalSelfReported}</Badge>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {selfReportedCertificates.length > 0 ? (
             selfReportedCertificates.length <= 3 ? (
-              <div className="space-y-3 sm:space-y-4">
+              <div className="divide-y *:first:pt-0 *:last:pb-0">
                 {selfReportedCertificates.map((cert) => (
                   <CertificateItem key={cert.id} cert={cert} isSelfReported />
                 ))}
               </div>
             ) : (
-              <ScrollArea className="h-[400px] pr-4">
-                <div className="space-y-3 sm:space-y-4">
+              <ScrollArea className="h-96 pr-4">
+                <div className="divide-y *:first:pt-0 *:last:pb-0">
                   {selfReportedCertificates.map((cert) => (
                     <CertificateItem key={cert.id} cert={cert} isSelfReported />
                   ))}
@@ -347,15 +345,17 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               </ScrollArea>
             )
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center">
-              <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-              <h3 className="font-medium text-sm sm:text-base">
-                No Self-Reported Hours Yet
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
-                Add volunteer hours from activities outside Let&apos;s Assist.
-              </p>
-            </div>
+            <Empty className="p-6">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Clock aria-hidden="true" />
+                </EmptyMedia>
+                <EmptyTitle>No self-reported hours yet</EmptyTitle>
+                <EmptyDescription>
+                  Add volunteer hours from activities outside Let&apos;s Assist.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </CardContent>
       </Card>

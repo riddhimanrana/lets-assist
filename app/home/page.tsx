@@ -4,9 +4,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
 import { EmailVerificationToast } from "@/components/auth/EmailVerificationToast";
 import { EmailConfirmationModal } from "@/components/auth/EmailConfirmationModal";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Plus, Shield } from "lucide-react"; // Import the Plus and Shield icons
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Metadata } from "next";
@@ -15,6 +13,7 @@ import { PluginFeedSection } from "@/components/plugins/PluginFeedSection";
 import { HomeOrganizationLinks } from "@/components/home/HomeOrganizationLinks";
 import { checkSuperAdmin } from "@/app/admin/actions";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
+import { HomeHeaderActions } from "./HomeHeaderActions";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -78,9 +77,10 @@ export default async function Home({ searchParams }: HomePageProps) {
       <EmailConfirmationModal />
       <EmailVerificationToast />
       <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8" data-next-url={next}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div className="flex items-center gap-3" data-tour-id="home-greeting">
-            <Avatar className="w-10 h-10">
+        <PageHeader
+          className="mb-8"
+          media={
+            <Avatar className="size-10">
               <AvatarImage
                 src={profileData?.avatar_url ?? undefined}
                 alt={userName}
@@ -89,46 +89,11 @@ export default async function Home({ searchParams }: HomePageProps) {
                 <NoAvatar fullName={profileData?.full_name ?? userName} />
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                Hi, {userName}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Check out the latest projects
-              </p>
-            </div>
-          </div>
-          <div
-            className="flex items-center gap-2 w-full md:w-auto"
-            data-tour-id="home-create-project"
-          >
-            {isAdmin && (
-              <Link href="/admin" className="w-full md:w-auto">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="font-semibold flex items-center gap-2 w-full md:w-auto"
-                >
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span className="hidden sm:inline">Admin Dashboard</span>
-                  <span className="sm:hidden">Admin</span>
-                </Button>
-              </Link>
-            )}
-            <Link
-              href="/projects/create"
-              className="w-full md:w-auto pointer-events-auto"
-            >
-              <Button
-                size="lg"
-                className="font-semibold flex items-center gap-1 w-full md:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                Create Project
-              </Button>
-            </Link>
-          </div>
-        </div>
+          }
+          title={<span data-tour-id="home-greeting">Hi, {userName}</span>}
+          description="Check out the latest projects"
+          actions={<HomeHeaderActions isAdmin={isAdmin} />}
+        />
 
         <Suspense fallback={null}>
           <HomeOrganizationLinks userId={user.id} />

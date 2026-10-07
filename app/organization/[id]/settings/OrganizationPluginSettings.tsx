@@ -316,7 +316,7 @@ export default function OrganizationPluginSettings({
     <>
       <SettingsSection
         id="organization-plugins"
-        title="Organization Plugins"
+        title="Organization plugins"
         description="Installed plugins and their settings. Embedded plugin code ships through a platform deployment before an update can be installed."
         footerHint={
           <>

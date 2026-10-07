@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Folders, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
+import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 import { SectionHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,6 +107,7 @@ export default function ProjectsTab({
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const createIcon = useAnimatedIcon();
 
   const projectsWithStatus = useMemo(
     () =>
@@ -146,8 +149,17 @@ export default function ProjectsTab({
         }`}
         actions={
           canCreateProjects && showCreateAction ? (
-            <Button nativeButton={false} render={<Link href={createHref} />}>
-              <Plus data-icon="inline-start" aria-hidden="true" />
+            <Button
+              nativeButton={false}
+              render={<Link href={createHref} />}
+              {...createIcon.triggerProps}
+            >
+              <PlusIcon
+                ref={createIcon.ref}
+                size={16}
+                data-icon="inline-start"
+                aria-hidden="true"
+              />
               New project
             </Button>
           ) : undefined
@@ -223,7 +235,7 @@ export default function ProjectsTab({
               {trimmedSearch ? (
                 <Search aria-hidden="true" />
               ) : (
-                <Folders aria-hidden="true" />
+                <EmptyStateIcon name="folders" />
               )}
             </EmptyMedia>
             <EmptyTitle>
