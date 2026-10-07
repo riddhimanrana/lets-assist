@@ -3,16 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import {
-  Bell,
-  Blocks,
-  Calendar,
-  Menu,
-  Shield,
-  User,
-  type LucideIcon,
-} from "lucide-react";
+import { Menu } from "lucide-react";
 
+import {
+  BellIcon,
+  BlocksIcon,
+  CalendarDaysIcon,
+  ShieldCheckIcon,
+  UserIcon,
+  useAnimatedIcon,
+} from "@/components/icons/animated";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -23,29 +23,37 @@ import {
 } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
-type AccountNavItem = { title: string; href: string; icon: LucideIcon };
+type AccountNavItem = {
+  title: string;
+  href: string;
+  icon: typeof UserIcon;
+};
 
 const navGroups: Array<{ label: string; items: AccountNavItem[] }> = [
   {
     label: "Account",
     items: [
-      { title: "Profile", href: "/account/profile", icon: User },
+      { title: "Profile", href: "/account/profile", icon: UserIcon },
       {
         title: "Sign-in & security",
         href: "/account/security",
-        icon: Shield,
+        icon: ShieldCheckIcon,
       },
-      { title: "Notifications", href: "/account/notifications", icon: Bell },
+      {
+        title: "Notifications",
+        href: "/account/notifications",
+        icon: BellIcon,
+      },
     ],
   },
   {
     label: "Connections",
     items: [
-      { title: "Calendar", href: "/account/calendar", icon: Calendar },
+      { title: "Calendar", href: "/account/calendar", icon: CalendarDaysIcon },
       {
         title: "Organization content",
         href: "/account/plugins",
-        icon: Blocks,
+        icon: BlocksIcon,
       },
     ],
   },
@@ -53,6 +61,43 @@ const navGroups: Array<{ label: string; items: AccountNavItem[] }> = [
 
 function isActivePath(pathname: string | null, href: string) {
   return pathname === href || Boolean(pathname?.startsWith(`${href}/`));
+}
+
+function AccountNavLink({
+  item,
+  active,
+  size,
+  onNavigate,
+}: {
+  item: AccountNavItem;
+  active: boolean;
+  size: "default" | "lg";
+  onNavigate?: () => void;
+}) {
+  const icon = useAnimatedIcon();
+  const Icon = item.icon;
+
+  return (
+    <Button
+      asChild
+      variant="ghost"
+      size={size}
+      className={cn(
+        "text-muted-foreground w-full justify-start gap-2 font-normal",
+        active && "bg-muted text-foreground font-medium",
+      )}
+    >
+      <Link
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        onClick={onNavigate}
+        {...icon.triggerProps}
+      >
+        <Icon ref={icon.ref} size={16} aria-hidden="true" />
+        <span className="truncate">{item.title}</span>
+      </Link>
+    </Button>
+  );
 }
 
 function AccountNav({
@@ -71,31 +116,15 @@ function AccountNav({
           <p className="text-muted-foreground px-2.5 text-xs font-medium">
             {group.label}
           </p>
-          {group.items.map((item) => {
-            const Icon = item.icon;
-            const active = isActivePath(pathname, item.href);
-            return (
-              <Button
-                key={item.href}
-                asChild
-                variant="ghost"
-                size={size}
-                className={cn(
-                  "text-muted-foreground w-full justify-start gap-2 font-normal",
-                  active && "bg-muted text-foreground font-medium",
-                )}
-              >
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  onClick={onNavigate}
-                >
-                  <Icon aria-hidden="true" />
-                  <span className="truncate">{item.title}</span>
-                </Link>
-              </Button>
-            );
-          })}
+          {group.items.map((item) => (
+            <AccountNavLink
+              key={item.href}
+              item={item}
+              active={isActivePath(pathname, item.href)}
+              size={size}
+              onNavigate={onNavigate}
+            />
+          ))}
         </div>
       ))}
     </nav>

@@ -530,6 +530,9 @@ export default function OrganizationTabs({
               organizationId={organization.id}
               currentUserId={currentUserId}
               canViewMembers={canViewMembers}
+              membersHiddenFromPublic={
+                organization.show_members_publicly === false
+              }
               demoMemberHours={demoMemberHours}
               demoMemberDetails={demoMemberDetails}
             />
