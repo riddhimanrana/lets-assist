@@ -2751,27 +2751,54 @@ historical evidence. The original September 28 additions are preserved below.
 Remediation has not been deployed. APP-09 and DB-02 describe the same defect.
 
 [Root draft PR 867](https://github.com/riddhimanrana/lets-assist/pull/867)
-publishes `d91f2c44`, based on Development `fb326cb3`. Local follow-ups through `6af61c9e` add project diagnostics, browser privacy
-coverage, deletion readiness, missing-project handling, hours/capacity/DV browser
-acceptance and maintenance-controller repairs. The request guard, durable image cleanup, organization authorization and
-business-conflict repairs have focused local acceptance. The expanded fresh
-replay and integrated application gates remain in progress. The root retains published private gitlink
-`a1d5836f`. Both CodeQL analyses pass on published `d91f2c44`. GitGuardian reports two historical
-synthetic fixtures: incident 37947219 is a UUID in a mocked calendar test;
-37948874 is a test-only PostgreSQL URI in the maintenance unit tests. Neither
-fixture came from a provider credential. Both fixtures now clearly identify their
-test values, with no detector or file exclusion. Historical false-positive
-disposition remains pending. Vercel canceled the feature build and Supabase still
-lists only main and persistent Development. No application deployment is claimed.
+publishes `35341eaa`, based on Development `fb326cb3`. Local follow-ups through
+`2462cf88` include the final Storage architecture rule and test repairs. The
+request guard, durable image cleanup, organization authorization and application
+conflict repairs have focused local acceptance. The root retains published
+private gitlink `a1d5836f` until the signed batch integration.
+
+Both CodeQL analyses and their aggregate pass on published `35341eaa`.
+GitGuardian still reports two historical synthetic fixtures. Incident 37947219
+is a UUID in a mocked calendar test; 37948874 is a test-only PostgreSQL URI in
+maintenance tests. Neither came from a provider credential. Both fixtures now
+clearly identify their test values, with no detector or file exclusion.
+Historical false-positive disposition remains pending. Vercel deployment
+`dpl_Fuj1tQF3FwBX6bmBpRtaSZuJyx7r` is canceled by the ignored build step.
+Supabase still lists only main and persistent Development. No application
+deployment is claimed.
 
 [Private PR 640](https://github.com/riddhimanrana/lets-assist-plugins/pull/640)
-merged into private Development as `4af6f732` after all hosted checks passed on
-prepared candidate `5f3564c1`, paired with runtime host `efe346d1`. The resulting
-merge tree exactly matches the reviewed candidate. Hosted quality passed 6,038
-tests and 30,477 assertions across 551 files and 206 process groups, plus
-application gates, release tooling, source checks, formatting, lint and host
-typecheck. Static analysis and GitGuardian passed. The private main branch and
-release tags remain unchanged. No remediation has been deployed.
+merged as `4af6f732` with an identical tested tree. Its older prepared candidate
+`5f3564c1` is superseded by
+[private PR 642](https://github.com/riddhimanrana/lets-assist-plugins/pull/642)
+at `86f0b58d`, paired with host `6af61c9e`. The new candidate preserves request
+identity after unknown outcomes and validates exact import receipt coverage.
+Its full local private unit gate passed 6,080 tests and 30,598 assertions across
+554 files and 209 process groups. Hosted plugin quality repeated those counts, and static analysis and
+GitGuardian pass at that exact commit. PR 642 merged into Development as
+`ece8afec` with the identical tested tree. Private main and release tags remain
+unchanged. Signed-version and hosted acceptance are pending.
+
+The fresh 708 replay applied all migrations and ran 464 SQL files with 11,737
+assertions. One old test expected a privilege error where the new RLS policy
+correctly filters the inactive administrator's write to zero rows. The corrected
+93-assertion file passes. Keep the original failed full-run transcript alongside
+that correction; there is no single all-green full-run transcript for 708 yet.
+Thirteen follow-on gates passed, including CSF workflows, both scale gates and
+DV database checks. The architecture rule now recognizes only the exact six
+restrictive public-image denial policies. Its real PostgreSQL regression rejects
+changed names, buckets, commands, roles and predicates. Final catalog and
+architecture verification are in progress. The current private runtime gate
+refuses unpublished version metadata, as intended. It requires the actual signed
+batch before final positive acceptance.
+
+The latest root unit run is still in progress. Its initial failures exposed
+stale extracted-worker assertions, the new guard's intentional client ACLs,
+the missing disabled image-cleanup flag and a disposable PostgreSQL locale
+issue. Focused corrections pass, including 62 contract tests and 784 assertions.
+These results do not replace the canonical integrated unit run or new signed
+build and browser gates. Historical acceptance results below retain their
+original source pins.
 
 The canonical root unit runner passed at `eda468bc`: 4,295 tests, 28,633 reported
 expect assertions and 538 files across 133 process groups. Installed Next.js
