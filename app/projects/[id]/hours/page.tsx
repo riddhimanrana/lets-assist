@@ -11,19 +11,10 @@ import {
 } from "@/utils/project";
 import { Project, ProjectSignup } from "@/types";
 import { HoursClient } from "./HoursClient";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from "@/components/ui/card";
+import { NoticePage } from "@/components/projects/NoticePage";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, CalendarClock } from "lucide-react";
+import { AlertCircle, CalendarClock } from "lucide-react";
 import { getProject } from "../actions";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 
@@ -226,45 +217,27 @@ export default async function HoursPage({
   // 4. Check if Project Type is Eligible (Exclude 'auto')
   if (project.verification_method === "auto") {
     return (
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <div className="mb-6">
-          <Link
-            href={`/projects/${projectId}`}
-            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
-          >
-            <ArrowLeft className="size-4" />
-            Back to Project
-          </Link>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Volunteer Hours</CardTitle>
-            <CardDescription>Review volunteer participation.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert
-              variant="default"
-              className="border-secondary/50 bg-secondary/10"
-            >
-              <AlertCircle className="size-4" />
-              <AlertTitle>Automatic Check-in</AlertTitle>
-              <AlertDescription>
-                This project uses automatic check-in. Volunteer hours are
-                recorded based on the schedule and cannot be manually edited
-                here. View attendance records for details.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-          <CardFooter className="justify-center border-t p-4">
+      <NoticePage
+        icon={<AlertCircle aria-hidden="true" />}
+        title="Automatic check-in"
+        description="This project uses automatic check-in. Volunteer hours are recorded based on the schedule and cannot be manually edited here. View attendance records for details."
+        actions={
+          <>
             <Link
               href={`/projects/${projectId}/attendance`}
-              className={cn(buttonVariants({ variant: "outline" }))}
+              className={buttonVariants()}
             >
-              View Attendance Records
+              View attendance records
             </Link>
-          </CardFooter>
-        </Card>
-      </div>
+            <Link
+              href={`/projects/${projectId}`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Back to project
+            </Link>
+          </>
+        }
+      />
     );
   }
 
@@ -337,64 +310,40 @@ export default async function HoursPage({
       : null;
 
     return (
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <div className="mb-6">
+      <NoticePage
+        icon={<CalendarClock aria-hidden="true" />}
+        title={
+          eventHasEnded ? "Editing window closed" : "Editing not yet available"
+        }
+        description={
+          eventHasEnded
+            ? "The 48-hour window to edit volunteer hours after the event has ended."
+            : "You can manage volunteer hours here for 48 hours after the event ends."
+        }
+        actions={
           <Link
             href={`/projects/${projectId}`}
-            className={cn(buttonVariants({ variant: "ghost" }), "gap-2")}
+            className={buttonVariants({ variant: "outline" })}
           >
-            <ArrowLeft className="size-4" />
-            Back to Project
+            Return to project
           </Link>
-        </div>
-        <Card className="min-h-100 relative">
-          <CardHeader>
-            <CardTitle>Manage Volunteer Hours</CardTitle>
-            <CardDescription>
-              {eventHasEnded
-                ? "The editing window for volunteer hours has closed (48 hours post-event)."
-                : "Volunteer hours can be edited after the event concludes."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-            <div className="rounded-full bg-muted p-6 w-fit">
-              <CalendarClock className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mt-6">
-              {eventHasEnded
-                ? "Editing Window Closed"
-                : "Editing Not Yet Available"}
-            </h3>
-            <p className="text-muted-foreground max-w-md">
-              {eventHasEnded
-                ? "The 48-hour window to edit volunteer hours after the event has ended."
-                : `You can manage volunteer hours here for 48 hours after the event ends.`}
-              {!eventHasEnded &&
-                hoursUntilWindowOpens !== null &&
-                hoursUntilWindowOpens > 0 && (
-                  <span className="block mt-2 text-sm">
-                    (Window opens in approximately {hoursUntilWindowOpens} hour
-                    {hoursUntilWindowOpens !== 1 ? "s" : ""})
-                  </span>
-                )}
-              {!eventHasEnded && projectEndDateTime && (
-                <span className="block mt-2 text-sm">
-                  Event ends:{" "}
-                  {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
-                </span>
-              )}
+        }
+      >
+        {!eventHasEnded && projectEndDateTime ? (
+          <div className="text-muted-foreground grid gap-1 text-sm">
+            {hoursUntilWindowOpens !== null && hoursUntilWindowOpens > 0 && (
+              <p>
+                Window opens in approximately {hoursUntilWindowOpens} hour
+                {hoursUntilWindowOpens !== 1 ? "s" : ""}
+              </p>
+            )}
+            <p>
+              Event ends:{" "}
+              {format(projectEndDateTime, "MMMM d, yyyy 'at' h:mm a")}
             </p>
-          </CardContent>
-          <CardFooter className="justify-center border-t p-4">
-            <Link
-              href={`/projects/${projectId}`}
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
-              Return to Project
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
+          </div>
+        ) : null}
+      </NoticePage>
     );
   }
 

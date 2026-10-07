@@ -34,8 +34,8 @@ export default function ProjectInstructionsModalWrapper({
   buttonSize,
   showChevron,
 }: Props) {
-  const Label = isCreator ? "Creator Guide" : "How It Works";
-  const size = buttonSize ?? (isCreator ? "default" : "sm");
+  const Label = isCreator ? "Creator guide" : "How it works";
+  const size = buttonSize ?? "default";
   const variant = buttonVariant ?? "outline";
   const [isMounted, setIsMounted] = useState(false);
 
@@ -48,19 +48,17 @@ export default function ProjectInstructionsModalWrapper({
       <Button
         variant={variant}
         size={size}
-        className={cn(
-          "gap-2",
-          showChevron && "justify-between",
-          buttonClassName,
-        )}
+        className={cn(showChevron && "justify-between", buttonClassName)}
         disabled
       >
-        <span className="flex items-center gap-2">
-          <HelpCircle className="size-4" />
-          {Label}
-        </span>
+        <HelpCircle data-icon="inline-start" aria-hidden="true" />
+        {Label}
         {showChevron && (
-          <ChevronRight className="size-4 text-muted-foreground" />
+          <ChevronRight
+            data-icon="inline-end"
+            className="text-muted-foreground ml-auto"
+            aria-hidden="true"
+          />
         )}
       </Button>
     );

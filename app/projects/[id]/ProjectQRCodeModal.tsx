@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -18,7 +20,7 @@ import {
   isBefore,
   subHours,
 } from "date-fns";
-import { Printer, Clock, Lock, QrCode as QrIcon } from "lucide-react";
+import { Printer, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import { useReactToPrint } from "react-to-print";
@@ -133,7 +135,7 @@ export function ProjectQRCodeModal({
 
         processedSessions.push({
           id: "oneTime",
-          name: "Main Event",
+          name: "Main event",
           date,
           startTime,
           endTime,
@@ -221,9 +223,9 @@ export function ProjectQRCodeModal({
     const startDate = parseISO(`${session.date}T${session.startTime}`);
 
     if (session.isAvailable) {
-      return <Badge variant="default">Scannable Now</Badge>;
+      return <Badge variant="success">Scannable now</Badge>;
     } else if (session.isVisible && !session.isAvailable) {
-      // QR is visible but not yet scannable - within 7 days but more than 2 hours before
+      // Visible but not yet scannable: within 7 days, more than 2 hours out.
       const hoursUntilScannable = differenceInHours(
         subHours(startDate, 2),
         now,
@@ -234,9 +236,9 @@ export function ProjectQRCodeModal({
       if (days > 0) scannableIn += `${days} day${days > 1 ? "s" : ""} `;
       if (hours > 0) scannableIn += `${hours} hour${hours > 1 ? "s" : ""}`;
       if (days === 0 && hours === 0) scannableIn = "Scannable soon";
-      return <Badge variant="secondary">{scannableIn.trim()}</Badge>;
+      return <Badge variant="info">{scannableIn.trim()}</Badge>;
     } else if (!session.isVisible && isBefore(now, startDate)) {
-      // Not yet visible - more than 7 days before start
+      // Not yet visible: more than 7 days before start.
       const hoursUntilVisible = differenceInHours(
         subHours(startDate, 168),
         now,
@@ -247,140 +249,122 @@ export function ProjectQRCodeModal({
       if (days > 0) visibleIn += `${days} day${days > 1 ? "s" : ""} `;
       if (hours > 0) visibleIn += `${hours} hour${hours > 1 ? "s" : ""}`;
       if (days === 0 && hours === 0) visibleIn = "Visible soon";
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          {visibleIn.trim()}
-        </Badge>
-      );
+      return <Badge variant="secondary">{visibleIn.trim()}</Badge>;
     } else {
-      // After end time
-      return <Badge variant="destructive">Session Ended</Badge>;
+      return <Badge variant="secondary">Session ended</Badge>;
     }
   };
 
+  const canPrint = Boolean(selectedQRCode?.isAvailable && selectedQRCode.qrUrl);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl p-0">
-        <div className="flex max-h-[90vh] flex-col">
-          <DialogHeader className="border-b px-5 py-4">
-            <DialogTitle className="text-lg sm:text-xl">
-              QR Code Check-In
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              QR codes become visible 1 week before each session starts. They
-              can be scanned 2 hours before for check-in, and expire when the
-              session ends.
-            </p>
-          </DialogHeader>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>QR code check-in</DialogTitle>
+          <DialogDescription>
+            QR codes become visible 1 week before each session starts. They can
+            be scanned 2 hours before for check-in, and expire when the session
+            ends.
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 px-5 pb-5 pt-5 md:grid-cols-2">
-            {/* Sessions */}
-            <div className="space-y-3">
-              <div className="space-y-2 max-h-100 overflow-y-auto pr-2">
-                {sessions.map((session) => (
+        <div className="grid gap-6 md:grid-cols-2">
+          {sessions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No sessions found for this project
+            </p>
+          ) : (
+            <ul className="max-h-80 divide-y overflow-y-auto rounded-lg border">
+              {sessions.map((session) => (
+                <li key={session.id}>
                   <button
-                    key={session.id}
                     type="button"
                     onClick={() => setSelectedQRCode(session)}
+                    aria-pressed={selectedQRCode?.id === session.id}
                     className={cn(
-                      "w-full rounded-lg border p-3 text-left transition hover:bg-muted/40",
-                      selectedQRCode?.id === session.id
-                        ? "border-primary bg-primary/5"
-                        : "bg-background",
+                      "hover:bg-muted/50 focus-visible:ring-ring/50 grid w-full gap-1 px-3 py-2.5 text-left outline-none focus-visible:ring-[3px]",
+                      selectedQRCode?.id === session.id && "bg-muted",
                     )}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {session.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(parseISO(session.date), "EEEE, MMM d")}
-                        </p>
-                      </div>
-                      <div className="shrink-0">
-                        {renderAvailabilityBadge(session)}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium wrap-break-word">
+                        {session.name}
+                      </span>
+                      {renderAvailabilityBadge(session)}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {format(parseISO(session.date), "EEEE, MMM d")} ·{" "}
                       {formatTimeTo12Hour(session.startTime)} -{" "}
                       {formatTimeTo12Hour(session.endTime)}
-                    </div>
+                    </span>
                   </button>
-                ))}
+                </li>
+              ))}
+            </ul>
+          )}
 
-                {sessions.length === 0 && (
-                  <div className="text-center p-4 text-muted-foreground">
-                    No sessions found for this project
+          <div className="flex items-start justify-center">
+            {selectedQRCode ? (
+              <div
+                ref={printRef}
+                className={cn(
+                  "rounded-xl border p-3",
+                  canPrint ? "bg-white" : "bg-muted/50",
+                )}
+              >
+                {canPrint ? (
+                  <QRCode
+                    value={selectedQRCode.qrUrl}
+                    size={180}
+                    logoImage="/logo.png"
+                    qrStyle="dots"
+                    eyeRadius={{ outer: 8, inner: 1 }}
+                    fgColor="#000000"
+                    bgColor="#FFFFFF"
+                    removeQrCodeBehindLogo
+                    logoPadding={2}
+                    ecLevel="L"
+                  />
+                ) : (
+                  <div className="text-muted-foreground flex size-45 flex-col items-center justify-center gap-3 p-4 text-center">
+                    <Lock className="size-6" aria-hidden="true" />
+                    <p className="text-sm">
+                      {selectedQRCode.isAvailable && !selectedQRCode.qrUrl
+                        ? "Securing QR code..."
+                        : !selectedQRCode.isVisible
+                          ? "Will be visible 1 week before"
+                          : selectedQRCode.isVisible &&
+                              !selectedQRCode.isAvailable
+                            ? "Visible but scannable 2 hours before"
+                            : "Session ended"}
+                    </p>
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* QR preview */}
-            <div className="flex items-center justify-center">
-              {selectedQRCode ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <div className="w-full max-w-70 rounded-3xl border bg-muted/20 p-4 sm:p-6 flex flex-col items-center">
-                    <div
-                      ref={printRef}
-                      className="rounded-xl border-4 border-muted/30 bg-white p-3"
-                    >
-                      {selectedQRCode.isAvailable && selectedQRCode.qrUrl ? (
-                        <QRCode
-                          value={selectedQRCode.qrUrl}
-                          size={180}
-                          logoImage="/logo.png"
-                          qrStyle="dots"
-                          eyeRadius={{ outer: 8, inner: 1 }}
-                          fgColor="#000000"
-                          bgColor="#FFFFFF"
-                          removeQrCodeBehindLogo
-                          logoPadding={2}
-                          ecLevel="L"
-                        />
-                      ) : (
-                        <div className="size-45 flex flex-col items-center justify-center p-4 text-center">
-                          <Lock className="h-10 w-10 mb-3 text-muted-foreground" />
-                          <p className="text-[10px] leading-tight text-muted-foreground uppercase tracking-wider font-semibold">
-                            {selectedQRCode.isAvailable && !selectedQRCode.qrUrl
-                              ? "Securing QR code..."
-                              : !selectedQRCode.isVisible
-                                ? "Will be visible 1 week before"
-                                : selectedQRCode.isVisible &&
-                                    !selectedQRCode.isAvailable
-                                  ? "Visible but scannable 2 hours before"
-                                  : "Session Ended"}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        void handlePrint();
-                      }}
-                      disabled={
-                        !selectedQRCode.isAvailable || !selectedQRCode.qrUrl
-                      }
-                      className="mt-6 w-full gap-2"
-                      size="lg"
-                    >
-                      <Printer className="size-4" /> Print QR Code
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full max-w-70 h-87.5 rounded-3xl border border-dashed flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
-                  <QrIcon className="h-12 w-12 mb-4 opacity-20" />
-                  <p className="text-sm">Select a session to preview QR</p>
-                </div>
-              )}
-            </div>
+            ) : (
+              <p className="text-muted-foreground flex size-45 items-center justify-center rounded-xl border border-dashed p-4 text-center text-sm">
+                Select a session to preview QR
+              </p>
+            )}
           </div>
         </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              void handlePrint();
+            }}
+            disabled={!canPrint}
+          >
+            <Printer data-icon="inline-start" aria-hidden="true" />
+            Print QR code
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

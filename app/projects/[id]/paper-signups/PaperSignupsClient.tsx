@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, FileWarning } from "lucide-react";
+import { FileWarning } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import { ScheduleSlotStep } from "./ScheduleSlotStep";
 import { CaptureStep } from "./CaptureStep";
 import { ReviewTable } from "./ReviewTable";
@@ -167,26 +169,22 @@ export function PaperSignupsClient({
   };
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          href={`/projects/${projectId}`}
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Back to project"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">
-            Scan paper signups
-          </h1>
-          <p className="text-sm text-muted-foreground">{projectTitle}</p>
-        </div>
-      </div>
+    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+      <PageHeader
+        breadcrumb={
+          <ProjectToolBreadcrumb
+            projectId={projectId}
+            projectTitle={projectTitle}
+            current="Paper signups"
+          />
+        }
+        title="Scan paper signups"
+        description="Turn a photographed sign-in sheet into attendance records."
+      />
 
       {projectStatus !== "completed" && step !== "done" && (
-        <Alert className="mb-6">
-          <FileWarning className="size-4" />
+        <Alert variant="info">
+          <FileWarning aria-hidden="true" />
           <AlertTitle>This event hasn&apos;t finished yet</AlertTitle>
           <AlertDescription>
             Paper sheets are usually scanned after the event ends. You can still
@@ -253,16 +251,13 @@ export function PaperSignupsClient({
       {step === "done" && commitSummary && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="size-5 text-primary" />
-              Paper signups recorded
-            </CardTitle>
+            <CardTitle>Paper signups recorded</CardTitle>
             <CardDescription>
               The sheet has been committed to this project&apos;s attendance.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <ul className="space-y-1 text-sm">
+          <CardContent className="grid gap-4">
+            <ul className="grid gap-1 text-sm">
               <li>
                 <strong>{commitSummary.created}</strong> new attendance records
                 created
@@ -300,7 +295,7 @@ export function PaperSignupsClient({
                 <AlertTitle>
                   Attendance saved; certificates need attention
                 </AlertTitle>
-                <AlertDescription className="space-y-3">
+                <AlertDescription className="grid gap-3">
                   <p>
                     Retry issuance now. If delivery still fails, use the Hours
                     page&apos;s certificate resend after confirming the
@@ -319,7 +314,7 @@ export function PaperSignupsClient({
                     </Button>
                     <Button asChild type="button" variant="outline">
                       <Link href={`/projects/${projectId}/hours`}>
-                        Open Hours
+                        Open hours
                       </Link>
                     </Button>
                   </div>
@@ -344,7 +339,7 @@ export function PaperSignupsClient({
                 </AlertDescription>
               </Alert>
             )}
-            <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button asChild>
                 <Link href={`/projects/${projectId}/hours`}>
                   Review &amp; publish hours

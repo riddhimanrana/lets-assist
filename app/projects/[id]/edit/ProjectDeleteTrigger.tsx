@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useHydrated } from "@/hooks/useHydrated";
 
 type Props = {
@@ -20,12 +20,10 @@ export function ProjectDeleteTrigger({
     <Button
       onClick={onDeleteRequested}
       variant="destructive"
-      className="w-full"
+      className="w-full sm:w-auto"
       disabled={!hydrated || isDeleting || !canDelete}
     >
-      {isDeleting ? (
-        <Loader2 className="animate-spin" data-icon="inline-start" />
-      ) : null}
+      {isDeleting ? <Spinner data-icon="inline-start" /> : null}
       Delete project
     </Button>
   );
