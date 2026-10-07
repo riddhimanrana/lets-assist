@@ -1384,6 +1384,8 @@ export const migrationDigests = {
     "fec4982c4bd1836bdbcbb1cad28412263ecc97b76f5a9d1bfe50a43a19263e8b",
   "20260929051500_csf_review_removed_activity_submissions.sql":
     "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
+  "20260929051600_application_request_write_fence.sql":
+    "81aa76285c8b317a0f9a9b7e21f7079bb75daa2b8d431d277a51a0d6524439f6",
   "20261007034144_preserve_reference_scope_on_deletion.sql":
     "221fd0044551e8c4798b2dcdb84549d74c475bb5bb7687b5948cc7814b96801e",
   "20261007035204_bounded_project_occupancy.sql":
