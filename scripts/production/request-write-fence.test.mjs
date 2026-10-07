@@ -13,6 +13,8 @@ import { join } from "node:path";
 import test from "node:test";
 import {
   applicationRequestWriteFenceBodySha256,
+  applicationRequestWriteFlagSql,
+  settlePreexistingRequestTransactionsSql,
   applicationRequestWriteFenceQuery,
   requireApplicationRequestWriteFenceSql,
 } from "./request-write-fence.mjs";
@@ -40,7 +42,7 @@ test("guard verification binds the published function body and exact execution b
     "NOT routine.proretset",
     "NOT routine.prosecdef",
     "NOT routine.proleakproof",
-    "routine.provolatile = 's'",
+    "routine.provolatile = 'v'",
     "routine.proparallel = 'u'",
     "routine.proowner = 'postgres'::regrole",
     "language.lanname = 'plpgsql'",
@@ -94,14 +96,22 @@ test("Production flag changes require hook verification before writing and fresh
         encoding: "utf8",
       });
       const sql = readFileSync(capture, "utf8");
-      assert.ok(
-        sql.startsWith(`BEGIN; ${requireApplicationRequestWriteFenceSql}`),
+      assert.equal(
+        sql.trim(),
+        applicationRequestWriteFlagSql(mode === "enable"),
       );
+      assert.ok(
+        sql.indexOf("pg_advisory_xact_lock(592043,1)") <
+          sql.indexOf("ALTER ROLE"),
+      );
+      assert.ok(sql.startsWith("BEGIN ISOLATION LEVEL READ COMMITTED;"));
+      assert.ok(sql.includes("SET LOCAL lock_timeout='20s'"));
+      assert.ok(!sql.includes("pg_terminate_backend"));
       assert.ok(
         sql.includes(
           mode === "enable"
-            ? "SET pgrst.app_settings.maintenance_write_block TO 'on'; COMMIT;"
-            : "RESET pgrst.app_settings.maintenance_write_block; COMMIT;",
+            ? "SET pgrst.app_settings.maintenance_write_block TO 'on';\nCOMMIT;"
+            : "RESET pgrst.app_settings.maintenance_write_block;\nCOMMIT;",
         ),
       );
       assert.ok(output.includes("Fresh API verification is required."));
@@ -113,10 +123,35 @@ test("Production flag changes require hook verification before writing and fresh
         }),
       );
       const refused = readFileSync(capture, "utf8");
-      assert.equal((refused.match(/BEGIN;/gu) ?? []).length, 1);
+      assert.equal(
+        (refused.match(/BEGIN ISOLATION LEVEL READ COMMITTED;/gu) ?? []).length,
+        1,
+      );
       assert.ok(!refused.includes("captured_pids"));
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("legacy transaction barrier waits exact identities without killing listener connections", () => {
+  assert.ok(
+    settlePreexistingRequestTransactionsSql.includes("xact_start IS NOT NULL"),
+  );
+  assert.ok(
+    settlePreexistingRequestTransactionsSql.includes(
+      "actual.pid=prior.pid AND actual.backend_start=prior.backend_start AND actual.xact_start=prior.xact_start",
+    ),
+  );
+  assert.ok(
+    settlePreexistingRequestTransactionsSql.includes(
+      "LOOP\n    PERFORM pg_catalog.pg_stat_clear_snapshot()",
+    ),
+  );
+  assert.ok(
+    settlePreexistingRequestTransactionsSql.includes("interval '20 seconds'"),
+  );
+  assert.ok(
+    !settlePreexistingRequestTransactionsSql.includes("pg_terminate_backend"),
+  );
 });
