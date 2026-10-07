@@ -4,6 +4,7 @@ import { safeConsole } from "@/lib/safe-console";
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { escapeHtml } from "@/lib/security/html";
+import { mountCertificatePrintFrame } from "./print-frame";
 import { format, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useEffect, useState, useRef } from "react";
@@ -31,16 +32,16 @@ interface CertificateData {
 
 export function PrintCertificate({ data }: { data: CertificateData }) {
   const [mounted, setMounted] = useState(false);
-  const printCanceledRef = useRef(false);
+  const cleanupPrintRef = useRef<(() => void) | null>(null);
 
   // Ensure component is mounted before rendering to avoid hydration issues
   useEffect(() => {
     setMounted(true);
+    return () => cleanupPrintRef.current?.();
   }, []);
 
   const handlePrint = () => {
-    // Reset the flags at the start of each print attempt
-    printCanceledRef.current = false;
+    cleanupPrintRef.current?.();
 
     // Collect current stylesheets
     const links = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
@@ -188,76 +189,15 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       </html>
     `;
 
-    // Create an iframe
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.style.visibility = "hidden"; // Hide the iframe
-    iframe.src = "about:blank"; // Set src to avoid potential browser issues
-
-    document.body.appendChild(iframe);
-
-    // Cleanup function
-    const cleanup = () => {
-      if (iframe.parentNode === document.body) {
-        document.body.removeChild(iframe);
-      }
-    };
-
-    // Write the HTML content to the iframe
-    iframe.contentDocument?.open();
-    iframe.contentDocument?.write(certificateHtml);
-    iframe.contentDocument?.close();
-
-    // Handle print attempt
-    const attemptPrint = () => {
-      if (printCanceledRef.current) {
-        cleanup();
-        return;
-      }
-
-      try {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-
-          // Set up after-print handler to cleanup
-          iframe.contentWindow.onafterprint = () => {
-            cleanup();
-          };
-
-          iframe.contentWindow.print();
-
-          // Set up cancel detection
-          const checkPrintDialog = setInterval(() => {
-            if (document.hasFocus()) {
-              clearInterval(checkPrintDialog);
-              printCanceledRef.current = true;
-              cleanup();
-            }
-          }, 50);
-
-          // Clear interval after 5s maximum
-          setTimeout(() => {
-            clearInterval(checkPrintDialog);
-            cleanup();
-          }, 50);
-        }
-      } catch (error) {
+    cleanupPrintRef.current = mountCertificatePrintFrame(
+      certificateHtml,
+      (error) => {
         safeConsole.error("Printing failed:", error);
         alert(
           "Could not open print dialog. Please try again or check browser settings.",
         );
-        cleanup();
-      }
-    };
-
-    // Wait for iframe to load before printing
-    iframe.onload = attemptPrint;
-
-    // Cleanup if something goes wrong
-    setTimeout(cleanup, 10000); // Failsafe cleanup after 10 seconds
+      },
+    );
   };
 
   return (

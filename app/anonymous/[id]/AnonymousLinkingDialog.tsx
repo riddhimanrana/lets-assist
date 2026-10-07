@@ -474,9 +474,8 @@ export function AnonymousLinkingDialog({
             <div className="grid gap-1">
               <h3 className="text-sm font-medium">Prefer Google?</h3>
               <p className="text-muted-foreground text-sm">
-                Supabase recommends redirect-based OAuth linking for Google.
-                We&apos;ll bring you back here and finish attaching this profile
-                automatically.
+                Continue with your Google account. We&apos;ll bring you back
+                here to finish linking your volunteer profile.
               </p>
             </div>
             <Button
