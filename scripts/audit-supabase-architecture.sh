@@ -926,6 +926,7 @@ reviewed_service_rpc_drift="$(
     with reviewed(signature, security_definer, volatility) as (
       values ('public.expired_account_export_artifacts(integer)', true, 's'),
         ('public.reserve_public_image_cleanup(uuid,text,uuid,text,text,text)', true, 'v'),
+        ('public.manage_organization_staff_invite(uuid,uuid,text,integer)', true, 'v'),
         ('public.claim_public_image_cleanup(integer)', true, 'v'),
         ('public.finish_public_image_cleanup(uuid,uuid,boolean)', true, 'v'),
         ('public.start_worker_run_receipt(uuid,text,text,text)', true, 'v'),

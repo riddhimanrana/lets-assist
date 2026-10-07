@@ -168,7 +168,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
       )
         return "refused";
-      let query = admin
+      let query = supabase
         .from("organizations")
         .update({ ...fields, logo_url: url })
         .eq("id", data.id);
@@ -189,7 +189,9 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         ownerId: data.id,
         previousUrl: currentOrg.logo_url,
         image,
-        storage: supabase.storage.from("organization-logos"),
+        storage: getAdminClient({ timeoutMs: 10_000 }).storage.from(
+          "organization-logos",
+        ),
         commit,
       });
       if (!replaced.success) return { error: replaced.error };
@@ -200,11 +202,13 @@ export async function updateOrganization(data: OrganizationUpdateData) {
       ) {
         return { error: "Only admins can update organization details" };
       }
-      const { error } = await admin
+      const { data: changed, error } = await supabase
         .from("organizations")
         .update(fields)
-        .eq("id", data.id);
-      if (error)
+        .eq("id", data.id)
+        .select("id")
+        .maybeSingle();
+      if (error || !changed)
         return {
           error:
             "The organization update could not be confirmed. Refresh before trying again.",
@@ -350,25 +354,25 @@ export async function generateStaffLink(
   }
 
   try {
-    // Generate a new UUID token
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-
-    // Update the organization with the new staff token
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        staff_join_token: token,
-        staff_join_token_created_at: new Date().toISOString(),
-        staff_join_token_expires_at: expiresAt.toISOString(),
-        staff_join_token_issued_by: user.id,
-      })
-      .eq("id", organizationId);
-
-    if (updateError) {
+    const { data: result, error: updateError } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "generate",
+        p_expires_days: expiresInDays,
+      },
+    );
+    if (
+      updateError ||
+      result?.success !== true ||
+      typeof result.token !== "string" ||
+      typeof result.expiresAt !== "string"
+    ) {
       safeConsole.error("Error generating staff link:", updateError);
-      throw updateError;
+      return {
+        error: "The staff link could not be generated. Refresh and try again.",
+      };
     }
 
     // Revalidate the settings page
@@ -376,8 +380,8 @@ export async function generateStaffLink(
 
     return {
       success: true,
-      token,
-      expiresAt: expiresAt.toISOString(),
+      token: result.token as string,
+      expiresAt: new Date(result.expiresAt).toISOString(),
     };
   } catch (error) {
     safeConsole.error("Error generating staff link:", error);
@@ -415,19 +419,19 @@ export async function revokeStaffLink(organizationId: string) {
   }
 
   try {
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        staff_join_token: null,
-        staff_join_token_created_at: null,
-        staff_join_token_expires_at: null,
-        staff_join_token_issued_by: null,
-      })
-      .eq("id", organizationId);
-
-    if (updateError) {
+    const { data: result, error: updateError } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "revoke",
+      },
+    );
+    if (updateError || result?.success !== true) {
       safeConsole.error("Error revoking staff link:", updateError);
-      throw updateError;
+      return {
+        error: "The staff link could not be revoked. Refresh and try again.",
+      };
     }
 
     // Revalidate the settings page
@@ -468,29 +472,30 @@ export async function getStaffLinkDetails(organizationId: string) {
   }
 
   try {
-    const { data: org, error } = await admin
-      .from("organizations")
-      .select(
-        "staff_join_token, staff_join_token_created_at, staff_join_token_expires_at",
-      )
-      .eq("id", organizationId)
-      .single();
-
-    if (error || !org) {
-      throw error ?? new Error("Organization not found");
+    const { data: result, error } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "get",
+      },
+    );
+    if (
+      error ||
+      typeof result?.hasToken !== "boolean" ||
+      typeof result.isExpired !== "boolean"
+    ) {
+      safeConsole.error("Error getting staff link details:", error);
+      return {
+        error: "Staff link details are unavailable. Refresh and try again.",
+      };
     }
-
-    // Check if token is expired
-    const isExpired = org.staff_join_token_expires_at
-      ? new Date(org.staff_join_token_expires_at) < new Date()
-      : false;
-
     return {
-      hasToken: !!org.staff_join_token && !isExpired,
-      token: isExpired ? null : org.staff_join_token,
-      createdAt: org.staff_join_token_created_at,
-      expiresAt: org.staff_join_token_expires_at,
-      isExpired,
+      hasToken: result.hasToken as boolean,
+      token: result.token as string | null,
+      createdAt: result.createdAt as string | null,
+      expiresAt: result.expiresAt as string | null,
+      isExpired: result.isExpired as boolean,
     };
   } catch (error) {
     safeConsole.error("Error getting staff link details:", error);
