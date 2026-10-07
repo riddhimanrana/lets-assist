@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 
 import { processRecurringProjects } from "@/services/recurring-project-worker";
+import { classifyWorkerResponse } from "@/lib/cron/worker-outcome";
 
 type StoredProject = Record<string, unknown> & {
   id: string;
@@ -75,6 +76,10 @@ class ProjectsQuery {
   }
 
   insert(payload: Record<string, unknown>): Promise<QueryResult> {
+    const failure = this.database.insertErrors.get(
+      String(payload.recurrence_parent_id),
+    );
+    if (failure) return Promise.resolve({ data: null, error: failure });
     const row = {
       id: `occurrence-${String(this.database.inserted.length).padStart(5, "0")}`,
       recurrence_rule: null,
@@ -159,6 +164,10 @@ class ProjectsQuery {
   }
 
   maybeSingle() {
+    const failure = this.database.latestErrors.get(
+      String(this.equals.get("recurrence_parent_id")),
+    );
+    if (failure) return Promise.resolve({ data: null, error: failure });
     return Promise.resolve(this.execute(true, true));
   }
 
@@ -180,6 +189,8 @@ class ProjectsQuery {
 
 class InMemoryRecurringDatabase {
   readonly inserted: StoredProject[] = [];
+  readonly latestErrors = new Map<string, QueryError>();
+  readonly insertErrors = new Map<string, QueryError>();
 
   constructor(readonly projects: StoredProject[]) {}
 
@@ -234,6 +245,63 @@ const TWO_OCCURRENCES = {
 };
 
 describe("recurring project worker pagination and catch-up", () => {
+  test("a failed latest-occurrence lookup cannot count as a completed parent", async () => {
+    const database = new InMemoryRecurringDatabase([
+      parentProject("failed-parent", TWO_OCCURRENCES),
+    ]);
+    database.latestErrors.set("failed-parent", {
+      code: "42501",
+      message: "synthetic lookup denied",
+    });
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+    expect(result).toMatchObject({
+      processedProjects: 1,
+      checkedProjects: 1,
+      successfulProjects: 0,
+      failedParents: 1,
+      createdOccurrences: 0,
+    });
+    expect(result.errors).toHaveLength(1);
+    expect(database.inserted).toHaveLength(0);
+    expect(
+      classifyWorkerResponse("generate-recurring-projects", 200, {
+        ...result,
+        failedProjects: result.errors.length,
+      }),
+    ).toMatchObject({ outcome: "failed", completed: 0, failed: 1 });
+  });
+  test("multiple occurrence errors count one failed parent while healthy parents still settle", async () => {
+    const rule = { ...TWO_OCCURRENCES, end_occurrences: 4 };
+    const database = new InMemoryRecurringDatabase([
+      parentProject("failed-parent", rule),
+      parentProject("healthy-parent", TWO_OCCURRENCES),
+    ]);
+    database.insertErrors.set("failed-parent", {
+      code: "42501",
+      message: "synthetic insert denied",
+    });
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+    expect(result).toMatchObject({
+      processedProjects: 2,
+      checkedProjects: 2,
+      successfulProjects: 1,
+      failedParents: 1,
+      createdOccurrences: 1,
+    });
+    expect(result.errors.length).toBeGreaterThan(1);
+    expect(
+      classifyWorkerResponse("generate-recurring-projects", 200, {
+        ...result,
+        failedProjects: result.errors.length,
+      }),
+    ).toMatchObject({ outcome: "partial", completed: 1, failed: 1 });
+  });
   test("processes stable pages beyond the former 20-parent prefix", async () => {
     const database = new InMemoryRecurringDatabase(
       Array.from({ length: 25 }, (_, index) =>
@@ -251,6 +319,11 @@ describe("recurring project worker pagination and catch-up", () => {
     });
 
     expect(result.processedProjects).toBe(25);
+    expect(result).toMatchObject({
+      checkedProjects: 25,
+      successfulProjects: 25,
+      failedParents: 0,
+    });
     expect(result.createdOccurrences).toBe(25);
     expect(
       new Set(database.inserted.map((row) => row.recurrence_parent_id)).size,
@@ -279,6 +352,11 @@ describe("recurring project worker pagination and catch-up", () => {
       });
 
       expect(result.processedProjects).toBe(1);
+      expect(result).toMatchObject({
+        checkedProjects: 206,
+        successfulProjects: 1,
+        failedParents: 205,
+      });
       expect(result.createdOccurrences).toBe(1);
       expect(database.inserted[0]?.recurrence_parent_id).toBe("healthy-999");
       expect(result.errors).toHaveLength(205);
