@@ -28,6 +28,7 @@ const NUMBER_KEYS = new Set([
   "active_count",
   "plugin_count",
   "occurrenceCount",
+  "elapsedMs",
 ]);
 const BOOLEAN_KEYS = new Set([
   "has_content_id",
@@ -47,6 +48,16 @@ const BOOLEAN_KEYS = new Set([
   "reductionApplied",
 ]);
 const ENUMS: Record<string, ReadonlySet<string>> = {
+  failureCode: new Set([
+    "worker_context_unavailable",
+    "workbook_metadata_unavailable",
+    "semester_tabs_unavailable",
+    "prepublication_failure",
+    "publication_outcome_unknown",
+    "unclassified_failure",
+    "workbook_exception",
+  ]),
+  disposition: new Set(["retryable", "unknown"]),
   worker: new Set([
     "project-cancellations",
     "csf-communications-dispatch",

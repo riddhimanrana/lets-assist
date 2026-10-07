@@ -17,6 +17,34 @@ afterEach(() => {
 });
 
 describe("console privacy boundary", () => {
+  test("workbook failures preserve finite recovery facts without provider text", () => {
+    const calls = capture("warn");
+    safeConsole.warn("CSF workbook refresh unsettled", {
+      failureCode: "publication_outcome_unknown",
+      disposition: "unknown",
+      elapsedMs: 123,
+      message: "private@example.test",
+      workbookId: "private-workbook",
+    });
+    expect(calls).toEqual([
+      [
+        "CSF workbook refresh unsettled",
+        {
+          failureCode: "publication_outcome_unknown",
+          disposition: "unknown",
+          elapsedMs: 123,
+        },
+      ],
+    ]);
+    for (const elapsedMs of [-1, Infinity, 1.5, 1_000_000_001]) {
+      safeConsole.warn("CSF workbook refresh unsettled", {
+        failureCode: "private@example.test",
+        disposition: "private-provider-body",
+        elapsedMs,
+      });
+      expect(calls.at(-1)).toEqual(["CSF workbook refresh unsettled", {}]);
+    }
+  });
   test("each level drops nested records, positional strings and provider messages", () => {
     for (const level of ["debug", "error", "info", "log", "warn"] as const) {
       const calls = capture(level);
