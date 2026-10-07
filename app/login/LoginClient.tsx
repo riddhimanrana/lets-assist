@@ -27,6 +27,7 @@ import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useSecureCheck } from "@/hooks/useSecureCheck";
 import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
+import { isSecureCheckBlockingSubmit } from "@/lib/auth/secure-check";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import {
   getAccountAccessErrorCode,
@@ -127,6 +128,15 @@ export default function LoginClient({
 
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
+
+    if (isSecureCheckBlockingSubmit(secureCheck.phase, turnstileToken)) {
+      toast.error(
+        secureCheck.phase === "unavailable"
+          ? "Retry the security check before signing in."
+          : "Complete the security check before signing in.",
+      );
+      return;
+    }
 
     setIsLoading(true);
 

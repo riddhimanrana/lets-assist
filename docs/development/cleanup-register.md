@@ -3132,6 +3132,12 @@ PROJECT-DRAFT-RESTORE-20260928, P1, open: opening the organization New Project r
 
 Closure requires an explicit new-project path that starts empty and respects the selected organization, a separate resume-draft action, and regression coverage proving that new creation and publication preserve existing drafts. Verify with fictional drafts in Development before a separately authorized Production release. Recovery of affected live drafts remains an operational follow-up; no private draft content belongs in this register.
 
+### Login challenge submission, September 28, 2026
+
+| Finding               | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-CHALLENGE-SUBMIT | P2, fixed in review | Password login could contact Auth with no CAPTCHA token while its widget was loading, resetting or expired. Two missing-token refusals appeared in sampled Production logs. The handler now uses the same `isSecureCheckBlockingSubmit` gate as signup before creating an Auth client. Handler tests prove blocked requests never contact Auth and ready tokens preserve the normal and local fixture paths. Hosted verification remains pending. |
+
 ### CSF 1.2.81 Production observations, September 25, 2026
 
 [Release evidence](../csf/experience-audit-20260925.md) records accepted Development `36267d05`, Production `f48ab77f`, deployment `dpl_3CdK3yLh3V5H1oPczbtrC68SUSxi`, and chapter installation 1.2.81. Full quality and hosted acceptance passed. The four previously enabled workers were restored through approved controls after chapter Update.
