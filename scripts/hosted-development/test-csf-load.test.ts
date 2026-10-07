@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { parse } from "yaml";
 
 const source = readFileSync(
   new URL("./test-csf-load.mjs", import.meta.url),
@@ -295,10 +296,54 @@ describe("hosted CSF load acceptance", () => {
     );
     expect(previewJob).toContain('[[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]');
     expect(hostedJob).not.toContain("secrets.VERCEL_TOKEN");
-    const acceptanceOnly = workflow.replace(previewStep, "");
-    expect(acceptanceOnly).not.toContain("secrets.VERCEL_TOKEN");
-    expect(acceptanceOnly).not.toContain("vars.VERCEL_TEAM_ID");
-    expect(acceptanceOnly).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    const { jobs, ...sharedConfig } = parse(workflow);
+    const unprivileged = [JSON.stringify(sharedConfig)];
+    const withoutDatabaseCredentials = [JSON.stringify(sharedConfig)];
+    const allowedProviderSteps = new Set([
+      "preview-build/Build the exact Development Preview when requested",
+      "development-cutover/Run fixed Development coordinator",
+    ]);
+    const allowedDatabaseSteps = new Set([
+      "hosted-acceptance/Provision the fixed synthetic CSF fixture",
+      "development-cutover/Run fixed Development coordinator",
+    ]);
+    const foundProviderSteps: string[] = [];
+    for (const [jobId, job] of Object.entries(jobs) as [
+      string,
+      { steps: { name?: string }[] },
+    ][]) {
+      const { steps, ...jobConfig } = job;
+      unprivileged.push(JSON.stringify(jobConfig));
+      withoutDatabaseCredentials.push(JSON.stringify(jobConfig));
+      for (const step of steps) {
+        const identity = `${jobId}/${step.name}`;
+        if (allowedProviderSteps.has(identity))
+          foundProviderSteps.push(identity);
+        else unprivileged.push(JSON.stringify(step));
+        if (!allowedDatabaseSteps.has(identity))
+          withoutDatabaseCredentials.push(JSON.stringify(step));
+      }
+    }
+    expect(foundProviderSteps.sort()).toEqual([...allowedProviderSteps].sort());
+    expect(jobs["development-cutover"].environment).toBe("development");
+    expect(jobs["development-cutover"].if).toBe(
+      "github.event_name == 'workflow_dispatch' && inputs.cutover_phase != 'none' && inputs.cutover_phase != ''",
+    );
+    for (const source of unprivileged) {
+      expect(source).not.toContain("secrets.VERCEL_TOKEN");
+      expect(source).not.toContain("vars.VERCEL_TEAM_ID");
+      expect(source).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    }
+    for (const source of withoutDatabaseCredentials) {
+      const withoutPresenceCheck = source.replaceAll(
+        "${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}",
+        "",
+      );
+      expect(withoutPresenceCheck).not.toContain(
+        "secrets.SUPABASE_SERVICE_ROLE_KEY",
+      );
+      expect(source).not.toContain("secrets.SUPABASE_SECRET_KEY");
+    }
     expect(aliasVerifier).toContain("https://dev.lets-assist.com/api/status");
     expect(aliasVerifier).not.toContain("https://api.vercel.com");
     expect(aliasVerifier).toContain("--connect-timeout 10");
@@ -389,12 +434,17 @@ describe("hosted CSF load acceptance", () => {
       '[[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]',
     );
     expect(
-      workflow.match(
+      hostedJob.match(
         /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/gu,
       ) ?? [],
     ).toHaveLength(3);
     expect(provisionStep).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
-    expect(workflow.slice(0, provisionStepStart)).not.toContain(
+    expect(
+      workflow.slice(
+        workflow.indexOf("  hosted-acceptance:"),
+        provisionStepStart,
+      ),
+    ).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
     );
     expect(workflow.slice(provisionStepEnd)).not.toContain(
