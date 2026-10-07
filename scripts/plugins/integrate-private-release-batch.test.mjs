@@ -45,14 +45,16 @@ test("a verified two-plugin batch creates one transaction, both contracts and on
   assert.equal(calls.length, 2);
   for (const [index, [binary, args, options]] of calls.entries()) {
     assert.equal(binary, "cosign");
-    assert.equal(args[0], "verify-blob");
-    assert.ok(args.includes(input.releases[index].bundlePath));
-    assert.ok(
-      args.includes(
-        `https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/${input.releases[index].tag}`,
-      ),
-    );
-    assert.ok(args.includes("https://token.actions.githubusercontent.com"));
+    assert.deepEqual(args, [
+      "verify-blob",
+      "--bundle",
+      input.releases[index].bundlePath,
+      "--certificate-identity",
+      `https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/${input.releases[index].tag}`,
+      "--certificate-oidc-issuer",
+      "https://token.actions.githubusercontent.com",
+      input.releases[index].manifestPath,
+    ]);
     assert.equal(options.timeout, 60_000);
   }
   assert.equal(result.sourceCommit, input.sourceCommit);
