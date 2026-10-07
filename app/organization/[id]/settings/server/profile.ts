@@ -2,7 +2,11 @@
 import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
-import { preparePublicImage } from "@/lib/storage/public-image";
+import {
+  ownedPublicImagePath,
+  preparePublicImage,
+} from "@/lib/storage/public-image";
+import { reservePublicImageCleanup } from "@/lib/storage/public-image-lifecycle";
 import {
   replacePublicImage,
   type ImageReferenceCommit,
@@ -180,6 +184,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
         ? await preparePublicImage(data.logoUrl)
         : null;
       const replaced = await replacePublicImage({
+        actorId: user.id,
         bucket: "organization-logos",
         ownerId: data.id,
         previousUrl: currentOrg.logo_url,
@@ -266,6 +271,22 @@ export async function deleteOrganization(organizationId: string) {
       return { error: "Organization not found" };
     }
 
+    const logoPath = ownedPublicImagePath(
+      organization.logo_url,
+      supabase.storage.from("organization-logos").getPublicUrl("").data
+        .publicUrl,
+      "organization-logos",
+      organizationId,
+    );
+    await reservePublicImageCleanup({
+      actorId: user.id,
+      bucket: "organization-logos",
+      ownerId: organizationId,
+      previousUrl: organization.logo_url,
+      previousPath: logoPath,
+      candidatePath: null,
+    });
+
     const { data: deletedOrganization, error: deleteError } = await supabase
       .from("organizations")
       .delete()
@@ -285,33 +306,10 @@ export async function deleteOrganization(organizationId: string) {
       throw new Error("Failed to delete organization");
     }
 
-    if (organization.logo_url) {
-      const fileName = organization.logo_url.split("/").pop();
-      if (fileName) {
-        try {
-          // Membership rows are gone after the proven database delete, so the
-          // privileged server client owns this idempotent post-delete cleanup.
-          const admin = getAdminClient();
-          const { error: logoRemovalError } = await admin.storage
-            .from("organization-logos")
-            .remove([fileName]);
-
-          if (logoRemovalError) {
-            safeConsole.error(
-              "Error removing deleted organization logo:",
-              logoRemovalError,
-            );
-          }
-        } catch (error) {
-          safeConsole.error("Error removing deleted organization logo:", error);
-        }
-      }
-    }
-
     // Revalidate paths
     revalidatePath("/organization");
 
-    return { success: true };
+    return { success: true, cleanupPending: Boolean(logoPath) };
   } catch (error) {
     safeConsole.error("Error deleting organization:", error);
     return {
