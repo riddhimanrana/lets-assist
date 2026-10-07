@@ -174,7 +174,9 @@ export default function DataExportSection() {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle className="text-xl">Export your data</CardTitle>
+        <CardTitle className="text-xl">
+          <h2>Export your data</h2>
+        </CardTitle>
         <CardDescription>
           Request a ZIP archive of your account records. Download it here when
           it is ready.
