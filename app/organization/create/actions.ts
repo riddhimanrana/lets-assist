@@ -231,7 +231,9 @@ export async function createOrganization(data: OrganizationCreationData) {
           ownerId: organization.id,
           previousUrl: null,
           image,
-          storage: supabase.storage.from("organization-logos"),
+          storage: getAdminClient({ timeoutMs: 10_000 }).storage.from(
+            "organization-logos",
+          ),
           commit: async (url): Promise<ImageReferenceCommit> => {
             const { data: changed, error } = await supabase
               .from("organizations")

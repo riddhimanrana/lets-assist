@@ -124,8 +124,8 @@ SELECT extensions.is(
       reviewed.with_check_expression
     ) LIKE ANY (ARRAY['%public.organization_members%', '%public.projects%'])
   ),
-  15::bigint,
-  'all fifteen membership and project authority rechecks stay schema-qualified'
+  12::bigint,
+  'all twelve membership and project authority rechecks stay schema-qualified'
 );
 
 SELECT extensions.ok(
@@ -280,8 +280,8 @@ SELECT extensions.ok(
   'a policy reachable through inherited role membership is rejected'
 );
 
-DROP POLICY "Authenticated users can upload own avatars" ON storage.objects;
-CREATE POLICY "Authenticated users can upload own avatars"
+DROP POLICY "Server owns avatar inserts" ON storage.objects;
+CREATE POLICY "Server owns avatar inserts"
   ON storage.objects
   FOR SELECT
   TO authenticated
@@ -291,7 +291,7 @@ SELECT extensions.ok(
   EXISTS (
     SELECT 1
     FROM app_private.storage_object_policy_contract_violations()
-    WHERE policy_name = 'Authenticated users can upload own avatars'
+    WHERE policy_name = 'Server owns avatar inserts'
       AND command = 'SELECT'
       AND drift_kind = 'unexpected'
   ),
