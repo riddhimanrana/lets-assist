@@ -8,6 +8,7 @@ import { notFound, redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import type { ProjectCreateAdditionalStep } from "@/types/plugin";
 import { headers } from "next/headers";
+import { projectCreationSessionId } from "@/lib/projects/creation-session";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
 export default async function CreateProjectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string; draft?: string }>;
+  searchParams: Promise<{ org?: string; draft?: string; creation?: string }>;
 }) {
   // Defensive: if this route is accidentally served on the Supabase API custom domain,
   // redirect back to the primary site domain where Next routes are hosted.
@@ -139,6 +140,7 @@ export default async function CreateProjectPage({
   const search = await searchParams;
   const orgIdFromUrl = search?.org || undefined;
   const draftIdFromUrl = search?.draft || undefined;
+  const creationSessionId = projectCreationSessionId(search?.creation);
 
   // If org ID is provided, verify permission and assign initialOrgId
   let initialOrgId = undefined;
@@ -245,7 +247,8 @@ export default async function CreateProjectPage({
   return (
     <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
       <ProjectCreator
-        key={loadedDraftId ?? `new:${initialOrgId ?? "personal"}`}
+        key={creationSessionId}
+        creationSessionId={creationSessionId}
         initialOrgId={initialOrgId}
         initialOrgOptions={orgOptions}
         canUsePublicVisibility={canUsePublicVisibility}

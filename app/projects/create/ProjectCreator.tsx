@@ -51,6 +51,10 @@ import {
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
 import { createProjectDraftSession } from "@/lib/projects/draft-session";
+import {
+  projectAttemptStorage,
+  projectCreationUrl,
+} from "@/lib/projects/creation-session";
 import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import {
   clearStagedWaiverAttempt,
@@ -91,6 +95,7 @@ interface Draft {
 }
 
 interface ProjectCreatorProps {
+  creationSessionId: string;
   initialOrgId?: string;
   initialOrgOptions?: {
     id: string;
@@ -122,6 +127,7 @@ type UploadedProjectDocument = {
 };
 
 export default function ProjectCreator({
+  creationSessionId,
   initialOrgId,
   initialOrgOptions,
   canUsePublicVisibility = true,
@@ -167,6 +173,31 @@ export default function ProjectCreator({
   } = useEventForm({ draft: initialDraftData, organizationId: initialOrgId });
 
   const router = useRouter();
+  const editorMountedRef = useRef(false);
+  const updateDraftUrl = useCallback(
+    (draftId?: string, initialize = false) => {
+      const url = new URL(window.location.href);
+      if (
+        !editorMountedRef.current ||
+        url.pathname !== "/projects/create" ||
+        (!initialize && url.searchParams.get("creation") !== creationSessionId)
+      )
+        return;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        projectCreationUrl(window.location.href, creationSessionId, draftId),
+      );
+    },
+    [creationSessionId],
+  );
+  useEffect(() => {
+    editorMountedRef.current = true;
+    updateDraftUrl(undefined, true);
+    return () => {
+      editorMountedRef.current = false;
+    };
+  }, [updateDraftUrl]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -357,6 +388,7 @@ export default function ProjectCreator({
 
         if (result.autosaved && result.id) {
           setAutosaveDraftId(draftSession.id);
+          updateDraftUrl(draftSession.id);
 
           setAutosaveStatus("saved");
           setLastAutosaveTime(new Date());
@@ -396,6 +428,7 @@ export default function ProjectCreator({
     isSavingDraft,
     getDraftSafeState,
     draftSession,
+    updateDraftUrl,
   ]);
 
   // Handle AI-generated data
@@ -989,8 +1022,17 @@ export default function ProjectCreator({
   // The attempt lives in browser storage, not in a ref, so a reload between
   // creating the staged row and publishing it resumes the same project instead
   // of stranding an invisible draft and inserting a duplicate on retry.
-  const attemptStorage = (): Storage | null =>
-    typeof window === "undefined" ? null : window.localStorage;
+  const attemptStorage = () => {
+    try {
+      return projectAttemptStorage(
+        window.localStorage,
+        creationSessionId,
+        draftSession.id,
+      );
+    } catch {
+      return null;
+    }
+  };
 
   const persistAttempt = (attempt: StagedWaiverAttempt) => {
     writeStagedWaiverAttempt(attemptStorage(), attempt);
@@ -1276,6 +1318,7 @@ export default function ProjectCreator({
       toast.dismiss(loadingToast);
       setAutosaveDraftId(draftSession.id);
       toast.success("New draft saved. Further edits will update this draft.");
+      updateDraftUrl(draftSession.id);
 
       // Refresh the page to update the drafts list
       router.refresh();
