@@ -86,7 +86,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
   test("preserves remote revocation when local credential cleanup fails", () => {
     const service = readSource("services/calendar-operations.ts");
     const deleteFailure = service.slice(
-      service.indexOf("if (deactivateError)"),
+      service.indexOf("if (deactivateError || !deletedConnection)"),
       service.indexOf("return { success: true, remoteRevocation"),
     );
 

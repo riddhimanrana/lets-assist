@@ -50,9 +50,14 @@ mock.module("@/lib/supabase/admin", () => ({
       from: (table: string) => {
         const filters: Record<string, unknown> = {};
         let update: unknown;
+        let removed = false;
         const result = () => {
-          if (update) {
-            writes.push({ table, filters: { ...filters }, data: update });
+          if (update || removed) {
+            writes.push({
+              table,
+              filters: { ...filters },
+              data: removed ? "delete" : update,
+            });
             return {
               data: writeFailure ? null : { id: connectionId },
               error:
@@ -95,12 +100,20 @@ mock.module("@/lib/supabase/admin", () => ({
             filters[key] = value;
             return query;
           },
+          neq: (key: string, value: unknown) => {
+            filters[`not:${key}`] = value;
+            return query;
+          },
           is: (key: string, value: unknown) => {
             filters[key] = value;
             return query;
           },
           update: (data: unknown) => {
             update = data;
+            return query;
+          },
+          delete: () => {
+            removed = true;
             return query;
           },
           maybeSingle: async () => result(),
@@ -461,3 +474,55 @@ test("revocation keeps the token out of URLs and refuses transport failures", as
 test("invalid stored expiry never treats a token as fresh", () => {
   expect(isTokenExpired("not-a-date")).toBe(true);
 });
+
+test("disconnect acknowledges only deletion of the unchanged credential", async () => {
+  expect(await deactivateGoogleConnection(owner)).toEqual({
+    success: true,
+    remoteRevocation: "revoked",
+    localCleanup: "removed",
+  });
+  expect(requests[0].url).toBe("https://oauth2.googleapis.com/revoke");
+  expect(writes).toEqual([
+    {
+      table: "user_calendar_connections",
+      filters: {
+        id: connectionId,
+        user_id: owner,
+        provider: "google",
+        is_active: true,
+        access_token: "fictional-access-ciphertext",
+        refresh_token: "fictional-refresh-ciphertext",
+        token_expires_at: expires,
+      },
+      data: "delete",
+    },
+  ]);
+});
+
+test.each(["subject", "binding", "credentials"])(
+  "disconnect preserves a concurrent %s change after provider revocation",
+  async (change) => {
+    revokeDuringRefresh = change === "subject";
+    disconnectDuringRefresh = change === "binding";
+    replaceCredentialsDuringRefresh = change === "credentials";
+    expect(await deactivateGoogleConnection(owner)).toMatchObject({
+      success: false,
+      remoteRevocation: "revoked",
+      localCleanup: "failed",
+    });
+    expect(writes).toEqual([]);
+  },
+);
+
+test.each(["error", "missing"] as const)(
+  "disconnect reports incomplete cleanup when guarded deletion returns %s",
+  async (failure) => {
+    writeFailure = failure;
+    expect(await deactivateGoogleConnection(owner)).toMatchObject({
+      success: false,
+      remoteRevocation: "revoked",
+      localCleanup: "failed",
+    });
+    expect(writes).toHaveLength(1);
+  },
+);

@@ -246,16 +246,42 @@ export async function deactivateGoogleConnection(
     }
   }
 
-  // Delete rather than retaining an inactive refresh token. The binding row is
-  // removed by FK cascade, so reconnect always creates a fresh exact binding.
-  const { error: deactivateError } = await supabase
+  // Recheck after provider I/O so a changed session or reconnect keeps its row.
+  const currentConnection = await getGoogleOAuthConnectionForBinding(
+    userId,
+    expectedBinding,
+    { activeOnly: false, useServiceRole: options.useServiceRole },
+  );
+  if (
+    !currentConnection ||
+    currentConnection.id !== connection.id ||
+    currentConnection.access_token !== connection.access_token ||
+    currentConnection.refresh_token !== connection.refresh_token ||
+    currentConnection.token_expires_at !== connection.token_expires_at
+  ) {
+    return {
+      success: false,
+      error: "Google connection changed. Refresh the page and try again.",
+      remoteRevocation,
+      localCleanup: "failed",
+    };
+  }
+
+  // Remove only this unchanged credential. Its binding is removed by FK cascade.
+  const { data: deletedConnection, error: deactivateError } = await supabase
     .from("user_calendar_connections")
     .delete()
     .eq("id", connection.id)
     .eq("user_id", userId)
-    .eq("provider", "google");
+    .eq("provider", "google")
+    .eq("is_active", connection.is_active)
+    .eq("access_token", connection.access_token)
+    .eq("refresh_token", connection.refresh_token)
+    .eq("token_expires_at", connection.token_expires_at)
+    .select("id")
+    .maybeSingle();
 
-  if (deactivateError) {
+  if (deactivateError || !deletedConnection) {
     safeConsole.error(
       "Failed to deactivate Google connection:",
       deactivateError,
