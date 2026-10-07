@@ -27,6 +27,10 @@ on:
         description: "Required with local override: describe local evidence and acceptance of skipped hosted/remote CI checks (20-1000 characters)"
         required: false
         type: string
+      local_validation_evidence:
+        description: "Required with local override: JSON receipt and six sanitized reports, maximum 48 KiB. Never include secrets or real user data."
+        required: false
+        type: string
       production_confirmation:
         description: "Type apply-forward-migrations:<release SHA>"
         required: true
@@ -83,6 +87,7 @@ jobs:
         working-directory: release
         env:
           GH_TOKEN: ${{ github.token }}
+          LOCAL_VALIDATION_EVIDENCE: ${{ inputs.local_validation_evidence }}
         run: |
           set -euo pipefail
           mkdir -p .artifacts
@@ -95,6 +100,14 @@ jobs:
           path: release/.artifacts/source-verification.json
           if-no-files-found: ignore
           retention-days: 30
+      - name: Recheck local evidence before provider mutation
+        if: ${{ inputs.local_validation_confirmation != '' || inputs.local_validation_reason != '' || inputs.local_validation_evidence != '' }}
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCAL_VALIDATION_EVIDENCE: ${{ inputs.local_validation_evidence }}
+        run: node ../scripts/production/app-release-checks.mjs source > /dev/null
+
       - name: Apply the approved migration bytes once
         working-directory: release
         env:
