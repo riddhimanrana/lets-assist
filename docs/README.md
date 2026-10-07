@@ -30,6 +30,7 @@ This directory is the canonical documentation home for humans and coding agents.
 
 - [Environment model](development/environments.md)
 - [Testing and acceptance](development/testing.md)
+- [Dependency security](development/dependency-security.md)
 - [Deployment model](development/deployment.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Plugin quickstart](development/plugin-quickstart.md)
