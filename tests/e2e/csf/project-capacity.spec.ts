@@ -9,6 +9,16 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
   const fixture = await loadCsfFeedFixture();
   const projectId = randomUUID();
   const title = `E2E occupancy ${randomUUID()}`;
+  const externalRequests: string[] = [];
+  await page.context().route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) {
+      await route.continue();
+    } else {
+      externalRequests.push(url.origin);
+      await route.abort("blockedbyclient");
+    }
+  });
   const project = {
     id: projectId,
     creator_id: fixture.organizationAdminUserId,
@@ -64,6 +74,8 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
     await page.route("**/api/projects?*", async (route) => {
       const url = new URL(route.request().url());
       if (
+        url.origin === new URL(page.url()).origin &&
+        route.request().method() === "GET" &&
         url.searchParams.get("search") === title &&
         unavailableReplies === 0
       ) {
@@ -75,7 +87,7 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
             error: "Projects are temporarily unavailable. Please try again.",
           }),
         });
-      } else await route.continue();
+      } else await route.fallback();
     });
     await loginAs(page, "member", "/home");
     const search = page
@@ -124,6 +136,7 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
         exact: true,
       }),
     ).toHaveCount(0);
+    expect(externalRequests).toEqual([]);
   } finally {
     const signups = await fixture.admin
       .from("project_signups")

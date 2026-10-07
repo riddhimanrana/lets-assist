@@ -93,6 +93,33 @@ test("self-reported hours reject a missing local time and preserve a DST interva
     await expect(
       dialog.getByText("Duration: 1h", { exact: true }),
     ).toBeVisible();
+    let capturedResult:
+      | { success: boolean; certificate: { id: string; type: string } }
+      | undefined;
+    let forwardedSubmissions = 0;
+    const origin = new URL(page.url()).origin;
+    await page.route("**/api/self-reported-hours", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        url.origin !== origin ||
+        url.pathname !== "/api/self-reported-hours" ||
+        request.method() !== "POST"
+      ) {
+        await route.fallback();
+        return;
+      }
+      const body = request.postDataJSON();
+      if (body.title !== title || body.startTime !== "01:30") {
+        await route.fallback();
+        return;
+      }
+      const response = await route.fetch({ maxRedirects: 0 });
+      const responseBody = await response.body();
+      capturedResult = JSON.parse(responseBody.toString());
+      forwardedSubmissions++;
+      await route.fulfill({ response, body: responseBody });
+    });
     const validResponse = page.waitForResponse(
       (response) =>
         new URL(response.url()).pathname === "/api/self-reported-hours" &&
@@ -103,7 +130,9 @@ test("self-reported hours reject a missing local time and preserve a DST interva
       .click();
     const valid = await validResponse;
     expect(valid.status()).toBe(200);
-    const result = await valid.json();
+    expect(forwardedSubmissions).toBe(1);
+    expect(capturedResult).toBeDefined();
+    const result = capturedResult!;
     expect(result.success).toBe(true);
     expect(result.certificate.type).toBe("self-reported");
     const stored = await admin
