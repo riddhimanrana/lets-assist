@@ -28,7 +28,6 @@ import {
   formatProjectToCalendarEvent,
   getCalendarConnection,
   getGoogleCalendarAccessState,
-  getOrCreateVolunteeringCalendar,
   getValidAccessToken,
   hasRequiredScopes,
   isTokenExpired,
@@ -244,82 +243,16 @@ export async function createGoogleCalendarEvent(
   project: Project,
   scheduleId?: string,
 ): Promise<string | null> {
-  const accessToken = await getValidAccessToken(userId);
-  if (!accessToken) {
-    throw new Error("No valid calendar connection found");
-  }
-
-  // Get or create dedicated volunteering calendar
-  const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
-  if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
-    throw new Error("Failed to access volunteering calendar");
-  }
-
-  const eventData = formatProjectToCalendarEvent(project, scheduleId);
-  if (!eventData) {
-    throw new Error("Invalid project schedule data");
-  }
-
-  // Handle single event
-  if (!Array.isArray(eventData)) {
-    try {
-      const response = await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-          calendarId,
-        )}/events`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(eventData),
-        },
-      );
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Failed to create calendar event:", error);
-        throw new Error("Failed to create calendar event");
-      }
-
-      const result = await response.json();
-      return result.id;
-    } catch (error) {
-      console.error("Error creating calendar event:", error);
-      throw error;
-    }
-  }
-
-  // Handle multiple events (shouldn't happen with scheduleId, but just in case)
-  const eventIds: string[] = [];
-  for (const event of eventData) {
-    try {
-      const response = await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-          calendarId,
-        )}/events`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(event),
-        },
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        eventIds.push(result.id);
-      }
-    } catch (error) {
-      console.error("Error creating calendar event:", error);
-    }
-  }
-
-  return eventIds.length > 0 ? eventIds[0] : null;
+  const { synchronizePersonalCalendar } = await import("./personal-calendar");
+  const result = await synchronizePersonalCalendar({
+    userId,
+    sourceKind: "project",
+    sourceId: project.id,
+    operation: "sync",
+    project,
+    scheduleId,
+  });
+  return result.eventId;
 }
 
 /**

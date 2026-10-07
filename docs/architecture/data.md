@@ -90,6 +90,16 @@ Browser roles cannot read or mutate these receipts, or invoke either actor-takin
 RPC. Legacy records can remove their one stored event ID; occurrences that old
 code created without storing an ID still require provider reconciliation.
 
+Personal calendar destinations use the existing
+`plugin_data.csf_personal_calendar_destinations` ledger for both platform and CSF
+events. Its service-only public wrappers take the account deletion lock before
+reserving a provider attempt. Unknown creation outcomes block new calendars.
+Legacy preference IDs may be adopted only after Google confirms the exact live,
+non-primary calendar is owned by the connected account. Adoption locks the
+current OAuth binding and preferences and never replaces an existing ledger
+entry. Deleted-source event receipts appear in the account calendar cleanup
+list, limited to 100 entries per read; removing entries reveals the next batch.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

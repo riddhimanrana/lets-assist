@@ -94,7 +94,7 @@ async function beginCsfPersonalCalendarDestinationClaim(input: {
   replaceCalendarId: string | null;
   allowCreate: boolean;
 }): Promise<CsfPersonalCalendarDestinationClaim | null> {
-  const admin = getAdminClient().schema("plugin_data");
+  const admin = getAdminClient();
   const { data, error } = await admin.rpc(
     "csf_begin_personal_calendar_destination_provision",
     {
@@ -116,7 +116,7 @@ async function completeCsfPersonalCalendarDestinationClaim(input: {
   calendarId: string | null;
   outcomeCode: string | null;
 }): Promise<boolean> {
-  const admin = getAdminClient().schema("plugin_data");
+  const admin = getAdminClient();
   const { error } = await admin.rpc(
     "csf_complete_personal_calendar_destination_provision",
     {
@@ -262,6 +262,7 @@ export async function getCsfPersonalCalendarProviderContext(
         timeZone: "America/Los_Angeles",
       }),
       signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS),
+      redirect: "error",
     });
 
     if (response.status === 401 || response.status === 403) {

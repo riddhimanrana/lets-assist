@@ -408,88 +408,9 @@ export async function getOrCreateVolunteeringCalendar(
   accessToken: string,
   userId: string,
 ): Promise<string | null> {
-  const supabase = await createClient();
-
-  // Check if we have a stored calendar ID
-  const connection = await getCalendarConnection(userId);
-  if (connection?.preferences?.volunteering_calendar_id) {
-    const accessState = await getGoogleCalendarAccessState(
-      accessToken,
-      connection.preferences.volunteering_calendar_id,
-    );
-    if (accessState.status === "accessible") {
-      return connection.preferences.volunteering_calendar_id;
-    }
-    // Only a confirmed 404 authorizes replacement. Every ambiguous provider
-    // outcome retains the existing calendar identity for explicit review.
-    if (accessState.status !== "missing") {
-      return null;
-    }
-  }
-
-  // Calendar doesn't exist or isn't stored, create a new one
-  try {
-    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        summary: "Let's Assist Volunteering",
-        description: "Volunteer events and shifts from Let's Assist platform",
-        timeZone: "America/Los_Angeles",
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to create personal volunteering calendar", {
-        status: response.status,
-      });
-      return null;
-    }
-
-    const calendar = await response.json();
-    const calendarId = calendar.id;
-
-    // Set calendar color to darker green (Sage - #33B679)
-    try {
-      await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            colorId: "3", // Sage green in Google Calendar (one index higher than Basil)
-          }),
-        },
-      );
-    } catch {
-      console.error("Failed to set personal volunteering calendar color");
-      // Non-critical, continue anyway
-    }
-
-    // Store the calendar ID in the user's connection preferences
-    if (connection) {
-      await supabase
-        .from("user_calendar_connections")
-        .update({
-          preferences: {
-            ...connection.preferences,
-            volunteering_calendar_id: calendarId,
-          },
-        })
-        .eq("id", connection.id);
-    }
-
-    return calendarId;
-  } catch (error) {
-    console.error("Error creating volunteering calendar:", error);
-    return null;
-  }
+  const { getDurablePersonalCalendarDestination } =
+    await import("./personal-calendar/destination");
+  return getDurablePersonalCalendarDestination(accessToken, userId);
 }
 
 export async function getGoogleCalendarAccessState(
@@ -505,6 +426,7 @@ export async function getGoogleCalendarAccessState(
           Authorization: `Bearer ${accessToken}`,
         },
         signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS),
+        redirect: "error",
       },
     );
 

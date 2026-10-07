@@ -902,7 +902,11 @@ personal_calendar_receipt_drift="$(
   psql "$DB_URL" -AtF $'\t' -c "
     with expected(signature) as (values
       ('public.claim_personal_calendar_sync(uuid,text,uuid,text,text,text)'),
-      ('public.advance_personal_calendar_sync(uuid,text,uuid,uuid,text,jsonb)')
+      ('public.advance_personal_calendar_sync(uuid,text,uuid,uuid,text,jsonb)'),
+      ('public.csf_begin_personal_calendar_destination_provision(uuid,uuid,uuid,text,boolean)'),
+      ('public.csf_complete_personal_calendar_destination_provision(uuid,uuid,text,text,text)'),
+      ('public.adopt_verified_personal_calendar_destination(uuid,uuid,text)'),
+      ('public.list_personal_calendar_cleanup(uuid)')
     )
     select expected.signature
     from expected left join pg_catalog.pg_proc p on p.oid = pg_catalog.to_regprocedure(expected.signature)

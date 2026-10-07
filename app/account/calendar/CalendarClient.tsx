@@ -33,9 +33,11 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { CalendarConnection } from "@/types";
+import type { CalendarCleanupEvent } from "@/services/personal-calendar/cleanup";
 import { removeSyncedCalendarEvent } from "@/lib/calendar-remove-event";
 
 interface CalendarClientProps {
+  cleanupEvents?: CalendarCleanupEvent[];
   connection: CalendarConnection | null;
   legacyReconnectRequired: boolean;
   creatorProjects: Array<{
@@ -66,6 +68,7 @@ interface CalendarClientProps {
 }
 
 export default function CalendarClient({
+  cleanupEvents = [],
   connection,
   legacyReconnectRequired,
   creatorProjects,
@@ -117,8 +120,8 @@ export default function CalendarClient({
 
   const handleRemoveEvent = async (
     event:
-      | CalendarClientProps["creatorProjects"][number]
-      | CalendarClientProps["volunteerSignups"][number],
+      | { id: string; creator_calendar_event_id: string }
+      | { id: string; volunteer_calendar_event_id: string },
   ) => {
     setRemovingEventId(event.id);
     try {
@@ -362,6 +365,57 @@ export default function CalendarClient({
             </CardContent>
           </Card>
         )}
+
+      {cleanupEvents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Calendar entries awaiting removal</CardTitle>
+            <CardDescription>
+              These entries remain in Google Calendar after their project or
+              signup was removed. Removing an entry clears every occurrence in
+              its saved calendar plan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {cleanupEvents.map((event) => (
+              <div
+                key={`${event.source_kind}:${event.source_id}`}
+                className="flex items-center justify-between gap-4"
+              >
+                <span>
+                  {event.source_kind === "project"
+                    ? "Removed project"
+                    : "Removed volunteer signup"}
+                </span>
+                <Button
+                  variant="outline"
+                  disabled={removingEventId !== null}
+                  onClick={() =>
+                    handleRemoveEvent(
+                      event.source_kind === "project"
+                        ? {
+                            id: event.source_id,
+                            creator_calendar_event_id: event.event_id,
+                          }
+                        : {
+                            id: event.source_id,
+                            volunteer_calendar_event_id: event.event_id,
+                          },
+                    )
+                  }
+                >
+                  Remove from calendar
+                </Button>
+              </div>
+            ))}
+            {cleanupEvents.length === 100 && (
+              <p className="text-sm text-muted-foreground">
+                More entries may remain. This list refreshes as you remove them.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* How It Works */}
       <Card>
