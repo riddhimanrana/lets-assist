@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
+let observationCalls = 0;
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    _worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls++;
+    return operation();
+  },
+}));
 
 /**
  * WHO MAY MAKE THIS ROUTE SEND MAIL, and the exact opt-in that lets it.
@@ -239,6 +249,7 @@ function literalHeaderRequest(authorization: string) {
 }
 
 beforeEach(() => {
+  observationCalls = 0;
   rpcCalls.length = 0;
   sendCalls.length = 0;
   schedulerScopeHandler = () => ({
@@ -320,6 +331,7 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
         deadlineReached: false,
       });
       expect(rpcCalls, String(value)).toHaveLength(0);
+      expect(observationCalls, String(value)).toBe(0);
       expect(sendCalls, String(value)).toHaveLength(0);
     }
   });
@@ -346,6 +358,7 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
     // THE ASSERTION THAT MATTERS. Not "it returned 401" -- that the ledger was
     // never touched and no provider call was made.
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toBe(0);
     expect(sendCalls).toHaveLength(0);
   });
 
@@ -541,6 +554,7 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
 
     expect(response.status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toBe(0);
     expect(sendCalls).toHaveLength(0);
   });
 
@@ -553,6 +567,7 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
 
     expect(response.status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toBe(0);
     expect(sendCalls).toHaveLength(0);
   });
 
@@ -565,6 +580,7 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
 
     expect(response.status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toBe(0);
     expect(sendCalls).toHaveLength(0);
     process.env.CRON_TOKEN = "synthetic-cron-token";
   });

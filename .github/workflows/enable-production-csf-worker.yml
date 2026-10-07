@@ -22,6 +22,10 @@ on:
         description: "Exact SHA currently served by lets-assist.com"
         required: true
         type: string
+      monitoring_evidence:
+        description: "For communications enable only: bounded JSON scheduler and tested missed-run alert receipt for the exact release"
+        required: false
+        type: string
       production_confirmation:
         description: "Type enable-csf-worker:<worker>:<SHA> or disable-csf-worker:<worker>:<SHA>"
         required: true
@@ -63,6 +67,7 @@ jobs:
           WORKER: ${{ inputs.worker }}
           WORKER_ENABLED: ${{ inputs.enabled }}
           CONFIRMATION: ${{ inputs.production_confirmation }}
+          WORKER_MONITORING_EVIDENCE: ${{ inputs.monitoring_evidence }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}

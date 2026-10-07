@@ -1,4 +1,5 @@
 import "server-only";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -374,6 +375,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  return observeWorkerRun("csf-communications-dispatch", runEnabledWorker);
+}
+
+async function runEnabledWorker() {
   const startedAt = Date.now();
   const runDeadlineMs = configuredRunDeadlineMs();
   const deadlineAt = startedAt + runDeadlineMs;
