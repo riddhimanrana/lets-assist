@@ -23,7 +23,7 @@ export async function DELETE(request: Request) {
     }
 
     // Validate request body
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const validation = removeCalendarEventSchema.safeParse(body);
 
     if (!validation.success) {
@@ -34,6 +34,31 @@ export async function DELETE(request: Request) {
     }
 
     const { event_id, event_type } = validation.data;
+
+    const table = event_type === "creator" ? "projects" : "project_signups";
+    const ownerColumn = event_type === "creator" ? "creator_id" : "user_id";
+    const eventColumn =
+      event_type === "creator"
+        ? "creator_calendar_event_id"
+        : "volunteer_calendar_event_id";
+    const { data: ownedRecord, error: ownershipError } = await supabase
+      .from(table)
+      .select("id")
+      .eq(ownerColumn, user.id)
+      .eq(eventColumn, event_id)
+      .maybeSingle();
+    if (ownershipError) {
+      return NextResponse.json(
+        { error: "Unable to verify calendar event ownership" },
+        { status: 503 },
+      );
+    }
+    if (!ownedRecord) {
+      return NextResponse.json(
+        { error: "Calendar event not found" },
+        { status: 404 },
+      );
+    }
 
     // Delete from Google Calendar
     const deleted = await deleteGoogleCalendarEvent(user.id, event_id);
@@ -46,24 +71,36 @@ export async function DELETE(request: Request) {
     }
 
     // Update database based on event type
-    if (event_type === "creator") {
-      await supabase
-        .from("projects")
-        .update({
-          creator_calendar_event_id: null,
-          creator_synced_at: null,
-        })
-        .eq("creator_id", user.id)
-        .eq("creator_calendar_event_id", event_id);
-    } else {
-      await supabase
-        .from("project_signups")
-        .update({
-          volunteer_calendar_event_id: null,
-          volunteer_synced_at: null,
-        })
-        .eq("user_id", user.id)
-        .eq("volunteer_calendar_event_id", event_id);
+    const update =
+      event_type === "creator"
+        ? supabase
+            .from("projects")
+            .update({
+              creator_calendar_event_id: null,
+              creator_synced_at: null,
+            })
+            .eq("creator_id", user.id)
+            .eq("creator_calendar_event_id", event_id)
+        : supabase
+            .from("project_signups")
+            .update({
+              volunteer_calendar_event_id: null,
+              volunteer_synced_at: null,
+            })
+            .eq("user_id", user.id)
+            .eq("volunteer_calendar_event_id", event_id);
+    const { data: clearedRecord, error: clearError } = await update
+      .eq("id", ownedRecord.id)
+      .select("id")
+      .maybeSingle();
+    if (clearError || !clearedRecord) {
+      return NextResponse.json(
+        {
+          error:
+            "The provider event was removed but local sync state could not be confirmed. Refresh before retrying.",
+        },
+        { status: 409 },
+      );
     }
 
     return NextResponse.json({

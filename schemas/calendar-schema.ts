@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GOOGLE_EVENT_ID_PATTERN } from "@/lib/google-calendar-identifiers";
 
 // Calendar Provider Schema
 export const calendarProviderSchema = z.enum(["google"]);
@@ -50,7 +51,9 @@ export const syncSignupSchema = z.object({
 
 // Remove Event from Calendar Schema
 export const removeCalendarEventSchema = z.object({
-  event_id: z.string().min(1, "Calendar event ID is required"),
+  event_id: z
+    .string()
+    .regex(GOOGLE_EVENT_ID_PATTERN, "Invalid calendar event ID"),
   event_type: z.enum(["creator", "volunteer"]),
 });
 
