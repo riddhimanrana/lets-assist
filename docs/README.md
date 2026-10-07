@@ -48,6 +48,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Post-project suite: paper signups, feedback, follow-up email](development/post-project-suite.md)
 - [Project cancellation worker](development/project-cancellation-worker.md)
 - [Worker execution health](development/worker-health.md)
+- [Public image cleanup](development/public-image-cleanup.md)
 - [Google Cross-Account Protection](development/google-cross-account-protection.md)
 - [Database simplification roadmap](development/database-simplification-roadmap.md)
 - [Dependency modernization ledger](development/dependency-modernization.md)
