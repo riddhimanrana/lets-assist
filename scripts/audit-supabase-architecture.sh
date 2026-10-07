@@ -864,6 +864,8 @@ public_client_function_acl_drift="$(
         ('public.cancel_project_transactional(uuid,text)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid)', 'authenticated'),
         ('public.end_recurring_project_series_transactional(uuid,jsonb)', 'authenticated'),
+        ('public.enforce_application_request_write_fence()', 'anon'),
+        ('public.enforce_application_request_write_fence()', 'authenticated'),
         ('public.get_csf_application_role_context(uuid,text)', 'authenticated'),
         ('public.get_plugin_application_access_context(uuid,text,text)', 'authenticated'),
         ('public.get_plugin_application_access_context_by_identifier(text,text,text)', 'authenticated'),
