@@ -102,6 +102,16 @@ An organization sheet sync requires its creator for OAuth and authorization. Del
 
 Account removal uses `preflight_account_deletion`, `begin_account_deletion`, `claim_account_deletion_cleanup`, and `advance_account_deletion_cleanup`. These are service-only functions. Self-service deletion requires fresh Auth and completed MFA; the administrative blacklist action uses the same protocol after its super-admin guard. The preflight reports blockers without writing. The database phase takes the account write mutex and the existing organization membership mutex, locks the affected rows, and repeats the checks before changing any personal records.
 
+Google OAuth credentials in `public.user_calendar_connections` are service-only.
+Anonymous and authenticated roles have no table or column privileges, including
+for their own accounts. Default server reads verify the current Auth user and
+match the requested subject before opening the service client. They then resolve
+the exact user, provider, purpose, organization, and plugin binding. Trusted
+workers and already-authorized plugin services opt into service access explicitly.
+Credential writes retain the connection and user predicates. Browser responses
+use display DTOs, never credential rows. Provider refresh and disconnect use the
+same boundary; changing a page's selected columns does not replace database ACLs.
+
 Removal refuses unresolved organization ownership, the last active admin, sync ownership, other project participants, signed waivers, paper attendance, publication receipts, active exports, connected providers, unfinished calendar cleanup, and plugin account/project references. These need their own reviewed transfer or retention workflow. They are never silently cascaded away. Certificates, moderation evidence, and audit rows retain their receipt history with nullable personal links detached. Account removal is not a blanket promise to erase organization evidence.
 
 The database transaction snapshots at most 500 personal avatar/export objects into `app_private.account_deletion_storage_objects`, detaches reports, removes eligible personal rows, and commits an `external_pending` operation. An error rolls back that whole phase and leaves a safe failure receipt. Only personal UUID-prefixed avatar paths and UUID-directory data exports qualify. Other owned Storage objects block removal. Cleanup uses the Storage API in batches of 100 and independently checks catalog absence before acknowledging each batch. It never deletes the Storage catalog directly.
