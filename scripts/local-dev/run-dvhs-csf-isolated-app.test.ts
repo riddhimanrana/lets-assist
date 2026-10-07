@@ -242,8 +242,12 @@ describe("the isolated app child environment is built, not inherited", () => {
     }
   });
 
-  test("every worker flag, including both CSF workers, is false", () => {
-    const { childEnv } = build();
+  test("every worker flag stays false even when enabled in the host", () => {
+    const { childEnv } = build({
+      hostEnv: Object.fromEntries(
+        DISABLED_WORKER_ENV_KEYS.map((key: string) => [key, "true"]),
+      ),
+    });
     expect(DISABLED_WORKER_ENV_KEYS).toContain(
       "CSF_COMMUNICATIONS_WORKER_ENABLED",
     );
