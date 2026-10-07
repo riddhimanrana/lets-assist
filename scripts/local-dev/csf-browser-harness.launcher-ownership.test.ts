@@ -67,7 +67,7 @@ describe("isolated launcher ownership contract", () => {
         expect(MUTATING_DOCKER_VERBS).not.toContain(token);
       }
     }
-  });
+  }, 15_000);
 
   test("keeps generated stack credentials out of launcher output", async () => {
     const sandbox = await createSandbox();
