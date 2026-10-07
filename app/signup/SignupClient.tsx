@@ -215,15 +215,12 @@ export default function SignupClient({
                 </>
               )}
             </Button>
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/80" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
-                  Or continue with
-                </span>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-border h-px flex-1" aria-hidden="true" />
+              <span className="text-muted-foreground text-xs font-medium">
+                Or continue with
+              </span>
+              <span className="bg-border h-px flex-1" aria-hidden="true" />
             </div>
             <Controller
               control={form.control}
