@@ -1,37 +1,42 @@
 -- Public project visibility never grants access to staff review columns.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(57);
+SELECT extensions.plan(85);
 
 SELECT extensions.ok((SELECT relrowsecurity FROM pg_class
   WHERE oid = 'public.projects'::regclass), 'project row security stays enabled');
 SELECT extensions.results_eq(
-  $$SELECT role_name, columns FROM app_private.client_relation_grant_catalog()
-    WHERE relation_name = 'projects' AND privilege = 'SELECT' ORDER BY role_name$$,
-  $$SELECT role_name, ARRAY(SELECT attname::text FROM pg_attribute
+  $$SELECT role_name, privilege, columns FROM app_private.client_relation_grant_catalog()
+    WHERE relation_name = 'projects' AND privilege IN ('SELECT', 'INSERT', 'UPDATE') ORDER BY role_name, privilege$$,
+  $$SELECT role_name, privilege, ARRAY(SELECT attname::text FROM pg_attribute
       WHERE attrelid = 'public.projects'::regclass AND attnum > 0 AND NOT attisdropped
         AND attname NOT IN ('review_notes', 'reviewed_by', 'reviewed_at') ORDER BY attname)
-    FROM (VALUES ('anon'::text), ('authenticated'::text)) client(role_name) ORDER BY role_name$$,
-  'both browser roles receive every existing project column except the three review fields');
+    FROM (VALUES ('anon'::text, 'SELECT'::text), ('authenticated', 'SELECT'),
+      ('authenticated', 'INSERT'), ('authenticated', 'UPDATE')) client(role_name, privilege) ORDER BY role_name, privilege$$,
+  'browser column grants exclude only the three review fields and preserve their prior operations');
 
 SELECT extensions.ok(NOT has_table_privilege(role_name, 'public.projects', 'SELECT'),
   role_name || ' has no whole-table project read grant')
 FROM (VALUES ('anon'), ('authenticated')) client(role_name);
-SELECT extensions.ok(NOT has_column_privilege(role_name, 'public.projects', column_name, 'SELECT'),
-  role_name || ' has no effective read grant for ' || column_name)
+SELECT extensions.ok(NOT has_column_privilege(role_name, 'public.projects', column_name, privilege),
+  role_name || ' has no effective ' || privilege || ' grant for ' || column_name)
 FROM (VALUES ('anon'), ('authenticated')) client(role_name)
-CROSS JOIN unnest(ARRAY['review_notes', 'reviewed_by', 'reviewed_at']) field(column_name);
+CROSS JOIN unnest(ARRAY['review_notes', 'reviewed_by', 'reviewed_at']) field(column_name)
+CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE']) action(privilege);
 SELECT extensions.is((SELECT count(*) FROM pg_attribute a
   CROSS JOIN LATERAL aclexplode(a.attacl) acl
   WHERE a.attrelid = 'public.projects'::regclass
     AND a.attname IN ('review_notes', 'reviewed_by', 'reviewed_at')
-    AND acl.privilege_type = 'SELECT'
+    AND acl.privilege_type IN ('SELECT', 'INSERT', 'UPDATE')
     AND (acl.grantee = 0 OR acl.grantee IN (SELECT oid FROM pg_roles WHERE rolname IN ('anon', 'authenticated')))),
-  0::bigint, 'no independent PUBLIC or browser column read ACL remains');
+  0::bigint, 'no independent PUBLIC or browser review-field ACL remains');
 SELECT extensions.ok((SELECT bool_and(has_table_privilege('service_role', 'public.projects', privilege))
   FROM unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']) privilege), 'service project CRUD remains available');
-SELECT extensions.ok((SELECT bool_and(has_table_privilege('authenticated', 'public.projects', privilege))
-  FROM unnest(ARRAY['INSERT', 'UPDATE', 'DELETE']) privilege), 'authenticated project write grants are unchanged');
+SELECT extensions.ok(NOT has_table_privilege('authenticated', 'public.projects', privilege),
+  'authenticated ' || privilege || ' uses explicit columns instead of the entire table')
+FROM unnest(ARRAY['INSERT', 'UPDATE']) action(privilege);
+SELECT extensions.ok(has_table_privilege('authenticated', 'public.projects', 'DELETE'),
+  'authenticated project deletion remains row-scoped');
 SELECT extensions.ok(NOT has_table_privilege(role_name, 'public.projects_with_creator', 'SELECT'),
   role_name || ' cannot read the legacy full-project view')
 FROM (VALUES ('anon'), ('authenticated')) client(role_name);
@@ -79,6 +84,10 @@ SELECT extensions.is((SELECT count(*) FROM public.projects
   WHERE id::text LIKE 'db702010-%' AND review_notes = 'Synthetic staff-only review sentinel'
     AND reviewed_by = 'db702000-0000-4000-8000-000000000002' AND reviewed_at IS NOT NULL),
   3::bigint, 'service reads all populated review fields on the synthetic projects');
+SELECT extensions.lives_ok($$UPDATE public.projects SET review_notes = 'Synthetic staff-only review sentinel',
+  reviewed_by = 'db702000-0000-4000-8000-000000000002', reviewed_at = '2026-10-07 00:00:00'
+  WHERE id = 'db702010-0000-4000-8000-000000000001'$$,
+  'service can maintain all three review fields');
 RESET ROLE;
 
 SET LOCAL ROLE anon;
@@ -136,12 +145,43 @@ SELECT extensions.lives_ok($$UPDATE public.projects SET title = 'Owner replaceme
   WHERE id = 'db702010-0000-4000-8000-000000000001'$$, 'the owner retains ordinary project updates');
 SELECT extensions.is((SELECT title FROM public.projects WHERE id = 'db702010-0000-4000-8000-000000000001'),
   'Owner replacement', 'the owner can read the updated public field');
+SELECT extensions.throws_ok(format('UPDATE public.projects SET %I = %s WHERE id = %L',
+  column_name, expression, 'db702010-0000-4000-8000-000000000001'), '42501', NULL,
+  'owner direct update cannot forge ' || column_name)
+FROM (VALUES ('review_notes', $$'Forged review'$$),
+  ('reviewed_by', $$'db702000-0000-4000-8000-000000000001'::uuid$$),
+  ('reviewed_at', $$'2027-01-01'::timestamp$$)) field(column_name, expression);
+SELECT extensions.throws_ok(format($query$INSERT INTO public.projects
+  (id, creator_id, title, location, description, event_type, verification_method, schedule, visibility, workflow_status, %I)
+  VALUES ('db702010-0000-4000-8000-000000000004', 'db702000-0000-4000-8000-000000000001',
+    'Forged draft', 'Local', 'Synthetic', 'oneTime', 'manual', '{}', 'unlisted', 'draft', %s)$query$,
+  column_name, expression), '42501', NULL, 'owner direct insert cannot forge ' || column_name)
+FROM (VALUES ('review_notes', $$'Forged review'$$),
+  ('reviewed_by', $$'db702000-0000-4000-8000-000000000001'::uuid$$),
+  ('reviewed_at', $$'2027-01-01'::timestamp$$)) field(column_name, expression);
+SELECT extensions.lives_ok($$INSERT INTO public.projects
+  (id, creator_id, title, location, description, event_type, verification_method, schedule, visibility, workflow_status)
+  VALUES ('db702010-0000-4000-8000-000000000004', 'db702000-0000-4000-8000-000000000001',
+    'Ordinary draft', 'Local', 'Synthetic', 'oneTime', 'manual', '{}', 'unlisted', 'draft')$$,
+  'ordinary owner draft insertion remains available');
+SELECT extensions.is((SELECT title FROM public.projects WHERE id = 'db702010-0000-4000-8000-000000000004'),
+  'Ordinary draft', 'the inserted draft can be read through allowed columns');
+SELECT extensions.lives_ok($$DELETE FROM public.projects WHERE id = 'db702010-0000-4000-8000-000000000004'$$,
+  'ordinary owner project deletion remains available');
+SELECT extensions.is((SELECT count(id) FROM public.projects WHERE id = 'db702010-0000-4000-8000-000000000004'),
+  0::bigint, 'the owner deleted only the synthetic draft');
 SELECT extensions.is(public.transition_project_status_transactional('db702010-0000-4000-8000-000000000001', 'upcoming'),
   jsonb_build_object('outcome', 'replayed', 'projectId', 'db702010-0000-4000-8000-000000000001', 'previousStatus', 'upcoming', 'status', 'upcoming'),
   'the status RPC returns only its receipt despite reading a full project internally');
-SELECT extensions.is(public.end_recurring_project_series_transactional('db702010-0000-4000-8000-000000000001', '{}'::jsonb),
+SELECT extensions.is(public.end_recurring_project_series_transactional('db702010-0000-4000-8000-000000000001',
+  '{"recurrence_rule":null,"series_end_expect_ordinary":true}'::jsonb),
   jsonb_build_object('outcome', 'unchanged', 'endedRecurringSeries', false, 'cancelledOccurrences', 0, 'calendarCleanupProjectIds', '[]'::jsonb),
   'the series RPC returns only its receipt for a non-recurring project');
+SELECT extensions.throws_ok(format($query$SELECT public.end_recurring_project_series_transactional(
+  'db702010-0000-4000-8000-000000000001', '{"recurrence_rule":null,"series_end_expect_ordinary":true}'::jsonb
+    || jsonb_build_object(%L, 'forged'))$query$, column_name), '22023', NULL,
+  'the privileged series RPC refuses client review-field edits for ' || column_name)
+FROM unnest(ARRAY['review_notes', 'reviewed_by', 'reviewed_at']) field(column_name);
 SELECT extensions.is(public.cancel_project_transactional('db702010-0000-4000-8000-000000000002', 'Synthetic cancellation'),
   jsonb_build_object('outcome', 'cancelled', 'jobStatus', 'pending', 'accepted', true),
   'the cancellation RPC returns only its receipt and no review fields');
