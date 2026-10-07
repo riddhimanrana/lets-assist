@@ -4,11 +4,9 @@ import { safeConsole } from "@/lib/safe-console";
  * Handles OAuth token management and calendar event operations
  */
 
-import { getGoogleOAuthCredentialClient } from "@/lib/auth/google-oauth-credential-client";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
 import { hasGoogleCalendarWriteScope } from "@/lib/auth/google-oauth-scopes";
-import { decryptWithRotation, encrypt } from "@/lib/encryption";
 import { Project, CalendarConnection } from "@/types";
 import {
   classifyGoogleCalendarLookupError,
@@ -201,70 +199,11 @@ export async function refreshAccessToken(
 export async function getValidAccessToken(
   userId: string,
 ): Promise<string | null> {
-  const supabase = await getGoogleOAuthCredentialClient(userId);
-  if (!supabase) return null;
-  const connection = await getCalendarConnection(userId);
-
-  if (!connection) {
-    return null;
-  }
-
-  // Check if token is expired
-  if (!isTokenExpired(connection.token_expires_at)) {
-    const decrypted = decryptWithRotation(connection.access_token);
-    if (decrypted.reencrypted) {
-      const { error } = await supabase
-        .from("user_calendar_connections")
-        .update({ access_token: decrypted.reencrypted })
-        .eq("id", connection.id)
-        .eq("user_id", userId)
-        .eq("provider", "google")
-        .eq("access_token", connection.access_token);
-      if (error) safeConsole.error("Failed to rotate Google access credential");
-    }
-    return decrypted.plaintext;
-  }
-
-  // Token is expired or about to expire, refresh it
-  const decryptedRefresh = decryptWithRotation(connection.refresh_token);
-  if (decryptedRefresh.reencrypted) {
-    const { error } = await supabase
-      .from("user_calendar_connections")
-      .update({ refresh_token: decryptedRefresh.reencrypted })
-      .eq("id", connection.id)
-      .eq("user_id", userId)
-      .eq("provider", "google")
-      .eq("refresh_token", connection.refresh_token);
-    if (error) safeConsole.error("Failed to rotate Google refresh credential");
-  }
-  const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
-
-  if (!refreshed) {
-    // Failed to refresh, mark connection as inactive
-    await supabase
-      .from("user_calendar_connections")
-      .update({ is_active: false })
-      .eq("id", connection.id)
-      .eq("user_id", userId)
-      .eq("provider", "google");
-    return null;
-  }
-
-  // Update the connection with new access token
-  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
-  const encryptedAccessToken = encrypt(refreshed.accessToken);
-
-  await supabase
-    .from("user_calendar_connections")
-    .update({
-      access_token: encryptedAccessToken,
-      token_expires_at: newExpiresAt.toISOString(),
-    })
-    .eq("id", connection.id)
-    .eq("user_id", userId)
-    .eq("provider", "google");
-
-  return refreshed.accessToken;
+  const { getGoogleAccessTokenForUser } = await import("./calendar-operations");
+  return getGoogleAccessTokenForUser(userId, false, {
+    expectedBinding: PERSONAL_CALENDAR_GOOGLE_BINDING,
+    connectionType: "calendar",
+  });
 }
 
 /**
