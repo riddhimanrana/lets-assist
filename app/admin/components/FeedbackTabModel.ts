@@ -2,14 +2,6 @@ export type ModerationStatus = "pending" | "approved" | "flagged" | "archived";
 
 export type ModerateResult = { error?: string; success?: boolean } | void;
 
-export const statusStyles: Record<ModerationStatus, string> = {
-  pending: "bg-muted text-muted-foreground",
-  approved:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  flagged: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  archived: "bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-300",
-};
-
 export const statusLabel: Record<ModerationStatus, string> = {
   pending: "Pending",
   approved: "Approved",

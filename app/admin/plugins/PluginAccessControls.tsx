@@ -4,39 +4,51 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { Search } from "lucide-react";
+
+import { SectionHeader } from "@/components/layout/PageHeader";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { humanize, statusTone } from "../components/admin-status";
 import {
   bulkUpsertOrganizationPluginEntitlements,
   upsertOrganizationPluginEntitlement,
   type PluginControlPlaneData,
 } from "./actions";
+import { SelectField } from "./PluginSelectField";
 
 type Props = { data: PluginControlPlaneData; selectedPluginKey: string };
 type Entitlement = PluginControlPlaneData["entitlements"][number];
@@ -106,142 +118,138 @@ export default function PluginAccessControls({
   };
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Organization access</CardTitle>
-          <CardDescription>
-            Choose an organization and plugin, then grant or revoke access.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <SelectField
-              label="Organization"
-              value={organizationId}
-              onChange={setOrganizationId}
-              items={data.organizations.map((row) => ({
-                value: row.id,
-                label: row.name,
-              }))}
-            />
-            <SelectField
-              label="Plugin"
-              value={pluginKey}
-              onChange={setPluginKey}
-              items={privatePlugins.map((row) => ({
-                value: row.key,
-                label: row.name,
-              }))}
-            />
-            <SelectField
-              label="Access"
-              value={status}
-              onChange={(value) => setStatus(value as typeof status)}
-              items={[
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
-              ]}
-            />
-            <div className="flex items-end">
-              <div className="flex w-full items-center justify-between rounded-lg border p-3">
-                <div>
-                  <Label>Platform controlled</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Organization admins cannot override this grant.
-                  </p>
-                </div>
-                <Switch checked={isForced} onCheckedChange={setIsForced} />
-              </div>
-            </div>
-            <DateField
-              label="Starts at"
-              value={startsAt}
-              onChange={setStartsAt}
-            />
-            <DateField label="Ends at" value={endsAt} onChange={setEndsAt} />
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <div className="grid gap-8">
+      <SettingsSection
+        title="Organization access"
+        description="Choose an organization and plugin, then grant or revoke access."
+        footer={
+          <>
+            <BulkAccessDialog data={data} />
             <Button
               onClick={save}
               disabled={isPending || !organizationId || !pluginKey}
             >
               {isPending ? "Saving…" : "Save access"}
             </Button>
-            <BulkAccessDialog data={data} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Current grants</CardTitle>
-          <CardDescription>
-            {data.entitlements.length} organization-plugin grants
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            aria-label="Search access grants"
-            placeholder="Search organization or plugin"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+          </>
+        }
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <SelectField
+            label="Organization"
+            value={organizationId}
+            onChange={setOrganizationId}
+            items={data.organizations.map((row) => ({
+              value: row.id,
+              label: row.name,
+            }))}
           />
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/40 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">Organization</th>
-                  <th className="px-3 py-2">Plugin</th>
-                  <th className="px-3 py-2">Access</th>
-                  <th className="px-3 py-2">Window</th>
-                  <th className="px-3 py-2">
-                    <span className="sr-only">Edit</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="px-3 py-3 font-medium">
-                      {row.organization_name}
-                    </td>
-                    <td className="px-3 py-3 font-mono text-xs">
-                      {row.plugin_key}
-                    </td>
-                    <td className="px-3 py-3">
-                      <Badge
-                        variant={
-                          row.status === "active" ? "default" : "secondary"
-                        }
-                      >
-                        {row.status}
+          <SelectField
+            label="Plugin"
+            value={pluginKey}
+            onChange={setPluginKey}
+            items={privatePlugins.map((row) => ({
+              value: row.key,
+              label: row.name,
+            }))}
+          />
+          <SelectField
+            label="Access"
+            value={status}
+            onChange={(value) => setStatus(value as typeof status)}
+            items={[
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
+          <Field orientation="horizontal" className="md:self-end">
+            <FieldContent>
+              <FieldLabel htmlFor="access-platform-controlled">
+                Platform controlled
+              </FieldLabel>
+              <FieldDescription>
+                Organization admins cannot override this grant.
+              </FieldDescription>
+            </FieldContent>
+            <Switch
+              id="access-platform-controlled"
+              checked={isForced}
+              onCheckedChange={setIsForced}
+            />
+          </Field>
+          <DateField
+            label="Starts at"
+            value={startsAt}
+            onChange={setStartsAt}
+          />
+          <DateField label="Ends at" value={endsAt} onChange={setEndsAt} />
+        </div>
+      </SettingsSection>
+
+      <section className="grid gap-3">
+        <SectionHeader
+          title="Current grants"
+          description={`${data.entitlements.length} organization-plugin grants`}
+          actions={
+            <InputGroup className="w-full sm:w-72">
+              <InputGroupAddon>
+                <Search aria-hidden="true" />
+              </InputGroupAddon>
+              <InputGroupInput
+                aria-label="Search access grants"
+                placeholder="Search organization or plugin"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </InputGroup>
+          }
+        />
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="pl-4">Organization</TableHead>
+                <TableHead>Plugin</TableHead>
+                <TableHead>Access</TableHead>
+                <TableHead>Window</TableHead>
+                <TableHead className="pr-4">
+                  <span className="sr-only">Edit</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="pl-4 font-medium">
+                    {row.organization_name}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {row.plugin_key}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={statusTone(row.status)}>
+                        {humanize(row.status)}
                       </Badge>
                       {row.is_forced ? (
-                        <Badge variant="outline" className="ml-1">
-                          locked
-                        </Badge>
+                        <Badge variant="outline">Locked</Badge>
                       ) : null}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground">
-                      {formatWindow(row.starts_at, row.ends_at)}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => edit(row)}
-                      >
-                        Edit
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {formatWindow(row.starts_at, row.ends_at)}
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
+                    <Button variant="ghost" onClick={() => edit(row)}>
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
     </div>
   );
 }
@@ -286,74 +294,57 @@ function BulkAccessDialog({ data }: { data: PluginControlPlaneData }) {
             lines.
           </DialogDescription>
         </DialogHeader>
-        <SelectField
-          label="Plugin"
-          value={pluginKey}
-          onChange={setPluginKey}
-          items={privatePlugins.map((row) => ({
-            value: row.key,
-            label: row.name,
-          }))}
-        />
-        <SelectField
-          label="Access"
-          value={status}
-          onChange={(value) => setStatus(value as typeof status)}
-          items={[
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
-          ]}
-        />
-        <div className="space-y-2">
-          <Label>Organizations</Label>
-          <Textarea
-            rows={7}
-            value={identifiers}
-            onChange={(event) => setIdentifiers(event.target.value)}
+        <FieldGroup className="gap-5">
+          <SelectField
+            label="Plugin"
+            value={pluginKey}
+            onChange={setPluginKey}
+            items={privatePlugins.map((row) => ({
+              value: row.key,
+              label: row.name,
+            }))}
           />
-        </div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <Label>Platform controlled</Label>
-          <Switch checked={isForced} onCheckedChange={setIsForced} />
-        </div>
-        <Button
-          onClick={save}
-          disabled={isPending || !pluginKey || !identifiers.trim()}
-        >
-          {isPending ? "Saving…" : "Apply access"}
-        </Button>
+          <SelectField
+            label="Access"
+            value={status}
+            onChange={(value) => setStatus(value as typeof status)}
+            items={[
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
+          <Field>
+            <FieldLabel htmlFor="bulk-access-organizations">
+              Organizations
+            </FieldLabel>
+            <Textarea
+              id="bulk-access-organizations"
+              rows={7}
+              value={identifiers}
+              onChange={(event) => setIdentifiers(event.target.value)}
+            />
+          </Field>
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="bulk-access-platform-controlled">
+              Platform controlled
+            </FieldLabel>
+            <Switch
+              id="bulk-access-platform-controlled"
+              checked={isForced}
+              onCheckedChange={setIsForced}
+            />
+          </Field>
+        </FieldGroup>
+        <DialogFooter>
+          <Button
+            onClick={save}
+            disabled={isPending || !pluginKey || !identifiers.trim()}
+          >
+            {isPending ? "Saving…" : "Apply access"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  items,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  items: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Select value={value} onValueChange={(next) => next && onChange(next)}>
-        <SelectTrigger>
-          <SelectValue placeholder={`Choose ${label.toLowerCase()}`} />
-        </SelectTrigger>
-        <SelectContent>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
   );
 }
 
@@ -367,14 +358,14 @@ function DateField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
       <Input
         type="datetime-local"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
+    </Field>
   );
 }
 

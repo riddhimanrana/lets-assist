@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { PageHeader } from "@/components/layout/PageHeader";
+
 import { checkSuperAdmin } from "../actions";
+import { AdminLoadError, AdminPage } from "../components/AdminPage";
 import { getSystemBannersForAdmin } from "./actions";
 import { SystemBannerAdminClient } from "./SystemBannerAdminClient";
 
@@ -21,12 +24,10 @@ export default async function AdminSystemBannerPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-6">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">Error loading system banners</p>
-          <p className="mt-2 text-sm opacity-90">{error}</p>
-        </div>
-      </div>
+      <AdminPage>
+        <PageHeader title="System sticky banners" />
+        <AdminLoadError title="Error loading system banners" message={error} />
+      </AdminPage>
     );
   }
 
@@ -36,21 +37,16 @@ export default async function AdminSystemBannerPage() {
     data.find((banner) => banner.target_scope === "landing") ?? null;
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">
-          System Sticky Banners
-        </h1>
-        <p className="text-muted-foreground">
-          Configure outage notices, maintenance updates, and announcement
-          banners.
-        </p>
-      </div>
+    <AdminPage>
+      <PageHeader
+        title="System sticky banners"
+        description="Configure outage notices, maintenance updates, and announcement banners."
+      />
 
       <SystemBannerAdminClient
         sitewideBanner={sitewideBanner}
         landingBanner={landingBanner}
       />
-    </div>
+    </AdminPage>
   );
 }

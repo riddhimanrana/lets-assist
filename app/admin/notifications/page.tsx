@@ -1,23 +1,36 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { SendIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+
 import { sendSystemNotification } from "../actions";
+import { AdminPage } from "../components/AdminPage";
 import { UserSearch } from "./components/UserSearch";
+
+const SEVERITIES = [
+  { value: "info", label: "Info" },
+  { value: "warning", label: "Warning" },
+  { value: "success", label: "Success" },
+] as const;
 
 const initialState = {
   error: "",
@@ -29,6 +42,7 @@ export default function AdminNotificationsPage() {
   // Mode: 'broadcast' (all), 'specific' (one user)
   const [mode, setMode] = useState<"broadcast" | "specific">("broadcast");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const sendIcon = useAnimatedIcon();
 
   const [, formAction, isPending] = useActionState(
     async (
@@ -53,132 +67,126 @@ export default function AdminNotificationsPage() {
   );
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Send System Notification</CardTitle>
-            <CardDescription>
-              Send a notification to a specific user or broadcast to everyone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={formAction} className="space-y-6">
-              <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
-                <Label className="text-base">Recipient Type</Label>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="broadcast-mode"
-                      checked={mode === "broadcast"}
-                      onCheckedChange={(checked) => {
-                        setMode(checked ? "broadcast" : "specific");
-                        if (checked) setSelectedUserId("all");
-                        else setSelectedUserId("");
-                      }}
-                    />
-                    <Label htmlFor="broadcast-mode">
-                      {mode === "broadcast"
-                        ? "Broadcast to All Users"
-                        : "Specific User"}
-                    </Label>
-                  </div>
-                </div>
-
-                {mode === "specific" && (
-                  <div className="pt-2 animate-in fade-in slide-in-from-top-2">
-                    <Label>Search User</Label>
-                    <div className="mt-1.5">
-                      <UserSearch
-                        onSelect={(id) => setSelectedUserId(id)}
-                        selectedUserId={selectedUserId}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Hidden Input for Form Submission */}
-                <input
-                  type="hidden"
-                  name="targetUserId"
-                  value={mode === "broadcast" ? "all" : selectedUserId}
+    <AdminPage width="form">
+      <PageHeader title="Notifications" />
+      <form action={formAction}>
+        <SettingsSection
+          title="Send system notification"
+          description="Send a notification to a specific user or broadcast to everyone."
+          footer={
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="w-full sm:w-auto"
+              {...sendIcon.triggerProps}
+            >
+              {isPending ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <SendIcon
+                  ref={sendIcon.ref}
+                  size={16}
+                  aria-hidden="true"
+                  data-icon="inline-start"
                 />
-              </div>
+              )}
+              Send notification
+            </Button>
+          }
+        >
+          <FieldGroup className="gap-6">
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldLabel htmlFor="broadcast-mode">
+                  Broadcast to all users
+                </FieldLabel>
+                <FieldDescription>
+                  Turn off to send to one specific user.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                id="broadcast-mode"
+                checked={mode === "broadcast"}
+                onCheckedChange={(checked) => {
+                  setMode(checked ? "broadcast" : "specific");
+                  if (checked) setSelectedUserId("all");
+                  else setSelectedUserId("");
+                }}
+              />
+            </Field>
 
-              <div className="space-y-3">
-                <Label>Severity</Label>
-                <RadioGroup
-                  defaultValue="info"
-                  name="severity"
-                  className="flex gap-4"
-                >
-                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                    <RadioGroupItem value="info" id="r-info" />
-                    <Label htmlFor="r-info" className="cursor-pointer">
-                      Info
-                    </Label>
-                  </div>
-                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                    <RadioGroupItem value="warning" id="r-warning" />
-                    <Label htmlFor="r-warning" className="cursor-pointer">
-                      Warning
-                    </Label>
-                  </div>
-                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
-                    <RadioGroupItem value="success" id="r-success" />
-                    <Label htmlFor="r-success" className="cursor-pointer">
-                      Success
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  placeholder="Notification Title"
-                  required
+            {mode === "specific" && (
+              <Field>
+                <FieldLabel>Search user</FieldLabel>
+                <UserSearch
+                  onSelect={(id) => setSelectedUserId(id)}
+                  selectedUserId={selectedUserId}
                 />
-              </div>
+              </Field>
+            )}
 
-              <div className="grid gap-2">
-                <Label htmlFor="body">Message Body</Label>
-                <Textarea
-                  id="body"
-                  name="body"
-                  placeholder="Type your message here."
-                  required
-                />
-              </div>
+            {/* Hidden input for form submission */}
+            <input
+              type="hidden"
+              name="targetUserId"
+              value={mode === "broadcast" ? "all" : selectedUserId}
+            />
 
-              <div className="grid gap-2">
-                <Label htmlFor="actionUrl">Action URL (Optional)</Label>
-                <Input
-                  id="actionUrl"
-                  name="actionUrl"
-                  placeholder="/dashboard"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isPending}
-                className="w-full sm:w-auto"
+            <FieldSet>
+              <FieldLegend variant="label">Severity</FieldLegend>
+              <RadioGroup
+                defaultValue="info"
+                name="severity"
+                className="flex flex-wrap gap-x-6 gap-y-1"
               >
-                {isPending && (
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                )}
-                Send Notification
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+                {SEVERITIES.map((severity) => (
+                  <Field
+                    key={severity.value}
+                    orientation="horizontal"
+                    className="min-h-9 w-auto"
+                  >
+                    <RadioGroupItem
+                      value={severity.value}
+                      id={`r-${severity.value}`}
+                    />
+                    <FieldLabel
+                      htmlFor={`r-${severity.value}`}
+                      className="font-normal"
+                    >
+                      {severity.label}
+                    </FieldLabel>
+                  </Field>
+                ))}
+              </RadioGroup>
+            </FieldSet>
+
+            <Field>
+              <FieldLabel htmlFor="title">Title</FieldLabel>
+              <Input
+                id="title"
+                name="title"
+                placeholder="Notification title"
+                required
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="body">Message body</FieldLabel>
+              <Textarea
+                id="body"
+                name="body"
+                placeholder="Type your message here."
+                required
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="actionUrl">Action URL (optional)</FieldLabel>
+              <Input id="actionUrl" name="actionUrl" placeholder="/dashboard" />
+            </Field>
+          </FieldGroup>
+        </SettingsSection>
+      </form>
+    </AdminPage>
   );
 }

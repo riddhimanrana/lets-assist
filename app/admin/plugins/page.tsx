@@ -1,13 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { checkSuperAdmin } from "@/app/admin/actions";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AdminLoadError, AdminPage } from "@/app/admin/components/AdminPage";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import PluginControlPlane from "./PluginControlPlane";
 import { getPluginControlPlaneData } from "./actions";
 
@@ -26,34 +22,26 @@ export default async function AdminPluginsPage() {
 
   if (data.error) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8 md:px-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Plugins</CardTitle>
-            <CardDescription>
-              Unable to load plugin control data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-destructive text-sm">
-            {data.error}
-          </CardContent>
-        </Card>
-      </div>
+      <AdminPage>
+        <PageHeader title="Plugins" />
+        <AdminLoadError
+          title="Unable to load plugin control data."
+          message={data.error}
+        />
+      </AdminPage>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8 md:px-6">
+    <AdminPage>
       {data.warning ? (
-        <Card className="border-amber-200/70 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20">
-          <CardHeader>
-            <CardTitle>Migration notice</CardTitle>
-            <CardDescription>{data.warning}</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="warning">
+          <AlertTitle>Migration notice</AlertTitle>
+          <AlertDescription>{data.warning}</AlertDescription>
+        </Alert>
       ) : null}
 
       <PluginControlPlane data={data} />
-    </div>
+    </AdminPage>
   );
 }

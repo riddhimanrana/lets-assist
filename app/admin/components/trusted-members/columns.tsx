@@ -15,7 +15,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -52,8 +51,8 @@ export const columns: ColumnDef<TrustedMember>[] = [
           fullName={member.profiles?.full_name || member.name}
           avatarUrl={member.profiles?.avatar_url || undefined}
         >
-          <div className="flex items-center gap-3 py-1 cursor-pointer">
-            <Avatar className="size-10">
+          <div className="flex cursor-pointer items-center gap-3 py-1">
+            <Avatar className="size-8">
               <AvatarImage
                 src={member.profiles?.avatar_url || undefined}
                 alt={member.profiles?.full_name || member.name}
@@ -69,7 +68,7 @@ export const columns: ColumnDef<TrustedMember>[] = [
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="font-semibold truncate">
+              <div className="truncate font-medium">
                 {member.profiles?.full_name || member.name}
               </div>
               <div className="text-xs text-muted-foreground truncate">
@@ -88,7 +87,7 @@ export const columns: ColumnDef<TrustedMember>[] = [
       const member = row.original;
       return (
         <div className="max-w-75">
-          <p className="text-sm text-muted-foreground line-clamp-1 italic">
+          <p className="text-muted-foreground truncate text-sm">
             "{member.reason}"
           </p>
           <ReasonDialog
@@ -106,19 +105,12 @@ export const columns: ColumnDef<TrustedMember>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       if (status === true) {
-        return (
-          <Badge
-            variant="outline"
-            className="border-success/20 bg-success/10 text-success"
-          >
-            Approved
-          </Badge>
-        );
+        return <Badge variant="success">Approved</Badge>;
       }
       if (status === false) {
         return <Badge variant="destructive">Denied</Badge>;
       }
-      return <Badge variant="secondary">Pending</Badge>;
+      return <Badge variant="warning">Pending</Badge>;
     },
   },
   {
@@ -166,53 +158,35 @@ function ActionsCell({ member }: { member: TrustedMember }) {
     });
   };
 
+  const name = member.profiles?.full_name || member.name;
+
   return (
     <div className="flex justify-end gap-1">
-      {/* Pending State */}
-      {member.status === null && (
-        <>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="text-success hover:bg-success/10 hover:text-success"
-            onClick={handleApprove}
-            title="Approve"
-          >
-            <Check />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={handleDeny}
-            title="Deny"
-          >
-            <X />
-          </Button>
-        </>
-      )}
-
-      {/* Denied State - Allow re-approve */}
-      {member.status === false && (
+      {/* Pending and denied applications can be approved */}
+      {member.status !== true && (
         <Button
-          size="icon-sm"
+          size="icon"
           variant="ghost"
-          className="text-success hover:bg-success/10 hover:text-success"
           onClick={handleApprove}
           title="Approve"
+          aria-label={`Approve ${name}`}
         >
           <Check />
         </Button>
       )}
 
-      {/* Approved State - Allow revoke */}
-      {member.status === true && (
+      {/* Pending applications can be denied; approved members can be revoked */}
+      {member.status !== false && (
         <Button
-          size="icon-sm"
-          variant="ghost"
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          size="icon"
+          variant="destructive-ghost"
           onClick={handleDeny}
-          title="Revoke Access"
+          title={member.status === true ? "Revoke access" : "Deny"}
+          aria-label={
+            member.status === true
+              ? `Revoke access for ${name}`
+              : `Deny ${name}`
+          }
         >
           <X />
         </Button>
@@ -239,39 +213,24 @@ function ReasonDialog({
     <Dialog>
       <DialogTrigger
         render={
-          <Button
-            variant="link"
-            size="sm"
-            className="h-auto p-0 text-xs font-semibold"
-          >
+          <Button variant="link" className="h-auto p-0 text-xs">
             View full reason
           </Button>
         }
       />
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Application Reason</DialogTitle>
-          <DialogDescription className="flex items-center gap-2 mt-1">
-            <span className="font-medium text-foreground">{name}</span>
-            <span className="text-muted-foreground">({email})</span>
+          <DialogTitle>Application reason</DialogTitle>
+          <DialogDescription>
+            <span className="text-foreground font-medium">{name}</span> ({email}
+            )
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="mt-4 max-h-[40vh] rounded-xl border bg-muted/30 p-4">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap italic">
+        <ScrollArea className="max-h-[40vh]">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
             "{reason}"
           </p>
         </ScrollArea>
-        <DialogFooter>
-          {/* Using a standard close button pattern or just rely on the X in the corner,
-                but providing a distinct Close button is good for UX in dialogs. */}
-          <div className="flex w-full justify-end">
-            {/* Shadcn DialogContent usually has a Close button in the corner.
-                     We can add a manual one if needed, but often strict closing logic 
-                     isn't exposed easily without controlled state or just using the built-in X.
-                     I'll omit a manual close button to keep it simple unless requested, 
-                     as the X is standard.  */}
-          </div>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

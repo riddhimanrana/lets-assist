@@ -1,215 +1,244 @@
 "use client";
 
+import {
+  useState,
+  type ForwardRefExoticComponent,
+  type HTMLAttributes,
+  type RefAttributes,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 import {
-  LayoutDashboard,
-  Menu,
-  MessageSquare,
-  ShieldAlert,
-  Users,
-  BellRing,
-  BadgeCheck,
-  UserX,
-  Megaphone,
-  Puzzle,
-} from "lucide-react";
+  BellIcon,
+  BlocksIcon,
+  ClipboardCheckIcon,
+  LayoutGridIcon,
+  LayoutPanelTopIcon,
+  MenuIcon,
+  MessageCircleIcon,
+  ShieldCheckIcon,
+  UserCheckIcon,
+  UsersRoundIcon,
+  useAnimatedIcon,
+  type AnimatedIconHandle,
+} from "@/components/icons/animated";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 interface AdminSidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
 
-const navItems = [
+type AnimatedIcon = ForwardRefExoticComponent<
+  HTMLAttributes<HTMLDivElement> & {
+    size?: number;
+  } & RefAttributes<AnimatedIconHandle>
+>;
+
+type NavItem = {
+  id: string;
+  href: string;
+  label: string;
+  icon: AnimatedIcon;
+  exact?: boolean;
+};
+
+const navItems: NavItem[] = [
   {
     id: "overview",
     href: "/admin",
     label: "Overview",
-    icon: LayoutDashboard,
+    icon: LayoutGridIcon,
     exact: true,
   },
   {
     id: "notifications",
     href: "/admin/notifications",
     label: "Notifications",
-    icon: BellRing,
+    icon: BellIcon,
   },
   {
     id: "system-banner",
     href: "/admin/system-banner",
-    label: "System Banner",
-    icon: Megaphone,
+    label: "System banner",
+    icon: LayoutPanelTopIcon,
   },
   {
     id: "user-access",
     href: "/admin/user-access",
-    label: "User Access",
-    icon: UserX,
+    label: "User access",
+    icon: UserCheckIcon,
   },
   {
     id: "organizations",
     href: "/admin/organizations",
     label: "Organizations",
-    icon: BadgeCheck,
+    icon: UsersRoundIcon,
   },
-  { id: "plugins", href: "/admin/plugins", label: "Plugins", icon: Puzzle },
+  { id: "plugins", href: "/admin/plugins", label: "Plugins", icon: BlocksIcon },
   {
     id: "feedback",
     href: "/admin/feedback",
     label: "Feedback",
-    icon: MessageSquare,
+    icon: MessageCircleIcon,
   },
   {
     id: "trusted-members",
     href: "/admin/trusted-members",
-    label: "Trusted Members",
-    icon: Users,
+    label: "Trusted members",
+    icon: ShieldCheckIcon,
   },
   {
     id: "moderation",
     href: "/admin/moderation",
     label: "Moderation",
-    icon: ShieldAlert,
+    icon: ClipboardCheckIcon,
   },
 ];
 
-export function AdminSidebar({
-  activeTab,
-  onTabChange,
-}: AdminSidebarProps = {}) {
+const navRowClass =
+  "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50";
+
+function useIsActive({ activeTab }: AdminSidebarProps) {
   const pathname = usePathname();
+  return (item: NavItem) =>
+    activeTab !== undefined
+      ? activeTab === item.id
+      : item.exact
+        ? pathname === item.href
+        : pathname.startsWith(item.href);
+}
+
+/**
+ * One navigation row. The row drives its icon, so the glyph plays once when
+ * any part of the row is hovered or focused.
+ */
+function NavRow({
+  item,
+  isActive,
+  onTabChange,
+  onNavigate,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  onTabChange?: (tab: string) => void;
+  onNavigate?: () => void;
+}) {
+  const icon = useAnimatedIcon();
+  const Icon = item.icon;
+  const className = cn(
+    navRowClass,
+    isActive
+      ? "bg-muted text-foreground font-medium"
+      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+  );
+  const content = (
+    <>
+      <Icon ref={icon.ref} size={16} aria-hidden="true" className="shrink-0" />
+      <span className="truncate">{item.label}</span>
+    </>
+  );
+
+  if (onTabChange) {
+    return (
+      <button
+        type="button"
+        className={className}
+        aria-current={isActive ? "page" : undefined}
+        onClick={() => {
+          onTabChange(item.id);
+          onNavigate?.();
+        }}
+        {...icon.triggerProps}
+      >
+        {content}
+      </button>
+    );
+  }
 
   return (
-    <div className="hidden w-64 flex-col border-r bg-muted/10 p-4 md:sticky md:top-0 md:flex md:h-screen">
-      <div className="mb-6 px-2">
-        <h2 className="text-lg font-semibold tracking-tight">Admin Console</h2>
-        <p className="text-sm text-muted-foreground">Manage your platform</p>
-      </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
-        {navItems.map((item) => {
-          const isActive =
-            activeTab !== undefined
-              ? activeTab === item.id
-              : item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
-
-          const buttonProps = onTabChange
-            ? {
-                onClick: () => onTabChange(item.id),
-                asChild: false,
-              }
-            : {
-                asChild: true,
-              };
-
-          return (
-            <Button
-              key={item.id}
-              variant={isActive ? "secondary" : "ghost"}
-              className="w-full justify-start gap-2"
-              {...buttonProps}
-            >
-              {onTabChange ? (
-                <>
-                  <item.icon className="size-4" />
-                  {item.label}
-                </>
-              ) : (
-                <Link href={item.href} className="flex items-center gap-2">
-                  <item.icon className="size-4" />
-                  {item.label}
-                </Link>
-              )}
-            </Button>
-          );
-        })}
-      </nav>
-    </div>
+    <Link
+      href={item.href}
+      className={className}
+      aria-current={isActive ? "page" : undefined}
+      onClick={onNavigate}
+      {...icon.triggerProps}
+    >
+      {content}
+    </Link>
   );
 }
 
-export function AdminMobileNav({
-  activeTab,
-  onTabChange,
-}: AdminSidebarProps = {}) {
-  const pathname = usePathname();
+export function AdminSidebar(props: AdminSidebarProps = {}) {
+  const isActive = useIsActive(props);
 
   return (
-    <Sheet>
+    <aside className="hidden w-60 shrink-0 flex-col border-r p-3 md:sticky md:top-0 md:flex md:h-screen">
+      <p className="px-2.5 pt-1 pb-3 text-sm font-semibold">Admin console</p>
+      <nav
+        aria-label="Admin"
+        className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
+      >
+        {navItems.map((item) => (
+          <NavRow
+            key={item.id}
+            item={item}
+            isActive={isActive(item)}
+            onTabChange={props.onTabChange}
+          />
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+export function AdminMobileNav(props: AdminSidebarProps = {}) {
+  const isActive = useIsActive(props);
+  const menuIcon = useAnimatedIcon();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
+        aria-label="Open admin navigation"
         className={cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
           "md:hidden",
         )}
+        {...menuIcon.triggerProps}
       >
-        <Menu className="size-5" />
+        <MenuIcon ref={menuIcon.ref} size={16} aria-hidden="true" />
       </SheetTrigger>
-      <SheetContent side="left" className="flex h-full w-72 flex-col p-4">
-        <SheetHeader className="text-left">
-          <SheetTitle>Admin Console</SheetTitle>
-          <SheetDescription>Navigate admin tools</SheetDescription>
+      <SheetContent side="left" className="flex h-full w-72 flex-col gap-0 p-3">
+        <SheetHeader className="px-2.5 pt-1 pb-3 text-left">
+          <SheetTitle>Admin console</SheetTitle>
+          <SheetDescription className="sr-only">
+            Navigate admin tools
+          </SheetDescription>
         </SheetHeader>
-        <nav className="mt-6 flex-1 space-y-2 overflow-y-auto pr-1">
-          {navItems.map((item) => {
-            const isActive =
-              activeTab !== undefined
-                ? activeTab === item.id
-                : item.exact
-                  ? pathname === item.href
-                  : pathname.startsWith(item.href);
-
-            if (onTabChange) {
-              return (
-                <SheetClose
-                  key={item.id}
-                  className="w-full justify-start gap-2"
-                  render={
-                    <Button
-                      type="button"
-                      variant={isActive ? "secondary" : "ghost"}
-                      className="w-full justify-start gap-2"
-                      onClick={() => onTabChange(item.id)}
-                    />
-                  }
-                >
-                  <item.icon className="size-4" />
-                  {item.label}
-                </SheetClose>
-              );
-            }
-
-            return (
-              <SheetClose
-                key={item.id}
-                render={
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      buttonVariants({
-                        variant: isActive ? "secondary" : "ghost",
-                      }),
-                      "flex w-full justify-start gap-2",
-                    )}
-                  />
-                }
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </SheetClose>
-            );
-          })}
+        <nav
+          aria-label="Admin"
+          className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
+        >
+          {navItems.map((item) => (
+            <NavRow
+              key={item.id}
+              item={item}
+              isActive={isActive(item)}
+              onTabChange={props.onTabChange}
+              onNavigate={() => setOpen(false)}
+            />
+          ))}
         </nav>
       </SheetContent>
     </Sheet>
