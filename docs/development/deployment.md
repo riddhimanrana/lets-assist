@@ -64,9 +64,68 @@ checks and worker leases remain required. A partial or malformed waiver fails
 before provider release work. The receipt remains available if a later release
 step fails.
 
-Before building, the controller verifies the trusted hosted run or explicit
-performance waiver, successful
-quality and database checks, exact private gitlink, and Vercel project. The
+### Broader local validation override
+
+Both app-only deployment and reviewed forward migrations also expose
+`local_validation_confirmation` and `local_validation_reason`. This is a broader
+exception than the performance waiver. Its confirmation is
+`deploy-with-local-validation:<release SHA>:<Development SHA>`. The controller
+requires a 20–1000 character reason and a GitHub actor with repository write,
+maintain, or admin permission. The protected Production environment and separate
+Production operation confirmation still apply.
+
+| Mode                      | Hosted acceptance                                          | Remote quality and database replay |
+| ------------------------- | ---------------------------------------------------------- | ---------------------------------- |
+| Normal                    | Exact trusted successful run                               | Exact trusted successful full run  |
+| Performance waiver        | Trusted functional acceptance required; performance waived | Required                           |
+| Local validation override | Waived, not passed                                         | Both waived, not passed            |
+
+The local override is an operator attestation. The current controller verifies
+its identity and source bindings, but does not execute or independently verify
+the local tests named in the reason. Do not describe this exception as successful
+hosted acceptance. The two waiver modes are mutually exclusive. Neither bypasses
+exact source trees and ancestry, Production environment review, schema/catalog
+checks, private release verification, deployment identity, rollback safeguards,
+or separate worker activation. A forward-migration override still authorizes
+only that workflow's reviewed migration suffix, not arbitrary database changes.
+
+For a proposed local override, prepare a sanitized local evidence receipt using
+[scripts/production/local-validation-evidence.mjs](../../scripts/production/local-validation-evidence.mjs).
+It checks the exact release and accepted SHAs, Git tree, private gitlink,
+operator, a repository issue or PR change record, expiry within 24 hours, and
+report digests for lint, typecheck, unit, build, database, and browser checks.
+Each check must name a zero exit status and finish within the preceding 24-hour
+window. Run it from a clean candidate checkout with ignored reports:
+
+```bash
+node scripts/production/local-validation-evidence.mjs \
+  --file .artifacts/local-validation/receipt.json \
+  --reports .artifacts/local-validation \
+  --release-sha <full-release-sha> \
+  --accepted-sha <full-development-sha> \
+  --actor <github-login>
+```
+
+The receipt schema is the strict object used in the companion test fixtures.
+Each report is `<check-name>.log`; retain only sanitized output. Keep receipts
+and reports outside committed source. Include the receipt SHA-256, change-record
+URL, expiry, and exact waived gates in the release reason and current release
+status. The expiry belongs to the operator review. The current dispatch interface
+does not consume this receipt or enforce its expiry. This checker binds recorded
+evidence and detects changed files; it does not prove who executed the tests or
+turn operator evidence into a trusted CI run. Replacing the existing override
+requires a separately reviewed producer and controller contract.
+
+Before approving the exception, the release owner must inspect the reports,
+confirm the exact candidate and explicit Production authorization, and record
+why the ordinary hosted gates cannot be used. Let the exception expire after
+this operation. A different candidate, expired evidence, failed check, or changed
+report requires a new review. Keep `source-verification-<run ID>` linked to the
+change record even if later release work fails. Reconcile a failed or cancelled
+release before another dispatch; the override is not a retry or recovery bypass.
+
+Before building, the controller verifies the applicable acceptance mode and its
+required checks, exact private gitlink, and Vercel project. The
 existing Supabase management token uses the read-only query endpoint for ordinary checks.
 The final catalog uses the authorized query connection inside an explicit
 PostgreSQL `BEGIN READ ONLY` transaction with `search_path` fixed to
