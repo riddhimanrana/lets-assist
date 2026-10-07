@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
-import { DownloadCloud, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
@@ -124,18 +125,29 @@ export default function MemberExporter({
   };
 
   return (
-    <Button variant="outline" onClick={exportMembers} disabled={isExporting}>
-      {isExporting ? (
-        <>
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          Exporting...
-        </>
-      ) : (
-        <>
-          <DownloadCloud className="h-4 w-4 mr-2" />
-          Export Member Data (CSV)
-        </>
-      )}
-    </Button>
+    <SettingsSection
+      title="Export members"
+      description="Download your member list as a CSV for record-keeping or offline management."
+      footerHint="Includes name, username, email, role and join date."
+      footer={
+        <Button
+          variant="outline"
+          onClick={exportMembers}
+          disabled={isExporting}
+        >
+          {isExporting ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Exporting...
+            </>
+          ) : (
+            <>
+              <Download />
+              Export CSV
+            </>
+          )}
+        </Button>
+      }
+    />
   );
 }
