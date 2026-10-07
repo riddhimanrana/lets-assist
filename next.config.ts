@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { NextConfig } from "next";
 import { withMicrofrontends } from "@vercel/microfrontends/next/config";
+import { securityResponseHeaders } from "./lib/security/response-headers";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
 const requestedBuildSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim() ?? "";
@@ -29,6 +30,8 @@ if (requestedBuildSha && !/^[0-9a-f]{40}$/u.test(requestedBuildSha)) {
 }
 
 const nextConfig: NextConfig = {
+  headers: () => securityResponseHeaders(Boolean(process.env.VERCEL_ENV)),
+  poweredByHeader: false,
   // Next 16 locks each development output directory. The CSF runner uses a
   // separate directory so it can coexist with the developer's normal server.
   distDir: requestedDistDir || ".next",
