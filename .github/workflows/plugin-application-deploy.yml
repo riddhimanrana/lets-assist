@@ -155,6 +155,25 @@ jobs:
           echo "build_digest=$(jq -r .buildDigest "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "artifact_name=$(jq -r .artifactName "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
 
+      - name: Verify target database and signed schema before deployment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          CSF_DEVELOPMENT_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir=.artifacts/plugin-application-release
+          node scripts/plugins/verify-application-database.mjs \
+            --manifest "${release_dir}/release-manifest.json" \
+            --registry lib/plugins/published-releases.json \
+            --targets lib/plugins/application-deployment-targets.json \
+            --build "${release_dir}/plugin-build-${DEPLOYMENT_ENVIRONMENT}.tar.gz" \
+            --tag "${RELEASE_TAG}" \
+            --plugin "${PLUGIN_KEY}" \
+            --environment "${DEPLOYMENT_ENVIRONMENT}" \
+            > "${release_dir}/database-preflight.json"
+
       - name: Extract the prebuilt artifact safely
         shell: bash
         run: |
