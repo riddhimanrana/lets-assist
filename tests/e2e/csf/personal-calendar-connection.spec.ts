@@ -29,6 +29,8 @@ test("connected calendar protects credentials and supports local-only disconnect
   const privateMarker = `private-preferences-${runId}`;
   const bindingTimestamp = "2039-09-02T12:34:56.000Z";
   const calendarBodies: Array<Promise<{ type: string; body: string }>> = [];
+  let calendarRscRequest:
+    { url: string; headers: Record<string, string> } | undefined;
   const externalRequests: string[] = [];
   const browserFailures: string[] = [];
   function isCredentialProbe(url: string) {
@@ -71,6 +73,25 @@ test("connected calendar protects credentials and supports local-only disconnect
       await route.abort("blockedbyclient");
     }
   });
+  page.on("request", (request) => {
+    const headers = request.headers();
+    if (
+      new URL(request.url()).pathname !== "/account/calendar" ||
+      request.method() !== "GET" ||
+      headers.rsc !== "1" ||
+      headers["next-router-prefetch"] ||
+      headers["next-router-segment-prefetch"]
+    )
+      return;
+    calendarRscRequest ??= {
+      url: request.url(),
+      headers: Object.fromEntries(
+        ["rsc", "next-router-state-tree", "next-url"].flatMap((name) =>
+          headers[name] ? [[name, headers[name]]] : [],
+        ),
+      ),
+    };
+  });
   page.on("response", (response) => {
     if (
       response.status() >= 400 &&
@@ -82,7 +103,7 @@ test("connected calendar protects credentials and supports local-only disconnect
     }
     if (new URL(response.url()).pathname !== "/account/calendar") return;
     const type = response.headers()["content-type"] ?? "";
-    if (type.includes("text/html") || type.includes("text/x-component")) {
+    if (type.includes("text/html")) {
       calendarBodies.push(
         response
           .text()
@@ -150,15 +171,41 @@ test("connected calendar protects credentials and supports local-only disconnect
     await expect(
       page.getByText("Connected on September 1, 2039", { exact: true }),
     ).toBeVisible();
+    expect(calendarRscRequest).toBeDefined();
+    const rsc = await page.evaluate(async (observed) => {
+      if (!observed) throw new Error("Calendar navigation request missing.");
+      const url = new URL(observed.url);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== "/account/calendar"
+      )
+        throw new Error("Calendar navigation request is not same-origin.");
+      const response = await fetch(url.href, {
+        headers: observed.headers,
+        credentials: "same-origin",
+        redirect: "error",
+        cache: "no-store",
+      });
+      return {
+        status: response.status,
+        redirected: response.redirected,
+        type: response.headers.get("content-type") ?? "",
+        body: await response.text(),
+      };
+    }, calendarRscRequest);
+    expect(rsc.status).toBe(200);
+    expect(rsc.redirected).toBe(false);
+    expect(rsc.type).toContain("text/x-component");
+    expect(rsc.body.trim().length).toBeGreaterThan(0);
+    expect(rsc.body.includes(calendarEmail)).toBe(true);
     await Promise.all(calendarBodies);
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.getByText(calendarEmail, { exact: true })).toBeVisible();
-    const bodies = await Promise.all(calendarBodies);
-    expect(bodies.some(({ type }) => type.includes("text/html"))).toBe(true);
+    const bodies = [...(await Promise.all(calendarBodies)), rsc];
     expect(
       bodies.some(
         ({ type, body }) =>
-          type.includes("text/x-component") && body.includes(calendarEmail),
+          type.includes("text/html") && body.includes(calendarEmail),
       ),
     ).toBe(true);
     for (const { body } of bodies) {
