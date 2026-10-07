@@ -16,7 +16,7 @@ export default async function CalendarPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/login?redirect=/account/calendar");
   }
 
   const calendarData = await getCalendarData(user.id);
