@@ -162,5 +162,79 @@ describe.skipIf(!localPostgresAvailable)(
         expect(runFixture(`${script}\n`)).toBe(0);
       });
     }, 120_000);
+
+    test("T5 accepts reviewed definers and refuses extra callers or changed security posture", () => {
+      const acl = preflight.slice(
+        preflight.indexOf("T5  Public read-model and function ACL posture"),
+        preflight.indexOf("T6  Exact target relation ACL"),
+      );
+      const queryStart = acl.indexOf("WITH expected(signature, role_name)");
+      const query = acl.slice(queryStart, acl.indexOf("\\gset", queryStart));
+      const definerBlock = acl.slice(
+        acl.indexOf("reviewed_security_definer(signature"),
+        acl.indexOf("actual AS ("),
+      );
+      const definers = new Set(
+        [...definerBlock.matchAll(/'(public\.[^']+)'/gu)].map(
+          (match) => match[1],
+        ),
+      );
+      const grants = [
+        ...acl.matchAll(/\('([^']+\([^']*\))',\s*'(anon|authenticated)'\)/gu),
+      ].map((match) => [match[1], match[2]]);
+      const functions = [...new Set(grants.map(([signature]) => signature))];
+      const setup = [
+        "\\set ON_ERROR_STOP on",
+        "CREATE ROLE anon; CREATE ROLE authenticated;",
+        ...functions.flatMap((signature) => [
+          `CREATE FUNCTION ${signature} RETURNS boolean LANGUAGE sql SECURITY ${definers.has(signature) ? "DEFINER" : "INVOKER"} AS $$SELECT true$$;`,
+          `REVOKE ALL ON FUNCTION ${signature} FROM PUBLIC;`,
+        ]),
+        ...grants.map(
+          ([signature, role]) =>
+            `GRANT EXECUTE ON FUNCTION ${signature} TO ${role};`,
+        ),
+      ].join("\n");
+      const check = (change = "") =>
+        [
+          "\\set ON_ERROR_STOP on",
+          change ? "BEGIN;" : "BEGIN READ ONLY;",
+          change,
+          query,
+          "\\gset",
+          "\\if :target_function_acl_pass",
+          "\\else",
+          HARD_FAIL_STATEMENT,
+          "\\endif",
+          "ROLLBACK;",
+        ].join("\n");
+
+      withDisposableCluster((runFixture) => {
+        expect(runFixture(`${setup}\n`)).toBe(0);
+        expect(runFixture(check())).toBe(0);
+        expect(
+          runFixture(
+            check(
+              "GRANT EXECUTE ON FUNCTION public.account_deletion_pending() TO anon;",
+            ),
+          ),
+        ).toBe(3);
+        expect(
+          runFixture(
+            check(
+              "ALTER FUNCTION public.account_deletion_pending() SECURITY INVOKER;",
+            ),
+          ),
+        ).toBe(3);
+        expect(
+          runFixture(
+            check(
+              "CREATE FUNCTION public.unreviewed_definer() RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$SELECT true$$; REVOKE ALL ON FUNCTION public.unreviewed_definer() FROM PUBLIC; GRANT EXECUTE ON FUNCTION public.unreviewed_definer() TO authenticated;",
+            ),
+          ),
+        ).toBe(3);
+        expect(runFixture(check())).toBe(0);
+      });
+    }, 120_000);
   },
 );
