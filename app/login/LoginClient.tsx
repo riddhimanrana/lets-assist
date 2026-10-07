@@ -322,7 +322,7 @@ export default function LoginClient({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
+                  className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold hover:border-primary/30 hover:bg-primary/5"
                   onClick={handleGoogleSignIn}
                   disabled={isGoogleLoading || !isHydrated}
                 >
@@ -372,7 +372,7 @@ export default function LoginClient({
                       placeholder="m@example.com"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -406,7 +406,7 @@ export default function LoginClient({
                       type="password"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -448,7 +448,7 @@ export default function LoginClient({
 
               <Button
                 type="submit"
-                className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+                className="h-10 w-full rounded-full font-semibold"
                 disabled={isLoading || !isHydrated}
               >
                 {isLoading ? "Logging in..." : "Login"}
