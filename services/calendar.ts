@@ -445,10 +445,8 @@ export type { CsfPersonalCalendarProviderContext } from "./calendar-csf-personal
 export { getCsfPersonalCalendarProviderContext } from "./calendar-csf-personal";
 export {
   createGoogleCalendarEvent,
-  createGoogleCalendarEventForCalendar,
   deactivateGoogleConnection,
   deleteGoogleCalendarEvent,
-  deleteGoogleCalendarEventForCalendar,
   ensureOrganizationCalendar,
   getCalendarEmail,
   getGoogleAccessToken,
@@ -460,5 +458,4 @@ export {
   markPersonalCalendarConnectionSynced,
   revokeGoogleCalendarAccess,
   updateGoogleCalendarEvent,
-  updateGoogleCalendarEventForCalendar,
 } from "./calendar-operations";

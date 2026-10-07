@@ -133,6 +133,41 @@ receipts; completed means archive-ready, not email accepted. See
 [account exports](../development/account-exports.md) for bounds, exclusions,
 retention, recovery, and the migration/application rollout order.
 
+## Organization calendar receipts
+
+Organization calendar provisioning reserves a service-only destination operation
+before the Google create request. Verified adoption locks the active admin and
+exact organization OAuth binding. The destination and compatibility sync config
+commit together. Unknown creation outcomes block another calendar creation;
+operators must reconcile the provider result before changing that state. Browser
+configuration edits cannot replace the canonical destination.
+
+Project and CSF projections share private event receipts. Each receipt stores its
+calendar, provider event ID, source coordinates, immutable pending payload, and
+latest desired payload. A leased worker loads complete keyset pages before
+planning writes. The database checks tenant and publication state, rejects an
+incomplete snapshot of tracked publishable sources, and limits each projection
+plan to 10,000 events and 8 MiB. A read failure or limit stops the sync rather than
+treating missing rows as deleted sources.
+
+Provider retries reuse the saved event ID. Conflicting IDs require a matching
+receipt marker; updates use Google's ETag with `If-Match` and renew the worker
+lease before writing. A confirmed missing or deleted event gets a new saved ID.
+Unchanged events avoid repeated writes and become due for provider reconciliation
+after 24 hours. Each run processes at most 200 transitions or 25 seconds before
+starting another event; a provider request has a 10-second timeout. Pending work
+survives a timeout, and the next manual or scheduled run continues it.
+
+Deleting a source or compatibility binding preserves its private receipt. Cleanup
+uses the retained calendar and event IDs. Removing and then re-adding an occurrence
+uses a fresh ID after deletion is confirmed. Organization deletion is restricted
+while destination or event receipts remain; account deletion preflight must retain
+restrictive destination-owner references until a reviewed ownership transfer or
+provider cleanup. Organization calendars exclude officer-only CSF deadlines.
+Deploying this code does not reconcile historical untracked events or remove
+previously exported content from Google. Those are separate provider rollout
+checks.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

@@ -956,7 +956,11 @@ personal_calendar_receipt_drift="$(
       ('public.csf_begin_personal_calendar_destination_provision(uuid,uuid,uuid,text,boolean)'),
       ('public.csf_complete_personal_calendar_destination_provision(uuid,uuid,text,text,text)'),
       ('public.adopt_verified_personal_calendar_destination(uuid,uuid,text)'),
-      ('public.list_personal_calendar_cleanup(uuid)')
+      ('public.list_personal_calendar_cleanup(uuid)'),
+      ('public.claim_organization_calendar_destination(uuid,uuid,boolean,text,text)'),
+      ('public.complete_organization_calendar_destination(uuid,uuid,uuid,text,text)'),
+      ('public.claim_organization_calendar_sync(uuid,uuid,text)'),
+      ('public.advance_organization_calendar_sync(uuid,uuid,uuid,text,jsonb)')
     )
     select expected.signature
     from expected left join pg_catalog.pg_proc p on p.oid = pg_catalog.to_regprocedure(expected.signature)
