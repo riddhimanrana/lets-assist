@@ -8,26 +8,26 @@ source integration. It does not certify hosted Development or Production.
 
 | Area                                                           | Current result                                                                                                                                             | Required next evidence                                                           |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Brand, landing and account layouts                             | Included with audit conflict resolutions in root 182d01d2 and private bde1aef.                                                                             | Final signed-in desktop/mobile walkthrough.                                      |
+| Brand, landing and account layouts                             | All six brand follow-up slices are integrated. Root project extraction is 1e20ac71; private combined source is 5a76115.                                    | Final signed-in desktop/mobile walkthrough.                                      |
 | Login, scheduler, plugin workflow and Docker diagnostics fixes | Included in root candidate.                                                                                                                                | Required PR checks and final integrated full gate.                               |
 | Root static checks                                             | Lint, typecheck and agent policy pass under Node 24.21.0.                                                                                                  | Repeat affected checks after later integration.                                  |
-| Private source                                                 | All 554 plugin test files pass. Formatting and 31 release/host-pairing tests pass.                                                                         | Private PR CI, then Development merge before root gitlink update.                |
+| Private source                                                 | All 567 private test files pass after officer/partner integration. Root lint and typecheck pass.                                                           | Private PR CI, then Development merge before root gitlink update.                |
 | Independent CSF app                                            | Lint, typecheck, tests, build and data-access/route gates pass.                                                                                            | Hosted runtime and organization selection readback after release.                |
 | Security regressions                                           | CSV control prefixes, notification URL normalization and Sheets status UI tests pass. Signup confirmation no longer claims unconfirmed delivery succeeded. | Final integrated source and browser checks.                                      |
 | Dependencies                                                   | Next 16.4.0, React 19.3.0, Node 24.21.0, current Supabase clients and shadcn 4.21.4. Tailwind 4.3.3.                                                       | CLI 2.120.0 and Bun 1.4.2 compatibility work remains. See the dependency ledger. |
-| Database                                                       | Existing candidate has 708 migrations. File validation passes.                                                                                             | Final combined replay/catalog and database/browser gates.                        |
-| AI review                                                      | Private PR 643 received automatic review on bde1aef. Its DV navigation finding is fixed in ece31d6.                                                        | Root review, review-on-push settings and final-head review remain unverified.    |
+| Database                                                       | Officer and partner migrations are integrated after ledger 708. Four paper migrations and one rating migration are being reconciled.                       | Final combined replay/catalog and database/browser gates.                        |
+| AI review                                                      | Private PR 643 received automatic review on bde1aef and ece31d6. Mobile DV navigation and Node runtime checklist findings are fixed.                       | Root review, review-on-push settings and final-head review remain unverified.    |
 | Branch cleanup                                                 | Removed local claude/csf-partner-linking and codex/plugin-release-dvhs-csf-v1.2.85 after proving remote Development ancestry and no active worktree.       | Other feature branches remain until their work reaches remote Development.       |
 
 ## Preserved work
 
-| Branch                         | Remaining work                                                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| codex/paper-attendance         | Repair consumed-source combine and export consistency defects; reconcile unpublished migrations after the combined ledger.            |
-| codex/csf-officer-approval     | Add refusal coverage, reconcile unpublished migration order and raise the private schema floor.                                       |
-| claude/csf-partner-projects    | Preserve newer archived-activity eligibility, use current conflict semantics and resolve recorded concurrency defects.                |
-| claude/platform-rating-prompts | Preserve untracked implementation, resolve migration timestamp collision, fail closed on quota-check errors and wire/test the prompt. |
-| claude/pass4-*                 | Active brand follow-up slices. Integrate only after the owner reports ready commits and checks.                                       |
+| Branch                         | Remaining work                                                                                                                                    |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| codex/paper-attendance         | Source fixes pass 624 SQL assertions, 11 concurrency scenarios and 145 unit tests. Reconciliation with extracted brand components is in progress. |
+| codex/csf-officer-approval     | Integrated root 6c02af74 and private ccc1ae5a. Refusal tests and forward migration 20261009020000 are included.                                   |
+| claude/csf-partner-projects    | Integrated root 4b0379d5 and private 47244ace. Forward migration 20261009030000 and verified race fixes are included.                             |
+| claude/platform-rating-prompts | Original untracked draft is preserved while an owned source pass adds wiring, refusal tests and migration 20261009040000.                         |
+| claude/pass4-*                 | All six completed source slices are integrated. Their source worktrees remain preserved until remote Development contains the work.               |
 
 The audit chat owns paper, officer and partner source repairs in their existing
 worktrees. The integration owner controls PR 867, the private brand PR and all
@@ -42,8 +42,15 @@ accepted maintenance-hold receipt before the root merge. Do not merge first:
 the connected persistent Supabase Development branch applies migrations.
 
 GitGuardian incidents 37947219 and 37948874 concern historical synthetic fixture
-commits and still need provider disposition. Their forward source fixes remain
-included. Do not suppress the scanner or rewrite shared history.
+commits and still need provider disposition. Incident 16430109 flags password-form
+declarations in 34a70ca8 and 34210edc7; local inspection confirmed that all password
+defaults in both commits are empty strings. No credential was found in those
+form defaults. Their provider status is still Triggered. Do not suppress the
+scanner or rewrite shared history.
+
+Root CodeQL check 113069683538 identified first-only escaping in a Sheets status
+test. Commit bec23b1e uses replaceAll; all five tests pass. A fresh provider scan
+must confirm that finding is closed.
 
 The time-limited braces exception still expires October 21 and prints the
 advisory. It is an accepted risk, not a patched dependency. New private source

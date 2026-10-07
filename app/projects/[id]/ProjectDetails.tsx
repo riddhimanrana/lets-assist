@@ -85,7 +85,8 @@ export default function ProjectDetails({
   const [previewDocType, setPreviewDocType] = useState<string>("");
 
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
-  const [confirmationEmailAccepted, setConfirmationEmailAccepted] = useState(false);
+  const [confirmationEmailAccepted, setConfirmationEmailAccepted] =
+    useState(false);
 
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
   const signupConfirmation = useSignupConfirmationAction();
