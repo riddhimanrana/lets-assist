@@ -4,10 +4,7 @@ import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getCalendarConnection } from "@/services/calendar";
 
-/**
- * Refreshes the calendar connection by checking if it's still valid
- * and refreshing the access token if needed
- */
+/** Reads the current calendar connection for the signed-in account. */
 export async function refreshCalendarConnection() {
   const supabase = await createClient();
 
@@ -20,20 +17,24 @@ export async function refreshCalendarConnection() {
   }
 
   try {
-    // getCalendarConnection will automatically refresh if token is expired
     const connection = await getCalendarConnection(user.id);
 
     if (!connection) {
       return { success: false, error: "No calendar connection found" };
     }
 
-    return { success: true, connection };
+    return {
+      success: true,
+      connection: {
+        calendar_email: connection.calendar_email,
+        created_at: connection.created_at,
+      },
+    };
   } catch (error) {
     safeConsole.error("Failed to refresh calendar connection:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to refresh connection",
+      error: "Failed to refresh connection",
     };
   }
 }
