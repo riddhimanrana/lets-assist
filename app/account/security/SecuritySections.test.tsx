@@ -23,7 +23,7 @@ const { default: AccountDeletionSection } =
 describe("extracted account security sections", () => {
   test("export starts with history loading and explains the archive scope", () => {
     const markup = renderToStaticMarkup(<DataExportSection />);
-    expect(markup).toContain("Export your data");
+    expect(markup).toContain("<h2>Export your data</h2>");
     expect(markup).toContain("Loading export history...");
     expect(markup).toContain("file contents are not included");
     expect(markup).toContain("linked to your account");
