@@ -28,7 +28,7 @@ export default async function UserAccessControlPage() {
         </p>
       </div>
 
-      <Card className="border-border bg-card text-card-foreground shadow-xs">
+      <Card>
         <CardHeader>
           <CardTitle>Account moderation</CardTitle>
         </CardHeader>

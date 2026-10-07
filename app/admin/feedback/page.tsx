@@ -39,7 +39,7 @@ export default async function FeedbackPage() {
           High-speed moderation queue for user feedback, ideas, and issues.
         </p>
       </div>
-      <Card className="border-border bg-card text-card-foreground shadow-xs">
+      <Card>
         <CardHeader>
           <CardTitle>Feedback triage queue</CardTitle>
           <CardDescription>

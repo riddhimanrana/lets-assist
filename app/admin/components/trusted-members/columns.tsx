@@ -53,7 +53,7 @@ export const columns: ColumnDef<TrustedMember>[] = [
           avatarUrl={member.profiles?.avatar_url || undefined}
         >
           <div className="flex items-center gap-3 py-1 cursor-pointer">
-            <Avatar className="h-10 w-10">
+            <Avatar className="size-10">
               <AvatarImage
                 src={member.profiles?.avatar_url || undefined}
                 alt={member.profiles?.full_name || member.name}
@@ -87,7 +87,7 @@ export const columns: ColumnDef<TrustedMember>[] = [
     cell: ({ row }) => {
       const member = row.original;
       return (
-        <div className="max-w-[300px]">
+        <div className="max-w-75">
           <p className="text-sm text-muted-foreground line-clamp-1 italic">
             "{member.reason}"
           </p>
@@ -107,29 +107,18 @@ export const columns: ColumnDef<TrustedMember>[] = [
       const status = row.original.status;
       if (status === true) {
         return (
-          <Badge className="rounded-full px-3 py-0.5 bg-success/10 text-success border-success/20 hover:bg-success/20 shadow-none">
+          <Badge
+            variant="outline"
+            className="border-success/20 bg-success/10 text-success"
+          >
             Approved
           </Badge>
         );
       }
       if (status === false) {
-        return (
-          <Badge
-            variant="destructive"
-            className="rounded-full px-3 py-0.5 shadow-none"
-          >
-            Denied
-          </Badge>
-        );
+        return <Badge variant="destructive">Denied</Badge>;
       }
-      return (
-        <Badge
-          variant="secondary"
-          className="rounded-full px-3 py-0.5 shadow-none"
-        >
-          Pending
-        </Badge>
-      );
+      return <Badge variant="secondary">Pending</Badge>;
     },
   },
   {
@@ -183,22 +172,22 @@ function ActionsCell({ member }: { member: TrustedMember }) {
       {member.status === null && (
         <>
           <Button
-            size="icon"
+            size="icon-sm"
             variant="ghost"
-            className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
+            className="text-success hover:bg-success/10 hover:text-success"
             onClick={handleApprove}
             title="Approve"
           >
-            <Check className="h-4 w-4" />
+            <Check />
           </Button>
           <Button
-            size="icon"
+            size="icon-sm"
             variant="ghost"
-            className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={handleDeny}
             title="Deny"
           >
-            <X className="h-4 w-4" />
+            <X />
           </Button>
         </>
       )}
@@ -206,26 +195,26 @@ function ActionsCell({ member }: { member: TrustedMember }) {
       {/* Denied State - Allow re-approve */}
       {member.status === false && (
         <Button
-          size="icon"
+          size="icon-sm"
           variant="ghost"
-          className="h-8 w-8 text-success hover:bg-success/10 hover:text-success"
+          className="text-success hover:bg-success/10 hover:text-success"
           onClick={handleApprove}
           title="Approve"
         >
-          <Check className="h-4 w-4" />
+          <Check />
         </Button>
       )}
 
       {/* Approved State - Allow revoke */}
       {member.status === true && (
         <Button
-          size="icon"
+          size="icon-sm"
           variant="ghost"
-          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={handleDeny}
           title="Revoke Access"
         >
-          <X className="h-4 w-4" />
+          <X />
         </Button>
       )}
     </div>
@@ -253,7 +242,7 @@ function ReasonDialog({
           <Button
             variant="link"
             size="sm"
-            className="h-auto p-0 text-xs font-semibold text-primary"
+            className="h-auto p-0 text-xs font-semibold"
           >
             View full reason
           </Button>

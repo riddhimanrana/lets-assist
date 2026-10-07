@@ -53,8 +53,8 @@ export default function AdminNotificationsPage() {
   );
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+    <div className="container mx-auto max-w-7xl space-y-8 px-4 py-8 md:px-6">
+      <div className="flex flex-col gap-2">
         <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -67,10 +67,10 @@ export default function AdminNotificationsPage() {
           </CardHeader>
           <CardContent>
             <form action={formAction} className="space-y-6">
-              <div className="space-y-4 rounded-lg border p-4 bg-muted/20">
+              <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
                 <Label className="text-base">Recipient Type</Label>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     <Switch
                       id="broadcast-mode"
                       checked={mode === "broadcast"}
@@ -115,19 +115,19 @@ export default function AdminNotificationsPage() {
                   name="severity"
                   className="flex gap-4"
                 >
-                  <div className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
                     <RadioGroupItem value="info" id="r-info" />
                     <Label htmlFor="r-info" className="cursor-pointer">
                       Info
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
                     <RadioGroupItem value="warning" id="r-warning" />
                     <Label htmlFor="r-warning" className="cursor-pointer">
                       Warning
                     </Label>
                   </div>
-                  <div className="flex items-center space-x-2 border p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                  <div className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
                     <RadioGroupItem value="success" id="r-success" />
                     <Label htmlFor="r-success" className="cursor-pointer">
                       Success
@@ -170,7 +170,9 @@ export default function AdminNotificationsPage() {
                 disabled={isPending}
                 className="w-full sm:w-auto"
               >
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPending && (
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                )}
                 Send Notification
               </Button>
             </form>

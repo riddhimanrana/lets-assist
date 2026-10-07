@@ -113,7 +113,7 @@ export function FeedbackTabView({
     <div className="space-y-6">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto] lg:items-center">
         <div className="relative w-full">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="Search title, content, user, or page path..."
             className="pl-8"
@@ -127,7 +127,7 @@ export function FeedbackTabView({
           onValueChange={(val) => val && setTypeFilter(val)}
         >
           <SelectTrigger className="w-full min-w-37.5 lg:w-42.5">
-            <Filter className="mr-2 h-4 w-4" />
+            <Filter />
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -174,7 +174,7 @@ export function FeedbackTabView({
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-        <Card className="shadow-none">
+        <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Total</p>
             <p className="text-lg font-semibold">
@@ -182,7 +182,7 @@ export function FeedbackTabView({
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-none">
+        <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Pending</p>
             <p className="text-lg font-semibold">
@@ -190,7 +190,7 @@ export function FeedbackTabView({
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-none">
+        <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Approved</p>
             <p className="text-lg font-semibold">
@@ -198,7 +198,7 @@ export function FeedbackTabView({
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-none">
+        <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Flagged</p>
             <p className="text-lg font-semibold">
@@ -206,7 +206,7 @@ export function FeedbackTabView({
             </p>
           </CardContent>
         </Card>
-        <Card className="shadow-none">
+        <Card>
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Archived</p>
             <p className="text-lg font-semibold">
@@ -228,12 +228,11 @@ export function FeedbackTabView({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
+                  size="icon-sm"
                   onClick={() => selectByOffset(-1)}
                   disabled={filteredFeedback.length === 0}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft />
                   <span className="sr-only">Previous feedback</span>
                 </Button>
                 <div className="min-w-18 text-center text-xs text-muted-foreground">
@@ -242,12 +241,11 @@ export function FeedbackTabView({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
+                  size="icon-sm"
                   onClick={() => selectByOffset(1)}
                   disabled={filteredFeedback.length === 0}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight />
                   <span className="sr-only">Next feedback</span>
                 </Button>
               </div>
@@ -290,6 +288,7 @@ export function FeedbackTabView({
                               {item.section}
                             </Badge>
                             <Badge
+                              variant="outline"
                               className={cn(
                                 "capitalize",
                                 statusStyles[moderation],
@@ -362,6 +361,7 @@ export function FeedbackTabView({
                       {selectedFeedback.section}
                     </Badge>
                     <Badge
+                      variant="outline"
                       className={cn("capitalize", statusStyles[selectedStatus])}
                     >
                       {statusLabel[selectedStatus]}
@@ -384,7 +384,7 @@ export function FeedbackTabView({
                   {selectedFeedback.feedback}
                 </p>
 
-                <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1.5">
+                <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
                   <div className="flex items-center justify-between gap-2">
                     <span>Submitted by</span>
                     <ProfileHoverCard
@@ -431,9 +431,12 @@ export function FeedbackTabView({
                     disabled={disableActionButtons}
                   >
                     {isActionLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2
+                        data-icon="inline-start"
+                        className="animate-spin"
+                      />
                     ) : (
-                      <Check className="mr-2 h-4 w-4" />
+                      <Check data-icon="inline-start" />
                     )}
                     Approve + next
                   </Button>
@@ -444,7 +447,7 @@ export function FeedbackTabView({
                     onClick={() => void handleModeration("flagged", true)}
                     disabled={disableActionButtons}
                   >
-                    <Flag className="mr-2 h-4 w-4" />
+                    <Flag data-icon="inline-start" />
                     Flag + next
                   </Button>
                   <Button
@@ -454,7 +457,7 @@ export function FeedbackTabView({
                     onClick={() => void handleModeration("archived", true)}
                     disabled={disableActionButtons}
                   >
-                    <Archive className="mr-2 h-4 w-4" />
+                    <Archive data-icon="inline-start" />
                     Archive + next
                   </Button>
                 </div>
@@ -472,7 +475,7 @@ export function FeedbackTabView({
                     }
                     disabled={filteredFeedback.length === 0}
                   >
-                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    <ChevronLeft data-icon="inline-start" />
                     Previous
                   </Button>
                   <Button
@@ -492,7 +495,7 @@ export function FeedbackTabView({
                     disabled={filteredFeedback.length === 0}
                   >
                     Next
-                    <ChevronRight className="ml-1 h-4 w-4" />
+                    <ChevronRight data-icon="inline-end" />
                   </Button>
                   <Button
                     type="button"
@@ -507,7 +510,7 @@ export function FeedbackTabView({
 
                 <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
                   <div className="mb-1 flex items-center gap-1.5 font-medium text-foreground/80">
-                    <Keyboard className="h-3.5 w-3.5" />
+                    <Keyboard className="size-3.5" />
                     Keyboard shortcuts
                   </div>
                   <p>
@@ -524,7 +527,7 @@ export function FeedbackTabView({
                 </div>
 
                 <div className="flex items-center gap-2 rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
-                  <Avatar className="h-6 w-6">
+                  <Avatar className="size-6">
                     <AvatarImage
                       src={selectedFeedback.profiles?.avatar_url || undefined}
                       alt={

@@ -116,7 +116,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
           <DialogTrigger
             render={
               <Button className="w-full sm:w-auto">
-                <ShieldCheck className="mr-2 h-4 w-4" />
+                <ShieldCheck data-icon="inline-start" />
                 Add Trusted Member
               </Button>
             }
@@ -129,7 +129,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
               </DialogDescription>
             </DialogHeader>
             <div className="relative py-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <div className="flex gap-2">
                 <Input
                   placeholder="user@example.com"
@@ -150,22 +150,22 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                   variant="secondary"
                 >
                   {isSearching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="animate-spin" />
                   ) : (
-                    <Search className="h-4 w-4" />
+                    <Search />
                   )}
                 </Button>
               </div>
             </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-75 overflow-y-auto pr-1">
               {searchResults.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="size-10">
                       <AvatarImage
                         src={user.avatar_url || undefined}
                         alt={user.full_name || "User"}
@@ -191,11 +191,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
                     disabled={isAdding}
                     className="ml-2 shrink-0"
                   >
-                    {isAdding ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Add"
-                    )}
+                    {isAdding ? <Loader2 className="animate-spin" /> : "Add"}
                   </Button>
                 </div>
               ))}

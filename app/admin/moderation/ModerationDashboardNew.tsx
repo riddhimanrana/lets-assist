@@ -655,9 +655,9 @@ export default function ModerationDashboard({
                 className={cn(isScanActive && "animate-pulse")}
               >
                 {isScanActive ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
                 ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Sparkles data-icon="inline-start" />
                 )}
                 {isScanActive ? "Scanning..." : "Run AI Scan Now"}
               </Button>
@@ -676,12 +676,12 @@ export default function ModerationDashboard({
 
           {/* Operations Snapshot */}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <Card className="shadow-sm border-l-4 border-l-amber-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="border-l-4 border-l-amber-500">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
                   Human Filed Reports
                 </CardTitle>
-                <User className="h-4 w-4 text-amber-500" />
+                <User className="size-4 text-amber-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.pendingReports}</div>
@@ -690,12 +690,12 @@ export default function ModerationDashboard({
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
                   Ongoing AI Moderation
                 </CardTitle>
-                <Sparkles className="h-4 w-4 text-primary" />
+                <Sparkles className="size-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.pendingFlags}</div>
@@ -704,12 +704,12 @@ export default function ModerationDashboard({
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
                   Resolved Cases
                 </CardTitle>
-                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <CheckCircle className="size-4 text-emerald-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.resolved}</div>
@@ -718,12 +718,12 @@ export default function ModerationDashboard({
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
                   AI Approved Actions
                 </CardTitle>
-                <CheckCheck className="h-4 w-4 text-primary" />
+                <CheckCheck className="size-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.aiApproved}</div>
@@ -732,12 +732,12 @@ export default function ModerationDashboard({
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-l-4 border-l-destructive">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Card className="border-l-4 border-l-destructive">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">
                   Critical / Recent
                 </CardTitle>
-                <Calendar className="h-4 w-4 text-destructive" />
+                <Calendar className="size-4 text-destructive" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.critical}</div>
@@ -760,7 +760,7 @@ export default function ModerationDashboard({
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="size-5 text-primary" />
                 AI Moderation Scan
               </DialogTitle>
               <DialogDescription>
@@ -801,7 +801,7 @@ export default function ModerationDashboard({
                 {scanProgress.currentItem && (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                     <div className="flex items-center gap-2 mb-1">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      <Loader2 className="size-4 animate-spin text-primary" />
                       <span className="text-xs font-medium text-primary uppercase">
                         Analyzing {scanProgress.currentItemType}
                       </span>
@@ -831,16 +831,16 @@ export default function ModerationDashboard({
                       return (
                         <div
                           key={`${result.itemId}-${i}`}
-                          className={`text-xs p-2 rounded flex items-center gap-2 ${
+                          className={`flex items-center gap-2 rounded-md p-2 text-xs ${
                             result.success
                               ? "bg-primary/10 text-primary"
                               : "bg-destructive/10 text-destructive"
                           }`}
                         >
                           {result.success ? (
-                            <CheckCircle className="h-3 w-3" />
+                            <CheckCircle className="size-3" />
                           ) : (
-                            <XCircle className="h-3 w-3" />
+                            <XCircle className="size-3" />
                           )}
                           <span className="capitalize">{result.itemType}</span>
                           <Badge
@@ -868,11 +868,11 @@ export default function ModerationDashboard({
         <Tabs defaultValue="reports" className="space-y-4">
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2">
             <TabsTrigger value="reports" className="gap-2">
-              <User className="h-4 w-4" />
+              <User className="size-4" />
               Reports Queue ({stats.pendingReports})
             </TabsTrigger>
             <TabsTrigger value="flagged" className="gap-2">
-              <ShieldAlert className="h-4 w-4" />
+              <ShieldAlert className="size-4" />
               AI Flags Queue ({stats.pendingFlags})
             </TabsTrigger>
           </TabsList>
@@ -912,11 +912,11 @@ export default function ModerationDashboard({
                   <TabsContent value={reportFilter}>
                     {isReportsLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : contentReports.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg bg-muted/20">
-                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
+                        <CheckCircle className="mb-4 size-12 text-muted-foreground/50" />
                         <h3 className="text-xl font-semibold">
                           All caught up!
                         </h3>
@@ -929,7 +929,7 @@ export default function ModerationDashboard({
                         </p>
                       </div>
                     ) : (
-                      <div className="rounded-lg bg-card shadow-sm overflow-hidden">
+                      <div className="overflow-hidden rounded-lg bg-card">
                         {/* @ts-ignore - structural typing match mostly fine, ignoring distinct type definition mismatch for now */}
                         <DataTable
                           columns={reportColumns}
@@ -974,11 +974,11 @@ export default function ModerationDashboard({
                   <TabsContent value={flaggedFilter}>
                     {isFlaggedLoading ? (
                       <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
                       </div>
                     ) : flaggedContent.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed rounded-lg bg-muted/20">
-                        <CheckCircle className="mb-4 h-12 w-12 text-muted-foreground/50" />
+                        <CheckCircle className="mb-4 size-12 text-muted-foreground/50" />
                         <h3 className="text-xl font-semibold">Clean Slate!</h3>
                         <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
                           No flagged content found in the{" "}
@@ -989,7 +989,7 @@ export default function ModerationDashboard({
                         </p>
                       </div>
                     ) : (
-                      <div className="rounded-lg bg-card shadow-sm overflow-hidden">
+                      <div className="overflow-hidden rounded-lg bg-card">
                         {/* @ts-ignore */}
                         <DataTable
                           columns={flaggedColumns}
@@ -1083,7 +1083,7 @@ export default function ModerationDashboard({
                         )}
                       >
                         <span className="flex items-center gap-2">
-                          <ChevronRight className="h-4 w-4 transition-transform in-data-[state=open]:rotate-90" />
+                          <ChevronRight className="size-4 transition-transform in-data-[state=open]:rotate-90" />
                           Reasoning Steps (
                           {selectedFlag.flag_details.reasoningSteps.length})
                         </span>
@@ -1128,7 +1128,7 @@ export default function ModerationDashboard({
                         buttonVariants({ variant: "outline", size: "sm" }),
                       )}
                     >
-                      <ExternalLink className="mr-2 h-4 w-4" />
+                      <ExternalLink data-icon="inline-start" />
                       View Content
                     </Link>
                   )}
@@ -1141,7 +1141,7 @@ export default function ModerationDashboard({
                         onClick={() => handleRunAiReviewForFlag(selectedFlag)}
                         disabled={isActionLoading}
                       >
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <Sparkles data-icon="inline-start" />
                         Re-run AI
                       </Button>
                     )}
@@ -1197,7 +1197,7 @@ export default function ModerationDashboard({
                     Report Details
                     {selectedReport.ai_metadata?.triagedAt && (
                       <Badge variant="outline" className="text-xs font-normal">
-                        <Bot className="mr-1 h-3 w-3" />
+                        <Bot />
                         AI Analyzed
                       </Badge>
                     )}
@@ -1251,7 +1251,7 @@ export default function ModerationDashboard({
                         href={`/profile/${selectedReport.reporter.username || selectedReport.reporter.id}`}
                         className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/40"
                       >
-                        <Avatar className="h-11 w-11">
+                        <Avatar className="size-11">
                           <AvatarImage
                             src={
                               selectedReport.reporter.avatar_url || undefined
@@ -1277,7 +1277,7 @@ export default function ModerationDashboard({
                             </p>
                           )}
                         </div>
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        <ExternalLink className="size-4 text-muted-foreground" />
                       </Link>
                     </div>
                   ) : (
@@ -1338,7 +1338,7 @@ export default function ModerationDashboard({
                           className="inline-flex items-center gap-1.5 text-primary hover:underline"
                         >
                           Open content
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          <ExternalLink className="size-3.5" />
                         </Link>
                       )}
                     </div>
@@ -1394,7 +1394,7 @@ export default function ModerationDashboard({
                   {selectedReport.ai_metadata?.triagedAt && (
                     <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4 space-y-4">
                       <div className="flex items-center gap-2">
-                        <Bot className="h-5 w-5 text-primary" />
+                        <Bot className="size-5 text-primary" />
                         <span className="font-semibold">AI Analysis</span>
                         <Badge variant="outline" className="ml-auto text-xs">
                           {formatConfidencePercent(
@@ -1454,7 +1454,7 @@ export default function ModerationDashboard({
                   )}
                 </div>
 
-                <SheetFooter className="border-t bg-background/95 p-4">
+                <SheetFooter className="border-t bg-background p-4">
                   <div className="flex w-full flex-wrap justify-end gap-2">
                     {selectedReport.ai_metadata?.suggestedStatus && (
                       <Button
@@ -1463,7 +1463,7 @@ export default function ModerationDashboard({
                         onClick={() => handleReportAiApproval(selectedReport)}
                         disabled={isActionLoading}
                       >
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <Sparkles data-icon="inline-start" />
                         Approve AI Suggestion
                       </Button>
                     )}
@@ -1509,7 +1509,7 @@ export default function ModerationDashboard({
                       }
                       disabled={isActionLoading}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <CheckCircle data-icon="inline-start" />
                       Resolve Case
                     </Button>
                   </div>

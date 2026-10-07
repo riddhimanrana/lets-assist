@@ -95,7 +95,7 @@ export function UserSearch({
           {value ? (
             <>
               {selectedAvatar && (
-                <Avatar className="h-6 w-6">
+                <Avatar className="size-6">
                   <AvatarImage
                     src={selectedAvatar}
                     alt={selectedLabel || "Selected User"}
@@ -120,9 +120,9 @@ export function UserSearch({
             "Search user by name..."
           )}
         </div>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent className="w-75 p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search users..."
@@ -131,8 +131,8 @@ export function UserSearch({
           />
           <CommandList>
             {loading ? (
-              <div className="py-6 flex justify-center text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
                 Searching...
               </div>
             ) : (
@@ -151,12 +151,12 @@ export function UserSearch({
                     >
                       <Check
                         className={cn(
-                          "mr-2 h-4 w-4",
+                          "mr-2 size-4",
                           value === item.id ? "opacity-100" : "opacity-0",
                         )}
                       />
                       <div className="flex items-center gap-2 w-full">
-                        <Avatar className="h-8 w-8">
+                        <Avatar className="size-8">
                           <AvatarImage src={item.avatar_url} alt={item.label} />
                           <AvatarFallback>
                             <NoAvatar fullName={item.label} />
