@@ -24,9 +24,17 @@ node scripts/production/maintenance-preflight.mjs before
 
 The `before` mode accepts only an exact catalogued prefix at or after migration 687. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
 catalog drift, enabled workers, active or running cron jobs, conflicting
-read-only configuration and failed integrity checks. The helper checks the
+request-guard configuration and failed integrity checks. The helper checks the
 configured write-block state. The workflow's separate fresh PostgREST probe
-must still return SQLSTATE `25006` before a schema push.
+must still return SQLSTATE `25006` before a schema push. The workflow then waits
+for the exact transactions admitted before the hook loaded. A 20-second timeout
+keeps writes blocked and stops the release; it does not terminate connections.
+
+The hook and flag setter coordinate through shared and exclusive transaction
+locks. Writable PostgREST requests must use READ COMMITTED isolation so they see
+the committed flag after waiting. The hook refuses REPEATABLE READ and
+SERIALIZABLE writes even when maintenance is off. Read-only requests remain
+available, including those using stronger isolation.
 
 After the workflow applies migrations, it requires the complete accepted target:
 

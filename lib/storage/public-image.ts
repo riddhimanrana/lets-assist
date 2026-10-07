@@ -58,7 +58,7 @@ export async function preparePublicImage(value: string): Promise<Buffer> {
   }
 }
 
-/** Preserve the existing bucket RLS prefix, with a unique immutable suffix. */
+/** Bind the object key to its owner with a unique immutable suffix. */
 export function publicImageKey(bucket: PublicImageBucket, ownerId: string) {
   if (!UUID.test(ownerId)) throw new Error("Invalid image owner");
   return bucket === "avatars"

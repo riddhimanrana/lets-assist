@@ -43,6 +43,8 @@ const client = {
     };
     return query;
   },
+};
+const admin = {
   storage: {
     from: () => ({
       upload: async (
@@ -72,7 +74,17 @@ mock.module("@/lib/storage/public-image-lifecycle", () => ({
   },
 }));
 mock.module("@/lib/supabase/server", () => ({
-  createClient: async () => client,
+  createClient: async () => ({
+    ...client,
+    storage: {
+      from: () => {
+        throw new Error("Browser Storage must not write public images");
+      },
+    },
+  }),
+}));
+mock.module("@/lib/supabase/admin", () => ({
+  getAdminClient: () => admin,
 }));
 mock.module("@/utils/moderation-helpers", () => ({
   checkOffensiveLanguage: async () => null,

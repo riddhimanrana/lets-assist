@@ -44,18 +44,24 @@ $$;
 CREATE FUNCTION public.enforce_application_request_write_fence()
 RETURNS void
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY INVOKER
 SET search_path = ''
 AS $$
 BEGIN
+  -- Keep this lock until the request transaction ends. A waiting request must
+  -- read a fresh catalog snapshot after the operator commits the flag.
+  PERFORM pg_catalog.pg_advisory_xact_lock_shared(592043, 1);
+  -- Stronger write isolation can retain a pre-activation snapshot after the
+  -- lock wait. Refuse it even while the flag is off. Read-only RPCs still work.
   -- Read the operator-owned catalog flag, not an overridable request setting.
   IF pg_catalog.current_setting('transaction_read_only') <> 'on'
-    AND EXISTS (
+    AND (pg_catalog.current_setting('transaction_isolation') <> 'read committed'
+      OR EXISTS (
       SELECT 1 FROM pg_catalog.pg_roles
       WHERE rolname = 'authenticator'
         AND 'pgrst.app_settings.maintenance_write_block=on' = ANY (coalesce(rolconfig, ARRAY[]::text[]))
-    ) THEN
+    )) THEN
     RAISE EXCEPTION 'Application writes are temporarily unavailable for maintenance.'
       USING ERRCODE = '25006';
   END IF;

@@ -205,6 +205,7 @@ function rejectionErrorMessage(code?: string): string {
       return "Signup not found";
     case "22023":
       return "This signup can no longer be rejected. Refresh the signups list and try again.";
+    case "PT409":
     case "40001":
       return "The signup changed while it was being rejected. Refresh the signups list and try again.";
     default:

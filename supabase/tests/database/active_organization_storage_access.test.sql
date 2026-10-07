@@ -160,7 +160,7 @@ SELECT extensions.is(
   1::bigint,
   'active organization staff can read paper-scan rows'
 );
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$
     INSERT INTO storage.objects (id, bucket_id, name, owner, metadata)
     VALUES (
@@ -171,7 +171,9 @@ SELECT extensions.lives_ok(
       '{"mimetype":"image/png"}'::jsonb
     )
   $$,
-  'active organization staff can create the organization logo object'
+  '42501',
+  'new row violates row-level security policy for table "objects"',
+  'active organization staff cannot bypass server logo validation'
 );
 SELECT extensions.lives_ok(
   $$

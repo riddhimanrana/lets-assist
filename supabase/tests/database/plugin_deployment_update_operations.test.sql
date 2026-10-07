@@ -174,7 +174,7 @@ SELECT extensions.throws_ok(
       NULL, 'system', '1.1.0', '1.1.0', '{}'::jsonb
     )
   $$,
-  '40001',
+  'PT409',
   'a live matching plugin transition lease is required',
   'an update operation cannot start without its lease'
 );

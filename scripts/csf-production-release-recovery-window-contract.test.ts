@@ -11,6 +11,10 @@ const supabaseDeploymentGuide = readFileSync(
   join(repositoryRoot, "docs/development/supabase-deployment.md"),
   "utf8",
 );
+const recoveryWorkflow = readFileSync(
+  join(repositoryRoot, ".github/workflows/production-release-recovery.yml"),
+  "utf8",
+);
 
 function jobBlock(source: string, name: string) {
   const marker = `\n  ${name}:\n`;
@@ -39,6 +43,39 @@ function stepTimeout(source: string, name: string) {
 }
 
 describe("CSF Production recovery window", () => {
+  test("settles legacy transactions before claiming independent recovery", () => {
+    const recovery = jobBlock(recoveryWorkflow, "reconcile-production");
+    const proofName = "Prove Production application write block";
+    const barrierName = "Settle requests admitted before the hook was loaded";
+    const restoreName =
+      "Restore and prove exact Production maintenance deployment";
+    const barrier = stepBlock(recovery, barrierName);
+    expect(recovery.indexOf(proofName)).toBeGreaterThanOrEqual(0);
+    expect(recovery.indexOf(barrierName)).toBeGreaterThan(
+      recovery.indexOf(proofName),
+    );
+    expect(recovery.indexOf(restoreName)).toBeGreaterThan(
+      recovery.indexOf(barrierName),
+    );
+    expect(barrier).toContain(
+      "run: bash scripts/production/set-application-write-block.sh barrier",
+    );
+    expect(barrier).not.toMatch(/continue-on-error|always\(\)|\|\| true/u);
+    expect(stepTimeout(recovery, barrierName)).toBe(2);
+    expect(
+      stepBlock(recovery, "Record successful Production recovery"),
+    ).toContain("if: success()");
+    expect(stepBlock(recovery, "Record failed Production recovery")).toContain(
+      "if: failure()",
+    );
+    const timeoutTotal = [
+      ...recovery.matchAll(/^ {8}timeout-minutes: (\d+)$/gmu),
+    ].reduce((total, match) => total + Number(match[1]), 0);
+    expect(timeoutTotal).toBeGreaterThan(0);
+    expect(timeoutTotal).toBeLessThanOrEqual(60);
+    expect(recovery).toMatch(/^ {4}timeout-minutes: 60$/mu);
+  });
+
   test("reserves a bounded recovery window before Production writes", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
     const priorRecovery = jobBlock(
@@ -56,6 +93,7 @@ describe("CSF Production recovery window", () => {
     const normalWindowSteps = [
       "Reassert Production application write block",
       "Prove a fresh Production application write is blocked",
+      "Settle requests admitted before the hook was loaded",
       "Promote maintenance page to Production",
       "Verify Production maintenance alias",
       "Recheck Production maintenance preflight before schema push",
