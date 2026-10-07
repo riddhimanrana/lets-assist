@@ -8,12 +8,17 @@ import {
   unreviewedWriteTables,
 } from "./migration-data-writes.mjs";
 
-import { REVIEWED_PREFIX_LENGTH } from "./forward-migration-release-fixture.mjs";
+import {
+  APPROVED_TAIL as REVIEWED_APPROVED_TAIL,
+  REVIEWED_PREFIX_LENGTH,
+} from "./forward-migration-release-fixture.mjs";
 
 const fixture = await historicalOnlineReleaseTestFixture();
 const { applyForwardMigrations, approvedMigrations, prepareMigration } =
   fixture.controller;
-const APPROVED_TAIL = approvedMigrations.map(([name]) => name.slice(0, 14));
+const APPROVED_TAIL = REVIEWED_APPROVED_TAIL.filter(
+  (version) => version < "20261007210000",
+);
 const cwd = fixture.cwd;
 after(fixture.dispose);
 const config = {
