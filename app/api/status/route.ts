@@ -137,6 +137,8 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
       autoPublishHours: process.env.AUTO_PUBLISH_ENABLED === "true",
       csfCommunications: csf.workers.communications,
       csfImportCommit: csf.workers.import_commit,
+      csfOperationalAlerts:
+        process.env.CSF_OPERATIONAL_ALERTS_ENABLED === "true",
       csfPublicationNotifications: csf.workers.publication_notifications,
       csfScheduledPostPublisher: csf.workers.scheduled_post_publisher,
       csfWorkbookRefresh: csf.workers.workbook_refresh,
@@ -146,6 +148,7 @@ async function checkWorkerConfiguration(): Promise<StatusCheck> {
         process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true",
       projectCancellationWorker:
         process.env.PROJECT_CANCELLATION_WORKER_ENABLED === "true",
+      publicImageCleanup: process.env.PUBLIC_IMAGE_CLEANUP_ENABLED === "true",
     };
 
     const enabledWorkers = Object.entries(workerFlags)
