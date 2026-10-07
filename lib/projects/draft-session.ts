@@ -18,6 +18,7 @@ export function createProjectDraftSession(
 ) {
   let id = initialId;
   let published = false;
+  let publishing = false;
   let pending: Promise<unknown> = Promise.resolve();
 
   function enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -27,9 +28,9 @@ export function createProjectDraftSession(
   }
 
   function save(data: DraftData, copy: boolean): Promise<SaveResult> {
-    if (published) {
+    if (published || publishing) {
       return Promise.resolve({
-        error: "This project has already been published.",
+        error: "This project is being published or has already been published.",
       });
     }
     return enqueue(async () => {
@@ -45,9 +46,22 @@ export function createProjectDraftSession(
     get id() {
       return id;
     },
+    get publishing() {
+      return publishing;
+    },
     save: (data: DraftData) => save(data, false),
     copy: (data: DraftData) => save(data, true),
-    flush: () => pending,
+    beginPublication: () => {
+      if (publishing || published)
+        return Promise.reject(
+          new Error("Project publication is already in progress"),
+        );
+      publishing = true;
+      return pending;
+    },
+    endPublication: () => {
+      publishing = false;
+    },
     consume: () => {
       published = true;
       return enqueue(async () => {
