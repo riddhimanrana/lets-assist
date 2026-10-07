@@ -21,15 +21,9 @@ export DV_LOCAL_TEST_PASSWORD
 export CSF_LOCAL_TEST_PASSWORD
 
 # ---------------------------------------------------------------------------
-# Remote readiness is a separate release gate, and it is currently blocked.
-#
-# scripts/audit-supabase-remote-readiness.sh is deterministically red while
-# `plugin_data` remains in supabase/config.toml api.schemas, and removing that
-# schema now would break the server-side service-role PostgREST reads this app
-# still depends on. Running it here unconditionally made a truthful local replay
-# look like a failing global readiness gate; skipping it silently would have been
-# worse. So it is opt-in, validated here before a single container starts, and a
-# typo is refused rather than quietly treated as "not requested".
+# The optional access audit checks the service-only Data API contract on this
+# configured database. A local result does not establish hosted readiness.
+# Keep the existing opt-in interface, and reject typos before creating resources.
 # ---------------------------------------------------------------------------
 REQUIRE_REMOTE_READINESS="${CSF_REQUIRE_REMOTE_READINESS:-}"
 case "${REQUIRE_REMOTE_READINESS}" in
@@ -237,13 +231,13 @@ run_step \
   bun run dev:test:cron
 
 if [[ "${REQUIRE_REMOTE_READINESS}" == "1" ]]; then
-  # Unchanged audit, explicitly requested. Its failure propagates.
+  # Explicitly requested access audit. Its failure propagates.
   run_step \
-    "Supabase Remote Server-Only Readiness Audit (explicitly required)" \
+    "Supabase Service-Only Access Audit (explicitly required)" \
     bun run db:audit:remote-readiness
 else
   echo
-  echo "Remote readiness: NOT EVALUATED — separate blocked release gate."
+  echo "Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence."
 fi
 
 GATE_STEPS_PASSED=true

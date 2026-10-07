@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set +x
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DB_URL="${SUPABASE_DB_URL:-$(node "$ROOT_DIR/scripts/local-dev/dv-local-env.mjs" --db-url)}"
@@ -13,9 +14,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  Supabase Architecture Audit"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-if ! psql "$DB_URL" -Atc "select 1" >/dev/null 2>&1; then
-  echo "Unable to connect to local Supabase Postgres at: $DB_URL" >&2
-  echo "Run bun run supabase first, or set SUPABASE_DB_URL." >&2
+if ! psql "$DB_URL" -X -v ON_ERROR_STOP=1 -Atc "select 1" >/dev/null 2>&1; then
+  echo "Unable to connect to the configured Supabase database. Connection details are withheld." >&2
+  echo "Use an owned local stack, or explicitly configure SUPABASE_DB_URL for a read-only audit." >&2
   exit 1
 fi
 
@@ -43,7 +44,7 @@ warn_if_rows() {
 }
 
 missing_rls="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select n.nspname, c.relname
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
@@ -56,7 +57,7 @@ missing_rls="$(
 fail_if_rows "public/plugin_data base tables without RLS" "$missing_rls"
 
 public_plugin_policies="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select schemaname, tablename, policyname, roles::text
     from pg_policies
     where schemaname = 'plugin_data'
@@ -67,7 +68,7 @@ public_plugin_policies="$(
 fail_if_rows "plugin_data policies targeting PUBLIC" "$public_plugin_policies"
 
 unexpected_public_org_policies="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select schemaname, tablename, policyname, cmd, roles::text
     from pg_policies
     where schemaname = 'public'
@@ -82,7 +83,7 @@ unexpected_public_org_policies="$(
 fail_if_rows "organization-domain policies targeting PUBLIC" "$unexpected_public_org_policies"
 
 anon_org_write_grants="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select table_schema, table_name, privilege_type
     from information_schema.role_table_grants
     where table_schema = 'public'
@@ -98,7 +99,7 @@ anon_org_write_grants="$(
 fail_if_rows "anonymous organization-domain write grants" "$anon_org_write_grants"
 
 missing_org_read_models="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with expected(view_name) as (
       values
         ('organization_public_read_model'),
@@ -122,7 +123,7 @@ missing_org_read_models="$(
 fail_if_rows "organization public/read models missing or not security_invoker=true" "$missing_org_read_models"
 
 write_policies_missing_checks="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select schemaname, tablename, policyname, cmd
     from pg_policies
     where schemaname in ('public', 'plugin_data')
@@ -134,7 +135,7 @@ write_policies_missing_checks="$(
 fail_if_rows "write-capable RLS policies missing explicit WITH CHECK" "$write_policies_missing_checks"
 
 unsafe_metadata_policies="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select schemaname, tablename, policyname, cmd
     from pg_policies
     where schemaname in ('public', 'plugin_data')
@@ -148,7 +149,7 @@ unsafe_metadata_policies="$(
 fail_if_rows "RLS policies using user-editable metadata for authorization" "$unsafe_metadata_policies"
 
 unwrapped_auth_uid="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select schemaname, tablename, policyname, cmd
     from pg_policies
     where schemaname in ('public', 'plugin_data')
@@ -171,7 +172,7 @@ fail_if_rows "RLS policies with unwrapped auth.uid() calls" "$unwrapped_auth_uid
 # snapshot-ledger exception must retain its named immutable check and separately
 # validated live ON DELETE SET NULL reference or it fails as invalid_exception.
 missing_org_fk="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with tenant_fk_exceptions(
       table_schema,
       table_name,
@@ -317,8 +318,26 @@ missing_org_fk="$(
 )"
 fail_if_rows "organization_id columns without tenant FK constraints" "$missing_org_fk"
 
+invalid_set_null_actions="$(
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
+    select namespace.nspname, relation.relname, constraint_row.conname, attribute.attname
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    join pg_attribute attribute on attribute.attrelid = relation.oid
+      and attribute.attnum = any(constraint_row.conkey)
+    where constraint_row.contype = 'f' and constraint_row.confdeltype = 'n'
+      and namespace.nspname in ('public', 'plugin_data', 'private', 'app_private')
+      and attribute.attnotnull
+      and (constraint_row.confdelsetcols is null
+        or attribute.attnum = any(constraint_row.confdelsetcols))
+    order by 1, 2, 3, 4;
+  "
+)"
+fail_if_rows "foreign-key SET NULL actions targeting required columns" "$invalid_set_null_actions"
+
 missing_org_index="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with org_tables as (
       select c.table_schema, c.table_name
       from information_schema.columns c
@@ -347,7 +366,7 @@ missing_org_index="$(
 fail_if_rows "organization_id tenant tables without leading tenant indexes" "$missing_org_index"
 
 missing_fk_leading_index="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with fk_cols as (
       select
         n.nspname as schema_name,
@@ -381,7 +400,7 @@ missing_fk_leading_index="$(
 warn_if_rows "foreign-key columns without leading indexes; confirm workload before adding blanket indexes" "$missing_fk_leading_index"
 
 public_client_relation_acl_drift="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with expected as (
       select relation_name, role_name, privilege, null::text as column_name
       from app_private.client_relation_grant_catalog()
@@ -519,7 +538,7 @@ public_client_relation_acl_drift="$(
 fail_if_rows "public client relation ACL drift from reviewed catalog" "$public_client_relation_acl_drift"
 
 public_client_relation_dangerous_grants="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with client_roles as (
       select oid, rolname::text as role_name
       from pg_roles
@@ -572,7 +591,7 @@ public_client_relation_dangerous_grants="$(
 fail_if_rows "public relations grant anon/authenticated effective non-DML privileges" "$public_client_relation_dangerous_grants"
 
 public_client_relation_public_grants="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with public_grants as (
       select
         relation.relname::text as relation_name,
@@ -607,7 +626,7 @@ public_client_relation_public_grants="$(
 fail_if_rows "PUBLIC role still holds public relation or column privileges" "$public_client_relation_public_grants"
 
 read_models_not_security_invoker="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select n.nspname, c.relname
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
@@ -621,7 +640,7 @@ read_models_not_security_invoker="$(
 fail_if_rows "public read-model views without security_invoker=true" "$read_models_not_security_invoker"
 
 storage_bucket_drift="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with expected as (
       select bucket_id, is_public, file_size_limit, allowed_mime_types, posture
       from app_private.storage_bucket_posture_catalog()
@@ -700,7 +719,7 @@ storage_bucket_drift="$(
 fail_if_rows "storage buckets missing, unexpected, or with catalog property drift" "$storage_bucket_drift"
 
 storage_objects_rls_disabled="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select namespace.nspname, relation.relname
     from pg_class relation
     join pg_namespace namespace on namespace.oid = relation.relnamespace
@@ -713,7 +732,7 @@ storage_objects_rls_disabled="$(
 fail_if_rows "storage.objects does not enforce row-level security" "$storage_objects_rls_disabled"
 
 storage_object_policy_drift="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select
       drift_kind,
       policy_name,
@@ -729,7 +748,7 @@ storage_object_policy_drift="$(
 fail_if_rows "client-reachable storage.objects policies drift from the exact reviewed contract" "$storage_object_policy_drift"
 
 storage_object_policy_posture_gaps="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with bucket_catalog as (
       select bucket_id, posture
       from app_private.storage_bucket_posture_catalog()
@@ -789,7 +808,7 @@ storage_object_policy_posture_gaps="$(
 fail_if_rows "storage policy catalog violates bucket posture or exact client-role shape" "$storage_object_policy_posture_gaps"
 
 unexpected_auth_schema_grants="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select table_schema, table_name, grantee, string_agg(privilege_type, ',' order by privilege_type)
     from information_schema.role_table_grants
     where table_schema = 'auth'
@@ -801,7 +820,7 @@ unexpected_auth_schema_grants="$(
 fail_if_rows "auth schema tables directly granted to anon/authenticated roles" "$unexpected_auth_schema_grants"
 
 unexpected_security_definer_exec="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with reviewed(function_oid, role_name) as (
       values
         (pg_catalog.to_regprocedure('public.get_csf_application_role_context(uuid,text)')::oid, 'authenticated'::text),
@@ -834,7 +853,7 @@ unexpected_security_definer_exec="$(
 fail_if_rows "unreviewed client EXECUTE grants on public SECURITY DEFINER functions" "$unexpected_security_definer_exec"
 
 public_client_function_acl_drift="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with expected(signature, role_name) as (
       values
         ('public.can_insert_project(uuid)', 'authenticated'),
@@ -899,7 +918,7 @@ public_client_function_acl_drift="$(
 fail_if_rows "public client-callable function ACL drift" "$public_client_function_acl_drift"
 
 summary="$(
-  psql "$DB_URL" -AtF $'\t' -c "
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select 'base_tables_with_rls', count(*)
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
