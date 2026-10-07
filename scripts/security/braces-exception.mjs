@@ -27,7 +27,7 @@ export const BRACES_EXCEPTION = Object.freeze({
     "next.config.ts":
       "4abbf269b00471f8a15ea650eccf7ffa5527ac33937fe46b9e157263151eaa65",
     "eslint.config.mjs":
-      "cc556b4d583ec40fe887fa594d649f6fa08d1c6258873e02e141bea8bcba360e",
+      "4b7409a0fb5fe369cd5cf9505ee1b58f52dc95982daae84ced9c3b6940c8c706",
     "proxy.ts":
       "4c9e1ce0568f2d7b0300d16ab8955d774950f28edc1dea0133f7500fe3d42618",
     "lib/plugins/private/apps/csf/next.config.ts":
