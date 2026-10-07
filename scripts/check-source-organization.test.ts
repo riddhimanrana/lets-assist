@@ -40,7 +40,6 @@ describe("source organization guard", () => {
     expect(
       findMaintainabilityIssues(
         [
-          // Route and component modules are deliberately uncapped.
           { file: "components/NewPanel.tsx", lines: 601 },
           {
             file: "plugins/dvhs-csf/components/NestedPanel.tsx",
@@ -53,13 +52,40 @@ describe("source organization guard", () => {
         ],
         "lets-assist",
       ).map((issue: { file: string }) => issue.file),
-    ).toEqual(["services/new-service.ts", "services/new-service.test.ts"]);
+    ).toEqual([
+      "components/NewPanel.tsx",
+      "plugins/dvhs-csf/components/NestedPanel.tsx",
+      "app/organizations/[id]/layout.tsx",
+      "services/new-service.ts",
+      "services/new-service.test.ts",
+    ]);
     expect(
       findMaintainabilityIssues(
         [{ file: "app/projects/[id]/actions.ts", lines: 3698 }],
         "lets-assist",
       ).map((issue: { file: string }) => issue.file),
     ).toEqual(["app/projects/[id]/actions.ts"]);
+  });
+
+  test("a legacy allowance cannot authorize growth or an unrelated new file", () => {
+    const baseline = require("./source-maintainability-baseline.json")
+      .repositories["lets-assist"] as Record<string, number>;
+    const [file, lines] = Object.entries(baseline)[0];
+    expect(findMaintainabilityIssues([{ file, lines }], "lets-assist")).toEqual(
+      [],
+    );
+    expect(
+      findMaintainabilityIssues([{ file, lines: lines + 1 }], "lets-assist"),
+    ).toHaveLength(1);
+    expect(
+      findMaintainabilityIssues(
+        [{ file: "components/UnreviewedPanel.tsx", lines }],
+        "lets-assist",
+      ),
+    ).toHaveLength(1);
+    expect(
+      findMaintainabilityIssues([{ file, lines: 600 }], "lets-assist"),
+    ).toEqual([]);
   });
 
   test("rejects generated artifacts", () => {

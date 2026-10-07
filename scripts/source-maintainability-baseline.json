@@ -1,0 +1,61 @@
+{
+  "reviewedAt": "2026-10-07",
+  "revisions": {
+    "lets-assist": "5219196db3f967dd247f24199a1b88570bf2ae08",
+    "private": "a1d5836fb800ad4afef7cfbfc6ed4a5f63e23f3d"
+  },
+  "repositories": {
+    "lets-assist": {
+      "app/(landing)/_components/ComparisonSection.tsx": 1144,
+      "app/(landing)/_components/HeroContent.tsx": 1082,
+      "app/(landing)/_components/OrgToolingSection.tsx": 1789,
+      "app/account/authentication/AuthenticationClient.tsx": 927,
+      "app/account/profile/ProfileClient.tsx": 1155,
+      "app/admin/moderation/ModerationDashboardNew.tsx": 1595,
+      "app/admin/moderation/server/queues.ts": 618,
+      "app/anonymous/[id]/AnonymousLinkingDialog.tsx": 696,
+      "app/anonymous/[id]/AnonymousSignupClient.tsx": 1082,
+      "app/api/ai/analyze-waiver/route.ts": 1975,
+      "app/api/ai/scan-signup-sheet/route.ts": 656,
+      "app/api/cron/csf-communications-dispatch/route.ts": 669,
+      "app/api/resend/webhook/implementation.ts": 1422,
+      "app/api/waivers/[signatureId]/preview/route.ts": 601,
+      "app/attend/[projectId]/AttendanceClient.tsx": 973,
+      "app/certificates/CertificatesList.tsx": 805,
+      "app/organization/CsvVerificationModal.tsx": 1840,
+      "app/organization/[id]/MembersTab.tsx": 919,
+      "app/organization/[id]/ReportsTab.tsx": 2368,
+      "app/organization/[id]/settings/BulkImportDialog.tsx": 864,
+      "app/organization/[id]/settings/EditOrganizationForm.tsx": 728,
+      "app/organization/[id]/settings/OrganizationPluginSettings.tsx": 1943,
+      "app/organization/[id]/settings/OrganizationSheetsSettings.tsx": 710,
+      "app/organization/[id]/settings/PendingInvitations.tsx": 641,
+      "app/organization/[id]/settings/server/plugin-mutations.ts": 740,
+      "app/profile/[username]/page.tsx": 619,
+      "app/projects/[id]/CreatorDashboard.tsx": 1553,
+      "app/projects/[id]/ProjectDetails.tsx": 3035,
+      "app/projects/[id]/ProjectForm.tsx": 806,
+      "app/projects/[id]/ProjectInstructions.tsx": 957,
+      "app/projects/[id]/ProjectTimeline.tsx": 1054,
+      "app/projects/[id]/UserDashboard.tsx": 1461,
+      "app/projects/[id]/attendance/AttendanceClient.tsx": 878,
+      "app/projects/[id]/edit/EditProjectClient.tsx": 2199,
+      "app/projects/[id]/hours/HoursClient.tsx": 2266,
+      "app/projects/[id]/server/lifecycle.ts": 777,
+      "app/projects/[id]/server/signup-anonymous.ts": 614,
+      "app/projects/[id]/signups/SignupsClient.tsx": 1112,
+      "app/projects/create/Finalize.tsx": 910,
+      "app/projects/create/ProjectCreator.tsx": 1708,
+      "app/projects/create/Schedule.tsx": 985,
+      "app/projects/create/VerificationSettings.tsx": 1290,
+      "components/onboarding/InitialOnboardingModal.tsx": 607
+    },
+    "private": {
+      "plugins/dvhs-csf/components/CsfGoogleSheetPickerField.tsx": 665,
+      "plugins/dvhs-csf/components/CsfProfileDetailModel.ts": 687,
+      "plugins/dvhs-csf/components/CsfSemesterOverview.tsx": 617,
+      "plugins/dvhs-csf/components/CsfSheetImportWorkspaceController.ts": 739,
+      "plugins/dvhs-csf/components/CsfSheetImportWorkspaceModel.tsx": 754
+    }
+  }
+}

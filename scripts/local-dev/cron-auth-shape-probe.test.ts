@@ -53,6 +53,17 @@ const workbookRefreshCalls: unknown[] = [];
 const importCommitCalls: unknown[] = [];
 const automaticSheetWorkerCalls: unknown[] = [];
 const publicationNotificationCalls: unknown[] = [];
+const workerObservationCalls: unknown[] = [];
+
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    workerObservationCalls.push(worker);
+    return operation();
+  },
+}));
 
 function dangerCallTotals() {
   return {
@@ -71,6 +82,7 @@ function dangerCallTotals() {
     executeCsfImportCommitClaim: importCommitCalls.length,
     automaticSheetWorkers: automaticSheetWorkerCalls.length,
     publicationNotifications: publicationNotificationCalls.length,
+    workerObservations: workerObservationCalls.length,
   };
 }
 
@@ -90,6 +102,7 @@ const ZERO_DANGER_CALLS = {
   executeCsfImportCommitClaim: 0,
   automaticSheetWorkers: 0,
   publicationNotifications: 0,
+  workerObservations: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -456,6 +469,7 @@ function makeRequest(
 }
 
 function resetCounters() {
+  workerObservationCalls.length = 0;
   for (const list of [
     createClientCalls,
     sendEmailCalls,
@@ -1001,6 +1015,7 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     );
     expect(dispatched.status).toBe(500);
     expect(dataExportCalls.length).toBe(1);
+    expect(workerObservationCalls).toEqual(["data-exports"]);
 
     resetCounters();
 
@@ -1011,5 +1026,6 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     );
     expect(cancellations.status).toBe(500);
     expect(adminClientCalls.length).toBe(1);
+    expect(workerObservationCalls).toEqual(["project-cancellations"]);
   });
 });
