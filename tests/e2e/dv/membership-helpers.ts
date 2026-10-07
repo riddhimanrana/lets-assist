@@ -422,6 +422,7 @@ export async function rosterFixture() {
         student_id: id,
         household_id: householdId,
         application_data: { fixture: run },
+        created_at: `2099-01-01T00:00:${String(index).padStart(2, "0")}.000Z`,
       };
       await mutation(
         plugin.from("dv_sd_seasonal_memberships").insert([
@@ -432,7 +433,6 @@ export async function rosterFixture() {
                   ...row,
                   season_id: current.id,
                   status: "submitted",
-                  created_at: `2099-01-01T00:00:${String(index).padStart(2, "0")}.000Z`,
                 },
               ]
             : []),
