@@ -171,7 +171,12 @@ export async function getCalendarData(userId: string) {
   const cleanupEvents = await getPersonalCalendarCleanup(userId);
   return {
     cleanupEvents,
-    connection,
+    connection: connection
+      ? {
+          calendar_email: connection.calendar_email,
+          created_at: connection.created_at,
+        }
+      : null,
     legacyReconnectRequired,
     creatorProjects: normalizedCreatorProjects,
     volunteerSignups: normalizedVolunteerSignups,
