@@ -8,6 +8,8 @@ type Row = Record<string, unknown>;
 let membershipStatus = "active";
 let revokeAfterOrganizationRead = false;
 let organizationWrites = 0;
+let revokeAtRpc = false;
+const rpcCalls: Row[] = [];
 const organizationPatches: Row[] = [];
 
 class MembershipQuery {
@@ -88,6 +90,36 @@ const serverClient = {
 };
 
 const adminClient = {
+  async rpc(name: string, args: Row) {
+    expect(name).toBe("manage_organization_staff_invite");
+    rpcCalls.push(args);
+    if (revokeAtRpc) membershipStatus = "inactive";
+    if (membershipStatus !== "active")
+      return {
+        data: null,
+        error: { code: "42501", message: "private membership detail" },
+      };
+    organizationWrites += args.p_operation === "get" ? 0 : 1;
+    return {
+      data:
+        args.p_operation === "generate"
+          ? {
+              success: true,
+              token: "synthetic-staff-token",
+              expiresAt: "2026-11-01T00:00:00Z",
+            }
+          : args.p_operation === "revoke"
+            ? { success: true }
+            : {
+                hasToken: true,
+                token: "synthetic-staff-token",
+                createdAt: "2026-10-01T00:00:00Z",
+                expiresAt: "2026-11-01T00:00:00Z",
+                isExpired: false,
+              },
+      error: null,
+    };
+  },
   from(table: string) {
     if (table === "organization_members") return new MembershipQuery();
     if (table === "organizations") return new OrganizationQuery();
@@ -105,13 +137,19 @@ mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: { id: "admin-1" } }),
 }));
 
-const { generateStaffLink, revokeStaffLink, updateOrganization } =
-  await import("./profile");
+const {
+  generateStaffLink,
+  revokeStaffLink,
+  getStaffLinkDetails,
+  updateOrganization,
+} = await import("./profile");
 
 beforeEach(() => {
   membershipStatus = "active";
   revokeAfterOrganizationRead = false;
   organizationWrites = 0;
+  revokeAtRpc = false;
+  rpcCalls.length = 0;
   organizationPatches.length = 0;
 });
 
@@ -150,21 +188,43 @@ describe("organization settings active admin revalidation", () => {
     const result = await generateStaffLink("org-1");
 
     expect(result.success).toBe(true);
-    expect(organizationPatches).toHaveLength(1);
-    expect(organizationPatches[0]).toMatchObject({
-      staff_join_token_issued_by: "admin-1",
-    });
+    expect(rpcCalls).toEqual([
+      {
+        p_actor: "admin-1",
+        p_organization: "org-1",
+        p_operation: "generate",
+        p_expires_days: 30,
+      },
+    ]);
+    expect(organizationPatches).toHaveLength(0);
   });
 
   test("staff token revocation clears its issuer binding", async () => {
     const result = await revokeStaffLink("org-1");
 
     expect(result).toEqual({ success: true });
-    expect(organizationPatches).toEqual([
-      expect.objectContaining({
-        staff_join_token: null,
-        staff_join_token_issued_by: null,
-      }),
+    expect(rpcCalls).toEqual([
+      { p_actor: "admin-1", p_organization: "org-1", p_operation: "revoke" },
     ]);
+    expect(organizationPatches).toHaveLength(0);
   });
 });
+
+for (const [operation, action] of [
+  ["generate", generateStaffLink],
+  ["revoke", revokeStaffLink],
+  ["get", getStaffLinkDetails],
+] as const) {
+  test(`revocation after the preliminary check refuses staff ${operation} through the atomic boundary`, async () => {
+    revokeAtRpc = true;
+    const result = await action("org-1");
+    expect(result.error).toBeTruthy();
+    expect(JSON.stringify(result)).not.toContain("private membership detail");
+    expect(organizationWrites).toBe(0);
+    expect(rpcCalls[0]).toMatchObject({
+      p_actor: "admin-1",
+      p_organization: "org-1",
+      p_operation: operation,
+    });
+  });
+}
