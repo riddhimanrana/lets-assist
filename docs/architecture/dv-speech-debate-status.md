@@ -88,7 +88,7 @@ These results do not establish a hosted Development or Production deployment.
 The staff review candidate reads canonical, organization-and-season-scoped
 membership pages. Full saved answers load only when staff opens one application.
 Current-season decisions use `plugin_data.review_dv_membership_application`
-from migration `20261007201000`. It keeps the existing staff/admin authority,
+from migration `20261007200000`. It keeps the existing staff/admin authority,
 checks the observed status and update timestamp, and commits the decision,
 requirement verification, audit event, and retry receipt together. New decisions
 cannot review drafts or historical seasons through this normal workflow.
