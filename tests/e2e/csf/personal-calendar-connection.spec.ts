@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, test, type Response } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
@@ -28,7 +28,7 @@ test("connected calendar renders safe display fields and denies browser credenti
   const refreshToken = `fictional-encrypted-refresh-${runId}`;
   const privateMarker = `private-preferences-${runId}`;
   const bindingTimestamp = "2039-09-02T12:34:56.000Z";
-  const calendarResponses: Response[] = [];
+  const calendarBodies: Array<Promise<{ type: string; body: string }>> = [];
   const externalRequests: string[] = [];
   const browserFailures: string[] = [];
   function isCredentialProbe(url: string) {
@@ -83,7 +83,17 @@ test("connected calendar renders safe display fields and denies browser credenti
     if (new URL(response.url()).pathname !== "/account/calendar") return;
     const type = response.headers()["content-type"] ?? "";
     if (type.includes("text/html") || type.includes("text/x-component")) {
-      calendarResponses.push(response);
+      calendarBodies.push(
+        response
+          .text()
+          .then((body) => ({ type, body }))
+          .catch(() => {
+            browserFailures.push(
+              "Calendar response body could not be captured.",
+            );
+            return { type, body: "" };
+          }),
+      );
     }
   });
 
@@ -140,18 +150,17 @@ test("connected calendar renders safe display fields and denies browser credenti
     await expect(
       page.getByText("Connected on September 1, 2039", { exact: true }),
     ).toBeVisible();
+    await Promise.all(calendarBodies);
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.getByText(calendarEmail, { exact: true })).toBeVisible();
-    const bodies = await Promise.all(
-      calendarResponses.map(async (response) => ({
-        type: response.headers()["content-type"] ?? "",
-        body: await response.text(),
-      })),
-    );
+    const bodies = await Promise.all(calendarBodies);
     expect(bodies.some(({ type }) => type.includes("text/html"))).toBe(true);
-    expect(bodies.some(({ type }) => type.includes("text/x-component"))).toBe(
-      true,
-    );
+    expect(
+      bodies.some(
+        ({ type, body }) =>
+          type.includes("text/x-component") && body.includes(calendarEmail),
+      ),
+    ).toBe(true);
     for (const { body } of bodies) {
       for (const forbidden of [
         accessToken,
