@@ -1,3 +1,4 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -87,7 +88,7 @@ export default async function PaperSignupsPage({
   const supabase = await createClient();
   const { data: projectData } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
   if (!projectData) notFound();

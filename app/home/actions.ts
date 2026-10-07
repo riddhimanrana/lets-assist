@@ -1,4 +1,5 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -141,9 +142,7 @@ export async function getActiveProjects(
   }
 
   // First get all projects
-  let query = supabase.from("projects").select(`
-      *
-    `);
+  let query = supabase.from("projects").select(PROJECT_CLIENT_SELECT);
 
   // Apply status filter if specified
   if (status) {

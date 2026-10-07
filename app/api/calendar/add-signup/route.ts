@@ -1,3 +1,4 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 /**
  * Add Signup to Calendar
  * POST /api/calendar/add-signup
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     // Get the project
     const { data: project, error: projectError } = (await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .eq("id", project_id)
       .single()) as {
       data: Project | null;

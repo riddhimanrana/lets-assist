@@ -1,3 +1,4 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 import { getPublicOrganizationForRender } from "./server/public-organization-read";
 import { loadVisibleOrganizationReport } from "./server/overview-report-read";
@@ -314,7 +315,7 @@ export default async function OrganizationPage({
       ? { data: [] }
       : await readClient
           .from("projects")
-          .select("*")
+          .select(PROJECT_CLIENT_SELECT)
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 

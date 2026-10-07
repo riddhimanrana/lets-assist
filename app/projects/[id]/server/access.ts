@@ -1,4 +1,5 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
@@ -129,7 +130,7 @@ export async function getProject(projectId: string) {
     .from("projects")
     .select(
       `
-      *,
+      ${PROJECT_CLIENT_SELECT},
       organization:organizations (
         id,
         name,
