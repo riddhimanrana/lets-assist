@@ -4,6 +4,28 @@
 
 Ordinary application tables use Supabase RLS as the primary row boundary. Server Actions still validate intent and role because privileged server clients can bypass RLS.
 
+## Project review metadata
+
+`projects.review_notes`, `reviewed_by`, and `reviewed_at` are service-only fields.
+Migration `20261007230000` replaces browser table grants with explicit column
+permissions. Anonymous readers keep the same published-row visibility;
+authenticated readers and writers keep the other 43 columns and existing row
+policies. Generic project updates discard submitted review fields. The unused
+`projects_with_creator` view has no browser read grant. Client queries use
+`PROJECT_CLIENT_SELECT` so a future private column does not enter their payloads.
+
+Older deployed code still uses wildcard project reads. Publish the compatible
+query layer before applying this permission change, or use a separately reviewed
+maintenance cutover. The existing schema-first release sequence does not by
+itself prove uninterrupted compatibility. After release, verify the served
+revision and project discovery, personal lists, creation, editing, attendance and
+deletion against the accepted database.
+
+Before this repair, project owners could write these fields directly. The
+permission change does not certify historical values as staff-authored and does
+not delete or rewrite them. No current project-review writer was found during
+the audit; any later use of historical values needs its own provenance review.
+
 ## Feed occupancy
 
 `public.project_occupancy_for_visible_projects` is a service-only, read-only projection for at most 100 project IDs. The server derives the viewer from its authenticated session. Public discovery uses only published public projects. Organization discovery requires the exact organization and the current project SELECT visibility contract. Unreadable IDs are omitted; readable projects without active signups return zero.
