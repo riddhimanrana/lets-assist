@@ -35,6 +35,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Source maintenance](development/source-maintenance.md)
 - [Dependency security](development/dependency-security.md)
 - [Deployment model](development/deployment.md)
+- [Development maintenance cutover](development/development-cutover.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Plugin quickstart](development/plugin-quickstart.md)
 - [Plugin install and entitlement guide](development/plugin-install-guide.md)

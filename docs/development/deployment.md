@@ -10,6 +10,8 @@ Promotion from `development` to `main` is a separate release operation. It requi
 
 Supabase changes follow [the deployment workflow](supabase-deployment.md). Private-plugin changes follow [the two-repository workflow](private-plugins.md).
 
+Permission contractions require the [Development maintenance cutover](development-cutover.md) before the root merge. Its prepare phase proves the maintenance hold; its complete phase accepts only the exact reviewed merge and target catalog. Ordinary hosted acceptance runs afterward and does not provide that ordering.
+
 ## Explicit Development builds
 
 A normal Development merge builds only when the first commit-message line carries
