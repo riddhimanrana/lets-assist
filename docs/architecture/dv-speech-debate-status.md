@@ -84,3 +84,26 @@ Local evidence: 30 pgTAP checks passed on the owned isolated stack, including
 refused writes, partial failure rollback, retry identity, control-plane leases,
 and pending account deletion. Component and adapter regressions passed locally.
 These results do not establish a hosted Development or Production deployment.
+
+The staff review candidate reads canonical, organization-and-season-scoped
+membership pages. Full saved answers load only when staff opens one application.
+Current-season decisions use `plugin_data.review_dv_membership_application`
+from migration `20261007201000`. It keeps the existing staff/admin authority,
+checks the observed status and update timestamp, and commits the decision,
+requirement verification, audit event, and retry receipt together. New decisions
+cannot review drafts or historical seasons through this normal workflow.
+
+Approval requires every existing non-staff-review requirement to be verified or
+waived. It records the staff-review requirement as verified. It does not infer
+missing requirement policy, change manual payment records, or copy legacy paid
+flags. Future requirement writers must lock the membership parent before its
+requirement rows, matching the review transaction's lock order. Historical
+corrections still require an explicit maintenance workflow.
+
+Local component, retry-identity, tenant read, fresh-authorization, and RPC adapter
+tests cover the new boundary. The 28-check pgTAP review suite is committed for
+execution once the owned local database recovers from disk pressure. Do not
+claim this migration has passed database or browser acceptance until those gates
+run on the integrated candidate. The DV browser suite now includes a staff
+approval journey that checks the stored decision, staff requirement, audit, and
+receipt; that new journey is also awaiting the recovered local stack.
