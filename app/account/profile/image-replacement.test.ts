@@ -66,6 +66,11 @@ const client = {
   },
 };
 mock.module("server-only", () => ({}));
+mock.module("@/lib/storage/public-image-lifecycle", () => ({
+  reservePublicImageCleanup: async () => {
+    calls.push("reserve");
+  },
+}));
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => client,
 }));
@@ -93,14 +98,14 @@ beforeEach(() => {
 });
 afterAll(() => mock.restore());
 describe("profile image action", () => {
-  test("publishes a decoded immutable image before deleting its predecessor", async () => {
+  test("publishes a decoded immutable image with durable cleanup before publication", async () => {
     const result = await completeOnboarding(form());
     expect(result).toMatchObject({ success: true });
     expect(savedUrl).not.toBe(base + oldKey);
     expect(metadataUrl).toBe(savedUrl);
-    expect(calls[0]).toStartWith("upload:");
-    expect(calls[1]).toBe("commit");
-    expect(calls[2]).toBe(`remove:${oldKey}`);
+    expect(calls[0]).toBe("reserve");
+    expect(calls[1]).toStartWith("upload:");
+    expect(calls[2]).toBe("commit");
   });
   test("upload failure preserves the old image and metadata", async () => {
     uploadFails = true;
@@ -108,19 +113,20 @@ describe("profile image action", () => {
     expect(result.error).toBeDefined();
     expect(savedUrl).toBe(base + oldKey);
     expect(metadataUrl).toBeUndefined();
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
   });
   test("unknown database commit retains both images", async () => {
     commitFails = true;
     expect((await completeOnboarding(form())).error).toBeDefined();
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(3);
     expect(savedUrl).toBe(base + oldKey);
   });
-  test("concurrent image edit discards only this request's candidate", async () => {
+  test("concurrent image edit retains durable cleanup for this request's candidate", async () => {
     conflict = true;
     expect((await completeOnboarding(form())).error).toBeDefined();
     expect(savedUrl).toBe(base + oldKey);
-    expect(calls[2]).toBe(calls[0].replace("upload:", "remove:"));
+    expect(calls[0]).toBe("reserve");
+    expect(calls).toHaveLength(3);
   });
   test("corrupt media never reaches storage", async () => {
     const data = new FormData();
@@ -132,6 +138,6 @@ describe("profile image action", () => {
     expect(await removeProfilePicture()).toMatchObject({ success: true });
     expect(savedUrl).toBeNull();
     expect(metadataUrl).toBeNull();
-    expect(calls).toEqual(["commit", `remove:${oldKey}`]);
+    expect(calls).toEqual(["reserve", "commit"]);
   });
 });

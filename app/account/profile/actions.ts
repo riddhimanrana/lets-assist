@@ -272,6 +272,7 @@ export async function completeOnboarding(formData: FormData) {
         }
       }
       const replaced = await replacePublicImage({
+        actorId: userId,
         bucket: "avatars",
         ownerId: userId,
         previousUrl,

@@ -226,6 +226,7 @@ export async function createOrganization(data: OrganizationCreationData) {
       try {
         const image = await preparePublicImage(data.logoUrl);
         const replaced = await replacePublicImage({
+          actorId: user.id,
           bucket: "organization-logos",
           ownerId: organization.id,
           previousUrl: null,
