@@ -16,11 +16,11 @@ describe("landing hero", () => {
     expect(heroSource).toContain("sm:leading-8");
   });
 
-  test("sends volunteers and organizers to their own starting points", () => {
-    expect(heroSource).toContain('<MotionLinkButton href="/projects">');
-    expect(heroSource).toContain(
-      '<MotionLinkButton href="/signup" tone="outline">',
+  test("leads with running an event", () => {
+    expect(heroSource).toMatch(
+      /<MotionLinkButton href="\/signup">\s*Run a volunteer event/,
     );
+    expect(heroSource).not.toContain("Find volunteering near me");
   });
 
   test("sets handwritten notes in the handwriting font", () => {

@@ -29,8 +29,8 @@ const RealCheckIn = dynamic(
   () => import("./_components/RealCheckIn").then((mod) => mod.RealCheckIn),
   { loading: () => null, ssr: false },
 );
-const GetStarted = dynamic(
-  () => import("./_components/GetStarted").then((mod) => mod.GetStarted),
+const CallToAction = dynamic(
+  () => import("./_components/CallToAction").then((mod) => mod.CallToAction),
   { loading: () => null, ssr: false },
 );
 
@@ -43,7 +43,7 @@ export function LandingLazySections() {
       <VolunteerJourneySection />
       <OrgToolingSection />
       <TestimonialsSection />
-      <GetStarted />
+      <CallToAction />
     </>
   );
 }

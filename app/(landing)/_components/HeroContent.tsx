@@ -1005,11 +1005,11 @@ export const HeroContent = () => {
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/projects">
-            Find volunteering near me
-          </MotionLinkButton>
-          <MotionLinkButton href="/signup" tone="outline">
+          <MotionLinkButton href="/signup">
             Run a volunteer event
+          </MotionLinkButton>
+          <MotionLinkButton href="/contact" tone="outline">
+            Contact us
           </MotionLinkButton>
         </motion.div>
       </div>
