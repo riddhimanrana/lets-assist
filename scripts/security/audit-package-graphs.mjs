@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { acceptBracesFinding, BRACES_EXCEPTION } from "./braces-exception.mjs";
 
 function trackedFiles(root) {
   return execFileSync("git", ["ls-files", "-z"], {
@@ -92,6 +93,36 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
   return graphs;
 }
 
+export function parseAuditReport(output) {
+  const report = JSON.parse(output);
+  if (!report || typeof report !== "object" || Array.isArray(report))
+    throw new Error("Invalid audit JSON.");
+  return Object.entries(report).flatMap(([name, advisories]) => {
+    if (
+      !/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/iu.test(name) ||
+      !Array.isArray(advisories) ||
+      !advisories.length
+    )
+      throw new Error("Invalid advisory collection.");
+    return advisories.map((advisory) => {
+      if (
+        !advisory ||
+        typeof advisory !== "object" ||
+        Array.isArray(advisory) ||
+        !Number.isSafeInteger(advisory.id) ||
+        typeof advisory.title !== "string" ||
+        !/^https:\/\/github\.com\/advisories\/GHSA-[a-z0-9-]+$/u.test(
+          advisory.url,
+        ) ||
+        !["low", "moderate", "high", "critical"].includes(advisory.severity) ||
+        typeof advisory.vulnerable_versions !== "string"
+      )
+        throw new Error("Invalid advisory JSON.");
+      return { ...advisory, package: name };
+    });
+  });
+}
+
 export function auditPackageGraphs(
   graphs,
   {
@@ -99,6 +130,7 @@ export function auditPackageGraphs(
     environment = process.env,
     spawn = spawnSync,
     log = console.log,
+    acceptFinding = acceptBracesFinding,
   } = {},
 ) {
   const temporaryHome = mkdtempSync(
@@ -121,6 +153,8 @@ export function auditPackageGraphs(
     BUN_INSTALL_CACHE_DIR: join(temporaryHome, "bun-cache"),
   };
   const failed = [];
+  let accepted = 0;
+  const root = graphs.find((graph) => graph.label === ".")?.directory;
   try {
     for (const graph of graphs) {
       log(
@@ -128,22 +162,57 @@ export function auditPackageGraphs(
       );
       const result = spawn(
         "bun",
-        ["--no-env-file", "audit", ...(productionOnly ? ["--prod"] : [])],
+        [
+          "--no-env-file",
+          "audit",
+          "--json",
+          ...(productionOnly ? ["--prod"] : []),
+        ],
         {
           cwd: graph.directory,
           env,
-          stdio: "inherit",
+          stdio: ["ignore", "pipe", "pipe"],
+          encoding: "utf8",
+          maxBuffer: 10 * 1024 * 1024,
           timeout: 120_000,
         },
       );
-      if (result.error || result.status !== 0) failed.push(graph.label);
+      try {
+        if (result.error || ![0, 1].includes(result.status))
+          throw new Error("Audit process or registry failed.");
+        const findings = parseAuditReport(result.stdout);
+        if (!findings.length && result.status !== 0)
+          throw new Error("Audit failed without a valid advisory report.");
+        let unresolved = false;
+        for (const finding of findings) {
+          log(
+            `[dependency-audit] ${graph.label}: ${finding.severity} ${finding.package} ${finding.url}`,
+          );
+          if (acceptFinding({ finding, graph, graphs, root, environment })) {
+            accepted += 1;
+            log(
+              `[dependency-audit] ACCEPTED RISK until ${BRACES_EXCEPTION.expiresAt}: braces 3.0.3 remains vulnerable.`,
+            );
+          } else unresolved = true;
+        }
+        if (unresolved) failed.push(graph.label);
+      } catch (error) {
+        log(
+          `[dependency-audit] ${graph.label}: ${error instanceof Error ? error.message : "audit validation failed"}`,
+        );
+        failed.push(graph.label);
+      }
     }
   } finally {
     rmSync(temporaryHome, { recursive: true, force: true });
   }
   if (failed.length)
     throw new Error(`Dependency audit failed: ${failed.join(", ")}.`);
-  log(`[dependency-audit] PASS: ${graphs.length} independent package graphs.`);
+  log(
+    accepted
+      ? `[dependency-audit] Allowed with ${accepted} accepted risk findings until ${BRACES_EXCEPTION.expiresAt}; ${graphs.length} graphs checked.`
+      : `[dependency-audit] PASS: ${graphs.length} independent package graphs; no advisories.`,
+  );
 }
 
 if (
