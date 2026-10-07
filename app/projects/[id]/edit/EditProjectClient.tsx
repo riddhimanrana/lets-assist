@@ -116,6 +116,7 @@ import { WaiverDefinitionFull } from "@/types/waiver-definitions";
 import { getWaiverDefinition, saveWaiverDefinition } from "../actions";
 import { Settings } from "lucide-react";
 import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
+import { ProjectDeleteTrigger } from "./ProjectDeleteTrigger";
 
 // Constants for character limits
 const TITLE_LIMIT = 125;
@@ -2101,16 +2102,11 @@ export default function EditProjectClient({ project }: Props) {
                     <TooltipTrigger
                       render={
                         <span className="w-full" tabIndex={canDelete ? -1 : 0}>
-                          <Button
-                            onClick={() => setShowDeleteDialog(true)}
-                            className="w-full bg-destructive text-background hover:bg-destructive/90"
-                            disabled={isDeleting || !canDelete}
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : null}
-                            Delete Project
-                          </Button>
+                          <ProjectDeleteTrigger
+                            onDeleteRequested={() => setShowDeleteDialog(true)}
+                            isDeleting={isDeleting}
+                            canDelete={canDelete}
+                          />
                         </span>
                       }
                     />
