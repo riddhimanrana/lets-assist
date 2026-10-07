@@ -56,6 +56,7 @@ describe("CSF Production recovery window", () => {
     const normalWindowSteps = [
       "Reassert Production application write block",
       "Prove a fresh Production application write is blocked",
+      "Settle requests admitted before the hook was loaded",
       "Promote maintenance page to Production",
       "Verify Production maintenance alias",
       "Recheck Production maintenance preflight before schema push",
