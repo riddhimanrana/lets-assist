@@ -6,7 +6,11 @@ import {
 import { type Project } from "@/types";
 import { headers } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
+import {
+  isTurnstileTokenRequired,
+  verifyTurnstileToken,
+} from "@/lib/turnstile";
+import { ANONYMOUS_SIGNUP_ACTION } from "@/lib/auth/turnstile-policy";
 import {
   enqueueOrphanedWaiverEvidence,
   removeWaiverStorageObjects,
@@ -315,8 +319,9 @@ export async function getRequestMetadata() {
 
 export async function validateAnonymousSignupCaptcha(
   captchaToken?: string | null,
+  action = ANONYMOUS_SIGNUP_ACTION,
 ): Promise<{ success: true } | { error: string }> {
-  if (!isTurnstileEnabled()) {
+  if (!isTurnstileTokenRequired()) {
     return { success: true };
   }
 
@@ -326,7 +331,7 @@ export async function validateAnonymousSignupCaptcha(
     return { error: "Please complete the security verification challenge." };
   }
 
-  const isValid = await verifyTurnstileToken(normalizedToken);
+  const isValid = await verifyTurnstileToken(normalizedToken, action);
 
   if (!isValid) {
     return {

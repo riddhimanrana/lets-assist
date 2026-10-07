@@ -25,8 +25,10 @@ export async function resendAnonymousConfirmationEmail(
 ): Promise<{ success?: boolean; error?: string }> {
   "use server";
   try {
-    const captchaValidation =
-      await validateAnonymousSignupCaptcha(captchaToken);
+    const captchaValidation = await validateAnonymousSignupCaptcha(
+      captchaToken,
+      "anonymous-confirmation",
+    );
 
     if ("error" in captchaValidation) {
       return { error: captchaValidation.error };

@@ -750,6 +750,7 @@ export function ProjectSignupForm({
               fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
             >
               <TurnstileComponent
+                action="anonymous-signup"
                 key={secureCheck.widgetKey}
                 ref={turnstileRef}
                 onLoad={secureCheck.handleLoad}

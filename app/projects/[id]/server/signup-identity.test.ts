@@ -108,7 +108,7 @@ mock.module("@/lib/plugins/resolve-org-plugins", () => ({
   resolveOrganizationPlugins: async () => [],
 }));
 mock.module("@/lib/turnstile", () => ({
-  isTurnstileEnabled: () => false,
+  isTurnstileTokenRequired: () => false,
   verifyTurnstileToken: async () => true,
 }));
 mock.module("@/app/projects/[id]/server/access", () => ({

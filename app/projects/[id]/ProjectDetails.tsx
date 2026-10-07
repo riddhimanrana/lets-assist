@@ -2748,6 +2748,7 @@ export default function ProjectDetails({
                     fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
                   >
                     <TurnstileComponent
+                      action="anonymous-confirmation"
                       key={resendSecureCheck.widgetKey}
                       ref={resendTurnstileRef}
                       onLoad={resendSecureCheck.handleLoad}
