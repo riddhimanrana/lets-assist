@@ -12,8 +12,7 @@ export async function GET() {
 
   return NextResponse.json(
     {
-      error:
-        "Request and download exports from your account security page.",
+      error: "Request and download exports from your account security page.",
     },
     { status: 410 },
   );

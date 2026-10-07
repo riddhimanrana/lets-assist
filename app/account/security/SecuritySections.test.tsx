@@ -40,9 +40,7 @@ describe("extracted account security sections", () => {
 
   test("account deletion retains its separate warning and dialog trigger", () => {
     const markup = renderToStaticMarkup(<AccountDeletionSection />);
-    expect(markup).toContain(
-      "Remove your account and personal platform data",
-    );
+    expect(markup).toContain("Remove your account and personal platform data");
     expect(markup).toContain('aria-haspopup="dialog"');
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain("Delete Account");
