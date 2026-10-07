@@ -23,7 +23,7 @@ on:
         required: true
         type: string
       monitoring_evidence:
-        description: "For communications enable only: bounded JSON scheduler and tested missed-run alert receipt for the exact release"
+        description: "For enable: bounded JSON scheduler and tested missed-run alert receipt for this worker and exact release"
         required: false
         type: string
       production_confirmation:

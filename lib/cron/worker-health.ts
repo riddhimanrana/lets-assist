@@ -22,7 +22,7 @@ export const workerMonitoringPolicySchema = z
     scheduleEnabled: z.boolean(),
     expectedEverySeconds: z.number().int().min(30).max(604_800),
     staleAfterSeconds: z.number().int().min(60).max(1_209_600),
-    maxRunSeconds: z.number().int().min(1).max(600),
+    maxRunSeconds: z.number().int().min(1).max(800),
     verifiedAt: timestamp,
     validUntil: timestamp,
     changeRecord: z
@@ -88,7 +88,7 @@ const receiptSchema = z
       "invalid_response",
       "unhandled_error",
     ]),
-    duration_ms: z.number().int().min(0).max(600_000),
+    duration_ms: z.number().int().min(0).max(900_000),
     attempted: count,
     completed: count,
     failed: count,

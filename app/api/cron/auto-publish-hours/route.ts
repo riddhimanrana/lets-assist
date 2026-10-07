@@ -1,3 +1,4 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
@@ -7,13 +8,6 @@ import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-s
 import { publishVolunteerHoursTransaction } from "@/lib/projects/hours-publication-service";
 import { getPublishStateKey } from "@/lib/projects/hours-publish-key";
 import type { Project } from "@/types";
-
-/**
- * Canonical cron endpoint implementation.
- *
- * This route lives only at /api/cron/auto-publish-hours to avoid duplicate
- * API surfaces and keep GitHub Actions integrations consistent.
- */
 
 // Create a Supabase client for server-side operations without cookies
 function createServiceClient() {
@@ -282,6 +276,7 @@ async function processSessionSignups(
 async function processExpiredSessions(): Promise<{
   processedSessions: number;
   successfulSessions: number;
+  pendingSessions: number;
   results: AutoPublishResult[];
 }> {
   try {
@@ -329,7 +324,7 @@ async function processExpiredSessions(): Promise<{
 
     if (signupsError) {
       safeConsole.error("Error fetching eligible signups:", signupsError);
-      return { processedSessions: 0, successfulSessions: 0, results: [] };
+      throw new Error("Eligible signup query unavailable");
     }
 
     const eligibleSignups = (data ?? []) as SignupRow[];
@@ -341,7 +336,12 @@ async function processExpiredSessions(): Promise<{
 
     if (eligibleSignups.length === 0) {
       safeConsole.log("No eligible signups found");
-      return { processedSessions: 0, successfulSessions: 0, results: [] };
+      return {
+        processedSessions: 0,
+        successfulSessions: 0,
+        pendingSessions: 0,
+        results: [],
+      };
     }
 
     // Group signups by project_id + schedule_id combination
@@ -410,7 +410,12 @@ async function processExpiredSessions(): Promise<{
 
     if (sessionGroups.size === 0) {
       safeConsole.log("No unpublished sessions found");
-      return { processedSessions: 0, successfulSessions: 0, results: [] };
+      return {
+        processedSessions: 0,
+        successfulSessions: 0,
+        pendingSessions: 0,
+        results: [],
+      };
     }
 
     // Process each session group
@@ -510,11 +515,12 @@ async function processExpiredSessions(): Promise<{
     return {
       processedSessions: results.length,
       successfulSessions,
+      pendingSessions: Math.max(0, sessionGroups.size - results.length),
       results,
     };
   } catch (error: unknown) {
     safeConsole.error("Error in processExpiredSessions:", error);
-    return { processedSessions: 0, successfulSessions: 0, results: [] };
+    throw error;
   }
 }
 
@@ -538,28 +544,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    safeConsole.log("Auto-publish process initiated");
-    const startTime = Date.now();
+    return await observeWorkerRun("auto-publish-hours", async () => {
+      safeConsole.log("Auto-publish process initiated");
+      const startTime = Date.now();
 
-    // Process expired sessions
-    const result = await processExpiredSessions();
+      // Process expired sessions
+      const result = await processExpiredSessions();
 
-    const executionTime = Date.now() - startTime;
-    safeConsole.log(
-      "Application diagnostic from app/api/cron/auto-publish-hours/route",
-      `Auto-publish process completed in ${executionTime}ms`,
-    );
+      const executionTime = Date.now() - startTime;
+      safeConsole.log(
+        "Application diagnostic from app/api/cron/auto-publish-hours/route",
+        `Auto-publish process completed in ${executionTime}ms`,
+      );
 
-    return NextResponse.json(
-      {
-        message: "Auto-publish process completed",
-        processedSessions: result.processedSessions,
-        successfulSessions: result.successfulSessions,
-        executionTimeMs: executionTime,
-        results: result.results,
-      },
-      { status: 200 },
-    );
+      return NextResponse.json(
+        {
+          message: "Auto-publish process completed",
+          processedSessions: result.processedSessions,
+          successfulSessions: result.successfulSessions,
+          pendingSessions: result.pendingSessions,
+          executionTimeMs: executionTime,
+          results: result.results,
+        },
+        { status: 200 },
+      );
+    });
   } catch (error: unknown) {
     safeConsole.error("Error in auto-publish API route:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

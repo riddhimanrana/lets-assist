@@ -1,5 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
+import { workerReceiptMaxDurationMs } from "./worker-keys.mjs";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { safeConsole } from "@/lib/safe-console";
 import {
@@ -148,7 +149,7 @@ export async function observeWorkerRun<T extends Response>(
         p_result: {
           ...validateWorkerOutcome(outcome),
           durationMs: Math.min(
-            600_000,
+            workerReceiptMaxDurationMs,
             Math.max(0, Math.round(deps.now() - started)),
           ),
         },
