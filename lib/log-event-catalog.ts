@@ -1,5 +1,7 @@
 // Reviewed static event names. Unknown messages are replaced before export.
 export const SAFE_LOG_MESSAGES = new Set<string>([
+  "Data export cron failed",
+  "Data export artifact cleanup unconfirmed",
   "Moderation email attempt",
   "Moderation contact lookup failed",
   "Moderation notification preferences could not be read",

@@ -397,7 +397,7 @@ SELECT extensions.ok(
   has_table_privilege(
     'authenticated', 'public.account_data_export_jobs', 'SELECT'
   )
-  AND has_table_privilege(
+  AND NOT has_table_privilege(
     'authenticated', 'public.account_data_export_jobs', 'INSERT'
   )
   AND NOT has_table_privilege(
@@ -441,7 +441,7 @@ SELECT extensions.results_eq(
       AND role_name = 'authenticated'
     ORDER BY privilege
   $$,
-  $$ VALUES ('INSERT'::text), ('SELECT'::text) $$,
+  $$ VALUES ('SELECT'::text) $$,
   'the effective ACL catalog retains exact browser export-job capabilities'
 );
 

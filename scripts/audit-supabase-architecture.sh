@@ -922,7 +922,13 @@ fail_if_rows "public client-callable function ACL drift" "$public_client_functio
 reviewed_service_rpc_drift="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with reviewed(signature, security_definer, volatility) as (
-      values ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)', false, 's'),
+      values ('public.expired_account_export_artifacts(integer)', true, 's'),
+        ('public.confirm_account_export_artifact_removed(text)', true, 'v'),
+        ('public.account_data_export_snapshot(uuid)', true, 's'),
+        ('public.request_account_data_export(uuid)', true, 'v'),
+        ('public.claim_account_data_export_jobs(integer)', true, 'v'),
+        ('public.advance_account_data_export(uuid,uuid,text,jsonb)', true, 'v'),
+        ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)', false, 's'),
         ('public.preflight_account_deletion(uuid,uuid,text,boolean)', true, 's'),
         ('public.begin_account_deletion(uuid,uuid,text,boolean,text)', true, 'v'),
         ('public.claim_account_deletion_cleanup(uuid)', true, 'v'),

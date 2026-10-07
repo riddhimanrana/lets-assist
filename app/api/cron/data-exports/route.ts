@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { processPendingDataExportJobs } from "@/lib/supabase/data-export-jobs";
+import { logError } from "@/lib/logger";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 
 function authorizeCronRequest(request: NextRequest) {
@@ -37,21 +38,21 @@ async function runProcessor(request: NextRequest) {
   const probe = cronAuthShapeProbe("data-exports", request);
   if (probe) return probe;
 
-  const limitParam = Number(request.nextUrl.searchParams.get("limit") || "5");
+  const limitParam = Number(request.nextUrl.searchParams.get("limit") || "1");
   const limit =
     Number.isFinite(limitParam) && limitParam > 0
-      ? Math.min(limitParam, 25)
-      : 5;
+      ? Math.min(Math.floor(limitParam), 5)
+      : 1;
 
   try {
     const result = await processPendingDataExportJobs(limit);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
-    console.error("Data export cron failed:", error);
+    logError("Data export cron failed", error);
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : "Internal server error",
+        error: "Data export processing could not be confirmed",
       },
       { status: 500 },
     );

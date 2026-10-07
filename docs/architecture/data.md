@@ -124,6 +124,15 @@ current OAuth binding and preferences and never replaces an existing ledger
 entry. Deleted-source event receipts appear in the account calendar cleanup
 list, limited to 100 entries per read; removing entries reveals the next batch.
 
+## Account exports
+
+Account exports use a service-only stable snapshot with explicit dataset columns
+and verified subject links. Fresh Auth and MFA gate requests and downloads.
+Archive generation, Storage verification, and notification attempts have separate
+receipts; completed means archive-ready, not email accepted. See
+[account exports](../development/account-exports.md) for bounds, exclusions,
+retention, recovery, and the migration/application rollout order.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

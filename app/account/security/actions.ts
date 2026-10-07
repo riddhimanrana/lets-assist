@@ -1,6 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import {
+  requestDataExport,
+  readDataExportJobs,
+  downloadDataExport,
+} from "./data-export-actions";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
@@ -230,111 +235,15 @@ export async function updateEmailAction(formData: FormData) {
 }
 
 export async function emailDataExport() {
-  try {
-    const { user, error: authError } = await getAuthUser({
-      sensitive: true,
-      checkMfa: true,
-    });
-
-    if (authError || !user || !user.email) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    const userMetadata =
-      (user.user_metadata as Record<string, unknown> | null) ?? null;
-    const supabase = await createClient();
-
-    const { data: createdJob, error: insertError } = await supabase
-      .from("account_data_export_jobs")
-      .insert({
-        user_id: user.id,
-        requested_by: user.id,
-        status: "pending",
-        delivery_method: "email",
-        delivery_email: user.email,
-        request_metadata: {
-          full_name:
-            (typeof userMetadata?.full_name === "string" &&
-              userMetadata.full_name) ||
-            null,
-          name:
-            (typeof userMetadata?.name === "string" && userMetadata.name) ||
-            null,
-          requested_from: "account_security",
-        },
-      })
-      .select("id, requested_at")
-      .single();
-
-    if (insertError || !createdJob) {
-      return {
-        success: false,
-        error: insertError?.message || "Failed to queue data export",
-      };
-    }
-
-    // Best-effort audit write via service role.
-    const adminClient = getAdminClient();
-    await adminClient.from("account_data_export_audit_logs").insert({
-      job_id: createdJob.id,
-      user_id: user.id,
-      event_type: "requested",
-      status: "info",
-      source: "account-security",
-      details: {
-        delivery_email: user.email,
-      },
-    });
-
-    return {
-      success: true,
-      queued: true,
-      email: user.email,
-      jobId: createdJob.id,
-      requestedAt: createdJob.requested_at,
-    };
-  } catch (error) {
-    console.error("emailDataExport error:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to queue your data export",
-    };
-  }
+  return requestDataExport();
 }
 
 export async function getDataExportJobs() {
-  try {
-    const { user, error: authError } = await getAuthUser({ sensitive: false });
-    if (authError || !user) {
-      return { success: false, error: "Not authenticated", jobs: [] };
-    }
+  return readDataExportJobs();
+}
 
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("account_data_export_jobs")
-      .select(
-        "id, status, delivery_email, requested_at, started_at, completed_at, failed_at, error_message, zip_size_bytes, record_count, signed_url, signed_url_expires_at",
-      )
-      .eq("user_id", user.id)
-      .order("requested_at", { ascending: false })
-      .limit(5);
-
-    if (error) {
-      return { success: false, error: error.message, jobs: [] };
-    }
-
-    return { success: true, jobs: data ?? [] };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to fetch export jobs",
-      jobs: [],
-    };
-  }
+export async function getDataExportDownload(jobId: string) {
+  return downloadDataExport(jobId);
 }
 
 export async function deleteAccount() {

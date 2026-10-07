@@ -13,7 +13,7 @@ export async function GET() {
   return NextResponse.json(
     {
       error:
-        "Direct downloads are disabled. Please request an email export from your account security page.",
+        "Request and download exports from your account security page.",
     },
     { status: 410 },
   );
