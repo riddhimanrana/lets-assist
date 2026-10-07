@@ -202,18 +202,57 @@ function sqlStringValue(expression: string): string | null {
   return match ? match[1].replaceAll("''", "'") : null;
 }
 
-function resolveSqlUsernameExpression(expression: string): string | null {
+type SeriesBinding = ReadonlyMap<string, string>;
+
+function boundedSeriesBindings(fromClause: string): SeriesBinding[] | null {
+  const match = fromClause
+    .trim()
+    .match(
+      /^from\s+(?:pg_catalog\.)?generate_series\(\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)\s+(?:as\s+)?([a-z_][a-z0-9_]*)$/iu,
+    );
+  if (!match) return null;
+  const [start, end, step] = [
+    Number(match[1]),
+    Number(match[2]),
+    Number(match[3] ?? 1),
+  ];
+  if (
+    ![start, end, step].every(
+      (value) =>
+        Number.isInteger(value) && value >= -2147483648 && value <= 2147483647,
+    ) ||
+    step === 0
+  )
+    return null;
+  const count = Math.floor((end - start) / step) + 1;
+  if (count < 1 || count > 1000) return null;
+  return Array.from(
+    { length: count },
+    (_, index) =>
+      new Map([[match[4].toLowerCase(), String(start + index * step)]]),
+  );
+}
+
+function resolveSqlUsernameExpression(
+  expression: string,
+  binding: SeriesBinding = new Map(),
+): string | null {
   const trimmed = expression.trim();
   const literal = sqlStringValue(trimmed);
   if (literal !== null) return literal;
 
   const concatenated = splitTopLevel(trimmed, "||");
   if (concatenated.length > 1) {
-    const values = concatenated.map(resolveSqlUsernameExpression);
+    const values = concatenated.map((part) =>
+      resolveSqlUsernameExpression(part, binding),
+    );
     return values.every((value): value is string => value !== null)
       ? values.join("")
       : null;
   }
+
+  const variable = trimmed.match(/^([a-z_][a-z0-9_]*)(?:\s*::\s*text)?$/iu);
+  if (variable) return binding.get(variable[1].toLowerCase()) ?? null;
 
   // Either end of the flattened uuid. `left` takes the version and variant
   // nibbles, which are fixed for a generated id; `right` takes the node bits,
@@ -293,14 +332,22 @@ function sqlOrganizationUsernameFixtures(
         source.slice(operationStart, operationStart + fromOffset),
       );
       const expression = expressions[usernameIndex];
-      const value = expression
-        ? resolveSqlUsernameExpression(expression)
-        : null;
+      const statementTail = source.slice(operationStart + fromOffset);
+      const statementEnd = statementTail.indexOf(";");
+      const fromClause =
+        statementEnd === -1
+          ? statementTail
+          : statementTail.slice(0, statementEnd);
+      const bindings = boundedSeriesBindings(fromClause) ?? [new Map()];
+      const values = bindings.map((binding) =>
+        expression ? resolveSqlUsernameExpression(expression, binding) : null,
+      );
       expect(
-        value,
+        values.every((value) => value !== null),
         `${file}:${lineNumber(source, match.index)} unresolved username expression: ${expression}`,
-      ).not.toBeNull();
-      if (value !== null && expression) {
+      ).toBe(true);
+      for (const value of values) {
+        if (value === null || !expression) continue;
         fixtures.push({
           expression,
           file,
@@ -497,6 +544,105 @@ function javascriptOrganizationUsernameFixtures(): UsernameFixture[] {
 
   return fixtures;
 }
+
+describe("bounded SQL username expressions", () => {
+  const insert = (expression: string, source: string) =>
+    `INSERT INTO public.organizations (username) SELECT ${expression} FROM ${source};`;
+
+  test("enumerates every username in the chapter concurrency fixture", () => {
+    const fixtures = sqlOrganizationUsernameFixtures(
+      "bounded.sql",
+      insert("'race-multi-chapter-' || i", "generate_series(1, 15) AS i"),
+    );
+    expect(fixtures.map(({ value }) => value)).toEqual(
+      Array.from(
+        { length: 15 },
+        (_, index) => `race-multi-chapter-${index + 1}`,
+      ),
+    );
+  });
+
+  test("checks the longer usernames after a numeric width boundary", () => {
+    const fixtures = sqlOrganizationUsernameFixtures(
+      "bounded.sql",
+      insert(`'${"a".repeat(31)}' || i::text`, "generate_series(9, 10) AS i"),
+    );
+    expect(
+      fixtures.map(
+        ({ value }) => organizationUsernameSchema.safeParse(value).success,
+      ),
+    ).toEqual([true, false]);
+  });
+
+  test("supports literal integer steps and SQL identifier case folding", () => {
+    expect(
+      sqlOrganizationUsernameFixtures(
+        "bounded.sql",
+        insert(
+          "'chapter-' || n::text",
+          "pg_catalog.generate_series(15, 9, -2) AS N",
+        ),
+      ).map(({ value }) => value),
+    ).toEqual(["chapter-15", "chapter-13", "chapter-11", "chapter-9"]);
+  });
+
+  test.each([
+    "generate_series(1, limit_count) AS i",
+    "generate_series(1, 1001) AS i",
+    "generate_series(1, 3, 0) AS i",
+    "generate_series(3, 1) AS i",
+    "generate_series(1, 3, -1) AS i",
+    "generate_series(2147483648, 2147483649) AS i",
+    "generate_series(1, 1.5) AS i",
+    "generate_series(1, 3)",
+    "generate_series(1, 3) AS other_alias",
+    "generate_series(1, 3) AS i JOIN fixture_values v ON true",
+    "fixture_values AS i",
+  ])("does not guess a username for unsupported source %s", (source) => {
+    expect(() =>
+      sqlOrganizationUsernameFixtures(
+        "unknown.sql",
+        insert("'chapter-' || i", source),
+      ),
+    ).toThrow("unresolved username expression");
+  });
+
+  test("does not evaluate unknown operations on a bounded alias", () => {
+    expect(() =>
+      sqlOrganizationUsernameFixtures(
+        "unknown.sql",
+        insert(
+          "'chapter-' || unknown_function(i)",
+          "generate_series(1, 3) AS i",
+        ),
+      ),
+    ).toThrow("unresolved username expression");
+    expect(resolveSqlUsernameExpression("'chapter-' || i")).toBeNull();
+  });
+
+  test("does not reuse a series binding in another insert", () => {
+    expect(() =>
+      sqlOrganizationUsernameFixtures(
+        "scope.sql",
+        `${insert("'chapter-' || i", "generate_series(1, 3) AS i")}\n${insert("'other-' || i", "fixture_values")}`,
+      ),
+    ).toThrow("unresolved username expression");
+  });
+
+  test("keeps literal and UUID fixture expressions working", () => {
+    expect(resolveSqlUsernameExpression("'chapter-' || 'abc'")).toBe(
+      "chapter-abc",
+    );
+    expect(
+      resolveSqlUsernameExpression(
+        "'chapter-' || right(replace(organization_id::text, '-', ''), 8)",
+      ),
+    ).toBe("chapter-aaaaaaaa");
+    expect(resolveSqlUsernameExpression("repeat('a', 32)")).toBe(
+      "a".repeat(32),
+    );
+  });
+});
 
 function fixtureError(fixture: UsernameFixture): string {
   return `${fixture.file}:${fixture.line} ${JSON.stringify(fixture.value)} from ${fixture.expression}`;
