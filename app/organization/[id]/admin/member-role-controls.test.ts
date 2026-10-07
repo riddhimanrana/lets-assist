@@ -42,16 +42,32 @@ describe("organization admin member role controls", () => {
     ).toEqual([]);
   });
 
-  test("connects the admin menu to the existing authorized server action", () => {
-    const source = readFileSync(
-      new URL("./MembersClient.tsx", import.meta.url),
+  test("connects the members row menu to the existing authorized server action", () => {
+    const read = (path: string) =>
+      readFileSync(new URL(path, import.meta.url), "utf8");
+    const actions = read("../use-member-actions.ts");
+    expect(actions).toContain(
+      'import { removeMember, updateMemberRole } from "./actions"',
+    );
+    expect(actions).toContain(
+      "updateMemberRole(organizationId, memberId, newRole)",
+    );
+
+    const menu = read("../MemberRowMenu.tsx");
+    expect(menu).toContain("DropdownMenuRadioGroup");
+    expect(menu).toContain("onUpdateRole(");
+    expect(menu).toContain("MEMBER_ROLE_LABELS[role]");
+
+    const tab = read("../MembersTab.tsx");
+    expect(tab).toContain("onUpdateRole: handleUpdateRole");
+  });
+
+  test("the retired directory route redirects to the members tab", () => {
+    const page = readFileSync(
+      new URL("./members/page.tsx", import.meta.url),
       "utf8",
     );
-    expect(source).toContain('import { updateMemberRole } from "../actions"');
-    expect(source).toContain(
-      "updateMemberRole(organizationId, member.id, role)",
-    );
-    expect(source).toContain("Make Staff");
-    expect(source).toContain("Make Member");
+    expect(page).toContain("?tab=members");
+    expect(page).not.toContain("MembersClient");
   });
 });
