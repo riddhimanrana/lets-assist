@@ -50,6 +50,7 @@ import {
 } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
 import { useRouter } from "next/navigation";
+import { createProjectDraftSession } from "@/lib/projects/draft-session";
 import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import {
   clearStagedWaiverAttempt,
@@ -162,9 +163,8 @@ export default function ProjectCreator({
     updateDetectedFields,
     clearWaiverPdf,
     updateRecurrence,
-    loadDraftState,
     updatePluginData,
-  } = useEventForm();
+  } = useEventForm({ draft: initialDraftData, organizationId: initialOrgId });
 
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -229,7 +229,19 @@ export default function ProjectCreator({
   const currentStepLabel = stepLabels[state.step - 1] ?? "Create Project";
   const progressValue = (state.step / totalSteps) * 100;
 
-  // Autosave state - initialize with loaded draft ID if available
+  const [draftSession] = useState(() =>
+    createProjectDraftSession(initialDraftId || undefined, {
+      save: autoSaveDraft,
+      copy: async (data) => {
+        const formData = new FormData();
+        formData.append("projectData", JSON.stringify(data));
+        return saveProjectAsNewDraft(formData);
+      },
+      remove: deleteDraft,
+    }),
+  );
+
+  // Autosave state - initialize with the explicitly resumed draft only.
   const [autosaveDraftId, setAutosaveDraftId] = useState<string | undefined>(
     initialDraftId || undefined,
   );
@@ -264,23 +276,7 @@ export default function ProjectCreator({
     volunteers?: number;
   };
 
-  // Load draft data on mount if provided
-  const draftLoadedRef = useRef(false);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  useEffect(() => {
-    // Guard to prevent infinite update loops when hydrating draft state
-    if (initialDraftData && loadDraftState && !draftLoadedRef.current) {
-      draftLoadedRef.current = true;
-      loadDraftState(initialDraftData);
-      // Show success toast after a brief delay to ensure UI is ready
-      setTimeout(() => {
-        toast.success("Draft restored!", {
-          description:
-            "Your previous progress has been loaded. Continue where you left off!",
-        });
-      }, 500);
-    }
-  }, [initialDraftData, loadDraftState]);
 
   // Serialize state for change detection
   const stateSnapshot = useMemo(() => JSON.stringify(state), [state]);
@@ -357,16 +353,10 @@ export default function ProjectCreator({
       try {
         setAutosaveStatus("saving");
 
-        const result = await autoSaveDraft(
-          getDraftSafeState(),
-          autosaveDraftId,
-        );
+        const result = await draftSession.save(getDraftSafeState());
 
         if (result.autosaved && result.id) {
-          // Set the draft ID if this is the first autosave
-          if (!autosaveDraftId) {
-            setAutosaveDraftId(result.id);
-          }
+          setAutosaveDraftId(draftSession.id);
 
           setAutosaveStatus("saved");
           setLastAutosaveTime(new Date());
@@ -405,6 +395,7 @@ export default function ProjectCreator({
     isSubmitting,
     isSavingDraft,
     getDraftSafeState,
+    draftSession,
   ]);
 
   // Handle AI-generated data
@@ -1099,6 +1090,11 @@ export default function ProjectCreator({
       }
 
       setIsSubmitting(true);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      await draftSession.flush();
 
       const profanityToast = toast.loading(
         "Checking content for inappropriate language...",
@@ -1212,22 +1208,12 @@ export default function ProjectCreator({
         console.error("Error finalizing project:", error);
       });
 
-      // Step 6: Cleanup draft/autosave entry if it exists
-      if (autosaveDraftId) {
-        const draftIdToDelete = autosaveDraftId;
-
-        // Clear local autosave tracking first so we don't attempt further updates
-        setAutosaveDraftId(undefined);
-        setAutosaveStatus("idle");
-        previousStateRef.current = "";
-
-        const deleteResult = await deleteDraft(draftIdToDelete);
-        if (deleteResult && "error" in deleteResult && deleteResult.error) {
-          console.error(
-            "Failed to delete draft after project creation:",
-            deleteResult.error,
-          );
-        }
+      // Wait for queued saves and consume only this editor session's draft.
+      const deleteResult = await draftSession.consume();
+      setAutosaveDraftId(draftSession.id);
+      setAutosaveStatus("idle");
+      if (deleteResult.error) {
+        toast.warning("Project created. Its draft could not be removed.");
       }
 
       // Dismiss loading toast and show success
@@ -1274,10 +1260,11 @@ export default function ProjectCreator({
       setIsSavingDraft(true);
       const loadingToast = toast.loading("Saving new draft...");
 
-      const formData = new FormData();
-      formData.append("projectData", JSON.stringify(getDraftSafeState()));
-
-      const result = await saveProjectAsNewDraft(formData);
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      const result = await draftSession.copy(getDraftSafeState());
 
       if ("error" in result) {
         toast.dismiss(loadingToast);
@@ -1287,7 +1274,8 @@ export default function ProjectCreator({
       }
 
       toast.dismiss(loadingToast);
-      toast.success("New draft saved!");
+      setAutosaveDraftId(draftSession.id);
+      toast.success("New draft saved. Further edits will update this draft.");
 
       // Refresh the page to update the drafts list
       router.refresh();
@@ -1358,7 +1346,6 @@ export default function ProjectCreator({
           <BasicInfo
             state={state}
             updateBasicInfoAction={handleBasicInfoUpdate}
-            initialOrgId={initialOrgId}
             initialOrganizations={initialOrgOptions}
             showLocationPointer={showLocationPointer}
             onLocationPointerDismiss={() => setShowLocationPointer(false)}

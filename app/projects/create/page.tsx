@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import type { ProjectCreateAdditionalStep } from "@/types/plugin";
 import { headers } from "next/headers";
@@ -202,7 +202,7 @@ export default async function CreateProjectPage({
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
-  // Load specific draft if requested, otherwise load most recent autosaved draft
+  // Resuming requires an explicit draft ID. New projects never consume older drafts.
   let loadedDraft: Partial<EventFormState> | null = null;
   let loadedDraftId: string | null = null;
   if (draftIdFromUrl) {
@@ -213,14 +213,10 @@ export default async function CreateProjectPage({
       .eq("user_id", user.id)
       .single();
 
-    if (draft) {
-      loadedDraft = draft.draft_data;
-      loadedDraftId = draft.id;
-    }
-  } else if (drafts && drafts.length > 0) {
-    // Load the most recently updated draft (autosaved)
-    loadedDraft = drafts[0].draft_data;
-    loadedDraftId = drafts[0].id;
+    if (!draft) notFound();
+    loadedDraft = draft.draft_data;
+    loadedDraftId = draft.id;
+    initialOrgId = loadedDraft?.basicInfo?.organizationId || undefined;
   }
 
   // Fetch plugin steps if an organization is selected
@@ -249,6 +245,7 @@ export default async function CreateProjectPage({
   return (
     <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
       <ProjectCreator
+        key={loadedDraftId ?? `new:${initialOrgId ?? "personal"}`}
         initialOrgId={initialOrgId}
         initialOrgOptions={orgOptions}
         canUsePublicVisibility={canUsePublicVisibility}

@@ -88,7 +88,10 @@ interface DraftsSidebarProps {
 
 export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
   const router = useRouter();
-  const [drafts, setDrafts] = useState(initialDrafts);
+  const [removedDraftIds, setRemovedDraftIds] = useState<string[]>([]);
+  const drafts = initialDrafts.filter(
+    (draft) => !removedDraftIds.includes(draft.id),
+  );
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [isOpenDesktop, setIsOpenDesktop] = useState(false);
@@ -104,7 +107,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       } else {
         toast.success("Draft deleted");
         // Update local state and keep the sheet/drawer open
-        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
+        setRemovedDraftIds((ids) => [...ids, draftId]);
         setDeleteDialogOpen(null);
         // Refresh the page data in the background
         router.refresh();
@@ -126,7 +129,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         // Update local state
-        setDrafts((prevDrafts) => prevDrafts.filter((d) => d.id !== draftId));
+        setRemovedDraftIds((ids) => [...ids, draftId]);
         router.push(`/projects/${result.id}`);
       }
     } catch (error) {
