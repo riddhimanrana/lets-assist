@@ -76,6 +76,15 @@ export const applicationRequestWriteFenceQuery = `SELECT
       AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_request'
       AND (configured.setdatabase <> 0 OR configured.setrole <> 'authenticator'::regrole)
   )
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_db_role_setting AS configured
+    CROSS JOIN LATERAL pg_catalog.unnest(configured.setconfig) AS entry(setting)
+    WHERE configured.setrole IN (0, 'authenticator'::regrole)
+      AND configured.setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database
+        WHERE datname = current_database()))
+      AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_config'
+      AND entry.setting <> 'pgrst.db_pre_config='
+  )
   AND ${requestSettingsCompatible} AS valid`;
 
 export const requireApplicationRequestWriteFenceSql = `DO $write_fence$

@@ -77,7 +77,8 @@ The workflow performs these operations in order:
 6. Stage both the repository-owned static maintenance artifact and the exact
    application without moving domains. Prove both artifacts and retain the
    recovery manifest.
-7. Set `authenticator.default_transaction_read_only=on`, terminate existing
+7. Verify the migration-owned request hook, set the fixed authenticator catalog
+   flag `pgrst.app_settings.maintenance_write_block=on`, terminate existing
    authenticator sessions, and prove that a fresh PostgREST mutation returns
    SQLSTATE `25006`.
 8. Promote and verify the maintenance deployment at the Production alias, then
@@ -93,6 +94,13 @@ The workflow performs these operations in order:
 
 The write block covers application traffic through PostgREST. It does not block
 Supabase Auth, Storage, direct database sessions, or internal provider writers.
+
+An older database requires a separately approved additive request-hook bootstrap
+before this sequence. A role default alone cannot block PostgREST mutation
+transactions. The hook checks the dedicated role-catalog flag and rejects a
+writable transaction. The flag is operator metadata, not a claim that PostgREST
+exports a custom runtime setting. Installed-hook metadata and a configured flag
+do not prove enforcement; the fresh API refusal remains mandatory.
 The operator must still stop scheduled workers and confirm database quiescence
 as described in the [Production cutover runbook](production-cutover-runbook.md).
 The helper proves configured read-only state; it does not replace the fresh
