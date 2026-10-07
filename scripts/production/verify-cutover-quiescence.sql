@@ -43,9 +43,9 @@ SELECT EXISTS (
 \gset
 
 \if :application_write_block_active
-  \echo 'PASS Q3: the PostgREST application write block is active.'
+  \echo 'PASS Q3: the PostgREST maintenance flag is configured. Hook and fresh API verification are separate requirements.'
 \else
-  \echo 'FAIL Q3: the PostgREST application write block is not active.'
+  \echo 'FAIL Q3: the PostgREST maintenance flag is not configured.'
   SELECT 1 / 0 AS quiescence_check_failed;
 \endif
 

@@ -50,6 +50,8 @@ test("guard verification binds the published function body and exact execution b
     "permission.privilege_type <> 'EXECUTE' OR permission.is_grantable",
     "configured.setrole IN (0, 'authenticator'::regrole)",
     "configured.setdatabase <> 0 OR configured.setrole <> 'authenticator'::regrole",
+    "pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.db_pre_config'",
+    "entry.setting <> 'pgrst.db_pre_config='",
   ])
     assert.ok(applicationRequestWriteFenceQuery.includes(required), required);
   assert.ok(requireApplicationRequestWriteFenceSql.includes("IF NOT (SELECT"));
