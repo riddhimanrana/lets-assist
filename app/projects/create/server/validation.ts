@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { basicInfoSchema } from "@/schemas/event-form-schema";
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 
 const projectContentSchema = basicInfoSchema
   .pick({ title: true, location: true, description: true })
@@ -82,7 +83,7 @@ export async function getProjectById(projectId: string) {
       .from("projects")
       .select(
         `
-        *,
+        ${PROJECT_CLIENT_SELECT},
         profiles:creator_id (
           id,
           full_name,
