@@ -62,17 +62,12 @@ export function DonateDialog({ open, onOpenChange }: DonateDialogProps) {
             >
               Contact for donations
             </label>
-            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background shadow-xs">
+            <div className="flex items-center gap-2 p-2 rounded-lg border bg-background">
               <Mail className="h-4 w-4 ml-2 text-muted-foreground shrink-0" />
               <span className="font-mono text-sm font-semibold flex-1 truncate text-foreground ml-1">
                 {email}
               </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={copyEmail}
-                className="h-8 shadow-none"
-              >
+              <Button size="sm" variant="outline" onClick={copyEmail}>
                 {copied ? (
                   <>
                     <Check className="h-3 w-3 mr-1 text-success" />

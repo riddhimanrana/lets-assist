@@ -349,7 +349,7 @@ export function NotificationPopover({
               <div className="flex items-center gap-3 mt-2">
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-xs text-primary hover:underline underline-offset-2 font-medium"
+                  className="h-auto p-0 text-xs font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (notification.action_url) {

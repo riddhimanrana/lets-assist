@@ -207,7 +207,7 @@ export function OrganizationTabsNavigation(props: Props) {
               className={cn(
                 "min-w-max flex-none shrink-0 gap-2 px-3",
                 activePluginParentValue === pt.value &&
-                  "bg-background text-foreground shadow-sm",
+                  "bg-background text-foreground",
               )}
             >
               {pt.icon}

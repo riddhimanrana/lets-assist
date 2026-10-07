@@ -119,7 +119,7 @@ export default function OrganizationHeader({
           <div className="relative shrink-0">
             <Avatar
               className={cn(
-                "rounded-full border-background shadow-sm",
+                "rounded-full border-background",
                 compact
                   ? "size-10 border-2 md:size-12"
                   : "size-20 border-4 md:size-24",
@@ -139,7 +139,7 @@ export default function OrganizationHeader({
               </AvatarFallback>
             </Avatar>
             {organization.verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5 md:hidden">
+              <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full border flex items-center justify-center p-0.5 md:hidden">
                 <BadgeCheck
                   className="h-4 w-4 text-primary fill-background"
                   aria-hidden="true"

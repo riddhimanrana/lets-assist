@@ -54,7 +54,7 @@ export default function OrganizationSetupChecklist({
   return (
     <section
       aria-labelledby="organization-setup-heading"
-      className="mt-6 rounded-xl border border-border/60 bg-card p-4 shadow-xs sm:p-6"
+      className="mt-6 rounded-xl border border-border/60 bg-card p-4 sm:p-6"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">

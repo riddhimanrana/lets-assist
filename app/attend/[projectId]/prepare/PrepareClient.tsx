@@ -94,7 +94,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
   // Render UI based on status
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)] bg-background">
-      <Card className="w-full max-w-md shadow-lg">
+      <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center">
             {status === "error" &&

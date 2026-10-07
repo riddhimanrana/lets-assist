@@ -636,7 +636,7 @@ export function CertificatesList({
             return (
               <div key={cert.id} className="relative">
                 <Link href={`/certificates/${cert.id}`} passHref>
-                  <Card className="group h-full cursor-pointer transition-all duration-300 hover:shadow-lg hover:border-primary/50 flex flex-col">
+                  <Card className="group h-full cursor-pointer transition-shadow duration-300 hover:ring-primary/50 flex flex-col">
                     <CardHeader className="pb-3 relative">
                       <div className="absolute right-4 top-4 flex items-center gap-2">
                         {isSelfReported && (
@@ -685,7 +685,7 @@ export function CertificatesList({
                       {isSelfReported && (
                         <Badge
                           variant="secondary"
-                          className="w-fit mt-2 text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning"
+                          className="w-fit mt-2 text-xs bg-warning/10 text-warning"
                         >
                           Self-Reported
                         </Badge>

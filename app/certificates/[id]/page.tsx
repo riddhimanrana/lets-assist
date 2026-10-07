@@ -174,10 +174,7 @@ export default async function VolunteerRecordPage({
         </div>
         <div className="flex items-center gap-2">
           {isSelfReported && (
-            <Badge
-              variant="secondary"
-              className="px-3 py-1 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300"
-            >
+            <Badge variant="secondary" className="px-3 py-1">
               Self-Reported
             </Badge>
           )}
@@ -192,7 +189,7 @@ export default async function VolunteerRecordPage({
 
       <CardContainer className="py-8" containerClassName="w-full">
         <CardBody
-          className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 shadow-2xl ${
+          className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 ${
             isSelfReported
               ? "bg-linear-to-br from-gray-50 via-gray-100/50 to-gray-200/30 dark:from-gray-800/20 dark:via-gray-700/10 dark:to-gray-600/20"
               : "bg-linear-to-br from-background via-background to-muted"
@@ -267,7 +264,7 @@ export default async function VolunteerRecordPage({
                           render={
                             <Badge
                               variant="secondary"
-                              className="ml-auto backdrop-blur-xs bg-success/10 border border-success/20 text-success"
+                              className="ml-auto border-success/20 bg-success/10 text-success"
                               tabIndex={0}
                               aria-label="Verified badge"
                             >
@@ -298,8 +295,7 @@ export default async function VolunteerRecordPage({
             <CardItem translateZ={60} className="w-full group">
               <div
                 className="p-6 bg-linear-to-r from-secondary/40 via-secondary/20 to-secondary/40
-                backdrop-blur-xs rounded-lg border border-primary/10 shadow-xs
-                group-hover:shadow-[0_0_25px_rgba(var(--primary)/0.15)] transition-all duration-300"
+                rounded-lg border border-primary/10"
               >
                 <CardItem
                   translateZ={60}
@@ -307,7 +303,7 @@ export default async function VolunteerRecordPage({
                 >
                   <div
                     className="h-14 w-14 rounded-full bg-linear-to-br from-primary/30 to-primary/10
-                    flex items-center justify-center shadow-xs border border-primary/10"
+                    flex items-center justify-center border border-primary/10"
                   >
                     <User className="h-7 w-7 text-primary/80" />
                   </div>
@@ -327,8 +323,7 @@ export default async function VolunteerRecordPage({
                   >
                     <div
                       className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-xs border border-primary/10
-                      group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
+                      flex items-center justify-center border border-primary/10"
                     >
                       <Clock className="h-5 w-5 text-primary/80" />
                     </div>
@@ -348,8 +343,7 @@ export default async function VolunteerRecordPage({
                   >
                     <div
                       className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-xs border border-primary/10
-                      group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
+                      flex items-center justify-center border border-primary/10"
                     >
                       <Calendar className="h-5 w-5 text-primary/80" />
                     </div>
@@ -372,8 +366,7 @@ export default async function VolunteerRecordPage({
                   >
                     <div
                       className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center shadow-xs border border-primary/10
-                      group-hover/item:shadow-[0_0_15px_rgba(var(--primary)/0.2)] transition-all duration-300"
+                      flex items-center justify-center border border-primary/10"
                     >
                       <MapPin className="h-5 w-5 text-primary/80" />
                     </div>
@@ -396,8 +389,7 @@ export default async function VolunteerRecordPage({
                   >
                     <div
                       className="h-10 w-10 rounded-lg bg-linear-to-br from-gray-200/60 to-gray-100/30 dark:from-gray-600/40 dark:to-gray-700/20
-                      flex items-center justify-center shadow-xs border border-gray-200/50 dark:border-gray-600/30
-                      group-hover/item:shadow-[0_0_15px_rgba(156,163,175,0.2)] transition-all duration-300 shrink-0"
+                      flex items-center justify-center border border-gray-200/50 dark:border-gray-600/30 shrink-0"
                     >
                       <Clipboard className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                     </div>

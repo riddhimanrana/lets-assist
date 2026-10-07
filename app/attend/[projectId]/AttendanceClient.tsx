@@ -924,7 +924,7 @@ export default function AttendanceClient({
                           size="sm"
                           variant="link" // Use link style
                           onClick={() => redirectToAuth("login")}
-                          className="mt-1 p-0 h-auto text-primary hover:text-primary/80"
+                          className="mt-1 h-auto p-0"
                         >
                           Log in now to check in
                           <LogIn className="h-3 w-3 ml-1.5" />

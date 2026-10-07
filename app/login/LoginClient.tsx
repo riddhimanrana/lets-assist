@@ -282,8 +282,8 @@ export default function LoginClient({
   };
 
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-      <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 sm:px-6 lg:px-8">
+      <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-7 pb-0 sm:px-7">
           {/* CardTitle renders a plain div, so the page had no h1 at all. */}
           <CardTitle>
@@ -322,7 +322,7 @@ export default function LoginClient({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold hover:border-primary/30 hover:bg-primary/5"
+                  className="h-10 w-full rounded-full font-semibold"
                   onClick={handleGoogleSignIn}
                   disabled={isGoogleLoading || !isHydrated}
                 >
@@ -372,7 +372,7 @@ export default function LoginClient({
                       placeholder="m@example.com"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                      className="h-11 rounded-xl px-4"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -406,7 +406,7 @@ export default function LoginClient({
                       type="password"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                      className="h-11 rounded-xl px-4"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>

@@ -149,7 +149,7 @@ export default function ContactClient() {
       buttonLabel: "Suggest Feature",
       icon: Lightbulb,
       iconClassName: "border-primary/20 bg-primary/10 text-primary",
-      hoverClassName: "hover:border-primary/30",
+      hoverClassName: "hover:ring-primary/30",
       buttonVariant: "default",
       onClick: handleSuggestFeature,
     },
@@ -160,7 +160,7 @@ export default function ContactClient() {
       buttonLabel: "Report Bug",
       icon: Bug,
       iconClassName: "border-destructive/20 bg-destructive/10 text-destructive",
-      hoverClassName: "hover:border-destructive/30",
+      hoverClassName: "hover:ring-destructive/30",
       buttonVariant: "destructive",
       onClick: handleReportBug,
     },
@@ -171,7 +171,7 @@ export default function ContactClient() {
       buttonLabel: "Contact Support",
       icon: Mail,
       iconClassName: "border-info/20 bg-info/10 text-info",
-      hoverClassName: "hover:border-info/30",
+      hoverClassName: "hover:ring-info/30",
       buttonClassName: "bg-info text-background hover:bg-info/90",
       href: "mailto:support@lets-assist.com",
     },
@@ -182,7 +182,7 @@ export default function ContactClient() {
       buttonLabel: "Talk to Our Team",
       icon: Building2,
       iconClassName: "border-chart-4/20 bg-chart-4/10 text-chart-4",
-      hoverClassName: "hover:border-chart-4/30",
+      hoverClassName: "hover:ring-chart-4/30",
       buttonClassName: "bg-chart-4 text-background hover:bg-chart-4/90",
       organizationDialog: true,
     },
@@ -320,7 +320,7 @@ export default function ContactClient() {
                 <Card
                   key={card.title}
                   className={cn(
-                    "group flex h-full flex-col overflow-hidden border border-border/70 bg-card/80 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+                    "group flex h-full flex-col overflow-hidden transition-shadow duration-200",
                     card.hoverClassName,
                   )}
                 >

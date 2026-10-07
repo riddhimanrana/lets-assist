@@ -155,7 +155,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               {isSelfReported ? (
                 <Badge
                   variant="secondary"
-                  className="text-xs bg-warning/10 text-warning dark:bg-warning/10 dark:text-warning"
+                  className="text-xs bg-warning/10 text-warning"
                 >
                   Self-Reported
                 </Badge>

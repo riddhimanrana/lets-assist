@@ -390,7 +390,7 @@ export default function InitialOnboardingModal({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.4 }}
-                    className="flex items-center gap-3 p-3 rounded-lg bg-background/80 backdrop-blur-xs border shadow-xs"
+                    className="flex items-center gap-3 p-3 rounded-lg bg-background border"
                   >
                     <Avatar className="h-10 w-10 border">
                       <AvatarImage

@@ -253,7 +253,6 @@ export function FeedbackDialog({
                 placeholder="What's on your mind?"
                 value={title}
                 onChange={(e) => setTitle(e.target.value.slice(0, 100))}
-                className="bg-background"
               />
             </div>
 
@@ -269,7 +268,7 @@ export function FeedbackDialog({
                 placeholder="Please include as much detail as possible..."
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value.slice(0, 2000))}
-                className="min-h-[120px] resize-none bg-background"
+                className="min-h-30 resize-none"
               />
             </div>
           </CardContent>

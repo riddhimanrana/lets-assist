@@ -263,11 +263,11 @@ function PdfPage({ pdfDoc, pageNumber, scale }: PdfPageProps) {
 
   if (!viewport)
     return (
-      <div className="w-[300px] h-[400px] bg-background animate-pulse rounded shadow" />
+      <div className="w-[300px] h-[400px] bg-background animate-pulse rounded" />
     );
 
   return (
-    <div className="relative shadow-lg h-fit bg-white">
+    <div className="relative ring-1 ring-border h-fit bg-white">
       <canvas
         ref={canvasRef}
         className="block"
