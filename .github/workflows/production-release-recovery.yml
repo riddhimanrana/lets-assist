@@ -321,6 +321,13 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: bash scripts/production/verify-postgrest-write-block.sh
 
+      - name: Settle requests admitted before the hook was loaded
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: bash scripts/production/set-application-write-block.sh barrier
+
       - name: Revalidate Vercel project and deployment provenance
         timeout-minutes: 2
         env:
