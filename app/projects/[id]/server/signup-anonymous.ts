@@ -11,7 +11,7 @@ import type {
 } from "@/types";
 import type { getAdminClient } from "@/lib/supabase/admin";
 import AnonymousSignupConfirmation from "@/emails/anonymous-signup-confirmation";
-import { sendEmail } from "@/services/email";
+import { sendEmail, type SendEmailResult } from "@/services/email";
 import { verifyAnonymousSignupContinuation } from "@/lib/anonymous-signup-continuation";
 import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
 
@@ -128,6 +128,7 @@ export async function registerAnonymousSignup({
   let createdAnonymousSignupId: string | null = null;
   let shouldReuseExistingAnonymousWaiver = false;
   let anonymousProfileAlreadyConfirmed = false;
+  let confirmationDelivery: SendEmailResult["outcome"] | undefined;
 
   logSignupDebug(traceId, "anonymous_flow_start", {
     hasEmail: Boolean(emailToCheck),
@@ -413,7 +414,7 @@ export async function registerAnonymousSignup({
       );
       const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${existingAnonProfile.token}`;
       try {
-        await sendEmail({
+        const delivery = await sendEmail({
           to: anonymousData.email,
           subject:
             selectedSlotCount > 1
@@ -430,20 +431,26 @@ export async function registerAnonymousSignup({
             selectedSlotCount,
           }),
           type: "transactional",
+          idempotencyKey: `anonymous-signup/${createdSignupId}`,
         });
-      } catch (error) {
-        console.error("Error sending slot addition email:", error);
+        confirmationDelivery = delivery.outcome;
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: delivery.outcome,
+          code: delivery.code,
+        });
+      } catch {
+        confirmationDelivery = "unknown_outcome";
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: "unknown_outcome",
+        });
       }
     } else if (
       !isProfileConfirmed &&
       anonymousData.email &&
       !skipConfirmationForThisRequest
     ) {
-      const newToken = crypto.randomUUID();
-      await serviceSupabase
-        .from("anonymous_signups")
-        .update({ token: newToken })
-        .eq("id", createdAnonymousSignupId);
+      // Keep earlier confirmation links valid when adding another slot.
+      const newToken = existingAnonProfile.token;
       const confirmationUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}/confirm?token=${newToken}`;
       const anonymousProfileUrl = `${siteUrl}/anonymous/${createdAnonymousSignupId}?token=${newToken}`;
       const { date, timeRange, slotLabel } = getScheduleDetails(
@@ -451,7 +458,7 @@ export async function registerAnonymousSignup({
         scheduleId,
       );
       try {
-        await sendEmail({
+        const delivery = await sendEmail({
           to: anonymousData.email,
           subject: `Confirm your signup for ${project.title}`,
           react: React.createElement(AnonymousSignupConfirmation, {
@@ -465,9 +472,18 @@ export async function registerAnonymousSignup({
             selectedSlotCount,
           }),
           type: "transactional",
+          idempotencyKey: `anonymous-signup/${createdSignupId}`,
         });
-      } catch (error) {
-        console.error("Error sending confirmation email:", error);
+        confirmationDelivery = delivery.outcome;
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: delivery.outcome,
+          code: delivery.code,
+        });
+      } catch {
+        confirmationDelivery = "unknown_outcome";
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: "unknown_outcome",
+        });
       }
     }
   } else {
@@ -557,7 +573,7 @@ export async function registerAnonymousSignup({
         scheduleId,
       );
       try {
-        const { data, error: emailError } = await sendEmail({
+        const delivery = await sendEmail({
           to: anonymousData.email,
           subject: `Confirm your signup for ${project.title}`,
           react: React.createElement(AnonymousSignupConfirmation, {
@@ -571,11 +587,18 @@ export async function registerAnonymousSignup({
             selectedSlotCount,
           }),
           type: "transactional",
+          idempotencyKey: `anonymous-signup/${createdSignupId}`,
         });
-        if (emailError) console.error("Resend error:", emailError);
-        else console.log("Confirmation email sent successfully:", data);
-      } catch (error) {
-        console.error("Error sending confirmation email:", error);
+        confirmationDelivery = delivery.outcome;
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: delivery.outcome,
+          code: delivery.code,
+        });
+      } catch {
+        confirmationDelivery = "unknown_outcome";
+        logSignupDebug(traceId, "anonymous_email_delivery", {
+          outcome: "unknown_outcome",
+        });
       }
     }
   }
@@ -585,5 +608,6 @@ export async function registerAnonymousSignup({
     createdAnonymousSignupId,
     shouldReuseExistingAnonymousWaiver,
     anonymousProfileAlreadyConfirmed,
+    confirmationDelivery,
   };
 }

@@ -28,6 +28,12 @@ import { registerAnonymousSignup } from "./signup-anonymous";
 import { registerAuthenticatedSignup } from "./signup-registered";
 
 export type SignupActionResult = {
+  confirmationDelivery?:
+    | "accepted"
+    | "definitive_failure"
+    | "retryable_pre_send"
+    | "unknown_outcome"
+    | "skipped";
   success?: boolean;
   error?: string;
   canResend?: boolean;
@@ -104,6 +110,7 @@ export async function signUpForProject(
   let createdSignupId: string | undefined = undefined; // Track the created signup ID
   let createdAnonymousSignupId: string | null = null;
   let anonymousProfileAlreadyConfirmed = false;
+  let confirmationDelivery: SignupActionResult["confirmationDelivery"];
   let anonymousContinuationToken: string | undefined;
   const traceId = crypto.randomUUID();
 
@@ -433,6 +440,7 @@ export async function signUpForProject(
       }
       createdSignupId = anonymousResult.createdSignupId;
       createdAnonymousSignupId = anonymousResult.createdAnonymousSignupId;
+      confirmationDelivery = anonymousResult.confirmationDelivery;
       anonymousProfileAlreadyConfirmed =
         anonymousResult.anonymousProfileAlreadyConfirmed;
     } else {
@@ -552,6 +560,7 @@ export async function signUpForProject(
       projectId: project.id,
       traceId,
       anonymousContinuationToken,
+      confirmationDelivery,
     };
   } catch (error) {
     logSignupDebug(traceId, "unhandled_exception", {

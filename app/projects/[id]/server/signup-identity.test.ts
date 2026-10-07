@@ -17,6 +17,7 @@ let sessionUser: {
   user_metadata?: { full_name?: string };
 } | null = null;
 let projectRecord: Record<string, unknown> = {};
+let emailOutcome = "accepted";
 
 const CHAINABLE = [
   "select",
@@ -93,7 +94,9 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
 mock.module("next/headers", () => ({
   headers: async () => new Map<string, string>(),
 }));
-mock.module("@/services/email", () => ({ sendEmail: async () => ({}) }));
+mock.module("@/services/email", () => ({
+  sendEmail: async () => ({ outcome: emailOutcome }),
+}));
 mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => new Map(),
   getRegisteredPlugin: () => null,
@@ -194,6 +197,7 @@ beforeEach(() => {
   rpcCalls.length = 0;
   sessionUser = null;
   projectRecord = baseProject();
+  emailOutcome = "accepted";
   tableHandlers = {
     projects: () => ({ data: projectRecord, error: null }),
     project_signups: () => ({ data: null, error: null, count: 0 }),
@@ -528,4 +532,40 @@ describe("signUpForProject guest flow", () => {
       ),
     ).toEqual([]);
   });
+});
+
+describe("guest confirmation delivery status", () => {
+  for (const outcome of [
+    "accepted",
+    "skipped",
+    "definitive_failure",
+    "retryable_pre_send",
+    "unknown_outcome",
+  ]) {
+    test(`saved signup reports ${outcome} without discarding the signup`, async () => {
+      emailOutcome = outcome;
+      rpcHandlers.insert_project_signup_with_waiver = () => ({
+        data: [
+          {
+            signup_id: "22222222-2222-4222-8222-222222222222",
+            anonymous_signup_id: "55555555-5555-4555-8555-555555555555",
+            waiver_signature_id: null,
+            outcome: "inserted",
+            slot_capacity: 5,
+            active_count: 0,
+          },
+        ],
+        error: null,
+      });
+      const result = await signUpForProject(
+        projectRecord.id as string,
+        "oneTime",
+        GUEST_PAYLOAD,
+      );
+      expect(result.success).toBe(true);
+      expect(result.needsConfirmation).toBe(true);
+      expect(result.confirmationDelivery).toBe(outcome);
+      expect(signupInserts()).toHaveLength(1);
+    });
+  }
 });

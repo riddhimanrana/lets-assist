@@ -257,6 +257,8 @@ export default function ProjectDetails({
 
   // Add state for the confirmation alert
   const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
+  const [confirmationEmailAccepted, setConfirmationEmailAccepted] =
+    useState(false);
 
   // Add state for confirmation modals
   const [showSignupConfirmation, setShowSignupConfirmation] = useState(false);
@@ -1073,10 +1075,16 @@ export default function ProjectDetails({
       } else if (result.success) {
         if (result.needsConfirmation) {
           // Show the persistent alert
+          setConfirmationEmailAccepted(
+            result.confirmationDelivery === "accepted",
+          );
           setShowConfirmationAlert(true);
           // Also show a toast as immediate feedback
           toast.success("Signup initiated!", {
-            description: "Please check your email to confirm your spot.",
+            description:
+              result.confirmationDelivery === "accepted"
+                ? "Please check your email to confirm your spot."
+                : "Your signup is saved, but email delivery could not be confirmed. Check your inbox or request a new confirmation link.",
             duration: 5000,
           });
           // No UI state change here yet for slots/signup status
@@ -1246,6 +1254,7 @@ export default function ProjectDetails({
 
       let successfulSignups = 0;
       let needsConfirmation = false;
+      let confirmationAccepted = false;
       let continuationToken: string | undefined;
       const errorMessages: string[] = [];
 
@@ -1306,6 +1315,7 @@ export default function ProjectDetails({
             });
             successfulSignups += 1;
             needsConfirmation = needsConfirmation || !!result.needsConfirmation;
+            confirmationAccepted ||= result.confirmationDelivery === "accepted";
 
             if (!result.needsConfirmation) {
               setHasSignedUp((prev) => ({ ...prev, [scheduleId]: true }));
@@ -1319,13 +1329,16 @@ export default function ProjectDetails({
 
         if (successfulSignups > 0) {
           if (needsConfirmation) {
+            setConfirmationEmailAccepted(confirmationAccepted);
             setShowConfirmationAlert(true);
             toast.success(
               successfulSignups > 1
                 ? `Signup initiated for ${successfulSignups} slots!`
                 : "Signup initiated!",
               {
-                description: "Please check your email to confirm your signup.",
+                description: confirmationAccepted
+                  ? "Please check your email to confirm your signup."
+                  : "Your signup is saved, but email delivery could not be confirmed. Check your inbox or request a new confirmation link.",
                 duration: 5000,
               },
             );
@@ -1605,11 +1618,14 @@ export default function ProjectDetails({
                 </div>
               </div>
               <DialogTitle className="text-2xl text-center">
-                Check Your Email
+                {confirmationEmailAccepted
+                  ? "Check your email"
+                  : "Confirm your signup"}
               </DialogTitle>
               <DialogDescription className="text-center text-base pt-4">
-                We&apos;ve sent a confirmation link to your email address.
-                Please click the link to finalize your signup for this project.
+                {confirmationEmailAccepted
+                  ? "A confirmation link has been sent to your email address. Open it to finalize your signup."
+                  : "Your signup is saved, but email delivery could not be confirmed. Check your inbox first. If no link arrives, submit the same signup again to request a new confirmation email."}
               </DialogDescription>
             </DialogHeader>
             <div className="bg-muted/50 rounded-lg p-4 my-4">
