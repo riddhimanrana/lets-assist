@@ -36,9 +36,11 @@ prepare and sign a separate release for each changed plugin at that same exact
 private commit. Do not publish an intermediate registry record or relax the
 single-release tree check to make the first release pass.
 
-Use the manual `plugin-release-batch-integration.yml` workflow from the reviewed
-root feature branch. Supply its full `candidate_sha`, the existing Development
-pull request number and a JSON array of two through sixteen exact release tags.
+Dispatch the existing `plugin-release-integration.yml` workflow from the reviewed
+root feature branch. Leave `release_tag` empty and supply `release_tags` as a JSON
+array of two through sixteen exact tags, the full `candidate_sha` and the
+`existing_pr_number`. The registered entry calls the reusable batch workflow at
+that same revision; the new batch file is not a standalone dispatch entry.
 The candidate must equal the workflow commit, descend from current Development
 and be the current head of that same-repository PR. The workflow updates that
 review branch; it does not open another integration PR or merge either branch.
@@ -63,7 +65,12 @@ head. It proves the immutable result commit descends from that candidate and use
 an exact expected-head lease. A forward update, rewind or missing remote branch
 refuses the push; the workflow never refreshes the lease to overwrite drift.
 Final strict registry, generated host surface, database/browser and hosted
-Development checks still apply to the complete pair.
+Development checks still apply to the complete pair. After reviewing and accepting
+the generated ledger, explicitly dispatch `Code quality` through `ci.yml` for the
+resulting branch and verify the run uses the exact reviewed result SHA. A push
+authenticated with `GITHUB_TOKEN` does not guarantee ordinary push-triggered CI.
+Inspect PR checks too, and approve any pending run only for that exact reviewed
+SHA. A workflow push or successful integration job is not final acceptance.
 
 ## Application database preflight
 
