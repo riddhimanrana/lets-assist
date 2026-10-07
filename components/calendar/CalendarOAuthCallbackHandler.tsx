@@ -64,14 +64,14 @@ export default function CalendarOAuthCallbackHandler() {
             throw new Error(data.error || "Failed to sync project");
           }
 
-          toast.success("Project Synced", {
+          toast.success("Project synced", {
             description: "Your project has been synced to Google Calendar",
             duration: 5000,
           });
         }
       } catch (error) {
         safeConsole.error("Failed to handle pending calendar sync:", error);
-        toast.error("Calendar Sync Failed", {
+        toast.error("Calendar sync failed", {
           description:
             error instanceof Error
               ? error.message

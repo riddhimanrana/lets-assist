@@ -67,7 +67,7 @@ export function AccountMenu({ account }: { account: NavbarAccount }) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
 
-        <MenuLink href="/home" icon={LayoutGridIcon}>
+        <MenuLink href="/dashboard" icon={LayoutGridIcon}>
           Volunteer dashboard
         </MenuLink>
         <MenuLink href={account.profileHref} icon={UserIcon}>

@@ -16,7 +16,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 export function GettingStartedSection() {
@@ -24,10 +24,7 @@ export function GettingStartedSection() {
     <div className="space-y-6">
       <Card id="getting-started-welcome">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Welcome to Let&apos;s Assist
-          </CardTitle>
+          <CardTitle>Welcome to Let&apos;s Assist</CardTitle>
           <CardDescription>
             Your complete guide to tracking volunteer hours and managing
             projects
@@ -39,15 +36,24 @@ export function GettingStartedSection() {
               <h4 className="font-semibold">Quick start</h4>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-success" />
+                  <CheckCircle
+                    aria-hidden="true"
+                    className="text-success size-4 shrink-0"
+                  />
                   Create your account and complete profile
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-success" />
+                  <CheckCircle
+                    aria-hidden="true"
+                    className="text-success size-4 shrink-0"
+                  />
                   Browse or create your first project
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-success" />
+                  <CheckCircle
+                    aria-hidden="true"
+                    className="text-success size-4 shrink-0"
+                  />
                   Start tracking your volunteer hours
                 </li>
               </ul>
@@ -55,9 +61,9 @@ export function GettingStartedSection() {
             <div className="space-y-3">
               <h4 className="font-semibold">Key features</h4>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Hour Tracking</Badge>
+                <Badge variant="secondary">Hour tracking</Badge>
                 <Badge variant="secondary">Project management</Badge>
-                <Badge variant="secondary">CSV Export</Badge>
+                <Badge variant="secondary">CSV export</Badge>
                 <Badge variant="secondary">Team collaboration</Badge>
                 <Badge variant="secondary">Certificates</Badge>
                 <Badge variant="secondary">Organization management</Badge>
@@ -72,7 +78,7 @@ export function GettingStartedSection() {
           <AccordionTrigger>Setting up your account</AccordionTrigger>
           <AccordionContent className="space-y-3">
             <p>Follow these steps to get your account ready:</p>
-            <ol className="list-decimal list-inside space-y-2 text-sm">
+            <ol className="list-decimal pl-5 space-y-2 text-sm">
               <li>
                 Complete your profile with your full name and contact
                 information

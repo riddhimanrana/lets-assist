@@ -416,7 +416,7 @@ test.describe("class-code signup onboarding", () => {
       const usernameInput = modal.getByLabel("Choose your username");
       await usernameInput.fill(signupUsername);
       await usernameInput.blur();
-      const getStarted = modal.getByRole("button", { name: "Get Started" });
+      const getStarted = modal.getByRole("button", { name: "Get started" });
       await expect(getStarted).toBeEnabled({ timeout: 20_000 });
       await getStarted.click();
 

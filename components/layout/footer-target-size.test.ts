@@ -62,7 +62,7 @@ const socialLinkRenderer = sourceSection(
   "export function Footer",
 );
 const mobileBottomGroup = sourceSection(
-  '<div className="ml-3 mr-3 border-t pt-4">',
+  '<div className="border-t pt-4">',
   "{/* Desktop layout */}",
 );
 const desktopLayout = sourceSection("{/* Desktop layout */}");

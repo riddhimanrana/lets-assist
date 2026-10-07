@@ -7,20 +7,14 @@ interface TimezoneBadgeProps {
 }
 
 /**
- * Display timezone abbreviation badge (e.g., PST, EST)
- * Shows the timezone in a small, subtle badge
+ * The timezone abbreviation (PST, EST) as a label badge. It says what the
+ * time is in, so it is a label, not a status.
  */
-export function TimezoneBadge({
-  timezone,
-  className = "",
-}: TimezoneBadgeProps) {
+export function TimezoneBadge({ timezone, className }: TimezoneBadgeProps) {
   const abbreviation = getTimezoneAbbreviation(timezone);
 
   return (
-    <Badge
-      variant="secondary"
-      className={`text-xs font-normal px-1.5 py-0.5 ${className}`}
-    >
+    <Badge variant="outline" className={className}>
       {abbreviation}
     </Badge>
   );

@@ -112,7 +112,7 @@ const ImageCropper = ({
             disabled={isUploading}
             className="flex-1"
           >
-            {isUploading ? "Saving..." : "Crop & Save"}
+            {isUploading ? "Saving..." : "Crop and save"}
           </Button>
         </div>
       </div>

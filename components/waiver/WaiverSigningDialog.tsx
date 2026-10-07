@@ -353,8 +353,14 @@ export function WaiverSigningDialog({
         {/* Loading Overlay During Submission */}
         {isSubmitting && (
           <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center">
-            <div className="bg-background rounded-lg p-6 shadow-xl">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <div
+              role="status"
+              className="bg-background flex items-center gap-3 rounded-lg p-4 shadow-md"
+            >
+              <Loader2
+                aria-hidden="true"
+                className="text-muted-foreground size-4 animate-spin"
+              />
               <p className="text-sm font-medium">Adding your e-signature...</p>
             </div>
           </div>
@@ -445,8 +451,11 @@ export function WaiverSigningDialog({
                               variant="outline"
                               onClick={handleOfflineUpload}
                             >
-                              <Upload className="mr-2 h-4 w-4" /> Upload Signed
-                              Copy Instead
+                              <Upload
+                                data-icon="inline-start"
+                                aria-hidden="true"
+                              />{" "}
+                              Upload signed copy instead
                             </Button>
                           </div>
                         )}

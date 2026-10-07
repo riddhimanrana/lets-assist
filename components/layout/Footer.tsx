@@ -20,12 +20,16 @@ type FooterSystemStatus = "operational" | "degraded" | "outage" | "unknown";
 // badge (82.3x17) and the icon links (16x16) were all under it, and the footer
 // renders on every page, so the target-size violation was global. The sizing
 // lives in shared constants because both the mobile and desktop layouts render
-// the same controls and had drifted apart.
+// the same controls and had drifted apart. The status badge stays a 24px pill
+// and its `after` box stretches the hit area to 36px.
 const FOOTER_STATUS_LINK_CLASS =
-  "inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2 py-0.5 align-middle text-[11px] font-medium leading-none transition-colors outline-none hover:opacity-90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+  "relative inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2 py-0.5 align-middle text-xs font-medium leading-none transition-colors outline-none after:absolute after:inset-x-0 after:-inset-y-1.5 hover:opacity-90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
 const FOOTER_ICON_LINK_CLASS =
-  "text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 inline-flex size-8 items-center justify-center rounded-md border border-transparent transition-colors outline-none focus-visible:ring-[3px]";
+  "text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 inline-flex size-9 items-center justify-center rounded-md border border-transparent transition-colors outline-none focus-visible:ring-[3px]";
+
+const FOOTER_NAV_LINK_CLASS =
+  "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-9 items-center rounded-sm text-sm transition-colors outline-none focus-visible:ring-[3px]";
 
 const FOOTER_SOCIAL_LINKS: Array<{
   href: string;
@@ -153,7 +157,7 @@ export function Footer() {
 
   const currentYear = new Date().getFullYear();
   const primaryLink = user
-    ? { href: "/trusted-member", label: "Trusted Member" }
+    ? { href: "/trusted-member", label: "Trusted member" }
     : { href: "/", label: "Home" };
 
   const footerLinks = useMemo(
@@ -201,28 +205,23 @@ export function Footer() {
 
   return (
     <footer className="w-full border-t py-8 md:py-6">
-      <div className="container px-4 mx-auto">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         {/* Mobile layout */}
         <div className="flex flex-col gap-6 md:hidden">
-          <div className="flex justify-start ml-3">
-            <Image
-              src="/logo.png"
-              alt="letsassist Logo"
-              width={40}
-              height={40}
-              className="h-8 w-auto"
-            />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="letsassist Logo"
+            width={40}
+            height={40}
+            className="h-8 w-auto self-start"
+          />
 
-          <nav
-            aria-label="Footer"
-            className="grid grid-cols-2 gap-x-6 gap-y-3 text-left ml-3"
-          >
+          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6">
             {footerLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className={FOOTER_NAV_LINK_CLASS}
               >
                 {link.label}
               </Link>
@@ -230,19 +229,19 @@ export function Footer() {
           </nav>
 
           {/* Stacked rather than one justify-between row: at 320px the
-              copyright, the 24px-tall status badge and three 32px targets do
+              copyright, the 24px-tall status badge and three 36px targets do
               not fit on a single line without crowding them below the target
               floor again. */}
-          <div className="ml-3 mr-3 border-t pt-4">
+          <div className="border-t pt-4">
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-sm">
                   © {currentYear} Tulip Coaching LLC
                 </p>
                 {statusBadge}
               </div>
 
-              <FooterSocialLinks className="-ml-2 flex-wrap" />
+              <FooterSocialLinks className="-ml-2.5 flex-wrap" />
             </div>
           </div>
         </div>
@@ -256,30 +255,30 @@ export function Footer() {
               width={32}
               height={32}
             />
-            <p className="text-sm text-muted-foreground whitespace-nowrap">
+            <p className="text-muted-foreground text-sm whitespace-nowrap">
               © {currentYear} Tulip Coaching LLC
               <span className="hidden xl:inline">. All rights reserved.</span>
             </p>
             {statusBadge}
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <nav
               aria-label="Legal and policies"
-              className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-left"
+              className="flex flex-wrap items-center justify-end gap-x-4"
             >
               {footerLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className={FOOTER_NAV_LINK_CLASS}
                 >
                   {link.label}
                 </Link>
               ))}
             </nav>
 
-            <FooterSocialLinks className="-mr-2 shrink-0" />
+            <FooterSocialLinks className="-mr-2.5 shrink-0" />
           </div>
         </div>
       </div>

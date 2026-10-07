@@ -1,4 +1,15 @@
+import { ExternalLink, FileSignature } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -42,14 +53,22 @@ export function WaiverDefinitionList({
 }) {
   if (definitions.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-        No project waiver definitions have been created yet.
-      </div>
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileSignature aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>No waiver definitions</EmptyTitle>
+          <EmptyDescription>
+            No project waiver definitions have been created yet.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
   return (
-    <div className="rounded-xl border bg-card">
+    <Card className="py-0">
       <Table>
         <TableHeader>
           <TableRow>
@@ -72,20 +91,24 @@ export function WaiverDefinitionList({
                 <TableCell className="font-medium">
                   <div className="flex flex-col gap-1">
                     <span>{definition.title}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {definition.scope ?? "project"} •{" "}
-                      {definition.id.slice(0, 8)}
+                    <span className="text-muted-foreground text-xs font-normal">
+                      {definition.scope ?? "project"},{" "}
+                      <span className="font-mono">
+                        {definition.id.slice(0, 8)}
+                      </span>
                     </span>
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={definition.active ? "default" : "outline"}>
+                  <Badge variant={definition.active ? "success" : "secondary"}>
                     {definition.active ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell>v{definition.version}</TableCell>
-                <TableCell>{signerCount}</TableCell>
-                <TableCell>{fieldCount}</TableCell>
+                <TableCell className="tabular-nums">
+                  v{definition.version}
+                </TableCell>
+                <TableCell className="tabular-nums">{signerCount}</TableCell>
+                <TableCell className="tabular-nums">{fieldCount}</TableCell>
                 <TableCell>
                   {formatDate(definition.updated_at ?? definition.created_at)}
                 </TableCell>
@@ -95,9 +118,14 @@ export function WaiverDefinitionList({
                       href={definition.pdf_public_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-info underline underline-offset-4"
+                      aria-label={`Open PDF for ${definition.title}`}
+                      className={buttonVariants({
+                        variant: "ghost",
+                        size: "sm",
+                      })}
                     >
                       Open
+                      <ExternalLink data-icon="inline-end" aria-hidden="true" />
                     </a>
                   ) : (
                     "—"
@@ -108,6 +136,6 @@ export function WaiverDefinitionList({
           })}
         </TableBody>
       </Table>
-    </div>
+    </Card>
   );
 }

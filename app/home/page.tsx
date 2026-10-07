@@ -77,9 +77,11 @@ export default async function Home({ searchParams }: HomePageProps) {
     <div className="min-h-screen">
       <EmailConfirmationModal />
       <EmailVerificationToast />
-      <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8" data-next-url={next}>
+      <main
+        className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6"
+        data-next-url={next}
+      >
         <PageHeader
-          className="mb-8"
           media={
             <Avatar className="size-10">
               <AvatarImage
