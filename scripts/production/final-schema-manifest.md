@@ -191,3 +191,28 @@ accepted catalog query returned one after transactional fixture-helper teardown;
 the transaction rolled back. Controller coverage passed 471 tests. Historical
 700 and 701 manifests remain accepted only for their exact ledgers. Hosted
 Development comparison and browser acceptance are separate release checks.
+
+The request-fence bootstrap has its own exact 688 ledger, ending at
+`20260929051600`. It follows the unchanged 687 published migrations. Its clean
+catalog has 1,299 objects: the new request hook is the only added object, and
+all prior object digests remain unchanged. Historical 699–702 manifests still
+refer to their original ledgers without this newly reviewed bootstrap.
+
+The fixed-prefix bootstrap plan checks every filename and byte digest in the
+first 688 migrations, plus the accepted 687 and 688 catalogs. It never applies
+or approves later migrations. The owned replay executed the generated atomic
+687-to-688 transaction, waited for an already admitted authenticator request,
+and verified the exact installed catalog. Separate HTTP checks proved that
+reads and writes stay available while the flag is off, activation refuses
+writes with SQLSTATE `25006`, and releasing the gate restores writes. A
+read-only retry barrier covers an already-applied migration after a lost
+response. These local proofs do not authorize a hosted bootstrap.
+
+The hook holds a shared advisory lock until each request transaction ends.
+Operator flag changes acquire the exclusive lock in read-committed isolation.
+Writable repeatable-read and serializable requests fail closed even when
+maintenance is off because their snapshot can predate the lock wait. Read-only
+RPCs can retain those isolation levels. The exact verifier also rejects
+incompatible served-role or writable RPC defaults, changed hook bodies or
+privileges, and conflicting configuration. The maintenance signal lives in
+fixed authenticator role-catalog metadata; it is not a client-controlled GUC.
