@@ -166,6 +166,12 @@ test("edits made while the first autosave settles are persisted to that draft", 
     await expect.poll(() => held, { timeout: 15_000 }).toBe(true);
     const editedTitle = `${prefix} edited during first write`;
     await title.fill(editedTitle);
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
     release();
     await delivery;
     await expect.poll(() => draftId(page), { timeout: 15_000 }).toMatch(uuid);
