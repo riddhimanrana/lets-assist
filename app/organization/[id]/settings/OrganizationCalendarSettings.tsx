@@ -1,28 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import {
-  AlertTriangle,
-  Calendar,
-  ExternalLink,
-  RefreshCw,
-  Unlink,
-  UserCircle,
-} from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -41,6 +26,12 @@ import {
   syncOrganizationCalendarNow,
   updateOrganizationCalendarSettings,
 } from "../calendar/actions";
+import {
+  IntegrationCard,
+  IntegrationOption,
+  type IntegrationDetail,
+  type IntegrationState,
+} from "./IntegrationCard";
 
 type OrganizationCalendarSettingsProps = {
   organizationId: string;
@@ -51,7 +42,6 @@ type OrganizationCalendarSettingsProps = {
 export default function OrganizationCalendarSettings({
   organizationId,
   organizationSlug,
-  organizationName,
 }: OrganizationCalendarSettingsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -181,274 +171,164 @@ export default function OrganizationCalendarSettings({
     ? `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(status.calendarId)}`
     : null;
 
+  const state: IntegrationState =
+    loading && !status
+      ? "loading"
+      : status?.needsReconnect
+        ? "needs-reconnect"
+        : status?.connected
+          ? "connected"
+          : "not-connected";
+
+  const details: IntegrationDetail[] = status?.connected
+    ? [
+        {
+          label: "Connected account",
+          value: status.connectedEmail || "Google account",
+          helper: connectedByLabel ? `Authorized by ${connectedByLabel}` : null,
+        },
+        {
+          label: "Connection owner",
+          value: connectedByLabel || status.connectedEmail || "Unknown",
+          helper: status.viewerIsOwner
+            ? "You own this Google connection"
+            : "Managed by another organization admin",
+        },
+        {
+          label: "Last sync",
+          value: lastSynced || "Never",
+          helper: status.autoSync
+            ? "Updates run automatically in the background"
+            : "Manual syncs only until auto-sync is enabled",
+        },
+        {
+          label: "Calendar ID",
+          value: status.calendarId || "Unknown",
+        },
+      ]
+    : [];
+
+  const notice = status?.needsReconnect ? (
+    <Alert variant="warning">
+      <AlertTriangle />
+      <AlertTitle>Reconnect required</AlertTitle>
+      <AlertDescription>
+        {status.connected
+          ? `The owner account (${status.connectedEmail}) needs to reconnect with Calendar permissions.`
+          : "The previous Google connection expired. Reconnect the organization calendar to keep syncs running."}
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
   return (
-    <Card ref={containerRef} id="organization-calendar">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Google Calendar for {organizationName}
-        </CardTitle>
-        <CardDescription>
-          Sync organization projects to a shared Google Calendar.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">
-            Loading calendar status...
-          </p>
-        ) : status?.connected ? (
-          <div className="space-y-6">
-            <div className="space-y-4 rounded-2xl border border-border/60 bg-linear-to-br from-muted/50 via-card to-muted/20 p-4 shadow-sm">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background shadow-sm">
-                      <Image
-                        src="/resources/google-calendar-logo-2026.png"
-                        alt="Google Calendar"
-                        width={24}
-                        height={24}
-                        className="size-6"
-                      />
-                    </span>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium">
-                          {status.autoSync
-                            ? "Calendar connected and syncing"
-                            : "Calendar connected"}
-                        </p>
-                        <Badge
-                          variant={status.autoSync ? "secondary" : "outline"}
-                        >
-                          {status.autoSync ? "Auto-sync on" : "Auto-sync off"}
-                        </Badge>
-                        {status.needsReconnect && (
-                          <Badge variant="destructive">
-                            Reconnect required
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {status.connectedEmail || "Google account"}
-                      </p>
-                      {connectedByLabel && (
-                        <p className="text-xs text-muted-foreground">
-                          Connected by {connectedByLabel}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground opacity-70">
-                        Calendar ID: {status.calendarId || "Unknown"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Connected account
-                      </p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <UserCircle className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium break-all">
-                          {status.connectedEmail || "Google account"}
-                        </span>
-                      </div>
-                      {connectedByLabel && (
-                        <span className="mt-1 block text-[10px] text-muted-foreground">
-                          Authorized by {connectedByLabel}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Last sync
-                      </p>
-                      <p className="mt-1 text-sm font-medium">
-                        {lastSynced || "Never"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {status.autoSync
-                          ? "Updates run automatically in the background"
-                          : "Manual syncs only until auto-sync is enabled"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 xl:justify-end">
-                  {calendarUrl && (
-                    <Button variant="outline" size="sm" asChild>
-                      <a
-                        href={calendarUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Open Calendar
-                      </a>
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSyncNow}
-                    disabled={
-                      syncingNow || status.needsReconnect || !status.canManage
-                    }
+    <>
+      <IntegrationCard
+        ref={containerRef}
+        id="organization-calendar"
+        name="Google Calendar"
+        description="Sync organization projects to a shared Google Calendar."
+        logo={{
+          src: "/resources/google-calendar-logo-2026.png",
+          width: 24,
+          height: 24,
+        }}
+        state={state}
+        details={details}
+        notice={notice}
+        footerHint={
+          status?.connected
+            ? null
+            : "Connect a Google account to sync your organization projects to Google Calendar automatically."
+        }
+        footer={
+          status?.connected ? (
+            <>
+              {calendarUrl && (
+                <Button variant="outline" asChild>
+                  <a
+                    href={calendarUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 ${syncingNow ? "animate-spin" : ""}`}
-                    />
-                    Sync Now
-                  </Button>
-                  {status.viewerIsOwner && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setShowAccountDisconnectDialog(true)}
-                      disabled={disconnectingAccount}
-                    >
-                      Remove Google account
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {status.needsReconnect && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex gap-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-semibold">Reconnect required</p>
-                    <p>
-                      The owner account ({status.connectedEmail}) needs to
-                      reconnect with Calendar permissions.
-                    </p>
-                  </div>
-                </div>
+                    <ExternalLink data-icon="inline-start" />
+                    Open calendar
+                  </a>
+                </Button>
               )}
+              <Button
+                variant="outline"
+                onClick={handleSyncNow}
+                disabled={
+                  syncingNow || status.needsReconnect || !status.canManage
+                }
+              >
+                <RefreshCw
+                  data-icon="inline-start"
+                  className={syncingNow ? "animate-spin" : undefined}
+                />
+                Sync now
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => {
+                window.location.href = connectUrl;
+              }}
+            >
+              Connect Google Calendar
+            </Button>
+          )
+        }
+      >
+        {status?.connected ? (
+          <>
+            <IntegrationOption
+              label="Automatic sync"
+              htmlFor="organization-calendar-auto-sync"
+              description={
+                status.autoSync
+                  ? "Calendar syncs every hour automatically"
+                  : "Enable to sync calendar hourly"
+              }
+            >
+              <Switch
+                id="organization-calendar-auto-sync"
+                checked={status.autoSync ?? false}
+                onCheckedChange={handleToggleAutoSync}
+                disabled={
+                  updatingAutoSync || status.needsReconnect || !status.canManage
+                }
+              />
+            </IntegrationOption>
 
-              <div className="grid gap-4 pt-2 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sync cadence
-                  </span>
-                  <span className="text-sm font-medium">
-                    {status.autoSync
-                      ? "Automatic hourly sync"
-                      : "Manual sync only"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {status.autoSync
-                      ? "Calendar updates run automatically in the background"
-                      : "Enable automatic sync to keep the calendar updated hourly"}
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Connection owner
-                  </span>
-                  <span className="text-sm font-medium">
-                    {connectedByLabel || status.connectedEmail || "Unknown"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {status.viewerIsOwner
-                      ? "You own this Google connection"
-                      : "Managed by another organization admin"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-muted bg-card p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium">Automatic Sync</p>
-                    <p className="text-xs text-muted-foreground">
-                      {status.autoSync
-                        ? "Calendar syncs every hour automatically"
-                        : "Enable to sync calendar hourly"}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={status.autoSync ?? false}
-                    onCheckedChange={handleToggleAutoSync}
-                    disabled={
-                      updatingAutoSync ||
-                      status.needsReconnect ||
-                      !status.canManage
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
+            <IntegrationOption
+              label="Disconnect"
+              description="Stop syncing to this calendar, or remove the Google account from this organization."
+            >
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  variant="outline"
                   onClick={() => setShowDisconnectDialog(true)}
                   disabled={disconnecting || !status.canManage}
                 >
-                  <Unlink className="h-3.5 w-3.5 mr-2" />
                   Disconnect calendar
                 </Button>
+                {status.viewerIsOwner && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAccountDisconnectDialog(true)}
+                    disabled={disconnectingAccount}
+                  >
+                    Remove Google account
+                  </Button>
+                )}
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
-              <Image
-                src="/resources/google-calendar-logo-2026.png"
-                alt="Google Calendar"
-                width={24}
-                height={24}
-                className="size-6"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium">No Google Account Connected</p>
-              <p className="mt-1 text-xs text-muted-foreground max-w-70 mx-auto">
-                Connect a Google account to sync your organization projects to
-                Google Calendar automatically.
-              </p>
-            </div>
-
-            {status?.needsReconnect && (
-              <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-left text-xs text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4" />
-                <div>
-                  <p className="font-medium">Reconnect required</p>
-                  <p>
-                    The previous Google connection expired. Reconnect the
-                    organization calendar to keep syncs running.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 flex flex-col gap-2 items-center">
-              <Button
-                onClick={() => {
-                  window.location.href = connectUrl;
-                }}
-                className="gap-2"
-              >
-                <UserCircle className="h-4 w-4" />
-                Connect Google Calendar
-              </Button>
-            </div>
-
-            {status?.error && (
-              <p className="text-xs text-muted-foreground">{status.error}</p>
-            )}
-          </div>
-        )}
-      </CardContent>
+            </IntegrationOption>
+          </>
+        ) : status?.error ? (
+          <p className="text-muted-foreground text-sm">{status.error}</p>
+        ) : null}
+      </IntegrationCard>
 
       <AlertDialog
         open={showDisconnectDialog}
@@ -469,6 +349,7 @@ export default function OrganizationCalendarSettings({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={handleDisconnect}
               disabled={disconnecting}
             >
@@ -499,6 +380,7 @@ export default function OrganizationCalendarSettings({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={handleDisconnectAccount}
               disabled={disconnectingAccount}
             >
@@ -507,6 +389,6 @@ export default function OrganizationCalendarSettings({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }

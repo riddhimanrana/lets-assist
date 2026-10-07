@@ -611,9 +611,17 @@ describe("CSF operator documentation truthfulness guards", () => {
     ]
       .map((file) => readRepositoryFile(file))
       .join("\n");
-    const organizationPlugins = readRepositoryFile(
+    // The organization plugin surface is split by section; the labels the
+    // guide quotes live across the section, the marketplace dialog, its rows
+    // and the install confirmation.
+    const organizationPlugins = [
       "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
-    );
+      "app/organization/[id]/settings/OrganizationPluginMarketplaceDialog.tsx",
+      "app/organization/[id]/settings/OrganizationPluginRows.tsx",
+      "app/organization/[id]/settings/OrganizationPluginActionDialog.tsx",
+    ]
+      .map((file) => readRepositoryFile(file))
+      .join("\n");
     const pluginManifest = readComponent("../plugin-manifest.ts");
     for (const label of [
       "Organization access",

@@ -1,18 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
-import {
-  ExternalLink,
-  RefreshCw,
-  AlertTriangle,
-  Settings2,
-  UserCircle,
-  Unlink,
-  FileSpreadsheet,
-} from "lucide-react";
+import { AlertTriangle, ExternalLink, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -20,24 +11,8 @@ import {
   readGoogleOAuthCallbackNotice,
 } from "@/lib/auth/google-oauth-connection-messages";
 
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,6 +33,19 @@ import {
   getAvailableSheetOwners,
   type SheetSyncStatus,
 } from "../reports/sheets-actions";
+import { SheetSetupPanel } from "../reports/sheets/SheetSetupPanel";
+import { SheetSyncConfig } from "../reports/sheets/SheetSyncConfig";
+import {
+  getSyncIntervalLabel,
+  type SheetOwnerOption,
+} from "../reports/sheets/sheet-sync-options";
+import { useSheetSyncSetup } from "../reports/sheets/useSheetSyncSetup";
+import {
+  IntegrationCard,
+  IntegrationOption,
+  type IntegrationDetail,
+  type IntegrationState,
+} from "./IntegrationCard";
 
 type OrganizationSheetsSettingsProps = {
   organizationId: string;
@@ -65,25 +53,9 @@ type OrganizationSheetsSettingsProps = {
   organizationName: string;
 };
 
-const syncIntervalOptions = [
-  { value: "360", label: "Every 6 hours" },
-  { value: "720", label: "Every 12 hours" },
-  { value: "1440", label: "Daily" },
-  { value: "4320", label: "Every 3 days" },
-] as const;
-
-const getSyncIntervalLabel = (value: string | number | null | undefined) => {
-  const normalized = String(value ?? "");
-  return (
-    syncIntervalOptions.find((option) => option.value === normalized)?.label ||
-    (normalized ? `Every ${normalized} minutes` : "Interval")
-  );
-};
-
 export default function OrganizationSheetsSettings({
   organizationId,
   organizationSlug,
-  organizationName,
 }: OrganizationSheetsSettingsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -93,20 +65,17 @@ export default function OrganizationSheetsSettings({
   const [unlinking, setUnlinking] = useState(false);
   const [disconnectingAccount, setDisconnectingAccount] = useState(false);
   const [showUnlinkDialog, setShowUnlinkDialog] = useState(false);
+  const [unlinkIntent, setUnlinkIntent] = useState<"unlink" | "switch">(
+    "unlink",
+  );
   const [showAccountDisconnectDialog, setShowAccountDisconnectDialog] =
     useState(false);
   const [updatingSettings, setUpdatingSettings] = useState(false);
-  const [availableOwners, setAvailableOwners] = useState<
-    Array<{
-      id: string;
-      name: string | null;
-      email: string | null;
-      role: string | null;
-      connectedEmail: string | null;
-      hasSheetsAccess: boolean;
-    }>
-  >([]);
+  const [availableOwners, setAvailableOwners] = useState<SheetOwnerOption[]>(
+    [],
+  );
   const [loadingOwners, setLoadingOwners] = useState(false);
+  const [configSections, setConfigSections] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const connectUrl = useMemo(
@@ -144,6 +113,12 @@ export default function OrganizationSheetsSettings({
   useEffect(() => {
     loadStatus();
   }, [organizationId]);
+
+  const setup = useSheetSyncSetup({
+    organizationId,
+    sheetStatus: status,
+    handleLoadSheetStatus: loadStatus,
+  });
 
   // Handle success/error messages from URL
   useEffect(() => {
@@ -237,7 +212,12 @@ export default function OrganizationSheetsSettings({
     if (!result.success) {
       toast.error(result.error || "Failed to unlink sheet");
     } else {
-      toast.success("Google Sheet unlinked");
+      toast.success(
+        unlinkIntent === "switch"
+          ? "Current sheet unlinked. Set up a new destination below."
+          : "Google Sheet unlinked",
+      );
+      setup.resetSetup();
       await loadStatus();
     }
     setUnlinking(false);
@@ -268,406 +248,304 @@ export default function OrganizationSheetsSettings({
     }
   };
 
+  const requestUnlink = (intent: "unlink" | "switch") => {
+    setUnlinkIntent(intent);
+    setShowUnlinkDialog(true);
+  };
+
   const connectedByLabel =
     status?.connectedBy?.name || status?.connectedBy?.email || null;
   const lastSynced = status?.syncConfig?.lastSyncedAt
     ? format(new Date(status.syncConfig.lastSyncedAt), "MMM d, yyyy h:mm a")
     : null;
+  const syncConfig = status?.syncConfig ?? null;
+  const viewerConnected = status?.viewerConnected ?? false;
+  const viewerScopesOk = status?.viewerScopesOk ?? false;
+  const viewerNeedsSheets = viewerConnected && !viewerScopesOk;
+  const viewerMissingConnection = !viewerConnected;
+  const ownerNeedsSheets = Boolean(
+    status?.connected && status.scopesOk === false,
+  );
+  const managedByAnotherAdmin = Boolean(
+    syncConfig && status?.connectedBy && !status.viewerIsOwner,
+  );
+  const setupBlockedReason = viewerMissingConnection
+    ? "Connect your Google account to set up Sheets sync."
+    : viewerNeedsSheets
+      ? "Sheets permissions are missing. Reconnect with Sheets access to continue."
+      : null;
+  const takeOverLabel =
+    viewerConnected && viewerScopesOk
+      ? "Take over with my Google account"
+      : viewerMissingConnection
+        ? "Connect and take over sync"
+        : "Reconnect and take over sync";
+
+  const state: IntegrationState =
+    loading && !status
+      ? "loading"
+      : !status?.connected
+        ? syncConfig
+          ? "needs-reconnect"
+          : "not-connected"
+        : ownerNeedsSheets
+          ? "needs-reconnect"
+          : "connected";
+
+  const details: IntegrationDetail[] = !status?.connected
+    ? []
+    : [
+        ...(syncConfig
+          ? [
+              {
+                label: "Spreadsheet",
+                value: syncConfig.sheetTitle || "Let's Assist Reports",
+                helper: `Tab: ${syncConfig.tabName}`,
+              },
+            ]
+          : []),
+        {
+          label: "Connected account",
+          value: status.connectedEmail || "Unknown",
+          helper: connectedByLabel ? `Authorized by ${connectedByLabel}` : null,
+        },
+        ...(syncConfig
+          ? [
+              {
+                label: "Credential owner",
+                value: connectedByLabel || status.connectedEmail || "Unknown",
+                helper: status.viewerIsOwner
+                  ? "You own this Google connection"
+                  : "Managed by another organization admin",
+              },
+              {
+                label: "Last sync",
+                value: lastSynced || "Never",
+                helper: syncConfig.autoSync
+                  ? `Auto-sync on, ${getSyncIntervalLabel(syncConfig.syncIntervalMinutes).toLowerCase()}`
+                  : "Manual syncs only until auto-sync is enabled",
+              },
+            ]
+          : []),
+      ];
+
+  const notice = !status ? null : !status.connected && syncConfig ? (
+    <Alert variant="warning">
+      <AlertTriangle />
+      <AlertTitle>Sheets connection needed</AlertTitle>
+      <AlertDescription>
+        This organization already has a linked Google Sheet.
+        {connectedByLabel ? ` Connected by ${connectedByLabel}.` : ""}{" "}
+        {status.viewerIsOwner
+          ? "Reconnect your Google account to resume syncing."
+          : "You can take over the sync responsibility for this organization."}
+      </AlertDescription>
+    </Alert>
+  ) : status.connected ? (
+    <>
+      {ownerNeedsSheets && (
+        <Alert variant="warning">
+          <AlertTriangle />
+          <AlertTitle>Reconnect required</AlertTitle>
+          <AlertDescription>
+            The owner account ({status.connectedEmail}) needs to reconnect with
+            Sheets permissions.
+          </AlertDescription>
+        </Alert>
+      )}
+      {managedByAnotherAdmin && (
+        <Alert variant="info">
+          <Info />
+          <AlertTitle>Managed by another admin</AlertTitle>
+          <AlertDescription>
+            <p>
+              Only the connected owner can disconnect this sync directly. Ask
+              them to disconnect it, or connect your Google account with Sheets
+              access to take over.
+            </p>
+            <Button variant="outline" onClick={startGoogleConnection}>
+              {takeOverLabel}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  ) : null;
+
+  const footer = !status?.connected ? (
+    <Button onClick={startGoogleConnection}>
+      {syncConfig
+        ? status?.viewerIsOwner
+          ? "Reconnect Google Sheets"
+          : "Connect and take over sync"
+        : "Connect Google account"}
+    </Button>
+  ) : syncConfig ? (
+    <>
+      <Button variant="outline" asChild>
+        <a href={syncConfig.sheetUrl} target="_blank" rel="noopener noreferrer">
+          <ExternalLink data-icon="inline-start" />
+          Open sheet
+        </a>
+      </Button>
+      <Button
+        variant="outline"
+        onClick={handleSyncNow}
+        disabled={syncingNow || ownerNeedsSheets}
+      >
+        <RefreshCw
+          data-icon="inline-start"
+          className={syncingNow ? "animate-spin" : undefined}
+        />
+        {syncingNow ? "Syncing..." : "Sync now"}
+      </Button>
+    </>
+  ) : null;
 
   return (
-    <Card ref={containerRef} id="organization-sheets">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
-          Google Sheets Sync for {organizationName}
-        </CardTitle>
-        <CardDescription>
-          Automatically sync organization reports to a Google Spreadsheet.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">
-            Loading sheets status...
-          </p>
-        ) : status?.connected && status.syncConfig ? (
-          <div className="space-y-6">
-            {/* Connection Status */}
-            <div className="space-y-4 rounded-2xl border border-border/60 bg-linear-to-br from-muted/50 via-card to-muted/20 p-4 shadow-sm">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background shadow-sm">
-                      <Image
-                        src="/resources/google-sheets-logo-2026.png"
-                        alt="Google Sheets"
-                        width={33}
-                        height={24}
-                        className="h-6 w-auto object-contain"
-                      />
-                    </span>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium">
-                          Linked to Google Sheet
-                        </p>
-                        <Badge
-                          variant={
-                            status.syncConfig.autoSync ? "secondary" : "outline"
-                          }
-                        >
-                          {status.syncConfig.autoSync
-                            ? "Auto-sync on"
-                            : "Auto-sync off"}
-                        </Badge>
-                        {!status.scopesOk && (
-                          <Badge variant="destructive">
-                            Reconnect required
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {status.syncConfig.sheetTitle || "Let's Assist Reports"}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground opacity-70">
-                        ID: {status.syncConfig.sheetId}
-                      </p>
-                    </div>
-                  </div>
+    <>
+      <IntegrationCard
+        ref={containerRef}
+        id="organization-sheets"
+        name="Google Sheets"
+        description="Automatically sync organization reports to a Google spreadsheet."
+        logo={{
+          src: "/resources/google-sheets-logo-2026.png",
+          width: 33,
+          height: 24,
+        }}
+        state={state}
+        details={details}
+        notice={notice}
+        footer={footer}
+        footerHint={
+          status?.connected
+            ? null
+            : syncConfig
+              ? null
+              : "Connect a Google account to export and sync your organization reports to a spreadsheet automatically."
+        }
+      >
+        {status?.error && (
+          <p className="text-muted-foreground text-sm">{status.error}</p>
+        )}
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Connected account
-                      </p>
-                      <div className="mt-1 flex items-center gap-2">
-                        <UserCircle className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium break-all">
-                          {status.connectedEmail || "Unknown"}
-                        </span>
-                      </div>
-                      {connectedByLabel && (
-                        <span className="mt-1 block text-[10px] text-muted-foreground">
-                          Authorized by {connectedByLabel}
-                        </span>
-                      )}
-                    </div>
+        {status?.connected && syncConfig ? (
+          <>
+            <div id="sheet-config">
+              <SheetSyncConfig
+                syncConfig={syncConfig}
+                setup={setup}
+                sections={configSections}
+                onSectionsChange={setConfigSections}
+                connectedBy={status.connectedBy ?? null}
+                connectedByLabel={connectedByLabel}
+                availableOwners={availableOwners}
+                loadingOwners={loadingOwners}
+                onOwnerChange={handleOwnerChange}
+                settingsDisabled={updatingSettings || ownerNeedsSheets}
+                onToggleAutoSync={handleToggleAutoSync}
+                onIntervalChange={handleIntervalChange}
+              />
+            </div>
 
-                    <div className="rounded-xl border border-border/60 bg-background/80 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Last sync
-                      </p>
-                      <p className="mt-1 text-sm font-medium">
-                        {lastSynced || "Never"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {status.syncConfig.autoSync
-                          ? "Updates run automatically in the background"
-                          : "Manual syncs only until auto-sync is enabled"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 xl:justify-end">
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href={status.syncConfig.sheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Open Sheet
-                    </a>
-                  </Button>
+            <IntegrationOption
+              label="Disconnect"
+              description={
+                status.viewerIsOwner
+                  ? "Switch to a different spreadsheet, stop syncing, or remove your Google account from this organization."
+                  : "Only the connected owner can switch or unlink this spreadsheet."
+              }
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={unlinking || !status.viewerIsOwner}
+                  onClick={() => requestUnlink("switch")}
+                >
+                  Switch sheet
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={unlinking || !status.viewerIsOwner}
+                  onClick={() => requestUnlink("unlink")}
+                >
+                  Unlink sheet
+                </Button>
+                {status.viewerIsOwner && (
                   <Button
                     variant="outline"
-                    size="sm"
-                    onClick={handleSyncNow}
-                    disabled={
-                      syncingNow || (status.connected && !status.scopesOk)
-                    }
+                    onClick={() => setShowAccountDisconnectDialog(true)}
+                    disabled={disconnectingAccount}
                   >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 mr-2 ${syncingNow ? "animate-spin" : ""}`}
-                    />
-                    Sync Now
+                    Remove Google account
                   </Button>
-                  {status.viewerIsOwner && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setShowAccountDisconnectDialog(true)}
-                      disabled={disconnectingAccount}
-                    >
-                      Remove Google account
-                    </Button>
-                  )}
-                </div>
+                )}
               </div>
-
-              {!status.scopesOk && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex gap-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-semibold">Reconnect required</p>
-                    <p>
-                      The owner account ({status.connectedEmail}) needs to
-                      reconnect with Sheets permissions.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid gap-4 pt-2 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sync interval
-                  </span>
-                  <span className="text-sm font-medium">
-                    {getSyncIntervalLabel(
-                      status.syncConfig.syncIntervalMinutes,
-                    )}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    How frequently reports are pushed to Google Sheets
-                  </span>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Credential owner
-                  </span>
-                  <span className="text-sm font-medium">
-                    {connectedByLabel || status.connectedEmail || "Unknown"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {status.viewerIsOwner
-                      ? "You own this Google connection"
-                      : "Managed by another organization admin"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Sync Settings */}
-            <div className="space-y-4 rounded-xl border border-muted bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Automatic Sync</p>
-                  <p className="text-xs text-muted-foreground">
-                    Update the spreadsheet in the background
-                  </p>
-                </div>
-                <Switch
-                  checked={status.syncConfig.autoSync}
-                  onCheckedChange={handleToggleAutoSync}
-                  disabled={
-                    updatingSettings || (status.connected && !status.scopesOk)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-muted/50">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Sync Interval</p>
-                  <p className="text-xs text-muted-foreground">
-                    How frequently to push updates
-                  </p>
-                </div>
-                <Select
-                  value={String(status.syncConfig.syncIntervalMinutes)}
-                  onValueChange={handleIntervalChange}
-                  disabled={
-                    updatingSettings || (status.connected && !status.scopesOk)
-                  }
-                >
-                  <SelectTrigger className="w-35 h-8 text-xs">
-                    <SelectValue placeholder="Interval">
-                      {getSyncIntervalLabel(
-                        status.syncConfig.syncIntervalMinutes,
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {syncIntervalOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Ownership Transfer */}
-              <div className="pt-2 border-t border-muted/50">
-                <div className="space-y-0.5 mb-3">
-                  <p className="text-sm font-medium">Credential Owner</p>
-                  <p className="text-xs text-muted-foreground">
-                    Switch which admin account provides the Sheets API access
-                  </p>
-                </div>
-                <Select
-                  value={status.connectedBy?.id || ""}
-                  onValueChange={handleOwnerChange}
-                  disabled={loadingOwners || availableOwners.length <= 1}
-                >
-                  <SelectTrigger className="w-full text-xs">
-                    <SelectValue
-                      placeholder={
-                        loadingOwners
-                          ? "Loading admins..."
-                          : "Select credentials owner"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableOwners.map((owner) => (
-                      <SelectItem key={owner.id} value={owner.id}>
-                        <div className="flex flex-col py-0.5">
-                          <span className="font-medium">
-                            {owner.name || owner.email}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {owner.connectedEmail
-                              ? `Linked: ${owner.connectedEmail}`
-                              : "Not linked to Google"}
-                            {!owner.hasSheetsAccess &&
-                              owner.connectedEmail &&
-                              " (Missing Sheets permissions)"}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {availableOwners.length > 0 &&
-                  !availableOwners.some(
-                    (o) => o.id === status.connectedBy?.id,
-                  ) && (
-                    <p className="mt-2 text-[10px] text-amber-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      Current owner is not in the organization member list.
-                    </p>
-                  )}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setShowUnlinkDialog(true)}
-                disabled={unlinking}
-              >
-                <Unlink className="h-3.5 w-3.5 mr-2" />
-                Unlink Spreadsheet
-              </Button>
-            </div>
-          </div>
+            </IntegrationOption>
+          </>
         ) : status?.connected ? (
-          <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
-              <Image
-                src="/resources/google-sheets-logo-2026.png"
-                alt="Google Sheets"
-                width={33}
-                height={24}
-                className="h-6 w-auto object-contain"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium">Google Account Connected</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-70 mx-auto">
-                Your account ({status.connectedEmail}) is connected, but no
-                spreadsheet has been set up for this organization yet.
-              </p>
-            </div>
-
-            <div className="pt-2 flex flex-col gap-2 items-center">
-              <Button
-                onClick={() =>
-                  router.push(
-                    `/organization/${organizationSlug}?tab=reports&setup=1`,
-                  )
-                }
-                className="gap-2"
-              >
-                <Settings2 className="h-4 w-4" />
-                Set up Spreadsheet Sync
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={startGoogleConnection}
-                className="text-muted-foreground"
-              >
-                Switch Account
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setShowAccountDisconnectDialog(true)}
-                disabled={disconnectingAccount}
-              >
-                Remove Google account
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 rounded-2xl border border-dashed border-border/60 bg-muted/30 p-6 text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-border/60 bg-background shadow-sm">
-              <Image
-                src="/resources/google-sheets-logo-2026.png"
-                alt="Google Sheets"
-                width={33}
-                height={24}
-                className="h-6 w-auto object-contain"
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium">No Google Account Connected</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-70 mx-auto">
-                Connect a Google account to export and sync your organization
-                reports to a spreadsheet automatically.
-              </p>
-            </div>
-
-            <div className="pt-2 flex flex-col gap-2 items-center">
-              <Button onClick={startGoogleConnection} className="gap-2">
-                <UserCircle className="h-4 w-4" />
-                Connect Google Account
-              </Button>
-            </div>
-          </div>
-        )}
-      </CardContent>
+          <>
+            <SheetSetupPanel
+              setup={setup}
+              setupBlockedReason={setupBlockedReason}
+              reconnectLabel={
+                viewerMissingConnection
+                  ? "Connect Google Sheets"
+                  : "Reconnect with Sheets access"
+              }
+              onReconnect={startGoogleConnection}
+            />
+            <IntegrationOption
+              label="Google account"
+              description="Use a different Google account, or remove this one from the organization."
+            >
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={startGoogleConnection}>
+                  Switch account
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAccountDisconnectDialog(true)}
+                  disabled={disconnectingAccount}
+                >
+                  Remove Google account
+                </Button>
+              </div>
+            </IntegrationOption>
+          </>
+        ) : null}
+      </IntegrationCard>
 
       <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unlink Google Sheet?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {unlinkIntent === "switch"
+                ? "Switch spreadsheet destination?"
+                : "Unlink Google Sheet?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will stop all automatic sync jobs and disconnect the
-              organization from this spreadsheet. The spreadsheet itself will
-              not be deleted from your Google Drive.
+              {unlinkIntent === "switch"
+                ? "This will unlink the current sheet destination while keeping your Google account connected. You can choose a new destination right after."
+                : "This will stop all automatic sync jobs and disconnect the organization from this spreadsheet. The spreadsheet itself will not be deleted from your Google Drive."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={unlinking}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 handleUnlink();
               }}
               disabled={unlinking}
             >
-              {unlinking ? "Unlinking..." : "Unlink Sheet"}
+              {unlinking
+                ? "Unlinking..."
+                : unlinkIntent === "switch"
+                  ? "Unlink and switch"
+                  : "Unlink sheet"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -693,7 +571,7 @@ export default function OrganizationSheetsSettings({
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 handleDisconnectAccount();
@@ -705,6 +583,6 @@ export default function OrganizationSheetsSettings({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }
