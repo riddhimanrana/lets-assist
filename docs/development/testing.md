@@ -41,7 +41,11 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 - `bun run source:check:organization`
 - `bun run agent:check`
 
-The pull-request gate runs these static checks, seed safety, dependency audit, plugin contract validation, and the CI tooling tests. Full root/plugin tests and the production build run in the manual or reusable release gate.
+The pull-request gate runs these static checks, seed safety, dependency audits for every independent lockfile, plugin contract validation, and CI tooling tests. Application changes run root application and embedded plugin unit tests through `bun run test:affected <base-sha>`. Tooling, configuration, dependency, or gitlink changes run every unit group, including harness contracts. Documentation-only changes skip that unit pass. Selection is conservative because filesystem and subprocess contracts are not visible in an import graph. The existing runner still isolates global module mocks.
+
+`bun run security:audit` audits all dependencies in the root, standalone SDK, and every private package without installing or running package scripts. It requires the exact initialized private checkout. The daily `Dependency security` workflow scans both protected branches even when no pull requests are open. An advisory or registry failure blocks the audit; there are no ignored advisories. See [dependency security](dependency-security.md) for the patch rationale and open upstream blocker.
+
+The production build and database/browser suites remain in the manual or reusable release gate.
 
 ## Database and plugin gates
 
