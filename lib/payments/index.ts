@@ -1,8 +1,4 @@
-/**
- * Payments Module — Barrel Export
- *
- * Platform-level payment service accessible by any plugin.
- */
+/** Historical payment types and explicit unavailable compatibility exports. */
 
 export type {
   PaymentRequestStatus,
