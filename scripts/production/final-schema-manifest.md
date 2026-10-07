@@ -243,3 +243,24 @@ hooks, changed RPC grants, weakened organization policy, disabled Storage RLS,
 an extra browser policy, and coordinated live-policy and contract changes.
 Historical 688 and 699–702 manifests retain their original acceptance branches.
 No later publication ledger is accepted by this record.
+
+The paper-attendance repair keeps four unpublished forward migrations:
+`20261009010000_reviewed_attendance_intervals`,
+`20261009010001_attendance_print_manifests`,
+`20261009010002_corrected_certificate_delivery`, and
+`20261009010003_atomic_guest_account_link`. They cover reviewed intervals,
+print manifests, corrected-certificate delivery and atomic guest account linking.
+The repaired drafts also change combine, review, commit and conflict behavior.
+Appending them to the accepted 708 ledger produces a provisional 712-entry
+union. That count records the proposed ordering, not a replay or release approval.
+Other feature migrations will change the final combined count.
+
+The published `final-schema-687.json` keeps its exact bytes and ledger identity.
+The paper branch previously used that filename for a different, derived
+683-plus-four attendance catalog. That file does not describe the published 687
+schema and must not replace it. Its old ledger and the repaired forward ledger
+both remain unaccepted. The attendance catalog tests verify this refusal through
+the existing catalog APIs. Replay the final combined candidate, review its
+account-deletion and other security boundaries, then capture and approve its own
+exact catalog before Development cutover. Existing historical acceptance branches
+and migration approvals remain unchanged.
