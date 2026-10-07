@@ -41,6 +41,7 @@ let accountStatusError: { message: string } | null = null;
 let accountStatusCalls = 0;
 let referenceConflict = false;
 let revokeMembershipOnUpload = false;
+let revokeMembershipAtWrite = false;
 const updateFilters: Array<{
   operator: "eq" | "is";
   column: string;
@@ -50,6 +51,31 @@ const imageCalls: string[] = [];
 let appliedUpdate: Record<string, unknown> | null = null;
 let existingUsernames = new Set<string>();
 
+function imageStorageClient(allowUpload: boolean) {
+  return {
+    from: () => ({
+      getPublicUrl: (key: string) => ({
+        data: {
+          publicUrl: `https://storage.example.test/storage/v1/object/public/organization-logos/${key}`,
+        },
+      }),
+      upload: async (key: string) => {
+        if (!allowUpload)
+          throw new Error("Request client must not upload public images");
+        imageCalls.push(`upload:${key}`);
+        if (revokeMembershipOnUpload) isOrgAdmin = false;
+        return {
+          error: uploadFails ? new Error("Synthetic storage failure") : null,
+        };
+      },
+      remove: async (keys: string[]) => {
+        imageCalls.push(`remove:${keys.join()}`);
+        return { error: null };
+      },
+    }),
+  };
+}
+
 function serverClient() {
   return {
     rpc: async (name: string) => {
@@ -57,26 +83,7 @@ function serverClient() {
       accountStatusCalls += 1;
       return { data: accountDeletionPending, error: accountStatusError };
     },
-    storage: {
-      from: () => ({
-        getPublicUrl: (key: string) => ({
-          data: {
-            publicUrl: `https://storage.example.test/storage/v1/object/public/organization-logos/${key}`,
-          },
-        }),
-        upload: async (key: string) => {
-          imageCalls.push(`upload:${key}`);
-          if (revokeMembershipOnUpload) isOrgAdmin = false;
-          return {
-            error: uploadFails ? new Error("Synthetic storage failure") : null,
-          };
-        },
-        remove: async (keys: string[]) => {
-          imageCalls.push(`remove:${keys.join()}`);
-          return { error: null };
-        },
-      }),
-    },
+    storage: imageStorageClient(false),
     auth: {
       getClaims: async () => ({
         data: claims ? { claims: { sub: claims.sub } } : null,
@@ -106,6 +113,34 @@ function serverClient() {
       }
       if (table === "organizations") {
         return {
+          update: (patch: Record<string, unknown>) => {
+            const settle = () => {
+              updateCalled = true;
+              if (revokeMembershipAtWrite) isOrgAdmin = false;
+              if (!isOrgAdmin) return { data: null, error: null };
+              appliedUpdate = patch;
+              imageCalls.push("commit");
+              return {
+                data: updateError || referenceConflict ? null : { id: "org-1" },
+                error: updateError,
+              };
+            };
+            const query = {
+              eq: (column: string, value: unknown) => {
+                updateFilters.push({ operator: "eq", column, value });
+                return query;
+              },
+              is: (column: string, value: unknown) => {
+                updateFilters.push({ operator: "is", column, value });
+                return query;
+              },
+              select: () => query,
+              maybeSingle: async () => settle(),
+              then: (resolve: (value: unknown) => unknown) =>
+                Promise.resolve(settle()).then(resolve),
+            };
+            return query;
+          },
           select: () => ({
             eq: (_column: string, value: string) => ({
               maybeSingle: async () => ({
@@ -123,6 +158,7 @@ function serverClient() {
 
 function adminClient() {
   return {
+    storage: imageStorageClient(true),
     rpc: async (name: string) => {
       expect(name).toBe("reserve_public_image_cleanup");
       imageCalls.push("reserve");
@@ -156,31 +192,10 @@ function adminClient() {
             single: async () => ({ data: currentOrgRow, error: null }),
           }),
         }),
-        update: (patch: Record<string, unknown>) => {
-          const settle = () => {
-            updateCalled = true;
-            appliedUpdate = patch;
-            imageCalls.push("commit");
-            return {
-              data: updateError || referenceConflict ? null : { id: "org-1" },
-              error: updateError,
-            };
-          };
-          const query = {
-            eq: (column: string, value: unknown) => {
-              updateFilters.push({ operator: "eq", column, value });
-              return query;
-            },
-            is: (column: string, value: unknown) => {
-              updateFilters.push({ operator: "is", column, value });
-              return query;
-            },
-            select: () => query,
-            maybeSingle: async () => settle(),
-            then: (resolve: (value: unknown) => unknown) =>
-              Promise.resolve(settle()).then(resolve),
-          };
-          return query;
+        update: () => {
+          throw new Error(
+            "Organization profile writes must use the request client",
+          );
         },
       };
     },
@@ -223,6 +238,7 @@ beforeEach(() => {
   accountStatusCalls = 0;
   referenceConflict = false;
   revokeMembershipOnUpload = false;
+  revokeMembershipAtWrite = false;
   updateFilters.length = 0;
   imageCalls.length = 0;
   appliedUpdate = null;
@@ -468,4 +484,14 @@ describe("organization logo replacement", () => {
     expect(updateCalled).toBe(false);
     expect(updateFilters).toEqual([]);
   });
+});
+
+test("membership loss at the actual RLS update never reports a successful profile write", async () => {
+  revokeMembershipAtWrite = true;
+  const result = await updateOrganization({
+    ...baseUpdateData,
+    username: "acme-nonprofit",
+  });
+  expect(result.error).toContain("could not be confirmed");
+  expect(appliedUpdate).toBeNull();
 });
