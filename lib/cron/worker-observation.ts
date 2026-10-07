@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { safeConsole } from "@/lib/safe-console";
 import {
   classifyWorkerResponse,
   failedWorkerOutcome,
@@ -55,10 +56,10 @@ function productionDependencies(
       if (error) throw new Error("worker_receipt_unavailable");
     },
     unavailable(phase) {
-      console.warn("Worker monitoring receipt unavailable", {
-        code: "worker_receipt_unavailable",
+      safeConsole.warn("Worker monitoring receipt unavailable", {
+        outcome: "failed",
         worker,
-        phase,
+        receipt_phase: phase,
       });
     },
   };

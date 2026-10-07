@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { processPendingDataExportJobs } from "@/lib/supabase/data-export-jobs";
 import { logError } from "@/lib/logger";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { classifyDataExportResponse } from "@/lib/cron/data-export-outcome";
 
 function authorizeCronRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -44,19 +46,22 @@ async function runProcessor(request: NextRequest) {
       ? Math.min(Math.floor(limitParam), 5)
       : 1;
 
-  try {
-    const result = await processPendingDataExportJobs(limit);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    logError("Data export cron failed", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Data export processing could not be confirmed",
-      },
-      { status: 500 },
-    );
-  }
+  return observeWorkerRun(
+    "data-exports",
+    async () => {
+      try {
+        const result = await processPendingDataExportJobs(limit);
+        return NextResponse.json({ ok: true, ...result });
+      } catch (error) {
+        logError("Data export cron failed", error);
+        return NextResponse.json(
+          { ok: false, error: "Data export processing could not be confirmed" },
+          { status: 500 },
+        );
+      }
+    },
+    classifyDataExportResponse,
+  );
 }
 
 export async function GET(request: NextRequest) {

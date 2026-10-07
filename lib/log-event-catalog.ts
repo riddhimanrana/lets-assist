@@ -3,6 +3,7 @@ import consoleEvents from "./log-console-events.json";
 // Reviewed static event names. Unknown messages are replaced before export.
 export const SAFE_LOG_MESSAGES = new Set<string>([
   ...consoleEvents,
+  "Worker monitoring receipt unavailable",
   "Data export cron failed",
   "Data export artifact cleanup unconfirmed",
   "Moderation email attempt",

@@ -923,6 +923,9 @@ reviewed_service_rpc_drift="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with reviewed(signature, security_definer, volatility) as (
       values ('public.expired_account_export_artifacts(integer)', true, 's'),
+        ('public.start_worker_run_receipt(uuid,text,text,text)', true, 'v'),
+        ('public.finish_worker_run_receipt(uuid,text,text,jsonb)', true, 'v'),
+        ('public.read_worker_run_receipts(text,text)', true, 'v'),
         ('public.confirm_account_export_artifact_removed(text)', true, 'v'),
         ('public.account_data_export_snapshot(uuid)', true, 's'),
         ('public.request_account_data_export(uuid)', true, 'v'),

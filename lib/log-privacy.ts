@@ -47,6 +47,12 @@ const BOOLEAN_KEYS = new Set([
   "reductionApplied",
 ]);
 const ENUMS: Record<string, ReadonlySet<string>> = {
+  worker: new Set([
+    "project-cancellations",
+    "csf-communications-dispatch",
+    "data-exports",
+  ]),
+  receipt_phase: new Set(["start", "finish"]),
   signup_step: new Set(signupSteps),
   eventType: new Set([
     "email.sent",

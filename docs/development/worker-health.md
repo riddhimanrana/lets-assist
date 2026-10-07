@@ -1,9 +1,8 @@
 # Worker execution health
 
-The first instrumented routes are `project-cancellations` and
-`csf-communications-dispatch`. The shared hook also accepts `data-exports` with
-an explicit classifier. The export route must wire that hook before its health
-can be inferred from receipts. Other workers still need instrumentation.
+The first instrumented routes are `project-cancellations`,
+`csf-communications-dispatch`, and `data-exports`. Other workers still need
+instrumentation.
 
 ## What the receipts prove
 
@@ -43,8 +42,10 @@ delivery or an independent check of every domain write.
 Counter meanings differ by worker. Communications counts attempts and reported
 send outcomes. Cancellation counts jobs and separate delivery or notification
 faults. Do not add those counters together or label them all emails delivered.
-The export classifier must keep archive completion separate from accepted
-notification delivery.
+For exports, completed counts ready archives. Unaccepted notifications add
+faults, including uncertain sends that must not be retried automatically.
+Cleanup-only success is processed with zero job counters; a failed cleanup adds
+a fault. These counters do not claim inbox delivery.
 
 Reads return at most 20 receipts for one worker and environment, limited to the
 last 30 days. Each start removes at most 200 expired rows, using a retention
