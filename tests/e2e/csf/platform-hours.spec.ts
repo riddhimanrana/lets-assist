@@ -14,6 +14,16 @@ test("self-reported hours reject a missing local time and preserve a DST interva
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const title = `E2E timezone ${randomUUID()}`;
+  const externalRequests: string[] = [];
+  await page.context().route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) {
+      await route.continue();
+    } else {
+      externalRequests.push(url.origin);
+      await route.abort("blockedbyclient");
+    }
+  });
   const matching = () =>
     admin
       .from("certificates")
@@ -123,6 +133,7 @@ test("self-reported hours reject a missing local time and preserve a DST interva
       page.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
     await expect(page.getByText("1 hour", { exact: true })).toBeVisible();
+    expect(externalRequests).toEqual([]);
   } finally {
     const cleanup = await admin
       .from("certificates")
