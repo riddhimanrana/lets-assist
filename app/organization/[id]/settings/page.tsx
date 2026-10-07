@@ -2,19 +2,20 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { Separator } from "@/components/ui/separator";
-import EditOrganizationForm from "./EditOrganizationForm";
 import { Metadata } from "next";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import EditOrganizationForm from "./EditOrganizationForm";
 import JoinCodeAdminDisplay from "./JoinCodeAdminDisplay";
 import StaffLinkDisplay from "./StaffLinkDisplay";
 import DeleteOrganizationDialog from "./DeleteOrganizationDialog";
@@ -22,6 +23,8 @@ import OrganizationCalendarSettings from "./OrganizationCalendarSettings";
 import BulkImportSection from "./BulkImportSection";
 import OrganizationSheetsSettings from "./OrganizationSheetsSettings";
 import OrganizationPluginSettings from "./OrganizationPluginSettings";
+import OrganizationSettingsShell from "./OrganizationSettingsShell";
+import OrganizationVerificationSection from "./OrganizationVerificationSection";
 import MemberExporter from "./MemberExporter";
 import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
 
@@ -115,142 +118,128 @@ export default async function OrganizationSettingsPage({ params }: Props) {
     notFound();
   }
 
+  const organizationPath = `/organization/${organization.username}`;
+  const organizationSlug = organization.username || organization.id;
+  const autoJoinDomain = organization.auto_join_domain as
+    string | null | undefined;
+
   return (
-    <div className="flex justify-center w-full">
-      <div className="container max-w-4xl py-4 sm:py-8 px-4 sm:px-6">
-        <div className="mb-2">
-          <Button variant="ghost" size="sm" className="mb-4" asChild>
-            <Link href={`/organization/${organization.username}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Organization
-            </Link>
-          </Button>
+    <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <PageHeader
+        breadcrumb={
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href={organizationPath} />}>
+                  {organization.name}
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Settings</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        }
+        title="Settings"
+        description={`Manage how ${organization.name} is set up on Let's Assist.`}
+      />
 
-          <h1 className="text-3xl font-bold tracking-tight">
-            Organization Settings
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage settings and details for {organization.name}
-          </p>
-        </div>
-
-        <Separator className="my-6" />
-
-        <div className="space-y-8">
-          {/* Basic Details Section */}
-          <EditOrganizationForm organization={organization} userId={user.id} />
-
-          {/* Join Code Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Join Code Management</CardTitle>
-              <CardDescription>
-                Manage your organization&apos;s join code to invite members
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Use this code to invite new members to your organization. You
-                can regenerate the code at any time.
-              </p>
+      <OrganizationSettingsShell
+        sections={{
+          general: (
+            <>
+              <EditOrganizationForm
+                organization={organization}
+                userId={user.id}
+                section="general"
+              />
+              <OrganizationVerificationSection
+                verified={organization.verified === true}
+              />
+            </>
+          ),
+          members: (
+            <>
+              <EditOrganizationForm
+                organization={organization}
+                userId={user.id}
+                section="members"
+              />
+              <SettingsSection
+                title="Automatic domain membership"
+                description="People who sign in with an email on your verified domain join automatically."
+                status={
+                  autoJoinDomain ? (
+                    <Badge variant="success">Enabled</Badge>
+                  ) : (
+                    <Badge variant="outline">Not set up</Badge>
+                  )
+                }
+                footerHint={
+                  autoJoinDomain
+                    ? "Contact Let's Assist support to change or disable it."
+                    : "Contact Let's Assist support after organization verification to enable one."
+                }
+              >
+                {autoJoinDomain ? (
+                  <p className="text-sm">
+                    Verified domain:{" "}
+                    <span className="font-mono">{autoJoinDomain}</span>
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    No verified domain is configured.
+                  </p>
+                )}
+              </SettingsSection>
+              <MemberExporter organizationId={organization.id} />
+            </>
+          ),
+          invitations: (
+            <>
               <JoinCodeAdminDisplay
                 organizationId={organization.id}
                 joinCode={organization.join_code}
               />
-            </CardContent>
-          </Card>
-
-          {/* Staff Invite Link */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff Invite Link</CardTitle>
-              <CardDescription>
-                Generate a special link for teachers and staff to join with
-                elevated permissions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
               <StaffLinkDisplay
                 organizationId={organization.id}
                 organizationUsername={organization.username}
               />
-            </CardContent>
-          </Card>
-
-          {/* Bulk Import Members */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bulk Import Members</CardTitle>
-              <CardDescription>
-                Import multiple members or staff by email address
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
               <BulkImportSection organizationId={organization.id} />
-            </CardContent>
-          </Card>
-
-          <OrganizationCalendarSettings
-            organizationId={organization.id}
-            organizationSlug={organization.username || organization.id}
-            organizationName={organization.name}
-          />
-
-          <OrganizationSheetsSettings
-            organizationId={organization.id}
-            organizationSlug={organization.username || organization.id}
-            organizationName={organization.name}
-          />
-
-          <OrganizationPluginSettings
-            organizationId={organization.id}
-            organizationName={organization.name}
-          />
-
-          {/* Member Data Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Member Data</CardTitle>
-              <CardDescription>
-                Export your organization&apos;s member list
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Download your organization&apos;s member data for record-keeping
-                or offline management.
-              </p>
-              <MemberExporter organizationId={organization.id} />
-            </CardContent>
-          </Card>
-
-          {/* Danger Zone */}
-          <Card className="border-destructive/50">
-            <CardHeader className="border-b border-destructive/10">
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>
-                Irreversible and destructive actions
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="">
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-medium text-base">
-                      Delete Organization
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Permanently delete this organization and all associated
-                      data
-                    </p>
-                  </div>
-                  <DeleteOrganizationDialog organization={organization} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </>
+          ),
+          integrations: (
+            <>
+              <OrganizationCalendarSettings
+                organizationId={organization.id}
+                organizationSlug={organizationSlug}
+                organizationName={organization.name}
+              />
+              <OrganizationSheetsSettings
+                organizationId={organization.id}
+                organizationSlug={organizationSlug}
+                organizationName={organization.name}
+              />
+            </>
+          ),
+          plugins: (
+            <OrganizationPluginSettings
+              organizationId={organization.id}
+              organizationName={organization.name}
+            />
+          ),
+          danger: (
+            <SettingsSection
+              tone="danger"
+              title="Delete organization"
+              description="Permanently delete this organization and all associated data. This cannot be undone."
+              footerHint="You will be asked to confirm by typing the organization username."
+              footer={<DeleteOrganizationDialog organization={organization} />}
+            />
+          ),
+        }}
+      />
     </div>
   );
 }

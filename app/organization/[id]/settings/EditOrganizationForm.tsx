@@ -1,139 +1,56 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import {
-  Building2,
-  Globe,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Upload,
-  X,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
-  FieldLabel,
+  FieldContent,
   FieldDescription,
-  FieldError as FormMessage, // Alias to minimize diff if needed, but better to use FieldError
+  FieldError,
+  FieldLabel,
 } from "@/components/ui/field";
-import { Controller } from "react-hook-form";
 import { Switch } from "@/components/ui/switch";
 import { updateOrganization, checkUsernameAvailability } from "./actions";
 import {
   isReservedOrganizationSlug,
   usernameUnavailableMessage,
 } from "@/lib/organization/reserved-slugs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ImageCropper from "@/components/shared/ImageCropper";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Organization } from "@/types";
+import { organizationUsernameSchema } from "@/lib/organization/username";
 
 import { hasOrganizationFormChanges } from "./organization-form-change";
 import {
-  ORGANIZATION_USERNAME_MAX_LENGTH,
-  organizationUsernameSchema,
-} from "@/lib/organization/username";
-
-// Constants
-const USERNAME_MAX_LENGTH = ORGANIZATION_USERNAME_MAX_LENGTH;
-const NAME_MAX_LENGTH = 64;
-const WEBSITE_MAX_LENGTH = 100;
-const DESCRIPTION_MAX_LENGTH = 650;
-
-const ORG_TYPE_LABELS: Record<string, string> = {
-  nonprofit: "Nonprofit Organization",
-  school: "Educational Institution",
-  company: "Company/Business",
-  government: "Government Agency",
-  other: "Other",
-};
-
-const ORG_TYPE_OPTIONS = [
-  "nonprofit",
-  "school",
-  "company",
-  "government",
-  "other",
-] as const;
-type OrganizationTypeOption = (typeof ORG_TYPE_OPTIONS)[number];
-
-// Form schema
-const orgUpdateSchema = z.object({
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(NAME_MAX_LENGTH, `Name cannot exceed ${NAME_MAX_LENGTH} characters`),
-
-  username: organizationUsernameSchema,
-
-  description: z
-    .string()
-    .max(
-      DESCRIPTION_MAX_LENGTH,
-      `Description cannot exceed ${DESCRIPTION_MAX_LENGTH} characters`,
-    )
-    .optional(),
-
-  website: z
-    .string()
-    .max(
-      WEBSITE_MAX_LENGTH,
-      `Website URL cannot exceed ${WEBSITE_MAX_LENGTH} characters`,
-    )
-    .url("Please enter a valid URL")
-    .optional()
-    .or(z.literal("")),
-
-  type: z.enum(["nonprofit", "school", "company", "government", "other"]),
-
-  logoUrl: z.string().optional().nullable(),
-
-  showMembersPublicly: z.boolean().optional(),
-});
-
-type OrganizationFormValues = z.infer<typeof orgUpdateSchema>;
+  ORG_TYPE_OPTIONS,
+  orgUpdateSchema,
+  type OrganizationFormValues,
+  type OrganizationTypeOption,
+  type OrganizationWithSettings,
+} from "./organization-form-schema";
+import OrganizationProfileFields from "./OrganizationProfileFields";
 
 interface EditOrganizationFormProps {
   organization: OrganizationWithSettings;
   userId: string;
+  /**
+   * Which part of the organization form to show. Both parts submit the whole
+   * organization record through the same action, so a save from either one
+   * sends every field.
+   */
+  section?: "general" | "members";
 }
-
-type OrganizationWithSettings = Organization & {
-  website?: string | null;
-  auto_join_domain?: string | null;
-  type?: string | null;
-  logo_url?: string | null;
-  show_members_publicly?: boolean | null;
-};
 
 export default function EditOrganizationForm({
   organization,
   userId: _userId,
+  section = "general",
 }: EditOrganizationFormProps) {
   const router = useRouter();
   const resolvedOrgType: OrganizationTypeOption = ORG_TYPE_OPTIONS.includes(
@@ -359,358 +276,92 @@ export default function EditOrganizationForm({
     }
   };
 
+  const saveButton = (
+    <Button
+      type="submit"
+      disabled={
+        isSubmitting ||
+        !hasChanges ||
+        (formValues.username !== organization.username && !usernameAvailable)
+      }
+    >
+      {isSubmitting ? (
+        <>
+          <Loader2 className="animate-spin" />
+          Saving...
+        </>
+      ) : (
+        "Save changes"
+      )}
+    </Button>
+  );
+  const saveHint = hasChanges ? "You have unsaved changes." : undefined;
+
   return (
     <>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization Logo</CardTitle>
-            <CardDescription>
-              Upload a logo to represent your organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Controller
-              control={form.control}
-              name="logoUrl"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                    <Avatar className="w-24 h-24">
-                      <AvatarImage
-                        src={field.value || undefined}
-                        alt="Organization logo"
-                      />
-                      <AvatarFallback>
-                        <Building2 className="h-10 w-10 text-muted-foreground" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex gap-2">
-                      <input
-                        id="logo-upload"
-                        type="file"
-                        className="hidden"
-                        accept="image/jpeg,image/png,image/jpg,image/webp"
-                        onChange={handleImageUpload}
-                        disabled={isUploading}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document.getElementById("logo-upload")?.click()
-                        }
-                        disabled={isUploading}
-                      >
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="mr-2 h-4 w-4" />
-                            {field.value ? "Change Logo" : "Upload Logo"}
-                          </>
-                        )}
-                      </Button>
-                      {field.value && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRemoveLogo}
-                          disabled={isUploading}
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <FieldDescription className="mt-2">
-                    Recommended: Square image of at least 200×200px, max 5MB
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        {section === "general" ? (
+          <SettingsSection
+            title="Profile"
+            description="How your organization appears across Let's Assist."
+            contentClassName="gap-6"
+            footer={saveButton}
+            footerHint={saveHint}
+          >
+            <OrganizationProfileFields
+              form={form}
+              isUploading={isUploading}
+              checkingUsername={checkingUsername}
+              usernameAvailable={usernameAvailable}
+              descriptionLength={descriptionLength}
+              onImageUpload={handleImageUpload}
+              onRemoveLogo={handleRemoveLogo}
+              onUsernameEdited={() => setUsernameAvailable(null)}
+              onUsernameBlur={handleUsernameBlur}
+              onDescriptionLengthChange={setDescriptionLength}
             />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>
-              Update your organization&apos;s basic details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+          </SettingsSection>
+        ) : (
+          <SettingsSection
+            title="Member visibility"
+            description="Choose whether people outside the organization can see who belongs to it."
+            footer={saveButton}
+            footerHint={saveHint}
+          >
             <Controller
               control={form.control}
-              name="name"
+              name="showMembersPublicly"
               render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
-                    Organization Name
-                  </FieldLabel>
-                  <Input
+                <Field
+                  orientation="horizontal"
+                  data-invalid={fieldState.invalid}
+                >
+                  <FieldContent>
+                    <FieldLabel htmlFor={field.name}>
+                      Show members publicly
+                    </FieldLabel>
+                    <FieldDescription>
+                      Allow visitors to see the list of organization members
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </FieldContent>
+                  <Switch
                     id={field.name}
-                    {...field}
-                    placeholder="Enter organization name"
-                    maxLength={NAME_MAX_LENGTH}
+                    checked={field.value ?? true}
+                    onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}
                   />
-                  <FieldDescription>
-                    This is your organization&apos;s display name
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
                 </Field>
               )}
             />
-            <Controller
-              control={form.control}
-              name="username"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Username</FieldLabel>
-                  <div className="relative">
-                    <Input
-                      id={field.name}
-                      {...field}
-                      placeholder="Enter organization username"
-                      maxLength={USERNAME_MAX_LENGTH}
-                      onChange={(e) => {
-                        const noSpaces = e.target.value.replace(/\s/g, "");
-                        field.onChange(noSpaces);
-                        // Clear errors and reset availability when typing
-                        if (form.formState.errors.username) {
-                          form.clearErrors("username");
-                        }
-                        setUsernameAvailable(null);
-                      }}
-                      onBlur={(e) => {
-                        field.onBlur();
-                        handleUsernameBlur(e.target.value);
-                      }}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {checkingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                      </div>
-                    )}
-                    {usernameAvailable !== null && !checkingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {usernameAvailable ? (
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-destructive" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <FieldDescription>
-                    Used in your organization&apos;s URL:
-                    lets-assist.com/organization/
-                    <span className="font-mono">
-                      {field.value || "username"}
-                    </span>
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="description"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <div className="flex justify-between items-center">
-                    <FieldLabel htmlFor={field.name}>Description</FieldLabel>
-                    <span className="text-xs text-muted-foreground">
-                      {descriptionLength}/{DESCRIPTION_MAX_LENGTH}
-                    </span>
-                  </div>
-                  <Textarea
-                    id={field.name}
-                    {...field}
-                    placeholder="Describe your organization"
-                    className="resize-none"
-                    rows={4}
-                    maxLength={DESCRIPTION_MAX_LENGTH}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      setDescriptionLength(e.target.value.length);
-                    }}
-                    aria-invalid={fieldState.invalid}
-                  />
-                  <FieldDescription>
-                    A brief description of your organization
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="website"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Website</FieldLabel>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id={field.name}
-                      {...field}
-                      placeholder="https://your-website.com"
-                      className="pl-10"
-                      maxLength={WEBSITE_MAX_LENGTH}
-                      onBlur={(e) => {
-                        const value = e.target.value.trim();
-                        if (
-                          value &&
-                          !value.startsWith("https://") &&
-                          !value.startsWith("http://")
-                        ) {
-                          field.onChange(`https://${value}`);
-                        }
-                      }}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </div>
-                  <FieldDescription>
-                    Optional. Must start with https:// or http://
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="type"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
-                    Organization Type
-                  </FieldLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger
-                      id={field.name}
-                      className={cn(
-                        "w-full",
-                        !field.value && "text-muted-foreground",
-                      )}
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue placeholder="Select organization type">
-                        {field.value
-                          ? ORG_TYPE_LABELS[field.value]
-                          : "Select organization type"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="nonprofit">
-                          Nonprofit Organization
-                        </SelectItem>
-                        <SelectItem value="school">
-                          Educational Institution
-                        </SelectItem>
-                        <SelectItem value="company">
-                          Company/Business
-                        </SelectItem>
-                        <SelectItem value="government">
-                          Government Agency
-                        </SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    Choose the type that best describes your organization
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            {/* Automatic domain membership is a verified support workflow. */}
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-sm font-medium">Automatic domain membership</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {organization.auto_join_domain
-                  ? `Verified domain: ${organization.auto_join_domain}. Contact Let's Assist support to change or disable it.`
-                  : "No verified domain is configured. Contact Let&apos;s Assist support after organization verification to enable one."}
-              </p>
-            </div>
-            {/* Member Visibility Section */}
-            <div className="space-y-4 rounded-lg border p-4 bg-muted/30">
-              <Controller
-                control={form.control}
-                name="showMembersPublicly"
-                render={({ field, fieldState }) => (
-                  <Field
-                    data-invalid={fieldState.invalid}
-                    className="flex flex-row items-center justify-between"
-                  >
-                    <div className="space-y-0.5">
-                      <FieldLabel htmlFor={field.name} className="text-base">
-                        Show Members Publicly
-                      </FieldLabel>
-                      <FieldDescription>
-                        Allow visitors to see the list of organization members
-                      </FieldDescription>
-                    </div>
-                    <Switch
-                      id={field.name}
-                      checked={field.value ?? true}
-                      onCheckedChange={field.onChange}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </Field>
-                )}
-              />
-            </div>{" "}
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button
-              type="submit"
-              className="ml-auto"
-              disabled={
-                isSubmitting ||
-                !hasChanges ||
-                (formValues.username !== organization.username &&
-                  !usernameAvailable)
-              }
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          </CardFooter>
-        </Card>
+          </SettingsSection>
+        )}
       </form>
 
       <Dialog open={showCropper} onOpenChange={setShowCropper}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogTitle className="sr-only">Image Cropper</DialogTitle>
           {showCropper && (
             <ImageCropper
