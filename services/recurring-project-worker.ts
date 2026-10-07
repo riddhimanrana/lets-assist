@@ -381,6 +381,9 @@ export async function processRecurringProjects(
   } = {},
 ): Promise<{
   processedProjects: number;
+  checkedProjects: number;
+  successfulProjects: number;
+  failedParents: number;
   createdOccurrences: number;
   errors: string[];
 }> {
@@ -392,6 +395,9 @@ export async function processRecurringProjects(
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   let parentsProcessed = 0;
+  let checkedProjects = 0;
+  let successfulProjects = 0;
+  let failedParents = 0;
   let parentCursor: string | null = null;
   const parentPageSize = Math.max(
     1,
@@ -422,9 +428,14 @@ export async function processRecurringProjects(
     if (!parentProjects || parentProjects.length === 0) break;
 
     for (const parent of parentProjects as Project[]) {
+      checkedProjects++;
+      const previousErrors = errors.length;
       try {
         const rawRule = parent.recurrence_rule;
-        if (!rawRule) continue;
+        if (!rawRule) {
+          errors.push(`Missing recurrence rule for ${parent.title}`);
+          continue;
+        }
 
         // Apply legacy defaults for fields that may be absent in historic rows
         // before calling the strict validator. Cast through `unknown` first
@@ -497,6 +508,7 @@ export async function processRecurringProjects(
         }
 
         if (!lastDate) {
+          errors.push(`Invalid occurrence date for ${parent.title}`);
           continue;
         }
 
@@ -608,6 +620,9 @@ export async function processRecurringProjects(
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         errors.push(`Error processing ${parent.title}: ${errorMessage}`);
+      } finally {
+        if (errors.length > previousErrors) failedParents++;
+        else successfulProjects++;
       }
     }
 
@@ -617,6 +632,9 @@ export async function processRecurringProjects(
 
   return {
     processedProjects: parentsProcessed,
+    checkedProjects,
+    successfulProjects,
+    failedParents,
     createdOccurrences,
     errors,
   };

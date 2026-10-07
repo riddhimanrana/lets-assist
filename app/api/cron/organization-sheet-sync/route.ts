@@ -1,3 +1,4 @@
+import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -29,7 +30,7 @@ const SHEET_SYNC_CONCURRENCY = readPositiveInteger(
 
 function isAuthorized(request: NextRequest) {
   const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
+  const token = /^Bearer ([\x21-\x7E]+)$/.exec(authHeader)?.[1];
 
   const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
     (value): value is string => Boolean(value),
@@ -70,123 +71,129 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return observeWorkerRun("organization-sheet-sync", async () => {
-    const supabase = getAdminClient();
-    const { data: syncRows, error } = await supabase
-      .from("organization_sheet_syncs")
-      .select(
-        "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by",
-      )
-      .eq("auto_sync", true);
+  const summary = workerResponseSummary("organization-sheet-sync");
+  return observeWorkerRun(
+    "organization-sheet-sync",
+    async () => {
+      const supabase = getAdminClient();
+      const { data: syncRows, error } = await supabase
+        .from("organization_sheet_syncs")
+        .select(
+          "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by",
+        )
+        .eq("auto_sync", true);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
 
-    const dueRows = (syncRows || []).filter((row) =>
-      isDue(row.last_synced_at, row.sync_interval_minutes || 1440),
-    );
-    const results = await mapWithConcurrency(
-      dueRows,
-      SHEET_SYNC_CONCURRENCY,
-      async (row) => {
-        try {
-          const ownerAuthorization =
-            await authorizeGoogleOAuthOrganizationRequest({
-              userId: row.created_by,
-              organizationId: row.organization_id,
-              pluginKey: null,
-              purpose: "organization_sheets",
-              requestedCapability: null,
-            });
-          if (!ownerAuthorization.allowed) {
-            await supabase
-              .from("organization_sheet_syncs")
-              .update({
-                auto_sync: false,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("organization_id", row.organization_id);
-            return {
-              organizationId: row.organization_id,
-              success: false,
-              error:
-                "Sync owner no longer has active organization admin access",
-            };
-          }
+      const dueRows = (syncRows || []).filter((row) =>
+        isDue(row.last_synced_at, row.sync_interval_minutes || 1440),
+      );
+      const results = await mapWithConcurrency(
+        dueRows,
+        SHEET_SYNC_CONCURRENCY,
+        async (row) => {
+          try {
+            const ownerAuthorization =
+              await authorizeGoogleOAuthOrganizationRequest({
+                userId: row.created_by,
+                organizationId: row.organization_id,
+                pluginKey: null,
+                purpose: "organization_sheets",
+                requestedCapability: null,
+              });
+            if (!ownerAuthorization.allowed) {
+              await supabase
+                .from("organization_sheet_syncs")
+                .update({
+                  auto_sync: false,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("organization_id", row.organization_id);
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error:
+                  "Sync owner no longer has active organization admin access",
+              };
+            }
 
-          const accessToken = await getGoogleAccessTokenForSheetsForUser(
-            row.created_by,
-            true,
-            organizationSheetsGoogleBinding(row.organization_id),
-          );
-          if (!accessToken) {
-            return {
-              organizationId: row.organization_id,
-              success: false,
-              error: "No Google token",
-            };
-          }
+            const accessToken = await getGoogleAccessTokenForSheetsForUser(
+              row.created_by,
+              true,
+              organizationSheetsGoogleBinding(row.organization_id),
+            );
+            if (!accessToken) {
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error: "No Google token",
+              };
+            }
 
-          const { rows, error: rowsError } =
-            await buildOrganizationReportRowsForSync(
-              row.organization_id,
-              row.report_type as ReportType,
+            const { rows, error: rowsError } =
+              await buildOrganizationReportRowsForSync(
+                row.organization_id,
+                row.report_type as ReportType,
+              );
+
+            if (rowsError || !rows) {
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error: rowsError || "Report error",
+              };
+            }
+
+            const replacement = await replaceSpreadsheetReportValues(
+              accessToken,
+              row.sheet_id,
+              row.tab_name || DEFAULT_TAB_NAME,
+              row.range_a1,
+              rows,
             );
 
-          if (rowsError || !rows) {
+            if (!replacement.success && replacement.stage === "write") {
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error: "Sheet update failed",
+              };
+            }
+
+            if (!replacement.success) {
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error: "Sheet updated, but stale values could not be cleared",
+              };
+            }
+
+            await supabase
+              .from("organization_sheet_syncs")
+              .update({ last_synced_at: new Date().toISOString() })
+              .eq("organization_id", row.organization_id);
+
+            return { organizationId: row.organization_id, success: true };
+          } catch (error) {
             return {
               organizationId: row.organization_id,
               success: false,
-              error: rowsError || "Report error",
+              error: error instanceof Error ? error.message : "Unknown error",
             };
           }
+        },
+      );
 
-          const replacement = await replaceSpreadsheetReportValues(
-            accessToken,
-            row.sheet_id,
-            row.tab_name || DEFAULT_TAB_NAME,
-            row.range_a1,
-            rows,
-          );
-
-          if (!replacement.success && replacement.stage === "write") {
-            return {
-              organizationId: row.organization_id,
-              success: false,
-              error: "Sheet update failed",
-            };
-          }
-
-          if (!replacement.success) {
-            return {
-              organizationId: row.organization_id,
-              success: false,
-              error: "Sheet updated, but stale values could not be cleared",
-            };
-          }
-
-          await supabase
-            .from("organization_sheet_syncs")
-            .update({ last_synced_at: new Date().toISOString() })
-            .eq("organization_id", row.organization_id);
-
-          return { organizationId: row.organization_id, success: true };
-        } catch (error) {
-          return {
-            organizationId: row.organization_id,
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          };
-        }
-      },
-    );
-
-    return NextResponse.json(
-      { processed: results.length, results },
-      { status: 200 },
-    );
-  });
+      summary.capture({ processed: results.length, results });
+      return NextResponse.json(
+        { processed: results.length, results },
+        { status: 200 },
+      );
+    },
+    summary,
+  );
 }
 
 export async function GET(request: NextRequest) {

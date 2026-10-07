@@ -140,9 +140,15 @@ export function readAdditionalWorkerCounts(
       return true;
     }
     case "generate-recurring-projects":
-      result.attempted = count(value.processedProjects);
+      result.attempted = count(value.checkedProjects);
       result.faults = count(value.failedProjects);
-      result.completed = result.attempted;
+      result.completed = count(value.successfulProjects);
+      result.failed = count(value.failedParents);
+      if (
+        sum(result.completed, result.failed) !== result.attempted ||
+        count(value.processedProjects) > result.attempted
+      )
+        throw new Error("invalid_response");
       count(value.createdOccurrences);
       return true;
     case "organization-calendar-sync":

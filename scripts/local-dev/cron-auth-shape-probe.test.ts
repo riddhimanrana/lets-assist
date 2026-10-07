@@ -902,15 +902,21 @@ describe("cron routes fail closed under the probe without dispatching", () => {
         const noAuth = await handler(makeRequest(routeId, method));
         expect(noAuth.status, `${method} ${routeId} without auth`).toBe(401);
 
-        const wrongAuth = await handler(
-          makeRequest(routeId, method, {
-            authorization: "Bearer wrong-secret",
-          }),
-        );
-        expect(
-          wrongAuth.status,
-          `${method} ${routeId} with a wrong bearer`,
-        ).toBe(401);
+        for (const authorization of [
+          "Bearer wrong-secret",
+          CRON_SECRET,
+          `bearer ${CRON_SECRET}`,
+          `Bearer  ${CRON_SECRET}`,
+          `Bearer ${CRON_SECRET} extra`,
+        ]) {
+          const wrongAuth = await handler(
+            makeRequest(routeId, method, { authorization }),
+          );
+          expect(
+            wrongAuth.status,
+            `${method} ${routeId} with malformed or wrong credentials`,
+          ).toBe(401);
+        }
       }
     }
 
