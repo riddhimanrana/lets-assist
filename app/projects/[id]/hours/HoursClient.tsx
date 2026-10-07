@@ -1,13 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import Link from "next/link";
-import { Clock, ScanText, Search, UserRoundCheck } from "lucide-react";
-
+import { useState } from "react";
+import { Search, UserRoundCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatStrip } from "@/components/layout/SettingsSection";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { AttendanceTools } from "@/components/projects/AttendanceTools";
+import { AttendanceExport } from "@/components/projects/AttendanceExport";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Empty,
   EmptyDescription,
@@ -29,104 +28,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
-import { Project, ProjectSignup } from "@/types";
+import type { Project } from "@/types";
 import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
-import {
-  HoursCertificatesDialog,
-  HoursConfirmPublishDialog,
-  HoursPublishSuccessDialog,
-} from "./HoursDialogs";
+import { HoursConfirmPublishDialog, HoursEditDialog } from "./HoursDialogs";
 import { HoursSessionCard } from "./HoursSessionCard";
+import type { AttendanceHoursSignup, HoursWindows } from "./useHoursAttendance";
 import { useHoursEdits } from "./useHoursEdits";
 import { useHoursPublishing } from "./useHoursPublishing";
 import { useHoursSessions, type HoursSession } from "./useHoursSessions";
 
-interface Props {
-  project: Project;
-  initialSignups: ProjectSignup[];
-}
-
+export type { AttendanceHoursSignup } from "./useHoursAttendance";
 const SESSION_GROUPS: Array<{ status: HoursSession["status"]; label: string }> =
   [
-    { status: "editing", label: "Editing window open" },
+    { status: "completed", label: "Completed" },
     { status: "in-progress", label: "In progress" },
     { status: "upcoming", label: "Upcoming" },
-    { status: "completed", label: "Completed" },
+    { status: "invalid", label: "Schedule needs review" },
   ];
 
 export function HoursClient({
   project,
   initialSignups,
-}: Props): React.JSX.Element {
-  const [signups] = useState<ProjectSignup[]>(initialSignups);
+  windows,
+}: {
+  project: Project;
+  initialSignups: AttendanceHoursSignup[];
+  windows: HoursWindows;
+}) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sessionFilter, setSessionFilter] = useState<string>("all");
-
+  const [sessionFilter, setSessionFilter] = useState("all");
+  const [notice, setNotice] = useState("");
   const sessions = useHoursSessions({
     project,
-    signups,
+    signups: initialSignups,
+    windows,
     searchTerm,
-    sessionFilter,
   });
-  const {
-    filteredSignupsBySession,
-    getAllProjectSessions,
-    isSessionPublished,
-    activeUnpublishedSessions,
-  } = sessions;
   const edits = useHoursEdits({
-    initialSignups,
-    signupsBySession: sessions.signupsBySession,
-    getAllProjectSessions,
+    projectId: project.id,
+    signups: initialSignups,
+    setNotice,
   });
   const publishing = useHoursPublishing({
-    project,
-    editedTimes: edits.editedTimes,
+    projectId: project.id,
     sessions,
+    setNotice,
   });
-
-  const sessionLabelMap = useMemo(() => {
-    const map = new Map<string, string>();
-    map.set("all", "All sessions");
-
-    getAllProjectSessions.forEach((session) => {
-      map.set(session.id, session.name);
-      session.alternativeIds?.forEach((altId) => {
-        map.set(altId, session.name);
-      });
-    });
-
-    return map;
-  }, [getAllProjectSessions]);
-
-  const visibleSessions =
-    sessionFilter === "all"
-      ? getAllProjectSessions
-      : getAllProjectSessions.filter((s) => s.id === sessionFilter);
-  const publishedCount = getAllProjectSessions.filter((session) =>
-    isSessionPublished(session.id),
-  ).length;
-
-  // A session's signups are keyed by its id or by one of its older id formats.
-  const signupsForSession = (session: HoursSession): ProjectSignup[] => {
-    if (filteredSignupsBySession[session.id]) {
-      return filteredSignupsBySession[session.id];
-    }
-    for (const altId of session.alternativeIds) {
-      if (filteredSignupsBySession[altId]) {
-        return filteredSignupsBySession[altId];
-      }
-    }
-    return [];
-  };
-
+  const activeFilter = sessions.some((session) => session.id === sessionFilter)
+    ? sessionFilter
+    : "all";
+  const visibleSessions = sessions.filter(
+    (session) => activeFilter === "all" || session.id === activeFilter,
+  );
+  const disabled =
+    publishing.busy !== null ||
+    publishing.isRefreshing ||
+    edits.isRefreshing ||
+    edits.editing !== null;
+  const timezone = project.project_timezone || "America/Los_Angeles";
   return (
-    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
-      <HoursPublishSuccessDialog publishing={publishing} />
+    <main className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
       <HoursConfirmPublishDialog publishing={publishing} />
-      <HoursCertificatesDialog publishing={publishing} />
-
+      <HoursEditDialog edits={edits} project={project} windows={windows} />
       <PageHeader
         breadcrumb={
           <ProjectToolBreadcrumb
@@ -136,63 +99,36 @@ export function HoursClient({
           />
         }
         title="Manage volunteer hours"
-        description="Review and edit volunteer check-in/out times. If no changes are made, the system will automatically publish hours after 48 hours."
-        actions={
-          <Button
-            variant="outline"
-            render={<Link href={`/projects/${project.id}/paper-signups`} />}
-          >
-            <ScanText data-icon="inline-start" aria-hidden="true" />
-            Add from paper sheet
-          </Button>
-        }
+        description={`Review actual attendance, publish credit, and correct earlier awards. Times use ${timezone}.`}
+        actions={<AttendanceTools projectId={project.id} />}
       />
-
       <StatStrip
         items={[
-          { label: "Sessions", value: getAllProjectSessions.length },
+          { label: "Sessions", value: sessions.length },
           {
-            label: "Editing windows open",
-            value: activeUnpublishedSessions.length,
+            label: "Ready to publish",
+            value: sessions
+              .filter(
+                (session) =>
+                  !session.published && session.status === "completed",
+              )
+              .reduce((count, session) => count + session.readyCount, 0),
+            helper: "Reviewed attendance records",
           },
-          { label: "Published", value: publishedCount },
-          { label: "Attendance records", value: signups.length },
+          {
+            label: "Published",
+            value: sessions.filter((session) => session.published).length,
+          },
+          { label: "Attendance records", value: initialSignups.length },
         ]}
       />
-
-      {activeUnpublishedSessions.length > 0 && (
-        <Alert variant="warning">
-          <Clock aria-hidden="true" />
-          <AlertTitle>Editing windows open</AlertTitle>
-          <AlertDescription>
-            You have active sessions that can still be edited.
-            <div className="mt-3 flex flex-wrap gap-2">
-              {activeUnpublishedSessions.map((session) => (
-                <Button
-                  key={session.id}
-                  variant="outline"
-                  className="h-auto min-h-9 max-w-full py-1.5 whitespace-normal"
-                  onClick={() => setSessionFilter(session.id)}
-                >
-                  {publishing.publishingSessions[session.id] && (
-                    <Spinner data-icon="inline-start" />
-                  )}
-                  <span className="text-left">
-                    {session.name}
-                    <span className="text-muted-foreground font-normal">
-                      {" "}
-                      · {session.hoursRemaining}h left to edit
-                    </span>
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </AlertDescription>
+      {notice && (
+        <Alert role="status">
+          <AlertDescription>{notice}</AlertDescription>
         </Alert>
       )}
-
       <section className="grid gap-4" aria-label="Sessions">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           <InputGroup className="sm:max-w-xs">
             <InputGroupAddon>
               <Search aria-hidden="true" />
@@ -200,62 +136,62 @@ export function HoursClient({
             <InputGroupInput
               placeholder="Search by name or email..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               aria-label="Search by name or email"
             />
           </InputGroup>
           <Select
-            value={sessionFilter}
-            onValueChange={(val) => setSessionFilter(val || "all")}
+            value={activeFilter}
+            onValueChange={(value) => setSessionFilter(value || "all")}
           >
             <SelectTrigger
               className="w-full sm:w-auto sm:min-w-60"
               aria-label="Filter by session"
             >
               <SelectValue>
-                {(value) => {
-                  if (!value) {
-                    return "Filter by session";
-                  }
-
-                  return sessionLabelMap.get(String(value)) ?? String(value);
-                }}
+                {(value) =>
+                  value === "all"
+                    ? "All sessions"
+                    : (sessions.find((session) => session.id === value)?.name ??
+                      "Filter by session")
+                }
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="max-w-100">
               <SelectItem value="all">All sessions</SelectItem>
               {SESSION_GROUPS.map((group) => {
-                const groupSessions = getAllProjectSessions.filter(
-                  (s) => s.status === group.status,
+                const matches = sessions.filter(
+                  (session) => session.status === group.status,
                 );
-                if (groupSessions.length === 0) return null;
-                return (
+                return matches.length ? (
                   <SelectGroup key={group.status}>
                     <SelectLabel>{group.label}</SelectLabel>
-                    {groupSessions.map((session) => (
-                      <SelectItem
-                        key={`${group.status}-${session.id}`}
-                        value={session.id}
-                      >
+                    {matches.map((session) => (
+                      <SelectItem key={session.id} value={session.id}>
                         {session.name}
                       </SelectItem>
                     ))}
                   </SelectGroup>
-                );
+                ) : null;
               })}
             </SelectContent>
           </Select>
+          <AttendanceExport
+            scope="project"
+            scopeId={project.id}
+            sessionId={activeFilter}
+          />
         </div>
-
-        {getAllProjectSessions.length === 0 ? (
+        {sessions.length === 0 ? (
           <Empty className="border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <UserRoundCheck aria-hidden="true" />
               </EmptyMedia>
-              <EmptyTitle>No sessions found</EmptyTitle>
+              <EmptyTitle>No attendance yet</EmptyTitle>
               <EmptyDescription>
-                This project doesn&apos;t have any scheduled sessions.
+                No approved volunteers or recorded attendance yet. Add a walk-in
+                or scan a completed sheet to begin.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -264,14 +200,14 @@ export function HoursClient({
             <HoursSessionCard
               key={session.id}
               session={session}
-              sessionSignups={signupsForSession(session)}
-              isPublished={isSessionPublished(session.id)}
+              timezone={timezone}
+              disabled={disabled}
               edits={edits}
               publishing={publishing}
             />
           ))
         )}
       </section>
-    </div>
+    </main>
   );
 }

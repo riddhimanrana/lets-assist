@@ -74,10 +74,15 @@ export type CertificateRow = {
   project_title?: string | null;
   event_start?: string | null;
   event_end?: string | null;
+  credited_minutes?: number | null;
   signup_id?: string | null;
 };
 
 export type SignupRow = {
+  project_attendance_intervals?: Array<{
+    check_in_time: string;
+    check_out_time: string | null;
+  }> | null;
   id: string;
   user_id?: string | null;
   anonymous_id?: string | null;

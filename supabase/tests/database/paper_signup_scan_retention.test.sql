@@ -1,5 +1,5 @@
 -- Paper scan retention: purging expired batches enqueues each photo exactly
--- once in the deletion outbox, destroys staging evidence, and preserves the
+-- once in the deletion outbox, retains structured review evidence, and preserves the
 -- committed signups and roster entries the scan produced.
 
 BEGIN;
@@ -114,7 +114,7 @@ VALUES ('b6450000-0000-4000-8000-000000000001',
 SELECT extensions.is(
   public.purge_expired_paper_scan_batches(50),
   2,
-  'the purge removes the expired committed batch and the stale draft'
+  'the purge expires photos from the committed batch and stale draft'
 );
 SELECT extensions.is(
   (SELECT count(*) FROM public.paper_scan_storage_deletion_queue AS queue
@@ -135,8 +135,8 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT count(*) FROM public.project_paper_scan_rows AS scan_rows
    WHERE scan_rows.batch_id = 'b6400000-0000-4000-8000-000000000001'),
-  0::bigint,
-  'staging rows are destroyed with their batch'
+  1::bigint,
+  'structured rows retain their source batch after photo expiry'
 );
 SELECT extensions.is(
   (SELECT count(*) FROM public.project_signups AS signups
@@ -145,10 +145,10 @@ SELECT extensions.is(
   'committed signups survive the purge'
 );
 SELECT extensions.ok(
-  (SELECT roster.batch_id IS NULL
+  (SELECT roster.batch_id = 'b6400000-0000-4000-8000-000000000001'
    FROM public.project_paper_roster_entries AS roster
    WHERE roster.id = 'b6450000-0000-4000-8000-000000000001'),
-  'roster entries survive with their batch link cleared'
+  'roster entries retain their batch provenance'
 );
 SELECT extensions.is(
   (SELECT count(*) FROM public.project_paper_scan_batches AS batches

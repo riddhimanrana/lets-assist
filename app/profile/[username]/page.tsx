@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 import React from "react";
@@ -278,7 +279,12 @@ export default async function ProfilePage(
   if (certificates) {
     totalHours = certificates.reduce((sum, cert) => {
       if (cert.event_start && cert.event_end) {
-        return sum + calculateHours(cert.event_start, cert.event_end);
+        return (
+          sum +
+          certificateHours(cert, () =>
+            calculateHours(cert.event_start, cert.event_end),
+          )
+        );
       }
       return sum;
     }, 0);

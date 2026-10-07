@@ -15,6 +15,7 @@ type Certificate = {
   is_certified: boolean;
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -56,6 +57,7 @@ export default async function CertificatesPage() {
       type,
       event_start,
       event_end,
+      credited_minutes,
       volunteer_email,
       organization_name,
       project_id,

@@ -13,6 +13,7 @@ export interface VerificationResult {
   };
   event?: {
     startDate: string;
+    creditedMinutes?: number | null;
     endDate: string;
   };
   project?: {

@@ -67,7 +67,6 @@ export function AnonymousLinkingDialog({
   defaultEmail,
   isLinked,
   onLinked,
-  onLinkedPendingVerification,
 }: AnonymousLinkingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -270,11 +269,10 @@ export function AnonymousLinkingDialog({
         setOpen(false);
 
         if (result.requiresEmailVerification) {
-          onLinkedPendingVerification(values.email);
           setVerificationEmail(values.email);
           setVerificationDialogOpen(true);
           toast.success(
-            "Account created! Check your email to finish accessing your dashboard.",
+            "Account created. Verify your email, then return here to link your saved attendance.",
           );
           return;
         }
@@ -506,6 +504,7 @@ export function AnonymousLinkingDialog({
         open={verificationDialogOpen}
         onOpenChange={setVerificationDialogOpen}
         email={verificationEmail}
+        loginHref={`/login?redirect=${encodeURIComponent(`/anonymous/${anonymousId}?token=${encodeURIComponent(anonymousToken)}&link=1`)}`}
       />
     </>
   );

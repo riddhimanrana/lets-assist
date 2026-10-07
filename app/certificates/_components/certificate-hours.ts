@@ -10,6 +10,7 @@ export interface Certificate {
   type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;

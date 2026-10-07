@@ -3,15 +3,7 @@ import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Pause,
-  Printer,
-  RefreshCw,
-  ScanText,
-  Search,
-  UserRoundSearch,
-} from "lucide-react";
+import { Pause, RefreshCw, Search, UserRoundSearch } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Project } from "@/types";
@@ -52,7 +44,7 @@ import {
   formatScheduleSlot,
   type OrganizerSignup as Signup,
 } from "./signups-format";
-import { printVolunteers as printVolunteerList } from "./signups-print";
+import { AttendanceTools } from "@/components/projects/AttendanceTools";
 import { SignupsTable } from "./SignupsTable";
 
 interface Props {
@@ -68,7 +60,6 @@ interface Sort {
 }
 
 export function SignupsClient({ projectId }: Props): React.JSX.Element {
-  const router = useRouter();
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -411,9 +402,6 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     }
   };
 
-  const printVolunteers = () =>
-    printVolunteerList(project, filteredSignupsBySlot);
-
   const slotEntries = Object.entries(filteredSignupsBySlot);
   const countByStatus = (status: Signup["status"]) =>
     signups.filter((signup) => signup.status === status).length;
@@ -452,26 +440,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
         title="Manage volunteer signups"
         description="Review and manage volunteer signups."
-        actions={
-          <>
-            <Button
-              variant="outline"
-              onClick={() =>
-                router.push(`/projects/${projectId}/paper-signups`)
-              }
-            >
-              <ScanText data-icon="inline-start" aria-hidden="true" />
-              Scan paper sheet
-            </Button>
-            <Button
-              onClick={printVolunteers}
-              disabled={slotEntries.length === 0}
-            >
-              <Printer data-icon="inline-start" aria-hidden="true" />
-              Print volunteer list
-            </Button>
-          </>
-        }
+        actions={<AttendanceTools projectId={projectId} />}
       />
 
       <StatStrip

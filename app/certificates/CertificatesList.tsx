@@ -1,4 +1,5 @@
 "use client";
+import { certificateHours } from "@/lib/projects/certificate-duration";
 
 import { useState } from "react";
 import { Award, Printer } from "lucide-react";
@@ -92,7 +93,9 @@ export function CertificatesList({
   // Add hours property to certificates
   const certificatesWithHours = displayCertificates.map((cert) => ({
     ...cert,
-    hours: calculateHours(cert.event_start, cert.event_end),
+    hours: certificateHours(cert, () =>
+      calculateHours(cert.event_start, cert.event_end),
+    ),
   }));
 
   // Apply search and date range filters
@@ -191,7 +194,10 @@ export function CertificatesList({
 
   const totalDecimalHours = filteredCertificates.reduce(
     (sum, cert) =>
-      sum + calculateDecimalHours(cert.event_start, cert.event_end),
+      sum +
+      certificateHours(cert, () =>
+        calculateDecimalHours(cert.event_start, cert.event_end),
+      ),
     0,
   );
   const hasSelfReported = sortedCertificates.some(

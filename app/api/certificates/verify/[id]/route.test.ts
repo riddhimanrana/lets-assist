@@ -20,6 +20,7 @@ const certificate = {
 let missing = false;
 let failed = false;
 let malformedDates = false;
+let creditedMinutes: number | null | undefined;
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: () => ({
@@ -32,6 +33,7 @@ mock.module("@/lib/supabase/server", () => ({
                 ? null
                 : {
                     ...certificate,
+                    credited_minutes: creditedMinutes,
                     ...(malformedDates ? { event_end: "invalid" } : {}),
                   },
               error: null,
@@ -67,12 +69,28 @@ describe("certificate verification contract", () => {
     missing = false;
     failed = false;
     malformedDates = false;
+    creditedMinutes = undefined;
   });
   test("GET includes numeric duration matching the exported one-decimal hours", async () => {
     const response = await GET(request(), params);
     expect(response.status).toBe(200);
     expect((await response.json()).event.duration).toBe(1.3);
   });
+  test.each([61, 0])(
+    "canonical %i credited minutes override the event envelope",
+    async (minutes) => {
+      creditedMinutes = minutes;
+      const response = await POST(
+        request({ expectedData: { ...expectedData, duration: minutes / 60 } }),
+        params,
+      );
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.event.duration).toBe(minutes / 60);
+      expect(body.event.creditedMinutes).toBe(minutes);
+      expect(body.verification.matches.hours).toBe(true);
+    },
+  );
   test("POST compares matching data and detects changed hours", async () => {
     const match = await POST(request({ expectedData }), params);
     expect((await match.json()).verification.matches).toEqual({
