@@ -205,7 +205,7 @@ export const getReportColumns = (
         <Button
           size="sm"
           onClick={() => onViewDetails(row.original)}
-          className="group rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+          className="group rounded-full bg-primary/10 bg-none text-primary shadow-none hover:bg-primary hover:text-primary-foreground hover:brightness-100 active:shadow-none"
         >
           <Eye className="mr-2 h-3.5 w-3.5" />
           Open Case
@@ -350,7 +350,7 @@ export const getFlaggedColumns = (
         <Button
           size="sm"
           onClick={() => onViewDetails(row.original)}
-          className="group rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+          className="group rounded-full bg-primary/10 bg-none text-primary shadow-none hover:bg-primary hover:text-primary-foreground hover:brightness-100 active:shadow-none"
         >
           <Eye className="mr-2 h-3.5 w-3.5" />
           Open Flag

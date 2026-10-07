@@ -29,7 +29,7 @@ describe("fresh-install dependency resolution", () => {
   });
 
   test("declares the Tailwind v4 Shadcn stylesheet imported by globals.css", () => {
-    expect(manifest.devDependencies?.shadcn).toBe("4.16.2");
+    expect(manifest.devDependencies?.shadcn).toBe("4.21.3");
 
     const appRequire = createRequire(join(repositoryRoot, "package.json"));
     expect(appRequire.resolve("shadcn/tailwind.css")).toEndWith(
