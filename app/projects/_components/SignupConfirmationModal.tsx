@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,7 @@ export function SignupConfirmationModal({
           setCurrentUserProfile(result.profile);
         }
       } catch (error) {
-        console.error("Error fetching user profile:", error);
+        safeConsole.error("Error fetching user profile:", error);
         setProfileError(
           "An unexpected error occurred while fetching your information.",
         );
@@ -174,7 +175,7 @@ export function SignupConfirmationModal({
         setCalendarConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
       } catch (error) {
-        console.error("Error checking calendar connection:", error);
+        safeConsole.error("Error checking calendar connection:", error);
         setCalendarConnected(false);
         setConnectedEmail(null);
       } finally {
@@ -205,7 +206,7 @@ export function SignupConfirmationModal({
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/api/google/oauth/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
-      console.error("Failed to connect calendar:", error);
+      safeConsole.error("Failed to connect calendar:", error);
       toast.error("Connection Failed", {
         description:
           error instanceof Error
@@ -261,7 +262,7 @@ export function SignupConfirmationModal({
             description: "Open the file to add the event to your calendar app",
           });
         } catch (error) {
-          console.error("Failed to download iCal:", error);
+          safeConsole.error("Failed to download iCal:", error);
           toast.error("Download Failed", {
             description: "Failed to download calendar file",
           });
@@ -350,7 +351,7 @@ export function SignupConfirmationModal({
                 disabled={isLoading}
                 aria-label="Back to signup confirmation"
               >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <ArrowLeft className="size-4" aria-hidden="true" />
               </Button>
             )}
             <DialogTitle>
@@ -376,27 +377,27 @@ export function SignupConfirmationModal({
                 <h4 className="font-semibold text-sm">Your Information</h4>
                 {isFetchingProfile ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Loading your information...
                   </div>
                 ) : profileError ? (
-                  <div className="text-sm text-red-600">{profileError}</div>
+                  <div className="text-sm text-destructive">{profileError}</div>
                 ) : currentUserProfile ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <User className="h-4 w-4 text-muted-foreground" />
+                      <User className="size-4 text-muted-foreground" />
                       <span className="text-sm">
                         {currentUserProfile.full_name || "No name provided"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <Mail className="size-4 text-muted-foreground" />
                       <span className="text-sm">
                         {currentUserProfile.email || "No email provided"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <Phone className="size-4 text-muted-foreground" />
                       <span className="text-sm">
                         {currentUserProfile.phone || "No phone number provided"}
                       </span>
@@ -416,7 +417,7 @@ export function SignupConfirmationModal({
                 </h4>
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <Calendar className="size-4 text-muted-foreground mt-0.5" />
                     <div>
                       <div className="text-sm font-medium">{project.title}</div>
                       <div className="text-sm text-muted-foreground">
@@ -426,7 +427,7 @@ export function SignupConfirmationModal({
                   </div>
                   {(project.start_time || project.end_time) && (
                     <div className="flex items-center gap-3">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <Clock className="size-4 text-muted-foreground" />
                       <div className="flex items-center gap-2">
                         <span className="text-sm">
                           {project.start_time && formatTime(project.start_time)}
@@ -440,7 +441,7 @@ export function SignupConfirmationModal({
                     </div>
                   )}
                   <div className="flex items-center gap-3">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <MapPin className="size-4 text-muted-foreground" />
                     <span className="text-sm">{project.location}</span>
                   </div>
                 </div>
@@ -461,14 +462,14 @@ export function SignupConfirmationModal({
                       className="w-full sm:w-auto"
                       disabled={isLoading}
                     >
-                      <PenTool className="h-4 w-4 mr-2" />
+                      <PenTool className="size-4 mr-2" />
                       Sign Waiver
                     </Button>
                   ) : (
                     <div className="flex items-center justify-between p-3 bg-success/10 border border-success/80 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center text-success">
-                          <Check className="h-4 w-4" />
+                        <div className="size-8 rounded-full bg-success/20 flex items-center justify-center text-success">
+                          <Check className="size-4" />
                         </div>
                         <div className="text-sm font-medium text-success">
                           Waiver Signed
@@ -478,7 +479,7 @@ export function SignupConfirmationModal({
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsWaiverDialogOpen(true)}
-                        className="text-muted-foreground hover:text-text"
+                        className="text-muted-foreground"
                         disabled={isLoading}
                       >
                         Edit

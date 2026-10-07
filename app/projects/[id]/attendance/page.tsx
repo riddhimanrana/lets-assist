@@ -1,3 +1,4 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { createClient } from "@/lib/supabase/server";
 import { Metadata } from "next";
 import { AttendanceClient } from "./AttendanceClient";
@@ -9,7 +10,7 @@ async function checkAttendanceAvailability(projectId: string) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
 

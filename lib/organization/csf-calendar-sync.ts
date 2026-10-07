@@ -1,6 +1,7 @@
 import "server-only";
 
-import { synchronizeCalendarEvents } from "@/lib/organization/calendar-event-sync-core";
+import { reconcileOrganizationCalendar } from "@/services/organization-calendar/reconcile";
+import { loadCalendarSourcePages } from "./calendar-source-pages";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 import { getAdminClient } from "@/lib/supabase/admin";
 
@@ -91,7 +92,6 @@ export type CsfCalendarSyncResult =
   | { success: false; error: string };
 
 const CALENDAR_TIME_ZONE = "America/Los_Angeles";
-const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
 function validDateTime(value: string | null): value is string {
   return typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -216,6 +216,7 @@ export function buildCsfCalendarProjections(
   for (const deadline of input.deadlines) {
     if (
       !["planned", "open"].includes(deadline.status) ||
+      !["members", "applicants", "all"].includes(deadline.audience) ||
       !validDateTime(deadline.due_at)
     )
       continue;
@@ -247,210 +248,98 @@ export function buildCsfCalendarProjections(
   return projections;
 }
 
-async function createRemoteEvent(
-  accessToken: string,
-  calendarId: string,
-  event: CsfGoogleCalendarEvent,
-): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(event),
-      },
-    );
-    if (!response.ok) return null;
-    const result: unknown = await response.json();
-    if (
-      !result ||
-      typeof result !== "object" ||
-      !("id" in result) ||
-      typeof result.id !== "string"
-    )
-      return null;
-    return result.id;
-  } catch {
-    return null;
-  }
-}
-
-async function updateRemoteEvent(
-  accessToken: string,
-  calendarId: string,
-  eventId: string,
-  event: CsfGoogleCalendarEvent,
-) {
-  try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(event),
-      },
-    );
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function deleteRemoteEvent(
-  accessToken: string,
-  calendarId: string,
-  eventId: string,
-) {
-  try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-      { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-    return response.ok || response.status === 404;
-  } catch {
-    return false;
-  }
-}
-
 export async function syncCsfCalendarProjections(options: {
   organizationId: string;
   accessToken: string;
   calendarId: string;
+  userId?: string;
 }): Promise<CsfCalendarSyncResult> {
   const serviceSupabase = getAdminClient();
-  const pluginSupabase = createPluginAdminClient();
-  const [
-    opportunityResult,
-    meetingResult,
-    sessionResult,
-    deadlineResult,
-    existingResult,
-  ] = await Promise.all([
-    pluginSupabase
-      .from("csf_opportunities")
-      .select(
-        "id, title, body, starts_at, ends_at, location, signup_url, status",
-      )
-      .eq("organization_id", options.organizationId),
-    pluginSupabase
-      .from("csf_meetings")
-      .select("id, label, status")
-      .eq("organization_id", options.organizationId),
-    pluginSupabase
-      .from("csf_meeting_sessions")
-      .select("id, meeting_id, session_date, starts_at, location, status")
-      .eq("organization_id", options.organizationId),
-    pluginSupabase
-      .from("csf_term_deadlines")
-      .select("id, title, description, due_at, status, audience, related_route")
-      .eq("organization_id", options.organizationId),
-    serviceSupabase
-      .from("organization_calendar_events")
-      .select("id, source_kind, source_id, occurrence_key, event_id")
+  let userId = options.userId;
+  if (!userId) {
+    const { data, error } = await serviceSupabase
+      .from("organization_calendar_syncs")
+      .select("created_by")
       .eq("organization_id", options.organizationId)
-      .in("source_kind", [...CSF_CALENDAR_SOURCE_KINDS]),
-  ]);
-
-  if (
-    opportunityResult.error ||
-    meetingResult.error ||
-    sessionResult.error ||
-    deadlineResult.error ||
-    existingResult.error
-  ) {
-    return { success: false, error: "Failed to load CSF calendar sources." };
+      .maybeSingle();
+    if (error || !data?.created_by)
+      return {
+        success: false,
+        error: "Organization calendar owner is unavailable.",
+      };
+    userId = data.created_by;
   }
-
-  const projections = buildCsfCalendarProjections({
-    opportunities: (opportunityResult.data ?? []) as OpportunityRow[],
-    meetings: (meetingResult.data ?? []) as MeetingRow[],
-    meetingSessions: (sessionResult.data ?? []) as MeetingSessionRow[],
-    deadlines: (deadlineResult.data ?? []) as DeadlineRow[],
-  });
-  const desiredEvents = projections.map((projection) => ({
-    key: `${projection.sourceKind}:${projection.sourceId}:${projection.occurrenceKey}`,
-    projectId: projection.sourceId,
-    scheduleId: projection.occurrenceKey,
-    project: projection,
-  }));
-  const trackedEvents = (existingResult.data ?? []).flatMap((row) => {
-    if (
-      !CSF_CALENDAR_SOURCE_KINDS.includes(
-        row.source_kind as CsfCalendarSourceKind,
-      )
-    )
-      return [];
-    return [
-      {
-        id: row.id,
-        key: `${row.source_kind}:${row.source_id}:${row.occurrence_key}`,
-        eventId: row.event_id,
-      },
-    ];
-  });
-
-  return synchronizeCalendarEvents(desiredEvents, trackedEvents, {
-    createRemoteEvent: (desired) =>
-      createRemoteEvent(
-        options.accessToken,
-        options.calendarId,
-        desired.project.event,
-      ),
-    updateRemoteEvent: (tracked, desired) =>
-      updateRemoteEvent(
-        options.accessToken,
-        options.calendarId,
-        tracked.eventId,
-        desired.project.event,
-      ),
-    deleteRemoteEvent: (eventId) =>
-      deleteRemoteEvent(options.accessToken, options.calendarId, eventId),
-    insertTrackingEvent: async (desired, eventId) => {
-      const projection = desired.project;
-      const { data, error } = await serviceSupabase
-        .from("organization_calendar_events")
-        .insert({
-          organization_id: options.organizationId,
-          project_id: null,
-          schedule_id: projection.occurrenceKey,
-          source_kind: projection.sourceKind,
-          source_id: projection.sourceId,
-          occurrence_key: projection.occurrenceKey,
-          event_id: eventId,
-        })
-        .select("id")
-        .single();
-      return !error && Boolean(data);
+  const pluginSupabase = createPluginAdminClient();
+  return reconcileOrganizationCalendar({
+    ...options,
+    userId: userId as string,
+    sourceKinds: [...CSF_CALENDAR_SOURCE_KINDS],
+    load: async () => {
+      const [opportunities, meetings, meetingSessions, deadlines] =
+        await Promise.all([
+          loadCalendarSourcePages<OpportunityRow>((after, size) => {
+            let query = pluginSupabase
+              .from("csf_opportunities")
+              .select(
+                "id, title, body, starts_at, ends_at, location, signup_url, status",
+              )
+              .eq("organization_id", options.organizationId)
+              .eq("status", "published")
+              .order("id")
+              .limit(size);
+            if (after) query = query.gt("id", after);
+            return query;
+          }),
+          loadCalendarSourcePages<MeetingRow>((after, size) => {
+            let query = pluginSupabase
+              .from("csf_meetings")
+              .select("id, label, status")
+              .eq("organization_id", options.organizationId)
+              .eq("status", "active")
+              .order("id")
+              .limit(size);
+            if (after) query = query.gt("id", after);
+            return query;
+          }),
+          loadCalendarSourcePages<MeetingSessionRow>((after, size) => {
+            let query = pluginSupabase
+              .from("csf_meeting_sessions")
+              .select(
+                "id, meeting_id, session_date, starts_at, location, status",
+              )
+              .eq("organization_id", options.organizationId)
+              .in("status", ["scheduled", "open"])
+              .order("id")
+              .limit(size);
+            if (after) query = query.gt("id", after);
+            return query;
+          }),
+          loadCalendarSourcePages<DeadlineRow>((after, size) => {
+            let query = pluginSupabase
+              .from("csf_term_deadlines")
+              .select(
+                "id, title, description, due_at, status, audience, related_route",
+              )
+              .eq("organization_id", options.organizationId)
+              .in("status", ["planned", "open"])
+              .in("audience", ["members", "applicants", "all"])
+              .order("id")
+              .limit(size);
+            if (after) query = query.gt("id", after);
+            return query;
+          }),
+        ]);
+      return buildCsfCalendarProjections({
+        opportunities,
+        meetings,
+        meetingSessions,
+        deadlines,
+      }).map((projection) => ({
+        source_kind: projection.sourceKind,
+        source_id: projection.sourceId,
+        occurrence_key: projection.occurrenceKey,
+        event: projection.event,
+      }));
     },
-    updateTrackingEvent: async (tracked) => {
-      const { data, error } = await serviceSupabase
-        .from("organization_calendar_events")
-        .update({ updated_at: new Date().toISOString() })
-        .eq("organization_id", options.organizationId)
-        .eq("id", tracked.id)
-        .in("source_kind", [...CSF_CALENDAR_SOURCE_KINDS])
-        .select("id")
-        .maybeSingle();
-      return !error && Boolean(data);
-    },
-    deleteTrackingEvent: async (tracked) => {
-      const { data, error } = await serviceSupabase
-        .from("organization_calendar_events")
-        .delete()
-        .eq("organization_id", options.organizationId)
-        .eq("id", tracked.id)
-        .in("source_kind", [...CSF_CALENDAR_SOURCE_KINDS])
-        .select("id")
-        .maybeSingle();
-      return !error && Boolean(data);
-    },
-    markSyncComplete: async () => true,
   });
 }

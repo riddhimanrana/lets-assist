@@ -41,7 +41,7 @@ export function SecureCheckPanel({
   return (
     <div
       className={cn(
-        "relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background",
+        "bg-background relative flex h-16.25 w-full max-w-75 items-center justify-center overflow-hidden rounded-lg border",
         className,
       )}
     >

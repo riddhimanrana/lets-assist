@@ -1,4 +1,7 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
 import {
@@ -10,10 +13,9 @@ const BATCH_SIZE = 250;
 const PAGE_SIZE = 500;
 
 function authorizeCronRequest(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
+  const tokens = cronTokens();
 
-  if (!cronSecret) {
+  if (tokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -23,7 +25,7 @@ function authorizeCronRequest(request: NextRequest) {
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronBearerAuthorized(request.headers.get("authorization"), tokens)) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -42,7 +44,7 @@ async function cleanupExpiredWaivers() {
   // newly expired rows in this run.
   const initialDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (initialDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error draining waiver Storage deletion queue:",
       initialDrain.error,
     );
@@ -79,7 +81,7 @@ async function cleanupExpiredWaivers() {
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) {
-      console.error("Error fetching expired waivers:", error);
+      safeConsole.error("Error fetching expired waivers:", error);
       return { error: "Failed to load expired waivers" };
     }
 
@@ -111,13 +113,19 @@ async function cleanupExpiredWaivers() {
   );
 
   if (archiveError) {
-    console.error("Error atomically archiving waiver records:", archiveError);
+    safeConsole.error(
+      "Error atomically archiving waiver records:",
+      archiveError,
+    );
     return { error: "Failed to archive waiver records for cleanup" };
   }
 
   const finalDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (finalDrain.error) {
-    console.error("Error deleting archived waiver assets:", finalDrain.error);
+    safeConsole.error(
+      "Error deleting archived waiver assets:",
+      finalDrain.error,
+    );
     return { error: finalDrain.error };
   }
 
@@ -131,17 +139,19 @@ export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) return auth.response;
 
-  try {
-    const result = await cleanupExpiredWaivers();
-    if ("error" in result) {
-      return NextResponse.json(result, { status: 500 });
+  return observeWorkerRun("waiver-cleanup", async () => {
+    try {
+      const result = await cleanupExpiredWaivers();
+      if ("error" in result) {
+        return NextResponse.json(result, { status: 500 });
+      }
+      return NextResponse.json(result);
+    } catch (error) {
+      safeConsole.error("Waiver cleanup cron failed:", error);
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      );
     }
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Waiver cleanup cron failed:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

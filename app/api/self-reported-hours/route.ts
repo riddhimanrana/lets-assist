@@ -1,16 +1,7 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-// Shape of request body expected from AddVolunteerHoursModal
-interface SelfReportedHoursRequest {
-  title: string;
-  creatorName: string;
-  organizationName?: string | null;
-  date: string; // yyyy-MM-dd
-  startTime: string; // HH:mm
-  endTime: string; // HH:mm
-  description?: string | null;
-}
+import { parseSelfReportedHours } from "@/lib/certificates/self-reported-hours";
 
 export async function POST(request: Request) {
   try {
@@ -27,48 +18,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body: SelfReportedHoursRequest = await request.json();
-
-    // Basic validation
-    if (
-      !body.title ||
-      !body.creatorName ||
-      !body.date ||
-      !body.startTime ||
-      !body.endTime
-    ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 },
-      );
+    const input: unknown = await request.json().catch(() => null);
+    const parsed = parseSelfReportedHours(input);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
-
-    // Construct start/end ISO timestamps
-    const eventStart = new Date(`${body.date}T${body.startTime}:00`);
-    const eventEnd = new Date(`${body.date}T${body.endTime}:00`);
-
-    if (isNaN(eventStart.getTime()) || isNaN(eventEnd.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid date or time format" },
-        { status: 400 },
-      );
-    }
-
-    if (eventEnd <= eventStart) {
-      return NextResponse.json(
-        { error: "End time must be after start time" },
-        { status: 400 },
-      );
-    }
-
-    // Calculate duration (limit to 24h already enforced in client, but double-check)
-    const durationMs = eventEnd.getTime() - eventStart.getTime();
-    if (durationMs > 24 * 60 * 60 * 1000) {
-      return NextResponse.json(
-        { error: "Duration cannot exceed 24 hours" },
-        { status: 400 },
-      );
-    }
+    const body = parsed.data;
 
     // Prepare row for certificates table (self-reported)
     const certificateRow = {
@@ -79,10 +34,10 @@ export async function POST(request: Request) {
         (user.user_metadata as { full_name?: string } | null)?.full_name ||
         null,
       volunteer_email: user.email,
-      project_title: body.title.substring(0, 140),
+      project_title: body.title,
       project_location: null,
-      event_start: eventStart.toISOString(),
-      event_end: eventEnd.toISOString(),
+      event_start: parsed.eventStart,
+      event_end: parsed.eventEnd,
       organization_name: body.organizationName || null,
       creator_name: body.creatorName,
       is_certified: false,
@@ -102,7 +57,7 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      console.error("Error inserting self-reported hours:", error);
+      safeConsole.error("Error inserting self-reported hours:", error);
       return NextResponse.json(
         { error: "Database insert failed" },
         { status: 500 },
@@ -111,7 +66,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, certificate: data });
   } catch (err) {
-    console.error("Unexpected error in self-reported-hours POST:", err);
+    safeConsole.error("Unexpected error in self-reported-hours POST:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

@@ -43,9 +43,7 @@ export default function BayAreaExamples() {
             Built for clubs, schools, and community teams
           </h3>
           <p className="max-w-xl font-sans text-sm leading-6 text-muted-foreground">
-            These schools and organizations are exploring proof-backed
-            attendance, certificate automation, and volunteer ops built for
-            districts, clubs, and nonprofits.
+            Schools and groups running pilots with Let&apos;s Assist.
           </p>
         </div>
         <TooltipProvider>

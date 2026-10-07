@@ -1,8 +1,9 @@
 name: Anonymous Profile Cleanup
 
 on:
-  schedule:
-    - cron: "45 2 * * *" # Every day at 02:45 UTC
+  # Deliberately unscheduled: this job hard-deletes data. Run it by manual
+  # dispatch only after the retention hold in docs/development/cleanup-register.md
+  # (SCHED-CLEANUP-HOLD) is resolved.
   workflow_dispatch:
 
 permissions:

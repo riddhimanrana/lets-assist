@@ -78,5 +78,33 @@ export default tseslint.config(
     },
     ...(nextSettings ? { settings: nextSettings } : {}),
   },
+  {
+    files: [
+      "{app,components,contexts,hooks,lib,services,utils}/**/*.{js,jsx,ts,tsx}",
+    ],
+    ignores: [
+      "**/*.{test,spec}.{js,jsx,ts,tsx}",
+      "lib/safe-console.ts",
+      "lib/plugins/private/**",
+    ],
+    rules: {
+      "no-console": "error",
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "console",
+          message: "Use the shared safeConsole privacy boundary.",
+        },
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...["globalThis", "window", "self", "global"].map((object) => ({
+          object,
+          property: "console",
+          message: "Use the shared safeConsole privacy boundary.",
+        })),
+      ],
+    },
+  },
   eslintConfigPrettier,
 );

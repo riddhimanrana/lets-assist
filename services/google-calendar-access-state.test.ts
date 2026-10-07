@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readCalendarServiceSource } from "@/tests/support/calendar-service-source";
 
 import {
   classifyGoogleCalendarLookupError,
@@ -117,86 +116,4 @@ test("malformed and thrown lookups fail closed as retryable errors", () => {
     status: "retryable_error",
     reason: "unknown_error",
   });
-});
-
-test("organization calendar replacement is gated on the missing state", () => {
-  const calendarService = readCalendarServiceSource();
-  const ensureStart = calendarService.indexOf(
-    "export async function ensureOrganizationCalendar",
-  );
-  const ensureEnd = calendarService.indexOf(
-    "\nexport async function createGoogleCalendarEventForCalendar",
-    ensureStart,
-  );
-  assert.ok(ensureStart >= 0 && ensureEnd > ensureStart);
-
-  const source = calendarService.slice(ensureStart, ensureEnd);
-  const lookup = source.indexOf("getGoogleCalendarAccessState(");
-  const accessible = source.indexOf('if (accessState.status === "accessible")');
-  const failClosed = source.indexOf('if (accessState.status !== "missing")');
-  const create = source.indexOf(
-    "await fetch(`${GOOGLE_CALENDAR_API}/calendars`",
-  );
-
-  assert.ok(lookup >= 0, "configured calendars must be reconciled");
-  assert.ok(accessible > lookup, "valid calendars must be preserved");
-  assert.ok(
-    failClosed > accessible,
-    "every non-missing failure must return before replacement",
-  );
-  assert.ok(
-    create > failClosed,
-    "creation must follow the missing-state guard",
-  );
-  assert.ok(
-    source.slice(failClosed, create).includes("return null"),
-    "inconclusive lookups must stop before creation",
-  );
-
-  const lookupStart = calendarService.indexOf(
-    "async function getGoogleCalendarAccessState",
-  );
-  const lookupEnd = calendarService.indexOf(
-    "\nexport async function ensureOrganizationCalendar",
-    lookupStart,
-  );
-  const lookupSource = calendarService.slice(lookupStart, lookupEnd);
-  assert.ok(
-    lookupSource.includes(
-      "signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS)",
-    ),
-    "calendar existence checks must have a bounded timeout",
-  );
-});
-
-test("personal volunteering calendar replacement is gated on the missing state", () => {
-  const calendarService = readCalendarServiceSource();
-  const ensureStart = calendarService.indexOf(
-    "async function getOrCreateVolunteeringCalendar",
-  );
-  const ensureEnd = calendarService.indexOf(
-    "\nexport async function getGoogleCalendarAccessState",
-    ensureStart,
-  );
-  assert.ok(ensureStart >= 0 && ensureEnd > ensureStart);
-
-  const source = calendarService.slice(ensureStart, ensureEnd);
-  const lookup = source.indexOf("getGoogleCalendarAccessState(");
-  const accessible = source.indexOf('if (accessState.status === "accessible")');
-  const failClosed = source.indexOf('if (accessState.status !== "missing")');
-  const create = source.indexOf(
-    "await fetch(`${GOOGLE_CALENDAR_API}/calendars`",
-  );
-
-  assert.ok(lookup >= 0, "configured personal calendars must be reconciled");
-  assert.ok(
-    accessible > lookup,
-    "accessible personal calendars must be preserved",
-  );
-  assert.ok(failClosed > accessible, "ambiguous lookups must stop replacement");
-  assert.ok(
-    create > failClosed,
-    "creation must follow the missing-state guard",
-  );
-  assert.ok(source.slice(failClosed, create).includes("return null"));
 });

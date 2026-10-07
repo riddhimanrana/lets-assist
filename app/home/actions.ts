@@ -1,13 +1,17 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
+
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 import type { Project, ProjectStatus, Organization } from "@/types";
-import {
-  ACTIVE_PROJECT_SIGNUP_STATUSES,
-  buildProjectOccupancyByProject,
-} from "@/lib/projects/availability";
+import { readProjectOccupancy } from "@/lib/projects/occupancy-read";
 import { getProjectStatus } from "@/utils/project";
+import {
+  projectDiscoveryQuerySchema,
+  projectSearchFilter,
+} from "@/lib/projects/discovery-query";
 
 // Define the Profile type with an id property
 export type Profile = {
@@ -70,9 +74,16 @@ export async function getActiveProjects(
   _userId?: string,
   options: GetActiveProjectsOptions = {},
 ): Promise<Project[]> {
+  const input = projectDiscoveryQuerySchema.safeParse({
+    limit,
+    offset,
+    status,
+    ...options,
+  });
+  if (!input.success) throw new Error("Invalid project search parameters");
   const supabase = await createClient();
   const admin = getAdminClient();
-  const normalizedSearchTerm = options.searchTerm?.trim();
+  const normalizedSearchTerm = input.data.searchTerm;
 
   if (!organizationId) {
     let query = admin.from("project_discovery_read_model").select("*");
@@ -82,18 +93,17 @@ export async function getActiveProjects(
     }
 
     if (normalizedSearchTerm) {
-      query = query.or(
-        `title.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%`,
-      );
+      query = query.or(projectSearchFilter(normalizedSearchTerm));
     }
 
-    if (options.eventType) {
-      query = query.eq("event_type", options.eventType);
+    if (input.data.eventType) {
+      query = query.eq("event_type", input.data.eventType);
     }
 
     query = query
       .range(offset, offset + limit - 1)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
 
     const projectsResult = await withRetryableSupabaseQuery(() => query);
     const { data: rows, error } = projectsResult as {
@@ -102,48 +112,23 @@ export async function getActiveProjects(
     };
 
     if (error || !rows) {
-      console.error("Error fetching project discovery read model:", error);
+      safeConsole.error("Error fetching project discovery read model:", error);
       return [];
     }
 
     const projectIds = rows.map((project) => project.id);
-    let occupancyByProject: ReturnType<typeof buildProjectOccupancyByProject> =
-      {};
-
-    if (projectIds.length > 0) {
-      const signupsResult = await withRetryableSupabaseQuery(() =>
-        admin
-          .from("project_signups")
-          .select(
-            `
-          project_id,
-          schedule_id,
-          status
-        `,
-          )
-          .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
-          .in("project_id", projectIds),
-      );
-
-      const { data, error: signupsError } = signupsResult as {
-        data:
-          | { project_id: string; schedule_id: string | null; status: string }[]
-          | null;
-        error: { message?: string } | null;
-      };
-
-      if (signupsError) {
-        console.error("Error fetching project occupancy counts:", signupsError);
-      } else {
-        occupancyByProject = buildProjectOccupancyByProject(data || []);
-      }
-    }
+    const occupancyByProject = await readProjectOccupancy(projectIds, () =>
+      withRetryableSupabaseQuery(() =>
+        admin.rpc("project_occupancy_for_visible_projects", {
+          p_project_ids: projectIds,
+          p_viewer_id: null,
+          p_organization_id: null,
+        }),
+      ),
+    );
 
     return rows.map((row) => {
-      const occupancy = occupancyByProject[row.id] || {
-        slotsFilled: 0,
-        slotsFilledBySchedule: {},
-      };
+      const occupancy = occupancyByProject[row.id];
 
       return {
         ...projectDiscoveryRowToProject(row),
@@ -157,9 +142,7 @@ export async function getActiveProjects(
   }
 
   // First get all projects
-  let query = supabase.from("projects").select(`
-      *
-    `);
+  let query = supabase.from("projects").select(PROJECT_CLIENT_SELECT);
 
   // Apply status filter if specified
   if (status) {
@@ -172,13 +155,11 @@ export async function getActiveProjects(
   }
 
   if (normalizedSearchTerm) {
-    query = query.or(
-      `title.ilike.%${normalizedSearchTerm}%,description.ilike.%${normalizedSearchTerm}%`,
-    );
+    query = query.or(projectSearchFilter(normalizedSearchTerm));
   }
 
-  if (options.eventType) {
-    query = query.eq("event_type", options.eventType);
+  if (input.data.eventType) {
+    query = query.eq("event_type", input.data.eventType);
   }
 
   // Apply visibility filter: only show public projects in the main feed
@@ -193,7 +174,8 @@ export async function getActiveProjects(
   // Apply pagination
   query = query
     .range(offset, offset + limit - 1)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
   const projectsResult = await withRetryableSupabaseQuery(() => query);
   const { data: projects, error } = projectsResult as {
@@ -202,52 +184,28 @@ export async function getActiveProjects(
   };
 
   if (error || !projects) {
-    console.error("Error fetching projects:", error);
+    safeConsole.error("Error fetching projects:", error);
     return [];
   }
 
   // Short-circuit: Skip query if no projects to avoid empty in() filter
   const projectIds = projects.map((p) => p.id);
-  let occupancyByProject: ReturnType<typeof buildProjectOccupancyByProject> =
-    {};
-
-  if (projectIds.length > 0) {
-    // Fetch aggregate occupancy with the admin client so the public feed can
-    // show accurate capacity without exposing who signed up.
-    const signupsResult = await withRetryableSupabaseQuery(() =>
-      admin
-        .from("project_signups")
-        .select(
-          `
-        project_id,
-        schedule_id,
-        status
-      `,
-        )
-        .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])
-        .in("project_id", projectIds),
-    );
-
-    const { data, error: signupsError } = signupsResult as {
-      data:
-        | { project_id: string; schedule_id: string | null; status: string }[]
-        | null;
-      error: { message?: string } | null;
-    };
-
-    if (signupsError) {
-      console.error("Error fetching project occupancy counts:", signupsError);
-    } else {
-      occupancyByProject = buildProjectOccupancyByProject(data || []);
-    }
-  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const occupancyByProject = await readProjectOccupancy(projectIds, () =>
+    withRetryableSupabaseQuery(() =>
+      admin.rpc("project_occupancy_for_visible_projects", {
+        p_project_ids: projectIds,
+        p_viewer_id: user?.id ?? null,
+        p_organization_id: organizationId,
+      }),
+    ),
+  );
 
   // Process projects and add signup counts
   const processedProjects = projects.map((project) => {
-    const occupancy = occupancyByProject[project.id] || {
-      slotsFilled: 0,
-      slotsFilledBySchedule: {},
-    };
+    const occupancy = occupancyByProject[project.id];
 
     return {
       ...project,
@@ -280,7 +238,7 @@ export async function getActiveProjects(
     };
 
     if (profilesError) {
-      console.error("Error fetching profiles:", profilesError);
+      safeConsole.error("Error fetching profiles:", profilesError);
     } else {
       profiles = data;
     }
@@ -302,7 +260,7 @@ export async function getActiveProjects(
     };
 
     if (orgsError) {
-      console.error("Error fetching organizations:", orgsError);
+      safeConsole.error("Error fetching organizations:", orgsError);
     } else {
       orgs = organizations ?? [];
     }

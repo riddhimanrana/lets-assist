@@ -1,6 +1,8 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import type { CertificateRow, ProjectRow, SignupRow } from "./report/types";
 
+mock.module("server-only", () => ({}));
+
 const project: ProjectRow = {
   id: "project-a",
   title: "Fictional project",

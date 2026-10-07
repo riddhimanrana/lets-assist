@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -59,7 +60,7 @@ export async function getOrganizationMembers(organizationId: string) {
       canVerifyHours: member.can_verify_hours,
     }));
   } catch (error) {
-    console.error("Error fetching organization members:", error);
+    safeConsole.error("Error fetching organization members:", error);
     return [];
   }
 }

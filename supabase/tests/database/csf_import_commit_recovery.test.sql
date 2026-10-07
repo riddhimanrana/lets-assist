@@ -2932,7 +2932,7 @@ INSERT INTO csf_intended_import_acl (signature, service_role_execute) VALUES
   ('plugin_data.csf_payload_string(jsonb)', false),
   ('plugin_data.csf_payload_number(jsonb)', false),
   ('plugin_data.csf_normalize_identity_part(text)', false),
-  ('plugin_data.csf_normalize_email_text(text)', false),
+  ('plugin_data.csf_normalize_email_text(text)', true),
   ('plugin_data.csf_meeting_key_from_label(text, integer)', false),
   ('plugin_data.csf_meeting_attendance_value(text)', false),
   ('plugin_data.csf_normalized_record_schema(text)', false),
@@ -6418,7 +6418,7 @@ SELECT extensions.throws_ok(
     (SELECT nonce FROM plugin_data.csf_sheet_source_evidence_tokens
      WHERE preview_job_id = 'df300000-0000-4000-8000-00000000000e'
      ORDER BY evidence_generation ASC LIMIT 1)),
-  '40001', NULL,
+  'PT409', NULL,
   'and the superseded receipt is refused'
 );
 
@@ -6663,7 +6663,7 @@ SELECT extensions.throws_ok(
     (SELECT nonce FROM plugin_data.csf_sheet_source_evidence_tokens
      WHERE preview_job_id = 'df300000-0000-4000-8000-000000000054'
      ORDER BY evidence_generation DESC LIMIT 1)),
-  '40001', NULL,
+  'PT409', NULL,
   'an uppercase recorded digest is refused at consumption rather than folded back into the receipt'
 );
 

@@ -25,6 +25,10 @@ const TestimonialsSection = dynamic(
   () => import("./_components/TestimonialsSection"),
   { loading: () => null, ssr: false },
 );
+const RealCheckIn = dynamic(
+  () => import("./_components/RealCheckIn").then((mod) => mod.RealCheckIn),
+  { loading: () => null, ssr: false },
+);
 const CallToAction = dynamic(
   () => import("./_components/CallToAction").then((mod) => mod.CallToAction),
   { loading: () => null, ssr: false },
@@ -35,6 +39,7 @@ export function LandingLazySections() {
     <>
       <BayAreaExamples />
       <ComparisonSection />
+      <RealCheckIn />
       <VolunteerJourneySection />
       <OrgToolingSection />
       <TestimonialsSection />

@@ -2,7 +2,9 @@ import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { applicationRequestWritesOpenQuery } from "./request-write-fence.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
+import { verifyLocalValidationEnvelope } from "./local-validation-evidence.mjs";
 
 export const productionRef = "fotdmeakexgrkronxlof";
 const shaPattern = /^[0-9a-f]{40}$/u;
@@ -147,11 +149,11 @@ export function performanceWaiver(
 }
 
 export function localValidationOverride(
-  { confirmation, reason, actor, runId },
+  { confirmation, reason, actor, runId, evidence },
   releaseSha,
   acceptedSha,
 ) {
-  if (!confirmation && !reason) return null;
+  if (!confirmation && !reason && !evidence) return null;
   if (
     confirmation !==
       `deploy-with-local-validation:${releaseSha}:${acceptedSha}` ||
@@ -159,10 +161,12 @@ export function localValidationOverride(
     reason.trim().length < 20 ||
     reason.length > 1000 ||
     !/^[a-zA-Z0-9_-]+$/.test(actor ?? "") ||
-    !/^[0-9]+$/.test(runId ?? "")
+    !/^[0-9]+$/.test(runId ?? "") ||
+    typeof evidence !== "string" ||
+    !evidence
   )
     throw new ReleaseCheckError(
-      "Local validation override needs exact release and Development SHAs, an audit reason, and workflow identity.",
+      "Local validation override needs exact release and Development SHAs, an audit reason, workflow identity, and a current evidence envelope.",
     );
   return {
     scope: "hosted-acceptance-and-remote-ci-only",
@@ -174,7 +178,7 @@ export function localValidationOverride(
     hostedAcceptance: "waived, not passed",
     remoteQuality: "waived, not passed",
     remoteDatabaseReplay: "waived, not passed",
-    localValidation: "operator-attested; see audit reason",
+    localValidation: "operator-attested; exact evidence required",
   };
 }
 
@@ -238,12 +242,41 @@ export async function verifySource(
       fetcher,
     );
   if (localOverride) {
+    try {
+      const privateEntry = git("ls-tree", releaseSha, "lib/plugins/private");
+      const privateMatch =
+        /^160000 commit ([a-f0-9]{40})\tlib\/plugins\/private$/u.exec(
+          privateEntry,
+        );
+      if (!privateMatch)
+        throw new Error("Candidate private gitlink is missing.");
+      localOverride.evidence = verifyLocalValidationEnvelope(
+        localValidation.evidence,
+        {
+          releaseSha,
+          acceptedSha,
+          repository,
+          gitTree: git("rev-parse", `${releaseSha}^{tree}`),
+          privateGitlink: privateMatch[1],
+          actor: localOverride.actor,
+        },
+      );
+      localOverride.localValidation = localOverride.evidence.assurance;
+    } catch {
+      throw new ReleaseCheckError(
+        "Local validation evidence is missing, invalid, expired, or differs from this candidate and its sanitized reports.",
+      );
+    }
     const permission = await request(
       `collaborators/${localOverride.actor}/permission`,
     );
     if (!["admin", "maintain", "write"].includes(permission?.permission))
       throw new ReleaseCheckError(
         "Local validation override requires repository write permission.",
+      );
+    if (Date.parse(localOverride.evidence.expiresAt) <= Date.now())
+      throw new ReleaseCheckError(
+        "Local validation evidence expired during permission verification.",
       );
   } else {
     const prefix = `https://github.com/${repository}/actions/runs/`;
@@ -418,10 +451,7 @@ export async function verifySchema(
     throw new ReleaseCheckError(
       "Production staff preference RPC is incompatible.",
     );
-  const writePosture = await query(`SELECT EXISTS (
-    SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
-      AND NOT ('default_transaction_read_only=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
-  ) AS valid;`);
+  const writePosture = await query(applicationRequestWritesOpenQuery);
   if (writePosture?.length !== 1 || writePosture[0].valid !== true)
     throw new ReleaseCheckError(
       "Production has an unresolved application write block.",
@@ -450,6 +480,7 @@ if (
         localValidation: {
           confirmation: process.env.LOCAL_VALIDATION_CONFIRMATION,
           reason: process.env.LOCAL_VALIDATION_REASON,
+          evidence: process.env.LOCAL_VALIDATION_EVIDENCE,
           actor: process.env.GITHUB_ACTOR,
           runId: process.env.GITHUB_RUN_ID,
         },

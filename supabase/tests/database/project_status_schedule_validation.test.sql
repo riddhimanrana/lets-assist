@@ -71,10 +71,13 @@ SELECT ok(NOT has_function_privilege('authenticated', 'private.project_status_sc
 
 INSERT INTO auth.users(id, aud, role, email, raw_app_meta_data, raw_user_meta_data)
 VALUES ('71050000-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'status-maintenance@local.test', '{}', '{}');
+-- Reproduce a legacy invalid schedule without bypassing publication rules in application code.
+ALTER TABLE public.projects DISABLE TRIGGER validate_published_project_schedule;
 INSERT INTO public.projects(id, creator_id, title, location, description, event_type, verification_method, schedule, status, project_timezone, workflow_status)
 VALUES
  ('71050000-0000-4000-8000-000000000002', '71050000-0000-4000-8000-000000000001', 'Incomplete schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"","startTime":"","endTime":""}}', 'upcoming', 'UTC', 'published'),
  ('71050000-0000-4000-8000-000000000003', '71050000-0000-4000-8000-000000000001', 'Finished schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC', 'published');
+ALTER TABLE public.projects ENABLE TRIGGER validate_published_project_schedule;
 INSERT INTO public.projects(id, creator_id, title, location, description, event_type, verification_method, schedule, status, project_timezone, workflow_status)
 VALUES
  ('71050000-0000-4000-8000-000000000004', '71050000-0000-4000-8000-000000000001', 'Finished draft schedule', 'Local', 'Synthetic', 'oneTime', 'manual', '{"oneTime":{"date":"2020-01-01","startTime":"09:00","endTime":"10:00"}}', 'upcoming', 'UTC', 'draft'),

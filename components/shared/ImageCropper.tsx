@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
@@ -58,10 +59,13 @@ const ImageCropper = ({
           handleCropComplete(croppedImage);
         }
       } else {
-        console.error("Cropped area pixels are null");
+        safeConsole.error("Cropped area pixels are null");
       }
     } catch (e) {
-      console.error(e);
+      safeConsole.error(
+        "Application diagnostic from components/shared/ImageCropper",
+        e,
+      );
     }
   };
 
@@ -108,7 +112,7 @@ const ImageCropper = ({
             disabled={isUploading}
             className="flex-1"
           >
-            {isUploading ? "Saving..." : "Crop & Save"}
+            {isUploading ? "Saving..." : "Crop and save"}
           </Button>
         </div>
       </div>

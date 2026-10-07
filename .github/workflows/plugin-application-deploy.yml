@@ -76,7 +76,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
 
@@ -108,6 +108,23 @@ jobs:
               --dir .artifacts/plugin-application-release
           done
           manifest=.artifacts/plugin-application-release/release-manifest.json
+          profile="$(jq -r .runtimeProfile "${manifest}")"
+          if [[ "${profile}" != application ]]; then
+            # Embedded releases ship inside the host build and publish no
+            # prebuilt child artifact, so there is nothing to deploy here.
+            current="$(jq -r --arg key "${PLUGIN_KEY}" \
+              '[.[] | select(.pluginKey == $key and .runtimeProfile == "application")][0].version // empty' \
+              lib/plugins/published-releases.json)"
+            {
+              echo "${RELEASE_TAG} is a ${profile} release. Only application releases have a deployable build."
+              if [[ -n "${current}" ]]; then
+                echo "The current ${PLUGIN_KEY} application release on ${GITHUB_REF_NAME} is ${PLUGIN_KEY}/v${current}."
+              else
+                echo "${GITHUB_REF_NAME} records no application release for ${PLUGIN_KEY}."
+              fi
+            } >&2
+            exit 1
+          fi
           mapfile -t build_assets < <(
             jq -r '.buildArtifact.artifacts.development.name,
                    .buildArtifact.artifacts.production.name' "${manifest}"
@@ -154,6 +171,25 @@ jobs:
           echo "organization_id=$(jq -r .buildArtifact.organizationId "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "build_digest=$(jq -r .buildDigest "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
           echo "artifact_name=$(jq -r .artifactName "${release_dir}/deployment-summary.json")" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify target database and signed schema before deployment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          CSF_DEVELOPMENT_SUPABASE_PROJECT_REF: ${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir=.artifacts/plugin-application-release
+          node scripts/plugins/verify-application-database.mjs \
+            --manifest "${release_dir}/release-manifest.json" \
+            --registry lib/plugins/published-releases.json \
+            --targets lib/plugins/application-deployment-targets.json \
+            --build "${release_dir}/plugin-build-${DEPLOYMENT_ENVIRONMENT}.tar.gz" \
+            --tag "${RELEASE_TAG}" \
+            --plugin "${PLUGIN_KEY}" \
+            --environment "${DEPLOYMENT_ENVIRONMENT}" \
+            > "${release_dir}/database-preflight.json"
 
       - name: Extract the prebuilt artifact safely
         shell: bash

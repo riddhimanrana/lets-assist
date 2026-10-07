@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(74);
+SELECT extensions.plan(80);
 
 -- ---------------------------------------------------------------------------
 -- A. Privilege boundaries
@@ -1039,6 +1039,33 @@ SELECT extensions.is((SELECT count(*) FROM plugin_data.csf_application_decision_
 SELECT extensions.is((SELECT md5(string_agg(to_jsonb(e)::text,'' ORDER BY e.id)) FROM plugin_data.csf_application_decision_sync_rows e),(SELECT digest FROM privacy_evidence_before),'immutable source evidence remains unchanged');
 SELECT extensions.lives_ok('SELECT plugin_data.csf_redact_legacy_sheet_reasons()','privacy cleanup is retry-safe');
 SELECT extensions.ok(NOT has_function_privilege('service_role','plugin_data.csf_redact_legacy_sheet_reasons()','EXECUTE'),'privacy cleanup cannot be invoked by an application client');
+
+-- Deleting a referenced parent cannot rewrite immutable decision lineage.
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_term_applications
+ WHERE id = 'de600000-0000-4000-8000-000000000001'$$,
+ '23503', NULL, 'decision receipts prevent deleting their application');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_sheet_import_rows
+ WHERE id = 'de800000-0000-4000-8000-000000000001'$$,
+ '23503', NULL, 'decision receipts prevent deleting their imported source row');
+SELECT extensions.is((SELECT md5(string_agg(to_jsonb(e)::text,'' ORDER BY e.id))
+ FROM plugin_data.csf_application_decision_sync_rows e),
+ (SELECT digest FROM privacy_evidence_before), 'refused parent deletions preserve the full receipt');
+
+-- An optional stage pointer with no immutable receipt can detach its source.
+INSERT INTO plugin_data.csf_sheet_sources (id, organization_id, title, provider, source_type)
+VALUES ('de400000-0000-4000-8000-000000000099', 'de100000-0000-4000-8000-000000000001',
+ 'Unused synthetic source', 'google_sheets', 'application_responses');
+UPDATE plugin_data.csf_application_decision_stages
+ SET source_id = 'de400000-0000-4000-8000-000000000099'
+ WHERE application_id = 'de600000-0000-4000-8000-000000000005';
+SELECT extensions.lives_ok($$DELETE FROM plugin_data.csf_sheet_sources
+ WHERE id = 'de400000-0000-4000-8000-000000000099'$$, 'an unused optional source can be deleted');
+SELECT extensions.ok((SELECT source_id IS NULL AND organization_id = 'de100000-0000-4000-8000-000000000001'
+ FROM plugin_data.csf_application_decision_stages WHERE application_id = 'de600000-0000-4000-8000-000000000005'),
+ 'detaching a stage source preserves its organization');
+SELECT extensions.throws_ok($$DELETE FROM plugin_data.csf_application_decision_sync_runs
+ WHERE request_id = 'deb00000-0000-4000-8000-000000000001'$$,
+ '55000', 'CSF application decision evidence is immutable.', 'the original receipt deletion guard remains enforced');
 
 SELECT * FROM extensions.finish();
 

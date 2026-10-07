@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -49,7 +50,7 @@ export async function getContentReports(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching content reports:", error);
+    safeConsole.error("Error fetching content reports:", error);
     return { error: error.message };
   }
 
@@ -195,12 +196,12 @@ export async function updateContentReportStatus(
     .eq("id", id);
 
   if (checkError) {
-    console.error("Error checking report:", id, checkError);
+    safeConsole.error("Error checking report:", id, checkError);
     return { error: `Failed to check report: ${checkError.message}` };
   }
 
   if (!existingReports || existingReports.length === 0) {
-    console.error("Report not found:", id);
+    safeConsole.error("Report not found:", id);
     return { error: "Report not found" };
   }
 
@@ -220,36 +221,52 @@ export async function updateContentReportStatus(
     .select();
 
   if (error) {
-    console.error("Error updating content report:", error);
+    safeConsole.error("Error updating content report:", error);
     return { error: error.message };
   }
 
   if (!data || data.length === 0) {
-    console.error("No data returned after update for report:", id);
+    safeConsole.error("No data returned after update for report:", id);
     return { error: "Failed to update report" };
   }
 
   const updatedReport = data[0];
+  let notificationWarning: string | undefined;
 
   if (
     (status === "resolved" || status === "dismissed") &&
     updatedReport?.reporter_id
   ) {
-    await notifyReporterOfReportUpdate({
-      supabase,
-      report: updatedReport,
-      status,
-      resolutionNotes,
-    });
+    try {
+      const delivery = await notifyReporterOfReportUpdate({
+        supabase,
+        report: updatedReport,
+        status,
+        resolutionNotes,
+      });
+      if (
+        delivery.notification !== "created" &&
+        delivery.email !== "accepted"
+      ) {
+        notificationWarning =
+          delivery.notification === "skipped" && delivery.email === "skipped"
+            ? "Reporter notifications are disabled by their preferences."
+            : "The reporter's notification could not be confirmed.";
+      }
+    } catch {
+      notificationWarning =
+        "The report was saved, but the reporter's notification could not be confirmed.";
+    }
   }
 
   return {
     data: updatedReport,
+    notificationWarning,
     message:
       status === "resolved"
-        ? "Case resolved. Reporter was notified."
+        ? `Case resolved.${notificationWarning ? ` ${notificationWarning}` : ""}`
         : status === "dismissed"
-          ? "Case dismissed. Reporter was notified."
+          ? `Case dismissed.${notificationWarning ? ` ${notificationWarning}` : ""}`
           : "Report updated",
   };
 }
@@ -392,7 +409,10 @@ export async function getDetailedReportWithContext(reportId: string) {
   }
 
   try {
-    console.log(`[getDetailedReportWithContext] Fetching report: ${reportId}`);
+    safeConsole.log(
+      "Application diagnostic from app/admin/moderation/server/reports",
+      `[getDetailedReportWithContext] Fetching report: ${reportId}`,
+    );
 
     // Get the report
     const { data: reportList, error: reportError } = await supabase
@@ -400,14 +420,14 @@ export async function getDetailedReportWithContext(reportId: string) {
       .select("*")
       .eq("id", reportId);
 
-    console.log(`[getDetailedReportWithContext] Query result:`, {
+    safeConsole.log(`[getDetailedReportWithContext] Query result:`, {
       reportList,
       reportError,
       count: reportList?.length,
     });
 
     if (reportError) {
-      console.error(`[getDetailedReportWithContext] Error:`, reportError);
+      safeConsole.error(`[getDetailedReportWithContext] Error:`, reportError);
       return {
         error: `Failed to fetch report: ${reportError.message}`,
         data: undefined,
@@ -415,14 +435,15 @@ export async function getDetailedReportWithContext(reportId: string) {
     }
 
     if (!reportList || reportList.length === 0) {
-      console.error(
+      safeConsole.error(
+        "Application diagnostic from app/admin/moderation/server/reports",
         `[getDetailedReportWithContext] Report not found with ID: ${reportId}`,
       );
       return { error: "Report not found", data: undefined };
     }
 
     const report = reportList[0];
-    console.log(`[getDetailedReportWithContext] Found report:`, {
+    safeConsole.log(`[getDetailedReportWithContext] Found report:`, {
       id: report.id,
       status: report.status,
     });
@@ -506,7 +527,7 @@ export async function getDetailedReportWithContext(reportId: string) {
       },
     };
   } catch (e) {
-    console.error("Error fetching detailed report:", e);
+    safeConsole.error("Error fetching detailed report:", e);
     return {
       error: `Failed to fetch report: ${e instanceof Error ? e.message : "Unknown error"}`,
       data: undefined,

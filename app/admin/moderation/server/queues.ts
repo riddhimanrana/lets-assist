@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -35,7 +36,7 @@ export async function getFlaggedContent(
   const { data, error } = await query;
 
   if (error) {
-    console.error("Error fetching flagged content:", error);
+    safeConsole.error("Error fetching flagged content:", error);
     return { error: error.message };
   }
 
@@ -205,12 +206,12 @@ export async function updateFlaggedContentStatus(
     .eq("id", id);
 
   if (checkError) {
-    console.error("Error checking flagged content:", id, checkError);
+    safeConsole.error("Error checking flagged content:", id, checkError);
     return { error: `Failed to check flagged content: ${checkError.message}` };
   }
 
   if (!existingFlags || existingFlags.length === 0) {
-    console.error("Flagged content not found:", id);
+    safeConsole.error("Flagged content not found:", id);
     return { error: "Flagged content not found" };
   }
 
@@ -226,12 +227,12 @@ export async function updateFlaggedContentStatus(
     .select();
 
   if (error) {
-    console.error("Error updating flagged content:", error);
+    safeConsole.error("Error updating flagged content:", error);
     return { error: error.message };
   }
 
   if (!data || data.length === 0) {
-    console.error("No data returned after update for flagged content:", id);
+    safeConsole.error("No data returned after update for flagged content:", id);
     return { error: "Failed to update flagged content" };
   }
 
@@ -450,7 +451,7 @@ export async function getModerationStats() {
   }
 
   if (moderationEventsError && !missingViewError) {
-    console.warn(
+    safeConsole.warn(
       "Falling back to legacy moderation stats queries due to view error:",
       moderationEventsError,
     );

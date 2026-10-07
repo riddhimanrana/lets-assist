@@ -8,7 +8,18 @@ on:
     inputs:
       release_tag:
         description: "Exact private release tag, for example dvhs-csf/v1.2.0"
-        required: true
+        required: false
+        default: ""
+        type: string
+      release_tags:
+        description: "Optional JSON array of embedded release tags at one private source. Use instead of release_tag."
+        required: false
+        default: ""
+        type: string
+      existing_pr_number:
+        description: "Existing reviewed Development PR for batch integration"
+        required: false
+        default: ""
         type: string
       candidate_sha:
         description: "Optional full root candidate SHA containing unreleased host migrations. Dispatch from that same commit."
@@ -27,7 +38,49 @@ permissions:
   pull-requests: write
 
 jobs:
+  route:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      mode: ${{ steps.route.outputs.mode }}
+    steps:
+      - name: Choose the integration mode
+        id: route
+        env:
+          SINGLE_TAG: ${{ inputs.release_tag }}
+          BATCH_TAGS: ${{ inputs.release_tags }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == repository_dispatch ]]; then
+            echo 'mode=single' >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -n "$SINGLE_TAG" && -z "$BATCH_TAGS" ]]; then
+            echo 'mode=single' >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && -z "$SINGLE_TAG" && -n "$BATCH_TAGS" ]]; then
+            echo 'mode=batch' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Choose exactly one of release_tag or release_tags for manual integration.' >&2
+            exit 1
+          fi
+
+  batch:
+    needs: route
+    if: needs.route.outputs.mode == 'batch'
+    permissions:
+      contents: write
+      pull-requests: read
+    uses: ./.github/workflows/plugin-release-batch-integration.yml
+    with:
+      release_tags: ${{ inputs.release_tags }}
+      candidate_sha: ${{ inputs.candidate_sha }}
+      existing_pr_number: ${{ inputs.existing_pr_number }}
+    secrets:
+      PRIVATE_PLUGIN_RELEASE_TOKEN: ${{ secrets.PRIVATE_PLUGIN_RELEASE_TOKEN }}
+
   integrate:
+    needs: route
+    if: needs.route.outputs.mode == 'single'
     runs-on: ubuntu-latest
     env:
       PRIVATE_REPOSITORY: riddhimanrana/lets-assist-plugins
@@ -106,7 +159,7 @@ jobs:
           fi
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
 
@@ -304,7 +357,11 @@ jobs:
 
       - name: Open the ordered root integration pull request
         env:
-          GH_TOKEN: ${{ github.token }}
+          # The repository does not let GITHUB_TOKEN open pull requests, and a
+          # pull request opened by GITHUB_TOKEN would not start root CI. The
+          # checkout credential still pushes the branch; only the pull request
+          # uses this scoped token.
+          GH_TOKEN: ${{ secrets.PLUGIN_ROOT_INTEGRATION_TOKEN }}
           PLUGIN_KEY: ${{ steps.release.outputs.plugin_key }}
           VERSION: ${{ steps.release.outputs.version }}
           SOURCE_COMMIT: ${{ steps.release.outputs.source_commit }}
@@ -322,6 +379,12 @@ jobs:
             supabase/tests/database
           git commit -m "release(${PLUGIN_KEY}): integrate v${VERSION}"
           git push --set-upstream origin "${branch}"
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "::error::PLUGIN_ROOT_INTEGRATION_TOKEN is not set in ${GITHUB_REPOSITORY}. Branch ${branch} was pushed but no pull request was opened."
+            echo "Open it by hand: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/development...${branch}?expand=1" >&2
+            echo "To automate this, add PLUGIN_ROOT_INTEGRATION_TOKEN scoped to ${GITHUB_REPOSITORY} with Pull requests: write." >&2
+            exit 1
+          fi
           gh pr create \
             --repo "${GITHUB_REPOSITORY}" \
             --base development \

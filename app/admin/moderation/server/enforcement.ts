@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -36,7 +37,7 @@ export async function takeFlaggedContentAction(
     .maybeSingle();
 
   if (flagError) {
-    console.error("Error fetching flagged content:", flagError);
+    safeConsole.error("Error fetching flagged content:", flagError);
     return { error: flagError.message };
   }
 
@@ -71,7 +72,7 @@ export async function takeFlaggedContentAction(
     .select();
 
   if (error) {
-    console.error("Error updating flagged content:", error);
+    safeConsole.error("Error updating flagged content:", error);
     return { error: error.message };
   }
 
@@ -196,7 +197,7 @@ export async function takeModeratorAction(
       .single();
 
     if (error) {
-      console.error(
+      safeConsole.error(
         "Error taking moderator action on report %s:",
         reportId,
         error,
@@ -253,7 +254,7 @@ export async function takeModeratorAction(
       message: `Action '${action}' taken on report ${reportId}`,
     };
   } catch (e) {
-    console.error("Error taking moderator action:", e);
+    safeConsole.error("Error taking moderator action:", e);
     return {
       error: `Failed to take action: ${e instanceof Error ? e.message : "Unknown error"}`,
     };

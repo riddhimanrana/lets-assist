@@ -19,7 +19,7 @@ const publicationEmailServiceSource = readFileSync(
   "utf8",
 );
 const autoPublishSource = readFileSync(
-  `${process.cwd()}/app/api/cron/auto-publish-hours/route.ts`,
+  `${process.cwd()}/services/auto-publish-hours-worker.ts`,
   "utf8",
 );
 

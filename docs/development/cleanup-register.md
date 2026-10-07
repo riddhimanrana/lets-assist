@@ -2744,6 +2744,413 @@ sources.
 
 ## Repository-owned P0–P2
 
+The [October 7 integration status](integration-status-20261007.md) tracks the combined brand/audit candidate, preserved feature branches, local checks and remaining provider gates. Integration regressions in draft serialization, account export/deletion layout, uncertain delivery copy and CSV formula prefixes are fixed locally. Final database/browser and hosted acceptance remain open.
+
+### Full-stack remediation, October 7, 2026
+
+This is the current status of the October audit. Earlier dated narratives remain
+historical evidence. The original September 28 additions are preserved below.
+Remediation has not been deployed. APP-09 and DB-02 describe the same defect.
+
+[Root draft PR 867](https://github.com/riddhimanrana/lets-assist/pull/867)
+contains the integrated changes through `dc4ef914`, based on Development
+`fb326cb3`. The follow-ups include the exact Storage architecture rule, accepted
+708 catalog, status fields and Development cutover coordinator. The
+request guard, durable image cleanup, organization authorization and application
+conflict repairs have focused local acceptance. The root retains published
+private gitlink `a1d5836f` until the signed batch integration.
+
+Both CodeQL analyses and their aggregate pass on published `35341eaa`.
+GitGuardian still reports two historical synthetic fixtures. Incident 37947219
+is a UUID in a mocked calendar test; 37948874 is a test-only PostgreSQL URI in
+maintenance tests. Neither came from a provider credential. Both fixtures now
+clearly identify their test values, with no detector or file exclusion.
+Historical false-positive disposition remains pending. Vercel deployment
+`dpl_Fuj1tQF3FwBX6bmBpRtaSZuJyx7r` is canceled by the ignored build step.
+Supabase still lists only main and persistent Development. No application
+deployment is claimed.
+
+[Private PR 640](https://github.com/riddhimanrana/lets-assist-plugins/pull/640)
+merged as `4af6f732` with an identical tested tree. Its older prepared candidate
+`5f3564c1` is superseded by
+[private PR 642](https://github.com/riddhimanrana/lets-assist-plugins/pull/642)
+at `86f0b58d`, paired with host `6af61c9e`. The new candidate preserves request
+identity after unknown outcomes and validates exact import receipt coverage.
+Its full local private unit gate passed 6,080 tests and 30,598 assertions across
+554 files and 209 process groups. Hosted plugin quality repeated those counts, and static analysis and
+GitGuardian pass at that exact commit. PR 642 merged into Development as
+`ece8afec` with the identical tested tree. Private main and release tags remain
+unchanged. Updated promotion PR 641 also passes quality, both static scans and
+GitGuardian on `ece8afec`. Separate main/tag approval and signed-version
+acceptance remain pending.
+
+The fresh 708 replay applied all migrations and ran 464 SQL files with 11,737
+assertions. One old test expected a privilege error where the new RLS policy
+correctly filters the inactive administrator's write to zero rows. The corrected
+93-assertion file passes. Keep the original failed full-run transcript alongside
+that correction; there is no single all-green full-run transcript for 708 yet.
+Thirteen follow-on gates passed, including CSF workflows, both scale gates and
+DV database checks. The architecture rule now recognizes only the exact six
+restrictive public-image denial policies. Its real PostgreSQL regression rejects
+changed names, buckets, commands, roles and predicates. The architecture check now passes. The accepted catalog contains 1,364 objects
+and returns one exact match; nine tamper cases reject altered hooks, grants or
+policies. The runtime check at private `2e0382b` refused its unprepared version
+metadata. Final acceptance requires the actual signed batch.
+
+The canonical root unit run now passes at `296253ea`, whose full tree equals
+parent `21404ba5`: 4,414 tests, 29,173 assertions, 555 files and 140 process
+groups, with zero failures or skips. Full lint, source guards and typecheck pass.
+The initial failures remain in their saved logs. They exposed stale worker
+assertions, the new guard's intentional client ACLs, the missing disabled
+image-cleanup flag and a disposable PostgreSQL locale issue.
+
+The Development coordinator is integrated as `c9e76128`. Its 78 Node cases pass
+on the combined source. The canonical Bun follow-on and affected workflow
+contracts pass 145 tests and 830 assertions across nine files. Full lint and
+typecheck pass with the coordinator; its final test-only credential-scope repair
+also passes focused lint. Review fixed recovery receipt disagreement, inherited
+image/alert worker settings and duplicate maintenance creation after an older
+unknown outcome. Nine real local SQL cases prove fresh write refusal, reads,
+transaction settling, retention drift rollback, exact restoration and reopening.
+Protected Development review rules and the required owner credential remain
+unconfigured; no hosted coordinator ran. Final signed build and browser gates
+remain separate. Historical results below retain their original source pins.
+
+The canonical root unit runner passed at `eda468bc`: 4,295 tests, 28,633 reported
+expect assertions and 538 files across 133 process groups. Installed Next.js
+16.3.8 matches the source pin. Bun is 1.3.14; local Node 22.23.3 differs from the
+pinned 22.23.2. Full root lint and typecheck passed after the maintenance and Maps changes.
+The later workflow, controller and candidate checks passed 61 tests; the 13 new
+workflow tests also passed in the canonical runner's Bun runtime. Agent policy
+and migration-file checks pass. The production build passed at `ec24c995` /
+private `151c3d7c`, including the server-only logger and exporter. The hydration
+repair passed 21 adjacent private tests/86 assertions, paired typecheck and lint.
+The full private corpus passed at `1e5fd36a` / private `18cbd1c1`: 6,038 tests,
+30,477 reported expect assertions, 551 files and 206 isolated groups. Paired
+typecheck, private formatting, zero-warning lint and source-organization checks passed. Hosted quality has now repeated this result on prepared private `5f3564c1` / host `efe346d1`.
+
+Fresh schema 701 acceptance at `a6257a20` / private `151c3d7c` passed all 456 SQL
+files, 11,416 assertions and all 15 following API, access, concurrency, isolation,
+seed, scale and runtime gates. The exact accepted catalog query returned `1`.
+Migration 701 adds one service-only calendar function; all previous 700 file
+hashes and 1,350 schema objects are unchanged. All 687 published migrations remain
+unchanged. Earlier consolidation of unpublished drafts reduced the ledger from 705 to
+699 entries while preserving the full schema byte for byte. Historical results remain below.
+
+The replay exposed an older index assertion that depended on an empty table
+and disabled sequential scans. Its replacement uses 6,150 fictional rows, default
+planner settings and actual results. A rolled-back negative control proves the
+test detects a missing index. No production index change was needed. Existing
+concurrency fixtures require a fresh owned replay before repeating the full suite.
+
+Full CSF at `80600795` / private `151c3d7c` finished with 152 passes, one failure
+and four documented skips. Draft, course selection, account export/deletion and
+calendar checks passed. The connected-calendar case verified nonempty HTML/RSC
+without credential fields, own-row browser REST denial, retained credentials
+after denial, real provider-free disconnect and disconnected UI.
+
+The remaining failure exposed an enabled term button before its handler was
+ready. Holding same-origin Next scripts reproduced the defect. Private
+`696aec21` keeps that control disabled until hydration and while its action is
+pending. Both controlled readiness and the original next-term lifecycle passed
+in the real browser. The full suite then passed at `1e5fd36a` / private `696aec21`: 154 passed,
+zero failed and four skipped cases in 7.4 minutes. The four skips cover a retired uploader and three opt-in galleries.
+The active test verifies that the old importer is absent; authorized Google
+Sheets import remains a browser coverage gap. Earlier DV passed 4/4; cron auth
+smoke passed 633 assertions without dispatch or provider egress.
+
+The full browser run recorded four attempts to call `vector.profanity.dev`;
+the local guard blocked all four before dispatch. The endpoint ledger does not
+identify the calling module. The export worker recorded zero provider attempts.
+Both existing profanity callers now use the bounded local dictionary. Project
+checks require fresh authentication and the deletion guard, validate the existing
+field limits, and return explicit failure to the form. Nine tests/43 reported
+Bun assertions, typecheck, targeted lint, formatting and source checks pass at
+`a5b0a5f2`. The real action-rejection/retry case passed in the rebuilt full 702 CSF suite.
+This remains an advisory word check, not a new publication moderation policy.
+
+A further pre-existing P2 permission gap is being repaired with forward migration 702. Browser roles can read three documented staff fields on visible projects,
+and owners can currently forge those fields through direct writes. No dedicated
+current project-review writer or populated hosted values have been established.
+The draft migration makes those fields service-only for reads and writes while
+preserving the other 43 columns and row policies. Nineteen platform query sites
+use a compatible explicit projection. No private plugin query requires a change.
+Eleven projection, query and hours-card tests/86 assertions and seven generic
+update tests/43 assertions pass. The explicit types also exposed a nonexistent
+hours-publication property; cards now use the stored per-schedule map and require
+an own property with the value `true`.
+Fresh 702 acceptance passed 457 SQL files, 11,501 assertions and all 15 following
+gates. The exact accepted query returned `1`; `eda468bc` records the measured
+catalog. The 1,351-object inventory changes only the grant-catalog function and
+the two intended relation grants. All earlier migration bytes are unchanged.
+Full CSF acceptance passed at `efe346d1` / private `696aec21`, with 155 passes,
+zero failures and four documented skips in 7.1 minutes. Historical review values are not reclassified as
+trusted by this permission repair. The [cutover order](../architecture/data.md#project-review-metadata)
+requires compatible queries before the privilege change or a reviewed maintenance window.
+
+The focused browser run passed seven existing draft and project cases. The new
+case passed real content-check rejection/retry, private-review HTML exclusion,
+anonymous discovery and six owner/outsider REST denials. It then failed on an
+empty-key Google Maps script request; editing and deletion were not reached.
+That worktree also had Next.js 16.3.3 installed. Its frozen installation now
+matches Next.js 16.3.8 in both root and child, with unchanged lockfiles. Normal
+map/address fallbacks passed focused tests and the rebuilt full CSF run. The
+new project case completed rejection/retry, privacy, editing and deletion in
+that run. App and export-worker egress logs were empty. The server log retained
+18 stream-closed diagnostics, two fetch diagnostics during CRUD and an expected
+invalid-verification refusal. This does not claim an empty server log. Earlier
+browser receipts remain evidence for their actual installed runtime. All four DV
+cases also passed, with zero failures or skips and no provider egress.
+
+The expanded project browser case passed at root `5c622e38` / private `696aec21`,
+integrated locally as `9b8387b0`. It verified all three staff fields were absent
+from HTML, the observed edit-route RSC response and the real update-action
+response. Six direct read denials and six owner INSERT/PATCH denials passed;
+an ordinary title update succeeded, private metadata stayed unchanged and no
+forged row appeared. The case completed creation, editing and deletion with
+zero external requests. The earlier full-suite results retain their source pins.
+
+That case exposed an enabled Delete Project button before its handler loaded.
+A separate delayed-script negative control reproduced the defect. A 29-line
+trigger now uses the existing hydration hook and preserves permission and pending
+states. Four component tests and the full focused browser case pass. The new
+case proves the disabled pre-hydration state, working confirmation after script
+release and actual deletion. No owned project fixtures or app listeners remain.
+
+Project reads now pass structured errors to the safe logger. Focused regressions
+retain approved error codes without evaluating private getters or printing
+private fields. The combined logger/trigger checks passed 15 tests and 30 Bun
+assertions, plus 11 isolated logging assertions. The latest browser log has zero
+stream-closed errors and two PGRST116 read errors during CRUD. Their request-level
+cause is not yet attributed; they do not establish the cause of older diagnostics.
+
+The subsequent missing-project repair uses a nullable single-row read while
+preserving the existing generic response and genuine query-error logging.
+Installed SDK transport tests distinguish absent rows, valid rows, permission
+failures, multiple rows and network failures. The absence regression failed
+before the repair. All 13 related tests passed afterward, and the focused
+privacy/CRUD browser case passed at `fae72871`, integrated as `4544ad78`.
+Its log contains no project-fetch, PGRST116 or stream-closed errors; outbound
+request logs remain empty. The earlier two errors are consistent with the
+post-deletion route render, but the older log lacks request correlation.
+
+The hours and capacity browser cases passed at root `158c51aa` / private
+`696aec21`, integrated through `e1f58b69`. The real hours form rejected the
+nonexistent March 8 Pacific 02:30 time without creating a certificate; retrying
+01:30 to 03:30 stored 09:30Z to 10:30Z and one hour. Capacity correctly displayed
+1,205 active signups and 795 remaining places across 1,235 rows, beyond the API's
+1,000-row limit. A narrowly simulated HTTP 503 showed the unavailable state;
+retry returned the real aggregate. This does not claim an induced database
+failure. Both browser/server egress logs were empty and scoped fixtures were removed.
+
+Four additional DV browser cases passed across two real compiled runs at
+`9616fc69` / private `696aec21`, with final test source `f8f1fbfc`, integrated as
+`c5469eb0`. They cover correction, resubmission, a lost actual response and
+same-request retry with one receipt/audit, staff approval, stale status and revoked
+access without canonical-record changes. The roster returned exactly 51 current
+members across two pages and excluded 52 prior-season memberships. The initial
+roster failures were fixture timestamps and reading rows before loading completed;
+those test defects were repaired before the passing narrow rerun. All 702 migration
+hashes and the applied ledger remained unchanged, outbound logs were empty,
+fixtures were removed, and the private checkout returned cleanly to prepared `5f3564c1`.
+
+The online migration controller now refuses pending credential and project-column
+permission contractions before any mutation. The maintenance workflow now uses
+measured accepted catalogs instead of its obsolete 414/444 preflight. A separate
+owned 687-to-702 database proof passed 22 acceptance/refusal cases. The integrated
+maintenance, online refusal, workflow and documentation checks passed 47 tests
+and 726 assertions. Runtime catalogs and migration bytes are unchanged. The
+disposable stack was removed. Those SQL checks did not prove a fresh PostgREST
+write refusal. The subsequent real API probe caught the ineffective role-default
+guard and refused cutover. PostgREST chooses writable mutation transactions, and
+the role default also prevents its schema listener from reconnecting. The new
+permanent request hook uses an operator-owned custom flag. A connection-drain
+prototype then exposed loss of the effective hook configuration. Its replacement
+uses shared request locks and an exclusive activation lock. A second real API
+reproduction showed REPEATABLE READ and SERIALIZABLE writes could keep an old
+snapshot after waiting. The guard now refuses those writable isolation modes,
+even with maintenance off, while preserving read-only requests. Normal writable
+requests and the operator transaction use READ COMMITTED.
+
+Guard integration `c741bcdb` passed 18 real API concurrency, reload and timeout
+cases, seven isolation cases, nine catalog-isolation checks, six legacy-transaction
+barrier cases and ten API mode cases. The queued higher-isolation mutations now
+return SQLSTATE `25006` and leave fixture values unchanged. The legacy barrier
+waits for exact backend and transaction identities without terminating pooled
+connections. Its measured 20-second timeout keeps the guard active. Thirty
+pgTAP assertions, three Node tests and 15 workflow cases/373 assertions pass.
+The recovery-budget test includes the new barrier and retains its 71-minute
+ceiling. Independent recovery `c12f539d` runs the same barrier before alias
+operations and a success receipt, within its existing 60-minute budget. The
+combined workflow/recovery suite passes 17 cases and 426 assertions. The exact 687-to-688 bootstrap now passes, including a four-second wait for a
+legacy request and disabled/active/reopened API checks. Its accepted catalog has
+1,299 objects and only the intended new hook; 14 catalog tamper cases pass.
+Production bootstrap source and shared-plan tests pass 14 integrated cases.
+Final ledger acceptance remains in progress. Hosted Development still has no
+proven app-before-schema ordering.
+The application must not be rolled back to incompatible code after these grants change.
+
+Worker observation at `3bcfba4c` adds fixed aggregate classifiers for the remaining
+active platform routes, with no raw job identities or diagnostics in receipts.
+Forty health/classifier tests passed with 205 assertions, along with route,
+auth-probe and activation checks, full lint, typecheck and 704 migration-file
+validation. The expanded SQL scope and 900-second duration ceiling still need
+the final owned replay. The new image worker remains disabled by default.
+A failed automatic-hours query now returns failure instead of reporting an empty
+queue; the regression exercises the actual handler and start/finish receipt path.
+No schedule, alert destination or worker switch was changed.
+
+Independent review found that the bounded response reader could report a valid
+large sync as failed, and recurring checks could count an unsuccessful parent as
+completed. Follow-up `1e1b51e8` captures fixed aggregates before serializing large
+business responses and counts each recurring parent once after it settles.
+Forty-three health/classifier tests passed with 214 assertions; five real service
+cases cover lookup failure, multiple errors for one parent, paging and catch-up.
+The shared cron probe suite passes 611 assertions, including strict credential
+grammar across all covered routes. Full typecheck and zero-warning lint pass.
+The hours processor moved into a 486-line service; its route is 123 lines.
+The independent reviewer confirmed both reported monitoring defects are closed.
+
+Both changed embedded plugins require signed publication: CSF 1.2.86 and DV
+2.0.3, with schema floor `20261007220000`. Prepared candidate `5f3564c1` contains
+the hydration fix, preserves existing install minima and produces identical
+unsigned outputs across two preparations, 1,322 CSF files and 92 DV files.
+Host-import generation and boundary checks pass for 133 modules. The generated
+catalog patch is held for signed integration with the new gitlink. The browser
+rehearsal retains the older manifest versions and does not prove acceptance of
+the future signed versions.
+
+The single-release controller refuses a source that changes another published
+embedded plugin. The new batch controller verifies both signatures, exact source,
+SBOMs, promotion ancestry and complete changed-tree coverage before one root
+update. The existing registered workflow calls its batch implementation from
+the same reviewed commit. Exact PR/head checks and an expected-head lease refuse
+concurrent forward updates or rewinds. The single-release restrictions remain.
+No future publication migration is preapproved in the accepted catalog.
+
+Private main promotion and both tags require separate release authorization.
+The root PR stays draft until signed publication and final integration gates
+pass. Child deployment separately verifies its target, complete accepted schema
+and immutable publication before Vercel. Development requires its own reviewed
+management credential. Earlier provider readback showed only main and persistent
+Development databases and a canceled feature build; it did not establish hosted
+application acceptance.
+
+Google refresh and revocation requests have timeouts, refuse redirects and keep
+revocation tokens in the form body. Temporary failures preserve connections.
+Subject, binding and revision checks protect reconnects from stale responses.
+Disconnect preserves bounded cleanup metadata without removing Google events.
+Focused credential tests pass 42 cases/156 assertions, route tests 12/41 and
+preparation tests 29/108. Removal verifies ownership of the saved calendar before
+accepting absence; 61 related tests/217 assertions passed. Missing or inaccessible
+calendars keep their receipts for reviewed recovery. Google revocation and local
+writes cannot be atomic, so a purpose linked during revocation may need another
+reconnect even though its replacement row survives.
+
+The static private response-header configuration passed the existing dependency
+exception's source/input review. All three lockfile hashes remain unchanged.
+The `braces` advisory still has no upstream fix; its acceptance expires October
+21, 2026 at 00:00 UTC. This review does not bypass the final exact-gitlink audit.
+
+| Finding        | Priority                             | Current repository result                                                                                                                                                                                                                                                         | Remaining acceptance or work                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| APP-01         | P2                                   | Calendar operations validate owned provider identifiers and paths.                                                                                                                                                                                                                | Exercise provider failures and read back real owned event identities after approved rollout.                                                                                                                                                                                                                                                                                             |
+| APP-02         | P1 before payment activation         | The unfinished Stripe purchase flow is unavailable; valid unhandled webhooks receive a retryable error.                                                                                                                                                                           | Decide whether to implement billing. Inventory any existing provider endpoint before retiring it.                                                                                                                                                                                                                                                                                        |
+| APP-03         | P2                                   | Calendar changes have durable receipts, bounded paging, retry identities and conflict checks. Browser responses exclude stored credentials.                                                                                                                                       | 701 SQL and connected-calendar browser privacy/disconnect passed. Reconcile historical provider events separately after an approved rollout.                                                                                                                                                                                                                                             |
+| APP-04         | P2                                   | Self-reported hours preserve the selected timezone and validate date/time inputs. The real DST rejection and retry journey passed locally.                                                                                                                                        | Verify the accepted hosted deployment; local proof preserved UTC instants and the one-hour elapsed duration.                                                                                                                                                                                                                                                                             |
+| APP-05         | P2                                   | Certificate verification uses published certificate facts and a consistent access decision.                                                                                                                                                                                       | Verify public and denied cases on the accepted deployment.                                                                                                                                                                                                                                                                                                                               |
+| APP-06         | P2                                   | Capacity uses an authorization-scoped aggregate RPC and an explicit unavailable UI state. SQL and browser coverage passed beyond the 1,000-row API limit.                                                                                                                         | The browser also passed a simulated HTTP 503 and real retry. Hosted acceptance remains pending.                                                                                                                                                                                                                                                                                          |
+| APP-07         | P2                                   | The account export declares 48 datasets, uses verified plugin identities and fails on count/byte limits instead of truncating.                                                                                                                                                    | Snapshot SQL and the real worker/browser check passed for all 48 datasets. Binary attachments and unlinked historical records remain explicit scope exclusions.                                                                                                                                                                                                                          |
+| APP-08         | P2                                   | Export jobs have leases, artifact identity, crash recovery, private expiring downloads and separate email outcomes.                                                                                                                                                               | SQL, real Storage, owner download, cross-account denial and expiry denial passed locally. Deployed cadence and cleanup still need readback.                                                                                                                                                                                                                                              |
+| APP-09 / DB-02 | P1                                   | Deletion has preflight checks, atomic intent, resumable cleanup, writer fences and Auth deletion last.                                                                                                                                                                            | SQL, concurrency, real deletion and actionable retained-record refusal passed locally. Hosted acceptance remains pending.                                                                                                                                                                                                                                                                |
+| APP-10         | P2                                   | Private Development reads canonical season membership, pages the roster and uses atomic staff decisions. SQL and real browser paging passed.                                                                                                                                      | Signed-version and hosted acceptance remain pending. Reconcile legacy records through a separate reviewed operation.                                                                                                                                                                                                                                                                     |
+| APP-11         | P2                                   | Private Development supports needs-action corrections and stable retry identity. The real staff/member browser journey passed, including a lost response and one persisted receipt/audit.                                                                                         | Verify signed-version and hosted behavior after release.                                                                                                                                                                                                                                                                                                                                 |
+| APP-12         | P1 development safety                | The unsafe private DV seed action and plaintext-password export are retired.                                                                                                                                                                                                      | Verify the private release and inspect historical exports through the credential-custody process.                                                                                                                                                                                                                                                                                        |
+| APP-13         | P2                                   | Route/component limits are enforced again; account export/deletion UI was split.                                                                                                                                                                                                  | 43 root and five private modules remain explicit size debt. The baseline blocks growth; it does not close the refactoring work. See [source maintenance](source-maintenance.md).                                                                                                                                                                                                         |
+| APP-14         | P2                                   | Draft isolation, export, project privacy, hours, capacity and DV transition browser cases now have local acceptance.                                                                                                                                                              | Full 702 CSF passed 155 cases with four documented skips; eight DV cases passed across recorded runs. Authorized Sheets import, signed-version and hosted acceptance remain pending.                                                                                                                                                                                                     |
+| APP-15         | P2                                   | Private Development refuses stale submissions before identity changes. SQL and browser stale-status/revoked-access cases preserve canonical identity, household, membership, receipts and audits.                                                                                 | Verify signed-version and hosted behavior after release.                                                                                                                                                                                                                                                                                                                                 |
+| APP-16         | P2 hardening                         | Root and private child source define reviewed response headers.                                                                                                                                                                                                                   | Verify headers on each served runtime; edge challenge responses do not prove application headers.                                                                                                                                                                                                                                                                                        |
+| APP-17         | P2                                   | Durable image reservations and lease-fenced cleanup preserve referenced assets and reject retired keys. Source `275bb712` passes 52 SQL assertions, 56 unit tests and real Storage/Auth lifecycle and concurrency proofs.                                                         | Complete the integrated replay and browser gate, then verify hosted recovery and monitoring before enabling the worker. See [image cleanup](public-image-cleanup.md).                                                                                                                                                                                                                    |
+| APP-18         | P1                                   | New projects start independently, explicit resume selects a draft, and save-copy changes the autosave target.                                                                                                                                                                     | All three draft journeys passed in the full integrated suite, including in-flight autosave. Historical draft recovery and hosted acceptance remain separate.                                                                                                                                                                                                                             |
+| APP-19         | P2                                   | Start next term now stays disabled until its client handler is ready and while its action is pending.                                                                                                                                                                             | Focused render tests, both controlled delayed-JavaScript and original lifecycle browser cases, and full CSF passed. Signed-version and hosted acceptance remain pending.                                                                                                                                                                                                                 |
+| APP-20         | P2                                   | Project and identity content checks sent text to an external profanity endpoint without a request bound and treated provider failures as clean results. Both paths now use a bounded local word list; the project form handles explicit check failure.                            | Nine focused tests/43 assertions and static checks pass. Real rejection/retry and full 702 CSF acceptance passed; hosted acceptance remains pending.                                                                                                                                                                                                                                     |
+| APP-21         | P2                                   | Published project grants allowed browser reads of three documented staff fields and owner writes could forge them. Forward 702 service-only column permissions and 19 compatible query projections passed local acceptance.                                                       | Full isolated replay and real API/privacy/CRUD browser checks passed. Hosted acceptance remains pending; no populated hosted data or incident is claimed.                                                                                                                                                                                                                                |
+| APP-22         | P2                                   | Volunteer project cards read a nonexistent hours-publication field. They now read the canonical per-schedule map and require an own true flag.                                                                                                                                    | Focused cases cover true, false, missing, malformed and inherited values. Verify the accepted application UI after rollout.                                                                                                                                                                                                                                                              |
+| APP-23         | P2                                   | Public project maps and address autocomplete mount a Google provider without a configured key. The browser run caught the resulting blocked script request.                                                                                                                       | Normal address/map fallbacks passed component tests and full CSF on the pinned dependencies. Configured Maps behavior remains available; hosted acceptance is pending.                                                                                                                                                                                                                   |
+| APP-24         | P2                                   | Delete Project accepted clicks before its client handler loaded. The extracted trigger stays disabled until hydration and preserves permission and pending states.                                                                                                                | Controlled delayed-script reproduction failed before the repair. Four component cases and the expanded privacy/CRUD browser case passed after it; hosted acceptance remains pending.                                                                                                                                                                                                     |
+| APP-25         | P2 hardening                         | Automatic-hours, recurring-project, organization-calendar and organization-sheet routes accepted a correct secret without the required Bearer scheme. Strict token parsing now rejects malformed authorization before execution or status reads.                                  | The first two real-handler regressions returned 200 before the repair and pass with 401 afterward. The shared route probe suite now rejects bare and malformed credentials for every covered GET/POST handler. Exact bearer requests remain covered. This defect still required knowledge of the correct secret; it was not an authentication bypass. Hosted acceptance remains pending. |
+| APP-26         | P1 authorization                     | Forward 707 and request-scoped profile mutations close inactive-admin and membership-revocation races. Staff-invite operations recheck actor authority under the membership lock.                                                                                                 | Source `9823e2a1` passes 20 SQL assertions, 27 caller tests and actual API/concurrent-revocation checks. Integrated replay and hosted acceptance remain pending.                                                                                                                                                                                                                         |
+| APP-27         | P2 validation                        | A user JWT could upload non-image bytes tagged as WebP and serve them from the public avatar bucket. Migration 708 requires server image writes after decoding and reservation, with restrictive browser policies for both image buckets.                                         | Source `eb94ff5a` passes 85 SQL assertions, actual avatar/logo API refusal and authorized server upload/public-read checks. Fixtures were removed and external request count was zero. Existing objects were not revalidated. Integrated and hosted acceptance remain pending.                                                                                                           |
+| DB-01          | P1                                   | Forward repairs address broken anonymous-retention references and preserve cleanup paths through the atomic archive outbox.                                                                                                                                                       | Retention, certificate and shared-file SQL regressions passed. Hosted migration and worker recovery remain separate; the hosted job still fails.                                                                                                                                                                                                                                         |
+| DB-03          | P2                                   | Impossible SET NULL constraints have forward repairs and focused assertions.                                                                                                                                                                                                      | The complete fresh schema and SQL suite passed. Verify hosted constraints after release.                                                                                                                                                                                                                                                                                                 |
+| DB-04          | P2                                   | Audit failures redact connection strings and password-bearing diagnostics.                                                                                                                                                                                                        | Keep regression coverage for every database CLI entrypoint.                                                                                                                                                                                                                                                                                                                              |
+| DB-05          | P2                                   | Readiness checks distinguish reviewed service-only RPCs from browser exposure.                                                                                                                                                                                                    | Local effective grants, architecture and access checks passed. Hosted schema readback remains required.                                                                                                                                                                                                                                                                                  |
+| DB-06          | P2                                   | Raw package-script database write shortcuts are retired or routed through the owned/reviewed workflow.                                                                                                                                                                            | Verify local and hosted runbooks independently; no shared reset is authorized.                                                                                                                                                                                                                                                                                                           |
+| DB-07          | P2 performance                       | A shared scope-observation RPC and private caller avoid full snapshots for scope-only checks.                                                                                                                                                                                     | Synthetic scope payload fell 95.7%; local time was 4.950 ms versus 50.531 ms. Complete private integration and hosted measurement before claiming a live reduction.                                                                                                                                                                                                                      |
+| DB-08          | P2                                   | Schedule-health results expose invalid published schedules, and publication validates required fields.                                                                                                                                                                            | Schedule-health SQL assertions passed. Browser correction paths and operator review of existing invalid records remain pending.                                                                                                                                                                                                                                                          |
+| DB-09          | Planned advisor triage               | All advisor notices have evidence-based triage; one tenant/run receipt index has a measured plan rationale and a forward candidate.                                                                                                                                               | Synthetic plan/receipt tests passed; local p95 was 0.303 ms over 30 samples. Other suggestions remain evidence-gated; no blind index drops.                                                                                                                                                                                                                                              |
+| DB-10          | Planned retention/capacity policy    | [Database operations plan](database-operations-plan.md) assigns proposed budgets and distinguishes evidence, payloads and cleanup receipts.                                                                                                                                       | Approve retention ownership/periods, verify scheduler execution and rehearse recovery. A proposal does not establish backups or permit purges.                                                                                                                                                                                                                                           |
+| DB-11          | P2                                   | Migration 700 makes OAuth credential rows service-only. Default server helpers verify fresh Auth subject equality before exact binding reads and writes.                                                                                                                          | Fresh 701 replay, direct browser Data API denial and connected-calendar acceptance passed. Hosted credential grants remain unverified.                                                                                                                                                                                                                                                   |
+| DB-12          | P1 reliability                       | Forward 706 replaces 63 explicit application conflict raises in 39 reviewed routines with `PT409`, preserving attributes, ACLs and genuine engine errors. The extra five routines came from expanding the original inventory to the private schema.                               | Source `4b8d3397` passes 1,315 SQL assertions and actual RPC timeout-before/409-after proof. Private compatibility `2e0382b` preserves prior uncertain outcomes and validates exact import receipt coverage. Full paired acceptance and signed integration remain pending. Hosted metadata showed PostgREST 14.5; no hosted failure was induced or active incident established.          |
+| D02            | P1                                   | Root and private dependency candidates address known fixed advisories.                                                                                                                                                                                                            | Private integration is pending. The exact `braces` exception expires October 21, 2026; it is accepted risk, not a clean scan.                                                                                                                                                                                                                                                            |
+| D03            | P2                                   | Dependency audit covers independent package graphs and verifies the exception against lock/source evidence.                                                                                                                                                                       | Run against the final paired gitlink and lockfiles.                                                                                                                                                                                                                                                                                                                                      |
+| D04            | P2                                   | Scheduled source/dependency security checks are defined.                                                                                                                                                                                                                          | Observe a trusted hosted run and assign an alert owner.                                                                                                                                                                                                                                                                                                                                  |
+| D05            | P2                                   | The private candidate adds pinned, offline SAST rules and synthetic rule tests.                                                                                                                                                                                                   | Private PR 640 static-analysis run passed. Disabled native private GitHub code scanning is not reported as enabled.                                                                                                                                                                                                                                                                      |
+| D07            | P2                                   | Private build, signing and dispatch authority are separated. Child deployment verifies the target schema and publication before provider writes.                                                                                                                                  | Publish the paired host and private review. Configure a reviewed Development management credential before child deployment. Signed release remains separate.                                                                                                                                                                                                                             |
+| D08            | P2                                   | Pull requests run affected behavior tests as well as tooling contracts.                                                                                                                                                                                                           | Private PR 640 quality passed. Root remains a draft with quality checks skipped; final integrated database/browser gates are required.                                                                                                                                                                                                                                                   |
+| D11            | P2                                   | Broad local release overrides require expiring candidate-bound evidence, report hashes and actor checks before provider steps.                                                                                                                                                    | Preserve the distinction between operator attestation and independently executed CI. No override was used for this audit.                                                                                                                                                                                                                                                                |
+| D12            | P2                                   | All 17 existing active platform cron routes now record aggregate execution health; the registry includes the pending image-cleanup route. Every active Production CSF enable control requires worker-specific monitoring evidence.                                                | Focused health, route, auth-probe and activation tests pass at `3bcfba4c`; expanded receipt SQL awaits the final replay. Hosted schedule readback and a tested independent missed-run alert remain required. See [worker health](worker-health.md).                                                                                                                                      |
+| D14            | P2 maintainability                   | Release override and worker contracts are documented; historical release fixtures use their reviewed ledgers without widening release authority.                                                                                                                                  | Consolidate remaining historical release-controller complexity in a scoped follow-up, preserving accepted schema evidence.                                                                                                                                                                                                                                                               |
+| D15            | P2 release safety                    | The single-release workflow cannot integrate a source that changes both published embedded plugins. A verified batch controller and same-commit workflow entry now cover that case without relaxing the single-release checks.                                                    | 61 controller/workflow/candidate tests passed, including branch-race refusals. Actual signed publication and its generated ledger acceptance remain pending.                                                                                                                                                                                                                             |
+| D16            | P1 before contract migration release | The online controller now refuses pending credential/project permission contractions. Maintenance validates reviewed catalogs, with recovery and fresh API guards.                                                                                                                | The 22 earlier database checks did not prove PostgREST write refusal. New Development bootstrap/cutover and actual API guard acceptance are in progress; hosted ordering remains unverified.                                                                                                                                                                                             |
+| D17            | P1 release safety                    | The request hook now uses an advisory transaction gate and refuses writable stale-snapshot isolation. Real API concurrency, reload, isolation and legacy-transaction barrier proofs pass locally. Exact 688 bootstrap acceptance passes; final ledger acceptance remains pending. | Require exact bootstrap and final catalog acceptance, integrated release gates and provider-specific approval before hosted execution.                                                                                                                                                                                                                                                   |
+| OPS-02         | P1                                   | Analytics accepts only reviewed public-page payloads and strips sensitive URL/person fields.                                                                                                                                                                                      | Verify actual deployed network payloads; historical provider data needs a separate retention/deletion decision.                                                                                                                                                                                                                                                                          |
+| OPS-03         | P2                                   | Root console diagnostics share a field allowlist; private logging has a paired candidate and bypass guard. Request failures and worker outcomes are distinct.                                                                                                                     | The server-only boundary passed focused privacy checks and the paired build. Deployed telemetry and independent alert coverage remain unverified.                                                                                                                                                                                                                                        |
+| OPS-04         | P2                                   | Reviewed invitation, moderation, certificate and account-email callers distinguish accepted, skipped, failed and unknown sends.                                                                                                                                                   | Verify end-to-end receipts and delivery behavior in the accepted environment. Provider acceptance does not prove inbox delivery.                                                                                                                                                                                                                                                         |
+| OPS-05         | P2 structural                        | Recipient preferences resolve against the intended recipient and fail conservatively.                                                                                                                                                                                             | Confirm deployed behavior with fictional recipients and suppression cases.                                                                                                                                                                                                                                                                                                               |
+| OPS-08         | P2 hardening                         | Turnstile validates hostname, action and token response under explicit environment policy.                                                                                                                                                                                        | Reconcile provider widgets/keys per environment and execute hosted signup/login acceptance.                                                                                                                                                                                                                                                                                              |
+
+#### Provider and account dependencies
+
+These have separate authority and cannot be closed by a repository commit.
+
+| Finding | Priority | Observed state                                                                                                                                                                                 | Concrete next action                                                                                                                                                                                |
+| ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D01     | P1       | Older anonymous/paper runs remain Waiting on Production approval and hold their concurrency groups. New schedules replace pending runs without executing. Waiver cleanup is manually disabled. | Reuse scheduler PR #858. Retire old waiting/pending runs through a reviewed hold, inspect backlog counts, then authorize current-code activation only after schema, auth, cadence and alert checks. |
+| D06     | P2       | Release authority remains concentrated in one account.                                                                                                                                         | Name a second accountable maintainer, establish independent recovery, then review GitHub environment and signing authority. No account or reviewer was invented.                                    |
+| D09     | P2       | Branch/worktree inventory found unique commits, dirty work and a few proven ancestry candidates.                                                                                               | Preserve unique/dirty work, reuse open PRs #857, #858, #859, #860, #865, #766 and private #635/#639 as applicable. Revalidate ancestry and activity before retirement.                              |
+| D10     | P2       | Child source pins Node 22, but provider metadata still reports Node 24 and an older child deployment.                                                                                          | Choose the intended child runtime/release and verify project setting, built functions, alias and organization selection after approval.                                                             |
+| D13     | P2       | `www.lets-assist.com` remains unverified; trusted TLS failed with an expired certificate.                                                                                                      | Review DNS ownership with the actual Cloudflare account, perform the scoped verification/certificate repair, then verify valid TLS and one canonical redirect.                                      |
+| OPS-01  | P1       | Credential files are owner-only, but the plaintext vault and backup copy remain.                                                                                                               | Select the password-manager destination, import without exposing values, verify recovery, then rotate/revoke by provider and retire copies only after readback.                                     |
+| OPS-06  | P2       | Operational email and recovery ownership still need the chosen account/profile and responsibility model.                                                                                       | Use the named Chrome profile for `letsassist.app@gmail.com`; verify mailbox/domain/MFA/recovery roles, then apply a reviewed mailbox and transactional-sender plan. No mail was sent.               |
+| OPS-07  | P2       | Domain ownership differs from the named Cloudflare organization.                                                                                                                               | Confirm source and destination owners, inventory DNS/workers/routes/billing, prepare rollback and continuity checks, then obtain approval for the exact transfer.                                   |
+
+Existing release evidence and source references remain below. These historical
+entries do not override the local-only and unexecuted-test boundaries above.
+
+### New project restores and consumes an unrelated draft, September 28, 2026
+
+PROJECT-DRAFT-RESTORE-20260928, P1, open: opening the organization New Project route without an explicit draft ID loads the user's most recently updated draft. Editing then autosaves into that draft, and publishing deletes it. The restored organization can also override the organization selected by the route. Chrome reproduced draft replacement during demo creation. Source confirmation: `app/projects/create/page.tsx` selects `drafts[0]`; `ProjectCreator.tsx` initializes `autosaveDraftId` from that selection, autosaves changes, and deletes it after publication. Save as New Draft creates a copy but does not switch the active autosave target.
+
+Closure requires an explicit new-project path that starts empty and respects the selected organization, a separate resume-draft action, and regression coverage proving that new creation and publication preserve existing drafts. Verify with fictional drafts in Development before a separately authorized Production release. Recovery of affected live drafts remains an operational follow-up; no private draft content belongs in this register.
+
+### Login challenge submission, September 28, 2026
+
+| Finding               | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-CHALLENGE-SUBMIT | P2, fixed in review | Password login could contact Auth with no CAPTCHA token while its widget was loading, resetting or expired. Two missing-token refusals appeared in sampled Production logs. The handler now uses the same `isSecureCheckBlockingSubmit` gate as signup before creating an Auth client. Handler tests prove blocked requests never contact Auth and ready tokens preserve the normal and local fixture paths. Hosted verification remains pending. |
+
+### Production scheduled jobs, September 28, 2026
+
+GitHub scheduled workflows that declare `environment: production` wait for a reviewer, and the next scheduled run in the same concurrency group cancels the waiting one. Scheduled runs therefore never executed. Six more schedules were disabled manually on July 15 with no replacement. Read-only Production counts on September 28 found small backlogs for every job.
+
+| Finding                  | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SCHED-CRON-APPROVAL-GATE | P1, fixed in review | Data exports, AI moderation and anonymous cleanup last succeeded on August 18. Paper signup notifications and paper scan cleanup never ran on schedule. Auto-publish hours, recurring projects, calendar sync, sheet sync, cancellation email and waiver cleanup stopped on July 15. Nine jobs now run through Vercel Cron in `vercel.json` with their previous cadence. Each GitHub workflow keeps only its approval-gated manual dispatch. `scripts/scheduled-jobs-cadence.test.ts` pins the schedules. The fix takes effect with the next Production application release. |
+| SCHED-CRON-AUTH          | P1, fixed in review | Most cron routes compared against `CRON_TOKEN ?? CRON_SECRET`, and paper signup notifications preferred its worker token. Vercel Cron sends only `CRON_SECRET`, so a differing `CRON_TOKEN` or worker token would reject every scheduled call. `lib/cron/cron-auth.ts` now accepts any configured worker token, `CRON_TOKEN` or `CRON_SECRET` with one anchored grammar and a timing-safe comparison, and denies when none is configured.                                                                                                                                    |
+| SCHED-CLEANUP-HOLD       | P1, open            | `anonymous-cleanup` hard-deletes anonymous signups, certificates and waivers 30 days after an event. Seventeen signups from an August 29 event are eligible, and 14 are `attended` with no certificate because auto-publish was not running. `paper-scan-cleanup` would delete an August 23 batch still in `review`. Both stay unscheduled. Before scheduling them, publish or explicitly abandon those records, and make the anonymous candidate filter skip attended or approved signups with no certificate.                                                              |
+| SCHED-AUTO-PUBLISH-GAP   | P2, open            | Auto-publish only considers sessions whose checkout was 48 to 72 hours ago, so sessions that ended while it was stopped are never picked up. One Production session from August 22 is outside the window and needs manual publication by its organizer.                                                                                                                                                                                                                                                                                                                      |
+
 ### CSF 1.2.81 Production observations, September 25, 2026
 
 [Release evidence](../csf/experience-audit-20260925.md) records accepted Development `36267d05`, Production `f48ab77f`, deployment `dpl_3CdK3yLh3V5H1oPczbtrC68SUSxi`, and chapter installation 1.2.81. Full quality and hosted acceptance passed. The four previously enabled workers were restored through approved controls after chapter Update.
@@ -9782,3 +10189,27 @@ Production review found a reversed lock order when a trigger already held submis
 - Status: [PR #852](https://github.com/riddhimanrana/lets-assist/pull/852) merged the function fix. [PR #855](https://github.com/riddhimanrana/lets-assist/pull/855) recorded its measured migration digest. The integrated schema passed 10,759 assertions across 430 files; the superseded run also passed all three DV browser scenarios. Full candidate and hosted acceptance checks remain pending.
 - Real-data operation: staff saved 250 of 252 approved blank contacts through Chrome. Read-only verification matched 222 personal and 28 school emails, preserved all 252 other contact fields and account connections, and found 250 audit receipts. The remaining two edits need the deployed function fix. Two newly arrived account requests await separate ownership confirmation.
 - Release: [Production PR #854](https://github.com/riddhimanrana/lets-assist/pull/854) awaits candidate acceptance and explicit Production approval. GitHub's strict base check requires the prior Production merge in Development ancestry. The release alignment merges that existing history through a reviewed Development PR; it changes no runtime code or schema. Its marked merge requests the current Development Preview. All local test stacks created for this contact fix were stopped through their ownership-checked cleanup workflow.
+
+### P2: Activity removal refuses preserved history, September 28
+
+Status: Implemented locally, private PR #636 pending review. Production remains on CSF 1.2.84.
+
+An archived activity with only an email campaign still appeared in the staff catalog and could not be deleted. The user approved removing activities from view while preserving student points and history. The forward migration retains dependent records under the existing archived lifecycle, records the removal atomically, and permanently deletes only empty activities. CSF 1.2.85 excludes archived rows before catalog pagination and direct lookup and explains the retained history in the confirmation.
+
+Local proof: 20 activity-removal database assertions, 69 existing Unsubmit assertions, 73 profile-write assertions, and 23 focused action/catalog tests passed. All 538 private-plugin test files passed. Typecheck and focused lint passed. Three contact lookup plans used their indexes with 20,000 synthetic records; the combined profile lookup took 0.078 ms locally. The contact lookup indexes address the open performance review on Production PR #854. Hosted and Production acceptance remain pending for this combined candidate.
+
+### P2: Removed activities block preserved point reviews, September 28
+
+Fixed locally in the activity removal release follow-up. The archived activity guard prevented pending point approval and correction. Forward migration 687 keeps existing claims reviewable without reopening new submissions. Ten new pgTAP assertions and 192 existing point and activity assertions pass. Production remains pending the updated release checks.
+
+### P2 review: Verified-account collision lookup scale, September 28
+
+The verified-account predicate still normalizes login emails while checking contact collisions. The exact query completed in 25.749 ms with 20,000 synthetic confirmed Auth users, active profiles, and verified connections on an owned isolated stack. This measurement does not establish a release-blocking latency defect. The existing profile and application contact indexes remain covered separately. A trial using lower(email) still scanned Auth rows because the managed index begins with instance_id; the unpublished trial was discarded. Future account lookup optimization must preserve normalization and avoid modifying provider-owned Auth indexes. Evidence and disposition are recorded in Production PR #854, comment 4130085030.
+
+The same review's announcement concern is disproved by the current dispatch authorization, which calls csf_publication_email_recipient_allowed before releasing the provider payload. The helper rejects non-published source activities. All 22 publication preference assertions passed again locally, including source withdrawal and durable suppression. Existing drafts may finish proof upload after removal as part of preserving already started student records; creation of new claims remains blocked.
+
+### Production verification, September 28 activity and contact release
+
+Production now serves accepted commit `fb326cb335e5ccd90244ba304891180d1c5bc4ca`, deployment `dpl_7apJ4wwUYWChsd31yN7M3BokJXLm`, with CSF 1.2.85 installed through the organization Update action. Migration run 36532207810 and app run 36532329191 succeeded. Full CI passed 10,792 database assertions, 144 CSF browser journeys, and 3 DV browser journeys. Hosted acceptance run 36526563004 passed on attempt 2 after an initial review-navigation timeout. All four previously enabled workers are restored; scheduled post publishing remains disabled.
+
+Chrome verified that the archived activity is absent from the staff catalog. Its retained campaign remains present. All 252 approved contact fills match independent read-only database checks, with all other contact fields and verified account connections preserved. The 18 user-verified account links are complete. Three new requests await separate ownership confirmation and remain pending. No student decisions, earned credits, or proof files were deleted to test this release.

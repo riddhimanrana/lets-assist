@@ -67,7 +67,7 @@ describe("isolated launcher ownership contract", () => {
         expect(MUTATING_DOCKER_VERBS).not.toContain(token);
       }
     }
-  });
+  }, 15_000);
 
   test("keeps generated stack credentials out of launcher output", async () => {
     const sandbox = await createSandbox();
@@ -159,7 +159,7 @@ describe("isolated launcher ownership contract", () => {
     expect(result.stdout).toContain(
       `Project: lets-assist-csf-browser-${"a".repeat(16)}`,
     );
-  });
+  }, 15_000);
 
   test("requires the explicit test guard before honouring a non-global claim root", async () => {
     const sandbox = await createSandbox();

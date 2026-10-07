@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle2, Clock, XCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { SendIcon, useAnimatedIcon } from "@/components/icons/animated";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +19,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Field,
   FieldLabel,
@@ -134,6 +134,8 @@ export function SubmitTrustedMemberForm({
     };
   }, [user, authLoading]); // Re-run when auth state changes
 
+  const submitIcon = useAnimatedIcon();
+
   function onSubmit(values: FormValues) {
     setServerError(null);
     setSuccess(null);
@@ -173,35 +175,26 @@ export function SubmitTrustedMemberForm({
           : "Thanks for applying! We’ll email you once your application is reviewed.";
 
     return (
-      <Card>
-        <CardHeader className="space-y-2">
-          <div className="flex items-center gap-2">
-            <StatusIcon
-              className={
-                appStatus === "accepted"
-                  ? "h-5 w-5 text-success"
-                  : appStatus === "rejected"
-                    ? "h-5 w-5 text-destructive"
-                    : "h-5 w-5 text-muted-foreground"
-              }
-            />
-            <CardTitle className="text-xl">{title}</CardTitle>
-          </div>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-      </Card>
+      <Alert
+        variant={
+          appStatus === "accepted"
+            ? "success"
+            : appStatus === "rejected"
+              ? "destructive"
+              : "info"
+        }
+      >
+        <StatusIcon aria-hidden="true" />
+        <AlertTitle>{title}</AlertTitle>
+        <AlertDescription>{description}</AlertDescription>
+      </Alert>
     );
   }
 
   return (
     <Card>
-      <CardHeader className="space-y-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          <CardTitle className="text-xl">
-            Apply to be a Trusted Member
-          </CardTitle>
-        </div>
+      <CardHeader>
+        <CardTitle>Apply to be a Trusted Member</CardTitle>
         <CardDescription>
           We review applications to keep the platform safe. Please use your real
           name and a brief description of why you need Trusted access.
@@ -306,34 +299,33 @@ export function SubmitTrustedMemberForm({
 
           {serverError ? (
             <Alert variant="destructive">
-              <XCircle className="h-4 w-4" />
+              <XCircle aria-hidden="true" />
               <AlertTitle>Submission failed</AlertTitle>
               <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           ) : null}
           {success ? (
-            <Alert
-              variant="default"
-              className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900/30"
-            >
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <AlertTitle className="text-green-900 dark:text-green-200">
-                Success
-              </AlertTitle>
-              <AlertDescription className="text-green-800 dark:text-green-300">
-                {success}
-              </AlertDescription>
+            <Alert variant="success">
+              <CheckCircle2 aria-hidden="true" />
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>{success}</AlertDescription>
             </Alert>
           ) : null}
 
-          <Separator />
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex justify-end border-t pt-4">
             <Button
               type="submit"
               className="w-full sm:w-auto"
               disabled={pending || !form.formState.isValid}
+              {...submitIcon.triggerProps}
             >
-              {pending ? "Submitting..." : "Submit Application"}
+              <SendIcon
+                ref={submitIcon.ref}
+                size={16}
+                data-icon="inline-start"
+                aria-hidden="true"
+              />
+              {pending ? "Submitting..." : "Submit application"}
             </Button>
             {/* {!form.formState.isValid && (
               <span className="text-xs text-muted-foreground">Please fix the errors above to submit.</span>

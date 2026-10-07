@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { generateText } from "ai";
 import { NextRequest } from "next/server";
 import { AI_MODEL_FAST } from "@/lib/ai/models";
@@ -158,7 +159,10 @@ export async function POST(req: NextRequest) {
         getRequestIp(req.headers),
       );
     } catch (rateLimitError) {
-      console.error("Project parser rate-limit check failed:", rateLimitError);
+      safeConsole.error(
+        "Project parser rate-limit check failed:",
+        rateLimitError,
+      );
       return Response.json(
         {
           error:
@@ -224,7 +228,7 @@ export async function POST(req: NextRequest) {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error("Project parser response did not contain JSON");
+        safeConsole.error("Project parser response did not contain JSON");
         return Response.json(
           {
             error:
@@ -240,7 +244,7 @@ export async function POST(req: NextRequest) {
       const parsedData = parseProjectOutputSchema.safeParse(candidate);
 
       if (!parsedData.success) {
-        console.error(
+        safeConsole.error(
           "Project parser returned an invalid shape:",
           parsedData.error.issues.map((issue) => ({
             code: issue.code,
@@ -258,7 +262,7 @@ export async function POST(req: NextRequest) {
 
       return Response.json(parsedData.data);
     } catch (parseError) {
-      console.error(
+      safeConsole.error(
         "Project parser returned invalid JSON:",
         parseError instanceof Error ? parseError.name : "unknown",
       );
@@ -271,7 +275,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error(
+    safeConsole.error(
       "AI parsing error:",
       error instanceof Error ? error.name : "unknown",
     );

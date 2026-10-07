@@ -1,6 +1,16 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
+import {
+  ownedPublicImagePath,
+  preparePublicImage,
+} from "@/lib/storage/public-image";
+import { reservePublicImageCleanup } from "@/lib/storage/public-image-lifecycle";
+import {
+  replacePublicImage,
+  type ImageReferenceCommit,
+} from "@/lib/storage/replace-public-image";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -13,16 +23,6 @@ import {
 } from "@/lib/organization/reserved-slugs";
 import { validateOrganizationUsername } from "@/lib/organization/username";
 import { hasActiveOrganizationAdminMembership } from "@/lib/organization/active-membership";
-
-const ALLOWED_FILE_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
-
-// Max file size (5MB)
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 type OrganizationUpdateData = {
   id: string;
@@ -58,7 +58,7 @@ export async function checkUsernameAvailability(
     .maybeSingle();
 
   if (error) {
-    console.error("Error checking username availability:", error);
+    safeConsole.error("Error checking username availability:", error);
     return false;
   }
 
@@ -104,7 +104,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     .single();
 
   if (orgError || !currentOrg) {
-    console.error("Error fetching organization:", orgError);
+    safeConsole.error("Error fetching organization:", orgError);
     return { error: "Organization not found" };
   }
 
@@ -123,7 +123,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
   }
 
   try {
-    let logoUrl = currentOrg.logo_url;
+    let cleanupPending = false;
     const autoJoinDomain: string | null = currentOrg.auto_join_domain;
 
     if (data.autoJoinDomain) {
@@ -152,124 +152,80 @@ export async function updateOrganization(data: OrganizationUpdateData) {
       };
     }
 
-    // Handle logo update
-    if (data.logoUrl !== undefined) {
-      // Case: Logo was explicitly set to null - remove the current logo
-      if (data.logoUrl === null) {
-        logoUrl = null;
-
-        // If there was a previous logo, delete it from storage
-        if (currentOrg.logo_url) {
-          try {
-            const fileName = currentOrg.logo_url.split("/").pop();
-            if (fileName) {
-              await supabase.storage
-                .from("organization-logos")
-                .remove([fileName]);
-            }
-          } catch (error) {
-            console.error("Error removing old logo:", error);
-            // Continue even if logo deletion fails
-          }
-        }
+    const fields = {
+      name: data.name,
+      username: data.username,
+      description: data.description || null,
+      website: data.website || null,
+      type: data.type,
+      auto_join_domain: autoJoinDomain,
+      show_members_publicly: data.showMembersPublicly !== false,
+    };
+    const commit = async (
+      url: string | null,
+    ): Promise<ImageReferenceCommit> => {
+      if (
+        !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
+      )
+        return "refused";
+      let query = supabase
+        .from("organizations")
+        .update({ ...fields, logo_url: url })
+        .eq("id", data.id);
+      query =
+        currentOrg.logo_url === null
+          ? query.is("logo_url", null)
+          : query.eq("logo_url", currentOrg.logo_url);
+      const { data: changed, error } = await query.select("id").maybeSingle();
+      return error ? "unknown" : changed ? "committed" : "refused";
+    };
+    if (data.logoUrl !== undefined && data.logoUrl !== currentOrg.logo_url) {
+      const image = data.logoUrl
+        ? await preparePublicImage(data.logoUrl)
+        : null;
+      const replaced = await replacePublicImage({
+        actorId: user.id,
+        bucket: "organization-logos",
+        ownerId: data.id,
+        previousUrl: currentOrg.logo_url,
+        image,
+        storage: getAdminClient({ timeoutMs: 10_000 }).storage.from(
+          "organization-logos",
+        ),
+        commit,
+      });
+      if (!replaced.success) return { error: replaced.error };
+      cleanupPending = replaced.cleanupPending;
+    } else {
+      if (
+        !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
+      ) {
+        return { error: "Only admins can update organization details" };
       }
-      // Case: New logo provided
-      else if (data.logoUrl && data.logoUrl.startsWith("data:")) {
-        // Extract the MIME type and verify it's allowed
-        const mimeType = data.logoUrl.split(";")[0].split(":")[1];
-
-        if (!ALLOWED_FILE_TYPES.includes(mimeType)) {
-          return { error: "Invalid file type. Allowed types: JPEG, PNG, WebP" };
-        }
-
-        // Extract the base64 content and determine file extension
-        const base64Data = data.logoUrl.split(",")[1];
-
-        // Size check
-        const approxFileSize = base64Data.length * 0.75;
-        if (approxFileSize > MAX_FILE_SIZE) {
-          return { error: "File size exceeds the 5MB limit" };
-        }
-
-        // Determine file extension from MIME type
-        let fileExt;
-        if (mimeType === "image/jpeg" || mimeType === "image/jpg") {
-          fileExt = "jpg";
-        } else if (mimeType === "image/png") {
-          fileExt = "png";
-        } else if (mimeType === "image/webp") {
-          fileExt = "webp";
-        } else {
-          fileExt = "jpg";
-        }
-
-        // File name based on organization ID
-        const fileName = `${data.id}.${fileExt}`;
-
-        // Delete previous logo if it exists
-        if (currentOrg.logo_url) {
-          try {
-            const oldFileName = currentOrg.logo_url.split("/").pop();
-            if (oldFileName) {
-              await supabase.storage
-                .from("organization-logos")
-                .remove([oldFileName]);
-            }
-          } catch (error) {
-            console.error("Error removing old logo:", error);
-            // Continue even if logo deletion fails
-          }
-        }
-
-        // Upload new logo
-        const { error: uploadError } = await supabase.storage
-          .from("organization-logos")
-          .upload(fileName, Buffer.from(base64Data, "base64"), {
-            contentType: mimeType,
-            upsert: false,
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL for the uploaded image
-        const { data: publicUrlData } = supabase.storage
-          .from("organization-logos")
-          .getPublicUrl(fileName);
-
-        logoUrl = publicUrlData.publicUrl;
-      }
+      const { data: changed, error } = await supabase
+        .from("organizations")
+        .update(fields)
+        .eq("id", data.id)
+        .select("id")
+        .maybeSingle();
+      if (error || !changed)
+        return {
+          error:
+            "The organization update could not be confirmed. Refresh before trying again.",
+        };
     }
-
-    // Update the organization
-    if (
-      !(await hasActiveOrganizationAdminMembership(admin, data.id, user.id))
-    ) {
-      return { error: "Only admins can update organization details" };
-    }
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        name: data.name,
-        username: data.username,
-        description: data.description || null,
-        website: data.website || null,
-        type: data.type,
-        logo_url: logoUrl,
-        auto_join_domain: autoJoinDomain,
-        show_members_publicly: data.showMembersPublicly !== false,
-      })
-      .eq("id", data.id);
-
-    if (updateError) throw updateError;
 
     // Revalidate paths
     revalidatePath(`/organization/${currentOrg.username}`);
     revalidatePath(`/organization/${data.username}`);
     revalidatePath("/organization");
 
-    return { success: true };
+    return {
+      success: true,
+      ...(cleanupPending ? { cleanupPending: true } : {}),
+    };
   } catch (error) {
-    console.error("Error updating organization:", error);
+    safeConsole.error("Error updating organization:", error);
     return {
       error:
         error instanceof Error
@@ -319,6 +275,22 @@ export async function deleteOrganization(organizationId: string) {
       return { error: "Organization not found" };
     }
 
+    const logoPath = ownedPublicImagePath(
+      organization.logo_url,
+      supabase.storage.from("organization-logos").getPublicUrl("").data
+        .publicUrl,
+      "organization-logos",
+      organizationId,
+    );
+    await reservePublicImageCleanup({
+      actorId: user.id,
+      bucket: "organization-logos",
+      ownerId: organizationId,
+      previousUrl: organization.logo_url,
+      previousPath: logoPath,
+      candidatePath: null,
+    });
+
     const { data: deletedOrganization, error: deleteError } = await supabase
       .from("organizations")
       .delete()
@@ -327,7 +299,10 @@ export async function deleteOrganization(organizationId: string) {
       .maybeSingle();
 
     if (deleteError) {
-      console.error("Error deleting organization from database:", deleteError);
+      safeConsole.error(
+        "Error deleting organization from database:",
+        deleteError,
+      );
       throw deleteError;
     }
 
@@ -335,35 +310,12 @@ export async function deleteOrganization(organizationId: string) {
       throw new Error("Failed to delete organization");
     }
 
-    if (organization.logo_url) {
-      const fileName = organization.logo_url.split("/").pop();
-      if (fileName) {
-        try {
-          // Membership rows are gone after the proven database delete, so the
-          // privileged server client owns this idempotent post-delete cleanup.
-          const admin = getAdminClient();
-          const { error: logoRemovalError } = await admin.storage
-            .from("organization-logos")
-            .remove([fileName]);
-
-          if (logoRemovalError) {
-            console.error(
-              "Error removing deleted organization logo:",
-              logoRemovalError,
-            );
-          }
-        } catch (error) {
-          console.error("Error removing deleted organization logo:", error);
-        }
-      }
-    }
-
     // Revalidate paths
     revalidatePath("/organization");
 
-    return { success: true };
+    return { success: true, cleanupPending: Boolean(logoPath) };
   } catch (error) {
-    console.error("Error deleting organization:", error);
+    safeConsole.error("Error deleting organization:", error);
     return {
       error:
         error instanceof Error
@@ -402,25 +354,25 @@ export async function generateStaffLink(
   }
 
   try {
-    // Generate a new UUID token
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
-
-    // Update the organization with the new staff token
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        staff_join_token: token,
-        staff_join_token_created_at: new Date().toISOString(),
-        staff_join_token_expires_at: expiresAt.toISOString(),
-        staff_join_token_issued_by: user.id,
-      })
-      .eq("id", organizationId);
-
-    if (updateError) {
-      console.error("Error generating staff link:", updateError);
-      throw updateError;
+    const { data: result, error: updateError } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "generate",
+        p_expires_days: expiresInDays,
+      },
+    );
+    if (
+      updateError ||
+      result?.success !== true ||
+      typeof result.token !== "string" ||
+      typeof result.expiresAt !== "string"
+    ) {
+      safeConsole.error("Error generating staff link:", updateError);
+      return {
+        error: "The staff link could not be generated. Refresh and try again.",
+      };
     }
 
     // Revalidate the settings page
@@ -428,11 +380,11 @@ export async function generateStaffLink(
 
     return {
       success: true,
-      token,
-      expiresAt: expiresAt.toISOString(),
+      token: result.token as string,
+      expiresAt: new Date(result.expiresAt).toISOString(),
     };
   } catch (error) {
-    console.error("Error generating staff link:", error);
+    safeConsole.error("Error generating staff link:", error);
     return {
       error:
         error instanceof Error
@@ -467,19 +419,19 @@ export async function revokeStaffLink(organizationId: string) {
   }
 
   try {
-    const { error: updateError } = await admin
-      .from("organizations")
-      .update({
-        staff_join_token: null,
-        staff_join_token_created_at: null,
-        staff_join_token_expires_at: null,
-        staff_join_token_issued_by: null,
-      })
-      .eq("id", organizationId);
-
-    if (updateError) {
-      console.error("Error revoking staff link:", updateError);
-      throw updateError;
+    const { data: result, error: updateError } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "revoke",
+      },
+    );
+    if (updateError || result?.success !== true) {
+      safeConsole.error("Error revoking staff link:", updateError);
+      return {
+        error: "The staff link could not be revoked. Refresh and try again.",
+      };
     }
 
     // Revalidate the settings page
@@ -487,7 +439,7 @@ export async function revokeStaffLink(organizationId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error revoking staff link:", error);
+    safeConsole.error("Error revoking staff link:", error);
     return {
       error:
         error instanceof Error ? error.message : "Failed to revoke staff link",
@@ -520,32 +472,33 @@ export async function getStaffLinkDetails(organizationId: string) {
   }
 
   try {
-    const { data: org, error } = await admin
-      .from("organizations")
-      .select(
-        "staff_join_token, staff_join_token_created_at, staff_join_token_expires_at",
-      )
-      .eq("id", organizationId)
-      .single();
-
-    if (error || !org) {
-      throw error ?? new Error("Organization not found");
+    const { data: result, error } = await admin.rpc(
+      "manage_organization_staff_invite",
+      {
+        p_actor: user.id,
+        p_organization: organizationId,
+        p_operation: "get",
+      },
+    );
+    if (
+      error ||
+      typeof result?.hasToken !== "boolean" ||
+      typeof result.isExpired !== "boolean"
+    ) {
+      safeConsole.error("Error getting staff link details:", error);
+      return {
+        error: "Staff link details are unavailable. Refresh and try again.",
+      };
     }
-
-    // Check if token is expired
-    const isExpired = org.staff_join_token_expires_at
-      ? new Date(org.staff_join_token_expires_at) < new Date()
-      : false;
-
     return {
-      hasToken: !!org.staff_join_token && !isExpired,
-      token: isExpired ? null : org.staff_join_token,
-      createdAt: org.staff_join_token_created_at,
-      expiresAt: org.staff_join_token_expires_at,
-      isExpired,
+      hasToken: result.hasToken as boolean,
+      token: result.token as string | null,
+      createdAt: result.createdAt as string | null,
+      expiresAt: result.expiresAt as string | null,
+      isExpired: result.isExpired as boolean,
     };
   } catch (error) {
-    console.error("Error getting staff link details:", error);
+    safeConsole.error("Error getting staff link details:", error);
     return {
       error:
         error instanceof Error

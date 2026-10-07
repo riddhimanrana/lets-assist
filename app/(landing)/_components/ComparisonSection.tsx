@@ -119,7 +119,7 @@ const comparisonFeatures: ComparisonFeature[] = [
   },
   {
     name: "CSV Exports",
-    description: "Export data for compliance/audits",
+    description: "Export hours for your records",
     letsAssist: true,
     signupGenius: "Premium only",
     icon: FileText,
@@ -851,7 +851,7 @@ function OutdatedMockup() {
         transition={{ delay: 1.2 }}
         className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-medium shadow-lg"
       >
-        2010 design 📟
+        2010 design
       </motion.div>
     </motion.div>
   );
@@ -986,7 +986,6 @@ export default function ComparisonSection() {
     >
       {/* Background gradient */}
       <div className="absolute inset-0 bg-linear-to-b from-background via-muted/20 to-background" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.05),transparent_70%)]" />
 
       <div className="container relative mx-auto px-4 sm:px-6">
         {/* Section header with text flip */}
@@ -1002,7 +1001,7 @@ export default function ComparisonSection() {
               SignUpGenius is <TextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              <span className="text-transparent bg-linear-to-r from-primary via-chart-2 to-primary bg-clip-text bg-size-[200%_auto] animate-gradient">
+              <span className="text-primary">
                 Let&apos;s Assist is built for today.
               </span>
             </h2>
@@ -1015,10 +1014,9 @@ export default function ComparisonSection() {
             transition={{ delay: 0.3 }}
             className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4"
           >
-            Stop using a tool designed for potlucks to manage your volunteer
-            program. Modern hour tracking, auto-certificates, and
-            compliance-ready reports —{" "}
-            <span className="text-primary font-medium">completely free</span>.
+            SignUpGenius was made for potluck lists. Let&apos;s Assist tracks
+            hours, issues certificates, and exports reports, and it is{" "}
+            <span className="text-primary font-medium">free</span>.
           </motion.p>
         </motion.div>
 

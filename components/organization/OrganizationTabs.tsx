@@ -1,5 +1,7 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
 import ProjectsTab from "@/app/organization/[id]/ProjectsTab";
@@ -454,16 +456,22 @@ export default function OrganizationTabs({
 
   // Validate input data
   if (!Array.isArray(members)) {
-    console.error("OrganizationTabs: members prop is not an array");
-    return <div className="text-destructive">Error: Invalid members data</div>;
+    safeConsole.error("OrganizationTabs: members prop is not an array");
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Member data could not be loaded.</AlertDescription>
+      </Alert>
+    );
   }
 
   if (!Array.isArray(projects)) {
-    console.error("OrganizationTabs: projects prop is not an array");
-    return <div className="text-destructive">Error: Invalid projects data</div>;
+    safeConsole.error("OrganizationTabs: projects prop is not an array");
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>Project data could not be loaded.</AlertDescription>
+      </Alert>
+    );
   }
-
-  // Calculate stats - using a stable value during hydration if needed
 
   return (
     <Tabs
@@ -483,14 +491,7 @@ export default function OrganizationTabs({
         sectionGroupLabel={sectionGroupLabel}
         utilityGroupLabel={utilityGroupLabel}
         renderSectionSwitcherItem={renderSectionSwitcherItem}
-        showOverviewTab={showOverviewTab}
-        showMembersTab={showMembersTab}
-        showProjectsTab={showProjectsTab}
-        showReportsTab={showReportsTab}
-        getCoreLabel={getCoreLabel}
         pluginNavigationOverrides={pluginNavigationOverrides}
-        primaryPluginTabs={primaryPluginTabs}
-        visiblePluginRouteTabs={visiblePluginRouteTabs}
         activePluginParentValue={activePluginParentValue}
         morePluginTabs={morePluginTabs}
         hasActiveMoreTab={Boolean(activeMoreTab)}
@@ -511,6 +512,11 @@ export default function OrganizationTabs({
             totalHours={reportSummary?.totalHours ?? 0}
             pluginOverviewExtensions={pluginOverviewExtensions}
             userRole={userRole}
+            projectsHref={
+              showProjectsTab
+                ? (routeBackedTabs.get("projects") ?? getTabHref("projects"))
+                : undefined
+            }
             demoAdminToolsContent={demoAdminToolsContent}
           />
         )}
@@ -525,6 +531,9 @@ export default function OrganizationTabs({
               organizationId={organization.id}
               currentUserId={currentUserId}
               canViewMembers={canViewMembers}
+              membersHiddenFromPublic={
+                organization.show_members_publicly === false
+              }
               demoMemberHours={demoMemberHours}
               demoMemberDetails={demoMemberDetails}
             />
@@ -539,6 +548,9 @@ export default function OrganizationTabs({
               projects={projects}
               organizationId={organization.id}
               userRole={userRole}
+              showCreateAction={
+                pluginNavigationOverrides.hideProjectAction === true
+              }
             />
           </TabsContent>
         )}

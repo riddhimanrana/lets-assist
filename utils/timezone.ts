@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Timezone utility functions for handling project times across different timezones
  */
@@ -25,7 +26,7 @@ export function getUserTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch (error) {
-    console.error("Error getting user timezone:", error);
+    safeConsole.error("Error getting user timezone:", error);
     return "UTC"; // Fallback to UTC
   }
 }
@@ -82,7 +83,7 @@ export function formatDateForDisplay(dateString: string): string {
     const date = parse(dateString, "yyyy-MM-dd", new Date());
     return format(date, "EEEE, MMMM d, yyyy");
   } catch (error) {
-    console.error("Error formatting date:", error);
+    safeConsole.error("Error formatting date:", error);
     return dateString;
   }
 }
@@ -102,7 +103,7 @@ export function getTimezoneAbbreviation(timezone: string): string {
     const timeZoneName = parts.find((part) => part.type === "timeZoneName");
     return timeZoneName?.value || timezone;
   } catch (error) {
-    console.error("Error getting timezone abbreviation:", error);
+    safeConsole.error("Error getting timezone abbreviation:", error);
     return timezone;
   }
 }

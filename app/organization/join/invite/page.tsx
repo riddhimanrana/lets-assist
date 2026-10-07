@@ -2,6 +2,17 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getInvitationByToken } from "@/app/organization/[id]/admin/actions";
+import { CircleX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { InviteShell } from "../InviteCard";
 import InviteAcceptClient from "./InviteAcceptClient";
 
 type Props = {
@@ -48,35 +59,26 @@ export default async function InviteAcceptPage({ searchParams }: Props) {
 
   if (!invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4">
-            <svg
-              className="w-8 h-8 text-destructive mx-auto"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Invitation Not Found</h1>
-          <p className="text-muted-foreground mb-6">
-            This invitation link is invalid or has already been used.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-          >
-            Go to Homepage
-          </Link>
-        </div>
-      </div>
+      <InviteShell>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CircleX />
+            </EmptyMedia>
+            <EmptyTitle role="heading" aria-level={1}>
+              Invitation Not Found
+            </EmptyTitle>
+            <EmptyDescription>
+              This invitation link is invalid or has already been used.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild>
+              <Link href="/">Go to homepage</Link>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </InviteShell>
     );
   }
 

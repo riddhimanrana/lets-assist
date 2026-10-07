@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { parse } from "yaml";
 
 const source = readFileSync(
   new URL("./test-csf-load.mjs", import.meta.url),
@@ -16,6 +17,131 @@ const aliasVerifier = readFileSync(
   new URL("./verify-vercel-alias.sh", import.meta.url),
   "utf8",
 );
+
+type WorkflowStep = {
+  name?: string;
+  id?: string;
+  if?: string;
+  "continue-on-error"?: boolean;
+  with?: Record<string, unknown>;
+  env?: Record<string, string>;
+  run?: string;
+};
+type HostedWorkflow = {
+  on: { push: { branches: string[] } };
+  jobs: Record<
+    string,
+    {
+      if: string;
+      environment: string;
+      needs: string[];
+      steps: WorkflowStep[];
+    }
+  >;
+};
+
+function assertHostedAttendanceBoundary(config: HostedWorkflow) {
+  expect(Object.keys(config.on).sort()).toEqual(["push", "workflow_dispatch"]);
+  expect(config.on.push.branches).toEqual(["development"]);
+  const job = config.jobs["hosted-acceptance"];
+  expect(job.environment).toBe("development");
+  expect(job.needs).toEqual(["release-selection", "preview-build"]);
+  expect(job.if.replace(/\s+/gu, " ").trim()).toBe(
+    "always() && !cancelled() && github.ref == 'refs/heads/development' && needs.release-selection.outputs.should_run == 'true' && (needs.preview-build.result == 'success' || needs.preview-build.result == 'skipped')",
+  );
+  expect(job.steps[0].with?.ref).toBe("${{ env.ACCEPTED_SHA }}");
+  expect(job.steps[0].with?.["fetch-depth"]).toBe(0);
+  const guardNames = [
+    "Verify exact Development head and confirmation",
+    "Verify unchanged application before build reuse",
+    "Require successful Supabase Development preview for the SHA",
+    "Verify the Development branch domain before acceptance",
+    "Preflight hosted acceptance configuration",
+    "Provision the fixed synthetic CSF fixture",
+    "Run guarded hosted attendance acceptance",
+  ];
+  let previousIndex = 0;
+  for (const name of guardNames) {
+    const index = job.steps.findIndex((step) => step.name === name);
+    expect(index).toBeGreaterThan(previousIndex);
+    // These steps use GitHub's default success condition. No failure bypass.
+    expect(job.steps[index].if).toBeUndefined();
+    previousIndex = index;
+  }
+  for (const step of job.steps.slice(0, previousIndex + 1)) {
+    expect(step["continue-on-error"] ?? false).toBe(false);
+  }
+  const verify = job.steps.find((step) => step.id === "verify")!;
+  expect(verify.name).toBe(guardNames[0]);
+  expect(verify.run).toContain("set -euo pipefail");
+  expect(verify.run).toContain(
+    '"${CONFIRMATION}" != "load-hosted-development:${DEVELOPMENT_PROJECT_REF}"',
+  );
+  expect(verify.run).toContain(
+    '"$(git rev-parse HEAD)" != "${ACCEPTED_SHA}" || "$(git rev-parse "origin/development")" != "${ACCEPTED_SHA}"',
+  );
+  expect(verify.run).toContain('echo "verified=true" >> "${GITHUB_OUTPUT}"');
+  const attendance = job.steps[previousIndex];
+  expect(attendance.run).toBe(
+    "bunx playwright test --config=playwright.attendance-hosted.config.ts",
+  );
+  expect(attendance.env).toEqual({
+    ATTENDANCE_HOSTED_DEVELOPMENT: "1",
+    ATTENDANCE_APP_URL: "https://dev.lets-assist.com/",
+    ATTENDANCE_HOSTED_CONFIRMATION:
+      "attendance-hosted-development:${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}",
+    EXPECTED_NON_PRODUCTION_SUPABASE_PROJECT_REF:
+      "${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}",
+    SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
+    SUPABASE_PUBLISHABLE_KEY:
+      "${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}",
+    SUPABASE_URL:
+      "https://${{ vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF }}.supabase.co",
+    VERCEL_AUTOMATION_BYPASS_SECRET:
+      "${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+  });
+}
+
+test("attendance secret exception rejects weakened Development gates", () => {
+  const cases: Array<(config: HostedWorkflow) => void> = [
+    (config) => {
+      config.jobs["hosted-acceptance"].environment = "production";
+    },
+    (config) => {
+      config.jobs["hosted-acceptance"].if = "always()";
+    },
+    (config) => {
+      config.on.push.branches = ["main"];
+    },
+    (config) => {
+      config.jobs["hosted-acceptance"].steps.find(
+        (step) => step.id === "verify",
+      )!["continue-on-error"] = true;
+    },
+    (config) => {
+      config.jobs["hosted-acceptance"].steps.find(
+        (step) => step.name === "Run guarded hosted attendance acceptance",
+      )!.if = "always()";
+    },
+    (config) => {
+      const steps = config.jobs["hosted-acceptance"].steps;
+      const index = steps.findIndex(
+        (step) => step.name === "Run guarded hosted attendance acceptance",
+      );
+      steps.splice(1, 0, steps.splice(index, 1)[0]);
+    },
+    (config) => {
+      config.jobs["hosted-acceptance"].steps.find(
+        (step) => step.name === "Run guarded hosted attendance acceptance",
+      )!.env!.SUPABASE_URL = "https://unreviewed-target.supabase.co";
+    },
+  ];
+  for (const weaken of cases) {
+    const config: HostedWorkflow = parse(workflow);
+    weaken(config);
+    expect(() => assertHostedAttendanceBoundary(config)).toThrow();
+  }
+});
 
 describe("hosted CSF load acceptance", () => {
   test("includes route diagnostics without replacing aggregate acceptance gates", () => {
@@ -255,7 +381,7 @@ describe("hosted CSF load acceptance", () => {
     expect(hostedJob).toContain("      statuses: write");
     expect(workflow).toContain("push:");
     expect(workflow).toContain("isDevelopmentReleaseCommitMessage");
-    expect(workflow).toContain("needs: release-selection");
+    expect(workflow).toContain("needs: [release-selection, preview-build]");
     expect(workflow).toContain("environment: development");
     expect(workflow).not.toContain("core.getIDToken()");
     expect(workflow).not.toContain("VERCEL_TRUSTED_OIDC_TOKEN");
@@ -276,9 +402,78 @@ describe("hosted CSF load acceptance", () => {
     expect(workflow).toContain(
       '.status == "completed" and .conclusion == "success"',
     );
-    expect(workflow).not.toContain("secrets.VERCEL_TOKEN");
-    expect(workflow).not.toContain("vars.VERCEL_TEAM_ID");
-    expect(workflow).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    const previewStep = workflow.slice(
+      workflow.indexOf("      - name: Build the exact Development Preview"),
+      workflow.indexOf("      - name: Retain the explicit Preview identity"),
+    );
+    expect(previewStep).toContain("if: inputs.build_current_revision == true");
+    expect(previewStep).toContain(
+      "run: node scripts/hosted-development/deploy-exact-preview.mjs",
+    );
+    expect(previewStep).toContain("secrets.VERCEL_TOKEN");
+    const previewJob = workflow.slice(
+      workflow.indexOf("  preview-build:"),
+      workflow.indexOf("  hosted-acceptance:"),
+    );
+    expect(previewJob).toContain("environment: production");
+    expect(previewJob).toContain(
+      "github.ref == 'refs/heads/development' && inputs.build_current_revision == true",
+    );
+    expect(previewJob).toContain('[[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]');
+    expect(hostedJob).not.toContain("secrets.VERCEL_TOKEN");
+    const { jobs, ...sharedConfig } = parse(workflow);
+    const unprivileged = [JSON.stringify(sharedConfig)];
+    const withoutDatabaseCredentials = [JSON.stringify(sharedConfig)];
+    const allowedProviderSteps = new Set([
+      "preview-build/Build the exact Development Preview when requested",
+      "development-cutover/Run fixed Development coordinator",
+    ]);
+    const allowedDatabaseSteps = new Set([
+      "hosted-acceptance/Provision the fixed synthetic CSF fixture",
+      "hosted-acceptance/Run guarded hosted attendance acceptance",
+      "development-cutover/Run fixed Development coordinator",
+    ]);
+    const foundProviderSteps: string[] = [];
+    const foundDatabaseSteps: string[] = [];
+    for (const [jobId, job] of Object.entries(jobs) as [
+      string,
+      { steps: { name?: string }[] },
+    ][]) {
+      const { steps, ...jobConfig } = job;
+      unprivileged.push(JSON.stringify(jobConfig));
+      withoutDatabaseCredentials.push(JSON.stringify(jobConfig));
+      for (const step of steps) {
+        const identity = `${jobId}/${step.name}`;
+        if (allowedProviderSteps.has(identity))
+          foundProviderSteps.push(identity);
+        else unprivileged.push(JSON.stringify(step));
+        if (allowedDatabaseSteps.has(identity))
+          foundDatabaseSteps.push(identity);
+        else withoutDatabaseCredentials.push(JSON.stringify(step));
+      }
+    }
+    expect(foundProviderSteps.sort()).toEqual([...allowedProviderSteps].sort());
+    expect(foundDatabaseSteps.sort()).toEqual([...allowedDatabaseSteps].sort());
+    assertHostedAttendanceBoundary(parse(workflow));
+    expect(jobs["development-cutover"].environment).toBe("development");
+    expect(jobs["development-cutover"].if).toBe(
+      "github.event_name == 'workflow_dispatch' && inputs.cutover_phase != 'none' && inputs.cutover_phase != ''",
+    );
+    for (const source of unprivileged) {
+      expect(source).not.toContain("secrets.VERCEL_TOKEN");
+      expect(source).not.toContain("vars.VERCEL_TEAM_ID");
+      expect(source).not.toContain("vars.VERCEL_ROOT_PROJECT_ID");
+    }
+    for (const source of withoutDatabaseCredentials) {
+      const withoutPresenceCheck = source.replaceAll(
+        "${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}",
+        "",
+      );
+      expect(withoutPresenceCheck).not.toContain(
+        "secrets.SUPABASE_SERVICE_ROLE_KEY",
+      );
+      expect(source).not.toContain("secrets.SUPABASE_SECRET_KEY");
+    }
     expect(aliasVerifier).toContain("https://dev.lets-assist.com/api/status");
     expect(aliasVerifier).not.toContain("https://api.vercel.com");
     expect(aliasVerifier).toContain("--connect-timeout 10");
@@ -369,12 +564,17 @@ describe("hosted CSF load acceptance", () => {
       '[[ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]]',
     );
     expect(
-      workflow.match(
+      hostedJob.match(
         /VERCEL_AUTOMATION_BYPASS_SECRET: \$\{\{ secrets\.VERCEL_AUTOMATION_BYPASS_SECRET \}\}/gu,
       ) ?? [],
     ).toHaveLength(4);
     expect(provisionStep).not.toContain("VERCEL_AUTOMATION_BYPASS_SECRET");
-    expect(workflow.slice(0, provisionStepStart)).not.toContain(
+    expect(
+      workflow.slice(
+        workflow.indexOf("  hosted-acceptance:"),
+        provisionStepStart,
+      ),
+    ).not.toContain(
       "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}",
     );
     const attendanceStart = workflow.indexOf(

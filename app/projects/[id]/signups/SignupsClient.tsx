@@ -1,10 +1,11 @@
 "use client";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Pause, RefreshCw, Search, UserRoundSearch } from "lucide-react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { AttendanceTools } from "@/components/projects/AttendanceTools";
 import { Project } from "@/types";
 import {
   getWaiverDownloadUrl,
@@ -13,98 +14,42 @@ import {
   unrejectSignup,
 } from "../actions";
 import { getOrganizerSignupsWithWaiverStatus } from "./actions";
-import {
-  formatScheduleDisplay,
-  formatDateForDisplay,
-  ProjectScheduleTime,
-} from "@/utils/timezone";
-import { getMultiDaySlotDisplayName } from "@/utils/project";
-import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { StatStrip } from "@/components/layout/SettingsSection";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
-  CheckCircle2,
-  XCircle,
-  Clock,
-  ArrowLeft,
-  Loader2,
-  UserRoundSearch,
-  ArrowUpDown,
-  ChevronUp,
-  ChevronDown,
-  Printer,
-  RefreshCw,
-  Pause,
-  Play,
-  UserCheck,
-  Eye,
-  Download,
-  MoreVertical,
-  FileText,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import {
   WaiverPreviewDialog,
   WaiverPreviewSignature,
 } from "@/components/projects/WaiverPreviewDialog";
 import { SignupResponsesDialog } from "@/components/projects/SignupResponsesDialog";
+import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  formatScheduleSlot,
+  type OrganizerSignup as Signup,
+} from "./signups-format";
+import { AttendanceTools } from "@/components/projects/AttendanceTools";
+import { SignupsTable } from "./SignupsTable";
 
 interface Props {
   projectId: string;
 }
-
-// Update Signup type to reflect new structure
-type Signup = {
-  id: string;
-  created_at: string;
-  status: "pending" | "rejected" | "approved";
-  user_id: string | null;
-  anonymous_id: string | null; // FK to anonymous_signups
-  schedule_id: string;
-  volunteer_comment?: string | null;
-  response_data?: Record<string, unknown> | null;
-  waiver_signature?: WaiverPreviewSignature | WaiverPreviewSignature[];
-  profile?: {
-    // Data from profiles table (if user_id exists)
-    full_name: string;
-    username: string;
-    email: string;
-    phone?: string;
-  };
-  anonymous_signup?: {
-    // Data from anonymous_signups table (if anonymous_id exists)
-    id: string;
-    name: string;
-    email: string;
-    phone_number?: string | null;
-    confirmed_at?: string | null;
-  };
-};
 
 type SortField = "status"; // Add other fields like 'name', 'type', 'contact' if needed
 type SortDirection = "asc" | "desc";
@@ -115,7 +60,6 @@ interface Sort {
 }
 
 export function SignupsClient({ projectId }: Props): React.JSX.Element {
-  const router = useRouter();
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,15 +94,6 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       direction:
         current.field === field && current.direction === "asc" ? "desc" : "asc",
     }));
-  };
-
-  const getSortIcon = (field: SortField) => {
-    if (sort.field !== field) return <ArrowUpDown className="h-4 w-4" />;
-    return sort.direction === "asc" ? (
-      <ChevronUp className="h-4 w-4" />
-    ) : (
-      <ChevronDown className="h-4 w-4" />
-    );
   };
 
   // Group signups by schedule slot
@@ -242,12 +177,12 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     const supabase = createClient();
     const { data: project, error } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .eq("id", projectId)
       .single();
 
     if (error) {
-      console.error("Error loading project:", error);
+      safeConsole.error("Error loading project:", error);
       return;
     }
 
@@ -270,7 +205,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
       }
     } catch (error) {
-      console.error("Error loading signups:", error);
+      safeConsole.error("Error loading signups:", error);
       toast.error("Failed to load signups");
     }
 
@@ -315,7 +250,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.success("Signup rejected and the volunteer was notified.");
     } catch (error) {
-      console.error("Error rejecting signup:", error);
+      safeConsole.error("Error rejecting signup:", error);
       toast.error("Failed to reject signup");
     } finally {
       setProcessingSignups((prev) => ({ ...prev, [signupId]: false }));
@@ -349,7 +284,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         });
         setPreviewOpen(true);
       } catch (error) {
-        console.error("Error resolving waiver signature:", error);
+        safeConsole.error("Error resolving waiver signature:", error);
         toast.error("Failed to open waiver preview");
       }
     }
@@ -382,7 +317,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.error("Signature not found");
     } catch (error) {
-      console.error("Error downloading waiver:", error);
+      safeConsole.error("Error downloading waiver:", error);
       toast.error("Failed to download waiver");
     }
   };
@@ -409,7 +344,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
 
       toast.success("Waiver downloaded successfully");
     } catch (error) {
-      console.error("Error downloading waiver:", error);
+      safeConsole.error("Error downloading waiver:", error);
       toast.error("Failed to download waiver");
     } finally {
       setWaiverDownloads((prev) => ({ ...prev, [signatureId]: false }));
@@ -430,7 +365,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
       await loadSignups();
       toast.success("Signup approved successfully");
     } catch (error) {
-      console.error("Error unrejecting signup:", error);
+      safeConsole.error("Error unrejecting signup:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to unreject signup",
       );
@@ -460,159 +395,19 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           : "Signups have been resumed",
       );
     } catch (error) {
-      console.error("Error toggling pause state:", error);
+      safeConsole.error("Error toggling pause state:", error);
       toast.error("Failed to update signup status");
     } finally {
       setIsPausingSignups(false);
     }
   };
 
-  const formatScheduleSlot = (project: Project, slotId: string) => {
-    if (!project) return slotId;
-
-    const projectTimezone = project.project_timezone || "America/Los_Angeles"; // Default to ET if not set
-
-    if (project.event_type === "oneTime") {
-      // Handle oneTime events - the scheduleId is simply "oneTime"
-      if (slotId === "oneTime" && project.schedule.oneTime) {
-        const scheduleTime: ProjectScheduleTime = {
-          date: project.schedule.oneTime.date,
-          startTime: project.schedule.oneTime.startTime,
-          endTime: project.schedule.oneTime.endTime,
-        };
-
-        const dateDisplay = formatDateForDisplay(scheduleTime.date);
-        const timeDisplay = formatScheduleDisplay(
-          scheduleTime,
-          projectTimezone,
-          undefined,
-          true,
-        );
-
-        return `${dateDisplay} from ${timeDisplay}`;
-      }
-    }
-
-    if (project.event_type === "multiDay") {
-      // For multiDay events, the scheduleId format is "date-slotIndex"
-      const parts = slotId.split("-");
-
-      // Make sure we have at least 2 parts (date and slotIndex)
-      if (parts.length >= 2) {
-        // Last part is the slot index
-        const slotIndex = parts.pop();
-        // Everything else is the date (in case the date has hyphens)
-        const date = parts.join("-");
-
-        const day = project.schedule.multiDay?.find((d) => d.date === date);
-
-        if (day && slotIndex !== undefined) {
-          const slotIdx = parseInt(slotIndex, 10);
-          const slot = day.slots[slotIdx];
-
-          if (slot) {
-            const scheduleTime: ProjectScheduleTime = {
-              date: date,
-              startTime: slot.startTime,
-              endTime: slot.endTime,
-            };
-
-            const dateDisplay = formatDateForDisplay(scheduleTime.date);
-            const timeDisplay = formatScheduleDisplay(
-              scheduleTime,
-              projectTimezone,
-              undefined,
-              true,
-            );
-            const slotLabel = getMultiDaySlotDisplayName(slot, slotIdx);
-
-            return `${dateDisplay} - ${slotLabel} (${timeDisplay})`;
-          }
-        }
-      }
-    }
-
-    if (project.event_type === "sameDayMultiArea") {
-      // For sameDayMultiArea, the scheduleId is the role name
-      const role = project.schedule.sameDayMultiArea?.roles.find(
-        (r) => r.name === slotId,
-      );
-
-      if (role) {
-        const eventDate = project.schedule.sameDayMultiArea?.date;
-        if (eventDate) {
-          const scheduleTime: ProjectScheduleTime = {
-            date: eventDate,
-            startTime: role.startTime,
-            endTime: role.endTime,
-          };
-
-          const dateDisplay = formatDateForDisplay(scheduleTime.date);
-          const timeDisplay = formatScheduleDisplay(
-            scheduleTime,
-            projectTimezone,
-            undefined,
-            true,
-          );
-
-          return `${dateDisplay} - Role: ${role.name} (${timeDisplay})`;
-        } else {
-          const scheduleTime: ProjectScheduleTime = {
-            date: new Date().toISOString().split("T")[0], // fallback date
-            startTime: role.startTime,
-            endTime: role.endTime,
-          };
-          const timeDisplay = formatScheduleDisplay(
-            scheduleTime,
-            projectTimezone,
-            undefined,
-            true,
-          );
-          return `Role: ${role.name} (${timeDisplay})`;
-        }
-      }
-    }
-
-    return slotId;
-  };
-
-  // Update status badge logic
-  const getStatusBadge = (
-    status: Signup["status"],
-    _confirmed_at?: string | null,
-  ) => {
-    if (status === "rejected") {
-      return (
-        <Badge variant="destructive" className="gap-1">
-          <XCircle className="h-4 w-4" />
-          Rejected
-        </Badge>
-      );
-    }
-    if (status === "pending") {
-      return (
-        <Badge variant="secondary" className="gap-1">
-          <Clock className="h-4 w-4" />
-          Pending
-        </Badge>
-      );
-    }
-    // Approved status
-    return (
-      <Badge className="gap-1">
-        <CheckCircle2 className="h-4 w-4" />
-        Approved
-      </Badge>
-    );
-  };
-
-  const tableColumnCount =
-    5 +
-    (project?.enable_volunteer_comments ? 1 : 0) +
-    (project?.waiver_required ? 1 : 0);
+  const slotEntries = Object.entries(filteredSignupsBySlot);
+  const countByStatus = (status: Signup["status"]) =>
+    signups.filter((signup) => signup.status === status).length;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
+    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
       <WaiverPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
@@ -635,363 +430,132 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         }
       />
 
-      <div className="mb-6 flex items-center justify-between">
-        <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          Back to Project
-        </Button>
-        <AttendanceTools projectId={projectId} />
-      </div>
+      <PageHeader
+        breadcrumb={
+          <ProjectToolBreadcrumb
+            projectId={projectId}
+            projectTitle={project?.title}
+            current="Signups"
+          />
+        }
+        title="Manage volunteer signups"
+        description="Review and manage volunteer signups."
+        actions={<AttendanceTools projectId={projectId} />}
+      />
 
-      <Card className="min-h-100 relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <div className="flex flex-col items-center gap-2 mt-10">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Loading signups...
-              </span>
+      <StatStrip
+        items={[
+          { label: "Signups", value: loading ? "–" : signups.length },
+          {
+            label: "Approved",
+            value: loading ? "–" : countByStatus("approved"),
+          },
+          { label: "Pending", value: loading ? "–" : countByStatus("pending") },
+          {
+            label: "Rejected",
+            value: loading ? "–" : countByStatus("rejected"),
+          },
+        ]}
+      />
+
+      <section className="grid gap-4" aria-label="Signups">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <InputGroup className="sm:max-w-xs">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              placeholder="Search by name..."
+              aria-label="Search signups by name or email"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </InputGroup>
+          <div className="flex items-center justify-between gap-3 sm:ml-auto">
+            <div className="flex min-h-9 items-center gap-2">
+              <Switch
+                id="pause-signups"
+                checked={pausedSignups}
+                onCheckedChange={togglePause}
+                disabled={isPausingSignups}
+              />
+              <Label htmlFor="pause-signups">
+                {pausedSignups ? "Signups paused" : "Accepting signups"}
+                {isPausingSignups && <Spinner />}
+              </Label>
             </div>
+            <Button
+              variant="outline"
+              onClick={loadSignups}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                data-icon="inline-start"
+                className={refreshing ? "animate-spin" : undefined}
+                aria-hidden="true"
+              />
+              Refresh
+            </Button>
           </div>
+        </div>
+
+        {project?.pause_signups && (
+          <Alert variant="warning">
+            <Pause aria-hidden="true" />
+            <AlertTitle>Signups are currently paused</AlertTitle>
+            <AlertDescription>
+              New volunteer signups are disabled. Toggle the switch above to
+              resume accepting volunteers.
+            </AlertDescription>
+          </Alert>
         )}
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle role="heading" aria-level={1}>
-                Manage Volunteer Signups
-              </CardTitle>
-              <CardDescription>
-                Review and manage volunteer signups.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="pause-signups"
-                  checked={pausedSignups}
-                  onCheckedChange={togglePause}
-                  disabled={isPausingSignups}
-                />
-                <Label
-                  htmlFor="pause-signups"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  {pausedSignups ? (
-                    <>
-                      <Pause className="h-4 w-4 text-warning" />
-                      <span>Signups Paused</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 text-success" />
-                      <span>Accepting Signups</span>
-                    </>
-                  )}
-                  {isPausingSignups && (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                  )}
-                </Label>
-              </div>
-            </div>
+
+        {loading ? (
+          <div className="grid gap-2" aria-busy="true">
+            <span className="sr-only">Loading signups...</span>
+            <Skeleton className="h-5 w-64" />
+            <Skeleton className="h-40 w-full" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+        ) : slotEntries.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <UserRoundSearch aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>No signups found</EmptyTitle>
+              <EmptyDescription>
+                Try adjusting your search or check back later.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          slotEntries.map(([slot, slotSignups]) => (
+            <div key={slot} className="grid gap-2">
+              <h2 className="text-sm font-medium">
+                {project && formatScheduleSlot(project, slot)}{" "}
+                <span className="text-muted-foreground font-normal tabular-nums">
+                  ({slotSignups.length})
+                </span>
+              </h2>
+              <SignupsTable
+                signups={slotSignups}
+                showComments={Boolean(project?.enable_volunteer_comments)}
+                showWaiver={Boolean(project?.waiver_required)}
+                statusSort={sort.direction}
+                onToggleStatusSort={() => toggleSort("status")}
+                processing={processingSignups}
+                unrejecting={unrejectingSignups}
+                waiverDownloads={waiverDownloads}
+                onReject={handleReject}
+                onUnreject={handleUnreject}
+                onViewResponses={handleViewResponses}
+                onViewWaiver={handleOpenWaiverPreview}
+                onDownloadWaiver={handleDownloadWaiverForSignup}
               />
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={() =>
-                  router.push(`/projects/${projectId}/attendance-sheet`)
-                }
-                disabled={Object.keys(filteredSignupsBySlot).length === 0}
-              >
-                <Printer className="h-4 w-4" />
-                Print attendance sheet
-              </Button>
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={loadSignups}
-                disabled={refreshing}
-              >
-                <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-            </div>
-          </div>
-
-          {project?.pause_signups && (
-            <Alert className="bg-warning/15 border-warning/50 mb-4">
-              <Pause className="h-4 w-4 text-warning" />
-              <AlertTitle className="text-warning/90">
-                Signups are currently paused
-              </AlertTitle>
-              <AlertDescription className="text-warning">
-                New volunteer signups are disabled. Toggle the switch above to
-                resume accepting volunteers.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {Object.entries(filteredSignupsBySlot).map(([slot, slotSignups]) => (
-            <div key={slot} className="space-y-2">
-              <h3 className="font-medium text-sm text-muted-foreground">
-                {project && formatScheduleSlot(project, slot)}
-              </h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Contact</TableHead>
-                    {project?.enable_volunteer_comments && (
-                      <TableHead>Comment</TableHead>
-                    )}
-                    {project?.waiver_required && <TableHead>Waiver</TableHead>}
-                    <TableHead
-                      className="cursor-pointer hover:text-foreground transition-colors"
-                      onClick={() => toggleSort("status")}
-                    >
-                      <div className="flex items-center">
-                        Status
-                        {getSortIcon("status")}
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {slotSignups.map((signup) => {
-                    // Determine user type and data source
-                    const isRegistered = !!signup.user_id;
-                    const name = isRegistered
-                      ? signup.profile?.full_name
-                      : signup.anonymous_signup?.name;
-                    const email = isRegistered
-                      ? signup.profile?.email
-                      : signup.anonymous_signup?.email;
-                    const phone = isRegistered
-                      ? signup.profile?.phone
-                      : signup.anonymous_signup?.phone_number;
-                    const username = isRegistered
-                      ? signup.profile?.username
-                      : null;
-                    const confirmed_at = signup.anonymous_signup?.confirmed_at;
-                    const waiverSignature = Array.isArray(
-                      signup.waiver_signature,
-                    )
-                      ? signup.waiver_signature[0]
-                      : signup.waiver_signature;
-                    const multiSignerCount =
-                      waiverSignature?.signature_summary?.signerCount ??
-                      waiverSignature?.signature_payload?.signers?.length ??
-                      0;
-
-                    return (
-                      <TableRow key={signup.id}>
-                        <TableCell className="font-medium">
-                          {name || "N/A"}
-                        </TableCell>
-                        <TableCell>
-                          {isRegistered ? (
-                            <Link
-                              href={`/profile/${username}`}
-                              className="text-primary hover:underline"
-                            >
-                              Registered User
-                            </Link>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Anonymous
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div>{email || "No email"}</div>
-                            {phone && (
-                              <div className="text-sm text-muted-foreground">
-                                {phone.replace(
-                                  /(\d{3})(\d{3})(\d{4})/,
-                                  "$1-$2-$3",
-                                ) || "No phone"}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        {project?.enable_volunteer_comments && (
-                          <TableCell className="text-sm text-muted-foreground max-w-50">
-                            {signup.volunteer_comment ? (
-                              <div className="max-h-15 overflow-y-auto text-wrap wrap-break-word whitespace-pre-wrap border border-border rounded p-2 bg-muted/20 text-xs leading-relaxed">
-                                {signup.volunteer_comment}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/60">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                        )}
-                        {project?.waiver_required && (
-                          <TableCell>
-                            {waiverSignature ? (
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  Signed
-                                  {multiSignerCount > 1 &&
-                                    ` (${multiSignerCount})`}
-                                </Badge>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger
-                                    render={
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0"
-                                      >
-                                        <span className="sr-only">
-                                          Open menu
-                                        </span>
-                                        <MoreVertical className="h-4 w-4" />
-                                      </Button>
-                                    }
-                                  />
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        handleOpenWaiverPreview(signup)
-                                      }
-                                    >
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      View Waiver
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        handleDownloadWaiverForSignup(signup.id)
-                                      }
-                                    >
-                                      {waiverSignature?.id &&
-                                      waiverDownloads[waiverSignature.id] ? (
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      ) : (
-                                        <Download className="mr-2 h-4 w-4" />
-                                      )}
-                                      Download PDF
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            ) : (
-                              <Badge variant="secondary" className="text-xs">
-                                Missing
-                              </Badge>
-                            )}
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          {getStatusBadge(signup.status, confirmed_at)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {signup.response_data && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleViewResponses(signup)}
-                                className="gap-2"
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                Responses
-                              </Button>
-                            )}
-                            {signup.status === "rejected" ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleUnreject(signup.id)}
-                                disabled={unrejectingSignups[signup.id]}
-                                className="bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
-                              >
-                                {unrejectingSignups[signup.id] ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    <span className="inline-block">
-                                      Approving...
-                                    </span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="h-3.5 w-3.5 mr-1.5" />
-                                    <span className="inline-block">
-                                      Unreject
-                                    </span>
-                                  </>
-                                )}
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleReject(signup.id)}
-                                disabled={processingSignups[signup.id]}
-                              >
-                                {processingSignups[signup.id] ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    <span className="inline-block">
-                                      Rejecting...
-                                    </span>
-                                  </>
-                                ) : (
-                                  "Reject"
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!loading && slotSignups.length === 0 && (
-                    <TableRow>
-                      <TableCell
-                        colSpan={tableColumnCount}
-                        className="text-center py-8"
-                      >
-                        <div className="text-muted-foreground">
-                          No signups found for your search criteria.
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          ))}
-
-          {Object.keys(filteredSignupsBySlot).length === 0 && !loading && (
-            <div className="flex flex-col items-center text-muted-foreground space-y-2">
-              <UserRoundSearch className="h-8 w-8 mt-10" />
-              <p className="text-lg font-medium">No signups found</p>
-              <p className="text-sm">
-                Try adjusting your search or check back later.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          ))
+        )}
+      </section>
     </div>
   );
 }

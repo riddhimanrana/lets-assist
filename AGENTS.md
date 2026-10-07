@@ -145,3 +145,19 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Review guidelines
+
+Review the full pull request against `development`, including its exact private
+gitlink. Report actionable defects with file and line evidence. Prioritize
+server authorization, organization isolation, retry and concurrency behavior,
+migration order and grants, and release identity checks. Do not treat a hidden
+button as authorization or a successful provider request as confirmed delivery.
+
+For UI changes, check keyboard access, mobile overflow, loading and error states,
+and reduced motion. Preserve the approved flat glossy controls. Flag misleading
+status or delivery copy when it disagrees with the server result.
+
+Tests must exercise the changed behavior. Source assertions, local tests, hosted
+Development checks and Production acceptance prove different things. Name any
+missing coverage. Never approve a release because an AI review found no issue.

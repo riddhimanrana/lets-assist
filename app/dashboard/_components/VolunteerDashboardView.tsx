@@ -1,3 +1,15 @@
+import Link from "next/link";
+import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
+import { Award, ChevronRight } from "lucide-react";
+
+import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { StatStrip } from "@/components/layout/SettingsSection";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
+import { PluginDashboardCard } from "@/components/plugins/PluginDashboardCard";
+import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Card,
   CardContent,
@@ -5,26 +17,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { VolunteerGoals } from "./VolunteerGoals";
-import { Badge } from "@/components/ui/badge";
-import { ProgressCircle } from "./ProgressCircle";
-import { format } from "date-fns";
-import { tz } from "@date-fns/tz";
 import {
-  Award,
-  Calendar,
-  Users,
-  Target,
-  ChevronRight,
-  Download,
-  CalendarDays,
-  BarChart3,
-  CircleCheck,
-  UserCheck,
-} from "lucide-react";
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -32,17 +32,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ActivityChart } from "./ActivityChart";
-import { ExportSection } from "./ExportSection";
-import { AllHoursSection } from "./AllHoursSection";
-import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
-import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
-import { PluginDashboardCard } from "@/components/plugins/PluginDashboardCard";
 import type { PlatformDashboardCard } from "@/types";
+import { ActivityChart } from "./ActivityChart";
+import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
+import { AllHoursSection } from "./AllHoursSection";
 import {
   formatTotalDuration,
   type VolunteerDashboardData,
 } from "./dashboard-data";
+import { ExportSection } from "./ExportSection";
+import { ProgressCircle } from "./ProgressCircle";
+import { VolunteerGoals } from "./VolunteerGoals";
+
+/** Page-level line tabs, sized like the organization profile's tab row. */
+const PAGE_TAB_CLASS =
+  "h-10 flex-none rounded-none px-3 group-data-[orientation=horizontal]/tabs:after:bottom-0";
 
 export function VolunteerDashboardView({
   statistics,
@@ -52,169 +56,86 @@ export function VolunteerDashboardView({
   uiCertificates,
   pluginCards = [],
 }: VolunteerDashboardData & { pluginCards?: PlatformDashboardCard[] }) {
+  const stats = [
+    {
+      label: "Verified hours",
+      value: formatTotalDuration(statistics.totalHours),
+      helper: "Let's Assist verified",
+    },
+    {
+      label: "Self-reported",
+      value: `${selfReportedHours}h`,
+      helper: "Unverified hours",
+    },
+    {
+      label: "Projects",
+      value: statistics.totalProjects,
+      helper: "Completed",
+    },
+    {
+      label: "Upcoming",
+      value: upcomingSessions.length,
+      helper: (
+        <Link
+          href="/projects"
+          aria-label="See all upcoming projects"
+          className="hover:text-foreground -my-2.5 inline-flex min-h-9 items-center gap-0.5 transition-colors"
+        >
+          Sessions
+          <ChevronRight className="size-3" aria-hidden="true" />
+        </Link>
+      ),
+    },
+  ];
+
   return (
-    <div className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Volunteer Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Track your volunteering progress and achievements
-          </p>
-        </div>
+    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6">
+      <PageHeader
+        title="Volunteer dashboard"
+        description="Track your volunteering progress and achievements"
+        actions={<AddVolunteerHoursModal />}
+      />
 
-        <div className="flex items-center gap-3">
-          <AddVolunteerHoursModal />
-        </div>
-      </div>
-
-      {/* Mobile-First Responsive Tabs Layout */}
-      <Tabs defaultValue="overview" className="space-y-6">
-        {/* Mobile Tab Navigation with Icons */}
-        <TabsList className="grid grid-cols-3 w-full sm:flex sm:w-auto h-auto">
-          <TabsTrigger value="overview" className="flex items-center ">
-            <BarChart3 className="h-4 w-4" />
-            <span className="text-xs sm:text-sm">Overview</span>
+      <Tabs defaultValue="overview" className="gap-6">
+        <TabsList
+          variant="line"
+          className="gap-0 border-b p-0 group-data-horizontal/tabs:h-10"
+        >
+          <TabsTrigger value="overview" className={PAGE_TAB_CLASS}>
+            Overview
           </TabsTrigger>
-          <TabsTrigger value="hours" className="flex items-center">
-            <CalendarDays className="h-4 w-4" />
-            <span className="text-xs sm:text-sm">All Hours</span>
+          <TabsTrigger value="hours" className={PAGE_TAB_CLASS}>
+            All hours
           </TabsTrigger>
-          <TabsTrigger value="export" className="flex items-center ">
-            <Download className="h-4 w-4" />
-            <span className="text-xs sm:text-sm">Export</span>
+          <TabsTrigger value="export" className={PAGE_TAB_CLASS}>
+            Export
           </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="grid gap-6">
           {/* Plugin-contributed organization cards: one full-width strip so a
               single card leaves no dead grid cells and several tile as rows. */}
           {pluginCards.length > 0 && (
-            <div className="divide-y rounded-xl border bg-card">
+            <Card className="gap-0 divide-y py-0">
               {pluginCards.map((card) => (
                 <PluginDashboardCard
                   key={`${card.href}-${card.title}`}
                   card={card}
                 />
               ))}
-            </div>
+            </Card>
           )}
 
-          {/* Stats Grid - 2 cols mobile, 4 cols desktop */}
-          <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4"
-            data-tour-id="dashboard-stats"
-          >
-            {/* Total Verified Hours */}
-            <Card className="col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-primary/10 w-fit">
-                    <CircleCheck className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                      Verified Hours
-                    </p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                      {formatTotalDuration(statistics.totalHours)}
-                    </h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      Let&apos;s Assist verified
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Self-Reported Hours */}
-            <Card className="col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-warning/10 dark:bg-warning/10 w-fit">
-                    <UserCheck className="h-4 w-4 sm:h-6 sm:w-6 text-warning dark:text-warning" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                      Self-Reported
-                    </p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                      {selfReportedHours}h
-                    </h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      Unverified hours
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Projects */}
-            <Card className="col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-info/10 w-fit">
-                    <Users className="h-4 w-4 sm:h-6 sm:w-6 text-info" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                      Projects
-                    </p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                      {statistics.totalProjects}
-                    </h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      Completed
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Sessions */}
-            <Card className="col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
-                  <div className="p-2 sm:p-3 rounded-full bg-success/10 w-fit">
-                    <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-success" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                      Upcoming
-                    </p>
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">
-                      {upcomingSessions.length}
-                    </h2>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      Sessions
-                    </p>
-                  </div>
-                  <Link
-                    href="/projects"
-                    aria-label="See all upcoming projects"
-                    className={cn(
-                      buttonVariants({ variant: "ghost", size: "icon" }),
-                      "ml-auto hidden lg:flex",
-                    )}
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+          <div data-tour-id="dashboard-stats">
+            <StatStrip items={stats} />
           </div>
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            {/* Left Column - Activity and Organizations */}
-            <div className="col-span-1 lg:col-span-2 space-y-6 lg:space-y-8">
+          <div className="grid items-start gap-6 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-6 lg:col-span-2">
               <ActivityChart data={statistics.recentActivity} />
 
-              {/* Organizations */}
               <Card>
-                <CardHeader className="pb-2">
+                <CardHeader>
                   <CardTitle>Organizations</CardTitle>
                   <CardDescription>
                     Formal organizations you&apos;ve volunteered with
@@ -222,55 +143,51 @@ export function VolunteerDashboardView({
                 </CardHeader>
                 <CardContent>
                   {statistics.organizations.length > 0 ? (
-                    <div className="space-y-4 sm:space-y-6">
+                    <ul className="divide-y">
                       {statistics.organizations.map((org, index) => (
-                        <div
+                        <li
                           key={index}
-                          className="flex items-center justify-between gap-4"
+                          className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
                         >
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{org.name}</h4>
-                            <p className="text-sm text-muted-foreground">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{org.name}</p>
+                            <p className="text-muted-foreground text-sm">
                               {org.projects}{" "}
                               {org.projects === 1 ? "project" : "projects"} •{" "}
                               {org.hours.toFixed(1)} hours
                             </p>
                           </div>
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 shrink-0">
-                            <ProgressCircle
-                              value={(org.hours / statistics.totalHours) * 100}
-                              size={48}
-                              strokeWidth={4}
-                              showLabel={false}
-                            />
-                          </div>
-                        </div>
+                          <ProgressCircle
+                            value={(org.hours / statistics.totalHours) * 100}
+                            size={40}
+                            strokeWidth={4}
+                            showLabel={false}
+                          />
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center">
-                      <Users className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
-                      <h3 className="font-medium text-base sm:text-lg">
-                        No Organizations Yet
-                      </h3>
-                      <p className="text-muted-foreground max-w-md mt-1 text-sm sm:text-base">
-                        When you volunteer with formal organizations,
-                        they&apos;ll appear here.
-                      </p>
-                    </div>
+                    <Empty className="p-6">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <EmptyStateIcon name="users" />
+                        </EmptyMedia>
+                        <EmptyTitle>No organizations yet</EmptyTitle>
+                        <EmptyDescription>
+                          When you volunteer with formal organizations,
+                          they&apos;ll appear here.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
                   )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Right Column - Goals and Upcoming */}
-            <div className="space-y-6 lg:space-y-8">
-              {/* Enhanced Goals with Date Range */}
+            <div className="grid min-w-0 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" /> Volunteering Goals
-                  </CardTitle>
+                  <CardTitle>Volunteering goals</CardTitle>
                   <CardDescription>
                     Set and track your volunteering targets
                   </CardDescription>
@@ -284,10 +201,9 @@ export function VolunteerDashboardView({
                 </CardContent>
               </Card>
 
-              {/* Upcoming Sessions */}
               <Card data-tour-id="dashboard-upcoming">
-                <CardHeader className="pb-2">
-                  <CardTitle>Upcoming Sessions</CardTitle>
+                <CardHeader>
+                  <CardTitle>Upcoming sessions</CardTitle>
                   <CardDescription>
                     Your scheduled volunteer commitments
                   </CardDescription>
@@ -295,85 +211,80 @@ export function VolunteerDashboardView({
                 <CardContent>
                   {upcomingSessions.length > 0 ? (
                     <TooltipProvider>
-                      <div className="space-y-3 sm:space-y-4">
-                        <div className="max-h-[300px] sm:max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                          <div className="space-y-3 sm:space-y-4">
-                            {upcomingSessions.map((session) => (
-                              <div
-                                key={session.signupId}
-                                className="border rounded-lg p-3 sm:p-4 space-y-2"
+                      <ul className="-mr-2 max-h-80 divide-y overflow-y-auto pr-2">
+                        {upcomingSessions.map((session) => (
+                          <li
+                            key={session.signupId}
+                            className="grid gap-1 py-3 first:pt-0 last:pb-0"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <Link
+                                href={`/projects/${session.projectId}`}
+                                className="hover:text-primary min-w-0 font-medium transition-colors"
                               >
-                                <Link
-                                  href={`/projects/${session.projectId}`}
-                                  className="font-medium hover:text-primary transition-colors block text-sm sm:text-base"
-                                >
-                                  {session.projectTitle}
-                                </Link>
-                                <p className="text-xs sm:text-sm text-muted-foreground">
-                                  Session: {session.sessionDisplayName}
-                                </p>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="text-xs sm:text-sm text-muted-foreground">
-                                    Starts:{" "}
-                                    {format(
-                                      session.sessionStartTime,
-                                      "MMM d, yyyy 'at' h:mm a",
-                                      { in: tz(session.project_timezone) },
-                                    )}
+                                {session.projectTitle}
+                              </Link>
+                              <Badge
+                                variant={
+                                  session.status === "approved"
+                                    ? "success"
+                                    : "warning"
+                                }
+                              >
+                                {session.status === "approved"
+                                  ? "Confirmed"
+                                  : "Pending"}
+                              </Badge>
+                            </div>
+                            <p className="text-muted-foreground text-sm">
+                              Session: {session.sessionDisplayName}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-muted-foreground text-sm">
+                                Starts:{" "}
+                                {format(
+                                  session.sessionStartTime,
+                                  "MMM d, yyyy 'at' h:mm a",
+                                  { in: tz(session.project_timezone) },
+                                )}
+                              </p>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-default">
+                                  <TimezoneBadge
+                                    timezone={session.project_timezone}
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">
+                                    Times shown in this project&apos;s timezone.
                                   </p>
-                                  <Tooltip>
-                                    <TooltipTrigger className="cursor-default">
-                                      <TimezoneBadge
-                                        timezone={session.project_timezone}
-                                      />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="text-xs">
-                                        Times shown in this project&apos;s
-                                        timezone.
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                                <div className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
-                                  Status:{" "}
-                                  <Badge
-                                    variant={
-                                      session.status === "approved"
-                                        ? "default"
-                                        : "outline"
-                                    }
-                                  >
-                                    {session.status === "approved"
-                                      ? "Confirmed"
-                                      : "Pending"}
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </TooltipProvider>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-6 sm:py-8 text-center">
-                      <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/30 mb-3" />
-                      <h3 className="font-medium text-sm sm:text-base">
-                        No Upcoming Sessions
-                      </h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs">
-                        You don&apos;t have any upcoming volunteer commitments
-                      </p>
-                      <Link
-                        href="/home"
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "mt-3 sm:mt-4",
-                        )}
-                      >
-                        Browse Opportunities
-                      </Link>
-                    </div>
+                    <Empty className="p-6">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <EmptyStateIcon name="calendar-days" />
+                        </EmptyMedia>
+                        <EmptyTitle>No upcoming sessions</EmptyTitle>
+                        <EmptyDescription>
+                          You don&apos;t have any upcoming volunteer commitments
+                        </EmptyDescription>
+                      </EmptyHeader>
+                      <EmptyContent>
+                        <Link
+                          href="/home"
+                          className={buttonVariants({ variant: "outline" })}
+                        >
+                          Browse opportunities
+                        </Link>
+                      </EmptyContent>
+                    </Empty>
                   )}
                 </CardContent>
               </Card>
@@ -381,31 +292,22 @@ export function VolunteerDashboardView({
           </div>
         </TabsContent>
 
-        {/* Unified Hours Tab - Shows both verified and unverified */}
-        <TabsContent value="hours" className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold">
-                All Volunteer Hours
-              </h2>
-              <p className="text-muted-foreground text-sm sm:text-base">
-                Both verified and self-reported volunteer hours
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="gap-2">
-                <Award className="h-4 w-4" />
-                {uiCertificates.length} Total Certificates
+        <TabsContent value="hours" className="grid gap-6">
+          <SectionHeader
+            title="All volunteer hours"
+            description="Both verified and self-reported volunteer hours"
+            actions={
+              <Badge variant="outline">
+                <Award aria-hidden="true" />
+                {uiCertificates.length} total certificates
               </Badge>
-            </div>
-          </div>
+            }
+          />
 
-          {/* Unified Hours Display */}
           <AllHoursSection certificates={uiCertificates} />
         </TabsContent>
 
-        {/* Export & Reports Tab */}
-        <TabsContent value="export" className="space-y-6">
+        <TabsContent value="export" className="grid gap-6">
           {user.email && (
             <ExportSection
               userEmail={user.email}

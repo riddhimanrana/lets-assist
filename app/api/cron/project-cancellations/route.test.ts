@@ -8,7 +8,24 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
  */
 
 mock.module("server-only", () => ({}));
+let observationCalls = 0;
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    _worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls++;
+    return operation();
+  },
+}));
 
+let probeEnabled = false;
+mock.module("@/lib/cron/auth-shape-probe", () => ({
+  cronAuthShapeProbe: () =>
+    probeEnabled
+      ? Response.json({ mode: "auth-shape-v1", dispatched: false })
+      : null,
+}));
 let workerCalls: Record<string, unknown>[] = [];
 let workerBehavior: () => unknown = () => WORKER_RESULT;
 
@@ -69,6 +86,8 @@ const ENV_KEYS = [
 ];
 
 beforeEach(() => {
+  observationCalls = 0;
+  probeEnabled = false;
   workerCalls = [];
   workerBehavior = () => WORKER_RESULT;
   for (const key of ENV_KEYS) {
@@ -91,6 +110,7 @@ describe("project-cancellations auth grammar", () => {
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
     expect(response.status).toBe(200);
     expect(workerCalls.length).toBe(1);
+    expect(observationCalls).toBe(1);
   });
 
   test.each([
@@ -104,12 +124,14 @@ describe("project-cancellations auth grammar", () => {
     const response = await POST(request({ authorization: header }));
     expect(response.status).toBe(401);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
   });
 
   test("a missing header is rejected", async () => {
     const response = await POST(request());
     expect(response.status).toBe(401);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
   });
 
   test("no configured secret denies even a matching-looking token", async () => {
@@ -117,6 +139,7 @@ describe("project-cancellations auth grammar", () => {
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
     expect(response.status).toBe(401);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
   });
 
   test("the shared CRON_TOKEN is also accepted", async () => {
@@ -132,6 +155,7 @@ describe("project-cancellations auth grammar", () => {
     const unauthenticated = await GET(statusRequest());
     expect(unauthenticated.status).toBe(401);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
 
     const authenticated = await GET(
       statusRequest({ authorization: `Bearer ${SECRET}` }),
@@ -139,6 +163,7 @@ describe("project-cancellations auth grammar", () => {
     expect(authenticated.status).toBe(200);
     // The status path reports liveness only; it never runs the worker.
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
     expect((await authenticated.json()).enabled).toBe(true);
   });
 });
@@ -151,6 +176,7 @@ describe("enable flag", () => {
     const body = await response.json();
     expect(body.enabled).toBe(false);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
   });
 
   test("an unset flag behaves as disabled", async () => {
@@ -159,6 +185,7 @@ describe("enable flag", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).enabled).toBe(false);
     expect(workerCalls.length).toBe(0);
+    expect(observationCalls).toBe(0);
   });
 });
 
@@ -236,4 +263,16 @@ describe("the response is aggregate-only", () => {
     const body = await response.json();
     expect(body).toEqual({ error: "Worker run failed" });
   });
+});
+
+test("an authenticated probe exits before observation and dispatch", async () => {
+  probeEnabled = true;
+  expect((await POST(request())).status).toBe(401);
+  const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
+  expect(await response.json()).toEqual({
+    mode: "auth-shape-v1",
+    dispatched: false,
+  });
+  expect(workerCalls).toHaveLength(0);
+  expect(observationCalls).toBe(0);
 });

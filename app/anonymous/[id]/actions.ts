@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -86,7 +87,7 @@ export async function startAnonymousGoogleLink(
     });
 
     if (error) {
-      console.error("Error starting anonymous Google linking:", error);
+      safeConsole.error("Error starting anonymous Google linking:", error);
       return { error: "Failed to connect with Google. Please try again." };
     }
 
@@ -189,7 +190,7 @@ export async function linkAnonymousToNewAccount(
             "An account with this email already exists. Try linking to your existing account instead.",
         };
       }
-      console.error("Error creating account:", signupError);
+      safeConsole.error("Error creating account:", signupError);
       return { error: "Failed to create account. Please try again." };
     }
 

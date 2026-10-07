@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 /**
  * Hook: useUserProfile
@@ -145,7 +146,7 @@ export function useUserProfile(): UseUserProfileReturn {
         setError(null);
       },
       onError: (err) => {
-        console.error("[useUserProfile] Fetch error:", err);
+        safeConsole.error("[useUserProfile] Fetch error:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
       },
       onSettled: () => setLoading(false),

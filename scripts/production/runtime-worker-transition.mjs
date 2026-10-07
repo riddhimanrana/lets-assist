@@ -1,3 +1,4 @@
+import { requireWorkerActivationMonitoring } from "../../lib/cron/worker-monitoring-policy.mjs";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -15,6 +16,12 @@ const workerFields = {
   communications: "csfCommunications",
   scheduled_post_publisher: "csfScheduledPostPublisher",
   publication_notifications: "csfPublicationNotifications",
+};
+const monitoredWorkers = {
+  workbook_refresh: "csf-class-workbook-refresh",
+  import_commit: "csf-import-commit",
+  communications: "csf-communications-dispatch",
+  publication_notifications: "csf-publication-notifications",
 };
 const literal = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
@@ -58,12 +65,37 @@ export function transitionConfig(env) {
   ) {
     throw new ReleaseCheckError("Worker transition configuration is invalid.");
   }
+  let monitoringEvidence = null;
+  if (enabled) {
+    try {
+      if (
+        !env.WORKER_MONITORING_EVIDENCE ||
+        Buffer.byteLength(env.WORKER_MONITORING_EVIDENCE) > 8192
+      )
+        throw new Error("Missing bounded monitoring receipt");
+      monitoringEvidence = requireWorkerActivationMonitoring(
+        JSON.parse(env.WORKER_MONITORING_EVIDENCE),
+        {
+          worker: monitoredWorkers[env.WORKER],
+          environment: "production",
+          sourceSha: sha,
+        },
+      );
+      if (monitoringEvidence.reviewedBy !== env.GITHUB_ACTOR)
+        throw new Error("Receipt must belong to the dispatching operator");
+    } catch {
+      throw new ReleaseCheckError(
+        "Worker activation requires current exact-release scheduler and missed-run alert evidence from this operator.",
+      );
+    }
+  }
   const hex = createHash("sha256")
     .update(`csf-worker:${env.GITHUB_RUN_ID}`)
     .digest("hex");
   const requestId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
   return {
     sha,
+    monitoringEvidence,
     enabled,
     worker: env.WORKER,
     requestId,
@@ -155,6 +187,12 @@ export async function transitionWorker(
   fetcher = fetch,
   record = () => {},
 ) {
+  if (config.enabled)
+    requireWorkerActivationMonitoring(config.monitoringEvidence, {
+      worker: monitoredWorkers[config.worker],
+      environment: "production",
+      sourceSha: config.sha,
+    });
   const query = async (sql, readOnly) => {
     const result = await readJson(
       `https://api.supabase.com/v1/projects/${productionRef}/database/query${readOnly ? "/read-only" : ""}`,
@@ -201,7 +239,12 @@ export async function transitionWorker(
     actor: config.actor,
     reason: "Authorized Production worker transition",
   };
-  record({ requestId: config.requestId, request, state: "prepared" });
+  record({
+    requestId: config.requestId,
+    request,
+    monitoringEvidence: config.monitoringEvidence,
+    state: "prepared",
+  });
   let receipt;
   try {
     receipt = (

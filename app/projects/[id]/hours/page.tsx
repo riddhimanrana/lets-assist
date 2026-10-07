@@ -5,6 +5,12 @@ import { requirePaperScanAccess } from "../paper-signups/access";
 import { getProject } from "../actions";
 import { HoursClient, type AttendanceHoursSignup } from "./HoursClient";
 import type { Project } from "@/types";
+import {
+  getAttendanceScheduleWindow,
+  listAttendanceScheduleIds,
+} from "@/lib/attendance/challenge";
+import { getPublishStateKey } from "@/lib/projects/hours-publish-key";
+import type { HoursWindows } from "./useHoursAttendance";
 
 export async function generateMetadata({
   params,
@@ -83,10 +89,22 @@ export default async function HoursPage({
         })),
       } as AttendanceHoursSignup);
     }
-    if (!data || data.length < 200) break;
+    if (!data?.length) break;
     cursor = data[data.length - 1].id;
   }
+  const project = access.project as Project;
+  const windows: HoursWindows = {};
+  const scheduleIds = new Set([
+    ...listAttendanceScheduleIds(project),
+    ...signups.map((signup) => signup.schedule_id),
+  ]);
+  for (const scheduleId of scheduleIds) {
+    const window = getAttendanceScheduleWindow(project, scheduleId);
+    windows[getPublishStateKey(project, scheduleId)] = window
+      ? { startsAt: window.startsAt, endsAt: window.endsAt }
+      : null;
+  }
   return (
-    <HoursClient project={access.project as Project} initialSignups={signups} />
+    <HoursClient project={project} initialSignups={signups} windows={windows} />
   );
 }

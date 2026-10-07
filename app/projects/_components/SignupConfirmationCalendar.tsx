@@ -34,15 +34,15 @@ export function SignupConfirmationCalendar({
       <h4 className="text-text text-sm font-semibold">Add to Calendar</h4>
       {checkingConnection ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
           Checking connection...
         </div>
       ) : calendarConnected ? (
         <div className="bg-success/10 border-success/80 flex max-w-md items-center justify-between gap-3 rounded-lg border p-3">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="bg-success/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
+            <div className="bg-success/20 flex size-8 shrink-0 items-center justify-center rounded-full">
               <Image
-                className="h-4 w-4"
+                className="size-4"
                 src="/resources/google-calendar-logo-2026.png"
                 alt="Google Calendar"
                 width={16}
@@ -70,13 +70,13 @@ export function SignupConfirmationCalendar({
                   disabled={isLoading}
                   aria-label="Calendar options"
                 >
-                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  <ChevronDown className="size-4" aria-hidden="true" />
                 </Button>
               }
             />
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onDownloadICal}>
-                <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                <Download className="mr-2 size-4" aria-hidden="true" />
                 Download as iCal
               </DropdownMenuItem>
             </DropdownMenuContent>

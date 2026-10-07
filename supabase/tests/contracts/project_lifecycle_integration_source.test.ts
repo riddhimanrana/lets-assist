@@ -444,7 +444,7 @@ describe("combined project lifecycle source contract", () => {
     );
   });
 
-  test("organization deletion proves database truth before removing its logo", () => {
+  test("organization deletion reserves durable cleanup and proves the database delete", () => {
     const profile = read("app/organization/[id]/settings/server/profile.ts");
     const deletion = profile.slice(
       profile.indexOf("export async function deleteOrganization("),
@@ -452,16 +452,17 @@ describe("combined project lifecycle source contract", () => {
     );
     const databaseDelete = deletion.indexOf(".delete()");
     const deletionProof = deletion.indexOf('.select("id")', databaseDelete);
-    const logoRemoval = deletion.indexOf('.from("organization-logos")');
-
-    expect(databaseDelete).toBeGreaterThanOrEqual(0);
-    expect(deletion.slice(0, databaseDelete)).not.toContain(
-      '.from("organization-logos")',
+    const cleanupReservation = deletion.indexOf(
+      "await reservePublicImageCleanup({",
     );
+
+    expect(cleanupReservation).toBeGreaterThanOrEqual(0);
+    expect(databaseDelete).toBeGreaterThan(cleanupReservation);
+    expect(deletion).not.toMatch(/\.(?:remove|upload|move|copy)\s*\(/u);
     expect(deletionProof).toBeGreaterThan(databaseDelete);
     expect(deletion).toContain(".maybeSingle()");
-    expect(logoRemoval).toBeGreaterThan(deletionProof);
     expect(deletion).toContain("deletedOrganization.id !== organizationId");
+    expect(deletion).toContain("cleanupPending: Boolean(logoPath)");
   });
 
   test("signup approval stays open in progress without weakening cancellation", () => {

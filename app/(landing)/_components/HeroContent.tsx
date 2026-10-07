@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  ArrowRight,
   BadgeCheck,
   CheckCircle2,
   Clock,
@@ -24,7 +23,6 @@ import {
 } from "@/components/projects/SlotAttendeesDropdown";
 import type { AnonymousSignupData, Organization, Project } from "@/types";
 import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
-import { AnimatedText } from "./AnimatedText";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -923,7 +921,7 @@ function RealProjectDemoWindow() {
             strokeLinejoin="round"
           />
         </svg>
-        <p className="absolute bottom-2 left-1/2 m-0 -translate-x-1/2 text-balance text-center text-sm font-medium text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-base">
+        <p className="font-cheese-milky absolute bottom-2 left-1/2 m-0 -translate-x-1/2 -rotate-2 whitespace-nowrap text-center text-2xl leading-none text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-3xl">
           try our interactive demo
         </p>
       </div>
@@ -986,18 +984,8 @@ export const HeroContent = () => {
         </Dialog>
 
         <h1 className="mt-5 max-w-5xl text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
-          <AnimatedText
-            text="The modern way to do"
-            mode="letters"
-            className="justify-center"
-            delay={0.04}
-          />
-          <AnimatedText
-            text="volunteering"
-            mode="letters"
-            className="justify-center text-primary"
-            delay={0.46}
-          />
+          The modern way to do{" "}
+          <span className="block text-primary">volunteering</span>
         </h1>
 
         <motion.p
@@ -1006,9 +994,9 @@ export const HeroContent = () => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          One link for public signups, QR attendance, verified hours,
-          certificates, and organization workflows that scale from student clubs
-          to citywide volunteer programs.
+          Sign up from one link, check in with a QR code, and get hours your
+          school or club can verify. Free for volunteers and the groups that run
+          events.
         </motion.p>
 
         <motion.div
@@ -1018,8 +1006,7 @@ export const HeroContent = () => {
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
           <MotionLinkButton href="/signup">
-            Get started
-            <ArrowRight data-icon="inline-end" />
+            Run a volunteer event
           </MotionLinkButton>
           <MotionLinkButton href="/contact" tone="outline">
             Contact us

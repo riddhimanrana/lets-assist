@@ -1,27 +1,119 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Fragment, useEffect, useState } from "react";
+import { BellOff } from "lucide-react";
 import { toast } from "sonner";
-import { motion } from "motion/react";
+
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemSeparator,
+  ItemTitle,
+} from "@/components/ui/item";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
+import { createClient } from "@/lib/supabase/client";
 
 import {
   notificationPreferencesChanged,
   readNotificationPreferences,
   type NotificationPreferences,
 } from "./preferences";
+
+type PreferenceKey = keyof NotificationPreferences;
+
+// Feedback requests is the only type the saved data ties to the email switch,
+// so it is the only row that locks when email updates are off.
+const UPDATE_TYPES: Array<{
+  key: Exclude<PreferenceKey, "email_notifications">;
+  id: string;
+  title: string;
+  description: string;
+  needsEmail?: boolean;
+}> = [
+  {
+    key: "project_updates",
+    id: "project-updates",
+    title: "Project updates",
+    description: "Changes to your volunteer projects.",
+  },
+  {
+    key: "organization_updates",
+    id: "organization-updates",
+    title: "Organization updates",
+    description:
+      "Posts, activities, and record updates from your organizations.",
+  },
+  {
+    key: "feedback_requests",
+    id: "feedback-requests",
+    title: "Feedback requests",
+    description:
+      "An optional survey about using Let's Assist after you volunteer.",
+    needsEmail: true,
+  },
+  {
+    key: "general",
+    id: "general",
+    title: "General",
+    description: "Other platform updates.",
+  },
+];
+
+function PreferenceRow({
+  id,
+  title,
+  description,
+  checked,
+  disabled,
+  onCheckedChange,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Item className="flex-nowrap">
+      <ItemContent className="min-w-0">
+        <ItemTitle className="line-clamp-none">
+          <Label htmlFor={id}>{title}</Label>
+        </ItemTitle>
+        <ItemDescription id={`${id}-description`} className="line-clamp-none">
+          {description}
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Switch
+          id={id}
+          checked={checked}
+          disabled={disabled}
+          onCheckedChange={onCheckedChange}
+          aria-describedby={`${id}-description`}
+        />
+      </ItemActions>
+    </Item>
+  );
+}
 
 export function NotificationSettings() {
   const { user } = useAuth(); // Use cached auth instead of getUser() calls
@@ -32,6 +124,8 @@ export function NotificationSettings() {
     useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // Bumped by "Try again" to re-run the load below.
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const supabase = createClient();
 
   useEffect(() => {
@@ -52,7 +146,7 @@ export function NotificationSettings() {
         };
 
         if (error) {
-          console.error("Error loading notification settings:", error);
+          safeConsole.error("Error loading notification settings:", error);
           return;
         }
 
@@ -60,19 +154,21 @@ export function NotificationSettings() {
         setSettings(firstSetting);
         setOriginalSettings(firstSetting);
       } catch (error) {
-        console.error("Failed to load notification settings", error);
+        safeConsole.error("Failed to load notification settings", error);
       } finally {
         setLoading(false);
       }
     }
 
     loadSettings();
-  }, [user?.id]); // Re-run when user changes
+  }, [user?.id, loadAttempt]); // Re-run when user changes or on retry
 
-  const handleChange = (
-    field: keyof NotificationPreferences,
-    value: boolean,
-  ) => {
+  const retryLoad = () => {
+    setLoading(true);
+    setLoadAttempt((attempt) => attempt + 1);
+  };
+
+  const handleChange = (field: PreferenceKey, value: boolean) => {
     if (!settings) return;
     setSettings({ ...settings, [field]: value });
   };
@@ -90,7 +186,7 @@ export function NotificationSettings() {
 
       if (error) {
         toast.error("Failed to save notification settings");
-        console.error("Error saving settings:", error);
+        safeConsole.error("Error saving settings:", error);
         return;
       }
 
@@ -98,7 +194,7 @@ export function NotificationSettings() {
       setOriginalSettings(settings);
     } catch (error) {
       toast.error("Failed to save notification settings");
-      console.error("Failed to save settings", error);
+      safeConsole.error("Failed to save settings", error);
     } finally {
       setSaving(false);
     }
@@ -107,156 +203,100 @@ export function NotificationSettings() {
   const hasChanges = notificationPreferencesChanged(originalSettings, settings);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-4 sm:p-6"
-    >
-      <div className="max-w-6xl">
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Notifications
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Choose which updates you receive.
-          </p>
-        </div>
+    <>
+      <PageHeader
+        title="Notifications"
+        description="Choose which updates you receive."
+      />
 
-        <Card className="border shadow-xs">
-          <CardHeader>
-            <CardTitle className="text-xl">Notification preferences</CardTitle>
-            <CardDescription>
-              Email settings apply to optional updates. Required account emails
-              still arrive.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-32 mt-4" />
-              </div>
-            ) : !settings ? (
-              <div className="text-center py-6 text-muted-foreground">
-                Error loading notification settings. Please try again later.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between gap-4 border p-4 rounded-md">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="feedback-requests" className="text-base">
-                        Feedback requests
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        An optional survey about using Let&apos;s Assist after
-                        you volunteer.
-                      </p>
-                    </div>
-                    <Switch
-                      id="feedback-requests"
-                      checked={settings.feedback_requests}
-                      disabled={!settings.email_notifications}
-                      onCheckedChange={(value) =>
-                        handleChange("feedback_requests", value)
-                      }
-                    />
-                  </div>
-                  <div className="flex items-center justify-between border p-4 rounded-md">
-                    <div className="space-y-0.5">
-                      <Label
-                        htmlFor="email-notifications"
-                        className="text-base"
-                      >
-                        Email updates
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Receive email for the update types enabled below.
-                      </p>
-                    </div>
-                    <Switch
-                      id="email-notifications"
-                      checked={settings.email_notifications}
-                      onCheckedChange={(checked) =>
-                        handleChange("email_notifications", checked)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between border p-4 rounded-md">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="project-updates" className="text-base">
-                        Project updates
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Changes to your volunteer projects.
-                      </p>
-                    </div>
-                    <Switch
-                      id="project-updates"
-                      checked={settings.project_updates}
-                      onCheckedChange={(checked) =>
-                        handleChange("project_updates", checked)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between border p-4 rounded-md">
-                    <div className="space-y-0.5">
-                      <Label
-                        htmlFor="organization-updates"
-                        className="text-base"
-                      >
-                        Organization updates
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Posts, activities, and record updates from your
-                        organizations.
-                      </p>
-                    </div>
-                    <Switch
-                      id="organization-updates"
-                      checked={settings.organization_updates}
-                      onCheckedChange={(checked) =>
-                        handleChange("organization_updates", checked)
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between border p-4 rounded-md">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="general" className="text-base">
-                        General
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Other platform updates.
-                      </p>
-                    </div>
-                    <Switch
-                      id="general"
-                      checked={settings.general}
-                      onCheckedChange={(checked) =>
-                        handleChange("general", checked)
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    onClick={saveSettings}
-                    disabled={saving || !hasChanges}
-                    className="w-full sm:w-auto"
-                  >
-                    {saving ? "Saving..." : "Save changes"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </motion.div>
+      {loading ? (
+        <SettingsSection
+          title="Email"
+          description="Required account emails always arrive."
+        >
+          <div className="grid gap-4" aria-busy="true">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </SettingsSection>
+      ) : !settings ? (
+        <SettingsSection
+          title="Email"
+          description="Required account emails always arrive."
+        >
+          <Empty className="p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <BellOff aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyTitle>Could not load your settings</EmptyTitle>
+              <EmptyDescription>
+                Your preferences are unchanged. Check your connection and try
+                again.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button variant="outline" onClick={retryLoad}>
+                Try again
+              </Button>
+            </EmptyContent>
+          </Empty>
+        </SettingsSection>
+      ) : (
+        <SettingsSection
+          title="Email"
+          description="Required account emails always arrive."
+          contentClassName="gap-0 px-0"
+          footerHint={hasChanges ? "Unsaved changes" : "No changes to save"}
+          footer={
+            <Button
+              onClick={saveSettings}
+              disabled={saving || !hasChanges}
+              className="w-full sm:w-auto"
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          }
+        >
+          <PreferenceRow
+            id="email-notifications"
+            title="Email updates"
+            description="Receive email for the update types enabled below."
+            checked={settings.email_notifications}
+            onCheckedChange={(checked) =>
+              handleChange("email_notifications", checked)
+            }
+          />
+          <ItemSeparator className="my-0" />
+          <h2 className="px-4 pt-4 text-sm font-medium">Update types</h2>
+          <ItemGroup className="gap-0">
+            {UPDATE_TYPES.map((type, index) => {
+              const locked =
+                Boolean(type.needsEmail) && !settings.email_notifications;
+              return (
+                <Fragment key={type.key}>
+                  {index > 0 ? <ItemSeparator className="my-0" /> : null}
+                  <PreferenceRow
+                    id={type.id}
+                    title={type.title}
+                    description={
+                      locked
+                        ? `${type.description} Turn on email updates to change this.`
+                        : type.description
+                    }
+                    checked={settings[type.key]}
+                    disabled={locked}
+                    onCheckedChange={(checked) =>
+                      handleChange(type.key, checked)
+                    }
+                  />
+                </Fragment>
+              );
+            })}
+          </ItemGroup>
+        </SettingsSection>
+      )}
+    </>
   );
 }

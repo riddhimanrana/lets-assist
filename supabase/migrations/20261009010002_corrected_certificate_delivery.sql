@@ -67,6 +67,9 @@ DECLARE
   v_publish_key text;
   v_snapshot jsonb;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_request_id IS NULL OR p_actor_id IS NULL OR p_expected_revision IS NULL OR p_expected_revision<1 THEN
     RAISE EXCEPTION 'invalid corrected certificate request' USING ERRCODE='22023';
   END IF;
@@ -122,6 +125,9 @@ CREATE FUNCTION public.project_corrected_certificate_ids(p_project_id uuid,p_act
 RETURNS uuid[] LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_ids uuid[];
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN
     RAISE EXCEPTION 'not authorized to read corrected certificates' USING ERRCODE='42501';
   END IF;

@@ -1,16 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { cn } from "@/lib/utils";
 import { Project } from "@/types";
@@ -34,103 +27,87 @@ interface ProjectWithCreator extends Omit<Project, "organization"> {
 interface ProjectCardProps {
   project: ProjectWithCreator;
   href: string;
-  actionLabel?: string;
-  actionVariant?: "default" | "secondary" | "outline" | "ghost" | "link";
-  topLeftBadge?: React.ReactNode;
+  /** One status or count shown above the title. */
+  badge?: React.ReactNode;
   className?: string;
+  /** One extra fact row under date and place. */
   footerContent?: React.ReactNode;
   showIdentity?: boolean;
 }
 
+/**
+ * A project the signed-in user volunteers for or runs. The whole card is the
+ * link. Order is fixed: status, title, who runs it, date, place.
+ */
 export function ProjectCard({
   project,
   href,
-  actionLabel = "View Project",
-  actionVariant = "default",
-  topLeftBadge,
+  badge,
   className,
   footerContent,
   showIdentity = true,
 }: ProjectCardProps) {
   const dateDisplay = formatDateDisplay(project as unknown as Project);
+  const hostName =
+    project.organization?.name || project.creator?.full_name || "Anonymous";
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden flex flex-col h-full py-0 gap-0 dark:ring-0 dark:shadow-md ",
-        className,
-      )}
+    <Link
+      href={href}
+      className="group/project-card focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-[3px]"
     >
-      <CardHeader className="p-4 pb-2 space-y-3">
-        <div className="flex justify-between items-start gap-2">
-          <div className="shrink-0">{topLeftBadge}</div>
-          <Badge
-            variant="outline"
-            className="text-xs whitespace-nowrap z-10 shrink-0"
+      <Card
+        className={cn(
+          "group-hover/project-card:ring-foreground/25 h-full gap-3 transition-shadow",
+          className,
+        )}
+      >
+        <div className="grid gap-1.5 px-4">
+          {badge ? <div className="mb-0.5 flex">{badge}</div> : null}
+          <h3
+            className="line-clamp-2 min-h-11 text-base leading-snug font-semibold"
+            title={project.title}
           >
-            {dateDisplay}
-          </Badge>
-        </div>
-        <h3
-          className="font-medium text-base line-clamp-2 leading-tight pr-1"
-          title={project.title}
-        >
-          {project.title}
-        </h3>
-      </CardHeader>
-
-      <CardContent className="p-4 pt-2 grow space-y-4">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{project.location}</span>
-        </div>
-
-        {showIdentity && (
-          <div className="flex items-center gap-2 pt-1">
-            <Avatar className="h-6 w-6 ring-1 ring-border/50">
-              <AvatarImage
-                src={
-                  project.organization?.logo_url ||
-                  project.creator?.avatar_url ||
-                  ""
-                }
-                alt={
-                  project.organization?.name || project.creator?.full_name || ""
-                }
-              />
-              <AvatarFallback>
-                <NoAvatar
-                  className="text-[10px]"
-                  fullName={
-                    project.organization?.name ||
-                    project.creator?.full_name ||
+            {project.title}
+          </h3>
+          {showIdentity && (
+            <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
+              <Avatar className="size-5">
+                <AvatarImage
+                  src={
+                    project.organization?.logo_url ||
+                    project.creator?.avatar_url ||
                     ""
                   }
+                  alt=""
                 />
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs font-medium truncate text-muted-foreground">
-              {project.organization?.name ||
-                project.creator?.full_name ||
-                "Anonymous"}
-            </span>
-          </div>
-        )}
-
-        {footerContent}
-      </CardContent>
-
-      <CardFooter className="p-4 pt-0 mt-auto bg-transparent border-t-0">
-        <Link
-          href={href}
-          className={cn(
-            buttonVariants({ variant: actionVariant, size: "sm" }),
-            "w-full",
+                <AvatarFallback>
+                  <NoAvatar className="text-xs" fullName={hostName} />
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate">{hostName}</span>
+            </div>
           )}
-        >
-          {actionLabel}
-        </Link>
-      </CardFooter>
-    </Card>
+        </div>
+
+        <div className="mt-auto grid gap-1.5 border-t px-4 pt-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Calendar
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="truncate">{dateDisplay}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="truncate">{project.location}</span>
+          </div>
+          {footerContent}
+        </div>
+      </Card>
+    </Link>
   );
 }

@@ -1,53 +1,35 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Project } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress"; // Import Progress component
-import { format, parseISO, differenceInMinutes, parse } from "date-fns";
-import { formatTimeTo12Hour } from "@/lib/utils";
-import {
-  getMultiDaySlotByScheduleId,
-  getMultiDaySlotDisplayName,
-  getSlotDetails,
-} from "@/utils/project";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
-import {
-  CheckCircle,
-  LogIn,
-  // UserPlus, // No longer needed
-  Loader2,
-  Calendar,
-  Clock,
-  Users,
-  AlertTriangle,
-  ExternalLink,
-  // Mail, // No longer needed
-  Search,
-  User,
-  LogOut,
-} from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import Link from "next/link";
-// Import checkInAnonymous as well
+import { UserCheckIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { NoticePage } from "@/components/projects/NoticePage";
 import {
   checkInUser,
   lookupEmailStatus,
   checkInAnonymous,
   checkOutUser,
 } from "./actions";
+import {
+  parseAnonymousProfileLink,
+  type AuthUser,
+  type ExistingCheckIn,
+  type LookupResult,
+} from "./_components/attendance-session";
+import { AttendanceShell } from "./_components/AttendanceShell";
+import { CheckedInView } from "./_components/CheckedInView";
 import { LeaveEventConfirmationDialog } from "./_components/LeaveEventConfirmationDialog";
 import { SessionEndedCard } from "./_components/SessionEndedCard";
+import { SignedOutCheckIn } from "./_components/SignedOutCheckIn";
+import { useSessionProgress } from "./_components/use-session-progress";
 
 interface AttendanceClientProps {
   project: Project;
@@ -61,64 +43,6 @@ interface AttendanceClientProps {
     timestamp: string;
   };
   projectAllowsAnonymous: boolean; // <-- new prop
-}
-
-type AuthUser = {
-  id: string;
-  email?: string | null;
-  user_metadata?: {
-    full_name?: string | null;
-  };
-};
-
-type ExistingCheckIn = {
-  id: string;
-  check_in_time?: string | null;
-  check_out_time?: string | null;
-  schedule_id?: string | null;
-};
-
-// Define LookupResult type based on the server action's return structure
-type LookupResult = {
-  success: boolean;
-  found: boolean; // Indicates if any signup (anon or registered) was found for the email
-  isRegistered: boolean; // Indicates if the found signup is linked to a registered user account
-  signupId?: string; // ID of the signup record (could be anon or registered)
-  message: string;
-  error?: string;
-};
-
-function parseAnonymousProfileLink(value: string): {
-  anonymousSignupId: string;
-  token: string;
-} | null {
-  try {
-    const parsed = new URL(value.trim(), "https://lets-assist.invalid");
-    const match = parsed.pathname.match(
-      /^\/anonymous\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/confirm)?\/?$/iu,
-    );
-    const token = parsed.searchParams.get("token")?.trim();
-    if (!match || !token) return null;
-    return { anonymousSignupId: match[1], token };
-  } catch {
-    return null;
-  }
-}
-
-// Helper function to format remaining time
-function formatRemainingTime(minutes: number): string {
-  if (minutes <= 0) return "Session ended";
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = Math.ceil(minutes % 60); // Use Math.ceil to avoid off-by-one errors
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h `;
-  }
-  // Ensure minutes are always shown, even if 0 when hours > 0
-  if (remainingMinutes > 0 || hours === 0) {
-    result += `${remainingMinutes}m`;
-  }
-  return result.trim(); // Trim potential trailing space if only hours exist (though unlikely with rounding)
 }
 
 export default function AttendanceClient({
@@ -145,19 +69,6 @@ export default function AttendanceClient({
   const [anonSignupId, setAnonSignupId] = useState<string>(""); // State for anonymous signup ID
   const [anonAccessToken, setAnonAccessToken] = useState<string>("");
 
-  // Add state for progress and remaining time
-  const [progressPercentage, setProgressPercentage] = useState(0);
-  const [remainingTimeFormatted, setRemainingTimeFormatted] = useState("");
-
-  // Session details state
-  type SessionDetails = NonNullable<ReturnType<typeof getSlotDetails>> & {
-    name?: string;
-    date?: string;
-  };
-  const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(
-    null,
-  );
-
   // Session ended state
   const [sessionHasEnded, setSessionHasEnded] = useState(false);
   const [existingSignupId, setExistingSignupId] = useState<string | null>(
@@ -170,6 +81,19 @@ export default function AttendanceClient({
 
   // Refs for tracking elapsed time
   const elapsedTimeRef = useRef<number>(0);
+  const { sessionDetails, progressPercentage, remainingTimeFormatted } =
+    useSessionProgress({
+      project,
+      scheduleId,
+      checkInTime,
+      sessionHasEnded,
+      setSessionHasEnded,
+      elapsedTimeRef,
+    });
+
+  // The last failed check-in, kept on screen until the next attempt
+  const [checkInError, setCheckInError] = useState<string | null>(null);
+  const confirmIcon = useAnimatedIcon();
 
   // Anonymous Check-in state
   const [showAnonInputSection, setShowAnonInputSection] = useState(false);
@@ -182,142 +106,6 @@ export default function AttendanceClient({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
 
-  // Get session details
-  useEffect(() => {
-    if (project && scheduleId) {
-      const details = getSlotDetails(project, scheduleId);
-
-      let formattedDetails = null;
-      if (details) {
-        // Format depending on event type
-        if (project.event_type === "oneTime") {
-          formattedDetails = {
-            ...details,
-            name: "Main Event",
-            date: project.schedule.oneTime?.date || "",
-          };
-        } else if (project.event_type === "multiDay") {
-          const slotData = getMultiDaySlotByScheduleId(project, scheduleId);
-          if (slotData) {
-            const { day, slot, slotIndex } = slotData;
-            formattedDetails = {
-              ...details,
-              name: getMultiDaySlotDisplayName(slot, slotIndex),
-              date: day.date,
-            };
-          }
-        } else if (project.event_type === "sameDayMultiArea") {
-          formattedDetails = {
-            ...details,
-            name: scheduleId,
-            date: project.schedule.sameDayMultiArea?.date || "",
-          };
-        }
-      }
-
-      setSessionDetails(formattedDetails);
-    }
-  }, [project, scheduleId]);
-
-  // Update progress and remaining time smoothly using requestAnimationFrame
-  useEffect(() => {
-    // Ensure checkInTime is valid *before* proceeding
-    if (
-      !checkInTime ||
-      !sessionDetails?.date ||
-      !sessionDetails?.startTime ||
-      !sessionDetails?.endTime
-    ) {
-      // Clear progress if necessary data is missing
-      setProgressPercentage(0);
-      setRemainingTimeFormatted("");
-      return;
-    }
-
-    let animationFrameId: number;
-    const updateTimers = () => {
-      const now = new Date();
-
-      // Calculate Session Progress (based on check-in time) and Remaining Time (based on session end)
-      try {
-        // Combine date and time strings and parse them
-        const sessionEndDateTime = parse(
-          `${sessionDetails.date} ${sessionDetails.endTime}`,
-          "yyyy-MM-dd HH:mm",
-          new Date(),
-        );
-
-        // Check if sessionEndDateTime is valid
-        if (isNaN(sessionEndDateTime.getTime())) {
-          console.error(
-            "Invalid end date/time for progress calculation",
-            sessionDetails,
-          );
-          setProgressPercentage(0);
-          setRemainingTimeFormatted("Error: Invalid time");
-          return;
-        }
-
-        // Calculate remaining time until session end (for display text)
-        const remainingMinutes = differenceInMinutes(sessionEndDateTime, now);
-        setRemainingTimeFormatted(formatRemainingTime(remainingMinutes));
-
-        // Calculate progress based on time since check-in relative to session end
-        const totalDurationMinutes = differenceInMinutes(
-          sessionEndDateTime,
-          checkInTime,
-        );
-        const elapsedSinceCheckInMinutes = differenceInMinutes(
-          now,
-          checkInTime,
-        );
-
-        // Track elapsed time for the end screen
-        const elapsedMs = elapsedSinceCheckInMinutes * 60 * 1000;
-        elapsedTimeRef.current = Math.max(0, elapsedMs);
-
-        let newProgress: number;
-        if (totalDurationMinutes <= 0) {
-          // If session ended before or exactly when user checked in, or if check-in is after session end
-          newProgress = now >= sessionEndDateTime ? 100 : 0;
-        } else {
-          // Calculate progress percentage from check-in time to session end time
-          newProgress = Math.max(
-            0,
-            Math.min(
-              100,
-              (elapsedSinceCheckInMinutes / totalDurationMinutes) * 100,
-            ),
-          );
-        }
-
-        setProgressPercentage(newProgress);
-
-        // Check if session has ended (reached 100%)
-        if (newProgress >= 100 && !sessionHasEnded) {
-          setSessionHasEnded(true);
-        }
-      } catch (error) {
-        console.error("Error calculating progress:", error);
-        setProgressPercentage(0);
-        setRemainingTimeFormatted("Error calculating");
-      }
-
-      // Schedule next update using requestAnimationFrame for smooth animation
-      animationFrameId = requestAnimationFrame(updateTimers);
-    };
-
-    updateTimers(); // Initial call
-
-    return () => cancelAnimationFrame(animationFrameId);
-    // Depend on checkInTime and session end details
-  }, [
-    checkInTime,
-    sessionDetails?.date,
-    sessionDetails?.endTime,
-    sessionHasEnded,
-  ]);
-
   // Handle check-in for LOGGED-IN users or from LOOKUP results
   const handleCheckin = async (
     signupIdToCheckIn?: string,
@@ -327,17 +115,18 @@ export default function AttendanceClient({
     const targetSignupId = signupIdToCheckIn || existingCheckIn?.id;
 
     if (!targetSignupId || isSubmitting) {
-      console.warn(
+      safeConsole.warn(
         "Check-in prevented: No targetSignupId or already submitting.",
         { targetSignupId, isSubmitting },
       );
       if (!targetSignupId)
-        toast.error("Could not identify the signup record to check in.");
+        setCheckInError("Could not identify the signup record to check in.");
       return;
     }
 
     setIsSubmitting(true);
     setLookupResult(null); // Clear lookup result if check-in initiated from there
+    setCheckInError(null);
 
     try {
       const result = await checkInUser(targetSignupId);
@@ -354,10 +143,10 @@ export default function AttendanceClient({
         throw new Error(result.error || "Check-in failed.");
       }
     } catch (error) {
-      console.error("Check-in error:", error);
+      safeConsole.error("Check-in error:", error);
       const message =
         error instanceof Error ? error.message : "Check-in failed.";
-      toast.error(`Failed to check in: ${message}`);
+      setCheckInError(`Failed to check in: ${message}`);
       // Reset state if check-in fails but component doesn't unmount
       setIsCheckedIn(false);
       setCheckInTime(null);
@@ -388,7 +177,7 @@ export default function AttendanceClient({
         throw new Error(result.error || "Failed to leave event.");
       }
     } catch (error) {
-      console.error("Leave event error:", error);
+      safeConsole.error("Leave event error:", error);
       const message =
         error instanceof Error ? error.message : "Failed to leave event.";
       toast.error(`Failed to leave event: ${message}`);
@@ -403,13 +192,14 @@ export default function AttendanceClient({
 
     const anonymousAccess = parseAnonymousProfileLink(anonProfileLink);
     if (!anonymousAccess) {
-      toast.error(
+      setCheckInError(
         "Paste the private anonymous profile link from your confirmation email.",
       );
       return;
     }
 
     setIsAnonSubmitting(true);
+    setCheckInError(null);
     try {
       const result = await checkInAnonymous(project.id, scheduleId, {
         ...anonymousAccess,
@@ -426,18 +216,18 @@ export default function AttendanceClient({
         toast.success("Successfully checked in!");
         setShowAnonInputSection(false); // Hide the input section on success
       } else {
-        toast.error(
+        setCheckInError(
           result.error ||
             "Anonymous check-in failed. Please ensure you are signed up and approved.",
         );
       }
     } catch (err) {
-      console.error("Anonymous check-in error:", err);
+      safeConsole.error("Anonymous check-in error:", err);
       const message =
         err instanceof Error
           ? err.message
           : "Anonymous check-in encountered an error.";
-      toast.error(message);
+      setCheckInError(message);
     } finally {
       setIsAnonSubmitting(false);
     }
@@ -485,7 +275,7 @@ export default function AttendanceClient({
         }
       }
     } catch (error) {
-      console.error("Client-side error during email lookup call:", error);
+      safeConsole.error("Client-side error during email lookup call:", error);
       toast.error("Failed to communicate with server for email lookup.");
       setLookupResult({
         success: false,
@@ -505,37 +295,42 @@ export default function AttendanceClient({
     router.push(`/${type}?redirect=${encodeURIComponent(redirectUrl)}`);
   };
 
+  const sessionName = sessionDetails?.name || scheduleId;
+
   // BLOCK if user is logged in but has no signup record for THIS schedule
   if (user && !existingCheckIn) {
     return (
-      <div className="container mx-auto py-12 px-4 md:px-6">
-        <Card className="mx-auto max-w-md mb-12">
-          <CardHeader>
-            <CardTitle className="text-destructive">Signup Not Found</CardTitle>{" "}
-            {/* Changed title */}
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm mb-4">
-              You are logged in as <strong>{user.email}</strong>, but we
-              couldn&apos;t find your signup record for this specific project
-              session ({sessionDetails?.name || scheduleId}).
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Please ensure you signed up for the correct session.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/projects/${project.id}`)}
-            >
-              View Project Details
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <NoticePage
+        icon={<CircleAlert aria-hidden="true" />}
+        tone="destructive"
+        title="Signup not found"
+        description={
+          <>
+            You are logged in as{" "}
+            <strong className="text-foreground font-medium">
+              {user.email}
+            </strong>
+            , but we couldn&apos;t find your signup record for this specific
+            project session ({sessionName}).
+          </>
+        }
+        actions={
+          <Link
+            href={`/projects/${project.id}`}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            View project details
+          </Link>
+        }
+      >
+        <p className="text-muted-foreground text-sm">
+          Please ensure you signed up for the correct session.
+        </p>
+      </NoticePage>
     );
   }
 
-  // Show session ended celebration screen
+  // Show session ended screen
   if (sessionHasEnded) {
     const hours = Math.floor(elapsedTimeRef.current / 3600000);
     const minutes = Math.floor((elapsedTimeRef.current % 3600000) / 60000);
@@ -545,13 +340,13 @@ export default function AttendanceClient({
       <SessionEndedCard
         projectId={project.id}
         projectTitle={project.title}
-        sessionName={sessionDetails?.name || scheduleId}
+        sessionName={sessionName}
         elapsedTime={elapsedDisplay}
       />
     );
   }
 
-  // Show success screen if already checked in (either logged in or anonymous)
+  // Show the confirmation if already checked in (either logged in or anonymous)
   if (isCheckedIn) {
     return (
       <>
@@ -561,412 +356,125 @@ export default function AttendanceClient({
           onConfirm={handleLeaveEvent}
           isLoading={isCheckingOut}
         />
-        <div className="container mx-auto py-12 px-4 md:px-6">
-          <div className="max-w-md mx-auto">
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-xl text-center">
-                  Check-in Successful
-                </CardTitle>
-                {/* Modify description based on anonymous status */}
-                <CardDescription className="text-center">
-                  {checkedInAnonymously
-                    ? "Your attendance has been recorded anonymously."
-                    : "You're checked in to the event."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b">
-                    <span className="text-sm font-medium">Project</span>
-                    <span className="text-sm">{project.title}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b">
-                    <span className="text-sm font-medium">Session</span>
-                    <span className="text-sm">
-                      {sessionDetails?.name || scheduleId}
-                    </span>
-                  </div>
-                  {sessionDetails?.date && (
-                    <div className="flex justify-between items-center py-3 border-b">
-                      <span className="text-sm font-medium">Date</span>
-                      <span className="text-sm">
-                        {format(
-                          parseISO(sessionDetails.date),
-                          "EEEE, MMMM d, yyyy",
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  {sessionDetails?.startTime && sessionDetails?.endTime && (
-                    <div className="flex justify-between items-center py-3 border-b">
-                      <span className="text-sm font-medium">Time</span>
-                      <span className="text-sm">
-                        {formatTimeTo12Hour(sessionDetails.startTime)} -{" "}
-                        {formatTimeTo12Hour(sessionDetails.endTime)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center py-3 border-b">
-                    <span className="text-sm font-medium">Check-in time</span>
-                    <span className="text-sm">
-                      {checkInTime ? format(checkInTime, "h:mm a") : "N/A"}
-                    </span>
-                  </div>
-                  {/* Conditionally show email used for check-in */}
-                  {displayEmail && (
-                    <div className="flex justify-between items-center py-3 border-b">
-                      <span className="text-sm font-medium">Email</span>
-                      <span className="text-sm">{displayEmail}</span>
-                    </div>
-                  )}
-                  {/* REMOVED Duration since *check-in* section */}
-                  {/* <div className="flex justify-between items-center py-3 border-b"> ... </div> */}
-
-                  {/* Session Progress Section (Progress starts from check-in time) */}
-                  {sessionDetails?.endTime &&
-                    checkInTime && ( // Only show if we have end time and check-in time
-                      <div className="space-y-2 pt-3">
-                        <div className="flex justify-between items-center text-sm mb-1">
-                          {/* Changed label slightly */}
-                          <span className="font-medium">Session Duration</span>
-                          <span className="text-muted-foreground">
-                            {remainingTimeFormatted} remaining
-                          </span>
-                        </div>
-                        <Progress
-                          value={progressPercentage}
-                          aria-label={`Your progress: ${Math.round(progressPercentage)}%`}
-                          className="h-2"
-                        />
-                      </div>
-                    )}
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-2">
-                <Button className="w-full">
-                  <Link
-                    href={`/projects/${project.id}`}
-                    className="flex items-center gap-2"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    View Project Details
-                  </Link>
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => setShowLeaveConfirmation(true)}
-                  disabled={isCheckingOut}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  {isCheckingOut ? "Leaving..." : "Leave Event"}
-                </Button>
-                {checkedInAnonymously && (
-                  <Button variant="outline" className="w-full">
-                    <Link
-                      href={`/anonymous/${anonSignupId}?token=${encodeURIComponent(anonAccessToken)}`}
-                      className="flex items-center gap-2"
-                    >
-                      <User className="h-4 w-4" />
-                      Your Anonymous Profile
-                    </Link>
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
+        <CheckedInView
+          projectId={project.id}
+          projectTitle={project.title}
+          sessionName={sessionName}
+          sessionDetails={sessionDetails}
+          checkInTime={checkInTime}
+          checkedInAnonymously={checkedInAnonymously}
+          displayEmail={displayEmail}
+          progressPercentage={progressPercentage}
+          remainingTimeFormatted={remainingTimeFormatted}
+          isCheckingOut={isCheckingOut}
+          onLeave={() => setShowLeaveConfirmation(true)}
+          anonymousProfileHref={
+            checkedInAnonymously
+              ? `/anonymous/${anonSignupId}?token=${encodeURIComponent(anonAccessToken)}`
+              : null
+          }
+        />
       </>
     );
   }
 
-  // Show main check-in / auth options card
+  // Show the check-in step
   return (
-    <div className="container mx-auto py-12 px-4 md:px-6">
-      <div className="max-w-md mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>{project.title}</CardTitle>
-            <CardDescription>
-              Confirm your attendance for the session:{" "}
-              {sessionDetails?.name || scheduleId}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Session Details */}
-            {sessionDetails && (
-              <div className="bg-muted/50 p-4 rounded-lg space-y-3 mb-4">
-                {" "}
-                {/* Added mb-4 */}
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">
-                    {sessionDetails.date
-                      ? format(
-                          parseISO(sessionDetails.date),
-                          "EEEE, MMMM d, yyyy",
-                        )
-                      : "N/A"}
-                  </span>
-                </div>
-                {sessionDetails.startTime && sessionDetails.endTime && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                      {formatTimeTo12Hour(sessionDetails.startTime)} -{" "}
-                      {formatTimeTo12Hour(sessionDetails.endTime)}
-                    </span>
-                  </div>
-                )}
-                {sessionDetails.name && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{sessionDetails.name}</span>
-                  </div>
-                )}
-              </div>
-            )}
+    <AttendanceShell
+      projectTitle={project.title}
+      sessionName={sessionName}
+      sessionDetails={sessionDetails}
+    >
+      {!scanInfo.isMobileDevice && (
+        <Alert variant="warning">
+          <AlertDescription>
+            This page is intended for QR code scans on mobile devices.
+            Functionality may be limited.
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {/* Warning if not mobile */}
-            {!scanInfo.isMobileDevice && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4">
-                {" "}
-                {/* Added mb-4 */}
-                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    This page is intended for QR code scans on mobile devices.
-                    Functionality may be limited.
-                  </p>{" "}
-                  {/* Updated text */}
-                </div>
-              </div>
-            )}
+      {checkInError && (
+        <Alert variant="destructive">
+          <CircleAlert aria-hidden="true" />
+          <AlertTitle>{checkInError}</AlertTitle>
+          <AlertDescription>
+            Try again, or ask the organizer to check you in.{" "}
+            <Link href={`/projects/${project.id}`}>View project details</Link>
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {/* === Logged-in User Check-in UI === */}
-            {user && existingCheckIn && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">
-                  Welcome,{" "}
-                  {user?.user_metadata?.full_name || user?.email || "Volunteer"}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  You are signed up for this session. Click below to confirm
-                  your attendance.
-                </p>
-                <Button
-                  onClick={() => handleCheckin(undefined, false)} // Logged-in user, not anonymous
-                  disabled={isSubmitting}
-                  className="w-full"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Checking in...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Confirm Attendance
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-
-            {/* === Anonymous User / Not Logged In UI === */}
-            {!user && (
+      {/* === Logged-in user check-in === */}
+      {user && existingCheckIn && (
+        <div className="grid gap-4">
+          <div className="grid gap-1">
+            <h2 className="text-lg font-semibold tracking-tight wrap-break-word">
+              Welcome,{" "}
+              {user?.user_metadata?.full_name || user?.email || "Volunteer"}
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              You are signed up for this session. Click below to confirm your
+              attendance.
+            </p>
+          </div>
+          <Button
+            size="lg"
+            className="h-12 w-full text-base"
+            onClick={() => handleCheckin(undefined, false)} // Logged-in user, not anonymous
+            disabled={isSubmitting}
+            {...confirmIcon.triggerProps}
+          >
+            {isSubmitting ? (
               <>
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">
-                    Confirm Your Attendance
-                  </h3>
-                  {/* Description is less important now as buttons guide the user */}
-                </div>
-
-                <div className="grid gap-3">
-                  {/* Sign In Button (Always shown if not logged in) */}
-                  <Button
-                    onClick={() => redirectToAuth("login")}
-                    className="w-full"
-                  >
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Sign in with Let&apos;s Assist Account
-                  </Button>
-
-                  {/* Anonymous Check-in Button (Conditional) */}
-                  {projectAllowsAnonymous && (
-                    <Button
-                      onClick={() => setShowAnonInputSection(true)}
-                      variant="outline"
-                      className="w-full"
-                      disabled={showAnonInputSection} // Disable if input is already shown
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Attend Anonymously
-                    </Button>
-                  )}
-
-                  {/* Anonymous Check-in Input Section (Conditional) */}
-                  {projectAllowsAnonymous && showAnonInputSection && (
-                    <div className="space-y-3 border p-4 rounded-md bg-muted/30">
-                      <Label htmlFor="anon-email">Email address</Label>
-                      <Input
-                        id="anon-email"
-                        type="email"
-                        value={anonCheckinEmail} // Use anonCheckinEmail state
-                        onChange={(e) => setAnonCheckinEmail(e.target.value)}
-                        placeholder="Enter your signup email"
-                        aria-label="Email address for anonymous check-in"
-                      />
-                      <Label htmlFor="anon-profile-link">
-                        Private anonymous profile link
-                      </Label>
-                      <Input
-                        id="anon-profile-link"
-                        type="url"
-                        value={anonProfileLink}
-                        onChange={(event) =>
-                          setAnonProfileLink(event.target.value)
-                        }
-                        placeholder="Paste the link from your confirmation email"
-                        aria-label="Private anonymous profile link"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        This verifies that the anonymous signup belongs to you.
-                        The link is never displayed to other attendees.
-                      </p>
-                      <Button
-                        onClick={handleAnonCheckin}
-                        disabled={
-                          isAnonSubmitting ||
-                          !anonCheckinEmail ||
-                          !anonProfileLink
-                        }
-                        className="w-full"
-                      >
-                        {isAnonSubmitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Checking in...
-                          </>
-                        ) : (
-                          "Check in Anonymously"
-                        )}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Divider */}
-                  <div className="flex items-center my-2 text-sm text-muted-foreground">
-                    <span className="grow border-t"></span>
-                    {/* Updated divider text */}
-                    <span className="px-2">Not sure?</span>
-                    <span className="grow border-t"></span>
-                  </div>
-
-                  {/* Email Lookup Section */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email-lookup">
-                      Check your signup status
-                    </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="email-lookup"
-                        type="email"
-                        placeholder="Enter your email"
-                        value={lookupEmail} // Use lookupEmail state
-                        onChange={(e) => setLookupEmail(e.target.value)}
-                        aria-label="Email address for signup status lookup"
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleLookupEmail} // Use handleLookupEmail
-                        disabled={isLookingUp || !lookupEmail} // Use isLookingUp and lookupEmail
-                        aria-label="Lookup email status"
-                      >
-                        {isLookingUp ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Search className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Display Lookup Result (Remains the same, potentially triggers handleCheckin) */}
-                  {lookupResult && lookupResult.success && (
-                    <div
-                      className={`p-3 rounded-md text-sm border ${
-                        lookupResult.found
-                          ? lookupResult.isRegistered
-                            ? "bg-primary/10 border-primary/30 text-primary"
-                            : lookupResult.message.includes("approved")
-                              ? "bg-green-600/10 border-green-600/30 text-green-600"
-                              : lookupResult.message.includes("pending")
-                                ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
-                                : "bg-muted border-muted-foreground/30"
-                          : "bg-muted border-muted-foreground/30"
-                      }`}
-                    >
-                      <p className="mb-2 font-medium wrap-break-word">
-                        {lookupResult.message}
-                      </p>
-
-                      {/* Prompt to log in if registered user found */}
-                      {lookupResult.isRegistered && (
-                        <Button
-                          size="sm"
-                          variant="link" // Use link style
-                          onClick={() => redirectToAuth("login")}
-                          className="mt-1 p-0 h-auto text-primary hover:text-primary/80"
-                        >
-                          Log in now to check in
-                          <LogIn className="h-3 w-3 ml-1.5" />
-                        </Button>
-                      )}
-
-                      {/* Message for pending anonymous signup */}
-                      {!lookupResult.isRegistered &&
-                        lookupResult.found &&
-                        lookupResult.message.includes("pending") && (
-                          <p className="mt-2 text-xs">
-                            Your signup requires organizer approval before you
-                            can check in.
-                          </p>
-                        )}
-                    </div>
-                  )}
-                  {lookupResult && !lookupResult.success && (
-                    <div className="p-3 rounded-md text-sm bg-destructive/10 border border-destructive/30 text-destructive">
-                      <p>
-                        {lookupResult.error ||
-                          lookupResult.message ||
-                          "An error occurred during lookup."}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Checking in...
+              </>
+            ) : (
+              <>
+                <UserCheckIcon
+                  ref={confirmIcon.ref}
+                  size={16}
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                />
+                Confirm attendance
               </>
             )}
-          </CardContent>
-          <CardFooter className="flex justify-center border-t pt-4">
-            {" "}
-            {/* Added border-t and pt-4 */}
-            <Link
-              href={`/projects/${project.id}`}
-              className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-            >
-              <ExternalLink className="h-3 w-3" /> View project details
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
+          </Button>
+        </div>
+      )}
+
+      {/* === Not logged in: sign in, attend anonymously, or look up === */}
+      {!user && (
+        <SignedOutCheckIn
+          projectAllowsAnonymous={projectAllowsAnonymous}
+          onSignIn={() => redirectToAuth("login")}
+          showAnonInputSection={showAnonInputSection}
+          onShowAnonInputSection={() => setShowAnonInputSection(true)}
+          anonCheckinEmail={anonCheckinEmail}
+          onAnonCheckinEmailChange={setAnonCheckinEmail}
+          anonProfileLink={anonProfileLink}
+          onAnonProfileLinkChange={setAnonProfileLink}
+          isAnonSubmitting={isAnonSubmitting}
+          onAnonCheckin={handleAnonCheckin}
+          lookupEmail={lookupEmail}
+          onLookupEmailChange={setLookupEmail}
+          isLookingUp={isLookingUp}
+          onLookupEmail={handleLookupEmail}
+          lookupResult={lookupResult}
+        />
+      )}
+
+      <Link
+        href={`/projects/${project.id}`}
+        className={buttonVariants({
+          variant: "link",
+          className: "justify-self-start px-0",
+        })}
+      >
+        View project details
+      </Link>
+    </AttendanceShell>
   );
 }

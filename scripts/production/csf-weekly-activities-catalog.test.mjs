@@ -1,3 +1,4 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -14,12 +15,10 @@ import {
   topLevelDataWrites,
   unreviewedWriteTables,
 } from "./migration-data-writes.mjs";
-import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 
-// Keep this historical release proof on its approved migration ledger.
 const fixture = historicalReleaseTestFixture();
-afterTests(fixture.dispose);
 const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-638.json"));
 const after = JSON.parse(read("./final-schema-639.json"));

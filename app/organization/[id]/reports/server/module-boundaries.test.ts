@@ -71,4 +71,16 @@ describe("organization sheet action modules", () => {
     expect(action).not.toContain("clientId");
     expect(action).not.toContain("refreshToken");
   });
+
+  test("sheet status withholds the connected account email from staff", () => {
+    const status = read("app/organization/[id]/reports/server/status.ts");
+    const redaction = status.indexOf('if (access.role !== "admin") {');
+
+    expect(redaction).toBeGreaterThan(-1);
+    const block = status.slice(redaction, redaction + 200);
+    expect(block).toContain("connectedEmail = null;");
+    expect(block).toContain("email: null");
+    // The redaction must run before either return that carries the fields.
+    expect(redaction).toBeLessThan(status.indexOf("if (syncError) {"));
+  });
 });

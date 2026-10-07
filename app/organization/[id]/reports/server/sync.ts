@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
@@ -123,7 +124,7 @@ export async function createSheetSync(
     );
 
   if (upsertError) {
-    console.error("Failed to save sheet sync config:", upsertError);
+    safeConsole.error("Failed to save sheet sync config:", upsertError);
     return { success: false, error: "Failed to save sheet configuration" };
   }
 
@@ -248,7 +249,7 @@ export async function syncSheetNow(
         rows = buildRowsWithLayout(reportData, layoutConfig);
       }
     } catch (error) {
-      console.warn("Failed to apply custom layout, using default:", error);
+      safeConsole.warn("Failed to apply custom layout, using default:", error);
       // Fall back to default rows
     }
   }
@@ -343,7 +344,7 @@ export async function updateSheetSyncSettings(
     .eq("organization_id", organizationId);
 
   if (updateError) {
-    console.error("Failed to update sheet sync settings:", updateError);
+    safeConsole.error("Failed to update sheet sync settings:", updateError);
     return { success: false, error: "Failed to update sync settings" };
   }
 
@@ -411,7 +412,7 @@ export async function updateSheetSyncConfig(
     .eq("organization_id", organizationId);
 
   if (updateError) {
-    console.error("Failed to update sheet sync config:", updateError);
+    safeConsole.error("Failed to update sheet sync config:", updateError);
     return { success: false, error: "Failed to update sheet config" };
   }
 

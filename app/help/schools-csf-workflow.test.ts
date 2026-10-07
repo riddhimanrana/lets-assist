@@ -12,9 +12,9 @@ describe("current CSF platform help", () => {
     expect(schools).toContain("DVHS CSF members and officers");
     expect(schools).toContain("select Help from the CSF");
     expect(schools).toContain("Role-aware and permission-filtered");
-    expect(helpIndex).toContain("Chapter CSF Workspaces");
-    expect(helpIndex).toContain("CSF Member Workflow");
-    expect(helpIndex).toContain("CSF Chapter Setup");
+    expect(helpIndex).toContain("Chapter CSF workspaces");
+    expect(helpIndex).toContain("CSF member workflow");
+    expect(helpIndex).toContain("CSF chapter setup");
   });
 
   test("teaches the current record, link, review, and staff-access workflow", () => {

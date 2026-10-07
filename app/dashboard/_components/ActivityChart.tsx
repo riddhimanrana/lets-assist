@@ -30,13 +30,13 @@ export function ActivityChart({ data }: ActivityChartProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Activity Chart</CardTitle>
+        <CardTitle>Activity chart</CardTitle>
         <CardDescription>
           Your volunteering hours over the past 6 months.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="h-72 w-full">
           <BarChart accessibilityLayer data={data}>
             <CartesianGrid vertical={false} />
             <XAxis
@@ -61,11 +61,6 @@ export function ActivityChart({ data }: ActivityChartProps) {
           </BarChart>
         </ChartContainer>
       </CardContent>
-      {/* <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="leading-none text-muted-foreground">
-          Showing total hours contributed for the last 6 months.
-        </div>
-      </CardFooter> */}
     </Card>
   );
 }

@@ -1,6 +1,105 @@
 -- Reviewed attendance is stored separately from the legacy envelope. Historical
 -- certificates retain their original award until an explicit correction.
 BEGIN;
+
+-- Service RPCs receive the verified actor separately from auth.uid(). Take the
+-- same account lock as deletion before any project, batch, or receipt lock.
+CREATE FUNCTION private.lock_paper_attendance_account(p_user_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER SET search_path = '' AS $$
+BEGIN
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'Account deletion is pending or complete.' USING ERRCODE = '42501';
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('lets-assist-account-write:' || p_user_id::text, 0));
+  IF NOT app_private.account_deletion_actor_is_active(p_user_id) THEN
+    RAISE EXCEPTION 'Account deletion is pending or complete.' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.lock_paper_attendance_account(uuid) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION private.lock_paper_attendance_account(uuid) TO postgres;
+
+-- Both publication RPC shims enter this wrapper before the legacy body.
+-- Take the account lock here so neither shim locks the project first.
+CREATE OR REPLACE FUNCTION private.publish_volunteer_hours_transactional(
+  p_actor_id uuid,
+  p_project_id uuid,
+  p_schedule_id text,
+  p_entries jsonb,
+  p_request_key text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_actor_id uuid := p_actor_id;
+  v_project public.projects%ROWTYPE;
+BEGIN
+  IF v_actor_id IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = '42501',
+      MESSAGE = 'authentication required';
+  END IF;
+
+  PERFORM private.lock_paper_attendance_account(v_actor_id);
+
+  SELECT projects.*
+  INTO v_project
+  FROM public.projects AS projects
+  WHERE projects.id = p_project_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0002',
+      MESSAGE = 'project not found';
+  END IF;
+
+  IF v_project.creator_id IS DISTINCT FROM v_actor_id THEN
+    PERFORM members.user_id
+    FROM public.organization_members AS members
+    WHERE members.organization_id = v_project.organization_id
+      AND members.user_id = v_actor_id
+      AND members.status = 'active'
+      AND (
+        members.role = 'admin'
+        OR (
+          members.role = 'staff'
+          AND v_project.can_be_managed_by_staff IS TRUE
+        )
+      )
+    FOR UPDATE OF members;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION USING
+        ERRCODE = '42501',
+        MESSAGE = 'not authorized to publish project hours';
+    END IF;
+  END IF;
+
+  RETURN private.publish_volunteer_hours_transactional_legacy_status_fallback(
+    v_actor_id,
+    p_project_id,
+    p_schedule_id,
+    p_entries,
+    p_request_key
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION
+  private.publish_volunteer_hours_transactional(uuid, uuid, text, jsonb, text)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION
+  private.publish_volunteer_hours_transactional(uuid, uuid, text, jsonb, text)
+  TO service_role;
+
+COMMENT ON FUNCTION
+  private.publish_volunteer_hours_transactional(uuid, uuid, text, jsonb, text) IS
+  'Private replay-safe hours publication transaction that locks exact active management authority before delegating receipt and certificate creation.';
+
 ALTER TABLE public.project_paper_scan_batches
   ADD COLUMN input_method text NOT NULL DEFAULT 'scan' CHECK (input_method IN ('scan', 'manual')),
   ADD COLUMN creation_request_id uuid UNIQUE;
@@ -358,6 +457,9 @@ DECLARE
   v_minutes integer;
   v_revision integer;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_actor_id IS NULL OR p_request_id IS NULL OR p_expected_revision IS NULL
     OR NULLIF(btrim(p_reason),'') IS NULL OR char_length(p_reason) > 1000 THEN
     RAISE EXCEPTION 'invalid attendance correction' USING ERRCODE = '22023';
@@ -442,6 +544,9 @@ DECLARE
   v_decision text;
   v_match_signup_id uuid;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_batch_id IS NULL OR p_project_id IS NULL OR p_row_id IS NULL
      OR p_actor_id IS NULL OR p_patch IS NULL
      OR jsonb_typeof(p_patch) <> 'object' THEN
@@ -638,6 +743,9 @@ AS $$
 DECLARE
   v_batch public.project_paper_scan_batches%ROWTYPE;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_batch_id IS NULL OR p_project_id IS NULL OR p_actor_id IS NULL THEN
     RAISE EXCEPTION 'discard_paper_scan_batch: invalid input';
   END IF;
@@ -703,6 +811,9 @@ CREATE FUNCTION public.create_manual_attendance_batch(p_project_id uuid,p_schedu
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_batch public.project_paper_scan_batches%ROWTYPE; v_id uuid;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_request_id IS NULL OR p_actor_id IS NULL OR NULLIF(btrim(p_schedule_id),'') IS NULL THEN RAISE EXCEPTION 'invalid manual attendance request' USING ERRCODE='22023'; END IF;
   PERFORM id FROM public.projects WHERE id=p_project_id FOR UPDATE;
   IF NOT FOUND OR NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN RAISE EXCEPTION 'project permission denied' USING ERRCODE='42501'; END IF;
@@ -728,6 +839,9 @@ CREATE FUNCTION public.add_paper_attendance_row(p_project_id uuid,p_batch_id uui
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_batch public.project_paper_scan_batches%ROWTYPE; v_row public.project_paper_scan_rows%ROWTYPE; v_id uuid; v_number integer;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_request_id IS NULL OR p_actor_id IS NULL THEN RAISE EXCEPTION 'invalid attendance row request' USING ERRCODE='22023'; END IF;
   SELECT * INTO STRICT v_batch FROM public.project_paper_scan_batches WHERE id=p_batch_id AND project_id=p_project_id FOR UPDATE;
   IF NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN RAISE EXCEPTION 'project permission denied' USING ERRCODE='42501'; END IF;
@@ -753,6 +867,9 @@ RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_batch public.project_paper_scan_batches%ROWTYPE; v_target public.project_paper_scan_rows%ROWTYPE;
   v_source public.project_paper_scan_rows%ROWTYPE; v_payload jsonb; v_prior jsonb; v_intervals jsonb;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_request_id IS NULL OR cardinality(p_source_row_ids) NOT BETWEEN 1 AND 49
     OR p_target_row_id=ANY(p_source_row_ids) OR array_position(p_source_row_ids,NULL) IS NOT NULL THEN
     RAISE EXCEPTION 'invalid attendance combine request' USING ERRCODE='22023';
@@ -873,6 +990,9 @@ DECLARE
   v_detail text;
   v_results jsonb := '[]'::jsonb;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_batch_id IS NULL OR p_actor_id IS NULL OR p_idempotency_key IS NULL OR p_row_ids IS NULL
     OR cardinality(p_row_ids) NOT BETWEEN 1 AND 1000 OR array_position(p_row_ids,NULL) IS NOT NULL THEN
     RAISE EXCEPTION 'commit_paper_signup_batch: invalid input' USING ERRCODE='22023';
@@ -1100,6 +1220,9 @@ DECLARE
   v_organization_name text;
   v_organization_verified boolean := false;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF v_actor_id IS NULL THEN
     RAISE EXCEPTION USING ERRCODE = '42501', MESSAGE = 'authentication required';
   END IF;
@@ -1946,6 +2069,9 @@ CREATE FUNCTION public.record_project_attendance(p_signup_id uuid,p_expected_rev
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE v_result jsonb; v_certificate_id uuid;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   v_result:=public.correct_project_attendance(p_signup_id,p_expected_revision,p_reason,p_intervals,p_request_id,p_actor_id);
   -- A first attendance record uses the existing late-publication transaction.
   -- Certificate uniqueness and the outbox dedupe key make retries harmless.
@@ -1988,6 +2114,9 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   IF p_project_id IS NULL
     OR p_actor_id IS NULL
     OR NULLIF(pg_catalog.btrim(p_schedule_id), '') IS NULL
@@ -2134,5 +2263,16 @@ REVOKE ALL ON FUNCTION app_private.guard_hours_publication_completeness()
 GRANT EXECUTE ON FUNCTION app_private.guard_hours_publication_completeness()
   TO postgres;
 
+
+
+-- These tables are created after the account-deletion fence inventory.
+CREATE TRIGGER account_deletion_write_fence BEFORE INSERT OR UPDATE OR DELETE ON public.project_attendance_intervals
+FOR EACH STATEMENT EXECUTE FUNCTION app_private.guard_account_deletion_write();
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON private.project_attendance_changes
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('actor_id');
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON private.paper_attendance_review_operations
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('actor_id');
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON private.paper_attendance_commit_receipts
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('actor_id');
 
 COMMIT;

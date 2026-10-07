@@ -125,7 +125,22 @@ describe("production review consistency boundaries", () => {
       "../../../../.github/workflows/project-feedback-followups.yml",
     );
 
-    expect(workflow).toContain('cron: "3,13,23,33,43,53 * * * *"');
+    const vercel = JSON.parse(await read("../../../../vercel.json")) as {
+      crons: Array<{ path: string; schedule: string }>;
+    };
+
+    expect(
+      vercel.crons.filter(
+        (cron) => cron.path === "/api/cron/paper-signup-notifications",
+      ),
+    ).toEqual([
+      {
+        path: "/api/cron/paper-signup-notifications",
+        schedule: "3,13,23,33,43,53 * * * *",
+      },
+    ]);
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).not.toMatch(/^\s+schedule:/m);
     expect(workflow).toContain(
       "ENDPOINT_PATH: /api/cron/paper-signup-notifications",
     );

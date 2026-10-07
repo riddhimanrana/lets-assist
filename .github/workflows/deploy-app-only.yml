@@ -27,6 +27,10 @@ on:
         description: "Required with local override: describe local evidence and acceptance of skipped hosted/remote CI checks (20-1000 characters)"
         required: false
         type: string
+      local_validation_evidence:
+        description: "Required with local override: JSON receipt and six sanitized reports, maximum 48 KiB. Never include secrets or real user data."
+        required: false
+        type: string
       production_confirmation:
         description: "Type deploy-app-only:<release SHA>"
         required: true
@@ -112,7 +116,7 @@ jobs:
           git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: release/.node-version
 
@@ -124,6 +128,7 @@ jobs:
       - name: Verify accepted tree and CI
         env:
           GH_TOKEN: ${{ github.token }}
+          LOCAL_VALIDATION_EVIDENCE: ${{ inputs.local_validation_evidence }}
         run: |
           set -euo pipefail
           mkdir -p .artifacts
@@ -171,6 +176,14 @@ jobs:
           [[ "${id}" =~ ^dpl_[A-Za-z0-9]+$ ]]
           echo "deployment_id=${id}" >> "${GITHUB_OUTPUT}"
           PRODUCTION_DEPLOYMENT_ID="${id}" bash ../scripts/production/verify-vercel-alias.sh
+
+      - name: Recheck local evidence before provider mutation
+        if: ${{ inputs.local_validation_confirmation != '' || inputs.local_validation_reason != '' || inputs.local_validation_evidence != '' }}
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCAL_VALIDATION_EVIDENCE: ${{ inputs.local_validation_evidence }}
+        run: node ../scripts/production/app-release-checks.mjs source > /dev/null
 
       - name: Create one Vercel-side Production build without domains
         id: staged
@@ -223,6 +236,14 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           PRODUCTION_DEPLOYMENT_ID: ${{ steps.previous.outputs.deployment_id }}
         run: bash ../scripts/production/verify-vercel-alias.sh
+
+      - name: Recheck local evidence before promotion
+        if: ${{ inputs.local_validation_confirmation != '' || inputs.local_validation_reason != '' || inputs.local_validation_evidence != '' }}
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCAL_VALIDATION_EVIDENCE: ${{ inputs.local_validation_evidence }}
+        run: node ../scripts/production/app-release-checks.mjs source > /dev/null
 
       - name: Promote staged application
         id: promote

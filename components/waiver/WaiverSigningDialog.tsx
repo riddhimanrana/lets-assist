@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -247,7 +248,7 @@ export function WaiverSigningDialog({
       onClose(false);
       toast.success("Waiver signed successfully!");
     } catch (error) {
-      console.error("Submission failed", error);
+      safeConsole.error("Submission failed", error);
       toast.error("Failed to sign waiver", {
         description:
           error instanceof Error ? error.message : "Please try again.",
@@ -280,7 +281,7 @@ export function WaiverSigningDialog({
       document.body.removeChild(link);
       URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-      console.error("Download failed", error);
+      safeConsole.error("Download failed", error);
       toast.error("Failed to download waiver PDF");
     }
   };
@@ -325,7 +326,7 @@ export function WaiverSigningDialog({
           onClose(false);
           toast.success("Waiver uploaded successfully!");
         } catch (err) {
-          console.error("Upload failed", err);
+          safeConsole.error("Upload failed", err);
           toast.error("Failed to upload waiver", {
             description: "Please check your file and try again.",
           });
@@ -352,8 +353,14 @@ export function WaiverSigningDialog({
         {/* Loading Overlay During Submission */}
         {isSubmitting && (
           <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center">
-            <div className="bg-background rounded-lg p-6 shadow-xl">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <div
+              role="status"
+              className="bg-background flex items-center gap-3 rounded-lg p-4 shadow-md"
+            >
+              <Loader2
+                aria-hidden="true"
+                className="text-muted-foreground size-4 animate-spin"
+              />
               <p className="text-sm font-medium">Adding your e-signature...</p>
             </div>
           </div>
@@ -426,7 +433,7 @@ export function WaiverSigningDialog({
                         preview.
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                        <article className="mx-auto max-w-3xl rounded-lg border bg-background shadow-sm p-5 sm:p-6 space-y-4">
+                        <article className="mx-auto max-w-3xl rounded-lg border bg-background p-5 sm:p-6 space-y-4">
                           <h3 className="text-base font-semibold">
                             {effectiveDefinition?.title || "Waiver"}
                           </h3>
@@ -444,8 +451,11 @@ export function WaiverSigningDialog({
                               variant="outline"
                               onClick={handleOfflineUpload}
                             >
-                              <Upload className="mr-2 h-4 w-4" /> Upload Signed
-                              Copy Instead
+                              <Upload
+                                data-icon="inline-start"
+                                aria-hidden="true"
+                              />{" "}
+                              Upload signed copy instead
                             </Button>
                           </div>
                         )}

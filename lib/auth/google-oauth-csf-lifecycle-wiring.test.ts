@@ -73,9 +73,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
     const identityChecks = [
       ...service.matchAll(/googleOAuthConnectionHasVerifiedCsfIdentity\(/gu),
     ];
-    const refresh = service.indexOf(
-      "refreshAccessToken(decryptedRefresh.plaintext)",
-    );
+    const refresh = service.indexOf("requestGoogleAccessTokenRefresh(");
     const finalIdentityCheck = service.lastIndexOf(
       "googleOAuthConnectionHasVerifiedCsfIdentity(",
     );
@@ -88,7 +86,7 @@ describe("DVHS CSF Google identity lifecycle wiring", () => {
   test("preserves remote revocation when local credential cleanup fails", () => {
     const service = readSource("services/calendar-operations.ts");
     const deleteFailure = service.slice(
-      service.indexOf("if (deactivateError)"),
+      service.indexOf("if (deactivateError || !deletedConnection)"),
       service.indexOf("return { success: true, remoteRevocation"),
     );
 

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { checkUsernameUnique } from "@/app/account/profile/actions";
 import { USERNAME_REGEX } from "@/schemas/onboarding-schema";
@@ -18,6 +19,13 @@ export const GET = async (request: Request) => {
     if (username.length < 3) {
       return NextResponse.json(
         { available: false, error: "Username must be at least 3 characters" },
+        { status: 200 },
+      );
+    }
+
+    if (username.length > 32) {
+      return NextResponse.json(
+        { available: false, error: "Username cannot exceed 32 characters" },
         { status: 200 },
       );
     }
@@ -49,7 +57,7 @@ export const GET = async (request: Request) => {
     const result = await checkUsernameUnique(usernameLc);
     return NextResponse.json(result);
   } catch (err) {
-    console.error("Check username error:", err);
+    safeConsole.error("Check username error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

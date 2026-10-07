@@ -7,7 +7,7 @@ import {
   selectGatewayContainer,
 } from "./supabase-gateway-health-core.mjs";
 
-const REQUIRED_CLI_VERSION = "2.111.0";
+const REQUIRED_CLI_VERSION = "2.117.0";
 const repositoryRoot = new URL("../../", import.meta.url);
 
 function run(command, args) {

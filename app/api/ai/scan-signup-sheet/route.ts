@@ -1,8 +1,9 @@
+import { extractImage } from "./scan-extraction";
 import { revalidateScanAccess, ScanAccessError } from "./scan-access";
 import { resolveAuthorizedAttendancePrintReferences } from "@/lib/attendance/print-manifest";
 import { loadScanCandidatePages } from "./scan-candidates";
+import { safeConsole } from "@/lib/safe-console";
 import { randomUUID } from "node:crypto";
-import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 
@@ -14,15 +15,10 @@ import {
 } from "@/lib/projects/management-access";
 import { consumeAiQuota } from "@/lib/ai/rate-limit";
 import { getRequestIp } from "@/lib/ai/parse-project-rate-limit-config";
-import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
 import {
-  paperSignupExtractionSchema,
   PAPER_SCAN_MAX_ROWS_PER_BATCH,
-  shouldEscalatePaperScan,
-  type PaperSignupExtraction,
   type PaperSignupRow,
 } from "@/lib/ai/paper-signup-schema";
-import { AI_MODEL_FALLBACK_CHAIN } from "@/lib/ai/models";
 import { buildPaperSignupExtractionPrompt } from "@/lib/ai/paper-signup-prompt";
 import { transcribedTimeInstant } from "@/lib/projects/paper-signup/normalize";
 import {
@@ -34,25 +30,15 @@ import {
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import type { Project } from "@/types";
 
-// Ten sequential vision calls plus escalations exceed the default timeout.
-// Node runtime only: edge is incompatible with cacheComponents.
+// Allow time for ten sequential vision calls and their fallback attempts.
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
-
-/**
- * The escalation ladder. Tier 0 handles clean sheets at ~1/5 the cost;
- * tier 1 re-reads images the cheap tier could not transcribe confidently
- * (see shouldEscalatePaperScan) and doubles as the availability fallback.
- */
-const PAPER_SCAN_MODELS = AI_MODEL_FALLBACK_CHAIN;
 
 const SCAN_USER_LIMIT = 6;
 const SCAN_IP_LIMIT = 20;
 const SCAN_PROJECT_LIMIT = 10;
 const SCAN_WINDOW_SECONDS = 3600;
-const MAX_OUTPUT_TOKENS = 8000;
 const EXTRACTION_LEASE_MS = 10 * 60 * 1000;
-const MODEL_CALL_TIMEOUT_MS = 45 * 1000;
 const EXTRACTION_ROUTE_BUDGET_MS = 270 * 1000;
 /** Auto-include requires a confidently-read email; below this the reviewer decides. */
 const EMAIL_AUTO_INCLUDE_CONFIDENCE = 0.8;
@@ -62,122 +48,6 @@ const scanRequestSchema = z
     batchId: z.string().uuid(),
   })
   .strict();
-
-interface ExtractionAttempt {
-  extraction: PaperSignupExtraction | null;
-  modelId: string | null;
-  modelsTried: string[];
-}
-
-async function extractImageWithModel(options: {
-  modelId: string;
-  prompt: string;
-  imageBytes: Uint8Array;
-  mediaType: string;
-  userId: string;
-  organizationId: string | undefined;
-  deadlineMs: number;
-}): Promise<PaperSignupExtraction | null> {
-  const tracked = prepareTrackedAiCall({
-    context: {
-      scope: "platform",
-      userId: options.userId,
-      organizationId: options.organizationId,
-      feature: "paper-signup-scan",
-    },
-    modelId: options.modelId,
-  });
-
-  const startedAt = Date.now();
-  try {
-    const remainingMs = options.deadlineMs - startedAt;
-    if (remainingMs <= 0) return null;
-
-    const result = await generateText({
-      model: tracked.model,
-      experimental_telemetry: tracked.telemetry,
-      providerOptions: { gateway: tracked.gatewayOptions },
-      output: Output.object({ schema: paperSignupExtractionSchema }),
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: options.prompt },
-            {
-              type: "file",
-              data: options.imageBytes,
-              mediaType: options.mediaType,
-            },
-          ],
-        },
-      ],
-      temperature: 0,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      // The model ladder already supplies an availability fallback. Disabling
-      // hidden SDK retries keeps a ten-page scan inside the route budget, and
-      // the per-call timeout prevents one provider request from stranding the
-      // durable batch in `extracting` until its lease expires.
-      maxRetries: 0,
-      timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs),
-    });
-
-    await tracked.logUsage({
-      promptTokens: result.usage?.inputTokens,
-      completionTokens: result.usage?.outputTokens,
-      latencyMs: Date.now() - startedAt,
-      success: true,
-    });
-
-    const parsed = paperSignupExtractionSchema.safeParse(result.output);
-    return parsed.success ? parsed.data : null;
-  } catch (error) {
-    console.error(
-      `Paper scan extraction failed on ${options.modelId}:`,
-      error instanceof Error ? `${error.name}: ${error.message}` : error,
-    );
-    await tracked.logUsage({
-      latencyMs: Date.now() - startedAt,
-      success: false,
-      errorMessage: error instanceof Error ? error.name : "unknown",
-    });
-    return null;
-  }
-}
-
-/**
- * Tier 0 first; escalate to tier 1 when the cheap read is doubtful and take
- * the stronger result wholesale. A model that errors falls through to the
- * next tier, so one bad model id degrades cost, never availability.
- */
-async function extractImage(options: {
-  prompt: string;
-  imageBytes: Uint8Array;
-  mediaType: string;
-  userId: string;
-  organizationId: string | undefined;
-  deadlineMs: number;
-}): Promise<ExtractionAttempt> {
-  const modelsTried: string[] = [];
-  let best: PaperSignupExtraction | null = null;
-  let bestModel: string | null = null;
-
-  for (const modelId of PAPER_SCAN_MODELS) {
-    if (Date.now() >= options.deadlineMs) break;
-    modelsTried.push(modelId);
-    const extraction = await extractImageWithModel({ ...options, modelId });
-
-    if (extraction) {
-      best = extraction;
-      bestModel = modelId;
-      if (!shouldEscalatePaperScan(extraction)) break;
-      // Doubtful read: continue to the stronger tier, keeping this result
-      // as the fallback if the escalation itself fails.
-      continue;
-    }
-  }
-
-  return { extraction: best, modelId: bestModel, modelsTried };
-}
 
 type StagedRowInsert = {
   attendance_intervals: Array<{
@@ -707,7 +577,7 @@ export async function POST(req: NextRequest) {
       warnings,
     });
   } catch (error) {
-    console.error("Paper signup scan failed:", error);
+    safeConsole.error("Paper signup scan failed:", error);
     if (claimedBatch) {
       await admin
         .from("project_paper_scan_batches")

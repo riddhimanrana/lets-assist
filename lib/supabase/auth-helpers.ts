@@ -1,12 +1,5 @@
-/**
- * Server-side authentication helpers
- *
- * Based on Supabase best practices from Issue #40985:
- * - Use getClaims() by default (fast, no API call)
- * - Use getUser() only for sensitive operations (password/email changes)
- *
- * @see https://github.com/supabase/supabase/issues/40985
- */
+import { safeConsole } from "@/lib/safe-console";
+/** Server auth validation and the durable account-deletion guard. */
 
 import { createClient } from "./server";
 import type { AuthUser } from "./types";
@@ -25,6 +18,7 @@ type GetAuthUserOptions = {
   sensitive?: boolean;
   allowMfaPending?: boolean;
   checkMfa?: boolean;
+  allowAccountDeletion?: boolean;
 };
 
 async function sessionRequiresMfa(
@@ -45,7 +39,7 @@ async function sessionRequiresMfa(
   });
 
   if (mfaState.lookupError && process.env.NODE_ENV === "development") {
-    console.warn(
+    safeConsole.warn(
       "[AuthHelpers] MFA assurance lookup failed:",
       mfaState.lookupError.message,
     );
@@ -57,39 +51,8 @@ async function sessionRequiresMfa(
   };
 }
 
-/**
- * Get authenticated user from server-side context with optimal performance.
- *
- * **Default Behavior (sensitive: false):**
- * - Uses getClaims() which validates JWT locally (no API call, ~50ms faster)
- * - Returns user data from the JWT token
- * - Suitable for 95% of auth checks: authorization, profile updates, CRUD operations
- *
- * **Sensitive Operations (sensitive: true):**
- * - Uses getUser() which fetches fresh data from the database
- * - Required for: password changes, email changes, account deletion
- * - Provides revocation awareness (logout-all scenarios)
- *
- * @param options.sensitive - Set to true ONLY for sensitive operations (password/email changes, account deletion)
- * @returns User object and error (if any)
- *
- * @example
- * // Standard operations (fast, uses getClaims) - USE THIS BY DEFAULT
- * const { user, error } = await getAuthUser();
- * if (!user) {
- *   return { error: "Not authenticated" };
- * }
- * // Proceed with project creation, profile updates, etc.
- *
- * @example
- * // Sensitive operations (secure, uses getUser) - ONLY FOR CRITICAL AUTH CHANGES
- * const { user, error } = await getAuthUser({ sensitive: true });
- * if (!user) {
- *   return { error: "Not authenticated" };
- * }
- * // Proceed with password change, email change, or account deletion
- */
-export async function getAuthUser(
+/** Resolve JWT claims or fresh Auth state before checking application access. */
+async function resolveAuthUser(
   options?: GetAuthUserOptions,
 ): Promise<AuthResult> {
   const supabase = await createClient();
@@ -162,8 +125,7 @@ export async function getAuthUser(
     });
   }
 
-  // Default: use getClaims() for fast session validation
-  // This validates the JWT locally without making an API call
+  // Validate the session claims before the account-status database check.
   const { data: claimsData, error } = await supabase.auth.getClaims();
 
   if (error) {
@@ -224,46 +186,25 @@ export async function getAuthUser(
   };
 }
 
-/**
- * Auth guard for server actions and API routes - throws if not authenticated.
- *
- * **Cleaner Alternative to Manual Checks:**
- * Instead of checking `if (!user) return { error: ... }`, this function throws an error
- * if authentication fails, making your code cleaner and less error-prone.
- *
- * **Performance:**
- * - By default, uses getClaims() for fast JWT validation (~50ms faster than getUser)
- * - Use sensitive: true ONLY for password/email changes and account deletion
- *
- * @param options.sensitive - Set to true ONLY for sensitive operations
- * @throws Error if authentication fails or user is not authenticated
- * @returns Authenticated user object (never null)
- *
- * @example
- * // Standard operations (fast) - USE THIS BY DEFAULT
- * export async function createProject(data: ProjectData) {
- *   const user = await requireAuth(); // Throws if not authenticated
- *   // Now you can safely use user.id, user.email, etc.
- *
- *   const { data: project } = await supabase
- *     .from("projects")
- *     .insert({ ...data, creator_id: user.id });
- *
- *   return { success: true, project };
- * }
- *
- * @example
- * // Sensitive operations (secure) - ONLY FOR CRITICAL AUTH CHANGES
- * export async function updatePassword(newPassword: string) {
- *   const user = await requireAuth({ sensitive: true }); // Uses getUser()
- *
- *   const { error } = await supabase.auth.updateUser({
- *     password: newPassword
- *   });
- *
- *   return { success: !error };
- * }
- */
+export async function getAuthUser(
+  options?: GetAuthUserOptions,
+): Promise<AuthResult> {
+  const result = await resolveAuthUser(options);
+  if (!result.user) return result;
+  if (
+    options?.allowAccountDeletion &&
+    options.sensitive &&
+    options.checkMfa &&
+    !result.requiresMfa
+  )
+    return result;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("account_deletion_pending");
+  if (error || data !== false) return { user: null, error: null };
+  return result;
+}
+
+/** Require a validated session whose account is not pending deletion. */
 export async function requireAuth(options?: {
   sensitive?: boolean;
 }): Promise<AuthUser> {

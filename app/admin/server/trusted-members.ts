@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -38,7 +39,7 @@ export async function getTrustedMemberApplications() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching trusted member applications:", error);
+    safeConsole.error("Error fetching trusted member applications:", error);
     return { error: "Failed to fetch applications" };
   }
 
@@ -101,7 +102,7 @@ export async function updateTrustedMemberStatus(
       .eq("id", userId);
 
     if (idError) {
-      console.error("Error updating trusted_member status:", idError);
+      safeConsole.error("Error updating trusted_member status:", idError);
       return { error: "Failed to update trusted member status" };
     }
   }
@@ -150,7 +151,7 @@ export async function searchUsers(query: string) {
     .limit(5);
 
   if (error) {
-    console.error("Error searching users:", error);
+    safeConsole.error("Error searching users:", error);
     return { error: "Failed to search users" };
   }
 
@@ -206,7 +207,7 @@ export async function addTrustedMember(
   );
 
   if (error) {
-    console.error("Error adding trusted member:", error);
+    safeConsole.error("Error adding trusted member:", error);
     return { error: error.message };
   }
 

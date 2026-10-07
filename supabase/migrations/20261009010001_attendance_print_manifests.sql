@@ -63,6 +63,9 @@ DECLARE
   v_count integer;
   v_schedule_key text;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   SELECT * INTO v_project FROM public.projects WHERE id = p_project_id FOR UPDATE;
   IF NOT FOUND OR NOT private.lock_attendance_management(p_project_id, p_actor_id) THEN
     RAISE EXCEPTION 'Not authorized to print this project' USING ERRCODE = '42501';
@@ -143,6 +146,9 @@ DECLARE
   v_schedule_id text;
   v_sheet_id uuid;
 BEGIN
+  IF p_actor_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_actor_id);
+  END IF;
   PERFORM id FROM public.projects WHERE id=p_project_id FOR UPDATE;
   IF NOT FOUND OR NOT private.lock_attendance_management(p_project_id,p_actor_id) THEN
     RAISE EXCEPTION 'Not authorized to print this project' USING ERRCODE='42501';
@@ -178,3 +184,13 @@ $$;
 REVOKE ALL ON FUNCTION public.create_attendance_print_sheets(uuid,text[],uuid,integer,integer,uuid)
   FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.create_attendance_print_sheets(uuid,text[],uuid,integer,integer,uuid) TO service_role;
+
+-- These tables are created after the account-deletion fence inventory.
+CREATE TRIGGER account_deletion_write_fence BEFORE INSERT OR UPDATE OR DELETE ON public.project_attendance_print_sheets
+FOR EACH STATEMENT EXECUTE FUNCTION app_private.guard_account_deletion_write();
+CREATE TRIGGER account_deletion_write_fence BEFORE INSERT OR UPDATE OR DELETE ON public.project_attendance_print_rows
+FOR EACH STATEMENT EXECUTE FUNCTION app_private.guard_account_deletion_write();
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON public.project_attendance_print_sheets
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('created_by');
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON private.attendance_print_requests
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('actor_id');

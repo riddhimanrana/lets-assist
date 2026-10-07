@@ -108,7 +108,7 @@ test.describe("platform project acceptance", () => {
       page.getByRole("heading", { name: "Santa Cruz Beach Cleanup" }),
     ).toBeVisible();
     await page
-      .getByRole("button", { name: "Manage Signups", exact: true })
+      .getByRole("button", { name: "Manage signups", exact: true })
       .click();
     await page.waitForURL(`${SEEDED_PROJECT_PATH}/signups`, {
       waitUntil: "domcontentloaded",

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { CircleCheckIcon } from "@/components/icons/animated";
+import { EmptyStateIcon } from "@/components/projects/EmptyStateIcon";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -72,8 +73,8 @@ export function FeedbackTokenClient({
   if (done) {
     return (
       <Empty className="border-0 p-6">
-        <EmptyMedia variant="icon" className="text-primary">
-          <CheckCircle2 />
+        <EmptyMedia variant="icon">
+          <EmptyStateIcon icon={CircleCheckIcon} />
         </EmptyMedia>
         <EmptyTitle>Thanks for the feedback!</EmptyTitle>
         <EmptyDescription>

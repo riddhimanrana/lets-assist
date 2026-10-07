@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation";
 import { checkSuperAdmin, getAllFeedback } from "../actions";
 import { FeedbackTab } from "../components/FeedbackTab";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminLoadError, AdminPage } from "../components/AdminPage";
 
 export const metadata = {
   title: "Feedback | Admin",
@@ -25,32 +20,20 @@ export default async function FeedbackPage() {
 
   if (error) {
     return (
-      <div className="p-6 text-destructive">
-        Error loading feedback: {error}
-      </div>
+      <AdminPage>
+        <PageHeader title="User feedback" />
+        <AdminLoadError title="Error loading feedback" message={error} />
+      </AdminPage>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 py-8 px-4 md:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">User Feedback</h1>
-        <p className="text-muted-foreground">
-          High-speed moderation queue for user feedback, ideas, and issues.
-        </p>
-      </div>
-      <Card className="border-border bg-card text-card-foreground shadow-xs">
-        <CardHeader>
-          <CardTitle>Feedback triage queue</CardTitle>
-          <CardDescription>
-            Process hundreds quickly with next/previous navigation, keyboard
-            shortcuts, and one-click approve/flag/archive actions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <FeedbackTab feedback={feedback || []} />
-        </CardContent>
-      </Card>
-    </div>
+    <AdminPage>
+      <PageHeader
+        title="User feedback"
+        description="High-speed moderation queue for user feedback, ideas, and issues."
+      />
+      <FeedbackTab feedback={feedback || []} />
+    </AdminPage>
   );
 }

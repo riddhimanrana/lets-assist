@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, FileWarning } from "lucide-react";
+import { CheckCircle2, FileWarning } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -215,26 +217,22 @@ export function PaperSignupsClient({
   };
 
   return (
-    <div className="container mx-auto max-w-5xl px-4 py-6">
-      <div className="mb-6 flex items-center gap-3">
-        <Link
-          href={`/projects/${projectId}`}
-          className="text-muted-foreground hover:text-foreground"
-          aria-label="Back to project"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div>
-          <h1 className="text-xl font-semibold sm:text-2xl">
-            Paper attendance
-          </h1>
-          <p className="text-sm text-muted-foreground">{projectTitle}</p>
-        </div>
-      </div>
+    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+      <PageHeader
+        breadcrumb={
+          <ProjectToolBreadcrumb
+            projectId={projectId}
+            projectTitle={projectTitle}
+            current="Paper attendance"
+          />
+        }
+        title="Paper attendance"
+        description="Review a photographed sheet or enter attendance manually before saving it."
+      />
 
       {projectStatus !== "completed" && step !== "done" && (
-        <Alert className="mb-6">
-          <FileWarning className="size-4" />
+        <Alert variant="info">
+          <FileWarning aria-hidden="true" />
           <AlertTitle>This event hasn&apos;t finished yet</AlertTitle>
           <AlertDescription>
             Paper sheets are usually scanned after the event ends. You can still

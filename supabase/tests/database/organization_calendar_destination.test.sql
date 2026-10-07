@@ -1,0 +1,54 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT extensions.plan(26);
+SELECT extensions.ok((SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid='app_private.organization_calendar_destinations'::regclass),'organization destinations force RLS');
+SELECT extensions.ok(NOT has_table_privilege('authenticated','app_private.organization_calendar_destinations','SELECT'),'browser cannot read destination ledger');
+SELECT extensions.ok(NOT EXISTS(SELECT 1 FROM unnest(ARRAY['public.claim_organization_calendar_destination(uuid,uuid,boolean,text,text)','public.complete_organization_calendar_destination(uuid,uuid,uuid,text,text)']) f,unnest(ARRAY['anon','authenticated']) r WHERE has_function_privilege(r,f,'EXECUTE')),'actor-taking RPCs are service only');
+INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+SELECT ('e7b00000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'authenticated','authenticated','org-calendar-'||n||'@local.test',now(),'{}','{}',now(),now() FROM generate_series(1,3)n;
+INSERT INTO public.organizations(id,name,username,type,join_code) VALUES('e7b10000-0000-4000-8000-000000000001','Synthetic calendar','synthetic-org-calendar','school','994103');
+INSERT INTO public.organization_members(organization_id,user_id,role,status)
+SELECT 'e7b10000-0000-4000-8000-000000000001',('e7b00000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'admin','active' FROM generate_series(1,2)n;
+INSERT INTO public.user_calendar_connections(id,user_id,provider,access_token,refresh_token,token_expires_at,calendar_email,is_active,preferences,granted_scopes,connection_type)
+SELECT ('e7b20000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,('e7b00000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'google','fictional','fictional',now()+interval '1 hour','org-calendar-'||n||'@local.test',true,'{}','https://www.googleapis.com/auth/calendar.app.created','calendar' FROM generate_series(1,2)n;
+INSERT INTO public.user_google_oauth_connection_bindings(connection_id,user_id,provider,purpose,organization_id)
+SELECT ('e7b20000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,('e7b00000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'google','organization_calendar','e7b10000-0000-4000-8000-000000000001' FROM generate_series(1,2)n;
+CREATE TEMP TABLE org_destination_results(label text PRIMARY KEY,data jsonb);
+GRANT ALL ON org_destination_results TO service_role;
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000003','e7b10000-0000-4000-8000-000000000001')$$,'42501',NULL,'non-admin cannot claim');
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001')->>'state',NULL,'missing destination read does not start creation');
+INSERT INTO org_destination_results VALUES('create',public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',true));
+SELECT extensions.is((SELECT data->>'should_create' FROM org_destination_results WHERE label='create'),'true','first request reserves provider creation');
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',true)->>'should_create','false','second admin cannot create a duplicate calendar');
+SELECT extensions.throws_ok($$SELECT public.complete_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',(SELECT(data->>'operation_id')::uuid FROM org_destination_results WHERE label='create'),'ready','created@example.test')$$,'55000',NULL,'another admin cannot settle the original claim');
+SELECT extensions.throws_ok($$SELECT public.complete_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',(SELECT(data->>'operation_id')::uuid FROM org_destination_results WHERE label='create'),'ready','primary')$$,'22023',NULL,'primary calendar cannot become a destination');
+SELECT extensions.is(public.complete_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',(SELECT(data->>'operation_id')::uuid FROM org_destination_results WHERE label='create'),'ready','created@example.test')->>'state','ready','completion persists destination');
+SELECT extensions.is((SELECT calendar_id FROM public.organization_calendar_syncs WHERE organization_id='e7b10000-0000-4000-8000-000000000001'),'created@example.test','completion writes compatibility config atomically');
+SELECT extensions.lives_ok($$SELECT public.complete_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',(SELECT(data->>'operation_id')::uuid FROM org_destination_results WHERE label='create'),'ready','created@example.test')$$,'lost completion response can replay');
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',false,NULL,'different@example.test')$$,'55000',NULL,'adoption requires the unchanged canonical identity');
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',false,NULL,'created@example.test')->>'owner_user_id','e7b00000-0000-4000-8000-000000000002','verified ownership can transfer provider responsibility to another active admin');
+SELECT extensions.is((SELECT created_by::text FROM public.organization_calendar_syncs WHERE organization_id='e7b10000-0000-4000-8000-000000000001'),'e7b00000-0000-4000-8000-000000000002','verified transfer updates the compatibility owner');
+UPDATE public.user_calendar_connections SET is_active=false WHERE id='e7b20000-0000-4000-8000-000000000002';
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001')$$,'42501',NULL,'inactive replacement-owner connection cannot authorize destination work');
+UPDATE public.user_calendar_connections SET is_active=true WHERE id='e7b20000-0000-4000-8000-000000000002';
+UPDATE public.organization_calendar_syncs SET calendar_id='tampered@example.test' WHERE organization_id='e7b10000-0000-4000-8000-000000000001';
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001')->>'calendar_id','created@example.test','compatibility edits cannot replace authoritative identity');
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',true,'tampered@example.test')$$,'55000',NULL,'replacement proof must identify the canonical calendar');
+INSERT INTO org_destination_results VALUES('replace',public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',true,'created@example.test'));
+SELECT extensions.is((SELECT data->>'should_create' FROM org_destination_results WHERE label='replace'),'true','confirmed missing identity can reserve one replacement');
+SELECT extensions.is(public.complete_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001',(SELECT(data->>'operation_id')::uuid FROM org_destination_results WHERE label='replace'),'unknown_outcome')->>'state','unknown_outcome','uncertain outcome is durable');
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',true)->>'should_create','false','uncertain outcome blocks all later duplicate attempts');
+SELECT extensions.is(public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001',false,NULL,'created@example.test')->>'state','unknown_outcome','legacy adoption cannot bypass uncertain creation');
+RESET ROLE;
+INSERT INTO app_private.account_deletion_operations(target_user_id,requested_by,mode,phase) VALUES('e7b00000-0000-4000-8000-000000000001','e7b00000-0000-4000-8000-000000000001','self_delete','database_pending');
+SET LOCAL ROLE service_role;
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000001','e7b10000-0000-4000-8000-000000000001')$$,'42501',NULL,'account deletion fences new provider work');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok($$SELECT public.claim_organization_calendar_destination('e7b00000-0000-4000-8000-000000000002','e7b10000-0000-4000-8000-000000000001')$$,'42501',NULL,'authenticated cannot impersonate server actor');
+RESET ROLE;
+SELECT extensions.throws_ok($$DELETE FROM public.organizations WHERE id='e7b10000-0000-4000-8000-000000000001'$$,'23503',NULL,'organization deletion cannot erase unresolved provider destination');
+SELECT extensions.throws_ok($$DELETE FROM auth.users WHERE id='e7b00000-0000-4000-8000-000000000002'$$,'23503',NULL,'account cascade cannot erase unresolved provider destination');
+SELECT * FROM extensions.finish();
+ROLLBACK;

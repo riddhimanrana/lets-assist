@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { GuardianTokenService } from "@/lib/dv/guardian-token-service";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { NoticePage } from "@/components/projects/NoticePage";
 import { GuardianAvailabilityForm } from "./GuardianAvailabilityForm";
 
 export default async function GuardianActionPage({
@@ -13,32 +13,23 @@ export default async function GuardianActionPage({
   const [{ token }, query] = await Promise.all([params, searchParams]);
   if (query.completed === "1") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-xl items-center px-6">
-        <Alert>
-          <CheckCircle2 />
-          <AlertTitle>Availability recorded</AlertTitle>
-          <AlertDescription>
-            DV Speech & Debate staff can now use your response when reviewing
-            judge coverage.
-          </AlertDescription>
-        </Alert>
-      </main>
+      <NoticePage
+        icon={<CheckCircle2 aria-hidden="true" />}
+        tone="success"
+        title="Availability recorded"
+        description="DV Speech & Debate staff can now use your response when reviewing judge coverage."
+      />
     );
   }
 
   const result = await GuardianTokenService.inspect(token);
   if (!result.valid) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-xl items-center px-6">
-        <Alert>
-          <AlertCircle />
-          <AlertTitle>Link unavailable</AlertTitle>
-          <AlertDescription>
-            This guardian link is invalid, expired, or has already been used.
-            Ask DV Speech & Debate staff for a new link.
-          </AlertDescription>
-        </Alert>
-      </main>
+      <NoticePage
+        icon={<AlertCircle aria-hidden="true" />}
+        title="Link unavailable"
+        description="This guardian link is invalid, expired, or has already been used. Ask DV Speech & Debate staff for a new link."
+      />
     );
   }
 
@@ -55,7 +46,7 @@ export default async function GuardianActionPage({
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-12">
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
       <GuardianAvailabilityForm
         token={token}
         guardianName={guardian?.full_name ?? "Guardian"}

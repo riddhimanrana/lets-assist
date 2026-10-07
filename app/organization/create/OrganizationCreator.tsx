@@ -1,6 +1,8 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -9,22 +11,22 @@ import { toast } from "sonner";
 import {
   Building2,
   Globe,
+  Info,
   Upload,
   CheckCircle2,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectTrigger,
@@ -32,7 +34,6 @@ import {
   SelectContent,
   SelectItem,
   SelectGroup,
-  SelectLabel,
 } from "@/components/ui/select";
 import {
   Field,
@@ -75,10 +76,10 @@ const CONSTANTS = {
 } as const;
 
 const ORG_TYPE_LABELS: Record<OrganizationFormValues["type"], string> = {
-  nonprofit: "Nonprofit Organization",
-  school: "Educational Institution",
-  company: "Company/Business",
-  government: "Government Agency",
+  nonprofit: "Nonprofit organization",
+  school: "Educational institution",
+  company: "Company/business",
+  government: "Government agency",
   other: "Other",
 };
 
@@ -148,6 +149,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
   const [tempImageUrl, setTempImageUrl] = useState<string>("");
   const [showCropper, setShowCropper] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<OrganizationFormValues>({
     resolver: zodResolver(orgCreationSchema),
@@ -202,7 +204,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       const isAvailable = await checkOrgUsername(username);
       setUsernameAvailable(isAvailable);
     } catch (error) {
-      console.error("Error checking username:", error);
+      safeConsole.error("Error checking username:", error);
       toast.error("Failed to check username availability");
     } finally {
       setCheckingUsername(false);
@@ -228,308 +230,328 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
       }
 
       toast.success("Organization created successfully!");
+      if (result.logoWarning) toast.warning(result.logoWarning);
       router.push(`/organization/${data.username}`);
     } catch (error) {
-      console.error("Error creating organization:", error);
+      safeConsole.error("Error creating organization:", error);
       toast.error("Failed to create organization. Please try again.");
     } finally {
       setIsCreating(false);
     }
   };
 
+  const logoUrl = form.watch("logoUrl");
+
   return (
     <>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>
-              Provide the essential details about your organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 mb-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage
-                  src={form.watch("logoUrl") || undefined}
-                  alt="Organization logo"
-                />
-                <AvatarFallback className="bg-muted">
-                  <Building2 className="h-8 w-8 text-muted-foreground" />
-                </AvatarFallback>
-              </Avatar>
-              <div>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <SettingsSection
+          title="Organization profile"
+          description="This is what people see on your organization page. You can change it later in settings."
+          contentClassName="gap-6"
+          footer={
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/organization">Cancel</Link>
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  isCreating ||
+                  !usernameAvailable ||
+                  !form.formState.isValid ||
+                  Object.keys(form.formState.errors).length > 0
+                }
+              >
+                {isCreating ? (
+                  <>
+                    <Spinner data-icon="inline-start" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create organization"
+                )}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex items-center gap-4">
+            <Avatar className="size-16">
+              <AvatarImage src={logoUrl || undefined} alt="Organization logo" />
+              <AvatarFallback className="bg-muted">
+                <Building2 className="text-muted-foreground size-6" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="grid gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    document.getElementById("logo-upload")?.click()
-                  }
+                  onClick={() => logoInputRef.current?.click()}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Logo
+                  <Upload data-icon="inline-start" />
+                  {logoUrl ? "Change logo" : "Upload logo"}
                 </Button>
-                <input
-                  id="logo-upload"
-                  type="file"
-                  className="hidden"
-                  accept="image/jpeg,image/png,image/jpg"
-                  onChange={handleImageUpload}
-                />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Optional, but highly recommended. Upload a square logo for
-                  your organization.
-                </p>
+                {logoUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      form.setValue("logoUrl", null);
+                      if (logoInputRef.current) logoInputRef.current.value = "";
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
               </div>
-            </div>
-
-            <Controller
-              control={form.control}
-              name="name"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
-                    Organization Name *
-                  </FieldLabel>
-                  <div className="relative">
-                    <Input
-                      id={field.name}
-                      {...field}
-                      placeholder="Enter organization name"
-                      maxLength={CONSTANTS.NAME.MAX}
-                      className={
-                        field.value && field.value.length < CONSTANTS.NAME.MIN
-                          ? "border-destructive"
-                          : ""
-                      }
-                      aria-invalid={fieldState.invalid}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      {nameLength}/{CONSTANTS.NAME.MAX}
-                    </span>
-                  </div>
-                  <FieldDescription>
-                    This will be your organization&apos;s display name (minimum{" "}
-                    {CONSTANTS.NAME.MIN} characters)
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              control={form.control}
-              name="username"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Username *</FieldLabel>
-                  <div className="relative">
-                    <Input
-                      id={field.name}
-                      {...field}
-                      placeholder="Enter organization username"
-                      maxLength={CONSTANTS.USERNAME.MAX}
-                      onChange={(e) => {
-                        const noSpaces = e.target.value.replace(/\s/g, "");
-                        field.onChange(noSpaces);
-                        // Clear errors and reset availability when typing
-                        if (form.formState.errors.username) {
-                          form.clearErrors("username");
-                        }
-                        setUsernameAvailable(null);
-                      }}
-                      onBlur={(e) => {
-                        // A reserved username is not "taken" and never
-                        // becomes available, so it is answered here without
-                        // a round trip -- and answered in words, not just
-                        // with the same red icon a taken username gets,
-                        // since the submit button is disabled either way.
-                        if (isReservedOrganizationSlug(e.target.value)) {
-                          setUsernameAvailable(false);
-                          form.setError("username", {
-                            type: "manual",
-                            message: usernameUnavailableMessage(true),
-                          });
-                          field.onBlur();
-                          return;
-                        }
-                        field.onBlur();
-                        checkUsernameAvailability(e.target.value);
-                      }}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {checkingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                      </div>
-                    )}
-                    {usernameAvailable !== null && !checkingUsername && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {usernameAvailable ? (
-                          <CheckCircle2 className="h-5 w-5 text-primary" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-destructive" />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <FieldDescription>
-                    Used in your organization&apos;s URL (minimum 3 characters):
-                    lets-assist.com/organization/
-                    <span className="font-mono">
-                      {field.value || "username"}
-                    </span>
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              control={form.control}
-              name="description"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Description *</FieldLabel>
-                  <div className="relative">
-                    <Textarea
-                      id={field.name}
-                      {...field}
-                      placeholder="Describe your organization"
-                      className={`resize-none ${
-                        field.value &&
-                        field.value.length < CONSTANTS.DESCRIPTION.MIN
-                          ? "border-destructive"
-                          : ""
-                      }`}
-                      rows={4}
-                      maxLength={CONSTANTS.DESCRIPTION.MAX}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    <span className="absolute right-3 bottom-3 text-xs text-muted-foreground">
-                      {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
-                    </span>
-                  </div>
-                  <FieldDescription>
-                    Provide a short description of your organization (minimum{" "}
-                    {CONSTANTS.DESCRIPTION.MIN} characters)
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              control={form.control}
-              name="website"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Website</FieldLabel>
-                  <div className="relative">
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id={field.name}
-                      {...field}
-                      placeholder="https://your-website.com"
-                      className="pl-10"
-                      maxLength={CONSTANTS.WEBSITE.MAX}
-                      aria-invalid={fieldState.invalid}
-                    />
-                  </div>
-                  <FieldDescription>
-                    Optional. Include your organization&apos;s website. Must
-                    start with https:// or http://
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              control={form.control}
-              name="type"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>
-                    Organization Type *
-                  </FieldLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger
-                      id={field.name}
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue placeholder="Select organization type">
-                        {field.value ? ORG_TYPE_LABELS[field.value] : null}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>Type</SelectLabel>
-                        <SelectItem value="nonprofit">
-                          Nonprofit Organization
-                        </SelectItem>
-                        <SelectItem value="school">
-                          Educational Institution
-                        </SelectItem>
-                        <SelectItem value="company">
-                          Company/Business
-                        </SelectItem>
-                        <SelectItem value="government">
-                          Government Agency
-                        </SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    Choose the type that best describes your organization
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FormMessage errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-sm font-medium">Automatic domain membership</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Organization-owned email domains can be enabled after Let&apos;s
-                Assist verifies the organization. Create the organization first,
-                then use its settings page to contact support.
+              <input
+                ref={logoInputRef}
+                id="logo-upload"
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/jpg"
+                onChange={handleImageUpload}
+              />
+              <p className="text-muted-foreground text-sm">
+                Optional, but recommended. Square JPG or PNG, up to 5 MB.
               </p>
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button
-              type="submit"
-              disabled={
-                isCreating ||
-                !usernameAvailable ||
-                !form.formState.isValid ||
-                Object.keys(form.formState.errors).length > 0
-              }
-              className="ml-auto"
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                "Create Organization"
-              )}
-            </Button>
-          </CardFooter>
-        </Card>
+          </div>
+
+          <Controller
+            control={form.control}
+            name="name"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Organization Name *
+                </FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    id={field.name}
+                    {...field}
+                    placeholder="Enter organization name"
+                    maxLength={CONSTANTS.NAME.MAX}
+                    aria-invalid={
+                      fieldState.invalid ||
+                      Boolean(
+                        field.value && field.value.length < CONSTANTS.NAME.MIN,
+                      )
+                    }
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText className="text-xs tabular-nums">
+                      {nameLength}/{CONSTANTS.NAME.MAX}
+                    </InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+                <FieldDescription>
+                  This will be your organization&apos;s display name (minimum{" "}
+                  {CONSTANTS.NAME.MIN} characters)
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            control={form.control}
+            name="username"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Username *</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <InputGroupText>@</InputGroupText>
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id={field.name}
+                    {...field}
+                    placeholder="Enter organization username"
+                    maxLength={CONSTANTS.USERNAME.MAX}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    onChange={(e) => {
+                      const noSpaces = e.target.value.replace(/\s/g, "");
+                      field.onChange(noSpaces);
+                      // Clear errors and reset availability when typing
+                      if (form.formState.errors.username) {
+                        form.clearErrors("username");
+                      }
+                      setUsernameAvailable(null);
+                    }}
+                    onBlur={(e) => {
+                      // A reserved username is not "taken" and never
+                      // becomes available, so it is answered here without
+                      // a round trip -- and answered in words, not just
+                      // with the same red icon a taken username gets,
+                      // since the submit button is disabled either way.
+                      if (isReservedOrganizationSlug(e.target.value)) {
+                        setUsernameAvailable(false);
+                        form.setError("username", {
+                          type: "manual",
+                          message: usernameUnavailableMessage(true),
+                        });
+                        field.onBlur();
+                        return;
+                      }
+                      field.onBlur();
+                      checkUsernameAvailability(e.target.value);
+                    }}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {checkingUsername ? (
+                    <InputGroupAddon align="inline-end">
+                      <Spinner aria-label="Checking username" />
+                    </InputGroupAddon>
+                  ) : usernameAvailable !== null ? (
+                    <InputGroupAddon align="inline-end">
+                      {usernameAvailable ? (
+                        <CheckCircle2
+                          role="img"
+                          aria-label="Username available"
+                          className="text-success"
+                        />
+                      ) : (
+                        <AlertCircle
+                          role="img"
+                          aria-label="Username unavailable"
+                          className="text-destructive"
+                        />
+                      )}
+                    </InputGroupAddon>
+                  ) : null}
+                </InputGroup>
+                <FieldDescription>
+                  Used in your organization&apos;s URL (minimum 3 characters):
+                  lets-assist.com/organization/
+                  <span className="font-mono">{field.value || "username"}</span>
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            control={form.control}
+            name="type"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Organization Type *
+                </FieldLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue placeholder="Select organization type">
+                      {field.value ? ORG_TYPE_LABELS[field.value] : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {Object.entries(ORG_TYPE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Choose the type that best describes your organization
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            control={form.control}
+            name="website"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Website</FieldLabel>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <Globe />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id={field.name}
+                    {...field}
+                    placeholder="https://your-website.com"
+                    maxLength={CONSTANTS.WEBSITE.MAX}
+                    aria-invalid={fieldState.invalid}
+                  />
+                </InputGroup>
+                <FieldDescription>
+                  Optional. Include your organization&apos;s website. Must start
+                  with https:// or http://
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Controller
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Description *</FieldLabel>
+                <InputGroup>
+                  <InputGroupTextarea
+                    id={field.name}
+                    {...field}
+                    placeholder="Describe your organization"
+                    rows={4}
+                    maxLength={CONSTANTS.DESCRIPTION.MAX}
+                    aria-invalid={
+                      fieldState.invalid ||
+                      Boolean(
+                        field.value &&
+                        field.value.length < CONSTANTS.DESCRIPTION.MIN,
+                      )
+                    }
+                  />
+                  <InputGroupAddon align="block-end" className="justify-end">
+                    <InputGroupText className="text-xs tabular-nums">
+                      {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
+                    </InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+                <FieldDescription>
+                  Provide a short description of your organization (minimum{" "}
+                  {CONSTANTS.DESCRIPTION.MIN} characters)
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FormMessage errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+
+          <Alert>
+            <Info />
+            <AlertTitle>Automatic domain membership</AlertTitle>
+            <AlertDescription>
+              Organization-owned email domains can be enabled after Let&apos;s
+              Assist verifies the organization. Create the organization first,
+              then use its settings page to contact support.
+            </AlertDescription>
+          </Alert>
+        </SettingsSection>
       </form>
 
       <Dialog open={showCropper} onOpenChange={setShowCropper}>

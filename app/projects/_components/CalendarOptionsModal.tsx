@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -62,7 +63,7 @@ export default function CalendarOptionsModal({
         setIsConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
       } catch (error) {
-        console.error("Error checking calendar connection:", error);
+        safeConsole.error("Error checking calendar connection:", error);
         setIsConnected(false);
         setConnectedEmail(null);
       } finally {
@@ -164,7 +165,7 @@ export default function CalendarOptionsModal({
 
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to sync to calendar:", error);
+      safeConsole.error("Failed to sync to calendar:", error);
       toast.error("Sync Failed", {
         description:
           error instanceof Error
@@ -197,7 +198,7 @@ export default function CalendarOptionsModal({
       });
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to download iCal:", error);
+      safeConsole.error("Failed to download iCal:", error);
       toast.error("Download Failed", {
         description:
           error instanceof Error
@@ -211,11 +212,11 @@ export default function CalendarOptionsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-130">
         <DialogHeader>
           {showSuccessMessage ? (
             <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20">
+              <div className="flex size-10 items-center justify-center rounded-full bg-success/20">
                 <CheckCircle className="h-6 w-6 text-success" />
               </div>
               <div className="flex-1 min-w-0">
@@ -309,7 +310,7 @@ export default function CalendarOptionsModal({
             <Button
               onClick={handleGoogleCalendar}
               disabled={isConnecting}
-              className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="w-full justify-start h-auto p-4"
               variant="outline"
             >
               <div className="flex items-center gap-3 text-left w-full min-w-0">
@@ -340,7 +341,7 @@ export default function CalendarOptionsModal({
           <Button
             onClick={handleDownloadICalendar}
             disabled={isDownloading}
-            className="w-full justify-start h-auto p-4 hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="w-full justify-start h-auto p-4"
             variant="outline"
           >
             <div className="flex items-center gap-3 text-left w-full min-w-0">

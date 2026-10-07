@@ -2,6 +2,7 @@ import { certificateHours } from "@/lib/projects/certificate-duration";
 import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import { readAllExportPages } from "@/lib/projects/attendance-export-pagination";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { escapeCsvCell } from "@/lib/organization/report-output-safety";
 import { createClient } from "@/lib/supabase/server";
@@ -117,7 +118,7 @@ async function buildReportDataForOrg(
         error: { message: string } | null;
       };
     if (certificatesError) {
-      console.error("Failed to fetch certificates:", certificatesError);
+      safeConsole.error("Failed to fetch certificates:", certificatesError);
       return { error: "Failed to load certificate hours" };
     }
 
@@ -148,7 +149,7 @@ async function buildReportDataForOrg(
         error: { message: string } | null;
       };
     if (attendanceError) {
-      console.error("Failed to fetch attendance:", attendanceError);
+      safeConsole.error("Failed to fetch attendance:", attendanceError);
       return { error: "Failed to load attendance hours" };
     }
 
@@ -451,7 +452,7 @@ async function buildReportDataForOrg(
       },
     };
   } catch (error) {
-    console.error("Error generating report data:", error);
+    safeConsole.error("Error generating report data:", error);
     return { error: "Failed to generate report data" };
   }
 }
@@ -495,7 +496,7 @@ export async function getOrganizationReportData(
     if (!(await canViewReport())) return { error: "Permission denied" };
     return result;
   } catch (error) {
-    console.error("Error generating report data:", error);
+    safeConsole.error("Error generating report data:", error);
     return { error: "Failed to generate report data" };
   }
 }

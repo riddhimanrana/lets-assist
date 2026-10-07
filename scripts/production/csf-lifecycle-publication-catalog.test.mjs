@@ -1,3 +1,4 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test, { after as afterTests } from "node:test";
@@ -10,14 +11,12 @@ import {
   prohibitedDataWrites,
   unreviewedDataWrites,
 } from "./migration-data-writes.mjs";
-import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-676.json"));
 const after = JSON.parse(read("./final-schema-677.json"));
-// Keep this historical release proof on its approved migration ledger.
 const fixture = historicalReleaseTestFixture();
-afterTests(fixture.dispose);
 const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 677);
 test("signed lifecycle publication preserves the reviewed schema and install boundary", () => {
   assert.deepEqual(after.objects, before.objects);

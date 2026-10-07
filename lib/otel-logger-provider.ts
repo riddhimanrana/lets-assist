@@ -1,3 +1,4 @@
+import "server-only";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
@@ -16,18 +17,16 @@ import {
 // Splitting them keeps the heavy tracing dependency behind the
 // `NEXT_RUNTIME === "nodejs"` guard in `instrumentation.ts`, where it belongs,
 // and leaves this module holding only the HTTP log exporter.
-//
-// This module is deliberately NOT marked `server-only`, though it should be.
-// `services/google-sheets.ts` is a barrel that re-exports `google-sheets-csf`,
-// which imports `lib/logger`, so a client component pulling one pure helper
-// (`formatCsfSheetBounds`, via `import-sheet-analysis`) drags this whole chain
-// into the browser bundle. That leak predates this split and is bundle bloat
-// rather than a build failure now that the Node SDK is out of the path. Adding
-// the guard here makes the build fail until that barrel is untangled, so it is
-// left off and tracked separately.
+import { telemetryRuntime } from "./telemetry-runtime";
+
+const runtime = telemetryRuntime();
 const processors: BatchLogRecordProcessor[] = [];
 
-if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+if (
+  typeof window === "undefined" &&
+  runtime.enabled &&
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
+) {
   processors.push(
     new BatchLogRecordProcessor({
       exporter: new OTLPLogExporter({
@@ -39,13 +38,9 @@ if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
       }),
     }),
   );
-} else {
-  console.warn(
-    "[Instrumentation] NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN not set — skipping PostHog log exporter",
-  );
 }
 
 export const loggerProvider = new LoggerProvider({
-  resource: resourceFromAttributes({ "service.name": "lets-assist" }),
+  resource: resourceFromAttributes(runtime.attributes),
   processors,
 });

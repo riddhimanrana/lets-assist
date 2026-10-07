@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -19,7 +20,7 @@ export async function checkSuperAdmin() {
   try {
     return { isAdmin: hasSuperAdminMetadata(user), userId: user.id };
   } catch (err) {
-    console.error("Exception checking super admin status:", err);
+    safeConsole.error("Exception checking super admin status:", err);
     return { isAdmin: false };
   }
 }

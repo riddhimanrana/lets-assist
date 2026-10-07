@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { passwordRecoveryPath } from "@/app/reset-password/continuation";
 
@@ -26,6 +27,7 @@ import { TurnstileComponent, TurnstileRef } from "@/components/ui/turnstile";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useSecureCheck } from "@/hooks/useSecureCheck";
 import { resolvePostAuthRedirectPath } from "@/lib/auth/mfa";
+import { isSecureCheckBlockingSubmit } from "@/lib/auth/secure-check";
 import { buildStaffInviteRedirectPath } from "@/lib/organization/staff-invite-outcome";
 import {
   getAccountAccessErrorCode,
@@ -127,6 +129,15 @@ export default function LoginClient({
   async function onSubmit(data: LoginValues) {
     const turnstileToken = turnstileRef.current?.getResponse();
 
+    if (isSecureCheckBlockingSubmit(secureCheck.phase, turnstileToken)) {
+      toast.error(
+        secureCheck.phase === "unavailable"
+          ? "Retry the security check before signing in."
+          : "Complete the security check before signing in.",
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -192,7 +203,7 @@ export default function LoginClient({
         return;
       }
 
-      console.log(
+      safeConsole.log(
         "[LoginClient] Login successful, user:",
         authData.user?.email,
       );
@@ -228,7 +239,7 @@ export default function LoginClient({
       navigateAfterAuth(finalRedirectUrl);
       return;
     } catch (error) {
-      console.error("[LoginClient] Login error:", error);
+      safeConsole.error("[LoginClient] Login error:", error);
 
       if (
         error instanceof TypeError &&
@@ -282,8 +293,8 @@ export default function LoginClient({
   };
 
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-      <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-14 sm:px-6 lg:px-8">
+      <Card className="relative mx-auto w-full max-w-[410px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-7 pb-0 sm:px-7">
           {/* CardTitle renders a plain div, so the page had no h1 at all. */}
           <CardTitle>
@@ -322,7 +333,7 @@ export default function LoginClient({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
+                  className="h-10 w-full rounded-full font-semibold"
                   onClick={handleGoogleSignIn}
                   disabled={isGoogleLoading || !isHydrated}
                 >
@@ -342,15 +353,12 @@ export default function LoginClient({
                   )}
                 </Button>
 
-                <div className="relative py-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border/80" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground">
-                      Or continue with
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <span className="bg-border h-px flex-1" aria-hidden="true" />
+                  <span className="text-muted-foreground text-xs font-medium">
+                    Or continue with
+                  </span>
+                  <span className="bg-border h-px flex-1" aria-hidden="true" />
                 </div>
               </>
             )}
@@ -372,7 +380,7 @@ export default function LoginClient({
                       placeholder="m@example.com"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                      className="h-11 rounded-xl px-4"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -406,7 +414,7 @@ export default function LoginClient({
                       type="password"
                       {...field}
                       aria-invalid={fieldState.invalid}
-                      className="h-11 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                      className="h-11 rounded-xl px-4"
                     />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
@@ -448,7 +456,7 @@ export default function LoginClient({
 
               <Button
                 type="submit"
-                className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+                className="h-10 w-full rounded-full font-semibold"
                 disabled={isLoading || !isHydrated}
               >
                 {isLoading ? "Logging in..." : "Login"}

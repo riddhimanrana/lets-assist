@@ -1,0 +1,64 @@
+name: Bootstrap Production request fence
+
+on:
+  workflow_dispatch:
+    inputs:
+      accepted_main_sha:
+        description: "Exact current main SHA containing the reviewed bootstrap and accepted 687/688 catalogs"
+        required: true
+        type: string
+      production_confirmation:
+        description: "bootstrap-production:fotdmeakexgrkronxlof:<exact main SHA>"
+        required: true
+        type: string
+      external_writers_confirmation:
+        description: "external-writers-stopped:<exact main SHA>, including Auth, Storage and external schedulers"
+        required: true
+        type: string
+
+concurrency:
+  group: production-schema-deployment
+  queue: max
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+  deployments: read
+
+jobs:
+  bootstrap:
+    name: Install only the reviewed Production request guard
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Require database client
+        run: command -v psql >/dev/null
+      - name: Verify approval and install the additive guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACCEPTED_MAIN_SHA: ${{ inputs.accepted_main_sha }}
+          PRODUCTION_BOOTSTRAP_CONFIRMATION: ${{ inputs.production_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/production/bootstrap-request-write-fence.mjs
+      - name: Preserve sanitized bootstrap receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-request-fence-bootstrap-${{ github.run_id }}
+          path: .artifacts/production-request-fence-bootstrap/receipt.json
+          if-no-files-found: ignore
+          retention-days: 30

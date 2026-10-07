@@ -1376,4 +1376,54 @@ export const migrationDigests = {
     "f5882a03050549e8ae9d52d0bd3374a9703cd3acfaa33ee911f0bff9ff2feb86",
   "20260929031000_csf_existing_homonym_profile_edits.sql":
     "3f7271daba99fba662d7d5caf5fdeb925adc18cdcc26e8aac32c3a3b4e4e476a",
+  "20260929044000_csf_remove_activity_preserve_history.sql":
+    "2c4f5310f390ef625c82ccac888026fccf02c18592601d462afd83064948fc86",
+  "20260929044100_csf_index_contact_collision_evidence.sql":
+    "37ab07a0c85560a484ad47aa7f6a8fee022c4da42606c2175e632ce3b89e3338",
+  "20260929044725_publish_dvhs_csf_1_2_85.sql":
+    "fec4982c4bd1836bdbcbb1cad28412263ecc97b76f5a9d1bfe50a43a19263e8b",
+  "20260929051500_csf_review_removed_activity_submissions.sql":
+    "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
+  "20260929051600_application_request_write_fence.sql":
+    "81aa76285c8b317a0f9a9b7e21f7079bb75daa2b8d431d277a51a0d6524439f6",
+  "20261007034144_preserve_reference_scope_on_deletion.sql":
+    "221fd0044551e8c4798b2dcdb84549d74c475bb5bb7687b5948cc7814b96801e",
+  "20261007035204_bounded_project_occupancy.sql":
+    "50879cea65568381df6e9e85f47d9e6fcd8b1725e4a7a96208d90e91f2e305dc",
+  "20261007040314_durable_account_deletion.sql":
+    "ccc6638445748a359a60005d668268350df68e5ddc6d70e75b01dd216342c4d7",
+  "20261007043000_organization_suppression_cascade.sql":
+    "02ac18723b2cea4cbabda727f57da3c6ccbc6015a6d9c376cd6e942c0f3d7666",
+  "20261007044000_project_schedule_health.sql":
+    "6ab649bdd994d670406e02e62cf031743c8f4da8d35c3af27306e24417f74f56",
+  "20261007045000_csf_sheet_scope_observation.sql":
+    "b40d1db3a851715373379606c5b599416ae1e73718a92b21c3a9ab6ff01e3609",
+  "20261007050000_personal_calendar_sync_receipts.sql":
+    "756bfa649dfaa51d671bbbbfb24c8e3e4c77a3a946af2ffe41c69535463965b3",
+  "20261007050200_organization_calendar_destination.sql":
+    "cbbd63fb2bb2d2a973e4c59f7e730afe6681c826443cdc8636860f229d906095",
+  "20261007050600_account_export_snapshot.sql":
+    "345eea7aee0c367749672564668cb843f6ba97ba718177a9b21968135322a7e7",
+  "20261007051000_worker_run_health_receipts.sql":
+    "37863f1fa9262b33ac944296a396d8a5331b79da147505e4d8e1f6ef0163bdea",
+  "20261007052000_csf_decision_receipt_run_index.sql":
+    "f1670cfa9bbd4f97b0ba5b2718569ee206e19d1f1dc026025aaccdbe31326e3e",
+  "20261007200000_dv_atomic_membership_application.sql":
+    "c702cfaa4af34dac3ee935f88e7b26b1cae2d29a1dc843cb51b2806cc5522ab4",
+  "20261007210000_service_only_google_oauth_credentials.sql":
+    "9db378fd836c7f8a4d196200eba8152f2718533c573b3de9aa8df24a9498988f",
+  "20261007220000_prepare_personal_calendar_disconnect.sql":
+    "fa734e21002b3fed8cee9c43137395844aa7dd4cf5cd6f09fa7513ee75633f68",
+  "20261007230000_project_client_read_columns.sql":
+    "b2422616e826bcd85f9577757e19a0c6c0d6eb1fd2440c7a48284f8990fed42e",
+  "20261008000000_extend_worker_observation_scope.sql":
+    "21483b39b32b05d95c42e6ad05e6b28be165455b33e8842cd6530db3c8787cf3",
+  "20261008010000_public_image_cleanup_outbox.sql":
+    "5dfa583225eaba89f444476891c1ce13f06318a0bffa1342c9ff5eeb443e274d",
+  "20261008020000_business_conflict_http_status.sql":
+    "55f8e50707d662e2a97775fe13dc1debfd589f0bc3a2bb7c44ecad35902fb3e0",
+  "20261008030000_organization_profile_write_authorization.sql":
+    "dd2803db7c27c46f706e095e5d4195484ae089a71e883ec63c6170fd1d223763",
+  "20261008040000_public_image_server_writes.sql":
+    "1881e138bc06520999393634f6176df35bd80e733d250969e864607ddbf999d8",
 };

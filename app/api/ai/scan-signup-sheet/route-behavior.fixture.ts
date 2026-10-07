@@ -1,5 +1,6 @@
 // Run in a child process so provider mocks cannot leak into other unit suites.
 import assert from "node:assert/strict";
+import { createScanQueryFixture, type Stored } from "./scan-query.fixture";
 import { mock } from "bun:test";
 import { NextRequest } from "next/server";
 import type {
@@ -10,7 +11,6 @@ import type {
 const batchId = "c3000000-0000-4000-8000-000000000001";
 const projectId = "c3000000-0000-4000-8000-000000000002";
 const userId = "c3000000-0000-4000-8000-000000000003";
-type Stored = Record<string, unknown>;
 const batch: Stored = {
   id: batchId,
   project_id: projectId,
@@ -55,122 +55,21 @@ let afterStaging: (() => void) | null = null;
 const reads: Array<{ table: string; start: number; end: number }> = [];
 let omitPrintedCandidate = false;
 
-class Query {
-  private operation = "select";
-  private start = 0;
-  private end = 999;
-  private columns = "";
-  private values: Stored | Stored[] = {};
-  private filters: Array<(row: Stored) => boolean> = [];
-  constructor(private table: string) {
-    assert.ok(table in tables, `Unexpected table: ${table}`);
-  }
-  select(columns: string) {
-    this.columns = columns;
-    return this;
-  }
-  range(start: number, end: number) {
-    this.start = start;
-    this.end = end;
-    return this;
-  }
-  in(column: string, values: unknown[]) {
-    this.filters.push((row) => values.includes(row[column]));
-    return this;
-  }
-  or(expression: string) {
-    const pairs = [
-      ...expression.matchAll(
-        /and\(sheet_id\.eq\.([^,]+),row_reference\.eq\.([^)]+)\)/g,
-      ),
-    ];
-    this.filters.push((row) =>
-      pairs.some(
-        (pair) => row.sheet_id === pair[1] && row.row_reference === pair[2],
-      ),
-    );
-    return this;
-  }
-  order() {
-    return this;
-  }
-  eq(column: string, value: unknown) {
-    this.filters.push((row) => row[column] === value);
-    return this;
-  }
-  neq(column: string, value: unknown) {
-    this.filters.push((row) => row[column] !== value);
-    return this;
-  }
-  update(values: Stored) {
-    this.operation = "update";
-    this.values = values;
-    return this;
-  }
-  insert(values: Stored[]) {
-    this.operation = "insert";
-    this.values = values;
-    return this;
-  }
-  delete() {
-    this.operation = "delete";
-    return this;
-  }
-  private execute(single = false) {
-    let matching = tables[this.table].filter((row) =>
-      this.filters.every((filter) => filter(row)),
-    );
-    if (this.operation === "select") {
-      reads.push({ table: this.table, start: this.start, end: this.end });
-      if (
-        omitPrintedCandidate &&
-        this.table === "project_signups" &&
-        this.columns.includes("profiles(")
-      )
-        matching = [];
-      matching = matching.slice(
-        this.start,
-        Math.min(this.end + 1, this.start + 1000),
-      );
-    }
-    if (this.operation !== "select") {
-      assert.ok(
-        ["project_paper_scan_batches", "project_paper_scan_rows"].includes(
-          this.table,
-        ),
-        "Extraction must never write attendance or credit",
-      );
-      writes.push({ table: this.table, operation: this.operation });
-    }
-    if (this.operation === "update") {
-      if (failReviewSettlement && (this.values as Stored).status === "review") {
-        failReviewSettlement = false;
-        return { data: null, error: { code: "fictional_lost_settlement" } };
-      }
-      for (const row of matching) Object.assign(row, this.values);
-    } else if (this.operation === "delete") {
-      tables[this.table] = tables[this.table].filter(
-        (row) => !matching.includes(row),
-      );
-    } else if (this.operation === "insert") {
-      tables[this.table].push(...structuredClone(this.values as Stored[]));
-      afterStaging?.();
-    }
-    return {
-      data: structuredClone(single ? (matching[0] ?? null) : matching),
-      error: null,
-    };
-  }
-  single() {
-    return Promise.resolve(this.execute(true));
-  }
-  maybeSingle() {
-    return Promise.resolve(this.execute(true));
-  }
-  then(resolve: (result: ReturnType<Query["execute"]>) => unknown) {
-    return Promise.resolve(this.execute()).then(resolve);
-  }
-}
+const Query = createScanQueryFixture({
+  tables,
+  writes,
+  reads,
+  get omitPrintedCandidate() {
+    return omitPrintedCandidate;
+  },
+  get failReviewSettlement() {
+    return failReviewSettlement;
+  },
+  set failReviewSettlement(value) {
+    failReviewSettlement = value;
+  },
+  afterStaging: () => afterStaging?.(),
+});
 const admin = {
   from: (table: string) => new Query(table),
   rpc: () => {

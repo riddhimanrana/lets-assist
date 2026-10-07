@@ -16,61 +16,44 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-  BookOpenCheck,
-  GraduationCap,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
+import { BookOpenCheck } from "lucide-react";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function SchoolsSection() {
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <GraduationCap className="size-5" aria-hidden="true" />
-            School programs and chapter CSF
-          </CardTitle>
+          <CardTitle>School programs and chapter CSF</CardTitle>
           <CardDescription>
             Use the workflow configured by your school. CSF requirements,
             deadlines, and eligible service vary by chapter and semester.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Card className="border-primary/30 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <BookOpenCheck
-                  className="size-5 text-primary"
-                  aria-hidden="true"
-                />
-                DVHS CSF members and officers
-              </CardTitle>
-              <CardDescription>
-                Open the DVHigh CSF organization, then select Help from the CSF
-                navigation. That guide uses your current role and the controls
-                installed for the chapter.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link
-                href="/organization"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Open organizations
-              </Link>
-            </CardContent>
-          </Card>
+          <Alert variant="info">
+            <BookOpenCheck aria-hidden="true" />
+            <AlertTitle>DVHS CSF members and officers</AlertTitle>
+            <AlertDescription>
+              Open the DVHigh CSF organization, then select Help from the CSF
+              navigation. That guide uses your current role and the controls
+              installed for the chapter.
+            </AlertDescription>
+            <Link
+              href="/organization"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "col-start-2 mt-2 w-fit",
+              )}
+            >
+              Open organizations
+            </Link>
+          </Alert>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section aria-labelledby="csf-member-help-heading">
-              <h3
-                id="csf-member-help-heading"
-                className="mb-3 flex items-center gap-2 font-semibold"
-              >
-                <UsersRound className="size-4" aria-hidden="true" />
+              <h3 id="csf-member-help-heading" className="mb-1 font-semibold">
                 For chapter members
               </h3>
               <Accordion>
@@ -100,7 +83,7 @@ export function SchoolsSection() {
                         After approval, open My CSF to see your reviewed status.
                       </li>
                     </ol>
-                    <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                    <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
                       A class link creates no email and grants no officer
                       access.
                     </p>
@@ -151,11 +134,7 @@ export function SchoolsSection() {
             </section>
 
             <section aria-labelledby="csf-officer-help-heading">
-              <h3
-                id="csf-officer-help-heading"
-                className="mb-3 flex items-center gap-2 font-semibold"
-              >
-                <ShieldCheck className="size-4" aria-hidden="true" />
+              <h3 id="csf-officer-help-heading" className="mb-1 font-semibold">
                 For chapter officers and advisers
               </h3>
               <Accordion>
@@ -250,7 +229,7 @@ export function SchoolsSection() {
           </p>
           <Link
             href="/organization/create"
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Create an organization
           </Link>

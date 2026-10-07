@@ -1,8 +1,11 @@
+import { safeConsole } from "@/lib/safe-console";
 import { redirect } from "next/navigation";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { CertificatesList } from "./CertificatesList";
 import { Metadata } from "next";
+import { CircleAlert } from "lucide-react";
+import { NoticePage } from "@/components/projects/NoticePage";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 
 type Certificate = {
@@ -75,8 +78,14 @@ export default async function CertificatesPage() {
     error: { message?: string } | null;
   };
   if (certError) {
-    console.error("Error loading certificates:", certError);
-    return <p className="p-4 text-destructive">Failed to load certificates.</p>;
+    safeConsole.error("Error loading certificates:", certError);
+    return (
+      <NoticePage
+        icon={<CircleAlert aria-hidden="true" />}
+        tone="destructive"
+        title="Failed to load certificates."
+      />
+    );
   }
 
   const certificateList = (certificates || []).map((certificate) => ({
@@ -87,7 +96,7 @@ export default async function CertificatesPage() {
   }));
 
   return (
-    <main className="mx-auto py-8 px-4 sm:px-12">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
       <CertificatesList
         certificates={certificateList}
         user={{
@@ -98,6 +107,6 @@ export default async function CertificatesPage() {
           email: user.email || "",
         }}
       />
-    </main>
+    </div>
   );
 }

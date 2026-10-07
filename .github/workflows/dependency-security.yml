@@ -1,0 +1,85 @@
+name: Dependency security
+
+on:
+  schedule:
+    - cron: "33 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit ${{ matrix.branch }} package graphs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [development, main]
+    steps:
+      - name: Checkout audit tooling
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: auditor
+          sparse-checkout: scripts/security
+          persist-credentials: false
+
+      - name: Checkout protected branch snapshot
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ matrix.branch }}
+          path: target
+          persist-credentials: false
+
+      - name: Require private submodule access
+        env:
+          PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+        run: test -n "$PRIVATE_SUBMODULE_SSH_KEY"
+
+      - name: Resolve exact private plugin gitlink
+        id: private-plugin-gitlink
+        working-directory: target
+        run: |
+          git submodule init
+          echo "sha=$(git rev-parse HEAD:lib/plugins/private)" >> "$GITHUB_OUTPUT"
+          git rev-parse HEAD
+
+      - name: Checkout exact private plugin gitlink
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: riddhimanrana/lets-assist-plugins
+          ref: ${{ steps.private-plugin-gitlink.outputs.sha }}
+          path: target/lib/plugins/private
+          fetch-depth: 0
+          ssh-key: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
+          persist-credentials: false
+
+      - name: Normalize private plugin remote metadata
+        working-directory: target
+        run: |
+          git -C lib/plugins/private remote set-url origin https://github.com/riddhimanrana/lets-assist-plugins.git
+          git submodule absorbgitdirs lib/plugins/private
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: target/.node-version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.14
+
+      - name: Verify exact private gitlink
+        working-directory: target
+        run: node scripts/check-private-submodules.mjs --strict
+
+      - name: Audit lockfiles without installing or running package scripts
+        working-directory: target
+        run: node ../auditor/scripts/security/audit-package-graphs.mjs

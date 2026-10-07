@@ -1,12 +1,24 @@
 import "server-only";
 import {
+  logSignupDebug,
+  summarizePostgrestError,
+} from "@/lib/signup-diagnostics";
+export {
+  logSignupDebug,
+  summarizePostgrestError,
+} from "@/lib/signup-diagnostics";
+import {
   getMultiDaySlotByScheduleId,
   getMultiDaySlotDisplayName,
 } from "@/utils/project";
 import { type Project } from "@/types";
 import { headers } from "next/headers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { isTurnstileEnabled, verifyTurnstileToken } from "@/lib/turnstile";
+import {
+  isTurnstileTokenRequired,
+  verifyTurnstileToken,
+} from "@/lib/turnstile";
+import { ANONYMOUS_SIGNUP_ACTION } from "@/lib/auth/turnstile-policy";
 import {
   enqueueOrphanedWaiverEvidence,
   removeWaiverStorageObjects,
@@ -92,33 +104,6 @@ export function isMissingWaiverDisableEsignatureColumnError(
   const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
 
   return referencesColumn && (knownCode || schemaCacheLike);
-}
-
-export function summarizePostgrestError(error: unknown) {
-  if (!error || typeof error !== "object") return error;
-
-  const pgError = error as PostgrestErrorLike;
-  return {
-    code: pgError.code,
-    message: pgError.message,
-    details: pgError.details,
-    hint: pgError.hint,
-  };
-}
-
-export function logSignupDebug(
-  traceId: string,
-  step: string,
-  details: Record<string, unknown> = {},
-) {
-  console.log(
-    "[signup-debug]",
-    JSON.stringify({
-      traceId,
-      step,
-      ...details,
-    }),
-  );
 }
 
 export function getProjectSignupInsertErrorMessage(error: unknown): string {
@@ -315,8 +300,9 @@ export async function getRequestMetadata() {
 
 export async function validateAnonymousSignupCaptcha(
   captchaToken?: string | null,
+  action = ANONYMOUS_SIGNUP_ACTION,
 ): Promise<{ success: true } | { error: string }> {
-  if (!isTurnstileEnabled()) {
+  if (!isTurnstileTokenRequired()) {
     return { success: true };
   }
 
@@ -326,7 +312,7 @@ export async function validateAnonymousSignupCaptcha(
     return { error: "Please complete the security verification challenge." };
   }
 
-  const isValid = await verifyTurnstileToken(normalizedToken);
+  const isValid = await verifyTurnstileToken(normalizedToken, action);
 
   if (!isValid) {
     return {

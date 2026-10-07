@@ -205,7 +205,7 @@ port_bundle_is_available() {
   return 0
 }
 
-# One pinned, test-owned contract of exact names for Supabase CLI 2.111.0, typed
+# One pinned, test-owned contract of exact names for Supabase CLI 2.117.0, typed
 # by Docker resource kind and shared with the stop script. Exact names only:
 # `supabase_*_<project>` style globs both miss real CLI resources
 # (realtime-dev.supabase_realtime_<project>) and would accept an unexpected
@@ -800,7 +800,7 @@ write_marker starting
 
 START_ATTEMPTED=true
 run_supabase_start() {
-  # Analytics is disabled in the generated config above. Supabase CLI 2.111.0
+  # Analytics is disabled in the generated config above. Supabase CLI 2.117.0
   # no longer accepts the historical `analytics` name in --exclude.
   supabase start --workdir "${WORK_DIR}" --yes
 }

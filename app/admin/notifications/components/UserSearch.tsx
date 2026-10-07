@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
@@ -44,12 +45,6 @@ export function UserSearch({
   React.useEffect(() => {
     if (!open) return;
 
-    // Initial fetch to show some users or if needed
-    if (query.trim() === "" && items.length === 0) {
-      // Optional: fetch recent users?
-      // For now, let's wait for typing
-    }
-
     const timer = setTimeout(async () => {
       if (query.trim().length < 2) return;
 
@@ -67,7 +62,7 @@ export function UserSearch({
           );
         }
       } catch (e) {
-        console.error("Search failed", e);
+        safeConsole.error("Search failed", e);
       } finally {
         setLoading(false);
       }
@@ -85,7 +80,7 @@ export function UserSearch({
       <PopoverTrigger
         className={cn(
           buttonVariants({ variant: "outline" }),
-          "w-full justify-between h-auto py-2",
+          "h-auto min-h-9 w-full justify-between py-1.5 font-normal",
           className,
         )}
         role="combobox"
@@ -95,10 +90,10 @@ export function UserSearch({
           {value ? (
             <>
               {selectedAvatar && (
-                <Avatar className="h-6 w-6">
+                <Avatar className="size-6">
                   <AvatarImage
                     src={selectedAvatar}
-                    alt={selectedLabel || "Selected User"}
+                    alt={selectedLabel || "Selected user"}
                   />
                   <AvatarFallback>
                     <NoAvatar fullName={selectedLabel} />
@@ -107,7 +102,7 @@ export function UserSearch({
               )}
               <div className="flex flex-col">
                 <span className="font-medium">
-                  {selectedLabel || "Selected User"}
+                  {selectedLabel || "Selected user"}
                 </span>
                 {value && (
                   <span className="text-xs text-muted-foreground hidden sm:inline-block">
@@ -120,9 +115,12 @@ export function UserSearch({
             "Search user by name..."
           )}
         </div>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent
+        className="w-75 max-w-[calc(100vw-2rem)] p-0"
+        align="start"
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search users..."
@@ -131,8 +129,8 @@ export function UserSearch({
           />
           <CommandList>
             {loading ? (
-              <div className="py-6 flex justify-center text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
                 Searching...
               </div>
             ) : (
@@ -151,12 +149,12 @@ export function UserSearch({
                     >
                       <Check
                         className={cn(
-                          "mr-2 h-4 w-4",
+                          "mr-2 size-4",
                           value === item.id ? "opacity-100" : "opacity-0",
                         )}
                       />
                       <div className="flex items-center gap-2 w-full">
-                        <Avatar className="h-8 w-8">
+                        <Avatar className="size-8">
                           <AvatarImage src={item.avatar_url} alt={item.label} />
                           <AvatarFallback>
                             <NoAvatar fullName={item.label} />

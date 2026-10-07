@@ -42,6 +42,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Resolve exact private plugin gitlink
         id: private-plugin-gitlink
@@ -65,7 +66,7 @@ jobs:
           git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
 
@@ -83,7 +84,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Audit production dependencies
+      - name: Audit every independent package graph
         run: bun run security:audit
 
       - name: Check formatting
@@ -133,6 +134,12 @@ jobs:
       - name: Root and plugin tests
         if: github.event_name != 'pull_request'
         run: bun run test
+
+      - name: Test affected pull request units
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: bun run test:affected "$PR_BASE_SHA"
 
       - name: Test pull request tooling contracts
         if: github.event_name == 'pull_request'
@@ -197,7 +204,7 @@ jobs:
           git submodule absorbgitdirs lib/plugins/private
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
 
@@ -234,7 +241,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
-          version: 2.111.0
+          version: 2.117.0
 
       - name: Allocate one bounded isolated run identity
         run: |

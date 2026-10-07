@@ -112,7 +112,7 @@ export function WaiverSigningStepsPanel(props: Props) {
         <div className="space-y-6">
           {/* Review Consent Step */}
           {currentStep?.type === "review" && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="space-y-6">
               {isDesktop && (
                 <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm mb-4">
                   Please review the waiver document on the left carefully.
@@ -225,8 +225,11 @@ export function WaiverSigningStepsPanel(props: Props) {
                               onClick={handleOfflineUpload}
                               className="w-full"
                             >
-                              <Upload className="mr-2 h-4 w-4" /> Upload Signed
-                              Copy
+                              <Upload
+                                data-icon="inline-start"
+                                aria-hidden="true"
+                              />{" "}
+                              Upload signed copy
                             </Button>
                           </div>
                         </div>
@@ -249,7 +252,8 @@ export function WaiverSigningStepsPanel(props: Props) {
                       onClick={handleOfflineUpload}
                       className="w-full"
                     >
-                      <Upload className="mr-2 h-4 w-4" /> Upload Signed Waiver
+                      <Upload data-icon="inline-start" aria-hidden="true" />{" "}
+                      Upload signed waiver
                     </Button>
                   </div>
                 </div>
@@ -259,7 +263,7 @@ export function WaiverSigningStepsPanel(props: Props) {
 
           {/* Fields Step */}
           {currentStep?.type === "fields" && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div>
               {currentStep.signer ? (
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">
@@ -268,7 +272,7 @@ export function WaiverSigningStepsPanel(props: Props) {
                   {currentStep.signer.label} Details
                 </h3>
               ) : (
-                <h3 className="text-lg font-semibold mb-4">Your Information</h3>
+                <h3 className="text-lg font-semibold mb-4">Your information</h3>
               )}
               <WaiverFieldForm
                 fields={
@@ -292,7 +296,7 @@ export function WaiverSigningStepsPanel(props: Props) {
 
           {/* Signature Step */}
           {currentStep?.type === "sign" && currentStep.signer && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <div>
               {disableEsignature && (
                 <Alert className="mb-4 border-warning/40 bg-warning/10 text-warning">
                   <AlertDescription className="text-sm">
@@ -325,7 +329,8 @@ export function WaiverSigningStepsPanel(props: Props) {
                         Download Waiver PDF
                       </Button>
                       <Button onClick={handleOfflineUpload}>
-                        <Upload className="mr-2 h-4 w-4" /> Upload Signed Copy
+                        <Upload data-icon="inline-start" aria-hidden="true" />{" "}
+                        Upload signed copy
                       </Button>
                     </div>
                   </div>
@@ -347,7 +352,7 @@ export function WaiverSigningStepsPanel(props: Props) {
       </div>
 
       {/* Footer Controls */}
-      <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20">
         {currentStep?.type === "review" && !disableEsignature ? (
           // Special footer for review step with choice - no nav buttons
           <div className="w-full text-center text-xs text-muted-foreground">
@@ -374,7 +379,6 @@ export function WaiverSigningStepsPanel(props: Props) {
                     variant="outline"
                     onClick={handleSkipOptionalSigner}
                     disabled={isSubmitting}
-                    className="shadow-sm"
                     data-testid="waiver-signer-skip-optional"
                   >
                     Skip (Optional)
@@ -385,7 +389,7 @@ export function WaiverSigningStepsPanel(props: Props) {
                 <Button
                   onClick={handleSubmit}
                   disabled={!isStepValid || isSubmitting}
-                  className="w-32 shadow-md"
+                  className="w-32"
                   variant="default" // Primary action
                   data-testid="waiver-signer-complete"
                 >
@@ -404,7 +408,6 @@ export function WaiverSigningStepsPanel(props: Props) {
                     !isStepValid ||
                     (currentStep?.type === "review" && !consented)
                   }
-                  className="shadow-sm"
                   data-testid="waiver-signer-next"
                 >
                   Next <ArrowRight className="h-4 w-4 ml-2" />

@@ -22,6 +22,9 @@ DECLARE
   v_prior private.anonymous_account_links%ROWTYPE;
   v_signup_ids uuid[];
 BEGIN
+  IF p_user_id IS NOT NULL THEN
+    PERFORM private.lock_paper_attendance_account(p_user_id);
+  END IF;
   IF p_anonymous_id IS NULL OR p_user_id IS NULL OR NULLIF(btrim(p_token),'') IS NULL THEN
     RAISE EXCEPTION 'guest access denied' USING ERRCODE='42501';
   END IF;
@@ -110,5 +113,10 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.link_guest_attendance_account(uuid,uuid,text) FROM PUBLIC,anon,authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.link_guest_attendance_account(uuid,uuid,text) TO service_role;
+
+
+-- These tables are created after the account-deletion fence inventory.
+CREATE TRIGGER account_deletion_reference_fence BEFORE INSERT OR UPDATE ON private.anonymous_account_links
+FOR EACH ROW EXECUTE FUNCTION app_private.guard_account_deletion_reference('user_id');
 
 COMMIT;

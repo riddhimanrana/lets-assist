@@ -10,6 +10,8 @@ Promotion from `development` to `main` is a separate release operation. It requi
 
 Supabase changes follow [the deployment workflow](supabase-deployment.md). Private-plugin changes follow [the two-repository workflow](private-plugins.md).
 
+Permission contractions require the [Development maintenance cutover](development-cutover.md) before the root merge. Its prepare phase proves the maintenance hold; its complete phase accepts only the exact reviewed merge and target catalog. Ordinary hosted acceptance runs afterward and does not provide that ordering.
+
 ## Explicit Development builds
 
 A normal Development merge builds only when the first commit-message line carries
@@ -20,7 +22,14 @@ For an approved manual Preview build of the current Development revision, set
 `LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA` on that deployment to its full Git SHA.
 The build policy accepts it only for `VERCEL_ENV=preview`, branch `development`,
 and an exact SHA match. It does not change shared project settings or authorize
-Production. Verify the Preview's Git metadata and Development alias before
+Production. The hosted Development acceptance workflow exposes
+`build_current_revision` for this recovery path. Its build job uses the protected
+Production environment's root-project credential because Development's credential
+belongs to the plugin project. The deployment target remains Preview, and the
+job requires the environment review before using that credential. It checks the current branch and
+project binding, creates one Preview, retains its identity, and waits for that
+same deployment before running the usual acceptance gates. A failed or unknown
+create outcome must be reconciled before another request. Verify the Preview's Git metadata and Development alias before
 starting hosted acceptance. Do not create an empty marker commit to trigger a build.
 
 ## App-only Production release
@@ -57,9 +66,100 @@ checks and worker leases remain required. A partial or malformed waiver fails
 before provider release work. The receipt remains available if a later release
 step fails.
 
-Before building, the controller verifies the trusted hosted run or explicit
-performance waiver, successful
-quality and database checks, exact private gitlink, and Vercel project. The
+### Broader local validation override
+
+Both app-only deployment and reviewed forward migrations also expose
+`local_validation_confirmation`, `local_validation_reason` and
+`local_validation_evidence`. This is a broader
+exception than the performance waiver. Its confirmation is
+`deploy-with-local-validation:<release SHA>:<Development SHA>`. The controller
+requires a 20–1000 character reason and a GitHub actor with repository write,
+maintain, or admin permission. The protected Production environment and separate
+Production operation confirmation still apply.
+
+| Mode                      | Hosted acceptance                                          | Remote quality and database replay |
+| ------------------------- | ---------------------------------------------------------- | ---------------------------------- |
+| Normal                    | Exact trusted successful run                               | Exact trusted successful full run  |
+| Performance waiver        | Trusted functional acceptance required; performance waived | Required                           |
+| Local validation override | Waived, not passed                                         | Both waived, not passed            |
+
+The local override is an operator attestation. The controller requires a current
+exact-candidate evidence receipt and checks the supplied sanitized report bytes.
+It does not execute or independently prove the local tests. Do not describe this exception as successful
+hosted acceptance. The two waiver modes are mutually exclusive. Neither bypasses
+exact source trees and ancestry, Production environment review, schema/catalog
+checks, private release verification, deployment identity, rollback safeguards,
+or separate worker activation. A forward-migration override still authorizes
+only that workflow's reviewed migration suffix, not arbitrary database changes.
+
+For a proposed local override, prepare a sanitized local evidence receipt using
+[scripts/production/local-validation-evidence.mjs](../../scripts/production/local-validation-evidence.mjs).
+It checks the exact release and accepted SHAs, Git tree, private gitlink,
+operator, a repository issue or PR change record, expiry within 24 hours, and
+report digests for lint, typecheck, unit, build, database, and browser checks.
+Each check must name a zero exit status and finish within the preceding 24-hour
+window. Run it from a clean candidate checkout with ignored reports:
+
+```bash
+node scripts/production/local-validation-evidence.mjs \
+  --file .artifacts/local-validation/receipt.json \
+  --reports .artifacts/local-validation \
+  --release-sha <full-release-sha> \
+  --accepted-sha <full-development-sha> \
+  --actor <github-login>
+```
+
+The receipt schema is the strict object used in the companion test fixtures.
+Each report is `<check-name>.log`; retain only sanitized output. Keep receipts
+and reports outside committed source. Include the receipt SHA-256, change-record
+URL, expiry, and exact waived gates in the release reason and current release
+status. Supply `local_validation_evidence` as a strict JSON envelope with
+`receipt` and `reports` fields. `reports` maps each of the six check names to its
+sanitized UTF-8 report text. The envelope is limited to 48 KiB and each report to
+1–4096 bytes. The controller rejects missing, invalid, changed or expired
+reports before it skips any hosted or remote CI check. It compares the evidence
+tree and private gitlink with the actual release checkout, not receipt claims.
+Normal validation and the narrower performance waiver do not need this input.
+
+After the checker passes, prepare the envelope without publishing it:
+
+```bash
+node --input-type=module <<'JS'
+import { readFileSync, writeFileSync } from "node:fs";
+const dir = ".artifacts/local-validation/";
+const receipt = JSON.parse(readFileSync(dir + "receipt.json", "utf8"));
+const names = ["lint", "typecheck", "unit", "build", "database", "browser"];
+const reports = Object.fromEntries(names.map(name => [name,
+  readFileSync(dir + name + ".log", "utf8")]));
+writeFileSync(dir + "envelope.json", JSON.stringify({ receipt, reports }));
+JS
+```
+
+Paste that envelope into `local_validation_evidence` only after reviewing every
+report for secrets and real user data. Workflow dispatch inputs and step
+environment values can be visible in this public repository. The controller
+prints only fixed failures or verified identities and digests; it never prints
+the report text. The retained source-verification artifact includes receipt and
+envelope hashes, expiry, change record and the explicit operator-attestation
+limit. Report-byte checks do not prove who executed tests or turn those reports
+into a trusted CI run.
+
+The workflows recheck source, actor permission and evidence freshness before a
+Production build, migration application and alias promotion when the local
+override is selected. An expired approval stops forward progress. Existing
+rollback steps remain available to recover a release that already changed the
+alias; the evidence input does not authorize a separate release or worker run.
+
+Before approving the exception, the release owner must inspect the reports,
+confirm the exact candidate and explicit Production authorization, and record
+why the ordinary hosted gates cannot be used. Let the exception expire after
+this operation. A different candidate, expired evidence, failed check, or changed
+report requires a new review. Keep `source-verification-<run ID>` linked to the
+change record even if later release work fails. Reconcile a failed or cancelled
+release before another dispatch; the override is not a retry or recovery bypass.
+
+Before building, the controller verifies the applicable acceptance mode and its
+required checks, exact private gitlink, and Vercel project. The
 existing Supabase management token uses the read-only query endpoint for ordinary checks.
 The final catalog uses the authorized query connection inside an explicit
 PostgreSQL `BEGIN READ ONLY` transaction with `search_path` fixed to
@@ -85,7 +185,10 @@ The new release SHA starts with every CSF worker off, even when the previous
 release had workers enabled. After the public alias check passes, read the
 controls for both SHAs. Restore each previously approved worker through a
 separate `enable-production-csf-worker.yml` run against the new, publicly
-served SHA, then verify the saved controls and one bounded worker pass. Keep
+served SHA, then verify the saved controls and one bounded worker pass. The
+communications enable path also requires the exact-release, expiring
+[worker monitoring evidence receipt](worker-health.md). Disable remains
+available without that receipt. Keep
 scheduled post publishing off. Do not call Sheet exports or notifications
 healthy from the app release result alone.
 
@@ -97,6 +200,13 @@ imports or provider delivery.
 ## Cost-controlled release path
 
 ### Reviewed forward migrations
+
+This online path refuses outstanding credential and project-column permission
+contractions. Those changes require the reviewed maintenance workflow, because
+the previously served app can issue queries the new grants reject. See the
+[current maintenance preflight](production-cutover-runbook.md#current-maintenance-preflight).
+An evidence override does not waive this ordering requirement. Already-applied
+changes can still be reconciled without another mutation.
 
 `Apply accepted forward migrations` applies only the migration names and SQL
 hashes listed in `scripts/production/forward-migration-allowlist.mjs`. It accepts

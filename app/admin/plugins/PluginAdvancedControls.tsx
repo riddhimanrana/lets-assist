@@ -4,22 +4,26 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -29,6 +33,7 @@ import {
   upsertOrganizationPluginInstallConfiguration,
   type PluginControlPlaneData,
 } from "./actions";
+import { SelectField } from "./PluginSelectField";
 
 type Props = { data: PluginControlPlaneData; selectedPluginKey: string };
 
@@ -110,75 +115,55 @@ export default function PluginAdvancedControls({
     label: row.name,
   }));
 
+  const selectionMissing = isPending || !organizationId || !pluginKey;
+
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Install recovery</CardTitle>
-          <CardDescription>
-            Manual controls for support incidents. Use the overview for routine
-            updates.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <SelectField
-            label="Organization"
-            value={organizationId}
-            onChange={setOrganizationId}
-            items={organizationItems}
-          />
-          <SelectField
-            label="Plugin"
-            value={pluginKey}
-            onChange={setPluginKey}
-            items={pluginItems}
-          />
-          <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-            <div>
-              <Label>Activate private access</Label>
-              <p className="text-xs text-muted-foreground">
-                Create or reactivate the entitlement during install.
-              </p>
-            </div>
-            <Switch
-              checked={activateEntitlement}
-              onCheckedChange={setActivateEntitlement}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => run("install")}
-              disabled={isPending || !organizationId || !pluginKey}
-            >
-              Force install
-            </Button>
+    <div className="grid items-start gap-6 xl:grid-cols-2">
+      <SettingsSection
+        title="Install recovery"
+        description="Manual controls for support incidents. Use the overview for routine updates."
+        footer={
+          <>
+            <AlertDialog>
+              <AlertDialogTrigger
+                disabled={selectionMissing}
+                render={<Button variant="destructive-ghost" />}
+              >
+                Disable
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Disable this plugin?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    The selected organization loses the plugin until it is
+                    installed again.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() => run("disable")}
+                  >
+                    Disable
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button
               variant="outline"
               onClick={() => run("update")}
-              disabled={isPending || !organizationId || !pluginKey}
+              disabled={selectionMissing}
             >
               Force update
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => run("disable")}
-              disabled={isPending || !organizationId || !pluginKey}
-            >
-              Disable
+            <Button onClick={() => run("install")} disabled={selectionMissing}>
+              Force install
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Install configuration</CardTitle>
-          <CardDescription>
-            JSON settings for the selected organization install. Invalid JSON is
-            rejected.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </>
+        }
+      >
+        <FieldGroup className="gap-5">
           <SelectField
             label="Organization"
             value={organizationId}
@@ -191,52 +176,59 @@ export default function PluginAdvancedControls({
             onChange={setPluginKey}
             items={pluginItems}
           />
-          <div className="space-y-2">
-            <Label>Configuration JSON</Label>
+          <Field orientation="horizontal">
+            <FieldContent>
+              <FieldLabel htmlFor="advanced-activate-entitlement">
+                Activate private access
+              </FieldLabel>
+              <FieldDescription>
+                Create or reactivate the entitlement during install.
+              </FieldDescription>
+            </FieldContent>
+            <Switch
+              id="advanced-activate-entitlement"
+              checked={activateEntitlement}
+              onCheckedChange={setActivateEntitlement}
+            />
+          </Field>
+        </FieldGroup>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Install configuration"
+        description="JSON settings for the selected organization install. Invalid JSON is rejected."
+        footer={
+          <Button onClick={saveConfiguration} disabled={selectionMissing}>
+            {isPending ? "Saving…" : "Save configuration"}
+          </Button>
+        }
+      >
+        <FieldGroup className="gap-5">
+          <SelectField
+            label="Organization"
+            value={organizationId}
+            onChange={setOrganizationId}
+            items={organizationItems}
+          />
+          <SelectField
+            label="Plugin"
+            value={pluginKey}
+            onChange={setPluginKey}
+            items={pluginItems}
+          />
+          <Field>
+            <FieldLabel htmlFor="advanced-configuration-json">
+              Configuration JSON
+            </FieldLabel>
             <Textarea
+              id="advanced-configuration-json"
               className="min-h-52 font-mono text-xs"
               value={configuration}
               onChange={(event) => setConfiguration(event.target.value)}
             />
-          </div>
-          <Button
-            onClick={saveConfiguration}
-            disabled={isPending || !organizationId || !pluginKey}
-          >
-            {isPending ? "Saving…" : "Save configuration"}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  items,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  items: Array<{ value: string; label: string }>;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Select value={value} onValueChange={(next) => next && onChange(next)}>
-        <SelectTrigger>
-          <SelectValue placeholder={`Choose ${label.toLowerCase()}`} />
-        </SelectTrigger>
-        <SelectContent>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          </Field>
+        </FieldGroup>
+      </SettingsSection>
     </div>
   );
 }

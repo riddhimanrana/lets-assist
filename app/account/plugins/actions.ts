@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { revalidatePath } from "next/cache";
 
@@ -37,7 +38,7 @@ async function writePreferences(
   );
 
   if (error) {
-    console.error("[account/plugins] Failed to save preferences:", error);
+    safeConsole.error("[account/plugins] Failed to save preferences:", error);
     return { error: GENERIC_ERROR };
   }
 

@@ -1,16 +1,18 @@
-import {
-  CheckCircle2,
-  Cloud,
-  Code2,
-  PackageCheck,
-  ServerCog,
-  ShieldCheck,
-} from "lucide-react";
+import { Cloud, Code2, ServerCog, ShieldCheck } from "lucide-react";
 
+import { SectionHeader } from "@/components/layout/PageHeader";
+import { StatStrip } from "@/components/layout/SettingsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import type { PluginControlPlaneData } from "./actions";
 
 type PluginOverviewProps = {
@@ -38,14 +40,14 @@ function RuntimeIcon({ profiles }: { profiles: RuntimeProfile[] }) {
 
 function RuntimeRows({ profiles }: { profiles: RuntimeProfile[] }) {
   return (
-    <div className="space-y-2">
+    <ul className="divide-y">
       {profiles.map((profile) => (
-        <div
+        <li
           key={`${profile.plugin_key}:${profile.profile}`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2"
+          className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
         >
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <span className="text-muted-foreground shrink-0" aria-hidden="true">
               <RuntimeIcon profiles={[profile]} />
             </span>
             <div className="min-w-0">
@@ -54,7 +56,7 @@ function RuntimeRows({ profiles }: { profiles: RuntimeProfile[] }) {
                   ? "Microfrontend app"
                   : `${profile.profile} runtime`}
               </p>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="text-muted-foreground truncate text-xs">
                 {profile.project_name ??
                   (profile.profile === "embedded"
                     ? "Ships with the Let's Assist host"
@@ -64,15 +66,18 @@ function RuntimeRows({ profiles }: { profiles: RuntimeProfile[] }) {
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {profile.signed ? (
-              <ShieldCheck className="size-3.5 text-emerald-600" />
+              <ShieldCheck
+                className="text-success size-3.5"
+                aria-label="Signed release"
+              />
             ) : null}
-            <span className="font-mono text-xs text-muted-foreground">
+            <span className="text-muted-foreground font-mono text-xs">
               v{profile.version}
             </span>
           </div>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
@@ -97,56 +102,37 @@ export default function PluginOverview({
     ).length;
 
   return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-xl border bg-card">
-        <div className="flex flex-col gap-4 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">Plugins</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Manage access, installed versions, runtimes, and deployment
-              health.
-            </p>
-          </div>
-          <Button type="button" size="sm" onClick={() => onOpenAccess()}>
-            Grant access
-          </Button>
-        </div>
+    <div className="grid gap-6">
+      <StatStrip
+        items={[
+          {
+            label: "Plugins",
+            value: data.plugins.length,
+            helper: "in the catalog",
+          },
+          {
+            label: "Active installs",
+            value: activeInstalls.length,
+            helper: "across organizations",
+          },
+          {
+            label: "App runtimes",
+            value: applicationInstalls.length,
+            helper: "selected now",
+          },
+          {
+            label: "Needs attention",
+            value: attentionCount,
+            helper: "blocked or forced",
+          },
+        ]}
+      />
 
-        <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
-          {[
-            ["Plugins", data.plugins.length, "in the catalog"],
-            ["Active installs", activeInstalls.length, "across organizations"],
-            ["App runtimes", applicationInstalls.length, "selected now"],
-            ["Needs attention", attentionCount, "blocked or forced"],
-          ].map(([label, value, detail]) => (
-            <div key={label} className="px-5 py-4">
-              <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                {label}
-              </p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-2xl font-semibold tabular-nums">
-                  {value}
-                </span>
-                <span className="text-xs text-muted-foreground">{detail}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Your plugins</h2>
-            <p className="text-sm text-muted-foreground">
-              Runtime type, deployed version, and organization usage at a
-              glance.
-            </p>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Signed releases show a shield.
-          </p>
-        </div>
+      <section className="grid gap-4">
+        <SectionHeader
+          title="Your plugins"
+          description="Runtime type, deployed version, and organization usage at a glance. Signed releases show a shield."
+        />
 
         <div className="grid gap-4 xl:grid-cols-2">
           {data.plugins.map((plugin) => {
@@ -162,124 +148,85 @@ export default function PluginOverview({
             const healthyApplications = selectedApplications.filter(
               (install) => install.deployment_healthy === true,
             );
+            const allHealthy =
+              healthyApplications.length === selectedApplications.length;
 
             return (
-              <Card
-                key={plugin.key}
-                className={cn(
-                  "overflow-hidden border-border/70 shadow-sm",
-                  !plugin.is_active && "opacity-70",
-                )}
-              >
-                <CardContent className="p-0">
-                  <div className="flex items-start justify-between gap-4 border-b bg-muted/15 p-5">
-                    <div className="flex min-w-0 gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background shadow-sm">
-                        <PackageCheck className="size-5 text-primary" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold">{plugin.name}</h3>
-                          <Badge variant="outline">
-                            {runtimeLabel(profiles)}
-                          </Badge>
-                          <Badge
-                            variant={plugin.is_active ? "default" : "secondary"}
-                          >
-                            {plugin.is_active ? "Active" : "Paused"}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 font-mono text-xs text-muted-foreground">
-                          {plugin.key}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={
-                        plugin.visibility === "global" ? "info" : "outline"
-                      }
-                    >
-                      {plugin.visibility}
+              <Card key={plugin.key}>
+                <CardHeader>
+                  <CardTitle>{plugin.name}</CardTitle>
+                  <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="font-mono text-xs">{plugin.key}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{runtimeLabel(profiles)}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="capitalize">{plugin.visibility}</span>
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant={plugin.is_active ? "success" : "warning"}>
+                      {plugin.is_active ? "Active" : "Paused"}
                     </Badge>
+                  </CardAction>
+                </CardHeader>
+
+                <CardContent className="grid gap-6 sm:grid-cols-2">
+                  <div className="grid content-start gap-3">
+                    <h4 className="text-sm font-medium">Release channels</h4>
+                    <RuntimeRows profiles={profiles} />
                   </div>
 
-                  <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_0.85fr]">
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                        Release channels
-                      </p>
-                      <RuntimeRows profiles={profiles} />
-                    </div>
-
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                        Organization state
-                      </p>
-                      <div className="rounded-xl border bg-muted/15 p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-sm">Installed</span>
-                          <span className="font-medium tabular-nums">
-                            {installs.length}
-                          </span>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between gap-3">
-                          <span className="text-sm">Using app</span>
-                          <span className="font-medium tabular-nums">
-                            {selectedApplications.length}
-                          </span>
-                        </div>
-                        {selectedApplications.length > 0 ? (
-                          <div className="mt-3 border-t pt-3">
-                            <div className="flex items-center gap-2 text-xs">
-                              <CheckCircle2
-                                className={cn(
-                                  "size-3.5",
-                                  healthyApplications.length ===
-                                    selectedApplications.length
-                                    ? "text-emerald-600"
-                                    : "text-amber-600",
-                                )}
-                              />
-                              <span className="text-muted-foreground">
-                                {healthyApplications.length ===
-                                selectedApplications.length
-                                  ? "Selected deployments are healthy"
-                                  : "Check the selected deployment"}
-                              </span>
-                            </div>
-                          </div>
-                        ) : null}
+                  <div className="grid content-start gap-3">
+                    <h4 className="text-sm font-medium">Organization state</h4>
+                    <dl className="divide-y text-sm">
+                      <div className="flex items-center justify-between gap-3 pb-2.5">
+                        <dt>Installed</dt>
+                        <dd className="font-medium tabular-nums">
+                          {installs.length}
+                        </dd>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-muted/10 px-5 py-3">
-                    <p className="text-xs text-muted-foreground">
-                      Catalog v{plugin.latest_version}
-                      {plugin.force_update_version
-                        ? ` · security floor v${plugin.force_update_version}`
-                        : " · manual updates"}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onOpenAccess(plugin.key)}
-                      >
-                        Access
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onEditPlugin(plugin.key)}
-                      >
-                        Edit details
-                      </Button>
-                    </div>
+                      <div className="flex items-center justify-between gap-3 py-2.5">
+                        <dt>Using app</dt>
+                        <dd className="font-medium tabular-nums">
+                          {selectedApplications.length}
+                        </dd>
+                      </div>
+                      {selectedApplications.length > 0 ? (
+                        <div className="pt-2.5">
+                          <Badge variant={allHealthy ? "success" : "warning"}>
+                            {allHealthy
+                              ? "Selected deployments are healthy"
+                              : "Check the selected deployment"}
+                          </Badge>
+                        </div>
+                      ) : null}
+                    </dl>
                   </div>
                 </CardContent>
+
+                <CardFooter className="mt-auto flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-muted-foreground text-sm">
+                    Catalog v{plugin.latest_version}
+                    {plugin.force_update_version
+                      ? ` · security floor v${plugin.force_update_version}`
+                      : " · manual updates"}
+                  </p>
+                  <div className="flex shrink-0 justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => onOpenAccess(plugin.key)}
+                    >
+                      Access
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onEditPlugin(plugin.key)}
+                    >
+                      Edit details
+                    </Button>
+                  </div>
+                </CardFooter>
               </Card>
             );
           })}

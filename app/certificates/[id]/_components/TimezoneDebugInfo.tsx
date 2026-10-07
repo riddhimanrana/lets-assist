@@ -1,9 +1,8 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Globe, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface TimezoneDebugInfoProps {
   show?: boolean;
@@ -40,7 +39,7 @@ export function TimezoneDebugInfo({
         isClient: true,
       });
     } catch (error) {
-      console.error("Error getting timezone info:", error);
+      safeConsole.error("Error getting timezone info:", error);
       setTimezoneInfo({
         timezone: "Unknown",
         offset: "Unknown",
@@ -53,57 +52,29 @@ export function TimezoneDebugInfo({
 
   if (!show || !timezoneInfo) return null;
 
+  const rows = [
+    ["Timezone", timezoneInfo.timezone],
+    ["Offset", timezoneInfo.offset],
+    ["Current time", timezoneInfo.currentTime],
+    ["Locale", timezoneInfo.locale],
+    ["Client-side", timezoneInfo.isClient ? "Yes" : "No"],
+  ];
+
   return (
-    <Card
-      className={`${className} border-dashed border-amber-200 bg-amber-50/50 dark:bg-amber-950/20`}
-    >
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-200 flex items-center gap-2">
-          <Info className="h-4 w-4" />
-          Timezone Debug Info
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Globe className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-sm font-medium">Timezone:</span>
-          <Badge variant="outline" className="text-xs">
-            {timezoneInfo.timezone}
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-sm font-medium">Offset:</span>
-          <Badge variant="outline" className="text-xs">
-            {timezoneInfo.offset}
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Current Time:</span>
-          <code className="text-xs bg-amber-100 dark:bg-amber-900/50 px-2 py-1 rounded">
-            {timezoneInfo.currentTime}
-          </code>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Locale:</span>
-          <Badge variant="outline" className="text-xs">
-            {timezoneInfo.locale}
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Client-side:</span>
-          <Badge
-            variant={timezoneInfo.isClient ? "default" : "destructive"}
-            className="text-xs"
-          >
-            {timezoneInfo.isClient ? "Yes" : "No"}
-          </Badge>
-        </div>
-      </CardContent>
-    </Card>
+    <Alert variant="warning" className={className}>
+      <AlertTitle>Timezone debug info</AlertTitle>
+      <AlertDescription>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+          {rows.map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt>{label}</dt>
+              <dd className="text-foreground font-mono tabular-nums">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </AlertDescription>
+    </Alert>
   );
 }

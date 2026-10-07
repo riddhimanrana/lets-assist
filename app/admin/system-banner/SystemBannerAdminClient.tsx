@@ -2,21 +2,15 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Globe, Home } from "lucide-react";
 import { toast } from "sonner";
 
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -149,41 +143,56 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
     router,
   ]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
-          {isLandingScope ? (
-            <Home className="h-5 w-5" />
-          ) : (
-            <Globe className="h-5 w-5" />
-          )}
-          {isLandingScope ? "Landing-only banner" : "Sitewide banner"}
-        </CardTitle>
-        <CardDescription>
-          {isLandingScope
-            ? "Shown only on the public landing page (/)."
-            : "Shown across the website unless a landing-specific banner overrides it on /."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-          <p className="font-medium">
-            Current status: {banner?.is_active ? "Active" : "Inactive"}
-          </p>
-          {banner ? (
-            <p className="mt-2 text-muted-foreground">
-              Last updated {new Date(banner.updated_at).toLocaleString()} •
-              Type: {banner.banner_type}
-            </p>
-          ) : (
-            <p className="mt-2 text-muted-foreground">
-              No banner configured for this scope yet.
-            </p>
-          )}
-        </div>
+  const deactivateFormId = `${scope}-deactivate`;
+  const set = <K extends keyof BannerFormValues>(
+    key: K,
+    value: BannerFormValues[K],
+  ) => setFormValues((prev) => ({ ...prev, [key]: value }));
 
-        <form action={saveAction} className="space-y-4">
+  return (
+    <>
+      <form id={deactivateFormId} action={deactivateAction}>
+        <input type="hidden" name="targetScope" value={scope} />
+      </form>
+
+      <form action={saveAction}>
+        <SettingsSection
+          title={isLandingScope ? "Landing-only banner" : "Sitewide banner"}
+          description={
+            isLandingScope
+              ? "Shown only on the public landing page (/)."
+              : "Shown across the website unless a landing-specific banner overrides it on /."
+          }
+          status={
+            <Badge variant={banner?.is_active ? "success" : "outline"}>
+              {banner?.is_active ? "Active" : "Inactive"}
+            </Badge>
+          }
+          footerHint="Only one active banner per scope is allowed. Activating this one auto-disables other active banners in the same scope."
+          footer={
+            <>
+              <Button
+                type="submit"
+                form={deactivateFormId}
+                variant="outline"
+                disabled={deactivatePending}
+              >
+                {deactivatePending
+                  ? "Deactivating..."
+                  : "Deactivate current active banner"}
+              </Button>
+              <Button type="submit" disabled={savePending}>
+                {savePending ? "Saving..." : "Save banner"}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-muted-foreground text-sm">
+            {banner
+              ? `Last updated ${new Date(banner.updated_at).toLocaleString()} · Type: ${banner.banner_type}`
+              : "No banner configured for this scope yet."}
+          </p>
+
           <input type="hidden" name="targetScope" value={scope} />
           <input type="hidden" name="bannerId" value={banner?.id ?? ""} />
           <input
@@ -218,219 +227,183 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
           />
           <input type="hidden" name="textAlign" value={formValues.textAlign} />
 
-          <div className="grid gap-2">
-            <Label htmlFor={`${scope}-type`}>Banner type</Label>
-            <Select
-              value={formValues.bannerType}
-              onValueChange={(value) =>
-                setFormValues((prev) => ({
-                  ...prev,
-                  bannerType: value as SystemBannerType,
-                }))
-              }
-            >
-              <SelectTrigger id={`${scope}-type`} className="w-full">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                {typeOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <FieldGroup className="gap-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${scope}-type`}>Banner type</FieldLabel>
+                <Select
+                  value={formValues.bannerType}
+                  onValueChange={(value) =>
+                    set("bannerType", value as SystemBannerType)
+                  }
+                >
+                  <SelectTrigger id={`${scope}-type`} className="w-full">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {typeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-          <div className="grid gap-2">
-            <Label htmlFor={`${scope}-title`}>Title (optional)</Label>
-            <Input
-              id={`${scope}-title`}
-              name="title"
-              placeholder="Planned maintenance"
-              maxLength={120}
-              value={formValues.title}
-              onChange={(event) =>
-                setFormValues((prev) => ({
-                  ...prev,
-                  title: event.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor={`${scope}-message`}>Message</Label>
-            <Textarea
-              id={`${scope}-message`}
-              name="message"
-              placeholder="We are currently investigating elevated error rates."
-              maxLength={1000}
-              required
-              value={formValues.message}
-              onChange={(event) =>
-                setFormValues((prev) => ({
-                  ...prev,
-                  message: event.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor={`${scope}-startsAt`}>Start date (optional)</Label>
-              <DateTimePicker
-                value={formValues.startsAt}
-                onChange={(date) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    startsAt: date,
-                  }))
-                }
-                placeholder="Set start date/time"
-              />
+              <Field>
+                <FieldLabel htmlFor={`${scope}-text-align`}>
+                  Text alignment
+                </FieldLabel>
+                <Select
+                  value={formValues.textAlign}
+                  onValueChange={(value) =>
+                    set("textAlign", value as SystemBannerTextAlign)
+                  }
+                >
+                  <SelectTrigger id={`${scope}-text-align`} className="w-full">
+                    <SelectValue placeholder="Select alignment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {textAlignOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor={`${scope}-endsAt`}>End date (optional)</Label>
-              <DateTimePicker
-                value={formValues.endsAt}
-                onChange={(date) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    endsAt: date,
-                  }))
-                }
-                placeholder="Set end date/time"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor={`${scope}-ctaLabel`}>CTA label (optional)</Label>
+            <Field>
+              <FieldLabel htmlFor={`${scope}-title`}>
+                Title (optional)
+              </FieldLabel>
               <Input
-                id={`${scope}-ctaLabel`}
-                name="ctaLabel"
-                placeholder="View status page"
-                maxLength={40}
-                value={formValues.ctaLabel}
-                onChange={(event) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    ctaLabel: event.target.value,
-                  }))
-                }
+                id={`${scope}-title`}
+                name="title"
+                placeholder="Planned maintenance"
+                maxLength={120}
+                value={formValues.title}
+                onChange={(event) => set("title", event.target.value)}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor={`${scope}-message`}>Message</FieldLabel>
+              <Textarea
+                id={`${scope}-message`}
+                name="message"
+                placeholder="We are currently investigating elevated error rates."
+                maxLength={1000}
+                required
+                value={formValues.message}
+                onChange={(event) => set("message", event.target.value)}
+              />
+            </Field>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${scope}-startsAt`}>
+                  Start date (optional)
+                </FieldLabel>
+                <DateTimePicker
+                  value={formValues.startsAt}
+                  onChange={(date) => set("startsAt", date)}
+                  placeholder="Set start date/time"
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor={`${scope}-endsAt`}>
+                  End date (optional)
+                </FieldLabel>
+                <DateTimePicker
+                  value={formValues.endsAt}
+                  onChange={(date) => set("endsAt", date)}
+                  placeholder="Set end date/time"
+                />
+              </Field>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor={`${scope}-ctaUrl`}>CTA URL (optional)</Label>
-              <Input
-                id={`${scope}-ctaUrl`}
-                name="ctaUrl"
-                placeholder="/status or https://status.example.com"
-                maxLength={255}
-                value={formValues.ctaUrl}
-                onChange={(event) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    ctaUrl: event.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${scope}-ctaLabel`}>
+                  CTA label (optional)
+                </FieldLabel>
+                <Input
+                  id={`${scope}-ctaLabel`}
+                  name="ctaLabel"
+                  placeholder="View status page"
+                  maxLength={40}
+                  value={formValues.ctaLabel}
+                  onChange={(event) => set("ctaLabel", event.target.value)}
+                />
+              </Field>
 
-          <div className="grid gap-4 rounded-md border p-3 md:grid-cols-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium">
-              <Checkbox
+              <Field>
+                <FieldLabel htmlFor={`${scope}-ctaUrl`}>
+                  CTA URL (optional)
+                </FieldLabel>
+                <Input
+                  id={`${scope}-ctaUrl`}
+                  name="ctaUrl"
+                  placeholder="/status or https://status.example.com"
+                  maxLength={255}
+                  value={formValues.ctaUrl}
+                  onChange={(event) => set("ctaUrl", event.target.value)}
+                />
+              </Field>
+            </div>
+
+            <div className="grid gap-1">
+              <CheckboxRow
+                id={`${scope}-isActive`}
+                label="Active (show banner)"
                 checked={formValues.isActive}
-                onCheckedChange={(checked) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    isActive: checked === true,
-                  }))
-                }
+                onCheckedChange={(checked) => set("isActive", checked)}
               />
-              Active (show banner)
-            </label>
-
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium">
-              <Checkbox
+              <CheckboxRow
+                id={`${scope}-dismissible`}
+                label="Allow users to dismiss"
                 checked={formValues.dismissible}
-                onCheckedChange={(checked) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    dismissible: checked === true,
-                  }))
-                }
+                onCheckedChange={(checked) => set("dismissible", checked)}
               />
-              Allow users to dismiss
-            </label>
-
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium">
-              <Checkbox
+              <CheckboxRow
+                id={`${scope}-showIcon`}
+                label="Show status icon"
                 checked={formValues.showIcon}
-                onCheckedChange={(checked) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    showIcon: checked === true,
-                  }))
-                }
+                onCheckedChange={(checked) => set("showIcon", checked)}
               />
-              Show status icon
-            </label>
-
-            <div className="grid gap-2">
-              <Label htmlFor={`${scope}-text-align`}>Text alignment</Label>
-              <Select
-                value={formValues.textAlign}
-                onValueChange={(value) =>
-                  setFormValues((prev) => ({
-                    ...prev,
-                    textAlign: value as SystemBannerTextAlign,
-                  }))
-                }
-              >
-                <SelectTrigger id={`${scope}-text-align`} className="w-full">
-                  <SelectValue placeholder="Select alignment" />
-                </SelectTrigger>
-                <SelectContent>
-                  {textAlignOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-          </div>
+          </FieldGroup>
+        </SettingsSection>
+      </form>
+    </>
+  );
+}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={savePending}>
-              {savePending ? "Saving..." : "Save banner"}
-            </Button>
-
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              Only one active banner per scope is allowed. Activating this one
-              auto-disables other active banners in the same scope.
-            </span>
-          </div>
-        </form>
-
-        <form action={deactivateAction}>
-          <input type="hidden" name="targetScope" value={scope} />
-          <Button type="submit" variant="outline" disabled={deactivatePending}>
-            {deactivatePending
-              ? "Deactivating..."
-              : "Deactivate current active banner"}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+function CheckboxRow({
+  id,
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Field orientation="horizontal" className="min-h-9">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+      />
+      <FieldLabel htmlFor={id} className="font-normal">
+        {label}
+      </FieldLabel>
+    </Field>
   );
 }
 
@@ -444,7 +417,7 @@ export function SystemBannerAdminClient({
   landingBanner,
 }: SystemBannerAdminClientProps) {
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid items-start gap-6 lg:grid-cols-2">
       <BannerScopeForm scope="sitewide" banner={sitewideBanner} />
       <BannerScopeForm scope="landing" banner={landingBanner} />
     </div>

@@ -425,7 +425,7 @@ describe("pinned canonical Docker identity", () => {
   const projectId = "lets-assist-csf-browser-test-run";
 
   test("matches the checked-in pinned CLI oracle exactly, kind by kind", () => {
-    // The oracle is a literal transcription of Supabase CLI v2.111.0, not a
+    // The oracle is a literal transcription of Supabase CLI v2.117.0, not a
     // reflection of the implementation. Equality is asserted in both directions
     // so neither an omission nor an invented extra can pass.
     for (const kind of PINNED_RESOURCE_KINDS) {
@@ -437,7 +437,7 @@ describe("pinned canonical Docker identity", () => {
       expect(new Set(implemented).size).toBe(implemented.length);
     }
 
-    // Exact cardinality of the tagged legacy shell: fourteen containers, three
+    // Exact cardinality at the pinned tag: fourteen containers, three
     // named volumes, one network.
     const contract = csfCanonicalDockerResourceContract(projectId);
     expect(contract.container.length).toBe(14);
@@ -532,7 +532,7 @@ describe("pinned canonical Docker identity", () => {
   });
 
   test("the oracle itself pins the CLI version this repository requires", async () => {
-    expect(PINNED_SUPABASE_CLI_VERSION).toBe("2.111.0");
+    expect(PINNED_SUPABASE_CLI_VERSION).toBe("2.117.0");
     const helper = await readFile(
       path.join(import.meta.dir, "require-supabase-cli-version.sh"),
       "utf8",

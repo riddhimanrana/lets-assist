@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { Project } from "@/types";
 import type { AttendanceHoursSignup } from "./HoursClient";
+import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 
 const scenario = process.argv[2];
 const mixed = scenario.startsWith("mixed-");
@@ -13,6 +14,7 @@ let cursor = 0;
 if (mixed) {
   mock.module("react", () => ({
     ...React,
+    useTransition: () => [false, (callback: () => void) => callback()],
     useState: (initial: unknown) => {
       const index = cursor++;
       if (!(index in state))
@@ -38,6 +40,25 @@ mock.module("@/components/ui/button", () => ({
     buttons.push(props);
     return <button disabled={props.disabled}>{props.children}</button>;
   },
+}));
+const passthrough = ({ children }: { children?: ReactNode }) => <>{children}</>;
+mock.module("@/components/ui/dialog", () => ({
+  Dialog: ({ open, children }: { open: boolean; children?: ReactNode }) =>
+    open ? <>{children}</> : null,
+  DialogContent: passthrough,
+  DialogDescription: passthrough,
+  DialogFooter: passthrough,
+  DialogHeader: passthrough,
+  DialogTitle: passthrough,
+}));
+mock.module("@/components/ui/select", () => ({
+  Select: passthrough,
+  SelectContent: passthrough,
+  SelectGroup: passthrough,
+  SelectItem: passthrough,
+  SelectLabel: passthrough,
+  SelectTrigger: passthrough,
+  SelectValue: () => null,
 }));
 mock.module("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 mock.module("next/link", () => ({
@@ -121,6 +142,7 @@ const render = () => {
   return renderToStaticMarkup(
     <HoursClient
       project={project}
+      windows={{ oneTime: getAttendanceScheduleWindow(project, "oneTime") }}
       initialSignups={
         mixed
           ? [signup, { ...signup, id: "uncertified-signup", certificates: [] }]

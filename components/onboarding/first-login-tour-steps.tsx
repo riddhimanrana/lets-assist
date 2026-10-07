@@ -1,13 +1,3 @@
-import {
-  Compass,
-  ListChecks,
-  Bell,
-  UserRound,
-  Target,
-  CalendarDays,
-  Building2,
-  Users,
-} from "lucide-react";
 import type { Tour } from "nextstepjs";
 
 export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
@@ -15,7 +5,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
     tour: "first-login",
     steps: [
       {
-        icon: <Compass className="h-5 w-5" />,
         title: "Welcome to your hub",
         content: (
           <>
@@ -29,7 +18,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         pointerPadding: 12,
       },
       {
-        icon: <ListChecks className="h-5 w-5" />,
         title: "Dial in the feed",
         content: (
           <>
@@ -42,7 +30,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         pointerPadding: 16,
       },
       {
-        icon: <Bell className="h-5 w-5" />,
         title: "Check live availability",
         content: (
           <>
@@ -55,7 +42,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         pointerPadding: 20,
       },
       {
-        icon: <UserRound className="h-5 w-5" />,
         title: "Ready to lead?",
         content: (
           <>
@@ -69,7 +55,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         nextRoute: "/dashboard",
       },
       {
-        icon: <Target className="h-5 w-5" />,
         title: "Track your progress",
         content: (
           <>
@@ -82,7 +67,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         pointerPadding: 18,
       },
       {
-        icon: <CalendarDays className="h-5 w-5" />,
         title: "Never miss a session",
         content: (
           <>
@@ -96,7 +80,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         nextRoute: "/organization",
       },
       {
-        icon: <Building2 className="h-5 w-5" />,
         title: "Discover organizations",
         content: (
           <>
@@ -109,7 +92,6 @@ export const FIRST_LOGIN_TOUR_STEPS: Tour[] = [
         pointerPadding: 16,
       },
       {
-        icon: <Users className="h-5 w-5" />,
         title: "Join the community",
         content: (
           <>

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import {
@@ -63,7 +64,7 @@ export default function FilePreview({
       document.body.removeChild(link);
       URL.revokeObjectURL(href);
     } catch (error) {
-      console.error("Download error:", error);
+      safeConsole.error("Download error:", error);
       // Fallback to simple window open if fetch fails
       window.open(url, "_blank");
     }
@@ -83,16 +84,16 @@ export default function FilePreview({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="w-[calc(100vw-2rem)]! max-w-6xl! h-[82dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col bg-background/95 backdrop-blur-sm border-border/50 shadow-2xl sm:h-[84dvh]"
+        className="w-[calc(100vw-2rem)]! max-w-6xl! h-[82dvh] rounded-xl p-0 gap-0 overflow-hidden flex flex-col sm:h-[84dvh]"
       >
         <VisuallyHidden.Root>
           <DialogTitle>File Preview: {fileName}</DialogTitle>
         </VisuallyHidden.Root>
 
         {/* Header Toolbar */}
-        <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b bg-muted/30 backdrop-blur-md z-10 shrink-0">
+        <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 border-b bg-muted/30 z-10 shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
-            <div className="shrink-0 p-1.5 sm:p-2 bg-background rounded-md shadow-sm border">
+            <div className="shrink-0 p-1.5 sm:p-2 bg-background rounded-md border">
               {getFileIcon()}
             </div>
             <div className="flex flex-col overflow-hidden">
@@ -116,7 +117,7 @@ export default function FilePreview({
               onClick={() => window.open(url, "_blank")}
               title="Open in new tab"
             >
-              <ExternalLink className="h-4 w-4" />
+              <ExternalLink className="size-4" />
             </Button>
             <Button
               variant="ghost"
@@ -124,7 +125,7 @@ export default function FilePreview({
               onClick={() => downloadFile(url, fileName)}
               title="Download"
             >
-              <Download className="h-4 w-4" />
+              <Download className="size-4" />
             </Button>
           </div>
         </div>
@@ -133,9 +134,7 @@ export default function FilePreview({
         <div
           className={cn(
             "flex-1 relative w-full h-full overflow-hidden bg-dot-pattern",
-            isPDF
-              ? "bg-slate-100 dark:bg-slate-900"
-              : "bg-neutral-50/50 dark:bg-neutral-900/50",
+            isPDF ? "bg-muted" : "bg-muted/50",
           )}
         >
           {loading && (
@@ -168,7 +167,7 @@ export default function FilePreview({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-6 sm:p-8 text-center animate-in fade-in zoom-in-95 duration-300">
-              <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl bg-muted flex items-center justify-center mb-4 sm:mb-6 shadow-inner ring-1 ring-border">
+              <div className="size-20 sm:size-24 rounded-2xl bg-muted flex items-center justify-center mb-4 sm:mb-6 ring-1 ring-border">
                 <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50" />
               </div>
               <h3 className="text-base sm:text-lg font-medium">
@@ -177,12 +176,8 @@ export default function FilePreview({
               <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-xs mx-auto mb-6 sm:mb-8">
                 This file type cannot be previewed directly in the browser.
               </p>
-              <Button
-                onClick={() => downloadFile(url, fileName)}
-                size="lg"
-                className="shadow-lg"
-              >
-                <Download className="h-4 w-4 mr-2" />
+              <Button onClick={() => downloadFile(url, fileName)} size="lg">
+                <Download className="size-4 mr-2" />
                 Download File
               </Button>
             </div>

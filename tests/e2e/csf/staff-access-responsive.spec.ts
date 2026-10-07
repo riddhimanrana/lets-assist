@@ -102,7 +102,7 @@ async function withdrawSyntheticSubmission(
   await submission
     .getByRole("button", { name: "Unsubmit", exact: true })
     .click();
-  const withdrawal = page.getByRole("dialog", {
+  const withdrawal = page.getByRole("alertdialog", {
     name: "Unsubmit points?",
   });
   await expect(withdrawal).toContainText(description);
@@ -453,7 +453,7 @@ test.describe("DVHS CSF proof submission", () => {
       await submission
         .getByRole("button", { name: "Unsubmit", exact: true })
         .click();
-      const withdrawal = page.getByRole("dialog", {
+      const withdrawal = page.getByRole("alertdialog", {
         name: "Unsubmit points?",
       });
       await expect(withdrawal).toContainText(description);

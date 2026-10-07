@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -220,7 +221,7 @@ export function ReviewTable({
         })
       : "Missing time";
   return (
-    <div className="space-y-4 pb-6">
+    <div className="grid gap-4 pb-6">
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
@@ -257,11 +258,13 @@ export function ReviewTable({
         </div>
       )}
       {sessionPublished && (
-        <p className="rounded border p-3 text-sm">
-          This session's hours are published. New reviewed attendees receive
-          certificates when saved. Use the Hours correction action to change an
-          existing award.
-        </p>
+        <Alert variant="warning">
+          <AlertTitle>This session&apos;s hours are published</AlertTitle>
+          <AlertDescription>
+            New reviewed attendees receive certificates when saved. Use the
+            Hours correction action to change an existing award.
+          </AlertDescription>
+        </Alert>
       )}
       {summary && (
         <div role="status" className="rounded border p-3 text-sm">

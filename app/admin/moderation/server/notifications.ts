@@ -2,9 +2,30 @@ import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createNotificationForUser } from "@/services/notifications-server";
-import { sendEmail } from "@/services/email";
+import {
+  sendEmail,
+  type SendEmailParams,
+  type SendEmailResult,
+} from "@/services/email";
+import { logInfo, logError } from "@/lib/logger";
 import ContentModerationActionEmail from "@/emails/content-moderation-action";
 import ReportStatusUpdateEmail from "@/emails/report-status-update";
+
+async function sendModerationEmail(
+  params: SendEmailParams,
+): Promise<SendEmailResult["outcome"]> {
+  try {
+    const result = await sendEmail(params);
+    logInfo("Moderation email attempt", {
+      outcome: result.outcome,
+      phase: result.phase,
+    });
+    return result.outcome;
+  } catch {
+    logInfo("Moderation email attempt", { outcome: "unknown_outcome" });
+    return "unknown_outcome";
+  }
+}
 
 type ModerationAction =
   | "warn_user"
@@ -41,7 +62,7 @@ async function fetchAuthUserEmail(
 ) {
   const { data, error } = await supabase.auth.admin.getUserById(userId);
   if (error) {
-    console.error("Error fetching auth user email:", error);
+    logError("Moderation contact lookup failed", error);
     return null;
   }
   return data?.user?.email ?? null;
@@ -192,8 +213,8 @@ async function shouldSendGeneralNotification(
     .maybeSingle();
 
   if (error && error.code !== "PGRST116") {
-    console.error("Error checking notification settings:", error);
-    return true;
+    logError("Moderation notification preferences could not be read", error);
+    return false;
   }
 
   return data?.general !== false;
@@ -250,17 +271,14 @@ export async function notifyContentOwnerOfModeration({
       });
 
     if (notificationError) {
-      console.error(
-        "Error creating moderation notification:",
-        notificationError,
-      );
+      logError("Moderation notification write failed", notificationError);
     }
   }
 
   if (owner.userEmail) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
-    await sendEmail({
+    await sendModerationEmail({
       to: owner.userEmail,
       subject: emailSubject,
       react: ContentModerationActionEmail({
@@ -351,12 +369,17 @@ export async function notifyReporterOfReportUpdate({
     reason?: string | null;
     content_type?: string | null;
     content_id?: string | null;
+    updated_at?: string | null;
   };
   status: "resolved" | "dismissed";
   resolutionNotes?: string;
 }) {
   const reporterId = report.reporter_id;
-  if (!reporterId) return;
+  if (!reporterId)
+    return {
+      notification: "no_recipient" as const,
+      email: "no_recipient" as const,
+    };
 
   const { data: reporter } = await supabase
     .from("profiles")
@@ -380,13 +403,16 @@ export async function notifyReporterOfReportUpdate({
       ? `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” has been resolved.`
       : `Your report about ${contentSummary.contentTypeLabel} “${contentSummary.title}” was dismissed after review.`;
 
-  await createNotificationForUser(
+  const notificationResult = await createNotificationForUser(
     {
       title: "Update on your report",
       body: notificationBody,
       type: "general",
       severity: "info",
       actionUrl: contentSummary.url,
+      dedupeKey: report.updated_at
+        ? `report-update:${report.id}:${report.updated_at}`
+        : undefined,
       data: {
         kind: "moderation_report_update",
         reportId: report.id,
@@ -398,10 +424,12 @@ export async function notifyReporterOfReportUpdate({
     reporterId,
   );
 
+  let emailOutcome: SendEmailResult["outcome"] | "no_recipient" =
+    "no_recipient";
   if (reporterEmail) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com";
-    await sendEmail({
+    emailOutcome = await sendModerationEmail({
       to: reporterEmail,
       subject:
         status === "resolved"
@@ -419,6 +447,18 @@ export async function notifyReporterOfReportUpdate({
       }),
       userId: reporterId,
       type: "general",
+      idempotencyKey: report.updated_at
+        ? `report-update/${report.id}/${report.updated_at}`
+        : undefined,
     });
   }
+  return {
+    notification:
+      "success" in notificationResult && notificationResult.success
+        ? ("created" as const)
+        : "skipped" in notificationResult && notificationResult.skipped
+          ? ("skipped" as const)
+          : ("unconfirmed" as const),
+    email: emailOutcome,
+  };
 }

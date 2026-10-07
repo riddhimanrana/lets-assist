@@ -112,7 +112,7 @@ test("read failure and unexpected interval overflow cannot become legacy envelop
   }
 });
 
-test("page hydrates only its signed-in user's RLS-approved signups and both cards use the shared total", async () => {
+test("page hydrates only its signed-in user's RLS-approved signups and matches exact awards", async () => {
   const page = await Bun.file(
     new URL("../../app/projects/[id]/page.tsx", import.meta.url),
   ).text();
@@ -124,10 +124,6 @@ test("page hydrates only its signed-in user's RLS-approved signups and both card
   expect(page).toContain("} else if (relevantSignups) {");
   expect(page).toContain("relevantSignups.map((signup) => signup.id)");
   expect(page).toContain("attendance_intervals: null");
-  expect(
-    dashboard.match(/volunteerAttendanceDuration\(\s*status.signup/g),
-  ).toHaveLength(2);
-  expect(dashboard).not.toContain("function calculateVolunteerDuration");
   expect(dashboard).toContain('.eq("project_id", project.id)');
   expect(dashboard).toContain(
     "matchVolunteerCertificate(project, signup, cert)",

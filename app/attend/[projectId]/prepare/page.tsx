@@ -1,6 +1,9 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Suspense } from "react";
 import PrepareClient from "./PrepareClient"; // Import the client component
-import { Loader2 } from "lucide-react";
+import { CircleAlert } from "lucide-react";
+import { NoticePage } from "@/components/projects/NoticePage";
+import { Spinner } from "@/components/ui/spinner";
 
 interface PreparePageProps {
   params: Promise<{
@@ -12,12 +15,10 @@ interface PreparePageProps {
 // Simple fallback component for Suspense
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Loader2
-        className="h-12 w-12 animate-spin text-primary"
-        aria-label="Loading page"
-      />
-    </div>
+    <NoticePage
+      icon={<Spinner aria-label="Loading page" />}
+      title="Verifying attendance link"
+    />
   );
 }
 
@@ -33,12 +34,18 @@ export default async function PreparePage({ params }: PreparePageProps) {
       projectId,
     )
   ) {
-    console.error("PreparePage: Invalid projectId format received:", projectId);
+    safeConsole.error(
+      "PreparePage: Invalid projectId format received:",
+      projectId,
+    );
     // Render an error message or redirect
     return (
-      <div className="flex items-center justify-center min-h-screen text-destructive">
-        Error: Invalid Project ID in URL.
-      </div>
+      <NoticePage
+        icon={<CircleAlert aria-hidden="true" />}
+        tone="destructive"
+        title="Invalid attendance link"
+        description="The project ID in this link is not valid. Please scan the QR code provided by the project organizer."
+      />
     );
   }
 

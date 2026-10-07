@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
@@ -115,7 +116,7 @@ export function WaiverBuilderDialog({
         setEffectivePdfUrl(url);
         return () => URL.revokeObjectURL(url);
       } catch (error) {
-        console.error("Failed to create object URL for PDF:", error);
+        safeConsole.error("Failed to create object URL for PDF:", error);
         toast.error("Error loading PDF file");
       }
     } else if (existingDefinition?.pdf_public_url) {
@@ -178,7 +179,10 @@ export function WaiverBuilderDialog({
           onOpenChange(false);
         }
       } catch (error) {
-        console.error(error);
+        safeConsole.error(
+          "Application diagnostic from components/waiver/WaiverBuilderDialog",
+          error,
+        );
         if (mode === "manual") {
           toast.error("Failed to save waiver configuration.");
         } else {
@@ -498,10 +502,10 @@ export function WaiverBuilderDialog({
               >
                 <span>
                   {showSamplePreview
-                    ? "Hide Sample Preview"
+                    ? "Hide sample preview"
                     : isPhone
                       ? "Preview"
-                      : "Preview Sample Data"}
+                      : "Preview sample data"}
                 </span>
               </Button>
 

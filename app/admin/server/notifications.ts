@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -53,7 +54,7 @@ export async function sendSystemNotification(
         .from("notifications")
         .insert(notifications);
       if (insertError) {
-        console.error("Broadcast error:", insertError);
+        safeConsole.error("Broadcast error:", insertError);
         return { error: "Failed to send broadcast." };
       }
     } else {
@@ -69,7 +70,7 @@ export async function sendSystemNotification(
 
     return { success: true, message: "Notification sent successfully." };
   } catch (err) {
-    console.error("Error sending notification:", err);
+    safeConsole.error("Error sending notification:", err);
     return { error: "Internal Server Error" };
   }
 }

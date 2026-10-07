@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   createGooglePickerAccessTokenResult,
@@ -210,7 +211,7 @@ export async function connectExistingSheet(
     );
 
   if (upsertError) {
-    console.error("Failed to save sheet sync config:", upsertError);
+    safeConsole.error("Failed to save sheet sync config:", upsertError);
     return { success: false, error: "Failed to save sheet configuration" };
   }
 

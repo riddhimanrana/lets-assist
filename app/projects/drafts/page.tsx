@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import DraftsClient from "./DraftsClient";
@@ -53,7 +54,7 @@ export default async function DraftsPage() {
     .order("created_at", { ascending: false });
 
   if (draftsError) {
-    console.error("Error fetching drafts:", draftsError);
+    safeConsole.error("Error fetching drafts:", draftsError);
   }
 
   // Transform project_drafts to match the Draft interface

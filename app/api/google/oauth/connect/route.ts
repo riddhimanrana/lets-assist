@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google OAuth - Initiate Connection
  * GET /api/google/oauth/connect
@@ -151,7 +152,7 @@ export async function GET(request: Request) {
         The provider-disabled local stack strips these keys deliberately, so
         this is the expected state there rather than a misconfiguration.
       */
-      console.error("Missing Google OAuth configuration");
+      safeConsole.error("Missing Google OAuth configuration");
       const baseUrl = resolveAuthRedirectOrigin(request.headers.get("host"));
       const redirectUrl = new URL(allowlistedReturnTo, baseUrl);
       redirectUrl.searchParams.set("error", "google_not_configured");
@@ -279,7 +280,7 @@ export async function GET(request: Request) {
     );
     return response;
   } catch (error) {
-    console.error("Error initiating Google Calendar connection:", error);
+    safeConsole.error("Error initiating Google Calendar connection:", error);
     return NextResponse.json(
       { error: "Failed to initiate calendar connection" },
       { status: 500 },

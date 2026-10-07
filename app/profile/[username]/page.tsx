@@ -1,46 +1,42 @@
 import { certificateHours } from "@/lib/projects/certificate-duration";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import React from "react";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { format } from "date-fns";
+import { BadgeCheck, Lock, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getPublicProfileByUsername } from "@/lib/profile/public";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { format } from "date-fns";
-import { notFound } from "next/navigation";
+import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
+import { StatStrip } from "@/components/layout/SettingsSection";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  CalendarIcon,
-  MapPin,
-  BadgeCheck,
-  Users,
-  Briefcase,
-  PenTool,
-  Hash,
-  Clock,
-} from "lucide-react";
-import Link from "next/link";
-import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import type { Metadata } from "next";
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { isTrustedForDisplay } from "@/utils/trust";
-import { stripHtml } from "@/lib/utils";
 import OrganizationCard from "@/app/organization/OrganizationCard";
 import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { ProfileActions } from "./ProfileActions";
+import { ProfileEditButton } from "./ProfileEditButton";
+import { ProfileProjectCard } from "./ProfileProjectCard";
 import {
   buildProfileMetadata,
   calculateHours,
+  formatHours,
   type Organization,
   type OrganizationMembership,
   type OrganizationResponse,
@@ -52,39 +48,69 @@ type Props = {
   params: Promise<{ username: string }>;
 };
 
-// Tailwind needs the full class name at build time, so accents are looked up
-// rather than interpolated.
-const SECTION_ACCENTS = {
-  "chart-3": "bg-chart-3/10 text-chart-3",
-  "chart-4": "bg-chart-4/10 text-chart-4",
-  "chart-5": "bg-chart-5/10 text-chart-5",
-} as const;
+const PAGE_CONTAINER = "mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10";
+const CARD_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
 
-function SectionHeading({
+function ProfileNotice({
   icon,
-  accent,
   title,
-  count,
+  description,
 }: {
   icon: React.ReactNode;
-  accent: keyof typeof SECTION_ACCENTS;
   title: string;
-  count: number;
+  description: string;
 }): React.ReactElement {
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className={`p-2 sm:p-2.5 rounded-lg sm:rounded-xl ${SECTION_ACCENTS[accent]}`}
-      >
-        {icon}
-      </div>
-      <h2 className="text-xl sm:text-3xl font-bold tracking-tight">{title}</h2>
-      {count > 0 && (
-        <span className="ml-auto shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground tabular-nums">
-          {count}
-        </span>
-      )}
+    <div className={PAGE_CONTAINER}>
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>{title}</EmptyTitle>
+          <EmptyDescription>{description}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     </div>
+  );
+}
+
+function ProfileSection({
+  title,
+  count,
+  emptyTitle,
+  emptyDescription,
+  children,
+}: {
+  title: string;
+  count: number;
+  emptyTitle: string;
+  emptyDescription: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <section className="grid gap-4">
+      <SectionHeader
+        title={
+          <>
+            {title}{" "}
+            {count > 0 && (
+              <span className="text-muted-foreground font-normal tabular-nums">
+                {count}
+              </span>
+            )}
+          </>
+        }
+      />
+      {count > 0 ? (
+        children
+      ) : (
+        <Empty className="border p-8">
+          <EmptyHeader>
+            <EmptyTitle className="text-base">{emptyTitle}</EmptyTitle>
+            <EmptyDescription>{emptyDescription}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+    </section>
   );
 }
 
@@ -117,7 +143,6 @@ export default async function ProfilePage(
     profile_visibility: rawProfile.profile_visibility,
   };
 
-  // Get current user using getClaims() for better performance
   const { user } = await getAuthUser();
   const isOwner = user?.id === profile.id;
 
@@ -128,34 +153,11 @@ export default async function ProfilePage(
       !profile.profile_visibility
     ) {
       return (
-        <div className="flex items-center justify-center px-4 min-h-screen">
-          <Card className="w-full max-w-md border-0 shadow-lg">
-            <CardContent className="pt-8 pb-8 text-center">
-              <div className="mb-4 flex justify-center">
-                <div className="rounded-full bg-muted p-3">
-                  <svg
-                    className="h-8 w-8 text-muted-foreground"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold mb-2">Profile is Private</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                This profile is set to private and cannot be viewed by others.
-                Contact the user if you'd like access.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <ProfileNotice
+          icon={<Lock />}
+          title="This profile is private"
+          description="Only its owner can view it. Contact them if you need access."
+        />
       );
     }
 
@@ -177,20 +179,11 @@ export default async function ProfilePage(
 
       if (!hasSharedOrg) {
         return (
-          <div className="container mx-auto px-4 py-8">
-            <Card className="max-w-md mx-auto">
-              <CardContent className="pt-6 text-center">
-                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h2 className="text-xl font-semibold mb-2">
-                  Organization Members Only
-                </h2>
-                <p className="text-muted-foreground">
-                  This profile is only visible to members of the same
-                  organization.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <ProfileNotice
+            icon={<Users />}
+            title="Organization members only"
+            description="This profile is only visible to members of the same organization."
+          />
         );
       }
     }
@@ -200,7 +193,7 @@ export default async function ProfilePage(
 
   const { data: createdProjects } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("creator_id", profile.id)
     .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
@@ -215,7 +208,7 @@ export default async function ProfilePage(
     const projectIds = attendedProjectIds.map((item) => item.project_id);
     const { data: fetchedProjects } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .in("id", projectIds)
       .order("created_at", { ascending: false });
 
@@ -276,7 +269,7 @@ export default async function ProfilePage(
     .order("created_at", { ascending: false });
 
   if (certificatesError) {
-    console.error(
+    safeConsole.error(
       "Error fetching certificates for profile page:",
       certificatesError,
     );
@@ -295,14 +288,6 @@ export default async function ProfilePage(
       }
       return sum;
     }, 0);
-  }
-
-  function formatHours(hours: number): string {
-    const h = Math.floor(hours);
-    const m = Math.round((hours - h) * 60);
-    if (h > 0 && m > 0) return `${h}h ${m}m`;
-    if (h > 0) return `${h}h`;
-    return `${m}m`;
   }
 
   const hiddenMembershipOrganizationIds = isOwner
@@ -334,291 +319,153 @@ export default async function ProfilePage(
     ];
   });
 
-  const totalCreatedProjects = createdProjects?.length || 0;
-  const totalAttendedProjects = attendedProjects?.length || 0;
-  const totalProjects = totalCreatedProjects + totalAttendedProjects;
+  const createdList: Project[] = createdProjects ?? [];
+  const totalCreatedProjects = createdList.length;
+  const totalAttendedProjects = attendedProjects.length;
+  const totalOrganizations = formattedOrganizations.length;
+  const hasAnything =
+    totalCreatedProjects + totalAttendedProjects + totalOrganizations > 0;
+  // Visitors only see sections that have something in them. The owner sees
+  // every section so they know what will appear there.
+  const showSection = (count: number) => isOwner || count > 0;
 
-  const ProfileProjectCard = ({
-    project,
-    type,
-  }: {
-    project: Project;
-    type: "created" | "attended";
-  }) => (
-    <Link href={`/projects/${project.id}`} className="block h-full group">
-      <Card className="h-full hover:shadow-lg transition-all duration-300 flex flex-col group/project-card border-muted/60 py-0 hover:border-primary/20">
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-center justify-between gap-3 min-w-0">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <CardTitle className="text-base font-bold line-clamp-1 group-hover/project-card:text-primary transition-colors truncate">
-                {project.title}
-              </CardTitle>
-              {type === "created" && isTrusted && (
+  return (
+    <div className={`${PAGE_CONTAINER} grid gap-8`}>
+      <div className="grid gap-4">
+        <PageHeader
+          media={
+            <Avatar className="size-16">
+              <AvatarImage
+                src={profile.avatar_url || undefined}
+                alt={profile.full_name}
+              />
+              <AvatarFallback className="text-lg">
+                <NoAvatar fullName={profile.full_name} />
+              </AvatarFallback>
+            </Avatar>
+          }
+          title={
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="truncate">{profile.full_name}</span>
+              {isTrusted && (
                 <Tooltip>
-                  <TooltipTrigger>
-                    <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
+                  <TooltipTrigger
+                    render={<span className="inline-flex shrink-0" />}
+                  >
+                    <BadgeCheck
+                      className="text-primary size-5"
+                      aria-label="Trusted member"
+                    />
                   </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Verified Project</p>
+                  <TooltipContent side="bottom">
+                    <p>Trusted member</p>
                   </TooltipContent>
                 </Tooltip>
               )}
-            </div>
-            <ProjectStatusBadge
-              status={project.status}
-              size="sm"
-              className="shrink-0"
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 pt-0 flex-1 flex flex-col">
-          <CardDescription className="line-clamp-2 mb-3 text-xs break-words">
-            {stripHtml(project.description)}
-          </CardDescription>
-          <div className="flex flex-col gap-1.5 text-xs text-muted-foreground mt-auto">
-            <div className="flex items-center gap-1.5">
-              <MapPin className="h-3 w-3 shrink-0" />
-              <span className="truncate">{project.location}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {type === "created" ? (
-                <>
-                  <CalendarIcon className="h-3 w-3 shrink-0" />
-                  <span>
-                    Created{" "}
-                    {format(new Date(project.created_at), "MMM d, yyyy")}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Users className="h-3 w-3 shrink-0" />
-                  <span>Attended</span>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-
-  return (
-    <div className="min-h-screen bg-background py-4 sm:py-12 flex flex-col items-center">
-      <div className="w-full max-w-6xl px-4 space-y-8 sm:space-y-12">
-        {/* Main Profile Card */}
-        <Card className="w-full overflow-hidden border shadow-sm">
-          <CardContent className="px-4 sm:px-6 py-5 sm:py-6 relative">
-            {/* Header Section */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-center mb-4 sm:mb-6 gap-4 sm:gap-6">
-              {/* Avatar */}
-              <div className="relative shrink-0">
-                <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border shadow-sm">
-                  <AvatarImage
-                    src={profile.avatar_url || undefined}
-                    alt={profile.full_name}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="text-xl sm:text-3xl bg-muted text-muted-foreground">
-                    <NoAvatar
-                      fullName={profile?.full_name}
-                      className="text-xl sm:text-3xl"
-                    />
-                  </AvatarFallback>
-                </Avatar>
-                {isTrusted && (
-                  <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-background rounded-full shadow-sm border flex items-center justify-center p-0.5">
-                    <Tooltip>
-                      <TooltipTrigger className="p-1 hover:bg-transparent focus:ring-0">
-                        <BadgeCheck className="h-4 w-4 sm:h-6 sm:w-6 text-primary fill-background" />
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">
-                        <p>Trusted Member</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                )}
-              </div>
-
-              {/* User Info */}
-              <div className="flex-1 text-center sm:text-left space-y-1 min-w-0">
-                <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">
-                  {profile.full_name}
-                </h1>
-                <p className="text-muted-foreground font-medium text-sm sm:text-base">
-                  @{profile.username}
-                </p>
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs sm:text-sm text-muted-foreground pt-0.5">
-                  <CalendarIcon className="h-3.5 w-3.5" />
-                  <span>
-                    Joined {format(new Date(profile.created_at), "MMMM yyyy")}
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions Button */}
-              <div className="absolute top-4 right-4 sm:static sm:ml-auto">
-                <ProfileActions
-                  profileId={profile.id}
-                  profileName={profile.full_name}
-                  profileUsername={profile.username}
-                />
-              </div>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              {/* Hours */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-primary/5 border hover:bg-primary/10 transition-colors group">
-                <div className="flex items-center gap-2 mb-1 text-primary">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-lg sm:text-xl font-bold text-foreground">
-                    {formatHours(totalHours)}
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-primary/80 transition-colors">
-                  Hours
-                </span>
-              </div>
-
-              {/* Total Projects */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-3/10 border hover:bg-chart-3/20 transition-colors group">
-                <div className="flex items-center gap-2 mb-1 text-chart-3">
-                  <Briefcase className="h-4 w-4" />
-                  <span className="text-lg sm:text-xl font-bold text-foreground">
-                    {totalProjects}
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-3/80 transition-colors">
-                  Total
-                </span>
-              </div>
-
-              {/* Created */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-5/10 border hover:bg-chart-5/20 transition-colors group">
-                <div className="flex items-center gap-2 mb-1 text-chart-5">
-                  <PenTool className="h-4 w-4" />
-                  <span className="text-lg sm:text-xl font-bold text-foreground">
-                    {totalCreatedProjects}
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-5/80 transition-colors">
-                  Created
-                </span>
-              </div>
-
-              {/* Attended */}
-              <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-chart-4/10 border hover:bg-chart-4/20 transition-colors group">
-                <div className="flex items-center gap-2 mb-1 text-chart-4">
-                  <Hash className="h-4 w-4" />
-                  <span className="text-lg sm:text-xl font-bold text-foreground">
-                    {totalAttendedProjects}
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-chart-4/80 transition-colors">
-                  Attended
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Content Sections */}
-        <div className="space-y-12 sm:space-y-16 w-full">
-          {/* Organizations */}
-          {formattedOrganizations.length > 0 && (
-            <div className="space-y-4 sm:space-y-6">
-              <SectionHeading
-                icon={<Users className="h-5 w-5 sm:h-6 sm:w-6" />}
-                accent="chart-3"
-                title="Organizations"
-                count={formattedOrganizations.length}
+            </span>
+          }
+          description={`@${profile.username} · Joined ${format(new Date(profile.created_at), "MMMM yyyy")}`}
+          actions={
+            isOwner ? (
+              <ProfileEditButton />
+            ) : (
+              <ProfileActions
+                profileId={profile.id}
+                profileName={profile.full_name}
+                profileUsername={profile.username}
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {formattedOrganizations.map(
-                  (membership: OrganizationMembership) => (
-                    <OrganizationCard
-                      key={membership.organization.id}
-                      org={{
-                        ...membership.organization,
-                        verified: membership.organization.verified || false,
-                      }}
-                      memberCount={membership.memberCount}
-                      isUserMember={true}
-                      userRole={membership.role}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Created Projects */}
-          <div className="space-y-4 sm:space-y-6">
-            <SectionHeading
-              icon={<PenTool className="h-5 w-5 sm:h-6 sm:w-6" />}
-              accent="chart-5"
-              title="Created Projects"
-              count={totalCreatedProjects}
-            />
-            {createdProjects && createdProjects.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {createdProjects.map((project) => (
-                  <ProfileProjectCard
-                    key={project.id}
-                    project={project}
-                    type="created"
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10 sm:py-16 border border-dashed rounded-xl bg-muted/10 w-full">
-                <div className="bg-muted/30 p-3 sm:p-4 rounded-full w-fit mx-auto mb-3 sm:mb-4">
-                  <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/50" />
-                </div>
-                <h3 className="font-medium text-base sm:text-lg">
-                  No Created Projects
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">
-                  Hasn&apos;t created any projects yet.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Attended Projects */}
-          <div className="space-y-4 sm:space-y-6">
-            <SectionHeading
-              icon={<Hash className="h-5 w-5 sm:h-6 sm:w-6" />}
-              accent="chart-4"
-              title="Attended Projects"
-              count={totalAttendedProjects}
-            />
-            {attendedProjects && attendedProjects.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {attendedProjects.map((project) => (
-                  <ProfileProjectCard
-                    key={project.id}
-                    project={project}
-                    type="attended"
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10 sm:py-16 border border-dashed rounded-xl bg-muted/10 w-full">
-                <div className="bg-muted/30 p-3 sm:p-4 rounded-full w-fit mx-auto mb-3 sm:mb-4">
-                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/50" />
-                </div>
-                <h3 className="font-medium text-base sm:text-lg">
-                  No Attended Projects
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1.5 sm:mt-2">
-                  Hasn&apos;t attended any projects yet.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+            )
+          }
+        />
+        <StatStrip
+          items={[
+            { label: "Hours volunteered", value: formatHours(totalHours) },
+            { label: "Projects attended", value: totalAttendedProjects },
+            { label: "Projects created", value: totalCreatedProjects },
+          ]}
+        />
       </div>
+
+      {!isOwner && !hasAnything && (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <EmptyStateIcon name="user" />
+            </EmptyMedia>
+            <EmptyTitle>Nothing here yet</EmptyTitle>
+            <EmptyDescription>
+              {profile.full_name} hasn&apos;t joined or created any projects
+              yet.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      )}
+
+      {showSection(totalAttendedProjects) && (
+        <ProfileSection
+          title="Attended projects"
+          count={totalAttendedProjects}
+          emptyTitle="No attended projects yet"
+          emptyDescription="Projects you sign up for will show here."
+        >
+          <div className={CARD_GRID}>
+            {attendedProjects.map((project) => (
+              <ProfileProjectCard
+                key={project.id}
+                project={project}
+                type="attended"
+                isTrusted={isTrusted}
+              />
+            ))}
+          </div>
+        </ProfileSection>
+      )}
+
+      {showSection(totalCreatedProjects) && (
+        <ProfileSection
+          title="Created projects"
+          count={totalCreatedProjects}
+          emptyTitle="No created projects yet"
+          emptyDescription="Projects you publish will show here."
+        >
+          <div className={CARD_GRID}>
+            {createdList.map((project) => (
+              <ProfileProjectCard
+                key={project.id}
+                project={project}
+                type="created"
+                isTrusted={isTrusted}
+              />
+            ))}
+          </div>
+        </ProfileSection>
+      )}
+
+      {showSection(totalOrganizations) && (
+        <ProfileSection
+          title="Organizations"
+          count={totalOrganizations}
+          emptyTitle="No organizations yet"
+          emptyDescription="Organizations you join will show here."
+        >
+          <div className={CARD_GRID}>
+            {formattedOrganizations.map(
+              (membership: OrganizationMembership) => (
+                <OrganizationCard
+                  key={membership.organization.id}
+                  org={{
+                    ...membership.organization,
+                    verified: membership.organization.verified || false,
+                  }}
+                  memberCount={membership.memberCount}
+                  isUserMember={true}
+                  userRole={membership.role}
+                />
+              ),
+            )}
+          </div>
+        </ProfileSection>
+      )}
     </div>
   );
 }

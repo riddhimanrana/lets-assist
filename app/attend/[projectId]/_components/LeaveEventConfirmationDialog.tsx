@@ -26,23 +26,23 @@ export function LeaveEventConfirmationDialog({
 }: LeaveEventConfirmationDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-sm w-[calc(100vw-2rem)] sm:w-full">
+      <AlertDialogContent size="sm">
         <AlertDialogHeader>
-          <AlertDialogTitle>Leave Event?</AlertDialogTitle>
-          <AlertDialogDescription className="pt-2">
+          <AlertDialogTitle>Leave event?</AlertDialogTitle>
+          <AlertDialogDescription>
             Are you sure you want to leave this event? Your current attendance
             will be recorded. You can rejoin by scanning the QR code again if
             needed.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             disabled={isLoading}
-            className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
+            variant="destructive"
           >
-            {isLoading ? "Leaving..." : "Leave Event"}
+            {isLoading ? "Leaving..." : "Leave event"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

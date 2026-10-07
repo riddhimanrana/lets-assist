@@ -1,3 +1,4 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test, { after as afterTests } from "node:test";
@@ -5,16 +6,14 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
-import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 
 const read = (file) =>
   JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
 const before = read("./final-schema-667.json");
 const after = read("./final-schema-668.json");
-// Keep this historical release proof on its approved migration ledger.
 const fixture = historicalReleaseTestFixture();
-afterTests(fixture.dispose);
 const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 668);
 
 test("signed editor publication preserves the reviewed schema objects", () => {

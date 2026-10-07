@@ -1,6 +1,10 @@
-import { certificateHours } from "@/lib/projects/certificate-duration";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  certificateComparisonSchema,
+  certificateVerification,
+} from "@/lib/certificates/verification";
 
 export async function GET(
   request: NextRequest,
@@ -54,59 +58,11 @@ export async function GET(
       );
     }
 
-    const verificationResult = {
-      valid: true,
-      exists: true,
-      certificate: {
-        id: certificate.id,
-        certified: certificate.is_certified,
-        issuedAt: certificate.issued_at,
-        type: certificate.type || "platform", // Default to 'platform' for backward compatibility
-        recipient: {
-          name: certificate.volunteer_name,
-          email: certificate.volunteer_email,
-        },
-      },
-      event: {
-        startDate: certificate.event_start,
-        endDate: certificate.event_end,
-        creditedMinutes: certificate.credited_minutes,
-        duration: certificateHours(certificate, () =>
-          Math.max(
-            0,
-            (Date.parse(certificate.event_end) -
-              Date.parse(certificate.event_start)) /
-              3600000,
-          ),
-        ),
-      },
-      project: {
-        id: certificate.project_id,
-        title: certificate.project_title,
-        location: certificate.project_location,
-      },
-      organization: {
-        name: certificate.organization_name,
-      },
-      organizer: {
-        id: certificate.creator_id,
-        name: certificate.creator_name,
-      },
-      verification: {
-        timestamp: new Date().toISOString(),
-        matches: {
-          certificateId: true,
-          title: true,
-          organizer: true,
-          hours: true,
-          status: certificate.is_certified,
-        },
-      },
-    };
+    const verificationResult = certificateVerification(certificate);
 
     return NextResponse.json(verificationResult);
   } catch (error) {
-    console.error("Certificate verification error:", error);
+    safeConsole.error("Certificate verification error:", error);
     return NextResponse.json(
       {
         error: "Internal server error during verification",
@@ -118,22 +74,28 @@ export async function GET(
   }
 }
 
-// Optional: Add POST method for batch verification
+// Compare one readable certificate with supplied export data.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const body = await request.json();
-    const { expectedData } = body;
+    const body: unknown = await request.json().catch(() => null);
+    const parsed = certificateComparisonSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid certificate comparison data", valid: false },
+        { status: 400 },
+      );
+    }
+    const { expectedData } = parsed.data;
 
     // Get the certificate verification from GET method
     const verificationResult = await GET(request, { params });
-    const verification = await verificationResult.json();
-
-    if (!verification.valid) {
-      return NextResponse.json(verification);
-    }
+    if (!verificationResult.ok) return verificationResult;
+    const verification = (await verificationResult.json()) as ReturnType<
+      typeof certificateVerification
+    >;
 
     // Compare with expected data if provided
     if (expectedData) {
@@ -144,8 +106,9 @@ export async function POST(
         organization:
           verification.organization.name === expectedData.organizationName,
         hours:
-          verification.event.duration ===
-          parseFloat(expectedData.duration || "0"),
+          verification.event.duration !== null &&
+          Math.abs(verification.event.duration - expectedData.duration) <
+            0.000001,
         status:
           verification.certificate.certified ===
           (expectedData.certificationStatus === "Certified"),
@@ -156,7 +119,7 @@ export async function POST(
 
     return NextResponse.json(verification);
   } catch (error) {
-    console.error("Certificate batch verification error:", error);
+    safeConsole.error("Certificate batch verification error:", error);
     return NextResponse.json(
       {
         error: "Internal server error during batch verification",

@@ -9,6 +9,7 @@ import {
   resizeRectToFieldType,
 } from "@/lib/waiver/custom-field-config";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -102,9 +103,9 @@ export function SignaturePlacementsEditor({
               <Card
                 key={placement.id}
                 className={cn(
-                  "transition-all cursor-pointer border-l-4 hover:shadow-md",
+                  "transition-colors cursor-pointer border-l-4",
                   selectedPlacementId === placement.id
-                    ? "border-l-primary bg-accent shadow-sm"
+                    ? "border-l-primary bg-accent"
                     : "border-l-transparent hover:border-l-muted-foreground/20",
                 )}
                 onClick={() => onSelectPlacement(placement.id)}
@@ -114,8 +115,8 @@ export function SignaturePlacementsEditor({
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <div className="flex-1">
-                          <input
-                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                          <Input
+                            className="h-8 px-2 text-xs md:text-xs"
                             value={placement.label}
                             onChange={(e) =>
                               handleUpdatePlacement(placement.id, {
@@ -137,10 +138,10 @@ export function SignaturePlacementsEditor({
                             }
                           >
                             <SelectTrigger
-                              className="h-8 text-[11px] px-2"
+                              className="h-8 px-2 text-xs"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <SelectValue placeholder="Field Type">
+                              <SelectValue placeholder="Field type">
                                 {
                                   CUSTOM_PLACEMENT_FIELD_TYPE_OPTIONS.find(
                                     (o) =>
@@ -167,10 +168,7 @@ export function SignaturePlacementsEditor({
                             </SelectContent>
                           </Select>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className="shrink-0 text-[10px] h-5"
-                        >
+                        <Badge variant="secondary" className="shrink-0">
                           P{placement.pageIndex + 1}
                         </Badge>
                       </div>
@@ -190,7 +188,7 @@ export function SignaturePlacementsEditor({
                               className="h-8 text-xs font-normal"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <SelectValue placeholder="Assign Role">
+                              <SelectValue placeholder="Assign role">
                                 {getSignerLabel(placement.signerRoleKey)}
                               </SelectValue>
                             </SelectTrigger>

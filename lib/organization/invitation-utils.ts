@@ -12,6 +12,16 @@ export function isInvitationToken(value: unknown): value is string {
 export type InvitationDeliveryStatus =
   "pending" | "sent" | "failed" | "skipped";
 
+export function isInvitationDeliveryUnconfirmed(invitation: {
+  email_delivery_status?: InvitationDeliveryStatus;
+  last_email_attempt_at?: string | null;
+}) {
+  return (
+    invitation.email_delivery_status === "pending" &&
+    Boolean(invitation.last_email_attempt_at)
+  );
+}
+
 export const DEFAULT_INVITATION_DURATION: InvitationDuration = "1_month";
 
 const DURATION_DAYS: Record<InvitationDuration, number> = {

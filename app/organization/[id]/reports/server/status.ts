@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { hasGoogleSheetsScopes } from "@/services/calendar";
@@ -72,8 +73,16 @@ export async function getSheetSyncStatus(
     };
   }
 
+  // Staff can see that a sync exists and when it last ran. The connected
+  // Google account and its owner's email are admin-only, and hiding them in
+  // the client would still ship them in this response.
+  if (access.role !== "admin") {
+    connectedEmail = null;
+    connectedBy = connectedBy ? { ...connectedBy, email: null } : null;
+  }
+
   if (syncError) {
-    console.error("Failed to load sheet sync config:", syncError);
+    safeConsole.error("Failed to load sheet sync config:", syncError);
     return {
       connected,
       connectedEmail,

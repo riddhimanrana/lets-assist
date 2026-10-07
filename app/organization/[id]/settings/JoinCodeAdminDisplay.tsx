@@ -1,11 +1,19 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Copy, Check, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Copy,
+  Check,
+  Link as LinkIcon,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { regenerateJoinCode } from "../../create/actions";
 import { copyToClipboard } from "@/lib/utils";
 import {
@@ -72,7 +80,7 @@ export default function JoinCodeAdminDisplay({
         toast.success("Join code regenerated successfully");
       }
     } catch (error) {
-      console.error("Error regenerating join code:", error);
+      safeConsole.error("Error regenerating join code:", error);
       toast.error("Failed to regenerate join code");
     } finally {
       setIsRegenerating(false);
@@ -81,43 +89,11 @@ export default function JoinCodeAdminDisplay({
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="join-code">Current Join Code</Label>
-        <div className="flex items-center gap-2 mt-1.5">
-          <Input
-            id="join-code"
-            value={displayedJoinCode}
-            readOnly
-            className="font-mono text-lg tracking-wider text-center"
-          />
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            aria-label="Copy join code"
-            onClick={handleCopyCode}
-            className="shrink-0"
-          >
-            {isCopied ? (
-              <Check className="h-4 w-4 text-primary" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <Button type="button" variant="outline" onClick={handleCopyLink}>
-        <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-        Copy invitation link
-      </Button>
-      <p className="text-sm text-muted-foreground">
-        This link adds an organization member. Assign staff access separately
-        after they join.
-      </p>
-
-      <div>
+    <SettingsSection
+      title="Join code"
+      description="Share this code or its link so people can join as members."
+      footerHint="Joining with the code adds a member. Assign staff access separately after they join."
+      footer={
         <AlertDialog
           open={showRegenerateAlert}
           onOpenChange={setShowRegenerateAlert}
@@ -125,39 +101,67 @@ export default function JoinCodeAdminDisplay({
           <AlertDialogTrigger
             render={
               <Button variant="outline" type="button" disabled={isRegenerating}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Regenerate Join Code
+                <RefreshCw />
+                Regenerate code
               </Button>
             }
           />
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Regenerate Join Code?</AlertDialogTitle>
+              <AlertDialogTitle>Regenerate join code?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will invalidate the current join code. Anyone using the old
                 code will no longer be able to join.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={isRegenerating}>
+                Cancel
+              </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleRegenerateJoinCode}
                 disabled={isRegenerating}
-                className="bg-primary"
               >
                 {isRegenerating ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="animate-spin" />
                     Regenerating...
                   </>
                 ) : (
-                  "Yes, Regenerate"
+                  "Regenerate code"
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      }
+    >
+      <Field>
+        <FieldLabel htmlFor="join-code">Current join code</FieldLabel>
+        <div className="flex items-center gap-2">
+          <Input
+            id="join-code"
+            value={displayedJoinCode}
+            readOnly
+            className="font-mono text-base tracking-wider"
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            aria-label="Copy join code"
+            onClick={handleCopyCode}
+          >
+            {isCopied ? <Check className="text-success" /> : <Copy />}
+          </Button>
+        </div>
+      </Field>
+      <div>
+        <Button type="button" variant="outline" onClick={handleCopyLink}>
+          <LinkIcon aria-hidden="true" />
+          Copy invitation link
+        </Button>
       </div>
-    </div>
+    </SettingsSection>
   );
 }

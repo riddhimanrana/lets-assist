@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { prepareTrackedAiCall } from "@/lib/ai/with-ai-tracking";
@@ -78,7 +79,10 @@ export async function generateModerationObject<TSchema extends z.ZodTypeAny>({
         success: false,
         errorMessage: "generation_failed",
       });
-      console.warn(`[${label}] moderation generation failed`);
+      safeConsole.warn(
+        "Application diagnostic from app/admin/moderation/ai-generation",
+        `[${label}] moderation generation failed`,
+      );
     }
   }
 

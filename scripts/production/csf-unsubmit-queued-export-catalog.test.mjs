@@ -1,3 +1,4 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test, { after as afterTests } from "node:test";
@@ -6,7 +7,6 @@ import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
-import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-677.json"));
@@ -15,10 +15,9 @@ const published = JSON.parse(read("./final-schema-679.json"));
 const latest = JSON.parse(read("./final-schema-680.json"));
 const retryFix = JSON.parse(read("./final-schema-681.json"));
 const queueLockOrder = JSON.parse(read("./final-schema-682.json"));
-// Keep this historical release proof on its approved migration ledger.
 const fixture = historicalReleaseTestFixture();
-afterTests(fixture.dispose);
 const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 682);
 
 test("queued export release changes only the deletion and both queue functions", () => {

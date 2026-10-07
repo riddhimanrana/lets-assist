@@ -3,6 +3,7 @@ import fg from "fast-glob";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import { PROJECT_CLIENT_SELECT } from "../projects/client-projection";
 
 const REPOSITORY_ROOT = resolve(import.meta.dir, "../..");
 const CANONICAL_PROJECT_RELATIONSHIP = "project_signups_project_id_fkey";
@@ -193,6 +194,7 @@ function analyzeSource(
   embeds: ProjectEmbed[];
   signupEmbeds: SignupEmbed[];
   unresolvedSelects: string[];
+  projectSelections: Array<{ file: string; selection: string }>;
 } {
   const sourceFile = ts.createSourceFile(
     file,
@@ -205,8 +207,28 @@ function analyzeSource(
   const embeds: ProjectEmbed[] = [];
   const signupEmbeds: SignupEmbed[] = [];
   const unresolvedSelects: string[] = [];
+  const projectSelections: Array<{ file: string; selection: string }> = [];
 
   function collectInitializers(node: ts.Node) {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      node.moduleSpecifier.text === "@/lib/projects/client-projection" &&
+      node.importClause?.namedBindings &&
+      ts.isNamedImports(node.importClause.namedBindings)
+    ) {
+      for (const specifier of node.importClause.namedBindings.elements) {
+        if (
+          (specifier.propertyName ?? specifier.name).text ===
+          "PROJECT_CLIENT_SELECT"
+        ) {
+          initializers.set(
+            specifier.name.text,
+            ts.factory.createStringLiteral(PROJECT_CLIENT_SELECT),
+          );
+        }
+      }
+    }
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
@@ -235,6 +257,7 @@ function analyzeSource(
               embeds.push(...parseProjectEmbeds(file, selection));
             }
             if (signupArgument) {
+              projectSelections.push({ file, selection });
               signupEmbeds.push(...parseSignupEmbeds(file, selection));
             }
           }
@@ -245,7 +268,7 @@ function analyzeSource(
   }
   inspect(sourceFile);
 
-  return { embeds, signupEmbeds, unresolvedSelects };
+  return { embeds, signupEmbeds, unresolvedSelects, projectSelections };
 }
 
 const sourceFiles = fg
@@ -273,11 +296,6 @@ test("inventories every root project_signups to projects embed and its DTO shape
       inner: false,
     },
     {
-      file: "app/api/cron/auto-publish-hours/route.ts",
-      outputAlias: "projects",
-      inner: true,
-    },
-    {
       file: "app/dashboard/_components/dashboard-data.ts",
       outputAlias: "projects",
       inner: false,
@@ -291,6 +309,11 @@ test("inventories every root project_signups to projects embed and its DTO shape
       file: "app/projects/UserProjects.tsx",
       outputAlias: "projects",
       inner: false,
+    },
+    {
+      file: "services/auto-publish-hours-worker.ts",
+      outputAlias: "projects",
+      inner: true,
     },
     {
       file: "services/calendar-settings-data.ts",
@@ -371,4 +394,51 @@ test("the source analyzer detects an ambiguous reverse signup embed", () => {
       selection: "id, project_signups(id, status)",
     },
   ]);
+});
+
+test("project page, calendar and mutation reads omit review fields and wildcards", () => {
+  const consumers = new Set([
+    "app/home/actions.ts",
+    "app/projects/UserProjects.tsx",
+    "app/projects/create/server/validation.ts",
+    "app/account/calendar/actions.ts",
+    "app/api/calendar/add-signup/route.ts",
+    "app/api/calendar/sync-project/route.ts",
+    "app/profile/[username]/page.tsx",
+    "app/projects/[id]/attendance/page.tsx",
+    "app/projects/[id]/attendance/AttendanceClient.tsx",
+    "app/projects/[id]/server/lifecycle.ts",
+    "app/projects/[id]/server/access.ts",
+    "app/projects/[id]/signups/SignupsClient.tsx",
+    "app/projects/[id]/paper-signups/page.tsx",
+    "app/projects/[id]/hours/page.tsx",
+    "app/anonymous/[id]/page.tsx",
+    "app/organization/[id]/page.tsx",
+  ]);
+  const selections = analysis
+    .flatMap((result) => result.projectSelections)
+    .filter(({ file }) => consumers.has(file));
+  const seen = new Set(selections.map(({ file }) => file));
+  expect([...seen].sort()).toEqual([...consumers].sort());
+  selections.push(...projectEmbeds.filter(({ file }) => consumers.has(file)));
+  for (const { file, selection } of selections) {
+    expect(selection, file).not.toMatch(
+      /\*|\breview_notes\b|\breviewed_by\b|\breviewed_at\b/u,
+    );
+  }
+});
+
+test("the source analyzer resolves imported project projections and preserves joins", () => {
+  const result = analyzeSource(
+    "shared-projection.ts",
+    `import { PROJECT_CLIENT_SELECT as fields } from "@/lib/projects/client-projection";
+     client.from("project_signups").select(\`id,projects!project_signups_project_id_fkey(\${fields},organizations(name))\`);`,
+  );
+  expect(result.unresolvedSelects).toEqual([]);
+  expect(result.embeds).toHaveLength(1);
+  expect(result.embeds[0].relationshipHint).toBe(
+    CANONICAL_PROJECT_RELATIONSHIP,
+  );
+  expect(result.embeds[0].selection).toContain(PROJECT_CLIENT_SELECT);
+  expect(result.embeds[0].selection).toContain("organizations(name)");
 });

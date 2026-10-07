@@ -1,33 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Copy,
-  RefreshCw,
-  Trash2,
-  Clock,
-  Link as LinkIcon,
-  Check,
-  Users,
-} from "lucide-react";
+import { Check, Copy, Link as LinkIcon, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  generateStaffLink,
-  revokeStaffLink,
-  getStaffLinkDetails,
-} from "./actions";
-import { copyToClipboard } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +16,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { copyToClipboard } from "@/lib/utils";
+
+import {
+  generateStaffLink,
+  revokeStaffLink,
+  getStaffLinkDetails,
+} from "./actions";
 
 interface StaffLinkDisplayProps {
   organizationId: string;
@@ -68,8 +64,8 @@ export default function StaffLinkDisplay({
   const [hasToken, setHasToken] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isExpired, setIsExpired] = useState(false);
+  const [showRevokeAlert, setShowRevokeAlert] = useState(false);
   const [expirationDays, setExpirationDays] = useState("30");
   const [copied, setCopied] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -146,6 +142,7 @@ export default function StaffLinkDisplay({
       toast.error("Failed to revoke staff link");
     } finally {
       setIsLoading(false);
+      setShowRevokeAlert(false);
     }
   };
 
@@ -174,138 +171,142 @@ export default function StaffLinkDisplay({
     });
   };
 
+  const title = "Staff invite link";
+  const description =
+    "A link that lets teachers and staff join with staff access when they sign up.";
+
   if (isInitializing) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <SettingsSection title={title} description={description}>
+        <Skeleton className="h-9 w-full" />
+      </SettingsSection>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {hasToken && token ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="gap-1">
-              <Users className="h-3 w-3" />
-              Staff Link Active
-            </Badge>
-            {expiresAt && (
-              <Badge variant="outline" className="gap-1">
-                <Clock className="h-3 w-3" />
-                Expires {formatExpirationDate(expiresAt)}
-              </Badge>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <Input value={staffLink} readOnly className="font-mono text-sm" />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleCopy}
-              disabled={isLoading}
+  if (hasToken && token) {
+    return (
+      <SettingsSection
+        title={title}
+        description={description}
+        status={
+          isExpired ? (
+            <Badge variant="warning">Expired</Badge>
+          ) : (
+            <Badge variant="success">Active</Badge>
+          )
+        }
+        footerHint="Regenerating replaces the current link, which stops working."
+        footer={
+          <>
+            <AlertDialog
+              open={showRevokeAlert}
+              onOpenChange={setShowRevokeAlert}
             >
-              {copied ? (
-                <Check className="h-4 w-4 text-success" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground">
-            Share this link with teachers or staff members. They will be
-            automatically added to your organization with staff-level access
-            when they sign up.
-          </p>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleGenerate}
-              disabled={isLoading}
-              className="gap-2"
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Regenerate Link
-            </Button>
-
-            <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button
-                    variant="destructive"
-                    disabled={isLoading}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Revoke Link
+                  <Button variant="destructive-ghost" disabled={isLoading}>
+                    <Trash2 />
+                    Revoke
                   </Button>
                 }
               />
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Revoke Staff Link?</AlertDialogTitle>
+                  <AlertDialogTitle>Revoke staff link?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This will invalidate the current staff invite link. Anyone
-                    who hasn't used it yet won't be able to join as staff. You
-                    can generate a new link afterward.
+                    who hasn&apos;t used it yet won&apos;t be able to join as
+                    staff. You can generate a new link afterward.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRevoke}>
-                    Revoke Link
+                  <AlertDialogCancel disabled={isLoading}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={handleRevoke}
+                    disabled={isLoading}
+                  >
+                    Revoke link
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            <Button
+              variant="outline"
+              onClick={handleGenerate}
+              disabled={isLoading}
+            >
+              <RefreshCw className={isLoading ? "animate-spin" : undefined} />
+              Regenerate
+            </Button>
+          </>
+        }
+      >
+        <Field>
+          <FieldLabel htmlFor="staff-invite-link">Link</FieldLabel>
+          <div className="flex items-center gap-2">
+            <Input
+              id="staff-invite-link"
+              value={staffLink}
+              readOnly
+              className="font-mono"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Copy staff invite link"
+              onClick={handleCopy}
+              disabled={isLoading}
+            >
+              {copied ? <Check className="text-success" /> : <Copy />}
+            </Button>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <Label htmlFor="expiration">Link Expiration</Label>
-              <Select
-                value={expirationDays}
-                onValueChange={(val) => val && setExpirationDays(val)}
-              >
-                <SelectTrigger id="expiration" className="mt-1.5">
-                  <SelectValue placeholder="Select duration">
-                    {getExpirationLabel(expirationDays)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {expirationOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <FieldDescription>
+            {expiresAt
+              ? `${isExpired ? "Expired" : "Expires"} ${formatExpirationDate(expiresAt)}. `
+              : null}
+            Anyone who signs up with this link is added with staff access.
+          </FieldDescription>
+        </Field>
+      </SettingsSection>
+    );
+  }
 
-          <Button
-            onClick={handleGenerate}
-            disabled={isLoading}
-            className="gap-2"
-          >
-            <LinkIcon className="h-4 w-4" />
-            {isLoading ? "Generating..." : "Generate Staff Invite Link"}
-          </Button>
-
-          <p className="text-sm text-muted-foreground">
-            Generate a special link that allows teachers or staff members to
-            join your organization directly with staff-level access.
-          </p>
-        </div>
-      )}
-    </div>
+  return (
+    <SettingsSection
+      title={title}
+      description={description}
+      status={<Badge variant="outline">Not generated</Badge>}
+      footerHint="The link stops working after the expiration you choose."
+      footer={
+        <Button variant="outline" onClick={handleGenerate} disabled={isLoading}>
+          <LinkIcon />
+          {isLoading ? "Generating..." : "Generate link"}
+        </Button>
+      }
+    >
+      <Field>
+        <FieldLabel htmlFor="expiration">Link expiration</FieldLabel>
+        <Select
+          value={expirationDays}
+          onValueChange={(val) => val && setExpirationDays(val)}
+        >
+          <SelectTrigger id="expiration" className="w-full sm:w-48">
+            <SelectValue placeholder="Select duration">
+              {getExpirationLabel(expirationDays)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {expirationOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+    </SettingsSection>
   );
 }

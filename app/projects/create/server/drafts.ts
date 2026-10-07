@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -28,7 +29,7 @@ export async function finalizeProject(projectId: string) {
     revalidatePath("/projects");
     return { success: true, id: projectId };
   } catch (error) {
-    console.error("Error in finalize project action:", error);
+    safeConsole.error("Error in finalize project action:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -72,7 +73,7 @@ export async function createProject(formData: FormData) {
       reusedExistingAttempt: basicResult.reusedExistingAttempt ?? false,
     };
   } catch (error) {
-    console.error("Error in create project wrapper:", error);
+    safeConsole.error("Error in create project wrapper:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -126,7 +127,7 @@ export async function autoSaveDraft(
         .single();
 
       if (updateError) {
-        console.error("Error updating autosave draft:", updateError);
+        safeConsole.error("Error updating autosave draft:", updateError);
         return {
           error: "Failed to autosave draft",
           autosaved: false,
@@ -148,14 +149,14 @@ export async function autoSaveDraft(
         .single();
 
       if (draftError) {
-        console.error("Error creating autosave draft:", draftError);
+        safeConsole.error("Error creating autosave draft:", draftError);
         return { error: "Failed to autosave draft", autosaved: false };
       }
 
       return { success: true, id: draft.id, autosaved: true };
     }
   } catch (error) {
-    console.error("Error autosaving draft:", error);
+    safeConsole.error("Error autosaving draft:", error);
     return { error: "Failed to autosave draft", autosaved: false };
   }
 }
@@ -200,7 +201,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       .single();
 
     if (draftError) {
-      console.error("Error saving new draft:", draftError);
+      safeConsole.error("Error saving new draft:", draftError);
       return { error: "Failed to save draft" };
     }
 
@@ -208,7 +209,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     revalidatePath("/projects/create");
     return { success: true, id: draft.id, isDraft: true };
   } catch (error) {
-    console.error("Error saving project as new draft:", error);
+    safeConsole.error("Error saving project as new draft:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -252,7 +253,7 @@ export async function saveProjectAsDraft(formData: FormData) {
       .single();
 
     if (draftError) {
-      console.error("Error saving draft:", draftError);
+      safeConsole.error("Error saving draft:", draftError);
       return { error: "Failed to save draft" };
     }
 
@@ -260,7 +261,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     revalidatePath("/projects/create");
     return { success: true, id: draft.id, isDraft: true };
   } catch (error) {
-    console.error("Error saving project as draft:", error);
+    safeConsole.error("Error saving project as draft:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -464,7 +465,7 @@ export async function updateDraft(
   }
 
   if (updateError) {
-    console.error("Error updating draft:", updateError);
+    safeConsole.error("Error updating draft:", updateError);
     return { error: "Failed to update draft" };
   }
 
@@ -511,7 +512,7 @@ export async function deleteDraft(draftId: string) {
     .eq("user_id", user.id);
 
   if (deleteError) {
-    console.error("Error deleting draft:", deleteError);
+    safeConsole.error("Error deleting draft:", deleteError);
     return { error: "Failed to delete draft" };
   }
 

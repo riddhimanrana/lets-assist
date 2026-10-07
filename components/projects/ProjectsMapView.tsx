@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -91,7 +92,7 @@ function MapContent({
         };
       }
     } catch (e) {
-      console.error("Error getting project position:", e);
+      safeConsole.error("Error getting project position:", e);
     }
     return null;
   };
@@ -157,7 +158,7 @@ function MapContent({
       const data = (await response.json()) as ProjectWithAvailability[];
       setProjects(data);
     } catch (err) {
-      console.error("Error fetching projects:", err);
+      safeConsole.error("Error fetching projects:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch projects");
     } finally {
       setIsLoading(false);
@@ -186,7 +187,7 @@ function MapContent({
           }
         },
         (error) => {
-          console.error("Error getting location:", error);
+          safeConsole.error("Error getting location:", error);
           let errorMessage = "We couldn't determine your location.";
 
           // Provide specific error messages
@@ -210,7 +211,7 @@ function MapContent({
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
       );
     } else {
-      console.error("Geolocation is not supported by this browser");
+      safeConsole.error("Geolocation is not supported by this browser");
       alert("Your browser doesn't support geolocation features.");
     }
   }, []); // No dependencies needed since we're using state setters
@@ -270,7 +271,7 @@ function MapContent({
         map.setCenter(center);
         map.setZoom(zoom);
       } catch (e) {
-        console.error("Error restoring map state:", e);
+        safeConsole.error("Error restoring map state:", e);
       }
     }
   }, []);
@@ -337,7 +338,7 @@ function MapContent({
       <div className="w-full h-full rounded-md flex items-center justify-center bg-muted p-4">
         <div className="max-w-md">
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="size-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -370,9 +371,9 @@ function MapContent({
           typeof userLocation.lng === "number" && (
             <AdvancedMarker position={userLocation} title="Your location">
               <div className="relative">
-                <div className="w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"></div>
+                <div className="size-4 rounded-full bg-blue-500 border-2 border-white shadow-lg"></div>
                 <div
-                  className="absolute top-0 left-0 w-4 h-4 rounded-full bg-blue-400 opacity-70 animate-ping"
+                  className="absolute top-0 left-0 size-4 rounded-full bg-blue-400 opacity-70 animate-ping"
                   style={{ animationDuration: "2s" }}
                 ></div>
               </div>
@@ -396,7 +397,7 @@ function MapContent({
               onClick={() => setSelectedProject(project)}
             >
               <div
-                className="w-5 h-5 bg-green-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white"
+                className="size-5 bg-green-600 rounded-full border-2 border-white flex items-center justify-center text-xs text-white"
                 aria-label={`Project marker for ${project.title}`}
               ></div>
             </AdvancedMarker>
@@ -428,7 +429,7 @@ function MapContent({
 
       {/* Always show radius notice when we have user location */}
       {userLocation && (
-        <div className="hidden sm:inline absolute top-2 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
+        <div className="hidden sm:inline absolute top-2 left-1/2 -translate-x-1/2 bg-background/90 backdrop-blur-xs px-3 py-1.5 rounded-full shadow-xs border">
           <span className="text-xs text-center font-medium">
             Showing projects within {radiusMiles} miles
           </span>
@@ -444,7 +445,7 @@ function MapContent({
             variant="outline"
             className="absolute bottom-16 left-4 gap-2 shadow-md"
           >
-            <Sliders className="h-4 w-4" />
+            <Sliders className="size-4" />
             <span className="hidden sm:inline">Adjust Distance</span>
           </Button>
 
@@ -524,6 +525,19 @@ export function ProjectsMapView({
   projects,
   className,
 }: ProjectsMapViewProps) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  if (!apiKey) {
+    return (
+      <p
+        className={cn(
+          "rounded-md border p-6 text-sm text-muted-foreground",
+          className,
+        )}
+      >
+        Map view is unavailable. Use list view to browse projects.
+      </p>
+    );
+  }
   return (
     <div
       className={cn(
@@ -532,7 +546,7 @@ export function ProjectsMapView({
         className,
       )}
     >
-      <APIProvider apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}>
+      <APIProvider apiKey={apiKey}>
         <MapContent
           initialProjects={initialProjects}
           projects={projects}

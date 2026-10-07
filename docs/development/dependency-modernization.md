@@ -58,6 +58,18 @@ Validation completed for this group:
 - pinned Supabase CLI `--help`, version, and existing exact-version contract tests
 - production dependency audit re-run; unrelated findings remain open under `CLEAN-003`
 
+## Supabase CLI — 2026-09-28
+
+The pinned CLI moves from `2.111.0` to `2.117.0` in the version helper, the isolated-stack scripts, and every workflow that installs it. Release notes for `2.112.0` through `2.117.0` that affect this repository:
+
+- `supabase start`, `db start`, `db test`, and `db reset` are now served by the TypeScript shell. Container, volume, and network names still follow `supabase_<service>_<project id>`, so the Docker identity oracle keeps the same names. Its provenance now cites the TypeScript port, because the Go `start.go` no longer exists at the tag.
+- `supabase test db` exits non-zero when it finds zero pgTAP tests (`2.115.0`). Every call in this repository points at a populated test tree.
+- `db diff` and `db pull` use the bundled pg-delta engine only (`2.115.0`, made permanent in `2.117.0`). No gate depends on diff output.
+- An unset `[api].auto_expose_new_tables` keeps the default Data API grants on new `public` entities again (`2.116.0`), matching hosted projects. Under `2.111.0` an unset value revoked them, so local replays were stricter than hosted. Migrations must keep revoking access explicitly.
+- `db reset` batches migration and seed statements (`2.115.0`).
+
+The isolated database replay in the full `Code quality` run is the acceptance proof for this bump.
+
 ## Playwright and test-tooling group — 2026-08-05
 
 | Package family           | Previous | Selected | Decision                                                                                                                      |
@@ -134,3 +146,28 @@ Validation completed for this group:
 - `bun outdated` reviewed line-by-line; only the four compatibility holds above remain
 
 The dependency-series completion condition is met locally: no critical/high or unreviewed lower-severity advisory, no stale compatible direct dependency, and no unexplained duplicate package family. Hosted Development remains a separately recorded account-access gate.
+
+## Brand and audit integration, October 7, 2026
+
+| Family           | Selected candidate  | Evidence and boundary                                                                                                                                                                          |
+| ---------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js          | 16.4.0              | Host and CSF application use the same Next and ESLint family.                                                                                                                                  |
+| React            | 19.3.0              | React DOM and React typings match in both apps.                                                                                                                                                |
+| Tailwind CSS     | 4.3.3               | Current stable registry version; PostCSS plugin matches.                                                                                                                                       |
+| shadcn CLI       | 4.21.4              | Current stable CLI; existing branded components are preserved.                                                                                                                                 |
+| Node.js          | 24.21.0             | Current LTS patch, supported by Vercel. Both apps and CI select the 24.x line.                                                                                                                 |
+| Supabase clients | 2.117.3, SSR 0.12.7 | Host and CSF application share the updated client family.                                                                                                                                      |
+| Supabase CLI     | 2.117.0             | Retained exact Docker resource contract. Latest registry version 2.120.0 moved the legacy Docker ID source and changed config.go; that upgrade needs a new resource audit and isolated replay. |
+| PostgreSQL       | 17                  | Supabase-supported major retained. No hosted database upgrade was performed.                                                                                                                   |
+| Bun              | 1.3.14              | Repository and workflow pins retained for this candidate. Latest registry version 1.4.2 needs its own runner compatibility check.                                                              |
+
+The CSF application's independent lint, typecheck, tests, build and data-access
+gates pass under Node 24.21.0. Host typecheck and lint pass. Combined root tests,
+private plugin tests, the root build and integrated database/browser acceptance
+must finish against the final private gitlink before this is a release receipt.
+The existing time-limited braces advisory remains an accepted risk, not a patch.
+
+Sources: [Node.js release schedule](https://nodejs.org/en/about/previous-releases),
+[Vercel Node.js support](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions),
+and the registry metadata queried on October 7. Hosted runtime metadata must be
+checked after deployment; source pins do not prove a deployed runtime.

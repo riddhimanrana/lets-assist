@@ -197,12 +197,12 @@ export function WaiverPreviewDialog({
           >
             {isPrinting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin" />
                 Printing...
               </>
             ) : (
               <>
-                <Printer className="mr-2 h-4 w-4" />
+                <Printer className="mr-2 size-4" />
                 Print
               </>
             )}
@@ -213,12 +213,12 @@ export function WaiverPreviewDialog({
           >
             {isDownloading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin" />
                 Downloading...
               </>
             ) : (
               <>
-                <Download className="mr-2 h-4 w-4" />
+                <Download className="mr-2 size-4" />
                 Download PDF
               </>
             )}

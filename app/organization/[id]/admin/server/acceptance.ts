@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -110,7 +111,7 @@ export async function acceptInvitation(
         .eq("id", invitation.id);
 
       if (invitationUpdateError) {
-        console.error(
+        safeConsole.error(
           "Error marking invitation accepted:",
           invitationUpdateError,
         );
@@ -150,7 +151,7 @@ export async function acceptInvitation(
     });
 
   if (memberError) {
-    console.error("Error creating member:", memberError);
+    safeConsole.error("Error creating member:", memberError);
     return { success: false, error: "Failed to join organization" };
   }
 
@@ -165,7 +166,10 @@ export async function acceptInvitation(
     .eq("id", invitation.id);
 
   if (invitationUpdateError) {
-    console.error("Error marking invitation accepted:", invitationUpdateError);
+    safeConsole.error(
+      "Error marking invitation accepted:",
+      invitationUpdateError,
+    );
     return {
       success: false,
       error: "Failed to finalize invitation acceptance",
