@@ -35,8 +35,34 @@ describe("resolveNotificationAction", () => {
     "",
     "   ",
     "/ok\u0000path",
+    "/.//evil.example/path",
+    "/..//evil.example",
+    "/a/..//evil.example",
+    "https://lets-assist.com//evil.example/path",
+    "https://lets-assist.com/.//evil.example",
+    "https://user:pass@example.org/a",
+    "https://lets-assist.com.evil.example/a".replace("https:", "http:"),
   ])("refuses %p", (value) => {
     expect(resolveNotificationAction(value, origin)).toBeNull();
+  });
+
+  test("dot segments are resolved before the path is returned", () => {
+    expect(resolveNotificationAction("/a/./b/../c?x=1", origin)).toEqual({
+      kind: "internal",
+      href: "/a/c?x=1",
+    });
+  });
+
+  test("a lookalike host is external, never internal", () => {
+    expect(
+      resolveNotificationAction(
+        "https://lets-assist.com.evil.example/a",
+        origin,
+      ),
+    ).toEqual({
+      kind: "external",
+      href: "https://lets-assist.com.evil.example/a",
+    });
   });
 
   test("missing values are refused", () => {

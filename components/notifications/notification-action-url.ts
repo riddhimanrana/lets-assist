@@ -26,25 +26,26 @@ export function resolveNotificationAction(
     return null;
   }
 
-  if (value.startsWith("/")) {
-    if (value.startsWith("//")) return null;
-    return { kind: "internal", href: value };
-  }
-
+  // Parse once, the way the browser will, and decide from the parsed result.
+  // Checking the raw string and then navigating to it would let a value such
+  // as "/.//host" or "https://this-site//host" pass as a path here and be
+  // normalised into another host later.
+  const isRelative = value.startsWith("/") && !value.startsWith("//");
   let parsed: URL;
   try {
-    parsed = new URL(value);
+    parsed = isRelative ? new URL(value, currentOrigin) : new URL(value);
   } catch {
     return null;
   }
 
   if (parsed.origin === currentOrigin) {
-    return {
-      kind: "internal",
-      href: `${parsed.pathname}${parsed.search}${parsed.hash}`,
-    };
+    const href = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    // The normalised path must itself be a plain site path.
+    if (!href.startsWith("/") || href.startsWith("//")) return null;
+    return { kind: "internal", href };
   }
-  if (parsed.protocol === "https:") {
+  if (isRelative) return null;
+  if (parsed.protocol === "https:" && !parsed.username && !parsed.password) {
     return { kind: "external", href: parsed.toString() };
   }
   return null;
