@@ -1,3 +1,4 @@
+import "server-only";
 import { SeverityNumber } from "@opentelemetry/api-logs";
 import { loggerProvider } from "./otel-logger-provider";
 import { safeErrorAttributes, sanitizeLogRecord } from "./log-privacy";

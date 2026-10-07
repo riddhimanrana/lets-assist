@@ -33,6 +33,12 @@ function staticImportSpecifiers(source: string): string[] {
 }
 
 describe("the logger never reaches the OpenTelemetry Node SDK", () => {
+  test("the logger and exporter reject accidental client imports", () => {
+    for (const source of [loggerSource, providerSource]) {
+      expect(source).toMatch(/^import "server-only";/u);
+    }
+  });
+
   test("lib/logger.ts does not import instrumentation.node", () => {
     expect(loggerSource).not.toContain("instrumentation.node");
     for (const specifier of staticImportSpecifiers(loggerSource)) {
