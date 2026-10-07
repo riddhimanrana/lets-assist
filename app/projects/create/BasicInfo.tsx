@@ -159,8 +159,8 @@ export default function BasicInfo({
 
   // Helper function to render organization avatar consistently
   const renderOrgAvatar = (org: OrganizationOption) => {
-    const iconSize = "h-3 w-3";
-    const avatarSize = "h-6 w-6";
+    const iconSize = "size-3";
+    const avatarSize = "size-6";
 
     return (
       <Avatar className={avatarSize}>
@@ -214,11 +214,11 @@ export default function BasicInfo({
                     ) : (
                       "Select who's creating this project..."
                     )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
                   </Button>
                 }
               />
-              <PopoverContent className="w-[300px] p-0" align="start">
+              <PopoverContent className="w-75 p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search organizations..." />
                   <CommandList>
@@ -242,7 +242,7 @@ export default function BasicInfo({
                           </div>
                           <Check
                             className={cn(
-                              "ml-auto h-4 w-4",
+                              "ml-auto size-4",
                               org.id === state.basicInfo.organizationId ||
                                 (state.basicInfo.organizationId === null &&
                                   org.id === "personal")
@@ -297,7 +297,7 @@ export default function BasicInfo({
               id="title-error"
               className="text-destructive text-sm flex items-center gap-2 mt-1"
             >
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="size-4" />
               {errors.title}
             </div>
           )}
@@ -368,7 +368,7 @@ export default function BasicInfo({
         <div className="space-y-2">
           <div className="flex justify-between items-baseline">
             <Label htmlFor="description">Description</Label>
-            <div className="space-x-2">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant={previewMode ? "secondary" : "default"}
@@ -389,7 +389,7 @@ export default function BasicInfo({
           </div>
 
           {previewMode ? (
-            <div className="rounded-md border text-sm bg-background p-4 shadow-xs">
+            <div className="rounded-md border text-sm bg-background p-4">
               <RichTextContent content={state.basicInfo.description ?? ""} />
             </div>
           ) : (
@@ -402,7 +402,7 @@ export default function BasicInfo({
               />
               {errors.description && (
                 <div className="text-destructive text-sm flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
+                  <AlertCircle className="size-4" />
                   {errors.description}
                 </div>
               )}

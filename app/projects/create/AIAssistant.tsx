@@ -146,7 +146,7 @@ export default function AIAssistant({
                 animationDelay: `${i * 0.06}s`,
               }}
             >
-              <Sparkles className="h-4 w-4 text-primary/70" />
+              <Sparkles className="size-4 text-primary/70" />
             </div>
           ))}
         </div>
@@ -169,7 +169,7 @@ export default function AIAssistant({
       `}</style>
 
       <Card
-        className={`mb-6 border-2 border-primary/20 bg-linear-to-br from-primary/5 to-transparent transition-all duration-500 ${
+        className={`mb-6 bg-primary/5 ring-primary/20 transition-all duration-500 ${
           isApplying ? "scale-98 opacity-60" : "scale-100 opacity-100"
         }`}
       >
@@ -177,10 +177,10 @@ export default function AIAssistant({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Sparkles className="h-5 w-5 text-primary" />
+                <Sparkles className="size-5 text-primary" />
                 {isApplying && (
                   <div className="absolute inset-0 animate-ping">
-                    <Sparkles className="h-5 w-5 text-primary opacity-50" />
+                    <Sparkles className="size-5 text-primary opacity-50" />
                   </div>
                 )}
               </div>
@@ -188,12 +188,12 @@ export default function AIAssistant({
             </div>
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               onClick={onClose}
-              className="h-8 w-8 -mt-1 -mr-1"
+              className="-mt-1 -mr-1"
               disabled={isProcessing || isApplying}
             >
-              <X className="h-4 w-4" />
+              <X className="size-4" />
             </Button>
           </div>
           <CardDescription>
@@ -237,17 +237,17 @@ export default function AIAssistant({
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Generating...
                 </>
               ) : isApplying ? (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4 animate-pulse" />
+                  <Sparkles className="mr-2 size-4 animate-pulse" />
                   Applying...
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
+                  <Sparkles className="mr-2 size-4" />
                   Generate Project Details
                 </>
               )}

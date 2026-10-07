@@ -147,11 +147,11 @@ const ALLOWED_DOCUMENT_TYPES = [
 
 // File type icon mapping
 const getFileIcon = (type: string) => {
-  if (type.includes("pdf")) return <FileText className="h-5 w-5" />;
-  if (type.includes("image")) return <FileImage className="h-5 w-5" />;
-  if (type.includes("text")) return <FileText className="h-5 w-5" />;
-  if (type.includes("word")) return <FileText className="h-5 w-5" />;
-  return <File className="h-5 w-5" />;
+  if (type.includes("pdf")) return <FileText className="size-5" />;
+  if (type.includes("image")) return <FileImage className="size-5" />;
+  if (type.includes("text")) return <FileText className="size-5" />;
+  if (type.includes("word")) return <FileText className="size-5" />;
+  return <File className="size-5" />;
 };
 
 interface Props {
@@ -1181,7 +1181,7 @@ export default function EditProjectClient({ project }: Props) {
     <div className="container mx-auto px-4 py-6 max-w-3xl">
       <div className="mb-6">
         <Button variant="ghost" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="size-4" />
           Back to Project
         </Button>
       </div>
@@ -1434,7 +1434,7 @@ export default function EditProjectClient({ project }: Props) {
                           size="sm"
                           onClick={() => setWaiverBuilderOpen(true)}
                         >
-                          <Settings className="h-4 w-4 mr-1" />
+                          <Settings className="size-4 mr-1" />
                           Configure
                         </Button>
                       )}
@@ -1450,7 +1450,7 @@ export default function EditProjectClient({ project }: Props) {
                           )
                         }
                       >
-                        <Eye className="h-4 w-4 mr-1" />
+                        <Eye className="size-4 mr-1" />
                         Preview
                       </Button>
                       <a
@@ -1460,7 +1460,7 @@ export default function EditProjectClient({ project }: Props) {
                           buttonVariants({ variant: "outline", size: "sm" }),
                         )}
                       >
-                        <Download className="h-4 w-4 mr-1" />
+                        <Download className="size-4 mr-1" />
                         Download
                       </a>
                       <Button
@@ -1495,9 +1495,9 @@ export default function EditProjectClient({ project }: Props) {
                   >
                     <div className="flex flex-col items-center gap-2">
                       {waiverPdfUploading ? (
-                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                        <Loader2 className="size-8 text-muted-foreground animate-spin" />
                       ) : (
-                        <Upload className="h-8 w-8 text-muted-foreground" />
+                        <Upload className="size-8 text-muted-foreground" />
                       )}
                       <p className="text-sm font-medium">
                         {waiverPdfUploading
@@ -1523,7 +1523,7 @@ export default function EditProjectClient({ project }: Props) {
 
                 {waiverPdfError && (
                   <div className="text-sm text-destructive flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="size-4" />
                     {waiverPdfError}
                   </div>
                 )}
@@ -1532,8 +1532,8 @@ export default function EditProjectClient({ project }: Props) {
                   <Alert
                     className={cn(
                       waiverPdfValidation.hasSignatureFields
-                        ? "border-green-200 bg-green-50 dark:bg-green-950/20"
-                        : "border-amber-200 bg-amber-50 dark:bg-amber-950/20",
+                        ? "border-success bg-success/10"
+                        : "border-warning bg-warning/10",
                     )}
                   >
                     <AlertDescription className="text-xs">
@@ -1741,22 +1741,22 @@ export default function EditProjectClient({ project }: Props) {
               <CollapsibleTrigger
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
-                  "w-full justify-between p-4 hover:bg-muted/50 h-auto",
+                  "w-full justify-between p-4 h-auto",
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <CalendarIconLucide className="h-5 w-5 text-muted-foreground" />
+                  <CalendarIconLucide className="size-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold">Schedule & Timing</h3>
                 </div>
                 {isScheduleOpen ? (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="size-4 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 )}
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
                 <Alert>
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="size-4" />
                   <AlertTitle>Important</AlertTitle>
                   <AlertDescription>
                     Changing dates or times may affect volunteers who have
@@ -1797,17 +1797,17 @@ export default function EditProjectClient({ project }: Props) {
               <CollapsibleTrigger
                 className={cn(
                   buttonVariants({ variant: "ghost" }),
-                  "w-full justify-between p-4 hover:bg-muted/50 h-auto",
+                  "w-full justify-between p-4 h-auto",
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                  <ImageIcon className="size-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold">Media & Documents</h3>
                 </div>
                 {isMediaOpen ? (
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  <ChevronDown className="size-4 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 )}
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-6 pt-4">
@@ -1828,7 +1828,7 @@ export default function EditProjectClient({ project }: Props) {
                           ratio={16 / 9}
                           className="bg-muted overflow-hidden rounded-md"
                         >
-                          <div className="relative w-full h-full">
+                          <div className="relative size-full">
                             <Image
                               src={project.cover_image_url}
                               alt="Cover image"
@@ -1838,20 +1838,20 @@ export default function EditProjectClient({ project }: Props) {
                             <Button
                               type="button"
                               variant="destructive"
-                              size="icon"
-                              className="absolute top-2 right-2 h-8 w-8 shadow-lg"
+                              size="icon-sm"
+                              className="absolute top-2 right-2"
                               onClick={removeCoverImage}
                               disabled={uploadingCoverImage}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="size-4" />
                             </Button>
                           </div>
                         </AspectRatio>
                       </div>
                     ) : (
                       <label className="flex flex-col items-center justify-center py-6 cursor-pointer">
-                        <div className="rounded-full bg-background p-3 shadow-xs mb-3">
-                          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                        <div className="rounded-full border bg-background p-3 mb-3">
+                          <ImageIcon className="size-6 text-muted-foreground" />
                         </div>
                         <p className="text-sm font-medium mb-1">
                           {uploadingCoverImage
@@ -1913,8 +1913,8 @@ export default function EditProjectClient({ project }: Props) {
                           : "cursor-pointer"
                       }`}
                     >
-                      <div className="rounded-full bg-background p-3 shadow-xs mb-3">
-                        <Upload className="h-6 w-6 text-muted-foreground" />
+                      <div className="rounded-full border bg-background p-3 mb-3">
+                        <Upload className="size-6 text-muted-foreground" />
                       </div>
                       <p className="text-sm font-medium mb-1">
                         {(project.documents || []).length >= MAX_DOCUMENTS_COUNT
@@ -1974,13 +1974,12 @@ export default function EditProjectClient({ project }: Props) {
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
+                                size="icon-sm"
                                 onClick={() =>
                                   openPreview(doc.url, doc.name, doc.type)
                                 }
                               >
-                                <Eye className="h-4 w-4" />
+                                <Eye className="size-4" />
                               </Button>
                             )}
                             <Button
@@ -1988,11 +1987,10 @@ export default function EditProjectClient({ project }: Props) {
                               variant={
                                 hoverIndex === index ? "destructive" : "ghost"
                               }
-                              size="icon"
-                              className="h-8 w-8 transition-colors"
+                              size="icon-sm"
                               onClick={() => handleDeleteDocument(doc.url)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="size-4" />
                             </Button>
                           </div>
                         </div>
@@ -2015,7 +2013,7 @@ export default function EditProjectClient({ project }: Props) {
                 type="submit"
                 disabled={saving || !hasChanges || !isFormValid}
               >
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Save Changes
               </Button>
             </div>
@@ -2035,7 +2033,7 @@ export default function EditProjectClient({ project }: Props) {
             {/* Project status notification */}
             {isCancelled && (
               <div className="mb-6 flex items-start gap-3 p-4 rounded-md border border-destructive bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium text-foreground mb-1">
                     This project has been cancelled
@@ -2068,7 +2066,7 @@ export default function EditProjectClient({ project }: Props) {
               {!isCancelled && (
                 <div className="p-4 border rounded-lg bg-muted/30">
                   <h4 className="font-medium mb-2 flex items-center">
-                    <XCircle className="h-4 w-4 mr-2 text-warning" />
+                    <XCircle className="size-4 mr-2 text-warning" />
                     Cancel Project
                   </h4>
                   <p className="text-sm text-muted-foreground mb-4">
@@ -2088,7 +2086,7 @@ export default function EditProjectClient({ project }: Props) {
               {/* Delete Project Button */}
               <div className="p-4 border rounded-lg bg-muted/30">
                 <h4 className="font-medium mb-2 flex items-center">
-                  <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                  <Trash2 className="size-4 mr-2 text-destructive" />
                   Delete Project
                 </h4>
                 <p className="text-sm text-muted-foreground mb-4">
@@ -2102,11 +2100,12 @@ export default function EditProjectClient({ project }: Props) {
                         <span className="w-full" tabIndex={canDelete ? -1 : 0}>
                           <Button
                             onClick={() => setShowDeleteDialog(true)}
-                            className="w-full bg-destructive text-background hover:bg-destructive/90"
+                            variant="destructive"
+                            className="w-full"
                             disabled={isDeleting || !canDelete}
                           >
                             {isDeleting ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              <Loader2 className="size-4 animate-spin mr-2" />
                             ) : null}
                             Delete Project
                           </Button>
@@ -2149,11 +2148,12 @@ export default function EditProjectClient({ project }: Props) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProject}
-              className="w-full sm:w-auto bg-destructive/10 text-destructive hover:bg-destructive/20"
+              variant="destructive"
+              className="w-full sm:w-auto"
             >
               {isDeleting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin" />
                   Deleting...
                 </>
               ) : (

@@ -169,21 +169,21 @@ export default function Finalize({
       case "qr-code":
         return {
           name: "QR Code Self Check-in",
-          icon: <QrCode className="h-4 w-4 mr-2" />,
+          icon: <QrCode className="size-4 mr-2" />,
           description:
             "Volunteers will scan a QR code and log their own hours.",
         };
       case "auto":
         return {
           name: "Automatic Check-in/out",
-          icon: <Clock className="h-4 w-4 mr-2" />,
+          icon: <Clock className="size-4 mr-2" />,
           description:
             "System will automatically log attendance for the full scheduled time.",
         };
       case "manual":
         return {
           name: "Manual Check-in by Organizer",
-          icon: <UserCheck className="h-4 w-4 mr-2" />,
+          icon: <UserCheck className="size-4 mr-2" />,
           description:
             "You will manually log each volunteer's attendance and hours.",
         };
@@ -383,15 +383,15 @@ export default function Finalize({
   // Get file icon based on type
   const getFileIcon = (fileType: string) => {
     if (fileType.includes("pdf")) {
-      return <FileText className="h-5 w-5" />;
+      return <FileText />;
     } else if (fileType.includes("word") || fileType.includes("doc")) {
-      return <FileText className="h-5 w-5" />;
+      return <FileText />;
     } else if (fileType.includes("text")) {
-      return <FileText className="h-5 w-5" />;
+      return <FileText />;
     } else if (fileType.includes("image")) {
-      return <ImageIcon className="h-5 w-5" />;
+      return <ImageIcon />;
     } else {
-      return <FileType className="h-5 w-5" />;
+      return <FileType />;
     }
   };
 
@@ -433,7 +433,7 @@ export default function Finalize({
     if (hasProfanity) {
       return (
         <>
-          <AlertTriangle className="shrink-0 h-8 w-8 text-destructive mt-0.5" />
+          <AlertTriangle className="shrink-0 size-8 text-destructive mt-0.5" />
           <div>
             <h4 className="font-semibold">Content warning</h4>
             <p className="text-sm text-muted-foreground">
@@ -451,7 +451,7 @@ export default function Finalize({
 
     return (
       <>
-        <CheckCircle2 className="shrink-0 h-8 w-8 text-primary mt-0.5" />
+        <CheckCircle2 className="shrink-0 size-8 text-primary mt-0.5" />
         <div>
           <h4 className="font-semibold">Ready to create your project</h4>
           <p className="text-sm text-muted-foreground">
@@ -496,7 +496,7 @@ export default function Finalize({
                     ratio={4 / 3}
                     className="bg-muted overflow-hidden rounded-md"
                   >
-                    <div className="relative w-full h-full">
+                    <div className="relative size-full">
                       <Image
                         src={coverImagePreview}
                         alt="Cover image preview"
@@ -507,19 +507,19 @@ export default function Finalize({
                         type="button"
                         variant="destructive"
                         size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 shadow-md hover:bg-destructive/90 transition-colors"
+                        className="absolute top-2 right-2 size-7"
                         onClick={removeCoverImage}
                       >
-                        <X className="h-4 w-4" />
+                        <X className="size-4" />
                       </Button>
                     </div>
                   </AspectRatio>
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-col items-center justify-center space-y-2 py-6">
-                    <div className="rounded-full bg-background p-2 shadow-xs">
-                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  <div className="flex flex-col items-center justify-center gap-2 py-6">
+                    <div className="rounded-full border bg-background p-2">
+                      <ImageIcon className="size-6 text-muted-foreground" />
                     </div>
                     <div className="text-center space-y-1">
                       <p className="text-sm font-medium">
@@ -534,7 +534,7 @@ export default function Finalize({
                     type="file"
                     id="coverImage"
                     accept={ALLOWED_IMAGE_TYPES.join(",")}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 size-full opacity-0 cursor-pointer"
                     onChange={handleCoverImageChange}
                   />
                 </>
@@ -578,13 +578,13 @@ export default function Finalize({
                     }
                     onClick={removeCoverImage}
                   >
-                    <X className="h-4 w-4" />
+                    <X />
                   </AttachmentAction>
                 </AttachmentActions>
               </Attachment>
             )}
             <div className="flex items-center mt-2 text-xs text-muted-foreground">
-              <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
+              <AlertTriangle className="size-3 mr-1 shrink-0" />
               <span>
                 Cover images are optional, but if you have an image feel free to
                 show it!
@@ -607,16 +607,16 @@ export default function Finalize({
               Word, Text, Images, max 10MB total)
             </p>
             <div
-              className={`${getUploadAreaClassName("docs")} min-h-[180px] ${localDocuments.length >= MAX_DOCUMENTS_COUNT ? "opacity-50 pointer-events-none" : ""}`}
+              className={`${getUploadAreaClassName("docs")} min-h-45 ${localDocuments.length >= MAX_DOCUMENTS_COUNT ? "opacity-50 pointer-events-none" : ""}`}
               onDragOver={(e) => handleDragOver(e, "docs")}
               onDragLeave={handleDragLeave}
               onDrop={handleDocumentsDrop}
               onMouseEnter={() => setHoverUpload("docs")}
               onMouseLeave={() => setHoverUpload(null)}
             >
-              <div className="flex flex-col items-center justify-center space-y-2 my-6">
-                <div className="rounded-full bg-background p-2 shadow-xs">
-                  <Upload className="h-6 w-6 text-muted-foreground" />
+              <div className="flex flex-col items-center justify-center gap-2 my-6">
+                <div className="rounded-full border bg-background p-2">
+                  <Upload className="size-6 text-muted-foreground" />
                 </div>
                 <div className="text-center space-y-1">
                   <p className="text-sm font-medium">Drag & drop files here</p>
@@ -630,7 +630,7 @@ export default function Finalize({
                     multiple
                     id="documents"
                     accept={ALLOWED_DOCUMENT_TYPES.join(",")}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 size-full opacity-0 cursor-pointer"
                     onChange={handleDocumentsChange}
                   />
                 )}
@@ -677,7 +677,7 @@ export default function Finalize({
                             }
                             onClick={() => removeDocument(index)}
                           >
-                            <X className="h-4 w-4" />
+                            <X />
                           </AttachmentAction>
                         </AttachmentActions>
                       </Attachment>
@@ -689,7 +689,7 @@ export default function Finalize({
 
             {!localDocuments.length && (
               <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
+                <AlertTriangle className="size-3 mr-1 shrink-0" />
                 <span>
                   Documents are optional but recommended for projects requiring
                   additional information
@@ -707,9 +707,9 @@ export default function Finalize({
           </h3>
           <div className="flex items-center gap-2 text-muted-foreground mb-2">
             {state.basicInfo.organizationId ? (
-              <Building2 className="h-4 w-4 shrink-0" />
+              <Building2 className="size-4 shrink-0" />
             ) : (
-              <User className="h-4 w-4 shrink-0" />
+              <User className="size-4 shrink-0" />
             )}
             <span className="text-sm">
               {state.basicInfo.organizationId
@@ -718,7 +718,7 @@ export default function Finalize({
             </span>
           </div>
           <div className="flex items-start gap-2 text-muted-foreground mb-4">
-            <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+            <MapPin className="size-4 mt-0.5 shrink-0" />
             <span className="text-sm">{state.basicInfo.location}</span>
           </div>
           <RichTextContent
@@ -729,7 +729,7 @@ export default function Finalize({
 
         <div className="bg-muted/50 p-4 rounded-lg space-y-4">
           <h4 className="font-medium">Event Type</h4>
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline">
             {state.eventType === "oneTime" && "Single Event"}
             {state.eventType === "multiDay" && "Multiple Day Event"}
             {state.eventType === "sameDayMultiArea" && "Multi-Role Event"}
@@ -737,10 +737,7 @@ export default function Finalize({
 
           <h4 className="font-medium pt-2">Verification Method</h4>
           <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="text-xs flex items-center gap-1"
-            >
+            <Badge variant="outline">
               {verificationMethod.icon}
               {verificationMethod.name}
             </Badge>
@@ -751,18 +748,15 @@ export default function Finalize({
 
           <h4 className="font-medium pt-2">Sign-up Requirements</h4>
           <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="text-xs flex items-center gap-1"
-            >
+            <Badge variant="outline">
               {state.requireLogin ? (
                 <>
-                  <Lock className="h-4 w-4 mr-1" />
+                  <Lock className="size-4 mr-1" />
                   Account Required
                 </>
               ) : (
                 <>
-                  <User className="h-4 w-4 mr-1" />
+                  <User className="size-4 mr-1" />
                   Anonymous Sign-ups Allowed
                 </>
               )}
@@ -777,20 +771,20 @@ export default function Finalize({
           {state.eventType === "oneTime" && (
             <div className="space-y-2 pt-2">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="size-4 text-muted-foreground" />
                 <span className="text-sm">
                   {formatDateForDisplay(state.schedule.oneTime.date)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Clock className="size-4 text-muted-foreground" />
                 <span className="text-sm">
                   {convertTo12HourFormat(state.schedule.oneTime.startTime)} -{" "}
                   {convertTo12HourFormat(state.schedule.oneTime.endTime)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="size-4 text-muted-foreground" />
                 <span className="text-sm">
                   {state.schedule.oneTime.volunteers} volunteer
                   {state.schedule.oneTime.volunteers !== 1 && "s"} needed
@@ -804,7 +798,7 @@ export default function Finalize({
               {state.schedule.multiDay.map((day, dayIndex) => (
                 <div key={dayIndex} className="space-y-2 border-l-2 pl-3">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="size-4 text-muted-foreground" />
                     <span className="text-sm font-medium">
                       {formatDateForDisplay(day.date)}
                     </span>
@@ -815,14 +809,14 @@ export default function Finalize({
                         {getMultiDaySlotDisplayName(slot, slotIndex)}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Clock className="size-4 text-muted-foreground" />
                         <span className="text-sm">
                           {convertTo12HourFormat(slot.startTime)} -{" "}
                           {convertTo12HourFormat(slot.endTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <Users className="size-4 text-muted-foreground" />
                         <span className="text-sm">
                           {slot.volunteers} volunteer
                           {slot.volunteers !== 1 && "s"} needed
@@ -838,13 +832,13 @@ export default function Finalize({
           {state.eventType === "sameDayMultiArea" && (
             <div className="space-y-4 pt-2">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Calendar className="size-4 text-muted-foreground" />
                 <span className="text-sm">
                   {formatDateForDisplay(state.schedule.sameDayMultiArea.date)}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
+                <Clock className="size-4 text-muted-foreground" />
                 <span className="text-sm">
                   Overall hours:{" "}
                   {convertTo12HourFormat(
@@ -866,14 +860,14 @@ export default function Finalize({
                         {role.name || `Role ${roleIndex + 1}`}
                       </span>
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <Clock className="size-4 text-muted-foreground" />
                         <span className="text-sm">
                           {convertTo12HourFormat(role.startTime)} -{" "}
                           {convertTo12HourFormat(role.endTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <Users className="size-4 text-muted-foreground" />
                         <span className="text-sm">
                           {role.volunteers} volunteer
                           {role.volunteers !== 1 && "s"} needed
@@ -894,7 +888,7 @@ export default function Finalize({
 
         {/* AI Moderation Alert (using Shadcn Alert) */}
         <Alert variant="default" className="border-warning bg-warning/10">
-          <AlertTriangle className="h-4 w-4 text-warning dark:text-warning" />
+          <AlertTriangle className="size-4 text-warning dark:text-warning" />
           <AlertTitle className="text-warning">
             Content Moderation Notice
           </AlertTitle>

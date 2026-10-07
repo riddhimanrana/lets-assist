@@ -1331,7 +1331,7 @@ export default function ProjectCreator({
               </p>
             )}
           </div>
-          <Card className="border-primary/10 shadow-sm overflow-hidden">
+          <Card className="overflow-hidden">
             <CardContent className="pt-6">
               {React.isValidElement(pluginStep.content)
                 ? React.cloneElement(
@@ -1514,7 +1514,7 @@ export default function ProjectCreator({
               onClick={() => setShowAIAssistant(!showAIAssistant)}
               className="flex items-center gap-2 ml-1"
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="size-4" />
               <span className="hidden sm:inline">AI Auto-fill</span>
             </Button>
           )}
@@ -1559,7 +1559,7 @@ export default function ProjectCreator({
             disabled={state.step === 1 || isSubmitting || isSavingDraft}
             className="w-30"
           >
-            <ChevronLeft className="h-4 w-4 mr-2" />
+            <ChevronLeft className="size-4 mr-2" />
             Back
           </Button>
           <div className="flex gap-2 items-center">
@@ -1581,12 +1581,11 @@ export default function ProjectCreator({
                         !state.basicInfo.title?.trim() ||
                         state.waiverRequired
                       }
-                      className="h-9 w-9"
                     >
                       {isSavingDraft ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin" />
                       ) : (
-                        <Save className="h-4 w-4" />
+                        <Save className="size-4" />
                       )}
                     </Button>
                   }
@@ -1602,14 +1601,14 @@ export default function ProjectCreator({
               <div className="hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 text-xs text-muted-foreground">
                 {autosaveStatus === "saving" && (
                   <>
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <Loader2 className="size-3 animate-spin" />
                     <span>Saving...</span>
                   </>
                 )}
                 {autosaveStatus === "saved" && (
                   <>
                     <svg
-                      className="h-3 w-3 text-success"
+                      className="size-3 text-success"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1624,13 +1623,13 @@ export default function ProjectCreator({
                 )}
                 {autosaveStatus === "error" && (
                   <>
-                    <AlertCircle className="h-3 w-3 text-amber-600" />
+                    <AlertCircle className="size-3 text-warning" />
                     <span>Save failed</span>
                   </>
                 )}
                 {autosaveStatus === "idle" && (
                   <>
-                    <div className="h-2 w-2 rounded-full bg-success" />
+                    <div className="size-2 rounded-full bg-success" />
                     <span>Autosave on</span>
                   </>
                 )}
@@ -1648,13 +1647,13 @@ export default function ProjectCreator({
               className="w-30"
             >
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : state.step === finalStep ? (
                 "Create"
               ) : (
                 <>
                   Continue
-                  <ChevronRight className="h-4 w-4 ml-2" />
+                  <ChevronRight className="size-4 ml-2" />
                 </>
               )}
             </Button>

@@ -37,14 +37,14 @@ export default function EventType({
       />
       <span
         className={cn(
-          "block p-3 sm:p-4 rounded-lg border-2 transition-all peer-focus-visible:border-ring peer-focus-visible:ring-ring/50 peer-focus-visible:ring-[3px]",
+          "block p-3 sm:p-4 rounded-lg border transition-all peer-focus-visible:border-ring peer-focus-visible:ring-ring/50 peer-focus-visible:ring-[3px]",
           eventType === type
             ? "border-primary bg-primary/5"
             : "hover:bg-muted/50",
         )}
       >
         <span className="flex gap-3">
-          <span className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 flex items-center justify-center rounded-md sm:rounded-lg bg-primary/10">
+          <span className="size-10 sm:size-12 shrink-0 flex items-center justify-center rounded-md sm:rounded-lg bg-primary/10">
             {icon}
           </span>
           <span className="flex-1 min-w-0">
@@ -92,7 +92,7 @@ export default function EventType({
             "oneTime",
             "Single Event",
             "A one-time event on a specific date",
-            <CalendarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
+            <CalendarIcon className="size-5 sm:size-6 text-primary" />,
             "Beach cleanup event on Feb 20th, 2024 from 4 PM to 9 PM",
           )}
 
@@ -100,7 +100,7 @@ export default function EventType({
             "multiDay",
             "Multiple Day Event",
             "Event spans across multiple days with different time slots",
-            <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
+            <CalendarClock className="size-5 sm:size-6 text-primary" />,
             "Workshop series with morning and afternoon sessions across different days",
           )}
 
@@ -108,7 +108,7 @@ export default function EventType({
             "sameDayMultiArea",
             "Multi-Role Event",
             "Single day event with different volunteer roles",
-            <UsersRound className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />,
+            <UsersRound className="size-5 sm:size-6 text-primary" />,
             "Community festival needing decorators, cooks, and cleaners at different times",
           )}
         </fieldset>

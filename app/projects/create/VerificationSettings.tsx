@@ -253,8 +253,8 @@ export default function VerificationSettings({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
+                    <Button variant="ghost" size="icon-xs">
+                      <Info className="size-4" />
                     </Button>
                   }
                 />
@@ -287,7 +287,7 @@ export default function VerificationSettings({
             <label
               htmlFor="track-hours"
               className={cn(
-                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 trackingMode === "track-hours" && "border-primary bg-accent",
               )}
             >
@@ -299,7 +299,7 @@ export default function VerificationSettings({
                     className="shrink-0"
                   />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <Clock className="shrink-0 h-5 w-5 text-primary" />
+                    <Clock className="shrink-0 size-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">
                       Track volunteer hours
                     </span>
@@ -312,7 +312,7 @@ export default function VerificationSettings({
                   Recommended
                 </Badge>
               </div>
-              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-6 sm:pl-7 leading-relaxed w-full">
                 Use QR, manual, or automatic check-in. Volunteers use accounts
                 so their hours, certificates, and dashboard stay connected.
               </div>
@@ -321,7 +321,7 @@ export default function VerificationSettings({
             <label
               htmlFor="signup-only-tracking"
               className={cn(
-                "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 trackingMode === "signup-only" && "border-primary bg-accent",
               )}
             >
@@ -333,7 +333,7 @@ export default function VerificationSettings({
                     className="shrink-0"
                   />
                   <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                    <Clipboard className="shrink-0 h-5 w-5 text-primary" />
+                    <Clipboard className="shrink-0 size-5 text-primary" />
                     <span className="font-medium text-sm sm:text-base leading-snug">
                       Collect signups only
                     </span>
@@ -346,7 +346,7 @@ export default function VerificationSettings({
                   No email verification
                 </Badge>
               </div>
-              <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+              <div className="text-xs sm:text-sm text-muted-foreground pl-6 sm:pl-7 leading-relaxed w-full">
                 Best for headcount, interest lists, and events where attendance
                 is tracked somewhere else. Volunteers can sign up without
                 creating or verifying an account.
@@ -365,8 +365,8 @@ export default function VerificationSettings({
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <Button variant="ghost" size="icon" className="h-6 w-6">
-                        <Info className="h-4 w-4" />
+                      <Button variant="ghost" size="icon-xs">
+                        <Info className="size-4" />
                       </Button>
                     }
                   />
@@ -389,7 +389,7 @@ export default function VerificationSettings({
               <label
                 htmlFor="qr-code"
                 className={cn(
-                  "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                  "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                   verificationMethod === "qr-code" &&
                     "border-primary bg-accent",
                   errors.verificationMethod && "border-destructive",
@@ -403,7 +403,7 @@ export default function VerificationSettings({
                       className="shrink-0"
                     />
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                      <QrCode className="shrink-0 h-5 w-5 text-primary" />
+                      <QrCode className="shrink-0 size-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base leading-snug">
                         QR Code Self Check-in
                       </span>
@@ -416,7 +416,7 @@ export default function VerificationSettings({
                     Recommended
                   </Badge>
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+                <div className="text-xs sm:text-sm text-muted-foreground pl-6 sm:pl-7 leading-relaxed w-full">
                   Volunteers scan QR code and log in to track their own hours.
                   They can leave anytime, with automatic logout at the scheduled
                   end time. Hours can be adjusted if needed.
@@ -426,7 +426,7 @@ export default function VerificationSettings({
               <label
                 htmlFor="manual"
                 className={cn(
-                  "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                  "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                   verificationMethod === "manual" && "border-primary bg-accent",
                   errors.verificationMethod && "border-destructive",
                 )}
@@ -439,14 +439,14 @@ export default function VerificationSettings({
                       className="shrink-0"
                     />
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                      <UserCheck className="shrink-0 h-5 w-5 text-primary" />
+                      <UserCheck className="shrink-0 size-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base leading-snug">
                         Manual Check-in by Organizer
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+                <div className="text-xs sm:text-sm text-muted-foreground pl-6 sm:pl-7 leading-relaxed w-full">
                   You&apos;ll manually log each volunteer&apos;s attendance and
                   hours. Most time-consuming for organizers but provides the
                   highest level of verification.
@@ -456,7 +456,7 @@ export default function VerificationSettings({
               <label
                 htmlFor="auto"
                 className={cn(
-                  "flex flex-col items-start space-y-2 sm:space-y-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
+                  "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                   verificationMethod === "auto" && "border-primary bg-accent",
                   errors.verificationMethod && "border-destructive",
                 )}
@@ -469,23 +469,23 @@ export default function VerificationSettings({
                       className="shrink-0"
                     />
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
-                      <Clock className="shrink-0 h-5 w-5 text-primary" />
+                      <Clock className="shrink-0 size-5 text-primary" />
                       <span className="font-medium text-sm sm:text-base leading-snug">
                         Automatic Check-in/out
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 self-start sm:self-center">
-                    <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                    <AlertTriangle className="size-4 text-warning shrink-0" />
                     <Badge
                       variant="secondary"
-                      className="pointer-events-none text-warning bg-warning/10 text-xs whitespace-nowrap"
+                      className="pointer-events-none text-warning bg-warning/10 whitespace-nowrap"
                     >
                       Not Recommended
                     </Badge>
                   </div>
                 </div>
-                <div className="text-xs sm:text-sm text-muted-foreground pl-7 sm:pl-9 leading-relaxed w-full">
+                <div className="text-xs sm:text-sm text-muted-foreground pl-6 sm:pl-7 leading-relaxed w-full">
                   System automatically logs attendance for the full scheduled
                   time. Least accurate for attendance tracking.
                 </div>
@@ -494,7 +494,7 @@ export default function VerificationSettings({
 
             {errors.verificationMethod && (
               <div className="text-destructive text-sm flex items-center gap-2 mt-4">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="size-4" />
                 {errors.verificationMethod}
               </div>
             )}
@@ -510,8 +510,8 @@ export default function VerificationSettings({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
+                    <Button variant="ghost" size="icon-xs">
+                      <Info className="size-4" />
                     </Button>
                   }
                 />
@@ -527,8 +527,8 @@ export default function VerificationSettings({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
                 <div
                   className={cn(
                     "p-2 rounded-md",
@@ -537,9 +537,9 @@ export default function VerificationSettings({
                   )}
                 >
                   {requireLogin ? (
-                    <Lock className="h-5 w-5 text-primary" />
+                    <Lock className="size-5 text-primary" />
                   ) : (
-                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <Users className="size-5 text-muted-foreground" />
                   )}
                 </div>
                 <div>
@@ -566,7 +566,7 @@ export default function VerificationSettings({
 
             {isSignupOnly && (
               <Alert className="border-primary/30 bg-primary/5">
-                <Info className="h-4 w-4 text-primary" />
+                <Info className="size-4 text-primary" />
                 <AlertDescription className="text-sm">
                   Signup-only projects collect names and contact information
                   without account creation or email verification. Volunteers can
@@ -577,7 +577,7 @@ export default function VerificationSettings({
 
             {errors.requireLogin && !isSignupOnly && (
               <div className="text-destructive text-sm flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="size-4" />
                 {errors.requireLogin}
               </div>
             )}
@@ -585,7 +585,7 @@ export default function VerificationSettings({
             {!requireLogin && !isSignupOnly && (
               <div className="rounded-lg bg-warning/10 p-4 text-sm border border-warning/40">
                 <div className="flex gap-2">
-                  <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                  <AlertTriangle className="size-5 text-warning shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-warning">
                       Anonymous sign-ups
@@ -611,8 +611,8 @@ export default function VerificationSettings({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
+                    <Button variant="ghost" size="icon-xs">
+                      <Info className="size-4" />
                     </Button>
                   }
                 />
@@ -628,8 +628,8 @@ export default function VerificationSettings({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-3 flex-1">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
                 <div className="flex-1">
                   <Label
                     htmlFor="enable-comments"
@@ -649,8 +649,8 @@ export default function VerificationSettings({
               />
             </div>
 
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-3 flex-1">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
                 <div className="flex-1">
                   <Label
                     htmlFor="show-attendees-public"
@@ -681,8 +681,8 @@ export default function VerificationSettings({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
+                    <Button variant="ghost" size="icon-xs">
+                      <Info className="size-4" />
                     </Button>
                   }
                 />
@@ -699,8 +699,8 @@ export default function VerificationSettings({
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            <div className="flex items-center justify-between space-x-4">
-              <div className="flex items-center space-x-3 flex-1">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1">
                 <div
                   className={cn(
                     "p-2 rounded-md",
@@ -709,7 +709,7 @@ export default function VerificationSettings({
                 >
                   <FileSignature
                     className={cn(
-                      "h-5 w-5",
+                      "size-5",
                       waiverRequired ? "text-primary" : "text-muted-foreground",
                     )}
                   />
@@ -744,7 +744,7 @@ export default function VerificationSettings({
                 >
                   <AlertTriangle
                     className={cn(
-                      "h-4 w-4",
+                      "size-4",
                       hasWaiverPdf ? "text-warning" : "text-destructive",
                     )}
                   />
@@ -762,7 +762,7 @@ export default function VerificationSettings({
 
                 {showWaiverReuploadNotice && !hasWaiverPdf && (
                   <Alert className="bg-warning/10 border-warning">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertTriangle className="size-4 text-warning" />
                     <AlertDescription className="text-warning text-sm">
                       <span className="font-medium">Draft restored:</span> Your
                       waiver signer configuration was saved, but waiver PDFs are
@@ -800,14 +800,14 @@ export default function VerificationSettings({
                         />
                         {isValidatingPdf ? (
                           <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                            <Loader2 className="size-8 text-muted-foreground animate-spin" />
                             <p className="text-sm text-muted-foreground">
                               Validating PDF...
                             </p>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-2">
-                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <Upload className="size-8 text-muted-foreground" />
                             <p className="text-sm font-medium">
                               Click to upload your waiver PDF
                             </p>
@@ -819,7 +819,7 @@ export default function VerificationSettings({
                       </div>
                       {pdfError && (
                         <p className="text-sm text-destructive flex items-center gap-1">
-                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTriangle className="size-4" />
                           {pdfError}
                         </p>
                       )}
@@ -828,7 +828,7 @@ export default function VerificationSettings({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
                         <div className="flex items-center gap-3">
-                          <FileText className="h-8 w-8 text-primary" />
+                          <FileText className="size-8 text-primary" />
                           <div>
                             <p className="text-sm font-medium">
                               {waiverPdfFile?.name || "Waiver PDF"}
@@ -847,7 +847,7 @@ export default function VerificationSettings({
                           onClick={handleRemovePdf}
                           className="text-destructive hover:text-destructive"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="size-4" />
                         </Button>
                       </div>
 
@@ -856,14 +856,14 @@ export default function VerificationSettings({
                         <div className="space-y-2">
                           {waiverPdfValidation.hasSignatureFields ? (
                             <Alert className="bg-success/10 border-success">
-                              <CheckCircle2 className="h-4 w-4 text-success" />
+                              <CheckCircle2 className="size-4 text-success" />
                               <AlertDescription className="text-success">
                                 Signature fields detected in the PDF.
                               </AlertDescription>
                             </Alert>
                           ) : (
                             <Alert className="bg-warning/10 border-warning">
-                              <AlertTriangle className="h-4 w-4 text-warning" />
+                              <AlertTriangle className="size-4 text-warning" />
                               <AlertDescription className="text-warning">
                                 {waiverPdfValidation.warnings.join(" ")}
                               </AlertDescription>
@@ -876,7 +876,7 @@ export default function VerificationSettings({
                       <div className="pt-2">
                         {waiverDefinition ? (
                           <div className="flex items-center gap-2 p-3 border-success rounded-md bg-success/10">
-                            <CheckCircle2 className="h-5 w-5 text-success" />
+                            <CheckCircle2 className="size-5 text-success" />
                             <div className="flex-1">
                               <p className="text-sm font-medium">
                                 Waiver Configured
@@ -903,7 +903,7 @@ export default function VerificationSettings({
                               className="w-full"
                               variant={waiverDefinition ? "outline" : "default"}
                             >
-                              <FileSignature className="mr-2 h-4 w-4" />
+                              <FileSignature className="mr-2 size-4" />
                               Configure Waiver Signers & Fields
                             </Button>
                           )
@@ -921,7 +921,7 @@ export default function VerificationSettings({
                   {!hasWaiverPdf && (
                     <Alert className="bg-info/20 border-info">
                       <AlertDescription className="text-info text-xs flex gap-2">
-                        <Info className="h-4 w-4 text-info text-xs" />
+                        <Info className="size-4 text-info text-xs" />
                         Projects must have custom waivers. Upload a PDF to
                         enable waiver collection.
                       </AlertDescription>
@@ -947,8 +947,8 @@ export default function VerificationSettings({
                 )}
 
                 {/* E-Signature Option */}
-                <div className="flex items-center justify-between space-x-4">
-                  <div className="flex items-center space-x-3 flex-1">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
                     <div
                       className={cn(
                         "p-2 rounded-md",
@@ -957,7 +957,7 @@ export default function VerificationSettings({
                     >
                       <FileSignature
                         className={cn(
-                          "h-5 w-5",
+                          "size-5",
                           waiverRequired
                             ? "text-primary"
                             : "text-muted-foreground",
@@ -988,8 +988,8 @@ export default function VerificationSettings({
                 </div>
 
                 {/* Print & Upload Backup */}
-                <div className="flex items-center justify-between space-x-4">
-                  <div className="flex items-center space-x-3 flex-1">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
                     <div
                       className={cn(
                         "p-2 rounded-md",
@@ -998,7 +998,7 @@ export default function VerificationSettings({
                     >
                       <Upload
                         className={cn(
-                          "h-5 w-5",
+                          "size-5",
                           waiverRequired
                             ? "text-primary"
                             : "text-muted-foreground",
@@ -1046,8 +1046,8 @@ export default function VerificationSettings({
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
-                      <Info className="h-4 w-4" />
+                    <Button variant="ghost" size="icon-xs">
+                      <Info className="size-4" />
                     </Button>
                   }
                 />
@@ -1067,28 +1067,28 @@ export default function VerificationSettings({
             onValueChange={(value) =>
               updateVisibilityAction(value as ProjectVisibility)
             }
-            className="grid gap-4"
+            className="grid gap-3 sm:gap-4"
           >
             {/* Public */}
             <label
               htmlFor="visibility-public"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 transition-colors",
+                "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 transition-colors",
                 visibility === "public" && "border-primary bg-accent",
                 !isPublicVisibilityDisabled && "hover:bg-accent cursor-pointer",
                 isPublicVisibilityDisabled && "cursor-not-allowed opacity-60",
                 errors.visibility && "border-destructive",
               )}
             >
-              <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
+              <div className="flex w-full justify-between gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <RadioGroupItem
                     value="public"
                     id="visibility-public"
                     disabled={isPublicVisibilityDisabled}
                   />
-                  <div className="flex items-center space-x-2">
-                    <Eye className="h-5 w-5" />
+                  <div className="flex items-center gap-2">
+                    <Eye className="size-5" />
                     <span className="font-medium">Public (Everyone)</span>
                   </div>
                 </div>
@@ -1102,7 +1102,7 @@ export default function VerificationSettings({
                               className="inline-flex items-center text-muted-foreground"
                               aria-label="Public visibility disabled"
                             >
-                              <Lock className="h-4 w-4" />
+                              <Lock className="size-4" />
                             </span>
                           }
                         />
@@ -1124,7 +1124,7 @@ export default function VerificationSettings({
                   </Badge>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground ml-6">
+              <p className="text-sm text-muted-foreground pl-6 sm:pl-7">
                 Your project appears on the home feed and in search results.
                 Anyone on the platform can find and sign up for it.
               </p>
@@ -1134,22 +1134,22 @@ export default function VerificationSettings({
             <label
               htmlFor="visibility-unlisted"
               className={cn(
-                "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                 visibility === "unlisted" && "border-primary bg-accent",
                 errors.visibility && "border-destructive",
               )}
             >
-              <div className="flex w-full justify-between space-x-3">
-                <div className="flex items-center space-x-3">
+              <div className="flex w-full justify-between gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <RadioGroupItem value="unlisted" id="visibility-unlisted" />
-                  <div className="flex items-center space-x-2">
-                    <Link2 className="h-5 w-5" />
+                  <div className="flex items-center gap-2">
+                    <Link2 className="size-5" />
                     <span className="font-medium">Unlisted (By Link Only)</span>
                   </div>
                 </div>
                 <Badge variant="secondary">Private Link</Badge>
               </div>
-              <p className="text-sm text-muted-foreground ml-6">
+              <p className="text-sm text-muted-foreground pl-6 sm:pl-7">
                 Only people with the direct link can find your project. Share
                 the link with volunteers via email or social media. Won&apos;t
                 appear in search or feeds.
@@ -1161,20 +1161,20 @@ export default function VerificationSettings({
               <label
                 htmlFor="visibility-org-only"
                 className={cn(
-                  "flex flex-col items-start space-y-3 rounded-lg border p-4 hover:bg-accent cursor-pointer transition-colors",
+                  "flex flex-col items-start gap-2 sm:gap-3 rounded-lg border p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors",
                   visibility === "organization_only" &&
                     "border-primary bg-accent",
                   errors.visibility && "border-destructive",
                 )}
               >
-                <div className="flex w-full justify-between space-x-3">
-                  <div className="flex items-center space-x-3">
+                <div className="flex w-full justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <RadioGroupItem
                       value="organization_only"
                       id="visibility-org-only"
                     />
-                    <div className="flex items-center space-x-2">
-                      <Lock className="h-5 w-5" />
+                    <div className="flex items-center gap-2">
+                      <Lock className="size-5" />
                       <span className="font-medium">
                         Organization Members Only
                       </span>
@@ -1182,7 +1182,7 @@ export default function VerificationSettings({
                   </div>
                   <Badge variant="secondary">Private</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground ml-6">
+                <p className="text-sm text-muted-foreground pl-6 sm:pl-7">
                   Only your organization members can see and sign up for this
                   project. Great for internal volunteer opportunities or
                   member-exclusive events.
@@ -1193,14 +1193,14 @@ export default function VerificationSettings({
 
           {errors.visibility && (
             <div className="text-destructive text-sm flex items-center gap-2 mt-4">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="size-4" />
               {errors.visibility}
             </div>
           )}
 
           {isPublicVisibilityDisabled && (
             <Alert className="mt-4 bg-warning/10 border-warning/40">
-              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertTriangle className="size-4 text-warning" />
               <AlertDescription className="text-sm">
                 Public visibility is available to Trusted Members only. You can
                 still create this project as a{" "}
@@ -1229,8 +1229,8 @@ export default function VerificationSettings({
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <Button variant="ghost" size="icon" className="h-6 w-6">
-                          <Info className="h-4 w-4" />
+                        <Button variant="ghost" size="icon-xs">
+                          <Info className="size-4" />
                         </Button>
                       }
                     />
@@ -1246,8 +1246,8 @@ export default function VerificationSettings({
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                <div className="flex items-center justify-between space-x-4">
-                  <div className="flex items-center space-x-3 flex-1">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 flex-1">
                     <div
                       className={cn(
                         "p-2 rounded-md",
@@ -1255,9 +1255,9 @@ export default function VerificationSettings({
                       )}
                     >
                       {restrictToOrgDomains ? (
-                        <Lock className="h-5 w-5 text-primary" />
+                        <Lock className="size-5 text-primary" />
                       ) : (
-                        <Users className="h-5 w-5 text-muted-foreground" />
+                        <Users className="size-5 text-muted-foreground" />
                       )}
                     </div>
                     <div className="flex-1">

@@ -214,7 +214,7 @@ export default function Schedule({
                             dateError && "border-destructive",
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-2 size-4" />
                           {state.schedule.oneTime.date
                             ? format(
                                 parseStringToDate(
@@ -245,7 +245,7 @@ export default function Schedule({
                   </Popover>
                   {dateError && (
                     <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                      <AlertCircle className="h-4 w-4" />
+                      <AlertCircle className="size-4" />
                       {dateError}
                     </div>
                   )}
@@ -269,7 +269,7 @@ export default function Schedule({
                   />
                   {volunteersError && (
                     <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                      <AlertCircle className="h-4 w-4" />
+                      <AlertCircle className="size-4" />
                       {volunteersError}
                     </div>
                   )}
@@ -389,9 +389,8 @@ export default function Schedule({
                       {dayIndex > 0 && (
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="icon-sm"
                           onClick={() => removeDayAction(dayIndex)}
-                          className="h-8 w-8 hover:bg-muted/80"
                         >
                           ✕
                         </Button>
@@ -400,7 +399,7 @@ export default function Schedule({
 
                     {dateError && (
                       <div className="text-destructive text-sm flex items-center gap-2 mb-3">
-                        <AlertCircle className="h-4 w-4" />
+                        <AlertCircle className="size-4" />
                         {dateError}
                       </div>
                     )}
@@ -418,7 +417,7 @@ export default function Schedule({
                                   dateError && "border-destructive",
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                <CalendarIcon className="mr-2 size-4" />
                                 {day.date
                                   ? format(
                                       parseStringToDate(day.date) as Date,
@@ -506,11 +505,10 @@ export default function Schedule({
                                 {slotIndex > 0 && (
                                   <Button
                                     variant="ghost"
-                                    size="icon"
+                                    size="icon-sm"
                                     onClick={() =>
                                       removeSlotAction(dayIndex, slotIndex)
                                     }
-                                    className="h-8 w-8 hover:bg-muted/80"
                                   >
                                     ✕
                                   </Button>
@@ -546,7 +544,7 @@ export default function Schedule({
                                 </p> */}
                                 {nameError && (
                                   <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertCircle className="size-4" />
                                     {nameError}
                                   </div>
                                 )}
@@ -632,7 +630,7 @@ export default function Schedule({
                                     />
                                     {volunteersError && (
                                       <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                                        <AlertCircle className="h-4 w-4" />
+                                        <AlertCircle className="size-4" />
                                         {volunteersError}
                                       </div>
                                     )}
@@ -701,7 +699,7 @@ export default function Schedule({
                             dateError && "border-destructive",
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-2 size-4" />
                           {state.schedule.sameDayMultiArea.date
                             ? format(
                                 parseStringToDate(
@@ -734,7 +732,7 @@ export default function Schedule({
                   </Popover>
                   {dateError && (
                     <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                      <AlertCircle className="h-4 w-4" />
+                      <AlertCircle className="size-4" />
                       {dateError}
                     </div>
                   )}
@@ -820,9 +818,8 @@ export default function Schedule({
                         {roleIndex > 0 && (
                           <Button
                             variant="ghost"
-                            size="icon"
+                            size="icon-sm"
                             onClick={() => removeRoleAction(roleIndex)}
-                            className="h-8 w-8 hover:bg-muted/80"
                           >
                             ✕
                           </Button>
@@ -850,7 +847,7 @@ export default function Schedule({
                         />
                         {nameError && (
                           <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                            <AlertCircle className="h-4 w-4" />
+                            <AlertCircle className="size-4" />
                             {nameError}
                           </div>
                         )}
@@ -946,7 +943,7 @@ export default function Schedule({
                               />
                               {volunteersError && (
                                 <div className="text-destructive text-sm flex items-center gap-2 mt-1">
-                                  <AlertCircle className="h-4 w-4" />
+                                  <AlertCircle className="size-4" />
                                   {volunteersError}
                                 </div>
                               )}

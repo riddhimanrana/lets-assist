@@ -171,7 +171,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
       <CardContent className="p-3">
         <div className="flex gap-3">
           {/* Thumbnail */}
-          <div className="w-12 h-12 bg-muted rounded shrink-0">
+          <div className="size-12 bg-muted rounded shrink-0">
             {draft.cover_image_url ? (
               <Image
                 src={draft.cover_image_url}
@@ -181,8 +181,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                 sizes="48px"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <FileText className="h-6 w-6 text-muted-foreground" />
+              <div className="size-full flex items-center justify-center">
+                <FileText className="size-6 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -194,12 +194,12 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
             </h4>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
               <div className="flex items-center gap-0.5">
-                <Calendar className="h-3 w-3" />
+                <Calendar className="size-3" />
                 {getSchedulePreview(draft)}
               </div>
               {draft.location && (
                 <div className="flex items-center gap-0.5 truncate max-w-[150px]">
-                  <MapPin className="h-3 w-3 shrink-0" />
+                  <MapPin className="size-3 shrink-0" />
                   <span className="truncate">{draft.location}</span>
                 </div>
               )}
@@ -217,11 +217,11 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               render={
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
+                  size="icon-sm"
+                  className="shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreVertical className="h-3 w-3" />
+                  <MoreVertical className="size-4" />
                 </Button>
               }
             />
@@ -236,7 +236,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                   handleContinue(draft.id);
                 }}
               >
-                <Edit className="h-4 w-4 mr-2" />
+                <Edit className="size-4 mr-2" />
                 Continue Editing
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -246,7 +246,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                 }}
                 disabled={isPublishing === draft.id}
               >
-                <Send className="h-4 w-4 mr-2" />
+                <Send className="size-4 mr-2" />
                 {isPublishing === draft.id ? "Publishing..." : "Publish"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -257,7 +257,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                 }}
                 className="text-destructive focus:text-destructive"
               >
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Trash2 className="size-4 mr-2" />
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -273,7 +273,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         <Empty className="border bg-muted/20 py-10">
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <FileText className="h-5 w-5" />
+              <FileText />
             </EmptyMedia>
             <EmptyTitle>No drafts yet</EmptyTitle>
             <EmptyDescription>
@@ -321,7 +321,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                   }
                 }}
                 disabled={!!isDeleting}
-                className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+                variant="destructive"
               >
                 {isDeleting ? "Deleting..." : "Delete"}
               </AlertDialogAction>
@@ -336,8 +336,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
               <TooltipTrigger
                 render={
                   <DrawerTrigger asChild>
-                    <Button variant="secondary" size="icon" className="h-9 w-9">
-                      <FileText className="h-4 w-4" />
+                    <Button variant="secondary" size="icon">
+                      <FileText className="size-4" />
                     </Button>
                   </DrawerTrigger>
                 }
@@ -368,12 +368,8 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
                 render={
                   <SheetTrigger
                     render={
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-9 w-9"
-                      >
-                        <FileText className="h-4 w-4" />
+                      <Button variant="secondary" size="icon">
+                        <FileText className="size-4" />
                       </Button>
                     }
                   />

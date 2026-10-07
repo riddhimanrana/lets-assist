@@ -160,7 +160,7 @@ export default function RecurrenceSettings({
   };
 
   return (
-    <Card className="mt-6 border-muted bg-muted/5 shadow-sm">
+    <Card className="mt-6 bg-muted/5">
       <CardHeader
         className="cursor-pointer"
         onClick={() => updateRecurrence("enabled", !recurrence.enabled)}
@@ -169,7 +169,7 @@ export default function RecurrenceSettings({
           <div className="flex items-center gap-2">
             <Repeat
               className={cn(
-                "h-5 w-5",
+                "size-5",
                 recurrence.enabled ? "text-primary" : "text-muted-foreground",
               )}
             />
@@ -186,7 +186,7 @@ export default function RecurrenceSettings({
                           type="button"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Info className="h-4 w-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                          <Info className="size-4 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
                         </button>
                       }
                     />
@@ -229,7 +229,7 @@ export default function RecurrenceSettings({
                   onChange={(e) =>
                     updateRecurrence("interval", parseInt(e.target.value) || 1)
                   }
-                  className="w-20 bg-background"
+                  className="w-20"
                 />
                 <Select
                   value={recurrence.frequency}
@@ -237,7 +237,7 @@ export default function RecurrenceSettings({
                     updateRecurrence("frequency", value as RecurrenceFrequency)
                   }
                 >
-                  <SelectTrigger className="flex-1 bg-background">
+                  <SelectTrigger className="flex-1">
                     <SelectValue>
                       {frequencyOptions[recurrence.frequency] ||
                         recurrence.frequency}
@@ -262,7 +262,7 @@ export default function RecurrenceSettings({
                   updateRecurrence("endType", value as RecurrenceEndType)
                 }
               >
-                <SelectTrigger className="bg-background">
+                <SelectTrigger>
                   <SelectValue>
                     {endTypeOptions[recurrence.endType] || recurrence.endType}
                   </SelectValue>
@@ -295,10 +295,9 @@ export default function RecurrenceSettings({
                     size="sm"
                     onClick={() => toggleWeekday(day.value)}
                     className={cn(
-                      "flex-1 min-w-[3rem] h-9 transition-all text-xs sm:text-sm",
-                      recurrence.weekdays.includes(day.value)
-                        ? "shadow-md hover:opacity-90"
-                        : "hover:bg-accent hover:text-accent-foreground bg-background text-muted-foreground",
+                      "flex-1 min-w-12 h-9 text-xs sm:text-sm",
+                      !recurrence.weekdays.includes(day.value) &&
+                        "text-muted-foreground",
                     )}
                   >
                     {day.short}
@@ -307,7 +306,7 @@ export default function RecurrenceSettings({
               </div>
               {recurrence.weekdays.length === 0 && (
                 <p className="text-xs text-destructive flex items-center gap-1.5 mt-1.5">
-                  <AlertCircle className="h-3 w-3" />
+                  <AlertCircle className="size-3" />
                   Select at least one day
                 </p>
               )}
@@ -324,11 +323,11 @@ export default function RecurrenceSettings({
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full justify-start text-left font-normal bg-background",
+                        "w-full justify-start text-left font-normal",
                         !recurrence.endDate && "text-muted-foreground",
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-2 size-4" />
                       {recurrence.endDate
                         ? format(parseStringToDate(recurrence.endDate)!, "PPP")
                         : "Pick an end date"}
@@ -367,7 +366,7 @@ export default function RecurrenceSettings({
                       parseInt(e.target.value) || undefined,
                     )
                   }
-                  className="w-24 bg-background"
+                  className="w-24"
                 />
                 <span className="text-sm text-muted-foreground">
                   events total
@@ -379,7 +378,7 @@ export default function RecurrenceSettings({
           {/* Info banner */}
           <div className="bg-primary/5 text-primary/80 border border-primary/10 rounded-lg p-4 text-sm">
             <p className="font-semibold mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="size-4" />
               How resizing works
             </p>
             <ul className="list-disc list-inside space-y-1 opacity-90">
