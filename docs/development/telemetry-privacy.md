@@ -31,3 +31,26 @@ verifying live sanitized traffic are separate release steps.
 
 References: [PostHog browser configuration](https://posthog.com/docs/libraries/js/config)
 and [redacting event data](https://posthog.com/tutorials/web-redact-properties).
+
+## Server diagnostics
+
+The logger exports only the static names in `lib/log-event-catalog.ts` and the
+field contracts in `lib/log-privacy.ts`. Unknown messages become an unregistered
+application event. Error text, stacks, names, addresses, titles, provider bodies,
+URLs, Sheet ranges, and person identifiers are omitted. Add a reviewed event
+name or bounded field contract when new operational diagnostics need it. Keep
+variable content in the authorized application data model rather than logging it.
+
+The Node request-error hook records a fixed event category, HTTP method, router
+kind, and route type. It never reads request headers or URLs. Flush attempts have
+a 1.5-second wait limit so a stalled exporter cannot hold an application error
+open. Export is best effort; deployed delivery and scheduler silence still need
+separate monitoring checks.
+
+Server logs and traces export only from hosted Production. Resource attributes
+include the deployment environment and a validated full release SHA. Preview and
+local runs need a separate, explicitly configured telemetry destination before
+external collection is enabled there. The private plugin import migration must
+land before adding the final `server-only` logging guard. This source change does
+not remove historical provider data or establish alert ownership and source-map
+coverage.

@@ -25,9 +25,16 @@ import {
 // rather than a build failure now that the Node SDK is out of the path. Adding
 // the guard here makes the build fail until that barrel is untangled, so it is
 // left off and tracked separately.
+import { telemetryRuntime } from "./telemetry-runtime";
+
+const runtime = telemetryRuntime();
 const processors: BatchLogRecordProcessor[] = [];
 
-if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
+if (
+  typeof window === "undefined" &&
+  runtime.enabled &&
+  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
+) {
   processors.push(
     new BatchLogRecordProcessor({
       exporter: new OTLPLogExporter({
@@ -39,13 +46,9 @@ if (process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN) {
       }),
     }),
   );
-} else {
-  console.warn(
-    "[Instrumentation] NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN not set — skipping PostHog log exporter",
-  );
 }
 
 export const loggerProvider = new LoggerProvider({
-  resource: resourceFromAttributes({ "service.name": "lets-assist" }),
+  resource: resourceFromAttributes(runtime.attributes),
   processors,
 });

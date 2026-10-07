@@ -1,5 +1,6 @@
 import { SeverityNumber } from "@opentelemetry/api-logs";
 import { loggerProvider } from "./otel-logger-provider";
+import { safeErrorAttributes, sanitizeLogRecord } from "./log-privacy";
 
 const logger = loggerProvider.getLogger("lets-assist");
 
@@ -28,32 +29,27 @@ export function log(
   };
 
   logger.emit({
-    body: message,
+    ...sanitizeLogRecord(message, attributes),
     severityNumber: severityMap[level],
     severityText: level.toUpperCase(),
-    attributes: attributes || {},
   });
 }
 
 /**
- * Log an error with stack trace and additional context
+ * Log an error category and reviewed diagnostics without its message or stack
  */
 export function logError(
   message: string,
   error: unknown,
   attributes?: LogAttributes,
 ) {
-  const errorAttributes: LogAttributes = {
-    ...attributes,
-    error_message: error instanceof Error ? error.message : String(error),
-    error_stack: error instanceof Error ? error.stack : undefined,
-  };
-
   logger.emit({
-    body: message,
+    ...sanitizeLogRecord(message, {
+      ...attributes,
+      ...safeErrorAttributes(error),
+    }),
     severityNumber: SeverityNumber.ERROR,
     severityText: "ERROR",
-    attributes: errorAttributes,
   });
 }
 
