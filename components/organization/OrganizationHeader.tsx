@@ -1,16 +1,18 @@
 "use client";
 
+import { BadgeCheck, GlobeIcon, UsersIcon } from "lucide-react";
+
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, GlobeIcon, UsersIcon, Plus, BadgeCheck } from "lucide-react";
-import { useState } from "react";
-import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
-import { useRouter } from "next/navigation";
-import type { Organization } from "@/types";
-import { toast } from "sonner";
-import { cn, copyToClipboard, isMobileDevice } from "@/lib/utils";
 import { formatOrganizationWebsiteDisplay } from "@/lib/organization/website";
+import { cn } from "@/lib/utils";
+import type { Organization } from "@/types";
+import { OrganizationHeaderActions } from "./OrganizationHeaderActions";
+import {
+  formatOrganizationTypeLabel,
+  organizationWebsiteHref,
+} from "./organization-type-label";
 
 type OrganizationHeaderOrg = Organization & {
   website?: string | null;
@@ -23,7 +25,20 @@ interface OrganizationHeaderProps {
   showMemberCount?: boolean;
   showInviteAction?: boolean;
   showProjectAction?: boolean;
+  /** False when the organization has no Members tab to link to. */
+  showMembersLink?: boolean;
   compact?: boolean;
+}
+
+function getInitials(name: string) {
+  return name
+    ? name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 2)
+    : "ORG";
 }
 
 export default function OrganizationHeader({
@@ -33,310 +48,148 @@ export default function OrganizationHeader({
   showMemberCount = true,
   showInviteAction = true,
   showProjectAction = true,
+  showMembersLink = true,
   compact = false,
 }: OrganizationHeaderProps) {
-  const [showJoinCode, setShowJoinCode] = useState(false);
-  const isAdmin = userRole === "admin";
-  const router = useRouter();
+  const typeLabel = formatOrganizationTypeLabel(organization.type);
+  const memberCountLabel = `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
 
-  const getInitials = (name: string) => {
-    return name
-      ? name
-          .split(" ")
-          .map((part) => part[0])
-          .join("")
-          .toUpperCase()
-          .substring(0, 2)
-      : "ORG";
-  };
-
-  const getMonogramFallback = (name: string) => {
-    return <span className="text-xl font-semibold">{getInitials(name)}</span>;
-  };
-
-  const handleShare = async () => {
-    const url = window.location.href;
-    if (
-      isMobileDevice() &&
-      typeof navigator !== "undefined" &&
-      navigator.share
-    ) {
-      try {
-        await navigator.share({
-          title: `${organization.name} - Let's Assist`,
-          text: `Check out ${organization.name} on Let's Assist!`,
-          url,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error)?.name !== "AbortError") {
-          console.error("Share failed: ", err);
-          toast.error("Could not share link");
-        } else {
-          return;
-        }
-      }
-    }
-
-    const success = await copyToClipboard(url);
-    if (success) {
-      toast.success("Organization link copied to clipboard");
-    } else {
-      toast.error("Could not copy link to clipboard");
-    }
-  };
-
-  // Update this function to use URL parameter instead of cookie
-  const handleCreateProject = () => {
-    router.push(`/projects/create?org=${organization.id}`);
-  };
-
-  const canCreateProjects = userRole === "admin" || userRole === "staff";
-
-  return (
-    <div className={cn("flex w-full flex-col", compact ? "gap-2" : "gap-6")}>
+  const avatar = (
+    <Avatar className={cn(compact ? "size-10 md:size-12" : "size-14")}>
+      <AvatarImage
+        src={organization.logo_url || undefined}
+        alt={organization.name}
+      />
       {/*
-        Compact mode is a single row that wraps intentionally: the identity
-        region owns the free space and truncates, and the actions keep their
-        natural width so a long organization name can never push Share (or the
-        identity itself) outside a 390px viewport.
+        Decorative brand tint behind the monogram. The monogram itself stays on
+        --foreground, and the verified badge stays on --primary, because that
+        one reports state.
       */}
-      <div
-        className={cn(
-          "flex",
-          compact
-            ? "w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2"
-            : "flex-col gap-6 md:flex-row md:items-start md:justify-between",
-        )}
-      >
-        <div
-          className={cn(
-            compact
-              ? "flex min-w-0 grow basis-48 flex-row items-center gap-2.5"
-              : "flex flex-col items-center gap-4 md:flex-row md:items-start",
-          )}
-        >
-          <div className="relative shrink-0">
-            <Avatar
-              className={cn(
-                "rounded-full border-background",
-                compact
-                  ? "size-10 border-2 md:size-12"
-                  : "size-20 border-4 md:size-24",
-              )}
-            >
-              <AvatarImage
-                src={organization.logo_url || undefined}
-                alt={organization.name}
-              />
-              {/*
-                Decorative brand tint behind the monogram. The monogram itself
-                stays on --foreground, and the verified badge below stays on
-                --primary, because that one reports state.
-              */}
-              <AvatarFallback className="bg-brand/10 text-xl rounded-full">
-                {getMonogramFallback(organization.name)}
-              </AvatarFallback>
-            </Avatar>
+      <AvatarFallback className="bg-brand/10 rounded-full text-lg font-semibold">
+        {getInitials(organization.name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  const actions = (
+    <OrganizationHeaderActions
+      organization={organization}
+      userRole={userRole}
+      showInviteAction={showInviteAction}
+      showProjectAction={showProjectAction}
+      showMembersLink={showMembersLink}
+    />
+  );
+
+  if (!compact) {
+    return (
+      <PageHeader
+        media={avatar}
+        title={
+          <span className="wrap-break-word whitespace-normal">
+            {organization.name}
             {organization.verified && (
-              <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full border flex items-center justify-center p-0.5 md:hidden">
+              <>
+                {" "}
                 <BadgeCheck
-                  className="h-4 w-4 text-primary fill-background"
+                  className="inline-block size-5 shrink-0 align-[-0.125em] text-primary fill-background"
                   aria-hidden="true"
                 />
-              </div>
+                <span className="sr-only">Verified organization</span>
+              </>
             )}
-          </div>
-
-          <div
-            className={cn(
-              "flex flex-col",
-              compact
-                ? "min-w-0 items-start gap-1 overflow-hidden text-left"
-                : "items-center gap-2 text-center md:items-start md:text-left",
-            )}
-          >
-            <div
-              className={cn("flex items-center gap-2", compact && "min-w-0")}
-            >
-              <h1
-                className={cn(
-                  "font-bold tracking-tight",
-                  compact
-                    ? "truncate text-lg md:text-xl"
-                    : "text-2xl md:text-3xl",
-                )}
+          </span>
+        }
+        meta={
+          <>
+            {typeLabel ? <span>{typeLabel}</span> : null}
+            {organization.username && <span>@{organization.username}</span>}
+            {organization.website && (
+              <a
+                href={organizationWebsiteHref(organization.website)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground inline-flex min-w-0 items-center gap-1 transition-colors"
               >
-                {organization.name}
-              </h1>
-              {organization.verified && (
+                <GlobeIcon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {formatOrganizationWebsiteDisplay(organization.website)}
+                </span>
+              </a>
+            )}
+            {showMemberCount ? <span>{memberCountLabel}</span> : null}
+          </>
+        }
+        actions={actions}
+      />
+    );
+  }
+
+  /*
+    Compact mode is a single row that wraps intentionally: the identity region
+    owns the free space and truncates, and the actions keep their natural width
+    so a long organization name can never push Share (or the identity itself)
+    outside a 390px viewport.
+  */
+  return (
+    <div className="flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 grow basis-48 flex-row items-center gap-2.5">
+        {avatar}
+
+        <div className="flex min-w-0 flex-col items-start gap-1 overflow-hidden text-left">
+          <div className="flex max-w-full min-w-0 items-center gap-2">
+            <h1 className="truncate text-lg font-semibold tracking-tight md:text-xl">
+              {organization.name}
+            </h1>
+            {organization.verified && (
+              <>
                 <BadgeCheck
-                  className="hidden md:block h-6 w-6 text-primary"
+                  className="size-5 shrink-0 text-primary fill-background"
                   aria-hidden="true"
                 />
-              )}
-            </div>
-
-            <div
-              className={cn(
-                "flex flex-wrap items-center gap-2",
-                compact
-                  ? "min-w-0 max-w-full"
-                  : "justify-center md:justify-start",
-              )}
-            >
-              <Badge variant="secondary" className="capitalize">
-                {(() => {
-                  switch (organization.type) {
-                    case "nonprofit":
-                      return "Nonprofit";
-                    case "school":
-                      return "Educational";
-                    case "company":
-                      return "Company";
-                    case "government":
-                      return "Government";
-                    case "other":
-                      return "Other";
-                    default:
-                      return organization.type;
-                  }
-                })()}
-              </Badge>
-
-              {organization.username && (
-                <span
-                  className={cn(
-                    "text-sm text-muted-foreground font-mono",
-                    compact && "truncate",
-                  )}
-                >
-                  @{organization.username}
-                </span>
-              )}
-            </div>
-
-            <div
-              className={cn(
-                "flex flex-wrap items-center gap-4 text-sm text-muted-foreground",
-                compact
-                  ? "min-w-0 max-w-full"
-                  : "justify-center md:justify-start",
-              )}
-            >
-              {organization.website && (
-                <a
-                  href={
-                    organization.website.startsWith("http")
-                      ? organization.website
-                      : `https://${organization.website}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "flex items-center gap-1 hover:text-foreground transition-colors",
-                    compact && "min-w-0",
-                  )}
-                >
-                  <GlobeIcon
-                    className={cn("h-3.5 w-3.5", compact && "shrink-0")}
-                    aria-hidden="true"
-                  />
-                  <span className={cn(compact && "truncate")}>
-                    {formatOrganizationWebsiteDisplay(organization.website)}
-                  </span>
-                </a>
-              )}
-
-              {showMemberCount ? (
-                <div
-                  className={cn(
-                    "flex items-center gap-1",
-                    compact && "shrink-0 whitespace-nowrap",
-                  )}
-                >
-                  <UsersIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>
-                    {memberCount} {memberCount === 1 ? "Member" : "Members"}
-                  </span>
-                </div>
-              ) : null}
-            </div>
+                <span className="sr-only">Verified organization</span>
+              </>
+            )}
           </div>
-        </div>
 
-        <div
-          className={cn(
-            "flex",
-            compact
-              ? "w-auto shrink-0 flex-row items-center justify-end gap-2"
-              : "w-full flex-col gap-2 sm:flex-row md:w-auto md:items-center",
-          )}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
-            onClick={handleShare}
-          >
-            <Share2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            Share
-          </Button>
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+            {typeLabel ? <Badge variant="secondary">{typeLabel}</Badge> : null}
 
-          {isAdmin && showInviteAction && (
-            <Button
-              variant="default"
-              size="sm"
-              className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
-              onClick={() => setShowJoinCode(true)}
-            >
-              <UsersIcon className="mr-2 h-4 w-4" aria-hidden="true" />
-              Invite
-            </Button>
-          )}
+            {organization.username && (
+              <span className="text-muted-foreground truncate text-sm">
+                @{organization.username}
+              </span>
+            )}
+          </div>
 
-          {userRole === null && (
-            <Button
-              variant="default"
-              size="sm"
-              className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
-              onClick={() =>
-                toast.info(
-                  "Get the join code from an admin and join from the organizations page",
-                  {
-                    action: {
-                      label: "Go to Organizations",
-                      onClick: () => router.push("/organization"),
-                    },
-                  },
-                )
-              }
-            >
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Join
-            </Button>
-          )}
+          <div className="text-muted-foreground flex min-w-0 max-w-full flex-wrap items-center gap-4 text-sm">
+            {organization.website && (
+              <a
+                href={organizationWebsiteHref(organization.website)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground flex min-w-0 items-center gap-1 transition-colors"
+              >
+                <GlobeIcon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {formatOrganizationWebsiteDisplay(organization.website)}
+                </span>
+              </a>
+            )}
 
-          {canCreateProjects && showProjectAction && (
-            <Button
-              onClick={handleCreateProject}
-              size="sm"
-              className={cn(compact ? "w-auto shrink-0" : "w-full sm:w-auto")}
-            >
-              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-              Project
-            </Button>
-          )}
+            {showMemberCount ? (
+              <div className="flex shrink-0 items-center gap-1 whitespace-nowrap">
+                <UsersIcon className="size-3.5" aria-hidden="true" />
+                <span>{memberCountLabel}</span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {showJoinCode && isAdmin && (
-        <JoinCodeDialog
-          organization={organization}
-          open={showJoinCode}
-          onOpenChange={setShowJoinCode}
-        />
-      )}
+      <div className="flex w-auto shrink-0 flex-row items-center justify-end gap-2">
+        {actions}
+      </div>
     </div>
   );
 }
