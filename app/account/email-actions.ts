@@ -109,7 +109,7 @@ export async function sendVerificationEmail(email: string) {
   }
 
   try {
-    const { error } = await sendEmail({
+    const delivery = await sendEmail({
       to: normalizedEmail,
       subject: "Verify your email address",
       react: React.createElement(EmailVerificationCode, {
@@ -117,10 +117,19 @@ export async function sendVerificationEmail(email: string) {
         expiresInHours: 0.5,
       }),
       type: "transactional",
+      idempotencyKey: `email-alias-verification/${issue.challenge_id}`,
     });
 
-    if (error) {
-      console.error("Email service error:", error);
+    if (delivery.outcome === "unknown_outcome") {
+      // The code may already be in the recipient's inbox. Keep it usable.
+      return {
+        error:
+          "Email delivery could not be confirmed. Check your inbox before trying again.",
+        retryAfterSeconds: 60,
+      };
+    }
+    if (delivery.outcome !== "accepted") {
+      console.error("Email verification was not sent:", delivery.code);
       await discardUndeliveredAliasChallenge({
         challengeId: issue.challenge_id,
         userId: user.id,
@@ -128,14 +137,13 @@ export async function sendVerificationEmail(email: string) {
       });
       return { error: "Unable to send a verification code." };
     }
-  } catch (error: unknown) {
-    console.error("Email sending exception:", error);
-    await discardUndeliveredAliasChallenge({
-      challengeId: issue.challenge_id,
-      userId: user.id,
-      tokenHash,
-    });
-    return { error: "Unable to send a verification code." };
+  } catch {
+    // An unexpected exception does not prove the provider rejected the send.
+    return {
+      error:
+        "Email delivery could not be confirmed. Check your inbox before trying again.",
+      retryAfterSeconds: 60,
+    };
   }
 
   return { success: true };

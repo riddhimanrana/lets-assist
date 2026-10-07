@@ -37,6 +37,11 @@ const render = mock(async () => "<p>rendered React email</p>");
 const logError = mock(() => undefined);
 const logInfo = mock(() => undefined);
 const logWarn = mock(() => undefined);
+const getRecipientEmailPolicy = mock(
+  async (): Promise<
+    { allowed: true } | { allowed: false; retryable: boolean; code: string }
+  > => ({ allowed: true }),
+);
 const sendMail = mock(async () => ({ messageId: "<mailpit-message-id>" }));
 const createTransport = mock(() => ({ sendMail }));
 
@@ -44,6 +49,7 @@ mock.module("resend", () => ({ Resend: MockResend }));
 mock.module("@/lib/supabase/server", () => ({ createClient }));
 mock.module("react-email", () => ({ render }));
 mock.module("@/lib/logger", () => ({ logError, logInfo, logWarn }));
+mock.module("./email-preferences", () => ({ getRecipientEmailPolicy }));
 mock.module("nodemailer", () => ({ createTransport }));
 
 const {
@@ -113,6 +119,8 @@ beforeEach(() => {
   resendApiKeys.length = 0;
   constructorImpl = null;
   createClient.mockClear();
+  getRecipientEmailPolicy.mockClear();
+  getRecipientEmailPolicy.mockImplementation(async () => ({ allowed: true }));
   render.mockClear();
   logError.mockClear();
   logInfo.mockClear();
@@ -128,6 +136,63 @@ beforeEach(() => {
 afterAll(restoreEnvironment);
 
 describe("shared email transport contract", () => {
+  test("optional mail stops before rendering or provider access when consent is unavailable", async () => {
+    getRecipientEmailPolicy.mockImplementation(async () => ({
+      allowed: false,
+      retryable: true,
+      code: "preferences_unavailable",
+    }));
+    const result = await sendEmail({
+      to: "synthetic@example.test",
+      subject: "Fixture",
+      text: "Fixture",
+      userId: "synthetic-recipient",
+      type: "general",
+    });
+    expect(result).toMatchObject({
+      outcome: "retryable_pre_send",
+      phase: "preference_check",
+      code: "preferences_unavailable",
+    });
+    expect(resendSend).not.toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
+    expect(getRecipientEmailPolicy).toHaveBeenCalledWith(
+      "synthetic-recipient",
+      "general",
+    );
+  });
+
+  test("optional mail honors recipient opt-out while required transactional mail bypasses it", async () => {
+    process.env.RESEND_API_KEY = "synthetic-key";
+    process.env.EMAIL_TRANSPORT = "resend";
+    getRecipientEmailPolicy.mockImplementation(async () => ({
+      allowed: false,
+      retryable: false,
+      code: "global_email_disabled",
+    }));
+    const optional = await sendEmail({
+      to: "synthetic@example.test",
+      subject: "Fixture",
+      text: "Fixture",
+      userId: "synthetic-recipient",
+      type: "general",
+    });
+    expect(optional).toMatchObject({
+      outcome: "skipped",
+      code: "global_email_disabled",
+    });
+    expect(resendSend).not.toHaveBeenCalled();
+    const required = await sendEmail({
+      to: "synthetic@example.test",
+      subject: "Fixture",
+      text: "Fixture",
+      userId: "synthetic-recipient",
+      type: "transactional",
+    });
+    expect(required.outcome).toBe("accepted");
+    expect(resendSend).toHaveBeenCalledTimes(1);
+    expect(getRecipientEmailPolicy).toHaveBeenCalledTimes(1);
+  });
   test("constructs the sending client only from its send credential", () => {
     process.env.RESEND_API_KEY = "synthetic-send-key";
 
