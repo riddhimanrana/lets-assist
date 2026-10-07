@@ -18,6 +18,10 @@ const badgeVariants = cva(
         outline:
           "border-border bg-[image:var(--control-gloss)] text-foreground shadow-(--control-shadow) [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         info: "bg-info/10 text-info border-info/20 [a]:hover:bg-info/20",
+        success:
+          "bg-success/10 text-success border-success/20 [a]:hover:bg-success/20",
+        warning:
+          "bg-warning/10 text-warning border-warning/25 [a]:hover:bg-warning/20",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
