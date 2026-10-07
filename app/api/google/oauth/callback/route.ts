@@ -482,17 +482,13 @@ export async function GET(request: NextRequest) {
 
       // Handle organization calendar sync (separate from sheets sync)
       if (attemptBinding.purpose === "organization_calendar") {
-        const { data: org } = await serviceSupabase
+        const { data: org, error: orgError } = await serviceSupabase
           .from("organizations")
           .select("name")
           .eq("id", attemptBinding.organizationId)
           .maybeSingle();
 
-        const { data: existingSync } = await serviceSupabase
-          .from("organization_calendar_syncs")
-          .select("calendar_id, auto_sync, last_synced_at")
-          .eq("organization_id", attemptBinding.organizationId)
-          .maybeSingle();
+        if (orgError || !org) return settle({ error: "org_calendar_failed" });
 
         const calendarName = org?.name
           ? `Let's Assist — ${org.name} Volunteering`
@@ -500,27 +496,14 @@ export async function GET(request: NextRequest) {
 
         const ensured = await ensureOrganizationCalendar(
           tokens.access_token,
-          existingSync?.calendar_id,
+          null,
           calendarName,
+          { organizationId: attemptBinding.organizationId, userId },
         );
 
         if (!ensured) {
           return settle({ error: "org_calendar_failed" });
         }
-
-        await serviceSupabase.from("organization_calendar_syncs").upsert(
-          {
-            organization_id: attemptBinding.organizationId,
-            created_by: userId,
-            calendar_id: ensured.calendarId,
-            calendar_email: calendarEmail,
-            connected_at: new Date().toISOString(),
-            last_synced_at: existingSync?.last_synced_at ?? null,
-            auto_sync: existingSync?.auto_sync ?? true, // Enable auto-sync by default
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "organization_id" },
-        );
       }
 
       // Handle organization sheets sync ownership separately.

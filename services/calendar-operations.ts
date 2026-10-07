@@ -21,13 +21,11 @@ import {
   googleCalendarEventUrl,
 } from "@/lib/google-calendar-identifiers";
 import {
-  GOOGLE_CALENDAR_API,
   GOOGLE_REVOKE_URL,
   GOOGLE_SHEETS_SCOPES,
   PERSONAL_CALENDAR_GOOGLE_BINDING,
   formatProjectToCalendarEvent,
   getCalendarConnection,
-  getGoogleCalendarAccessState,
   getValidAccessToken,
   hasRequiredScopes,
   isTokenExpired,
@@ -36,202 +34,21 @@ import {
 
 export async function ensureOrganizationCalendar(
   accessToken: string,
-  calendarId: string | null | undefined,
+  _calendarId: string | null | undefined,
   calendarName: string,
+  context?: { organizationId: string; userId: string },
 ): Promise<{ calendarId: string; created: boolean } | null> {
-  if (calendarId) {
-    const accessState = await getGoogleCalendarAccessState(
-      accessToken,
-      calendarId,
-    );
-    if (accessState.status === "accessible") {
-      return { calendarId, created: false };
-    }
-
-    // Only a positively reconciled 404 proves that replacing the configured
-    // calendar is safe. Authorization, rate-limit, provider, timeout, network,
-    // malformed, and unknown failures retain the existing calendar identity.
-    if (accessState.status !== "missing") {
-      console.error("Organization calendar lookup was inconclusive:", {
-        status: accessState.status,
-        httpStatus:
-          "httpStatus" in accessState ? accessState.httpStatus : undefined,
-        reason:
-          accessState.status === "retryable_error"
-            ? accessState.reason
-            : undefined,
-      });
-      return null;
-    }
-  }
-
-  try {
-    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        summary: calendarName,
-        description: `Volunteer events from ${calendarName} on Let's Assist`,
-        timeZone: "America/Los_Angeles",
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("Failed to create organization calendar:", error);
-      return null;
-    }
-
-    const calendar = await response.json();
-    const newCalendarId = calendar.id as string;
-
-    try {
-      await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(newCalendarId)}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            colorId: "3",
-          }),
-        },
-      );
-    } catch (error) {
-      console.error("Failed to set organization calendar color:", error);
-    }
-
-    return { calendarId: newCalendarId, created: true };
-  } catch (error) {
-    console.error("Error creating organization calendar:", error);
-    return null;
-  }
-}
-
-export async function createGoogleCalendarEventForCalendar(
-  accessToken: string,
-  calendarId: string,
-  project: Project,
-  scheduleId?: string,
-): Promise<string | null> {
-  const eventData = formatProjectToCalendarEvent(project, scheduleId);
-  if (!eventData) {
-    throw new Error("Invalid project schedule data");
-  }
-
-  if (!Array.isArray(eventData)) {
-    try {
-      const response = await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(eventData),
-        },
-      );
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error("Failed to create calendar event:", error);
-        throw new Error("Failed to create calendar event");
-      }
-
-      const result = await response.json();
-      return result.id;
-    } catch (error) {
-      console.error("Error creating calendar event:", error);
-      throw error;
-    }
-  }
-
-  const eventIds: string[] = [];
-  for (const event of eventData) {
-    try {
-      const response = await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(event),
-        },
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        eventIds.push(result.id);
-      }
-    } catch (error) {
-      console.error("Error creating calendar event:", error);
-    }
-  }
-
-  return eventIds.length > 0 ? eventIds[0] : null;
-}
-
-export async function updateGoogleCalendarEventForCalendar(
-  accessToken: string,
-  calendarId: string,
-  eventId: string,
-  project: Project,
-  scheduleId?: string,
-): Promise<boolean> {
-  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
-  const eventData = formatProjectToCalendarEvent(project, scheduleId);
-  if (!eventData || Array.isArray(eventData)) {
-    throw new Error("Invalid project schedule data");
-  }
-
-  try {
-    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
-      method: "PUT",
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(eventData),
-    });
-
-    return response.ok;
-  } catch (error) {
-    console.error("Error updating calendar event:", error);
-    return false;
-  }
-}
-
-export async function deleteGoogleCalendarEventForCalendar(
-  accessToken: string,
-  calendarId: string,
-  eventId: string,
-): Promise<boolean> {
-  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
-  try {
-    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
-      method: "DELETE",
-      redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    return response.ok || response.status === 404;
-  } catch (error) {
-    console.error("Error deleting calendar event:", error);
-    return false;
-  }
+  // The optional context keeps the public signature compatible, but a caller
+  // must provide its server-derived actor and organization before any write.
+  if (!context) return null;
+  const { ensureDurableOrganizationCalendar } =
+    await import("./organization-calendar/destination");
+  return ensureDurableOrganizationCalendar({
+    accessToken,
+    organizationId: context.organizationId,
+    userId: context.userId,
+    calendarName,
+  });
 }
 
 /**

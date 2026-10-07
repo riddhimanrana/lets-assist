@@ -160,3 +160,29 @@ describe("CSF calendar projections", () => {
     expect(projections[0]?.event.description).toBeUndefined();
   });
 });
+
+test("shared organization calendar excludes officer-only deadlines", () => {
+  const common = {
+    id: "deadline-private",
+    title: "Officer-only plan",
+    description: "Private planning",
+    due_at: "2030-01-01T17:00:00.000Z",
+    status: "open",
+    related_route: null,
+  };
+  const result = buildCsfCalendarProjections({
+    opportunities: [],
+    meetings: [],
+    meetingSessions: [],
+    deadlines: [
+      { ...common, audience: "officers" },
+      {
+        ...common,
+        id: "deadline-public",
+        title: "Member deadline",
+        audience: "members",
+      },
+    ],
+  });
+  expect(result.map((row) => row.sourceId)).toEqual(["deadline-public"]);
+});
