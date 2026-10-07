@@ -31,7 +31,7 @@ function PageHeader({
         <div className="flex min-w-0 items-center gap-4">
           {media ? <div className="shrink-0">{media}</div> : null}
           <div className="grid min-w-0 gap-1">
-            <h1 className="truncate text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance break-words">
               {title}
             </h1>
             {description ? (
