@@ -823,6 +823,7 @@ unexpected_security_definer_exec="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with reviewed(function_oid, role_name) as (
       values
+        (pg_catalog.to_regprocedure('public.account_deletion_pending()')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_csf_application_role_context(uuid,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context(uuid,text,text)')::oid, 'authenticated'::text),
         (pg_catalog.to_regprocedure('public.get_plugin_application_access_context_by_identifier(text,text,text)')::oid, 'authenticated'::text),
@@ -856,6 +857,7 @@ public_client_function_acl_drift="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     with expected(signature, role_name) as (
       values
+        ('public.account_deletion_pending()', 'authenticated'),
         ('public.can_insert_project(uuid)', 'authenticated'),
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),

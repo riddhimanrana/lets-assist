@@ -29,6 +29,7 @@ SELECT extensions.results_eq(
     SELECT signature::text COLLATE "C", role_name::text COLLATE "C"
     FROM (
       VALUES
+        ('public.account_deletion_pending()', 'authenticated'),
         ('public.can_insert_project(uuid)', 'authenticated'),
         ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
         ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
