@@ -562,58 +562,11 @@ jobs:
           node scripts/verify-production-schema-deployment.mjs
 
       - name: Run read-only Production cutover preflight
+        timeout-minutes: 4
         env:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          const expectedRef = process.env.EXPECTED_SUPABASE_PROJECT_REF ?? "";
-          const rawDatabaseUrl = process.env.PRODUCTION_READONLY_URL ?? "";
-          if (!/^[a-z]{20}$/.test(expectedRef) || rawDatabaseUrl.length === 0) {
-            console.error("The Production read-only database binding is invalid.");
-            process.exit(1);
-          }
-          let databaseUrl;
-          try {
-            databaseUrl = new URL(rawDatabaseUrl);
-          } catch {
-            console.error("The Production read-only database binding is invalid.");
-            process.exit(1);
-          }
-          const hostname = databaseUrl.hostname.toLowerCase();
-          const directHostMatches = hostname === `db.${expectedRef}.supabase.co`;
-          const poolerHostMatches = hostname.endsWith(".pooler.supabase.com");
-          let databaseUsername;
-          try {
-            databaseUsername = decodeURIComponent(databaseUrl.username);
-          } catch {
-            console.error("The Production read-only database binding is invalid.");
-            process.exit(1);
-          }
-          const poolerUserMatches =
-            databaseUsername === `postgres.${expectedRef}`;
-          const protocolMatches =
-            databaseUrl.protocol === "postgres:" ||
-            databaseUrl.protocol === "postgresql:";
-          if (
-            !protocolMatches ||
-            (!directHostMatches && !(poolerHostMatches && poolerUserMatches))
-          ) {
-            console.error("The Production read-only database binding is invalid.");
-            process.exit(1);
-          }
-          NODE
-          preflight_log="$(mktemp)"
-          trap 'rm -f "${preflight_log}"' EXIT
-          if ! timeout 300s psql -X "${PRODUCTION_READONLY_URL}" \
-            -v ON_ERROR_STOP=1 \
-            -f scripts/production-cutover-preflight.sql \
-            >"${preflight_log}" 2>&1; then
-            echo "Production cutover preflight failed. Raw output was suppressed." >&2
-            exit 1
-          fi
-          echo "Production cutover preflight passed."
+        run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Show pending migrations
         env:
@@ -749,6 +702,7 @@ jobs:
               and .details.csfImportCommit == false
               and .details.csfCommunications == false
               and .details.csfScheduledPostPublisher == false
+              and .details.csfPublicationNotifications == false
             )] | length) == 1
           ' <<<"${status_payload}" >/dev/null
 
@@ -898,6 +852,13 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/production/verify-vercel-alias.sh
 
+      - name: Recheck Production maintenance preflight before schema push
+        timeout-minutes: 4
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+        run: node scripts/production/maintenance-preflight.mjs before
+
       - name: Push schema to production
         timeout-minutes: 15
         env:
@@ -928,37 +889,12 @@ jobs:
           node scripts/verify-supabase-migration-parity.mjs migration-list.json
           echo "✓ Production migration history matches the repository"
 
-      - name: Verify CSF target schema compatibility
-        timeout-minutes: 2
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if ! timeout 60s supabase db query --linked \
-            --file scripts/production/verify-csf-target-schema.sql \
-            >/dev/null 2>&1; then
-            echo "The Production CSF schema does not match this release." >&2
-            exit 1
-          fi
-          echo "Production CSF schema compatibility verified."
-
       - name: Run full post-push Production cutover preflight
-        timeout-minutes: 6
+        timeout-minutes: 4
         env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
-        run: |
-          set -euo pipefail
-          post_push_preflight_log="$(mktemp)"
-          trap 'rm -f "${post_push_preflight_log}"' EXIT
-          if ! timeout 300s psql -X "${PRODUCTION_READONLY_URL}" \
-            -v ON_ERROR_STOP=1 \
-            -f scripts/production-cutover-preflight.sql \
-            >"${post_push_preflight_log}" 2>&1; then
-            echo "Post-push Production cutover preflight failed. Raw output was suppressed." >&2
-            exit 1
-          fi
-          echo "Post-push Production cutover preflight passed."
+        run: node scripts/production/maintenance-preflight.mjs target
 
       - name: Smoke the staged Production application
         timeout-minutes: 2
@@ -990,6 +926,7 @@ jobs:
               and .details.csfImportCommit == false
               and .details.csfCommunications == false
               and .details.csfScheduledPostPublisher == false
+              and .details.csfPublicationNotifications == false
             )] | length) == 1
           ' <<<"${status_payload}" >/dev/null
 
@@ -1038,6 +975,7 @@ jobs:
         timeout-minutes: 2
         env:
           EXPECTED_CSF_WORKER_STAGE: disabled
+          EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED: "false"
           EXPECTED_RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
