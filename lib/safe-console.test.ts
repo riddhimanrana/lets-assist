@@ -17,6 +17,15 @@ afterEach(() => {
 });
 
 describe("console privacy boundary", () => {
+  test("known lock failures remain diagnosable without accepting arbitrary error text", () => {
+    const calls = capture("error");
+    for (const error_code of ["55P03", "40P01"]) {
+      safeConsole.error("Error fetching profile:", { error_code });
+      expect(calls.at(-1)).toEqual(["Error fetching profile:", { error_code }]);
+    }
+    safeConsole.error("Error fetching profile:", { error_code: "ALICE" });
+    expect(calls.at(-1)).toEqual(["Error fetching profile:", {}]);
+  });
   test("workbook failures preserve finite recovery facts without provider text", () => {
     const calls = capture("warn");
     safeConsole.warn("CSF workbook refresh unsettled", {

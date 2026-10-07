@@ -188,7 +188,7 @@ export function sanitizeLogRecord(
     else if (
       (key === "error_code" || key === "sqlstate") &&
       typeof value === "string" &&
-      /^(?:[0-9]{5}|PGRST[0-9]{3}|ECONNRESET|ETIMEDOUT|ECONNREFUSED)$/.test(
+      /^(?:[0-9]{5}|55P03|40P01|PGRST[0-9]{3}|ECONNRESET|ETIMEDOUT|ECONNREFUSED)$/.test(
         value,
       )
     )
