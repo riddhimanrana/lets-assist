@@ -42,6 +42,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Supabase deployment workflow](development/supabase-deployment.md)
 - [Database workload and retention plan](development/database-operations-plan.md)
 - [Production cutover runbook](development/production-cutover-runbook.md)
+- [Production request-guard bootstrap](development/production-request-fence-bootstrap.md)
 - [Local fictional accounts](development/local-accounts.md)
 - [Member import parser setup](development/member-imports.md)
 - [Post-project suite: paper signups, feedback, follow-up email](development/post-project-suite.md)
