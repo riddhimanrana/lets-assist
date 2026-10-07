@@ -4,6 +4,12 @@
 
 Ordinary application tables use Supabase RLS as the primary row boundary. Server Actions still validate intent and role because privileged server clients can bypass RLS.
 
+## Feed occupancy
+
+`public.project_occupancy_for_visible_projects` is a service-only, read-only projection for at most 100 project IDs. The server derives the viewer from its authenticated session. Public discovery uses only published public projects. Organization discovery requires the exact organization and the current project SELECT visibility contract. Unreadable IDs are omitted; readable projects without active signups return zero.
+
+The database counts pending, approved, and attended signup rows before returning a compact project summary, so the Data API row limit cannot truncate occupancy. Empty schedule IDs contribute to the total but not the schedule map. Callers validate every result and treat missing projects or errors as unavailable. The aggregate is informational; signup capacity transactions remain authoritative.
+
 ## Plugin data
 
 `plugin_data` is not a browser API. Only server-side code may access it, every query or transaction must include organization scope, and externally reachable actions must prove the relevant plugin capability. Cross-tenant foreign keys and pgTAP denial tests are required for new relationships.
