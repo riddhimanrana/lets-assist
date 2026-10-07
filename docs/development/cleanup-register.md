@@ -2751,26 +2751,29 @@ historical evidence. The original September 28 additions are preserved below.
 Remediation has not been deployed. APP-09 and DB-02 describe the same defect.
 
 [Root draft PR 867](https://github.com/riddhimanrana/lets-assist/pull/867)
-includes published runtime candidate `efe346d1`, based on Development `fb326cb3`,
-with published private gitlink `a1d5836f` retained. CodeQL passes on that exact
-candidate. Later maintenance-controller changes have separate local proof. GitGuardian
-incident 37947219 flags a historical synthetic UUID in a mocked calendar test.
-The fixture now uses recognizable synthetic IDs, with 21 tests/52 assertions
-passing; the exact false-positive disposition remains pending. No detector or
-file exclusion was added. Vercel canceled that feature build and Supabase still
+contains runtime candidate `efe346d1` and maintenance-controller head `525293f1`,
+based on Development `fb326cb3`. It retains published private gitlink `a1d5836f`.
+Both CodeQL analyses pass on `525293f1`. GitGuardian reports two historical
+synthetic fixtures: incident 37947219 is a UUID in a mocked calendar test;
+37948874 is a test-only PostgreSQL URI in the maintenance unit tests. Neither
+fixture came from a provider credential. Both fixtures now clearly identify their
+test values, with no detector or file exclusion. Historical false-positive
+disposition remains pending. Vercel canceled the feature build and Supabase still
 lists only main and persistent Development. No application deployment is claimed.
 
 [Private PR 640](https://github.com/riddhimanrana/lets-assist-plugins/pull/640)
-remains published at `d58deaf0`, paired with root `6fbeefba`. That earlier pair
-passed hosted quality, static analysis and GitGuardian. Local private `5f3564c1`
-pins root `efe346d1` and passes 31 pairing checks with reproducible unsigned
-artifacts. This runtime pin remains valid through later controller-only changes. Final pair
-publication and hosted checks are pending. No remediation has been merged or deployed.
+merged into private Development as `4af6f732` after all hosted checks passed on
+prepared candidate `5f3564c1`, paired with runtime host `efe346d1`. The resulting
+merge tree exactly matches the reviewed candidate. Hosted quality passed 6,038
+tests and 30,477 assertions across 551 files and 206 process groups, plus
+application gates, release tooling, source checks, formatting, lint and host
+typecheck. Static analysis and GitGuardian passed. The private main branch and
+release tags remain unchanged. No remediation has been deployed.
 
 The canonical root unit runner passed at `eda468bc`: 4,295 tests, 28,633 reported
 expect assertions and 538 files across 133 process groups. Installed Next.js
 16.3.8 matches the source pin. Bun is 1.3.14; local Node 22.23.3 differs from the
-pinned 22.23.2. Full root lint and typecheck passed at `09f6dc0a`.
+pinned 22.23.2. Full root lint and typecheck passed after the maintenance and Maps changes.
 The later workflow, controller and candidate checks passed 61 tests; the 13 new
 workflow tests also passed in the canonical runner's Bun runtime. Agent policy
 and migration-file checks pass. The production build passed at `ec24c995` /
@@ -2778,8 +2781,7 @@ private `151c3d7c`, including the server-only logger and exporter. The hydration
 repair passed 21 adjacent private tests/86 assertions, paired typecheck and lint.
 The full private corpus passed at `1e5fd36a` / private `18cbd1c1`: 6,038 tests,
 30,477 reported expect assertions, 551 files and 206 isolated groups. Paired
-typecheck, private formatting, zero-warning lint and source-organization checks passed. The committed private host pin still
-names the earlier published root; final pinning and hosted CI remain pending.
+typecheck, private formatting, zero-warning lint and source-organization checks passed. Hosted quality has now repeated this result on prepared private `5f3564c1` / host `efe346d1`.
 
 Fresh schema 701 acceptance at `a6257a20` / private `151c3d7c` passed all 456 SQL
 files, 11,416 assertions and all 15 following API, access, concurrency, isolation,
@@ -2851,7 +2853,8 @@ new project case completed rejection/retry, privacy, editing and deletion in
 that run. App and export-worker egress logs were empty. The server log retained
 18 stream-closed diagnostics, two fetch diagnostics after deletion and an expected
 invalid-verification refusal. This does not claim an empty server log. Earlier
-browser receipts remain evidence for their actual installed runtime. DV is pending.
+browser receipts remain evidence for their actual installed runtime. All four DV
+cases also passed, with zero failures or skips and no provider egress.
 
 The online migration controller now refuses pending credential and project-column
 permission contractions before any mutation. The maintenance workflow now uses
@@ -2863,7 +2866,7 @@ disposable stack was removed. Hosted Development still has no proven app-before-
 The application must not be rolled back to incompatible code after these grants change.
 
 Both changed embedded plugins require signed publication: CSF 1.2.86 and DV
-2.0.3, with schema floor `20261007220000`. Private candidate `18cbd1c1` contains
+2.0.3, with schema floor `20261007220000`. Prepared candidate `5f3564c1` contains
 the hydration fix, preserves existing install minima and produces identical
 unsigned outputs across two preparations, 1,322 CSF files and 92 DV files.
 Host-import generation and boundary checks pass for 133 modules. The generated

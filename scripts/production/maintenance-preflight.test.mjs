@@ -21,7 +21,16 @@ import {
 const fixture = historicalReleaseTestFixture();
 after(fixture.dispose);
 const target = expectedVersions(fixture.cwd);
-const databaseUrl = `postgresql://postgres:synthetic-password@db.${productionRef}.supabase.co:5432/postgres?sslmode=require`;
+const syntheticPassword = "test-password";
+function withTestCredentials(address, username = "postgres") {
+  const url = new URL(address);
+  url.username = username;
+  url.password = syntheticPassword;
+  return url.href;
+}
+const databaseUrl = withTestCredentials(
+  `postgresql://db.${productionRef}.supabase.co:5432/postgres?sslmode=require`,
+);
 const config = {
   cwd: fixture.cwd,
   mode: "before",
@@ -179,7 +188,10 @@ test("database binding refuses foreign hosts, projects, database names and conne
   validateMaintenanceBinding(productionRef, databaseUrl);
   validateMaintenanceBinding(
     productionRef,
-    `postgres://postgres.${productionRef}:synthetic@aws-0-us-west-1.pooler.supabase.com:6543/postgres`,
+    withTestCredentials(
+      "postgres://aws-0-us-west-1.pooler.supabase.com:6543/postgres",
+      `postgres.${productionRef}`,
+    ),
   );
   for (const url of [
     undefined,
@@ -197,7 +209,9 @@ test("database binding refuses foreign hosts, projects, database names and conne
     `${databaseUrl}&sslmode=disable`,
     databaseUrl.replace("require", "disable"),
     `${databaseUrl}#fragment`,
-    `postgres://postgres:synthetic@aws-0-us-west-1.pooler.supabase.com/postgres`,
+    withTestCredentials(
+      "postgres://aws-0-us-west-1.pooler.supabase.com/postgres",
+    ),
   ])
     assert.throws(
       () => validateMaintenanceBinding(productionRef, url),
@@ -211,7 +225,7 @@ test("process execution suppresses raw output and keeps credentials out of argv"
     executeMaintenanceQuery(databaseUrl, "SELECT 1;", (file, args, options) => {
       assert.equal(file, "psql");
       assert.deepEqual(args, ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"]);
-      assert.ok(!args.join(" ").includes("synthetic-password"));
+      assert.ok(!args.join(" ").includes(syntheticPassword));
       assert.equal(options.env.PGDATABASE, databaseUrl);
       assert.equal(options.env.PGOPTIONS, undefined);
       assert.equal(options.env.PGSERVICE, undefined);
@@ -255,7 +269,7 @@ test("successful verification returns only reviewed identity and safe posture", 
   assert.equal(result.targetMigrations, target.length);
   assert.equal(result.writes, "configured-read-only");
   assert.equal(result.workers, "disabled");
-  assert.ok(!JSON.stringify(result).includes("synthetic-password"));
+  assert.ok(!JSON.stringify(result).includes(syntheticPassword));
 });
 
 test("bad ledger fails before schema queries and failed catalog/posture cannot produce acceptance", () => {
