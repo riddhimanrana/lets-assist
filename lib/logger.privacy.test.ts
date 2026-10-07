@@ -12,6 +12,23 @@ const { sanitizeLogRecord } = await import("./log-privacy");
 const { telemetryRuntime } = await import("./telemetry-runtime");
 afterAll(() => mock.restore());
 describe("telemetry data boundary", () => {
+  test("business conflict codes survive without exporting their private messages", () => {
+    logError(
+      "Failed to update Google spreadsheet values",
+      { code: "PT409", message: "private-student-conflict-details" },
+      { sqlstate: "PT409", error_message: "private-provider-body" },
+    );
+    expect(emitted.at(-1)).toMatchObject({
+      attributes: { error_code: "PT409", sqlstate: "PT409" },
+    });
+    expect(JSON.stringify(emitted.at(-1))).not.toContain("private");
+    for (const code of ["PT409 private-value", "PT400", "PT409\n"]) {
+      expect(
+        sanitizeLogRecord("Data export job completed", { error_code: code })
+          .attributes,
+      ).toEqual({});
+    }
+  });
   test("actual error emission excludes provider bodies, stack traces, people, URLs and arbitrary text", () => {
     const error = Object.assign(
       new Error(
