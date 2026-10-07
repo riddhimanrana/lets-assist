@@ -1,23 +1,9 @@
 "use client";
 
-import { format } from "date-fns";
-import { Clock, FileText, Info, Mail, Minus, Plus } from "lucide-react";
-
-import type { ProjectSignup } from "@/types";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -27,426 +13,224 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TimePicker } from "@/components/ui/time-picker";
+import { inspectAttendanceIntervals } from "@/lib/projects/paper-signup/intervals";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { calculateHoursDuration as calculateDuration } from "./hours-duration";
+  certificateOf,
+  creditedMinutes,
+  emailOf,
+  minutesLabel,
+  nameOf,
+  savedDraft,
+} from "./useHoursAttendance";
 import type { HoursEdits } from "./useHoursEdits";
 import type { HoursPublishing } from "./useHoursPublishing";
 import type { HoursSession } from "./useHoursSessions";
 
-const EMPTY_EDIT = { check_in_time: null, check_out_time: null };
-
-function SessionStatusBadge({
-  status,
-  isPublished,
-}: {
-  status: HoursSession["status"];
-  isPublished: boolean;
-}) {
-  if (isPublished) return <Badge variant="success">Published</Badge>;
-  if (status === "upcoming") return <Badge variant="info">Upcoming</Badge>;
-  if (status === "in-progress")
+function SessionStatusBadge({ session }: { session: HoursSession }) {
+  if (session.published) return <Badge variant="success">Published</Badge>;
+  if (session.status === "upcoming")
+    return <Badge variant="info">Upcoming</Badge>;
+  if (session.status === "in-progress")
     return <Badge variant="warning">In progress</Badge>;
-  if (status === "editing")
-    return <Badge variant="warning">Editing window open</Badge>;
-  if (status === "completed")
-    return <Badge variant="secondary">Completed</Badge>;
-  return null;
+  if (session.status === "invalid")
+    return <Badge variant="warning">Schedule needs review</Badge>;
+  return <Badge variant="secondary">Not published</Badge>;
 }
 
-/** Adds the same number of minutes to every check-out time of a session. */
-function BatchAdjustDialog({
-  sessionId,
-  affectedCount,
-  edits,
-}: {
-  sessionId: string;
-  affectedCount: number;
-  edits: HoursEdits;
-}) {
-  const applying = edits.applyingBatchAdjustment[sessionId];
-
-  return (
-    <Dialog>
-      <DialogTrigger
-        render={
-          <Button variant="outline">
-            <Clock data-icon="inline-start" aria-hidden="true" />
-            Adjust all times
-          </Button>
-        }
-      />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Batch adjust check-out times</DialogTitle>
-          <DialogDescription>
-            Add time to all volunteer check-out times in this session. This is
-            useful when volunteers stayed longer than initially recorded.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div className="flex items-center justify-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Remove 5 minutes"
-              onClick={() =>
-                edits.setBatchMinutesAdjustment((prev) => Math.max(5, prev - 5))
-              }
-              disabled={applying}
-            >
-              <Minus aria-hidden="true" />
-            </Button>
-            <div className="grid min-w-20 justify-items-center">
-              <span className="text-2xl font-semibold tabular-nums">
-                {edits.batchMinutesAdjustment}
-              </span>
-              <span className="text-muted-foreground text-sm">minutes</span>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Add 5 minutes"
-              onClick={() =>
-                edits.setBatchMinutesAdjustment((prev) =>
-                  Math.min(120, prev + 5),
-                )
-              }
-              disabled={applying}
-            >
-              <Plus aria-hidden="true" />
-            </Button>
-          </div>
-          <p className="text-muted-foreground text-center text-sm">
-            This will extend the check-out time for {affectedCount} volunteers
-          </p>
-        </div>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline">Cancel</Button>} />
-          <Button
-            onClick={() =>
-              edits.handleBatchAdjustment(
-                sessionId,
-                edits.batchMinutesAdjustment,
-              )
-            }
-            disabled={applying}
-          >
-            {applying ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Applying...
-              </>
-            ) : (
-              "Apply adjustment"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+function visitTime(value: string | null, timezone: string, missing: string) {
+  return value && Number.isFinite(Date.parse(value))
+    ? new Date(value).toLocaleString("en-US", { timeZone: timezone })
+    : missing;
 }
 
-function ResendCertificatesDialog({
-  sessionId,
-  publishing,
-}: {
-  sessionId: string;
-  publishing: HoursPublishing;
-}) {
-  const resending = publishing.resendingSessions[sessionId];
-
-  return (
-    <Dialog
-      open={publishing.showResendDialog === sessionId}
-      onOpenChange={(open) => {
-        if (!open) publishing.setShowResendDialog(null);
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button variant="outline" disabled={resending}>
-            {resending ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Resending...
-              </>
-            ) : (
-              <>
-                <Mail data-icon="inline-start" aria-hidden="true" />
-                Resend
-              </>
-            )}
-          </Button>
-        }
-        onClick={() => publishing.setShowResendDialog(sessionId)}
-      />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Resend certificates</DialogTitle>
-          <DialogDescription>
-            Resend certificate emails to volunteers who have already received
-            their certificates. This is useful for corrections or if volunteers
-            didn&apos;t receive their original email.
-          </DialogDescription>
-        </DialogHeader>
-        <p className="text-muted-foreground text-sm">
-          Are you sure you want to resend all certificates for this session to
-          volunteers?
-        </p>
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline">Cancel</Button>} />
-          <Button
-            onClick={() => publishing.handleResendCertificates(sessionId)}
-            disabled={resending}
-          >
-            {resending ? (
-              <>
-                <Spinner data-icon="inline-start" />
-                Resending...
-              </>
-            ) : (
-              "Resend all certificates"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/**
- * One session: its phase, the bulk and publish actions in the header, and the
- * editable check-in and check-out times for everyone who attended.
- */
 export function HoursSessionCard({
   session,
-  sessionSignups,
-  isPublished,
+  timezone,
+  disabled,
   edits,
   publishing,
 }: {
   session: HoursSession;
-  sessionSignups: ProjectSignup[];
-  isPublished: boolean;
+  timezone: string;
+  disabled: boolean;
   edits: HoursEdits;
   publishing: HoursPublishing;
 }) {
-  const { editedTimes } = edits;
-  const hasSignups = sessionSignups.length > 0;
-  const isPublishing = publishing.publishingSessions[session.id] || false;
-  const hasInvalidTimes =
-    hasSignups &&
-    sessionSignups.some((signup) => {
-      const edit = editedTimes[signup.id] || EMPTY_EDIT;
-      return !calculateDuration(edit.check_in_time, edit.check_out_time)
-        .isValid;
-    });
-  // Publishing needs at least one volunteer with both times recorded.
-  const hasValidHoursData =
-    hasSignups &&
-    sessionSignups.some((signup) => {
-      const edit = editedTimes[signup.id] || EMPTY_EDIT;
-      return edit.check_in_time && edit.check_out_time;
-    });
-  const canEdit = session.status === "editing" && hasSignups && !isPublished;
-
+  const { summary } = session;
   return (
     <Card>
       <CardHeader>
         <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle>{session.name}</CardTitle>
-            <SessionStatusBadge
-              status={session.status}
-              isPublished={isPublished}
-            />
+            <SessionStatusBadge session={session} />
           </div>
-          {(canEdit || isPublished) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {canEdit && (
-                <>
-                  <BatchAdjustDialog
-                    sessionId={session.id}
-                    affectedCount={
-                      sessionSignups.filter(
-                        (signup) => editedTimes[signup.id]?.check_out_time,
-                      ).length
-                    }
-                    edits={edits}
-                  />
-                  <Button
-                    onClick={() => publishing.initiatePublishHours(session.id)}
-                    disabled={
-                      isPublishing || !hasValidHoursData || hasInvalidTimes
-                    }
-                  >
-                    {isPublishing ? (
-                      <>
-                        <Spinner data-icon="inline-start" />
-                        Publishing...
-                      </>
-                    ) : (
-                      "Publish hours"
-                    )}
-                  </Button>
-                </>
-              )}
-              {isPublished && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => publishing.loadCertificatesData(session.id)}
-                    disabled={publishing.loadingCertificates}
-                  >
-                    {publishing.loadingCertificates ? (
-                      <>
-                        <Spinner data-icon="inline-start" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <FileText data-icon="inline-start" aria-hidden="true" />
-                        View certificates
-                      </>
-                    )}
-                  </Button>
-                  <ResendCertificatesDialog
-                    sessionId={session.id}
-                    publishing={publishing}
-                  />
-                </>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {session.published ? (
+              <Button
+                variant="outline"
+                disabled={disabled}
+                onClick={() => void publishing.resend(session)}
+              >
+                {publishing.busy === session.id && (
+                  <Spinner data-icon="inline-start" />
+                )}
+                Retry certificate delivery
+              </Button>
+            ) : (
+              <Button
+                disabled={
+                  disabled ||
+                  !session.readyCount ||
+                  session.status !== "completed"
+                }
+                onClick={() => publishing.setConfirmSessionId(session.id)}
+              >
+                Review and publish {session.readyCount}{" "}
+                {session.readyCount === 1 ? "volunteer" : "volunteers"}
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
-
       <CardContent className="grid gap-4">
-        {edits.showBatchAdjustment[session.id] &&
-          !edits.applyingBatchAdjustment[session.id] && (
-            <p className="text-muted-foreground text-sm">
-              This will add{" "}
-              <span className="text-foreground font-medium">
-                {edits.batchMinutesAdjustment} minutes
-              </span>{" "}
-              to all volunteer check-out times in this session. Useful for
-              extending hours when volunteers stayed longer than initially
-              recorded.
+        <div className="grid gap-1 text-sm">
+          <p>
+            {session.attendees.length}{" "}
+            {session.attendees.length === 1 ? "volunteer" : "volunteers"} ·{" "}
+            {minutesLabel(summary.awardedMinutes)} awarded
+          </p>
+          {summary.pendingCount > 0 && (
+            <p className="text-muted-foreground">
+              {minutesLabel(summary.recordedMinutes)} recorded for{" "}
+              {summary.pendingCount}{" "}
+              {summary.pendingCount === 1 ? "volunteer" : "volunteers"} awaiting
+              publication.
             </p>
           )}
-
-        {hasInvalidTimes && (
-          <Alert variant="destructive">
-            <AlertTitle>Invalid hours detected</AlertTitle>
-            <AlertDescription>
-              Some volunteers have invalid hours (negative or over 24 hours).
-              Please fix these before publishing.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isPublished ? (
-          <p className="text-muted-foreground text-sm">
-            <span className="text-foreground">
-              This session&apos;s hours have been published and certificates
-              generated.
-            </span>{" "}
-            Hours can no longer be modified. Contact support for any needed
-            changes.
-          </p>
-        ) : hasSignups ? (
+          {!session.published && session.status !== "completed" && (
+            <p className="text-muted-foreground">
+              {session.window
+                ? "Hours can be published after this session ends. Refresh then to publish reviewed attendance."
+                : "This session needs a valid schedule before hours can be published."}
+            </p>
+          )}
+          {!session.published &&
+            session.readyCount !== session.pendingCount && (
+              <p className="text-muted-foreground">
+                {session.pendingCount - session.readyCount}{" "}
+                {session.pendingCount - session.readyCount === 1
+                  ? "volunteer still needs"
+                  : "volunteers still need"}{" "}
+                valid attendance times.
+              </p>
+            )}
+          {session.published && (
+            <p className="text-muted-foreground">
+              Correct hours to update an existing certificate. Recording late
+              attendance adds its award to this published session.
+            </p>
+          )}
+        </div>
+        {session.visibleAttendees.length ? (
           <div className="rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-35">Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Check-in</TableHead>
-                  <TableHead>Check-out</TableHead>
+                  <TableHead>Volunteer</TableHead>
+                  <TableHead>Attendance visits</TableHead>
+                  <TableHead>Hours</TableHead>
                   <TableHead>
-                    <span className="flex items-center gap-1">
-                      Duration
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <span tabIndex={0} aria-label="Duration info">
-                              <Info className="size-4" aria-hidden="true" />
-                            </span>
-                          }
-                        />
-                        <TooltipContent side="top" align="center">
-                          Times may be off by ±1 minute due to rounding seconds
-                          to the nearest minute.
-                        </TooltipContent>
-                      </Tooltip>
-                    </span>
+                    <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sessionSignups.map((signup) => {
-                  const isRegistered = !!signup.user_id;
-                  const name = isRegistered
-                    ? signup.profile?.full_name
-                    : signup.anonymous_signup?.name;
-                  const email = isRegistered
-                    ? signup.profile?.email
-                    : signup.anonymous_signup?.email;
-                  const currentEdit = editedTimes[signup.id] || EMPTY_EDIT;
-                  const duration = calculateDuration(
-                    currentEdit.check_in_time,
-                    currentEdit.check_out_time,
-                  );
-                  const hasBeenEdited =
-                    currentEdit.check_in_time !== signup.check_in_time ||
-                    currentEdit.check_out_time !== signup.check_out_time;
-
+                {session.visibleAttendees.map((signup) => {
+                  const certificate = certificateOf(signup);
+                  const draft = savedDraft(signup);
+                  const minutes = certificate
+                    ? creditedMinutes(signup)
+                    : inspectAttendanceIntervals(draft.intervals).minutes;
                   return (
                     <TableRow key={signup.id}>
-                      <TableCell className="font-medium">
-                        <span className="flex flex-wrap items-center gap-2">
-                          {name || "N/A"}
-                          {hasBeenEdited && (
-                            <Badge variant="secondary">Edited</Badge>
-                          )}
-                        </span>
+                      <TableCell className="align-top">
+                        <p className="font-medium">{nameOf(signup)}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {signup.user_id ? "Account" : "Guest"}
+                        </p>
+                        <p className="text-muted-foreground text-sm">
+                          {emailOf(signup) || "Email missing"}
+                        </p>
                       </TableCell>
-                      <TableCell>{email || "N/A"}</TableCell>
-                      {(["check_in_time", "check_out_time"] as const).map(
-                        (field) => (
-                          <TableCell key={field}>
-                            <div className="w-32">
-                              <TimePicker
-                                value={
-                                  currentEdit[field]
-                                    ? format(
-                                        new Date(currentEdit[field] as string),
-                                        "HH:mm",
-                                      )
-                                    : ""
-                                }
-                                onChangeAction={(time) =>
-                                  edits.handleTimeChange(signup.id, field, time)
-                                }
-                                disabled={session.status !== "editing"}
-                              />
-                            </div>
-                          </TableCell>
-                        ),
-                      )}
-                      <TableCell
-                        className={
-                          duration.isValid
-                            ? "font-medium tabular-nums"
-                            : "text-destructive font-medium tabular-nums"
-                        }
-                      >
-                        {duration.text}
+                      <TableCell className="align-top">
+                        <div className="grid gap-2">
+                          {draft.intervals.map((interval, index) => (
+                            <p key={index} className="text-sm">
+                              <span className="font-medium">
+                                Visit {index + 1}:
+                              </span>
+                              <br />
+                              {visitTime(
+                                interval.checkIn,
+                                timezone,
+                                "Sign-in missing",
+                              )}
+                              <br />
+                              to{" "}
+                              {visitTime(
+                                interval.checkOut,
+                                timezone,
+                                "Sign-out missing",
+                              )}
+                            </p>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top font-medium tabular-nums">
+                        {minutesLabel(minutes)}
+                        {draft.intervals.length > 1 && (
+                          <p className="text-muted-foreground text-xs font-normal">
+                            Excluding breaks
+                          </p>
+                        )}
+                        <p className="text-muted-foreground text-xs font-normal">
+                          {certificate ? "Awarded" : "Recorded"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {certificate && (
+                            <Button
+                              variant="outline"
+                              render={
+                                <Link
+                                  href={`/certificates/${certificate.id}`}
+                                />
+                              }
+                            >
+                              View certificate
+                            </Button>
+                          )}
+                          {certificate?.canResendCorrection && (
+                            <Button
+                              variant="outline"
+                              disabled={disabled}
+                              onClick={() =>
+                                void publishing.sendCorrection(certificate)
+                              }
+                            >
+                              Send updated certificate
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            disabled={disabled}
+                            onClick={() => edits.open(signup)}
+                          >
+                            {certificate ? "Correct hours" : "Edit visits"}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -456,12 +240,9 @@ export function HoursSessionCard({
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            {session.status === "upcoming" &&
-              "This session hasn't started yet. Check back after the session is complete."}
-            {session.status === "in-progress" &&
-              "This session is currently in progress. Volunteer hours will be available after the session ends."}
-            {(session.status === "editing" || session.status === "completed") &&
-              "No volunteers attended this session. There are no hours to manage."}
+            {session.attendees.length
+              ? "No volunteers match this search."
+              : "No approved volunteers or recorded attendance for this session yet. Add a walk-in or scan a completed sheet to begin."}
           </p>
         )}
       </CardContent>
