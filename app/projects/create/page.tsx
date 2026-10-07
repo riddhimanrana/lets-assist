@@ -247,7 +247,7 @@ export default async function CreateProjectPage({
   }
 
   return (
-    <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
       <ProjectCreator
         initialOrgId={initialOrgId}
         initialOrgOptions={orgOptions}

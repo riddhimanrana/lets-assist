@@ -2,17 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Check,
-  ChevronsUpDown,
-  Building2,
-  User,
-  AlertCircle,
-} from "lucide-react";
+import { Check, ChevronsUpDown, Building2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FormField, FormGroup, StepSection } from "./form-parts";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import {
@@ -183,23 +177,26 @@ export default function BasicInfo({
     );
   };
 
+  const titleLength = state.basicInfo.title?.length || 0;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl sm:text-2xl">Basic Information</CardTitle>
-        <p className="text-xs sm:text-sm text-muted-foreground">
-          Let&apos;s start with some basic details about your project.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <StepSection
+      title="Basic information"
+      description="Let's start with some basic details about your project."
+    >
+      <FormGroup title="Details">
         {/* Organization Selection Combobox */}
         {organizationOptions.length > 1 && (
-          <div className="space-y-2">
-            <Label>Create Project As</Label>
+          <FormField
+            label="Create project as"
+            htmlFor="organization"
+            description="Choose whether to create this project personally or on behalf of an organization"
+          >
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger
                 render={
                   <Button
+                    id="organization"
                     type="button"
                     variant="outline"
                     role="combobox"
@@ -207,14 +204,18 @@ export default function BasicInfo({
                     className="w-full justify-between"
                   >
                     {selectedOrg ? (
-                      <div className="flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         {renderOrgAvatar(selectedOrg)}
-                        <span>{selectedOrg.name}</span>
-                      </div>
+                        <span className="truncate">{selectedOrg.name}</span>
+                      </span>
                     ) : (
                       "Select who's creating this project..."
                     )}
-                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                    <ChevronsUpDown
+                      data-icon="inline-end"
+                      aria-hidden="true"
+                      className="opacity-50"
+                    />
                   </Button>
                 }
               />
@@ -235,12 +236,13 @@ export default function BasicInfo({
                           <div className="flex-1">
                             <span>{org.name}</span>
                             {org.id !== "personal" && (
-                              <span className="ml-1 text-xs text-muted-foreground">
+                              <span className="text-muted-foreground ml-1 text-xs">
                                 ({org.role})
                               </span>
                             )}
                           </div>
                           <Check
+                            aria-hidden="true"
                             className={cn(
                               "ml-auto size-4",
                               org.id === state.basicInfo.organizationId ||
@@ -257,26 +259,26 @@ export default function BasicInfo({
                 </Command>
               </PopoverContent>
             </Popover>
-            <p className="text-xs text-muted-foreground">
-              Choose whether to create this project personally or on behalf of
-              an organization
-            </p>
-          </div>
+          </FormField>
         )}
 
         {/* Project Title */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <Label htmlFor="title">Project Title</Label>
+        <FormField
+          label="Project title"
+          htmlFor="title"
+          hint={
             <span
               className={cn(
-                "text-xs transition-colors",
-                getCounterColor(state.basicInfo.title?.length || 0, 125),
+                "text-xs tabular-nums transition-colors",
+                getCounterColor(titleLength, 125),
               )}
             >
-              {state.basicInfo.title?.length || 0}/125
+              {titleLength}/125
             </span>
-          </div>
+          }
+          error={errors.title}
+          errorId="title-error"
+        >
           <Input
             id="title"
             placeholder="e.g., Santa Cruz Beach Cleanup"
@@ -288,25 +290,15 @@ export default function BasicInfo({
             }}
             maxLength={125}
             required
-            className={errors.title ? "border-destructive" : ""}
             aria-invalid={!!errors.title}
             aria-errormessage={errors.title ? "title-error" : undefined}
           />
-          {errors.title && (
-            <div
-              id="title-error"
-              className="text-destructive text-sm flex items-center gap-2 mt-1"
-            >
-              <AlertCircle className="size-4" />
-              {errors.title}
-            </div>
-          )}
-        </div>
+        </FormField>
+      </FormGroup>
 
+      <FormGroup title="Location">
         {/* Project Location - Simplified */}
-        <div className="space-y-2">
-          <Label htmlFor="location">Project Location</Label>{" "}
-          {/* Added external Label */}
+        <FormField label="Project location" htmlFor="location">
           <LocationAutocomplete
             id="location" // Pass id
             value={state.basicInfo.locationData}
@@ -329,16 +321,14 @@ export default function BasicInfo({
             aria-invalid={!!errors.location} // Pass aria-invalid
             aria-errormessage={errors.location ? "location-error" : undefined} // Pass aria-errormessage
           />
-        </div>
+        </FormField>
 
         {/* Project Timezone */}
-        <div className="space-y-2">
-          <Label htmlFor="timezone">Project Timezone</Label>
-          <p className="text-sm text-muted-foreground">
-            Select the timezone where your project takes place. Event times will
-            be displayed in this timezone with a badge (e.g., PST, EST) to help
-            volunteers in other regions.
-          </p>
+        <FormField
+          label="Project timezone"
+          htmlFor="timezone"
+          description="Select the timezone where your project takes place. Event times will be displayed in this timezone with a badge (e.g., PST, EST) to help volunteers in other regions."
+        >
           <Select
             value={state.basicInfo.projectTimezone || ""}
             onValueChange={(value) =>
@@ -362,54 +352,42 @@ export default function BasicInfo({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </FormField>
+      </FormGroup>
 
-        {/* Project Description */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-baseline">
-            <Label htmlFor="description">Description</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={previewMode ? "secondary" : "default"}
-                size="sm"
-                onClick={() => setPreviewMode(false)}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                variant={!previewMode ? "secondary" : "default"}
-                size="sm"
-                onClick={() => setPreviewMode(true)}
-              >
-                Preview
-              </Button>
-            </div>
+      {/* Project Description */}
+      <FormGroup>
+        <Tabs
+          value={previewMode ? "preview" : "edit"}
+          onValueChange={(value) => setPreviewMode(value === "preview")}
+          className="gap-3"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <h3 id="description-heading" className="text-base font-medium">
+              Description
+            </h3>
+            <TabsList>
+              <TabsTrigger value="edit">Edit</TabsTrigger>
+              <TabsTrigger value="preview">Preview</TabsTrigger>
+            </TabsList>
           </div>
-
-          {previewMode ? (
-            <div className="rounded-md border text-sm bg-background p-4">
-              <RichTextContent content={state.basicInfo.description ?? ""} />
-            </div>
-          ) : (
-            <div className="space-y-1">
+          <TabsContent value="edit">
+            <FormField error={errors.description}>
               <RichTextEditor
                 content={state.basicInfo.description ?? ""}
                 onChange={(html) => updateBasicInfoAction("description", html)}
                 maxLength={2000}
                 className={errors.description ? "border-destructive" : ""}
               />
-              {errors.description && (
-                <div className="text-destructive text-sm flex items-center gap-2">
-                  <AlertCircle className="size-4" />
-                  {errors.description}
-                </div>
-              )}
+            </FormField>
+          </TabsContent>
+          <TabsContent value="preview">
+            <div className="bg-background rounded-md border p-4 text-sm">
+              <RichTextContent content={state.basicInfo.description ?? ""} />
             </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+          </TabsContent>
+        </Tabs>
+      </FormGroup>
+    </StepSection>
   );
 }
