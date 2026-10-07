@@ -912,6 +912,11 @@ describe("CSF Production release preflight", () => {
       "pg_terminate_backend(target.target_pid, 0)",
     );
     expect(applicationWriteBlock).toContain("pid = ANY (captured_pids)");
+    expect(
+      applicationWriteBlock.match(
+        /LOOP PERFORM pg_stat_clear_snapshot\(\); SELECT count\(\*\) INTO remaining_pids FROM pg_stat_activity WHERE pid = ANY \(captured_pids\)/gu,
+      ) ?? [],
+    ).toHaveLength(2);
     expect(applicationWriteBlock).toContain("remaining_pids = 0");
     expect(applicationWriteBlock).toContain("interval '20 seconds'");
     expect(applicationWriteBlock).toContain("pg_sleep(0.1)");
