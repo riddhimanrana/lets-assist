@@ -66,6 +66,7 @@ never reset a developer's shared-local database.
 - `bun run dv:test:e2e`
 - `bun run csf:test:e2e`
 - `bun run dev:test:cron`
+- `bun --no-env-file scripts/local-dev/test-select-scroll.ts` checks the shared Select with compiled app CSS at desktop and phone widths. It covers both alignment modes, pointer scrolling and keyboard selection without a database.
 
 Generated Playwright HTML, traces, screenshots, video, storage state, payloads, and logs belong under ignored `.artifacts/`. Promote only a sanitized, fictional, reviewed gallery to `docs/csf/evidence/`, replacing the previous gallery rather than accumulating copies.
 

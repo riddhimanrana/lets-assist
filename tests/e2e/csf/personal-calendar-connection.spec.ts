@@ -30,6 +30,35 @@ test("connected calendar renders safe display fields and denies browser credenti
   const bindingTimestamp = "2039-09-02T12:34:56.000Z";
   const calendarResponses: Response[] = [];
   const externalRequests: string[] = [];
+  const browserFailures: string[] = [];
+  function isCredentialProbe(url: string) {
+    try {
+      const parsed = new URL(url);
+      return (
+        parsed.origin === new URL(local.url).origin &&
+        parsed.pathname === "/rest/v1/user_calendar_connections" &&
+        parsed.searchParams.get("id") === `eq.${connectionId}`
+      );
+    } catch {
+      return false;
+    }
+  }
+  page.on("pageerror", (error) =>
+    browserFailures.push(`pageerror: ${error.message}`),
+  );
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    if (
+      isCredentialProbe(message.location().url) &&
+      message.text().includes("the server responded with a status of 403")
+    )
+      return;
+    browserFailures.push(`console: ${message.text()}`);
+  });
+  page.on("requestfailed", (request) => {
+    if (request.failure()?.errorText === "net::ERR_ABORTED") return;
+    browserFailures.push(`requestfailed: ${new URL(request.url()).pathname}`);
+  });
   let userId: string | undefined;
   const failures: unknown[] = [];
 
@@ -43,6 +72,14 @@ test("connected calendar renders safe display fields and denies browser credenti
     }
   });
   page.on("response", (response) => {
+    if (
+      response.status() >= 400 &&
+      !(response.status() === 403 && isCredentialProbe(response.url()))
+    ) {
+      browserFailures.push(
+        `response: ${response.status()} ${new URL(response.url()).pathname}`,
+      );
+    }
     if (new URL(response.url()).pathname !== "/account/calendar") return;
     const type = response.headers()["content-type"] ?? "";
     if (type.includes("text/html") || type.includes("text/x-component")) {
@@ -178,6 +215,7 @@ test("connected calendar renders safe display fields and denies browser credenti
       refresh_token: refreshToken,
     });
     expect(externalRequests).toEqual([]);
+    expect(browserFailures).toEqual([]);
   } catch (error) {
     failures.push(error);
   } finally {
