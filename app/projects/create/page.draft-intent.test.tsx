@@ -115,12 +115,20 @@ mock.module("@/lib/plugins/resolve-plugin-behaviors", () => ({
 
 const { default: CreateProjectPage } = await import("./page");
 
-async function editor(search: { org?: string; draft?: string }) {
+async function editor(search: {
+  org?: string;
+  draft?: string;
+  creation?: string;
+}) {
   const page = await CreateProjectPage({
     searchParams: Promise.resolve(search),
   });
   return (
-    page as ReactElement<{ children: ReactElement<Record<string, unknown>> }>
+    page as ReactElement<{
+      children: ReactElement<
+        Record<string, unknown> & { creationSessionId: string }
+      >;
+    }>
   ).props.children;
 }
 
@@ -134,7 +142,7 @@ describe("project create route draft intent", () => {
     expect(result.props.initialDraftId).toBeNull();
     expect(result.props.initialDraftData).toBeUndefined();
     expect(result.props.initialOrgId).toBe("org-c");
-    expect(result.key).toBe("new:org-c");
+    expect(result.key).toBe(result.props.creationSessionId);
     expect(pluginOrganizations).toEqual(["org-c"]);
   });
 
@@ -142,14 +150,22 @@ describe("project create route draft intent", () => {
     const result = await editor({});
     expect(result.props.initialDraftData).toBeUndefined();
     expect(result.props.initialOrgId).toBeUndefined();
-    expect(result.key).toBe("new:personal");
+    expect(result.key).toBe(result.props.creationSessionId);
+  });
+
+  test("a supplied creation identity survives refresh while fresh visits differ", async () => {
+    const first = await editor({});
+    const refreshed = await editor({ creation: first.props.creationSessionId });
+    const unrelated = await editor({});
+    expect(refreshed.key).toBe(first.key);
+    expect(unrelated.key).not.toBe(first.key);
   });
 
   test("explicit resume uses the saved organization for both editor and plugins", async () => {
     const result = await editor({ draft: "draft-a", org: "org-c" });
     expect(result.props.initialDraftId).toBe("draft-a");
     expect(result.props.initialOrgId).toBe("org-a");
-    expect(result.key).toBe("draft-a");
+    expect(result.key).toBe(result.props.creationSessionId);
     expect(pluginOrganizations).toEqual(["org-a"]);
   });
 
