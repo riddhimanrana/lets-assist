@@ -39,7 +39,7 @@ import { removeSyncedCalendarEvent } from "@/lib/calendar-remove-event";
 
 interface CalendarClientProps {
   cleanupEvents?: CalendarCleanupEvent[];
-  connection: CalendarConnection | null;
+  connection: Pick<CalendarConnection, "calendar_email" | "created_at"> | null;
   legacyReconnectRequired: boolean;
   creatorProjects: Array<{
     id: string;
