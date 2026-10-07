@@ -9,10 +9,9 @@ import {
 import { getAdminClient } from "@/lib/supabase/admin";
 import { syncOrganizationCalendarInternal } from "@/lib/organization/calendar-sync";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
-const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
   process.env.ORG_CALENDAR_SYNC_CONCURRENCY,
   3,
@@ -20,22 +19,10 @@ const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
 );
 
 function isAuthorized(request: NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  const token = /^Bearer ([\x21-\x7E]+)$/.exec(authHeader)?.[1];
-
-  const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value),
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN),
   );
-
-  if (allowedTokens.length === 0) {
-    return false;
-  }
-
-  if (!token || !allowedTokens.includes(token)) {
-    return false;
-  }
-
-  return true;
 }
 
 function isDue(lastSyncedAt: string | null, intervalMinutes: number) {

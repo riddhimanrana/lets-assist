@@ -1,8 +1,8 @@
 name: Organization Calendar Sync
 
 on:
-  schedule:
-    - cron: "12 * * * *" # Every hour
+  # Vercel Cron owns the schedule (vercel.json). This approval-gated
+  # dispatch is the manual fallback.
   workflow_dispatch:
 
 permissions:

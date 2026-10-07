@@ -1,6 +1,7 @@
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
 import {
@@ -17,10 +18,9 @@ const BATCH_SIZE = 100;
 const PAGE_SIZE = 500;
 
 function authorizeCronRequest(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
+  const tokens = cronTokens();
 
-  if (!cronSecret) {
+  if (tokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -30,7 +30,7 @@ function authorizeCronRequest(request: NextRequest) {
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronBearerAuthorized(request.headers.get("authorization"), tokens)) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
