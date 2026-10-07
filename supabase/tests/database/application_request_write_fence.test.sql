@@ -2,7 +2,7 @@
 -- exercised separately by the isolated maintenance acceptance runner.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(24);
+SELECT extensions.plan(25);
 
 SELECT extensions.has_function('public', 'enforce_application_request_write_fence', ARRAY[]::text[],
   'the permanent request hook has no arguments');
@@ -34,40 +34,42 @@ SELECT extensions.ok(pg_catalog.has_function_privilege(role_name,
   'public.enforce_application_request_write_fence()', 'EXECUTE'), role_name || ' can run the request hook')
 FROM (VALUES ('anon'), ('authenticated'), ('service_role'), ('postgres')) AS actor(role_name);
 
-ALTER ROLE authenticator RESET default_transaction_read_only;
+ALTER ROLE authenticator RESET app.maintenance_write_block;
 SET LOCAL ROLE anon;
 SELECT extensions.lives_ok('SELECT public.enforce_application_request_write_fence()', 'anonymous requests continue outside maintenance');
-SELECT extensions.throws_ok($$ALTER ROLE authenticator SET default_transaction_read_only = 'off'$$,
+SELECT extensions.throws_ok($$ALTER ROLE authenticator SET app.maintenance_write_block = 'off'$$,
   '42501', NULL, 'anonymous callers cannot change the maintenance flag');
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT extensions.lives_ok('SELECT public.enforce_application_request_write_fence()', 'authenticated requests continue outside maintenance');
-SELECT extensions.throws_ok($$ALTER ROLE authenticator SET default_transaction_read_only = 'off'$$,
+SELECT extensions.throws_ok($$ALTER ROLE authenticator SET app.maintenance_write_block = 'off'$$,
   '42501', NULL, 'authenticated callers cannot change the maintenance flag');
 RESET ROLE;
 SET LOCAL ROLE service_role;
 SELECT extensions.lives_ok('SELECT public.enforce_application_request_write_fence()', 'service requests continue outside maintenance');
-SELECT extensions.throws_ok($$ALTER ROLE authenticator SET default_transaction_read_only = 'off'$$,
+SELECT extensions.throws_ok($$ALTER ROLE authenticator SET app.maintenance_write_block = 'off'$$,
   '42501', NULL, 'service callers cannot change the maintenance flag');
 RESET ROLE;
 
-ALTER ROLE authenticator SET default_transaction_read_only = 'on';
-SET LOCAL default_transaction_read_only = 'off';
+ALTER ROLE authenticator SET app.maintenance_write_block = 'on';
 SET LOCAL request.method = 'GET';
 SET LOCAL ROLE anon;
 SELECT extensions.throws_ok('SELECT public.enforce_application_request_write_fence()', '25006',
-  'Application writes are temporarily unavailable for maintenance.', 'anonymous writable transactions cannot spoof a read method or session default');
+  'Application writes are temporarily unavailable for maintenance.', 'anonymous writable transactions cannot spoof a read method');
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT extensions.throws_ok('SELECT public.enforce_application_request_write_fence()', '25006',
   'Application writes are temporarily unavailable for maintenance.', 'authenticated writable transactions remain blocked');
+SET LOCAL app.maintenance_write_block = 'off';
+SELECT extensions.throws_ok('SELECT public.enforce_application_request_write_fence()', '25006',
+  'Application writes are temporarily unavailable for maintenance.', 'a request-local off setting cannot bypass the operator-owned catalog flag');
 RESET ROLE;
 SET LOCAL ROLE service_role;
 SELECT extensions.throws_ok('SELECT public.enforce_application_request_write_fence()', '25006',
   'Application writes are temporarily unavailable for maintenance.', 'service writable transactions have no exemption');
 RESET ROLE;
 
-ALTER ROLE authenticator RESET default_transaction_read_only;
+ALTER ROLE authenticator RESET app.maintenance_write_block;
 SET LOCAL ROLE anon;
 SELECT extensions.lives_ok('SELECT public.enforce_application_request_write_fence()', 'anonymous requests resume after the operator clears the flag');
 RESET ROLE;

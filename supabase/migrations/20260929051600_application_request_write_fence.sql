@@ -43,7 +43,7 @@ BEGIN
     AND EXISTS (
       SELECT 1 FROM pg_catalog.pg_roles
       WHERE rolname = 'authenticator'
-        AND 'default_transaction_read_only=on' = ANY (coalesce(rolconfig, ARRAY[]::text[]))
+        AND 'app.maintenance_write_block=on' = ANY (coalesce(rolconfig, ARRAY[]::text[]))
     ) THEN
     RAISE EXCEPTION 'Application writes are temporarily unavailable for maintenance.'
       USING ERRCODE = '25006';
