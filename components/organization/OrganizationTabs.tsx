@@ -1,7 +1,6 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";

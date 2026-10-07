@@ -2744,6 +2744,8 @@ sources.
 
 ## Repository-owned P0–P2
 
+The [October 7 integration status](integration-status-20261007.md) tracks the combined brand/audit candidate, preserved feature branches, local checks and remaining provider gates. Integration regressions in draft serialization, account export/deletion layout, uncertain delivery copy and CSV formula prefixes are fixed locally. Final database/browser and hosted acceptance remain open.
+
 ### Full-stack remediation, October 7, 2026
 
 This is the current status of the October audit. Earlier dated narratives remain

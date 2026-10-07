@@ -55,10 +55,10 @@ plugin repositories in Codex code review settings. `AGENTS.md` supplies the
 repository review guidelines. Keep branch protection and `ci-gate` independent
 of the AI review; resolved review threads and successful tests remain required.
 
-A repository owner must confirm those provider settings. As of the October 7
-integration, the inspected brand PR had no Codex review and the audit PR had
-only Vercel and GitGuardian comments. That does not prove the integration is
-disabled, but it does not establish automatic review on new commits either.
+Private PR 643 received an automatic Codex review against bde1aef on October 7.
+It identified narrow-screen DV navigation, and the fix is ece31d6. This confirms
+review on a newly opened private PR. The root PR was still a draft at that point;
+root review and review-on-push settings remain unverified.
 Do not add a privileged `pull_request_target` job that executes candidate code
 or a second API-key workflow to claim the native integration is configured.
 

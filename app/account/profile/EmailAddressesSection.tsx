@@ -1,7 +1,6 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-
 import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { REGEXP_ONLY_DIGITS } from "input-otp";

@@ -1,7 +1,6 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
@@ -162,7 +161,10 @@ export function useProjectFileUploads() {
           [uploadKey]: "processing",
         }));
       } catch (error) {
-        safeConsole.error(`Document upload failed for ${document.name}:`, error);
+        safeConsole.error(
+          `Document upload failed for ${document.name}:`,
+          error,
+        );
         setDocumentUploadStates((current) => ({
           ...current,
           [uploadKey]: "error",
