@@ -16,6 +16,10 @@ import { approvedMigrations } from "./forward-migration-allowlist.mjs";
 export { approvedMigrations } from "./forward-migration-allowlist.mjs";
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
+const maintenanceRequiredVersions = new Set([
+  "20261007210000",
+  "20261007230000",
+]);
 const ledgerQuery =
   "SELECT version::text FROM supabase_migrations.schema_migrations ORDER BY version;";
 
@@ -106,6 +110,14 @@ export async function applyForwardMigrations(config, fetcher = fetch) {
     readFileSync,
     observedLedger.map((row) => row.version),
   );
+  if (
+    prepared.versions
+      .slice(prepared.prefix.length)
+      .some((version) => maintenanceRequiredVersions.has(version))
+  )
+    throw new ReleaseCheckError(
+      "Pending credential or project-column access changes require the reviewed maintenance cutover. Online migration deployment is refused.",
+    );
   const posture = await request(`SELECT NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_roles WHERE rolname='authenticator'
       AND 'default_transaction_read_only=on'=ANY(coalesce(rolconfig,ARRAY[]::text[]))
