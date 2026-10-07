@@ -57,6 +57,8 @@ The review page scrolls continuously through the application and evidence. Use L
 
 Application decision, membership creation, decision event, and audit/request receipt are one transaction. If the response is lost or the action fails, reload the application before retrying; an exact stable-request replay succeeds only while the same decision and evidence remain current. Do not create a membership manually to compensate.
 
+For an individual officer decision, use the member Actions menu and choose **Approve semester application**. Select the semester, load its pending application, review identity and evidence, and enter an approval reason. This explicit decision grants membership without marking service requirements complete. It leaves the semester review source unchanged and prevents later Sheet releases from replacing this application's approval. Officers with `decide_applications` permission can use it. Closed semesters, duplicate applications, changed records, and finalized outcomes block the action.
+
 Application imports are chapter-wide. In **Applications**, choose the response spreadsheet once. Do not assign a graduating class to the source. The preview derives the class and semester for each row from retained source fields, splits multiline course entries into separate course records, and blocks any unconfigured or changed target. Reusing a source follows its immutable Drive file id even if its title changes.
 
 ## 4. Student joining and account connection
