@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import { loadCsfFeedFixture } from "./feed-fixtures";
@@ -596,7 +596,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
       type: string;
       body: string;
     }> = [];
-    await page.route(`**/projects/${projectId}/edit`, async (route) => {
+    const captureUpdateResponse = async (route: Route) => {
       const request = route.request();
       let args: unknown;
       try {
@@ -624,7 +624,8 @@ test("content rejection keeps the draft and a valid retry creates one project", 
         body,
       });
       await route.fulfill({ response, body });
-    });
+    };
+    await page.route(`**/projects/${projectId}/edit`, captureUpdateResponse);
     await titleInput.fill(editedTitle);
     const save = page.getByRole("button", {
       name: "Save Changes",
@@ -646,13 +647,32 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     expect(updateResponses[0].type).toContain("text/x-component");
     expect(updateResponses[0].body).toContain('"success":true');
     expectPrivateReviewAbsent(updateResponses[0].body, reviewNote);
+    await page.unroute(`**/projects/${projectId}/edit`, captureUpdateResponse);
 
-    await page.goto(`/projects/${projectId}/edit`, {
-      waitUntil: "domcontentloaded",
+    let releaseScripts!: () => void;
+    let heldScripts = 0;
+    const scriptsReady = new Promise<void>((resolve) => {
+      releaseScripts = resolve;
     });
-    await page
-      .getByRole("button", { name: "Delete Project", exact: true })
-      .click();
+    await page.route("**/_next/static/**/*.js", async (route) => {
+      heldScripts++;
+      await scriptsReady;
+      await route.continue();
+    });
+    const deleteProject = page.getByRole("button", {
+      name: "Delete Project",
+      exact: true,
+    });
+    try {
+      await page.goto(`/projects/${projectId}/edit`, { waitUntil: "commit" });
+      await expect(deleteProject).toBeVisible();
+      expect(heldScripts).toBeGreaterThan(0);
+      await expect(deleteProject).toBeDisabled();
+    } finally {
+      releaseScripts();
+    }
+    await expect(deleteProject).toBeEnabled();
+    await deleteProject.click();
     const confirmation = page.getByRole("alertdialog");
     await expect(confirmation).toBeVisible();
     await confirmation
