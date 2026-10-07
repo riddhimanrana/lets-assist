@@ -917,6 +917,25 @@ public_client_function_acl_drift="$(
 )"
 fail_if_rows "public client-callable function ACL drift" "$public_client_function_acl_drift"
 
+reviewed_service_rpc_drift="$(
+  psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
+    with reviewed(signature) as (
+      values ('public.project_occupancy_for_visible_projects(uuid[],uuid,uuid)')
+    )
+    select reviewed.signature
+    from reviewed
+    left join pg_proc routine on routine.oid = to_regprocedure(reviewed.signature)
+    where routine.oid is null
+      or routine.prosecdef
+      or routine.provolatile <> 's'
+      or not coalesce(routine.proconfig @> array['search_path=\"\"'], false)
+      or not has_function_privilege('service_role', routine.oid, 'EXECUTE')
+      or has_function_privilege('anon', routine.oid, 'EXECUTE')
+      or has_function_privilege('authenticated', routine.oid, 'EXECUTE');
+  "
+)"
+fail_if_rows "reviewed service-only public RPC contract drift" "$reviewed_service_rpc_drift"
+
 summary="$(
   psql "$DB_URL" -X -v ON_ERROR_STOP=1 -AtF $'\t' -c "
     select 'base_tables_with_rls', count(*)
