@@ -296,11 +296,6 @@ test("inventories every root project_signups to projects embed and its DTO shape
       inner: false,
     },
     {
-      file: "app/api/cron/auto-publish-hours/route.ts",
-      outputAlias: "projects",
-      inner: true,
-    },
-    {
       file: "app/dashboard/_components/dashboard-data.ts",
       outputAlias: "projects",
       inner: false,
@@ -314,6 +309,11 @@ test("inventories every root project_signups to projects embed and its DTO shape
       file: "app/projects/UserProjects.tsx",
       outputAlias: "projects",
       inner: false,
+    },
+    {
+      file: "services/auto-publish-hours-worker.ts",
+      outputAlias: "projects",
+      inner: true,
     },
     {
       file: "services/calendar-settings-data.ts",

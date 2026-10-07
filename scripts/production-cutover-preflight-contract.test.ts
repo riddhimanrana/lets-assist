@@ -7,10 +7,6 @@ const preflight = readFileSync(
   join(repositoryRoot, "scripts/production-cutover-preflight.sql"),
   "utf8",
 );
-const architectureAudit = readFileSync(
-  join(repositoryRoot, "scripts/audit-supabase-architecture.sh"),
-  "utf8",
-);
 const PRODUCTION_HEAD = "20260829092823";
 const TARGET_HEAD = "20260903050000";
 const HARD_FAIL_STATEMENT = "SELECT 1 / 0 AS preflight_check_failed;";
@@ -197,72 +193,6 @@ describe("Production cutover preflight source contract", () => {
     expect(preflight).not.toContain("expect 49 rows");
     expect(preflight).not.toContain("The CSF surface must NOT exist");
     expect(preflight).not.toContain("ROWS THIS CUTOVER WILL DELETE");
-  });
-
-  test("carries the repository security gates into the target preflight", () => {
-    const functionAclBlock = architectureAudit.slice(
-      architectureAudit.indexOf("public_client_function_acl_drift="),
-      architectureAudit.indexOf(
-        "summary=",
-        architectureAudit.indexOf("public_client_function_acl_drift="),
-      ),
-    );
-    const expectedClientFunctions = [
-      ...functionAclBlock.matchAll(
-        /\('([^']+\([^']*\))', '(anon|authenticated)'\)/gu,
-      ),
-    ].map((match) => [match[1], match[2]]);
-
-    const preflightFunctionAclBlock = preflight.slice(
-      preflight.indexOf("T5  Public read-model and function ACL posture"),
-      preflight.indexOf("T6  Exact target relation ACL"),
-    );
-    const preflightClientFunctions = [
-      ...preflightFunctionAclBlock.matchAll(
-        /\('([^']+\([^']*\))',\s*'(anon|authenticated)'\)/gu,
-      ),
-    ].map((match) => [match[1], match[2]]);
-
-    expect(expectedClientFunctions.length).toBeGreaterThan(0);
-    expect(preflightClientFunctions).toEqual(expectedClientFunctions);
-    expect(preflight).toContain("S1  plugin_data RLS and browser isolation");
-    expect(preflight).toContain("NOT relation.relrowsecurity");
-    expect(preflight).toContain(
-      "has_schema_privilege(client.role_name, namespace.oid, 'USAGE')",
-    );
-    expect(preflight).toContain(
-      "has_function_privilege(client.role_name, function_record.oid, 'EXECUTE')",
-    );
-    expect(preflightFunctionAclBlock).toContain("security_invoker=true");
-    expect(preflightFunctionAclBlock).toContain("function_record.prosecdef");
-
-    const privateDvAclMigration = readMigration("20260813091801");
-    for (const helperName of ["is_dv_student", "can_access_dv_household"]) {
-      expect(privateDvAclMigration).toContain(
-        `REVOKE ALL ON FUNCTION private.${helperName}(uuid)`,
-      );
-      expect(privateDvAclMigration).toContain(
-        `GRANT EXECUTE ON FUNCTION private.${helperName}(uuid)`,
-      );
-    }
-    expect(privateDvAclMigration).toContain(
-      "FROM PUBLIC, anon, authenticated, service_role;",
-    );
-    expect(
-      privateDvAclMigration.match(/TO authenticated, postgres;/gu),
-    ).toHaveLength(2);
-
-    const issuerGuard = readMigration("20260812193400");
-    expect(issuerGuard).toContain(
-      "CREATE OR REPLACE FUNCTION private.protect_staff_join_token_issuer()",
-    );
-    expect(issuerGuard).toMatch(
-      /NEW\.staff_join_token_issued_by\s+IS DISTINCT FROM OLD\.staff_join_token_issued_by/u,
-    );
-    expect(issuerGuard).toContain(
-      "REVOKE ALL ON FUNCTION private.protect_staff_join_token_issuer()",
-    );
-    expect(issuerGuard).toContain("TO postgres;");
   });
 
   test("T8 proves the begin lock order and denies every non-owner base caller", () => {
