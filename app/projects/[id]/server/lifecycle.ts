@@ -1,4 +1,5 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
@@ -73,7 +74,7 @@ async function getProjectForMutation(
   // state. These actions only need the project row and its organization_id.
   const { data: project, error } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .maybeSingle();
 
@@ -238,10 +239,9 @@ export async function cloneProject(projectId: string) {
   const { user } = await getAuthUser();
   if (!user) return { error: "You must be logged in to clone a project" };
 
-  // Fetch source project
   const { data: source, error: fetchError } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
 
@@ -314,7 +314,6 @@ export async function cloneProject(projectId: string) {
     workflow_status: "draft",
   };
 
-  // Insert new project
   const { data: newProject, error: insertError } = await supabase
     .from("projects")
     .insert(newProjectData)
@@ -571,6 +570,7 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      "review_notes",
       "status",
       "cancelled_at",
       "cancellation_reason",

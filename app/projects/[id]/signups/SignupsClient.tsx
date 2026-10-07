@@ -1,4 +1,5 @@
 "use client";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -80,7 +81,6 @@ interface Props {
   projectId: string;
 }
 
-// Update Signup type to reflect new structure
 type Signup = {
   id: string;
   created_at: string;
@@ -351,7 +351,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     const supabase = createClient();
     const { data: project, error } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .eq("id", projectId)
       .single();
 

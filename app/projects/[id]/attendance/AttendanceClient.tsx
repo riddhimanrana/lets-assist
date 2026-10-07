@@ -1,4 +1,5 @@
 "use client";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
@@ -352,7 +353,7 @@ export function AttendanceClient({
     const supabase = createClient();
     const { data: project, error } = await supabase
       .from("projects")
-      .select("*")
+      .select(PROJECT_CLIENT_SELECT)
       .eq("id", projectId)
       .single();
 
@@ -409,7 +410,6 @@ export function AttendanceClient({
     setRefreshing(false);
   };
 
-  // Add new helper for manual check-in
   const handleManualCheckIn = async (signupId: string) => {
     try {
       const result = await checkInParticipant(signupId);

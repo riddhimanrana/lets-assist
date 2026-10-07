@@ -57,7 +57,7 @@ export async function getSyncedEventsCount() {
     // Count creator projects with synced events
     const { count: creatorCount } = (await supabase
       .from("projects")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("creator_id", user.id)
       .not("creator_calendar_event_id", "is", null)) as {
       count: number | null;
