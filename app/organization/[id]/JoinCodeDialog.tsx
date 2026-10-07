@@ -14,6 +14,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Check,
   ClipboardCopy,
   Copy,
@@ -49,6 +58,7 @@ export default function JoinCodeDialog({
   const [joinCode, setJoinCode] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
   const [copied, setCopied] = useState<"code" | "link" | "none">("none");
   const [joinLink, setJoinLink] = useState<string>("");
   const linkInputRef = useRef<HTMLInputElement>(null);
@@ -104,14 +114,7 @@ export default function JoinCodeDialog({
 
   // Regenerate join code
   const handleRegenerateCode = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to regenerate the join code? The old code will no longer work.",
-      )
-    ) {
-      return;
-    }
-
+    setConfirmRegenerate(false);
     setRegenerating(true);
 
     try {
@@ -156,7 +159,7 @@ export default function JoinCodeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Invite Members</DialogTitle>
+          <DialogTitle>Invite members</DialogTitle>
           <DialogDescription>
             Share this code or link with people you want to invite to{" "}
             {organization.name}.
@@ -164,17 +167,17 @@ export default function JoinCodeDialog({
         </DialogHeader>
 
         <Tabs defaultValue="code" className="mt-2">
-          <TabsList className="grid grid-cols-3">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="code">Code</TabsTrigger>
             <TabsTrigger value="link">Link</TabsTrigger>
-            <TabsTrigger value="qr">QR Code</TabsTrigger>
+            <TabsTrigger value="qr">QR code</TabsTrigger>
           </TabsList>
 
           <TabsContent value="code" className="pt-4">
             <div className="space-y-4">
               <div className="flex flex-col space-y-2">
                 <Label htmlFor="join-code" className="text-sm">
-                  Join Code
+                  Join code
                 </Label>
                 <div className="flex items-center justify-between">
                   <div className="relative w-full">
@@ -188,7 +191,7 @@ export default function JoinCodeDialog({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="absolute right-1 top-1 h-7 w-7"
+                      className="absolute right-0 top-0"
                       onClick={() => handleCopyToClipboard(joinCode, "code")}
                       disabled={loading || regenerating}
                     >
@@ -207,7 +210,7 @@ export default function JoinCodeDialog({
 
               <div className="flex flex-col space-y-2">
                 <Button
-                  onClick={handleRegenerateCode}
+                  onClick={() => setConfirmRegenerate(true)}
                   variant="outline"
                   disabled={loading || regenerating}
                   className="w-full gap-1.5"
@@ -220,7 +223,7 @@ export default function JoinCodeDialog({
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4" />
-                      <span>Regenerate Code</span>
+                      <span>Regenerate code</span>
                     </>
                   )}
                 </Button>
@@ -246,7 +249,7 @@ export default function JoinCodeDialog({
             <div className="space-y-4">
               <div className="flex flex-col space-y-2">
                 <Label htmlFor="invite-link" className="text-sm">
-                  Invitation Link
+                  Invitation link
                 </Label>
                 <div className="relative">
                   <Input
@@ -260,7 +263,7 @@ export default function JoinCodeDialog({
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="absolute right-1 top-1 h-7 w-7"
+                    className="absolute right-0 top-0"
                     onClick={() => handleCopyToClipboard(joinLink, "link")}
                     disabled={loading}
                   >
@@ -289,7 +292,7 @@ export default function JoinCodeDialog({
                   ) : (
                     <>
                       <LinkIcon className="h-4 w-4" />
-                      <span>Copy Link</span>
+                      <span>Copy link</span>
                     </>
                   )}
                 </Button>
@@ -340,25 +343,44 @@ export default function JoinCodeDialog({
                 disabled={loading}
               >
                 <QrCode className="h-4 w-4" />
-                <span>Download QR Code</span>
+                <span>Download QR code</span>
               </Button>
             </div>
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between sm:space-x-2">
-          <span className="text-xs text-muted-foreground mb-4 sm:mb-0">
-            Anyone with the code or link can join this organization.
-          </span>
+        <DialogFooter className="sm:items-center sm:justify-between">
           <Button
             type="button"
             variant="default"
             onClick={() => onOpenChange(false)}
+            className="sm:order-last"
           >
             Done
           </Button>
+          <p className="text-muted-foreground text-sm">
+            Anyone with the code or link can join this organization.
+          </p>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmRegenerate} onOpenChange={setConfirmRegenerate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate the join code?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The old code and any link or QR code made from it will stop
+              working.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleRegenerateCode}>
+              Regenerate code
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

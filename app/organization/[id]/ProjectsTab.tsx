@@ -1,258 +1,293 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { Folders, Plus, Search } from "lucide-react";
+
+import { SectionHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardAction,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { format } from "date-fns";
 import {
-  CalendarIcon,
-  MapPin,
-  Plus,
-  Search,
-  Calendar,
-  CheckCircle2,
-  AlertCircle,
-  Clock3,
-  LayoutGrid,
-  Folders,
-} from "lucide-react";
-import Link from "next/link";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectStatus, Project } from "@/types";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { getProjectStatus } from "@/utils/project";
-import { useRouter } from "next/navigation";
-import { stripHtml, cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { stripHtml } from "@/lib/utils";
+import type { Project, ProjectStatus } from "@/types";
+import { getProjectEventDate, getProjectStatus } from "@/utils/project";
 
 interface ProjectsTabProps {
   projects: Project[];
   userRole: string | null;
   organizationId: string;
+  /**
+   * Show "New project" in this tab's header. Off by default because the
+   * organization header already carries it; on when a plugin hides it there.
+   */
+  showCreateAction?: boolean;
+}
+
+type StatusFilter = ProjectStatus | "all";
+
+const STATUS_FILTERS: Array<{ value: StatusFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "upcoming", label: "Upcoming" },
+  { value: "in-progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+const EMPTY_COPY: Record<StatusFilter, { title: string; description: string }> =
+  {
+    all: {
+      title: "No projects yet",
+      description: "Projects this organization runs will show up here.",
+    },
+    upcoming: {
+      title: "No upcoming projects",
+      description: "Nothing is scheduled right now.",
+    },
+    "in-progress": {
+      title: "Nothing in progress",
+      description: "No projects are running right now.",
+    },
+    completed: {
+      title: "No completed projects",
+      description: "Finished projects will show up here.",
+    },
+    cancelled: {
+      title: "No cancelled projects",
+      description: "Cancelled projects will show up here.",
+    },
+  };
+
+function isStatusFilter(value: unknown): value is StatusFilter {
+  return STATUS_FILTERS.some((filter) => filter.value === value);
+}
+
+/** The event date, or null when a project's schedule is missing or malformed. */
+function formatProjectEventDate(project: Project): string | null {
+  try {
+    const date = getProjectEventDate(project);
+    return Number.isNaN(date.getTime()) ? null : format(date, "MMM d, yyyy");
+  } catch {
+    return null;
+  }
 }
 
 export default function ProjectsTab({
   projects,
   userRole,
   organizationId,
+  showCreateAction = false,
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>(projects);
-  const [activeTab, setActiveTab] = useState<ProjectStatus | "all">("all");
-  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // Filter projects when search term or active tab changes
-  useEffect(() => {
-    let result = projects.map((project) => ({
-      ...project,
-      status: getProjectStatus(project),
-    }));
+  const projectsWithStatus = useMemo(
+    () =>
+      projects.map((project) => ({
+        project,
+        status: getProjectStatus(project),
+      })),
+    [projects],
+  );
 
-    // Filter by status
-    if (activeTab !== "all") {
-      result = result.filter((project) => project.status === activeTab);
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: projectsWithStatus.length };
+    for (const { status } of projectsWithStatus) {
+      counts[status] = (counts[status] ?? 0) + 1;
     }
+    return counts;
+  }, [projectsWithStatus]);
 
-    // Filter by search term
-    if (searchTerm.trim() !== "") {
-      const lowercasedFilter = searchTerm.toLowerCase();
-      result = result.filter((project) => {
-        const title = project.title.toLowerCase();
-        const description = (project.description || "").toLowerCase();
-        const location = (project.location || "").toLowerCase();
-        return (
-          title.includes(lowercasedFilter) ||
-          description.includes(lowercasedFilter) ||
-          location.includes(lowercasedFilter)
-        );
-      });
-    }
-
-    setFilteredProjects(result);
-  }, [searchTerm, activeTab, projects]);
+  const trimmedSearch = searchTerm.trim().toLowerCase();
+  const filteredProjects = projectsWithStatus.filter(({ project, status }) => {
+    if (statusFilter !== "all" && status !== statusFilter) return false;
+    if (!trimmedSearch) return true;
+    return [project.title, project.description || "", project.location || ""]
+      .join("\n")
+      .toLowerCase()
+      .includes(trimmedSearch);
+  });
 
   const canCreateProjects = userRole === "admin" || userRole === "staff";
-
-  // Handle navigation to create project with organization context
-  const handleCreateProject = () => {
-    router.push(`/projects/create?org=${organizationId}`);
-  };
+  const createHref = `/projects/create?org=${organizationId}`;
+  const emptyCopy = EMPTY_COPY[statusFilter];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
-        <h2 className="text-xl font-bold tracking-tight">
-          Organization Projects
-        </h2>
-
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 text-muted-foreground -translate-y-1/2" />
-            <Input
-              placeholder="Search projects..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {canCreateProjects && (
-            <Button onClick={handleCreateProject} className="w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Project
+    <div className="grid gap-4">
+      <SectionHeader
+        title="Projects"
+        description={`${projects.length.toLocaleString()} ${
+          projects.length === 1 ? "project" : "projects"
+        }`}
+        actions={
+          canCreateProjects && showCreateAction ? (
+            <Button nativeButton={false} render={<Link href={createHref} />}>
+              <Plus data-icon="inline-start" aria-hidden="true" />
+              New project
             </Button>
-          )}
-        </div>
+          ) : undefined
+        }
+      />
+
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <InputGroup className="lg:max-w-xs">
+          <InputGroupAddon>
+            <Search aria-hidden="true" />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            aria-label="Search projects"
+            placeholder="Search projects"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+        </InputGroup>
+
+        <NativeSelect
+          aria-label="Filter projects by status"
+          className="w-full sm:hidden [&_select]:h-9"
+          value={statusFilter}
+          onChange={(event) => {
+            if (isStatusFilter(event.target.value)) {
+              setStatusFilter(event.target.value);
+            }
+          }}
+        >
+          {STATUS_FILTERS.map((filter) => (
+            <NativeSelectOption key={filter.value} value={filter.value}>
+              {filter.label} ({statusCounts[filter.value] ?? 0})
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+
+        <ToggleGroup
+          aria-label="Filter projects by status"
+          variant="outline"
+          className="hidden sm:flex"
+          value={[statusFilter]}
+          onValueChange={(value) => {
+            const nextValue = value[0];
+            if (isStatusFilter(nextValue)) setStatusFilter(nextValue);
+          }}
+        >
+          {STATUS_FILTERS.map((filter) => (
+            <ToggleGroupItem
+              key={filter.value}
+              value={filter.value}
+              className="gap-1.5 px-3"
+            >
+              {filter.label}
+              <span className="text-muted-foreground tabular-nums">
+                {statusCounts[filter.value] ?? 0}
+              </span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
-      <Tabs
-        defaultValue="all"
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as ProjectStatus | "all")}
-        className="w-full"
-      >
-        <TabsList className="mb-4 flex h-auto w-fit self-start max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <TabsTrigger value="all" className="gap-2 px-3">
-            <LayoutGrid className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">All</span>
-          </TabsTrigger>
-          <TabsTrigger value="upcoming" className="gap-2 px-3">
-            <Calendar className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">Upcoming</span>
-          </TabsTrigger>
-          <TabsTrigger value="in-progress" className="gap-2 px-3">
-            <Clock3 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">Progress</span>
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="gap-2 px-3">
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">Done</span>
-          </TabsTrigger>
-          <TabsTrigger value="cancelled" className="gap-2 px-3">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">Cancelled</span>
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value={activeTab} className="mt-0">
-          {filteredProjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredProjects.map((project) => (
-                <ProjectCard key={project.id} project={project} />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-16 px-6">
-              <div className="mx-auto w-16 h-16 bg-linear-to-br from-primary/20 to-primary/10 flex items-center justify-center rounded-full mb-5 ring-1 ring-primary/20">
-                {searchTerm ? (
-                  <Search className="h-8 w-8 text-muted-foreground" />
-                ) : activeTab === "upcoming" ? (
-                  <Calendar className="h-8 w-8 text-muted-foreground" />
-                ) : activeTab === "in-progress" ? (
-                  <Clock3 className="h-8 w-8 text-muted-foreground" />
-                ) : activeTab === "completed" ? (
-                  <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-                ) : activeTab === "cancelled" ? (
-                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                ) : (
-                  <Folders className="h-8 w-8 text-muted-foreground" />
-                )}
-              </div>
-
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                {searchTerm ? "No projects found" : "None yet"}
-              </h3>
-
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6 text-center">
-                {searchTerm
-                  ? `We couldn't find any projects matching "${searchTerm}". Try a different search term.`
-                  : activeTab === "all"
-                    ? "No projects have been created in this organization yet. Create one to get started!"
-                    : activeTab === "upcoming"
-                      ? "There are no upcoming projects scheduled. Create a new project to get started!"
-                      : activeTab === "in-progress"
-                        ? "No projects are currently in progress. Check back later or create a new one!"
-                        : activeTab === "completed"
-                          ? "No completed projects yet. Create and complete a project to see it here!"
-                          : "No cancelled projects."}
-              </p>
-
-              {canCreateProjects &&
-                activeTab !== "cancelled" &&
-                !searchTerm && (
-                  <Link
-                    href={`/projects/create?org=${organizationId}`}
-                    className={cn(buttonVariants({ size: "sm" }), "")}
-                  >
-                    <Plus className="h-4 w-4 mr-1.5" />
-                    Create First Project
-                  </Link>
-                )}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      {filteredProjects.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {filteredProjects.map(({ project, status }) => (
+            <ProjectCard key={project.id} project={project} status={status} />
+          ))}
+        </div>
+      ) : (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              {trimmedSearch ? (
+                <Search aria-hidden="true" />
+              ) : (
+                <Folders aria-hidden="true" />
+              )}
+            </EmptyMedia>
+            <EmptyTitle>
+              {trimmedSearch ? "No projects found" : emptyCopy.title}
+            </EmptyTitle>
+            <EmptyDescription>
+              {trimmedSearch
+                ? `Nothing matches "${searchTerm.trim()}". Try a different search.`
+                : emptyCopy.description}
+            </EmptyDescription>
+          </EmptyHeader>
+          {canCreateProjects &&
+          statusFilter !== "cancelled" &&
+          !trimmedSearch ? (
+            <EmptyContent>
+              <Button nativeButton={false} render={<Link href={createHref} />}>
+                <Plus data-icon="inline-start" aria-hidden="true" />
+                New project
+              </Button>
+            </EmptyContent>
+          ) : null}
+        </Empty>
+      )}
     </div>
   );
 }
 
-function ProjectCard({ project }: { project: Project }) {
-  const currentStatus = getProjectStatus(project);
+function ProjectCard({
+  project,
+  status,
+}: {
+  project: Project;
+  status: ProjectStatus;
+}) {
+  const eventDate = formatProjectEventDate(project);
+  const meta = [project.location, eventDate].filter(Boolean).join(" · ");
 
   return (
-    <Link href={`/projects/${project.id}`} className="group block h-full">
-      <Card className="h-full hover:shadow-xl transition-all duration-200 overflow-hidden border-border/50 bg-card">
-        <div className="px-4 flex flex-col h-full">
-          <CardHeader className="p-0 mb-2">
-            <CardTitle className="text-lg font-bold truncate pr-2 leading-tight">
-              {project.title}
-            </CardTitle>
-            <CardAction>
-              <ProjectStatusBadge status={currentStatus} className="shrink-0" />
-            </CardAction>
-          </CardHeader>
-
-          <CardContent className="p-0 ">
-            <CardDescription className="line-clamp-2 mb-3 text-sm text-muted-foreground/90">
-              {project.description
-                ? stripHtml(project.description)
-                : "No description provided."}
-            </CardDescription>
-
-            <div className="space-y-1.5 text-xs font-medium text-muted-foreground/80">
-              {project.location && (
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2 shrink-0" />
-                  <span className="truncate">{project.location}</span>
-                </div>
-              )}
-
-              <div className="flex items-center">
-                <CalendarIcon className="h-4 w-4 mr-2 shrink-0" />
-                <span>
-                  Created {format(new Date(project.created_at), "MMM d, yyyy")}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-
-          {project.organization && (
-            <div className="mt-auto flex items-center gap-2">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
-                Organized by
-              </div>
-              <span className="text-sm font-semibold text-foreground/80 truncate">
-                {project.profiles?.full_name || "Anonymous"}
-              </span>
-            </div>
-          )}
-        </div>
+    <Link
+      href={`/projects/${project.id}`}
+      className="group focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-[3px]"
+    >
+      <Card className="group-hover:ring-foreground/25 h-full transition-colors">
+        <CardHeader>
+          <CardTitle className="truncate">{project.title}</CardTitle>
+          <CardAction>
+            <ProjectStatusBadge status={status} />
+          </CardAction>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <CardDescription className="line-clamp-2">
+            {project.description
+              ? stripHtml(project.description)
+              : "No description provided."}
+          </CardDescription>
+          {meta ? (
+            <p className="text-muted-foreground truncate text-sm">{meta}</p>
+          ) : null}
+          {project.organization ? (
+            <p className="text-muted-foreground truncate text-sm">
+              Organized by {project.profiles?.full_name || "Anonymous"}
+            </p>
+          ) : null}
+        </CardContent>
       </Card>
     </Link>
   );

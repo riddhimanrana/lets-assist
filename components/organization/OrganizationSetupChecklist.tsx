@@ -5,6 +5,21 @@ import Link from "next/link";
 import { Check, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Item,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { OrganizationSetupChecklist as Checklist } from "@/lib/organization/setup-checklist";
@@ -52,89 +67,86 @@ export default function OrganizationSetupChecklist({
   }
 
   return (
-    <section
-      aria-labelledby="organization-setup-heading"
-      className="mt-6 rounded-xl border border-border/60 bg-card p-4 sm:p-6"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2
-            id="organization-setup-heading"
-            className="text-base font-semibold sm:text-lg"
-          >
-            Finish setting up your organization
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <section aria-labelledby="organization-setup-heading">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2 id="organization-setup-heading">
+              Finish setting up your organization
+            </h2>
+          </CardTitle>
+          <CardDescription>
             {completedCount} of {totalCount} done
-          </p>
-        </div>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={dismiss}
-          disabled={isPending}
-          aria-label="Hide the setup checklist"
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
-
-      <Progress
-        value={percent}
-        className="mt-4 h-2"
-        aria-label={`Setup progress: ${completedCount} of ${totalCount} steps complete`}
-      />
-
-      <ul className="mt-4 flex flex-col gap-1">
-        {items.map((item) => (
-          <li key={item.id}>
-            <Link
-              href={item.href}
-              aria-current={item.complete ? undefined : "step"}
-              className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-3 transition-colors",
-                "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                item.complete && "opacity-60",
-              )}
+          </CardDescription>
+          <CardAction>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={dismiss}
+              disabled={isPending}
+              aria-label="Hide the setup checklist"
             >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "flex size-5 shrink-0 items-center justify-center rounded-full border",
-                  item.complete
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-muted-foreground/40",
-                )}
-              >
-                {item.complete && <Check className="size-3" />}
-              </span>
+              <X aria-hidden="true" />
+            </Button>
+          </CardAction>
+        </CardHeader>
 
-              <span className="min-w-0 flex-1">
-                <span
-                  className={cn(
-                    "block text-sm font-medium",
-                    item.complete && "line-through",
-                  )}
+        <CardContent className="grid gap-3">
+          <Progress
+            value={percent}
+            aria-label={`Setup progress: ${completedCount} of ${totalCount} steps complete`}
+          />
+
+          <ul className="-mx-2 flex flex-col">
+            {items.map((item) => (
+              <li key={item.id}>
+                <Item
+                  size="sm"
+                  className="px-2"
+                  render={
+                    <Link
+                      href={item.href}
+                      aria-current={item.complete ? undefined : "step"}
+                    />
+                  }
                 >
-                  {item.title}
-                </span>
-                <span className="block text-sm text-muted-foreground">
-                  {item.description}
-                </span>
-              </span>
-
-              {!item.complete && (
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-              )}
-
-              <span className="sr-only">
-                {item.complete ? "Complete" : "Not started"}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+                  <ItemMedia aria-hidden="true">
+                    <span
+                      className={cn(
+                        "flex size-5 items-center justify-center rounded-full border",
+                        item.complete
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-muted-foreground/40",
+                      )}
+                    >
+                      {item.complete && <Check className="size-3" />}
+                    </span>
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle
+                      className={cn(
+                        item.complete && "text-muted-foreground line-through",
+                      )}
+                    >
+                      {item.title}
+                    </ItemTitle>
+                    <ItemDescription>{item.description}</ItemDescription>
+                  </ItemContent>
+                  {!item.complete && (
+                    <ChevronRight
+                      className="text-muted-foreground size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <span className="sr-only">
+                    {item.complete ? "Complete" : "Not started"}
+                  </span>
+                </Item>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </section>
   );
 }
