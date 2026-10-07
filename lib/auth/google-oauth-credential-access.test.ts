@@ -3,6 +3,7 @@ import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 const owner = "c64b1000-0000-4000-8000-000000000001";
 const other = "c64b1000-0000-4000-8000-000000000002";
 const connectionId = "c64b1010-0000-4000-8000-000000000001";
+const updatedAt = "2026-10-07T00:00:00.000Z";
 let sessionUser: string | null;
 let sessionError: boolean;
 let bound: boolean;
@@ -80,6 +81,7 @@ mock.module("@/lib/supabase/admin", () => ({
           return {
             data: {
               id: connectionId,
+              updated_at: updatedAt,
               user_id: owner,
               provider: "google",
               access_token: currentAccessToken,
@@ -493,10 +495,28 @@ test("disconnect acknowledges only deletion of the unchanged credential", async 
         access_token: "fictional-access-ciphertext",
         refresh_token: "fictional-refresh-ciphertext",
         token_expires_at: expires,
+        updated_at: updatedAt,
       },
       data: "delete",
     },
   ]);
+});
+
+test("a reconnect after disconnect preparation is refused before provider revocation", async () => {
+  expect(
+    await deactivateGoogleConnection(owner, {
+      expectedConnection: {
+        id: connectionId,
+        updatedAt: "2026-10-06T00:00:00.000Z",
+      },
+    }),
+  ).toMatchObject({
+    success: false,
+    remoteRevocation: "not_requested",
+    localCleanup: "failed",
+  });
+  expect(providerCalls).toBe(0);
+  expect(writes).toEqual([]);
 });
 
 test.each(["subject", "binding", "credentials"])(

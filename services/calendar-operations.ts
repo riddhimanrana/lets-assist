@@ -191,6 +191,7 @@ export async function deactivateGoogleConnection(
     revokeAccess?: boolean;
     expectedBinding?: GoogleOAuthConnectionBindingExpectation;
     useServiceRole?: boolean;
+    expectedConnection?: { id: string; updatedAt: string };
   } = {},
 ): Promise<{
   success: boolean;
@@ -207,6 +208,18 @@ export async function deactivateGoogleConnection(
   );
   if (!connection) {
     return { success: false, error: "No active Google connection found" };
+  }
+  if (
+    options.expectedConnection &&
+    (connection.id !== options.expectedConnection.id ||
+      connection.updated_at !== options.expectedConnection.updatedAt)
+  ) {
+    return {
+      success: false,
+      error: "Google connection changed. Refresh the page and try again.",
+      remoteRevocation: "not_requested",
+      localCleanup: "failed",
+    };
   }
 
   const supabase = await getGoogleOAuthCredentialClient(
@@ -255,6 +268,7 @@ export async function deactivateGoogleConnection(
   if (
     !currentConnection ||
     currentConnection.id !== connection.id ||
+    currentConnection.updated_at !== connection.updated_at ||
     currentConnection.access_token !== connection.access_token ||
     currentConnection.refresh_token !== connection.refresh_token ||
     currentConnection.token_expires_at !== connection.token_expires_at
@@ -278,6 +292,7 @@ export async function deactivateGoogleConnection(
     .eq("access_token", connection.access_token)
     .eq("refresh_token", connection.refresh_token)
     .eq("token_expires_at", connection.token_expires_at)
+    .eq("updated_at", connection.updated_at)
     .select("id")
     .maybeSingle();
 

@@ -3,14 +3,14 @@ import { safeConsole } from "@/lib/safe-console";
  * Google - Disconnect
  * POST /api/google/oauth/disconnect
  *
- * Provider-scoped rather than feature-scoped: the same connection backs
- * calendar, Sheets, Drive and the CSF import surfaces, so ending it is not a
- * calendar-specific operation.
+ * Disconnect the signed-in account's personal calendar purpose.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { deactivateGoogleConnection } from "@/services/calendar";
+import { preparePersonalCalendarDisconnect } from "@/services/personal-calendar/disconnect";
+import { CalendarSyncError } from "@/services/personal-calendar/reconcile";
 
 export async function POST(request: Request) {
   try {
@@ -26,17 +26,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Try to parse request body, default to revoking access if no body provided
+    // An empty UI request uses the default; malformed options cannot revoke a grant.
     let revoke_access = true;
     try {
-      const body = await request.json();
-      revoke_access = body.revoke_access ?? true;
+      const text = await request.text();
+      if (text.trim()) {
+        const body: unknown = JSON.parse(text);
+        if (!body || typeof body !== "object" || Array.isArray(body)) {
+          return NextResponse.json(
+            { error: "Invalid disconnect options" },
+            { status: 400 },
+          );
+        }
+        if ("revoke_access" in body) {
+          if (typeof body.revoke_access !== "boolean") {
+            return NextResponse.json(
+              { error: "Invalid disconnect options" },
+              { status: 400 },
+            );
+          }
+          revoke_access = body.revoke_access;
+        }
+      }
     } catch {
-      // No body provided, use default
+      return NextResponse.json(
+        { error: "Invalid disconnect options" },
+        { status: 400 },
+      );
     }
 
+    const prepared = await preparePersonalCalendarDisconnect(user.id);
     const deactivateResult = await deactivateGoogleConnection(user.id, {
       revokeAccess: revoke_access,
+      expectedConnection: {
+        id: prepared.connectionId,
+        updatedAt: prepared.updatedAt,
+      },
     });
     if (!deactivateResult.success) {
       return NextResponse.json(
@@ -50,33 +75,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Also clear calendar event IDs from projects and signups created by this user
-    // Projects
-    await supabase
-      .from("projects")
-      .update({
-        creator_calendar_event_id: null,
-        creator_synced_at: null,
-      })
-      .eq("creator_id", user.id)
-      .not("creator_calendar_event_id", "is", null);
-
-    // Signups
-    await supabase
-      .from("project_signups")
-      .update({
-        volunteer_calendar_event_id: null,
-        volunteer_synced_at: null,
-      })
-      .eq("user_id", user.id)
-      .not("volunteer_calendar_event_id", "is", null);
-
     return NextResponse.json({
       success: true,
       message: "Calendar disconnected successfully",
       remoteRevocation: deactivateResult.remoteRevocation,
     });
   } catch (error) {
+    if (error instanceof CalendarSyncError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    }
     safeConsole.error("Error disconnecting calendar:", error);
     return NextResponse.json(
       { error: "Failed to disconnect calendar" },

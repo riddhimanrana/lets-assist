@@ -101,7 +101,7 @@ export default function CalendarClient({
 
       toast.success("Calendar Disconnected", {
         description:
-          "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
+          "Your Google Calendar has been disconnected. Existing events remain. Reconnect the same Google account to remove them through Let's Assist.",
       });
 
       router.refresh();
@@ -492,7 +492,9 @@ export default function CalendarClient({
             <AlertDialogDescription>
               This will disconnect your Google Calendar from Let&apos;s Assist.
               Your existing synced events will remain in your calendar, but new
-              events won&apos;t be automatically synced.
+              events won&apos;t be automatically synced. Reconnect the same
+              Google account to remove those events through Let&apos;s Assist
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
