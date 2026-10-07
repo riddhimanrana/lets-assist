@@ -93,8 +93,17 @@ change adds only repository-owned literal file patterns for runtime modules and
 test exclusions, plus rules that reject direct console access. It does not add a
 request, environment variable, or user-controlled pattern. The updated
 fingerprint keeps the same dependency versions, graph inventory, expiry, and
-operator-input restriction. Private application configuration still requires
-its own review when the private gitlink advances.
+operator-input restriction.
+
+The private candidate at `085755f2` changes the application configuration only
+to install response headers. Its helper returns one literal `/:path*` route
+and constant headers. A boolean derived from `VERCEL_ENV` controls whether HSTS
+is included; no environment or request value becomes a glob pattern. Review of
+the candidate's tracked imports found no new affected glob importer. The three
+lockfile hashes and all other pinned input files are unchanged. The application
+configuration fingerprint now names that reviewed candidate. This prepares the
+paired release; the strict audit still requires the checkout to match the root
+gitlink. The advisory still lists no patched version as of October 7, 2026.
 
 On October 7, 2026, provider metadata readback covered all 119 root Vercel
 environment records and all 6 private application records. Neither project had

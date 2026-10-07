@@ -31,7 +31,7 @@ export const BRACES_EXCEPTION = Object.freeze({
     "proxy.ts":
       "4c9e1ce0568f2d7b0300d16ab8955d774950f28edc1dea0133f7500fe3d42618",
     "lib/plugins/private/apps/csf/next.config.ts":
-      "f940a09f3898b9167489bea124975426bb31671782f22e93a64d4846869ae54c",
+      "1af3e0eb885ae8b6894b1307c6d50dd6704d092c46e5c85bd963c5f7195df577",
     "lib/plugins/private/apps/csf/eslint.config.mjs":
       "6ad5808623254922856641f1fb00cf75c1d669f0275a245f2b1cadbeb1cf9aa8",
     "lib/plugins/private/apps/csf/app/layout.tsx":
