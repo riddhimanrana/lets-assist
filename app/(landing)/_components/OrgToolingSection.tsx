@@ -79,7 +79,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { OrganizationTabBehavior, Project } from "@/types";
 import { getProjectStatus } from "@/utils/project";
-import { AnimatedText } from "./AnimatedText";
 
 const orgFeatures = [
   {
@@ -1667,17 +1666,13 @@ export default function OrgToolingSection() {
             For organizations
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText
-              text="The workspace SignUpGenius never built"
-              mode="words"
-            />
+            The workspace SignUpGenius never built
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Run your volunteer program from one simple dashboard - no
-            spreadsheets, no guesswork. Manage members and roles, verify hours
-            with QR check-ins, auto-issue certificates, and export
-            compliance-ready reports in seconds. Built for schools and
-            nonprofits that need reliable, auditable volunteer records.
+            Manage members and roles, verify hours from QR check-ins, issue
+            certificates, and export reports from one dashboard. Made for
+            schools and nonprofits that have to show their volunteer records to
+            someone else.
           </p>
         </motion.div>
 
@@ -1688,7 +1683,6 @@ export default function OrgToolingSection() {
           transition={{ duration: 0.5 }}
           className="relative mx-auto mt-12 w-full max-w-6xl"
         >
-          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
           <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
             <div
               className="p-4 sm:p-6"

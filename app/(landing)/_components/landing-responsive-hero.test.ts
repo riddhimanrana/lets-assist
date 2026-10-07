@@ -5,25 +5,28 @@ function readComponent(fileName: string) {
   return readFileSync(new URL(`./${fileName}`, import.meta.url), "utf8");
 }
 
-const animatedTextSource = readComponent("AnimatedText.tsx");
 const heroSource = readComponent("HeroContent.tsx");
+const scribbleSource = readComponent("Scribble.tsx");
 
-describe("landing hero responsive text", () => {
-  test("keeps animated words intact while preserving an accessible full label", () => {
-    expect(animatedTextSource).toContain("aria-label={text}");
-    expect(animatedTextSource).toContain("words.map((word, wordIndex)");
-    expect(animatedTextSource).toContain(
-      'className="inline-block whitespace-nowrap"',
-    );
-    expect(animatedTextSource).toContain(
-      'wordIndex < words.length - 1 ? " " : null',
-    );
-  });
-
+describe("landing hero", () => {
   test("uses phone-specific heading and supporting-copy rhythm", () => {
     expect(heroSource).toContain("text-[2.6rem]");
     expect(heroSource).toContain("sm:leading-[0.98]");
     expect(heroSource).toContain("text-[0.95rem] leading-6.5");
     expect(heroSource).toContain("sm:leading-8");
+  });
+
+  test("leads with running an event", () => {
+    expect(heroSource).toMatch(
+      /<MotionLinkButton href="\/signup">\s*Run a volunteer event/,
+    );
+    expect(heroSource).not.toContain("Find volunteering near me");
+  });
+
+  test("sets handwritten notes in the handwriting font", () => {
+    expect(scribbleSource).toContain("font-cheese-milky");
+    expect(heroSource).toMatch(
+      /className="font-cheese-milky[^"]*">\s*try our interactive demo/,
+    );
   });
 });
