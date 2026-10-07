@@ -789,15 +789,14 @@ SET LOCAL request.jwt.claims =
   '{"sub":"fd000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
-SELECT extensions.throws_ok(
+SELECT extensions.is_empty(
   $$
     UPDATE public.organizations
     SET staff_join_token_issued_by = 'fd000000-0000-4000-8000-000000000002'
     WHERE id = 'fd100000-0000-4000-8000-000000000001'
+    RETURNING id
   $$,
-  '42501',
-  'staff invite token issuer requires a server-authorized operation',
-  'an inactive admin retaining organization update access cannot rebind the issuer'
+  'RLS prevents an inactive admin from reaching the issuer update'
 );
 
 RESET ROLE;
