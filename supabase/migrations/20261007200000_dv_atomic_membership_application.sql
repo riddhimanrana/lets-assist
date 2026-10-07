@@ -12,8 +12,8 @@ CREATE TABLE plugin_data.dv_sd_membership_write_receipts (
   PRIMARY KEY (organization_id, actor_user_id, request_id)
 );
 ALTER TABLE plugin_data.dv_sd_membership_write_receipts ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON plugin_data.dv_sd_membership_write_receipts FROM PUBLIC, anon, authenticated;
-GRANT ALL ON plugin_data.dv_sd_membership_write_receipts TO service_role;
+REVOKE ALL ON plugin_data.dv_sd_membership_write_receipts FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON plugin_data.dv_sd_membership_write_receipts TO service_role;
 
 CREATE OR REPLACE FUNCTION plugin_data.save_dv_membership_application(
   p_organization_id uuid,
