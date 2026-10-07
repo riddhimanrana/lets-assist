@@ -1607,6 +1607,7 @@ export default function ProjectCreator({
                     <Button
                       variant="secondary"
                       size="icon"
+                      aria-label="Save as new draft"
                       onClick={handleSaveDraft}
                       disabled={
                         isSubmitting ||
