@@ -74,7 +74,7 @@ VALUES (
 
 INSERT INTO public.projects (
   id, creator_id, title, location, description,
-  event_type, verification_method, schedule, require_login
+  event_type, verification_method, schedule, require_login, status
 )
 VALUES (
   'fc100000-0000-4000-8000-000000000001',
@@ -84,8 +84,9 @@ VALUES (
   'Outbox test fixture',
   'oneTime',
   'manual',
-  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
-  false
+  '{"oneTime":{"date":"2000-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
+  false,
+  'completed'
 );
 
 INSERT INTO public.anonymous_signups (id, project_id, email, name)

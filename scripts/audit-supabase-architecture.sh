@@ -936,7 +936,9 @@ reviewed_service_rpc_drift="$(
         ('public.begin_account_deletion(uuid,uuid,text,boolean,text)', true, 'v'),
         ('public.claim_account_deletion_cleanup(uuid)', true, 'v'),
         ('public.advance_account_deletion_cleanup(uuid,uuid,text,uuid[])', true, 'v'),
-        ('public.get_project_schedule_health(uuid,integer)', true, 's')
+        ('public.get_project_schedule_health(uuid,integer)', true, 's'),
+        ('public.archive_anonymous_signups_for_cleanup(uuid[])', true, 'v'),
+        ('public.delete_old_anonymous_signups()', false, 'v')
     )
     select reviewed.signature
     from reviewed

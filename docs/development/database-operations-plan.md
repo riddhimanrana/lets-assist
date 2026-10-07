@@ -53,6 +53,16 @@ The repository's paper, waiver, and anonymous cleanup schedules are respectively
 
 All six sampled cleanup RPC names had zero matching statement calls since the Production statement reset. This is evidence of missing observed execution, not proof that every other possible cleanup path is absent. GitHub status evidence came from read-only API responses; no dispatch, approval, secret change, or worker activation occurred.
 
+### Anonymous-retention repair required before release
+
+Source review found a second defect behind the failing database cron. `delete_old_anonymous_signups()` still deletes `project_signups` directly. That cascades to `waiver_signatures` and loses their Storage paths without inserting deletion-outbox rows. The application archive function records those paths, but previously also deleted certificates explicitly. Releasing only the paper-reference FK repair would let the old cron advance through this unsafe deletion path.
+
+Forward migration `20261007052100_atomic_anonymous_retention.sql` sends both entry points through the same archive transaction and preserves certificates through their existing `SET NULL` reference behavior. It accepts at most 500 IDs and rechecks current linkage, all associated projects, and the thirty-day eligibility boundary. Completed projects require a valid canonical schedule end; cancelled projects require a recorded cancellation time. Only an identity with no project association uses its creation time. An invalid schedule does not become an old orphan. This is a conservative replacement for the old cron's date-only parser.
+
+The write phase locks the anonymous row, its signups, associated projects, and signatures before rechecking eligibility and collecting paths. It uses `NOWAIT` with a per-candidate rollback to avoid waiting on a live signup's project-first lock. A shared cleanup mutex prevents competing workers from processing the same batch. Busy candidates remain for retry; a non-lock failure rolls back the entire batch. Signature assets and immutable source PDFs use the existing bucket-aware reference checks before queueing, so another signature, project, or definition can retain a shared source. Storage draining still happens after database commit, through the existing outbox worker. This migration neither calls Storage nor enables a worker.
+
+The new 38-assertion pgTAP suite covers eligibility shapes and exact finish time, linked identities, direct and secondary project associations, concurrent cleanup refusal, certificate preservation, multi-signer assets, shared source PDFs, late outbox failure, retry, role denial, and the 500-row limit. It remains unexecuted while the owned database is unavailable. The earlier FK tests, existing waiver-outbox tests, new retention suite, and integrated replay are required together before claiming the retention fix is ready.
+
 ## Advisor review record
 
 Record one row per stable finding signature, such as schema/table/constraint or schema/function/signature. Each row needs an environment, capture time, statistics reset time, finding type, owner role, and one of these outcomes:
