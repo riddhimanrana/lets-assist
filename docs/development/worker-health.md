@@ -1,8 +1,9 @@
 # Worker execution health
 
-The first instrumented routes are `project-cancellations`,
-`csf-communications-dispatch`, and `data-exports`. Other workers still need
-instrumentation.
+All active platform cron routes record aggregate execution evidence. The
+reviewed names live in `lib/cron/worker-keys.mjs`, including the new
+`public-image-cleanup` worker. The retired CSF scheduled-post publisher cannot
+create execution receipts. Instrumentation does not enable a worker or schedule.
 
 ## What the receipts prove
 
@@ -47,6 +48,28 @@ faults, including uncertain sends that must not be retried automatically.
 Cleanup-only success is processed with zero job counters; a failed cleanup adds
 a fault. These counters do not claim inbox delivery.
 
+Other workers count their own decisions:
+
+| Worker                                               | Counter meaning                                                                                                                                            |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public image cleanup                                 | Claimed objects finish as deleted, retained because still referenced, retryable, or failed. Completed combines deleted and retained decisions.             |
+| Anonymous, waiver, paper scan, and CSF proof cleanup | Confirmed database cleanup and Storage operations. CSF proof counts also include enqueue and sweep decisions. These totals are not unique objects deleted. |
+| AI moderation                                        | Checked items, applied moderation decisions, and warning counts. A clean scan can finish without flagging content.                                         |
+| Automatic hours                                      | Processed sessions, successful sessions, deferred sessions, and per-session error counts. A failed query returns failure instead of an empty queue.        |
+| Recurring projects                                   | Checked parent projects and errors. Created occurrences are validated separately and are not the completed counter.                                        |
+| Organization calendar and sheet sync                 | Reported per-organization success or failure.                                                                                                              |
+| Paper signup and feedback notifications              | Reported sends, skips, unknown outcomes, retries, and recovered stale attempts. Feedback also counts newly enqueued intents as completed queue decisions.  |
+| CSF publication notifications                        | Delivered bell notifications and skips; email handoff counts do not prove email delivery. An unavailable handoff adds a fault.                             |
+| CSF import and workbook refresh                      | Settled jobs plus component-level preparation, queue, reconnect, and review decisions.                                                                     |
+
+The classifiers copy only fixed counters and outcome codes into receipts. They
+do not persist recipients, source identities, returned job rows, or raw errors.
+An invalid or oversized response records a failure without changing the worker
+response. The two CSF workers with an 800-second route budget accept monitoring
+budgets up to 800 seconds; other worker policies remain capped at 600 seconds.
+Stored elapsed time has a 900-second ceiling so a legitimate long pass retains
+its duration instead of failing the receipt write.
+
 Reads return at most 20 receipts for one worker and environment, limited to the
 last 30 days. Each start removes at most 200 expired rows, using a retention
 index and skip-locked batches. This is bounded cleanup, not an enforced TTL.
@@ -79,12 +102,13 @@ test evidence lasts at most 30 days. The validator checks the receipt's shape,
 scope and freshness. It cannot prove that the operator performed those steps.
 Retain the provider readback and alert test evidence in the linked change record.
 
-For Production communications activation, paste the bounded receipt JSON into
+For any active Production CSF worker activation, paste the bounded receipt JSON into
 `monitoring_evidence` on the existing worker-transition workflow. The controller
 requires the dispatching operator to match `reviewedBy`; it refuses activation
 before provider reads if the evidence is absent, expired or mismatched.
-Disabling communications needs no receipt. Other worker switches preserve their
-existing interface until their instrumentation and monitoring checks are added.
+Disabling a worker needs no receipt. Workbook refresh, import commit,
+communications, and publication notifications each require evidence for their
+own worker identity.
 
 The repository does not create an alert destination, activate a monitoring
 scheduler, or send an alert from this change. A cloud worker without a tested
@@ -94,19 +118,20 @@ provider readback and the independent alert test are recorded.
 
 ## Validation and rollout
 
-Deploy migration `20261007051000_worker_run_health_receipts.sql` through the
+Deploy migrations `20261007051000_worker_run_health_receipts.sql` and
+`20261008000000_extend_worker_observation_scope.sql` through the
 reviewed migration path before the application hook. A missing migration leaves
 domain work intact but causes a fixed monitoring-unavailable log and missing
 receipts. Check effective service-only grants with
-`supabase/tests/database/worker_run_health_receipts.test.sql` and the architecture
+`supabase/tests/database/worker_run_health_receipts.test.sql`,
+`supabase/tests/database/worker_observation_scope.test.sql`, and the architecture
 service RPC catalog. Then verify aggregate-only receipts in an owned local
 stack before hosted acceptance. No scheduler, worker switch or live queue should
 be enabled as part of these source tests.
 
 Focused unit tests cover classification, timeout-safe observation, response
 preservation, missing telemetry, deployment binding, stale/crashed runs and
-activation evidence refusal. The database tests passed in the owned 699-migration
-replay. The [cleanup register](cleanup-register.md) records current acceptance;
-local execution does not prove hosted monitoring. Broader worker coverage,
-physical retention during a prolonged pause, and independent alert provisioning
-remain follow-up work.
+activation evidence refusal. The [cleanup register](cleanup-register.md) records
+the accepted source and database evidence. Local execution does not prove hosted
+monitoring. Physical retention during a prolonged pause and independent alert
+provisioning remain operational work.

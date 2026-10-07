@@ -1,3 +1,4 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { NextRequest, NextResponse } from "next/server";
 
 import { processRecurringProjects } from "@/services/recurring-project-worker";
@@ -42,20 +43,22 @@ export async function POST(request: NextRequest) {
     const auth = authorizeCronRequest(request);
     if (!auth.ok) return auth.response;
 
-    const startTime = Date.now();
-    const result = await processRecurringProjects();
-    const executionTime = Date.now() - startTime;
+    return await observeWorkerRun("generate-recurring-projects", async () => {
+      const startTime = Date.now();
+      const result = await processRecurringProjects();
+      const executionTime = Date.now() - startTime;
 
-    return NextResponse.json(
-      {
-        message: "Recurring projects processed",
-        processedProjects: result.processedProjects,
-        createdOccurrences: result.createdOccurrences,
-        failedProjects: result.errors.length,
-        executionTimeMs: executionTime,
-      },
-      { status: 200 },
-    );
+      return NextResponse.json(
+        {
+          message: "Recurring projects processed",
+          processedProjects: result.processedProjects,
+          createdOccurrences: result.createdOccurrences,
+          failedProjects: result.errors.length,
+          executionTimeMs: executionTime,
+        },
+        { status: 200 },
+      );
+    });
   } catch {
     return NextResponse.json(
       { error: "Internal server error" },

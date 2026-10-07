@@ -1,4 +1,5 @@
 import "server-only";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
 import { runNextCsfSheetSync } from "@/lib/plugins/private/plugins/dvhs-csf/services/sheet-sync-engine";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
@@ -153,85 +154,91 @@ export async function POST(request: NextRequest) {
   if (!(await isCsfWorkerEnabled("workbook_refresh"))) {
     return json({ enabled: false, claimed: 0, prepared: 0, blocked: 0 });
   }
-  const workerSecret = process.env.CSF_WORKBOOK_WORKER_SECRET_TOKEN;
-  if (!workerSecret) {
-    return json({ error: "Workbook worker secret unavailable" }, 503);
-  }
+  return observeWorkerRun("csf-class-workbook-refresh", async () => {
+    const workerSecret = process.env.CSF_WORKBOOK_WORKER_SECRET_TOKEN;
+    if (!workerSecret) {
+      return json({ error: "Workbook worker secret unavailable" }, 503);
+    }
 
-  const workbookStartedAt = Date.now();
-  const [workbook, application, metadata, dispatch, sheetSync] =
-    await Promise.allSettled([
-      refreshClassWorkbook(workerSecret, workbookStartedAt).catch((error) => {
-        logWorkbookFailure("workbook_exception", "unknown", workbookStartedAt);
-        throw error;
-      }),
-      prepareNextCsfAutomaticApplicationSheet(),
-      checkNextCsfAutomaticClassWorkbook(),
-      dispatchCsfAutomaticClassPreviews(),
-      runNextCsfSheetSync(),
-    ]);
-  const syncSummary =
-    sheetSync.status === "fulfilled"
-      ? sheetSync.value
-      : { status: "blocked", exported: 0, changes: 0 };
-  const workbookResponse =
-    workbook.status === "fulfilled"
-      ? workbook.value
-      : json({ error: "Workbook preparation did not settle" }, 503);
-  const applications =
-    application.status === "fulfilled"
-      ? applicationResultSchema.safeParse(application.value)
-      : null;
-  const checks =
-    metadata.status === "fulfilled"
-      ? metadataResultSchema.safeParse(metadata.value)
-      : null;
-  const dispatched =
-    dispatch.status === "fulfilled"
-      ? dispatchResultSchema.safeParse(dispatch.value)
-      : null;
-  const dispatchSummary = dispatched?.success
-    ? dispatched.data
-    : { checked: 0, queued: 0, needsAttention: 0, blocked: 0, unknown: 1 };
-  const dispatchIdle = Object.values(dispatchSummary).every(
-    (count) => count === 0,
-  );
-  if (
-    applications?.success &&
-    applications.data.status === "idle" &&
-    checks?.success &&
-    checks.data.status === "idle" &&
-    dispatchIdle &&
-    syncSummary.status === "idle"
-  )
-    return workbookResponse;
-  const applicationSummary = applications?.success
-    ? applications.data
-    : { status: "unknown", claimed: 0, prepared: 0 };
-  const metadataSummary = checks?.success
-    ? checks.data
-    : { status: "unknown", claimed: 0, queued: 0 };
-  const unsettled =
-    applicationSummary.status === "unknown" ||
-    applicationSummary.status === "retryable" ||
-    metadataSummary.status === "unknown" ||
-    metadataSummary.status === "retryable" ||
-    dispatchSummary.unknown > 0 ||
-    syncSummary.status === "blocked";
-  return json(
-    {
-      ...(await workbookResponse.json()),
-      ...(syncSummary.status === "idle" ? {} : { sheetSync: syncSummary }),
-      ...(applicationSummary.status === "idle"
-        ? {}
-        : { applications: applicationSummary }),
-      ...(metadataSummary.status === "idle"
-        ? {}
-        : { workbookChecks: metadataSummary }),
-      ...(dispatchIdle ? {} : { automaticClassImports: dispatchSummary }),
-    },
-    unsettled ? 503 : workbookResponse.status,
-  );
+    const workbookStartedAt = Date.now();
+    const [workbook, application, metadata, dispatch, sheetSync] =
+      await Promise.allSettled([
+        refreshClassWorkbook(workerSecret, workbookStartedAt).catch((error) => {
+          logWorkbookFailure(
+            "workbook_exception",
+            "unknown",
+            workbookStartedAt,
+          );
+          throw error;
+        }),
+        prepareNextCsfAutomaticApplicationSheet(),
+        checkNextCsfAutomaticClassWorkbook(),
+        dispatchCsfAutomaticClassPreviews(),
+        runNextCsfSheetSync(),
+      ]);
+    const syncSummary =
+      sheetSync.status === "fulfilled"
+        ? sheetSync.value
+        : { status: "blocked", exported: 0, changes: 0 };
+    const workbookResponse =
+      workbook.status === "fulfilled"
+        ? workbook.value
+        : json({ error: "Workbook preparation did not settle" }, 503);
+    const applications =
+      application.status === "fulfilled"
+        ? applicationResultSchema.safeParse(application.value)
+        : null;
+    const checks =
+      metadata.status === "fulfilled"
+        ? metadataResultSchema.safeParse(metadata.value)
+        : null;
+    const dispatched =
+      dispatch.status === "fulfilled"
+        ? dispatchResultSchema.safeParse(dispatch.value)
+        : null;
+    const dispatchSummary = dispatched?.success
+      ? dispatched.data
+      : { checked: 0, queued: 0, needsAttention: 0, blocked: 0, unknown: 1 };
+    const dispatchIdle = Object.values(dispatchSummary).every(
+      (count) => count === 0,
+    );
+    if (
+      applications?.success &&
+      applications.data.status === "idle" &&
+      checks?.success &&
+      checks.data.status === "idle" &&
+      dispatchIdle &&
+      syncSummary.status === "idle"
+    )
+      return workbookResponse;
+    const applicationSummary = applications?.success
+      ? applications.data
+      : { status: "unknown", claimed: 0, prepared: 0 };
+    const metadataSummary = checks?.success
+      ? checks.data
+      : { status: "unknown", claimed: 0, queued: 0 };
+    const unsettled =
+      applicationSummary.status === "unknown" ||
+      applicationSummary.status === "retryable" ||
+      metadataSummary.status === "unknown" ||
+      metadataSummary.status === "retryable" ||
+      dispatchSummary.unknown > 0 ||
+      syncSummary.status === "blocked";
+    return json(
+      {
+        ...(await workbookResponse.json()),
+        ...(syncSummary.status === "idle" ? {} : { sheetSync: syncSummary }),
+        ...(applicationSummary.status === "idle"
+          ? {}
+          : { applications: applicationSummary }),
+        ...(metadataSummary.status === "idle"
+          ? {}
+          : { workbookChecks: metadataSummary }),
+        ...(dispatchIdle ? {} : { automaticClassImports: dispatchSummary }),
+      },
+      unsettled ? 503 : workbookResponse.status,
+    );
+  });
 }
 
 async function refreshClassWorkbook(workerSecret: string, startedAt: number) {

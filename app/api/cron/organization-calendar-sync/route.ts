@@ -1,3 +1,4 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -59,71 +60,73 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = getAdminClient();
-  const { data: syncRows, error } = await supabase
-    .from("organization_calendar_syncs")
-    .select(
-      "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
-    )
-    .eq("auto_sync", true);
+  return observeWorkerRun("organization-calendar-sync", async () => {
+    const supabase = getAdminClient();
+    const { data: syncRows, error } = await supabase
+      .from("organization_calendar_syncs")
+      .select(
+        "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
+      )
+      .eq("auto_sync", true);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
-  // Default sync interval for calendar is 1 hour (60 minutes)
-  const intervalMinutes = 60;
+    // Default sync interval for calendar is 1 hour (60 minutes)
+    const intervalMinutes = 60;
 
-  const dueRows = (syncRows || []).filter((row) =>
-    isDue(row.last_synced_at, intervalMinutes),
-  );
-  const results = await mapWithConcurrency(
-    dueRows,
-    CALENDAR_SYNC_CONCURRENCY,
-    async (row) => {
-      try {
-        const result = await syncOrganizationCalendarInternal(
-          row.organization_id,
-        );
+    const dueRows = (syncRows || []).filter((row) =>
+      isDue(row.last_synced_at, intervalMinutes),
+    );
+    const results = await mapWithConcurrency(
+      dueRows,
+      CALENDAR_SYNC_CONCURRENCY,
+      async (row) => {
+        try {
+          const result = await syncOrganizationCalendarInternal(
+            row.organization_id,
+          );
 
-        if (result.success) {
-          return {
-            organizationId: row.organization_id,
-            success: true,
-            createdCount: result.createdCount,
-            updatedCount: result.updatedCount,
-            removedCount: result.removedCount,
-          };
-        } else {
+          if (result.success) {
+            return {
+              organizationId: row.organization_id,
+              success: true,
+              createdCount: result.createdCount,
+              updatedCount: result.updatedCount,
+              removedCount: result.removedCount,
+            };
+          } else {
+            return {
+              organizationId: row.organization_id,
+              success: false,
+              error: result.error || "Unknown error",
+            };
+          }
+        } catch (error) {
+          safeConsole.error(
+            "Application diagnostic from app/api/cron/organization-calendar-sync/route",
+            `Failed to sync calendar for org ${row.organization_id}:`,
+            error,
+          );
           return {
             organizationId: row.organization_id,
             success: false,
-            error: result.error || "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      } catch (error) {
-        safeConsole.error(
-          "Application diagnostic from app/api/cron/organization-calendar-sync/route",
-          `Failed to sync calendar for org ${row.organization_id}:`,
-          error,
-        );
-        return {
-          organizationId: row.organization_id,
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
-    },
-  );
+      },
+    );
 
-  return NextResponse.json(
-    {
-      processed: results.length,
-      results,
-      timestamp: new Date().toISOString(),
-    },
-    { status: 200 },
-  );
+    return NextResponse.json(
+      {
+        processed: results.length,
+        results,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 200 },
+    );
+  });
 }
 
 export async function GET(request: NextRequest) {

@@ -46,6 +46,35 @@ const receipt = {
   faults: 0,
   deadline_reached: false,
 };
+test("long CSF worker budgets do not relax the budget for other workers", () => {
+  for (const worker of [
+    "csf-class-workbook-refresh",
+    "csf-import-commit",
+  ] as const) {
+    const workerScope = { ...scope, worker };
+    expect(
+      requireWorkerActivationMonitoring(
+        { ...policy, worker, maxRunSeconds: 800 },
+        workerScope,
+        now,
+      ).maxRunSeconds,
+    ).toBe(800);
+    expect(() =>
+      requireWorkerActivationMonitoring(
+        { ...policy, worker, maxRunSeconds: 801 },
+        workerScope,
+        now,
+      ),
+    ).toThrow();
+  }
+  expect(() =>
+    requireWorkerActivationMonitoring(
+      { ...policy, maxRunSeconds: 601 },
+      scope,
+      now,
+    ),
+  ).toThrow();
+});
 test("health cannot infer an active schedule or alert from a successful worker receipt", () => {
   expect(evaluateWorkerHealth([receipt], null, scope, now)).toMatchObject({
     outcome: "no_run",

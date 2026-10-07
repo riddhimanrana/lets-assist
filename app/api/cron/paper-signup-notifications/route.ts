@@ -1,3 +1,4 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -37,12 +38,14 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ enabled: false });
   }
 
-  try {
-    const result = await runPaperSignupNotificationWorker();
-    return NextResponse.json({ enabled: true, ...result });
-  } catch {
-    return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
-  }
+  return observeWorkerRun("paper-signup-notifications", async () => {
+    try {
+      const result = await runPaperSignupNotificationWorker();
+      return NextResponse.json({ enabled: true, ...result });
+    } catch {
+      return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
+    }
+  });
 }
 
 export async function POST(request: NextRequest) {

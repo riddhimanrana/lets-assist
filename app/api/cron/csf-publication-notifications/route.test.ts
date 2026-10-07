@@ -30,6 +30,16 @@ mock.module("@/lib/cron/csf-worker-controls", () => ({
     return enabled;
   },
 }));
+const observationCalls: string[] = [];
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls.push(worker);
+    return operation();
+  },
+}));
 const { GET, POST } = await import("./route");
 const keys = [
   "CSF_PUBLICATION_NOTIFICATIONS_SECRET_TOKEN",
@@ -45,6 +55,7 @@ afterAll(() => {
   }
 });
 beforeEach(() => {
+  observationCalls.length = 0;
   for (const key of keys) delete process.env[key];
   process.env.CSF_PUBLICATION_NOTIFICATIONS_SECRET_TOKEN =
     "fictional-cron-token";
@@ -78,6 +89,7 @@ for (const [method, handler] of [
       const response = await handler(request(authorization));
       expect(response.status).toBe(401);
       expect(workerCalls).toBe(0);
+      expect(observationCalls).toHaveLength(0);
       expect(probeCalls).toHaveLength(0);
     },
   );
@@ -85,6 +97,7 @@ for (const [method, handler] of [
     const response = await handler(request("Bearer fictional-cron-token"));
     expect(await response.json()).toEqual({ enabled: false });
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
   test(`${method} returns the isolated probe before entering an enabled worker`, async () => {
     enabled = true;
@@ -94,6 +107,7 @@ for (const [method, handler] of [
     );
     expect(probeCalls).toEqual(["csf-publication-notifications"]);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
   test(`${method} returns aggregate delivery counts only`, async () => {
     enabled = true;
@@ -106,6 +120,7 @@ for (const [method, handler] of [
       retryable: 0,
     });
     expect(workerCalls).toBe(1);
+    expect(observationCalls).toEqual(["csf-publication-notifications"]);
   });
   test(`${method} redacts private exceptions`, async () => {
     enabled = true;
@@ -114,6 +129,7 @@ for (const [method, handler] of [
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Worker run failed" });
     expect(workerCalls).toBe(1);
+    expect(observationCalls).toEqual(["csf-publication-notifications"]);
   });
 }
 test("a configured route secret takes precedence over the shared cron secret", async () => {
@@ -130,4 +146,5 @@ test("an absent secret cannot authorize the literal undefined value", async () =
   delete process.env.CSF_PUBLICATION_NOTIFICATIONS_SECRET_TOKEN;
   expect((await POST(request("Bearer undefined"))).status).toBe(401);
   expect(workerCalls).toBe(0);
+  expect(observationCalls).toHaveLength(0);
 });
