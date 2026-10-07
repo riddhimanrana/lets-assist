@@ -1151,10 +1151,11 @@ export default function ProjectCreator({
       });
       toast.dismiss(profanityToast);
 
-      if (profanityCheck?.hasProfanity) {
-        setHasProfanity(true);
+      if (!profanityCheck.success || profanityCheck.hasProfanity) {
+        setHasProfanity(profanityCheck.hasProfanity);
         toast.error(
-          "Please fix the flagged content before creating your project",
+          profanityCheck.error ||
+            "Please fix the flagged content before creating your project",
         );
         setIsSubmitting(false);
         return;

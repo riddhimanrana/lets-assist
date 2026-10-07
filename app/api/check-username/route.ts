@@ -23,6 +23,13 @@ export const GET = async (request: Request) => {
       );
     }
 
+    if (username.length > 32) {
+      return NextResponse.json(
+        { available: false, error: "Username cannot exceed 32 characters" },
+        { status: 200 },
+      );
+    }
+
     if (!USERNAME_REGEX.test(username)) {
       return NextResponse.json(
         {

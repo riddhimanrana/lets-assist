@@ -64,10 +64,16 @@ export type InitialOnboardingValues = z.infer<typeof initialOnboardingSchema>;
 export async function checkUsernameAvailability(
   username: string,
 ): Promise<{ available: boolean; error?: string }> {
-  const supabase = await createClient();
-
   try {
-    const normalizedUsername = username.trim().toLowerCase();
+    const parsed = initialOnboardingSchema.shape.username.safeParse(username);
+    if (!parsed.success) {
+      return {
+        available: false,
+        error: "Use 3 to 32 letters, numbers, underscores, dots or hyphens.",
+      };
+    }
+    const normalizedUsername = parsed.data;
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
