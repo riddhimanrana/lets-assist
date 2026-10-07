@@ -98,6 +98,26 @@ test("unauthorized, probe, disabled, and status requests create no execution rec
   expect(queryCalls).toBe(0);
   expect(receipts).toHaveLength(0);
 });
+test("a valid secret in malformed authorization cannot invoke hours publication or status", async () => {
+  for (const authorization of [
+    "fictional-local-cron",
+    "bearer fictional-local-cron",
+    "Bearer  fictional-local-cron",
+    "Bearer fictional-local-cron extra",
+  ]) {
+    for (const status of [false, true]) {
+      const response = await GET(
+        new NextRequest(
+          `http://127.0.0.1/api/cron/auto-publish-hours${status ? "?status=1" : ""}`,
+          { headers: { authorization } },
+        ),
+      );
+      expect(response.status).toBe(401);
+    }
+  }
+  expect(queryCalls).toBe(0);
+  expect(receipts).toHaveLength(0);
+});
 test("a failed eligible-signup query returns failure and records failure instead of an empty queue", async () => {
   queryFailure = true;
   const response = await POST(request());

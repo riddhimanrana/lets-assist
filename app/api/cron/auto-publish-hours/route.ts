@@ -36,7 +36,7 @@ function authorizeCronRequest(
   request: NextRequest,
 ): { ok: true } | { ok: false; response: NextResponse } {
   const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
+  const token = /^Bearer ([\x21-\x7E]+)$/.exec(authHeader)?.[1];
   const allowedTokens = getAllowedCronTokens();
 
   if (allowedTokens.length === 0) {
