@@ -18,7 +18,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { editableConfigProperties } from "@/lib/plugins/config-fields";
+import { buildPluginConfigFields } from "./plugin-config-fields";
 import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
 
 import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
@@ -107,31 +107,8 @@ type PluginActionConfirmation = {
   intent: PluginActionIntent;
 } | null;
 
-type ConfigSchemaProperty = NonNullable<
-  OrganizationPluginAdminSetting["configSchema"]
->["properties"][string];
-
-type ConfigFieldKind =
-  "text" | "textarea" | "number" | "boolean" | "enum" | "unsupported";
-
-type ConfigFieldDescriptor = {
-  key: string;
-  label: string;
-  required: boolean;
-  kind: ConfigFieldKind;
-  property: ConfigSchemaProperty;
-};
-
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatFieldLabel(key: string): string {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[_-]/g, " ")
-    .replace(/^\w/, (char) => char.toUpperCase())
-    .trim();
 }
 
 function stringifyConfig(config: Record<string, unknown>): string {
@@ -148,32 +125,6 @@ function decodeEnumValue(value: string): unknown {
   } catch {
     return value;
   }
-}
-
-function resolveConfigFieldKind(
-  property: ConfigSchemaProperty,
-): ConfigFieldKind {
-  if (Array.isArray(property.enum) && property.enum.length > 0) {
-    return "enum";
-  }
-
-  if (property.type === "boolean") {
-    return "boolean";
-  }
-
-  if (property.type === "number" || property.type === "integer") {
-    return "number";
-  }
-
-  if (property.type === "string") {
-    if (property.format === "textarea" || (property.maxLength ?? 0) > 180) {
-      return "textarea";
-    }
-
-    return "text";
-  }
-
-  return "unsupported";
 }
 
 function formatOwnerTypeLabel(
@@ -327,22 +278,10 @@ export default function OrganizationPluginSettings({
     });
   }, [activePluginAction, isInstallAction]);
 
-  const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
-    if (!activeSettingsPlugin?.configSchema) {
-      return [];
-    }
-
-    const schema = activeSettingsPlugin.configSchema;
-    const required = new Set(schema.required ?? []);
-
-    return editableConfigProperties(schema).map(([key, property]) => ({
-      key,
-      label: property.title ?? formatFieldLabel(key),
-      required: required.has(key),
-      kind: resolveConfigFieldKind(property),
-      property,
-    }));
-  }, [activeSettingsPlugin]);
+  const configFields = useMemo(
+    () => buildPluginConfigFields(activeSettingsPlugin?.configSchema),
+    [activeSettingsPlugin],
+  );
 
   const guidedFields = useMemo(
     () => configFields.filter((field) => field.kind !== "unsupported"),
