@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { createProjectDraftSession } from "./draft-session";
 import { createInitialEventFormState } from "@/hooks/use-event-form";
+import { projectAttemptStorage } from "./creation-session";
+import {
+  createStagedWaiverAttempt,
+  readStagedWaiverAttempt,
+  writeStagedWaiverAttempt,
+} from "./staged-waiver-attempt";
 
 function fixture(initialId?: string) {
   const drafts = new Map([
@@ -112,6 +118,49 @@ describe("project draft intent and lifecycle", () => {
     expect(targets).toEqual(["first"]);
     expect(await session.consume()).toHaveProperty("error");
     expect(session.id).toBe("first");
+  });
+
+  test("publication settles the first autosave before choosing a durable attempt namespace", async () => {
+    const saved = Promise.withResolvers<{ id: string; autosaved: boolean }>();
+    const session = createProjectDraftSession(undefined, {
+      save: async () => saved.promise,
+      copy: async () => ({ id: "unexpected-copy" }),
+      remove: async () => ({}),
+    });
+    const entries = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => entries.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        entries.set(key, value);
+      },
+      removeItem: (key: string) => {
+        entries.delete(key);
+      },
+    };
+    const creationId = "11111111-1111-4111-8111-111111111111";
+    const saving = session.save({});
+    const publication = session.beginPublication().then(() => {
+      writeStagedWaiverAttempt(
+        projectAttemptStorage(storage, creationId, session.id),
+        createStagedWaiverAttempt(creationId),
+      );
+    });
+    expect(entries.size).toBe(0);
+    expect(await session.copy({})).toHaveProperty("error");
+    expect(await session.save({})).toHaveProperty("error");
+    saved.resolve({ id: "settled-draft", autosaved: true });
+    await saving;
+    await publication;
+    expect(
+      readStagedWaiverAttempt(projectAttemptStorage(storage, creationId)),
+    ).toBeNull();
+    expect(
+      readStagedWaiverAttempt(
+        projectAttemptStorage(storage, "different-editor", "settled-draft"),
+      )?.idempotencyKey,
+    ).toBe(creationId);
+    session.endPublication();
+    expect(await session.copy({})).toHaveProperty("id", "unexpected-copy");
   });
 
   test("new form states do not share mutable schedules", () => {

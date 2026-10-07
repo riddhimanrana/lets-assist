@@ -1089,6 +1089,7 @@ export default function ProjectCreator({
   };
 
   const handleSubmit = async () => {
+    if (draftSession.publishing) return;
     if (state.step !== finalStep) {
       handleNextStep();
       return;
@@ -1136,7 +1137,7 @@ export default function ProjectCreator({
         clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = null;
       }
-      await draftSession.flush();
+      await draftSession.beginPublication();
 
       const profanityToast = toast.loading(
         "Checking content for inappropriate language...",
@@ -1282,6 +1283,8 @@ export default function ProjectCreator({
       toast.dismiss();
       toast.error("Something went wrong. Please try again.");
       setIsSubmitting(false);
+    } finally {
+      draftSession.endPublication();
     }
   };
 
