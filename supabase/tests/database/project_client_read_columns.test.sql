@@ -6,11 +6,11 @@ SELECT extensions.plan(85);
 SELECT extensions.ok((SELECT relrowsecurity FROM pg_class
   WHERE oid = 'public.projects'::regclass), 'project row security stays enabled');
 SELECT extensions.results_eq(
-  $$SELECT role_name, privilege, columns FROM app_private.client_relation_grant_catalog()
+  $$SELECT role_name COLLATE "C", privilege COLLATE "C", columns::text COLLATE "C" FROM app_private.client_relation_grant_catalog()
     WHERE relation_name = 'projects' AND privilege IN ('SELECT', 'INSERT', 'UPDATE') ORDER BY role_name, privilege$$,
-  $$SELECT role_name, privilege, ARRAY(SELECT attname::text FROM pg_attribute
+  $$SELECT role_name COLLATE "C", privilege COLLATE "C", ARRAY(SELECT attname::text FROM pg_attribute
       WHERE attrelid = 'public.projects'::regclass AND attnum > 0 AND NOT attisdropped
-        AND attname NOT IN ('review_notes', 'reviewed_by', 'reviewed_at') ORDER BY attname)
+        AND attname NOT IN ('review_notes', 'reviewed_by', 'reviewed_at') ORDER BY attname)::text COLLATE "C"
     FROM (VALUES ('anon'::text, 'SELECT'::text), ('authenticated', 'SELECT'),
       ('authenticated', 'INSERT'), ('authenticated', 'UPDATE')) client(role_name, privilege) ORDER BY role_name, privilege$$,
   'browser column grants exclude only the three review fields and preserve their prior operations');
@@ -125,9 +125,9 @@ SELECT extensions.throws_ok($$SELECT review_notes FROM public.projects_with_crea
   '42501', NULL, 'unrelated authenticated legacy-view reads are refused');
 SELECT extensions.throws_ok($$SELECT to_jsonb(p) FROM public.projects p WHERE id = 'db702010-0000-4000-8000-000000000001'$$,
   '42501', NULL, 'unrelated authenticated whole-row JSON is refused');
-SELECT extensions.is((WITH changed AS (UPDATE public.projects SET title = 'Unrelated replacement'
-  WHERE id = 'db702010-0000-4000-8000-000000000001' RETURNING id) SELECT count(*) FROM changed),
-  0::bigint, 'unrelated authenticated writes still change no project');
+WITH changed AS (UPDATE public.projects SET title = 'Unrelated replacement'
+  WHERE id = 'db702010-0000-4000-8000-000000000001' RETURNING id)
+SELECT extensions.is(count(*), 0::bigint, 'unrelated authenticated writes still change no project') FROM changed;
 RESET ROLE;
 
 SELECT set_config('request.jwt.claims', '{"sub":"db702000-0000-4000-8000-000000000001","role":"authenticated"}', true);
@@ -170,8 +170,8 @@ SELECT extensions.lives_ok($$DELETE FROM public.projects WHERE id = 'db702010-00
   'ordinary owner project deletion remains available');
 SELECT extensions.is((SELECT count(id) FROM public.projects WHERE id = 'db702010-0000-4000-8000-000000000004'),
   0::bigint, 'the owner deleted only the synthetic draft');
-SELECT extensions.is(public.transition_project_status_transactional('db702010-0000-4000-8000-000000000001', 'upcoming'),
-  jsonb_build_object('outcome', 'replayed', 'projectId', 'db702010-0000-4000-8000-000000000001', 'previousStatus', 'upcoming', 'status', 'upcoming'),
+SELECT extensions.is(public.transition_project_status_transactional('db702010-0000-4000-8000-000000000001', 'in-progress'),
+  jsonb_build_object('outcome', 'transitioned', 'projectId', 'db702010-0000-4000-8000-000000000001', 'previousStatus', 'upcoming', 'status', 'in-progress'),
   'the status RPC returns only its receipt despite reading a full project internally');
 SELECT extensions.is(public.end_recurring_project_series_transactional('db702010-0000-4000-8000-000000000001',
   '{"recurrence_rule":null,"series_end_expect_ordinary":true}'::jsonb),
