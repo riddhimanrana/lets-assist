@@ -757,7 +757,34 @@ storage_object_policy_posture_gaps="$(
       select *
       from app_private.storage_object_policy_catalog()
     ),
+    reviewed_image_denials(policy_name, bucket_id, command) as (
+      values
+        ('Server owns avatar inserts', 'avatars', 'INSERT'),
+        ('Server owns avatar updates', 'avatars', 'UPDATE'),
+        ('Server owns avatar deletes', 'avatars', 'DELETE'),
+        ('Server owns organization logo inserts', 'organization-logos', 'INSERT'),
+        ('Server owns organization logo updates', 'organization-logos', 'UPDATE'),
+        ('Server owns organization logo deletes', 'organization-logos', 'DELETE')
+    ),
+    valid_image_denials as (
+      select policy_catalog.policy_name
+      from policy_catalog
+      join reviewed_image_denials reviewed using (policy_name, bucket_id, command)
+      where policy_catalog.role_names = array['anon', 'authenticated']::text[]
+        and not policy_catalog.is_permissive
+        and policy_catalog.using_expression is not distinct from
+          case when reviewed.command in ('UPDATE', 'DELETE')
+            then pg_catalog.format('(bucket_id <> %L::text)', reviewed.bucket_id) end
+        and policy_catalog.with_check_expression is not distinct from
+          case when reviewed.command in ('INSERT', 'UPDATE')
+            then pg_catalog.format('(bucket_id <> %L::text)', reviewed.bucket_id) end
+    ),
     gaps as (
+      select reviewed.bucket_id, reviewed.policy_name,
+        'public_image_write_denial_missing_or_changed'::text as issue
+      from reviewed_image_denials reviewed
+      where not exists (select 1 from valid_image_denials valid where valid.policy_name = reviewed.policy_name)
+      union all
       select
         policy_catalog.bucket_id,
         policy_catalog.policy_name,
@@ -780,6 +807,7 @@ storage_object_policy_posture_gaps="$(
         'policy_roles_are_not_exactly_authenticated'::text
       from policy_catalog
       where policy_catalog.role_names <> array['authenticated']::text[]
+        and not exists (select 1 from valid_image_denials valid where valid.policy_name = policy_catalog.policy_name)
       union all
       select
         policy_catalog.bucket_id,
@@ -787,6 +815,7 @@ storage_object_policy_posture_gaps="$(
         'reviewed_policy_is_restrictive'::text
       from policy_catalog
       where not policy_catalog.is_permissive
+        and not exists (select 1 from valid_image_denials valid where valid.policy_name = policy_catalog.policy_name)
       union all
       select
         bucket_catalog.bucket_id,
