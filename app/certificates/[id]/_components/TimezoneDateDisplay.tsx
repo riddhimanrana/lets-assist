@@ -145,16 +145,18 @@ export function TimezoneEventDateRange({
   if (!isClient) {
     return (
       <div className={className}>
-        <p className="text-base font-semibold mt-0.5">Loading...</p>
-        <p className="text-xs text-muted-foreground">to Loading...</p>
+        <p className="font-medium">Loading...</p>
+        <p className="text-muted-foreground text-sm">to Loading...</p>
       </div>
     );
   }
 
   return (
     <div className={className}>
-      <p className="text-base font-semibold mt-0.5">{formattedDates.start}</p>
-      <p className="text-xs text-muted-foreground">to {formattedDates.end}</p>
+      <p className="font-medium tabular-nums">{formattedDates.start}</p>
+      <p className="text-muted-foreground text-sm tabular-nums">
+        to {formattedDates.end}
+      </p>
     </div>
   );
 }

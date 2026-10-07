@@ -4,34 +4,9 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { differenceInMinutes, parseISO, isValid } from "date-fns";
 
-import { Badge } from "@/components/ui/badge";
-import {
-  Calendar,
-  Clock,
-  MapPin,
-  Building2,
-  User,
-  QrCode,
-  UserCheck,
-  Clipboard,
-  BadgeCheck,
-} from "lucide-react";
-import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
-import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
-import { CertificateCardButton } from "./_components/CertificateCardButton";
-import Image from "next/image";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { CertificateDocument } from "./_components/CertificateDocument";
 import { PrintCertificate } from "./_components/PrintCertificate";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  TimezoneDateDisplay,
-  TimezoneEventDateRange,
-} from "./_components/TimezoneDateDisplay";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {
@@ -149,9 +124,6 @@ export default async function VolunteerRecordPage({
   // Calculate duration (this doesn't need timezone conversion)
   const durationText = formatDuration(data.event_start, data.event_end);
 
-  // Format ID for display
-  const shortId = data.id.substring(0, 8);
-
   // Prepare the certificate data for the print component
   const certificateData = {
     ...data,
@@ -161,342 +133,24 @@ export default async function VolunteerRecordPage({
   };
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {isSelfReported ? "Self-Reported" : "Volunteer"} Certificate
-          </h1>
-          <p className="text-muted-foreground">
-            {isSelfReported
-              ? "Self-reported volunteer activity record"
-              : "Official record of volunteer activity"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isSelfReported && (
-            <Badge variant="secondary" className="px-3 py-1">
-              Self-Reported
-            </Badge>
-          )}
-          <Badge variant="outline" className="px-3 py-1">
-            ID: {shortId}
-          </Badge>
-        </div>
-      </div>
+    <div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-8 sm:px-6">
+      <PageHeader
+        title={
+          isSelfReported ? "Self-reported certificate" : "Volunteer certificate"
+        }
+        description={
+          isSelfReported
+            ? "Self-reported volunteer activity record"
+            : "Official record of volunteer activity"
+        }
+        actions={<PrintCertificate data={certificateData} />}
+      />
 
-      {/* Timezone Debug Info - Remove this after debugging */}
-      {/* <TimezoneDebugInfo show={true} className="mb-6" /> */}
-
-      <CardContainer className="py-8" containerClassName="w-full">
-        <CardBody
-          className={`relative h-auto w-full max-w-3xl rounded-xl border border-border/40 ${
-            isSelfReported
-              ? "bg-muted/40"
-              : "bg-linear-to-br from-background via-background to-muted"
-          }`}
-        >
-          {/* Certificate Header with Glow Effect */}
-          <CardItem
-            translateZ={20}
-            className={`w-full rounded-t-xl p-6 ${
-              isSelfReported
-                ? "bg-muted"
-                : "bg-linear-to-r from-primary/10 via-primary/5 to-background"
-            }`}
-          >
-            <div className="relative z-10">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardItem translateZ={50} as="div">
-                    <h2 className="text-2xl font-bold tracking-tight">
-                      {data.project_title}
-                    </h2>
-                  </CardItem>
-                  {data.organization_name && (
-                    <CardItem
-                      translateZ={40}
-                      as="div"
-                      className="flex items-center gap-1.5 mt-2 text-muted-foreground"
-                    >
-                      <Building2 className="h-4 w-4" />
-                      <span className="text-sm">{data.organization_name}</span>
-                    </CardItem>
-                  )}
-                  {data.creator_name && (
-                    <CardItem
-                      translateZ={40}
-                      as="div"
-                      className="flex items-center gap-2 mt-2 text-muted-foreground"
-                      aria-label={`${isSelfReported ? "Supervised by" : "Issued by"} ${data.creator_name}`}
-                    >
-                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground/80">
-                        {isSelfReported ? "Supervised by" : "Issued by"}
-                      </span>
-                      <User
-                        className={`h-4 w-4 ${isSelfReported ? "text-muted-foreground" : "text-primary"}`}
-                        aria-hidden="true"
-                      />
-                      {isSelfReported ? (
-                        <span className="text-sm font-semibold text-foreground">
-                          {data.creator_name}
-                        </span>
-                      ) : certificateData.creator_username ? (
-                        <Link
-                          href={`/profile/${certificateData.creator_username}`}
-                          className="text-sm font-semibold text-foreground hover:text-primary focus:outline-hidden focus:ring-2 focus:ring-primary/60 rounded"
-                          aria-label={`View profile of ${data.creator_name}`}
-                        >
-                          {data.creator_name}
-                        </Link>
-                      ) : (
-                        <span className="text-sm font-semibold text-foreground">
-                          {data.creator_name}
-                        </span>
-                      )}
-                    </CardItem>
-                  )}
-                </div>
-                {data.is_certified && (
-                  <CardItem translateZ={60} as="div">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Badge
-                              variant="secondary"
-                              className="ml-auto border-success/20 bg-success/10 text-success"
-                              tabIndex={0}
-                              aria-label="Verified badge"
-                            >
-                              <BadgeCheck className="h-3.5 w-3.5 mr-1" />{" "}
-                              Verified
-                            </Badge>
-                          }
-                        />
-                        <TooltipContent
-                          side="left"
-                          className="max-w-xs"
-                          aria-label="Verified badge explanation"
-                        >
-                          Verified badges mean this certificate comes from a
-                          verified organization.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </CardItem>
-                )}
-              </div>
-            </div>
-          </CardItem>
-
-          {/* Certificate Content */}
-          <CardItem translateZ={30} className="px-6 py-8 space-y-8">
-            {/* Volunteer Info Card */}
-            <CardItem translateZ={60} className="w-full group">
-              <div
-                className="p-6 bg-linear-to-r from-secondary/40 via-secondary/20 to-secondary/40
-                rounded-lg border border-primary/10"
-              >
-                <CardItem
-                  translateZ={60}
-                  className="flex items-center gap-4 mb-4"
-                >
-                  <div
-                    className="h-14 w-14 rounded-full bg-linear-to-br from-primary/30 to-primary/10
-                    flex items-center justify-center border border-primary/10"
-                  >
-                    <User className="h-7 w-7 text-primary/80" />
-                  </div>
-                  <div>
-                    <p className="text-base font-semibold bg-linear-to-r from-foreground to-foreground/90 bg-clip-text">
-                      {data.volunteer_name || "Unnamed Volunteer"}
-                    </p>
-                  </div>
-                </CardItem>
-
-                <Separator className="my-4 opacity-30 bg-primary/10" />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <CardItem
-                    translateZ={50}
-                    className="flex items-start gap-3 group/item"
-                  >
-                    <div
-                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center border border-primary/10"
-                    >
-                      <Clock className="h-5 w-5 text-primary/80" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Duration
-                      </p>
-                      <p className="text-base font-semibold mt-0.5">
-                        {durationText}
-                      </p>
-                    </div>
-                  </CardItem>
-
-                  <CardItem
-                    translateZ={50}
-                    className="flex items-start gap-3 group/item"
-                  >
-                    <div
-                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center border border-primary/10"
-                    >
-                      <Calendar className="h-5 w-5 text-primary/80" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Date
-                      </p>
-                      <TimezoneEventDateRange
-                        startDate={data.event_start}
-                        endDate={data.event_end}
-                      />
-                    </div>
-                  </CardItem>
-                </div>
-
-                {data.project_location && (
-                  <CardItem
-                    translateZ={50}
-                    className="flex items-start gap-3 mt-6 group/item"
-                  >
-                    <div
-                      className="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5
-                      flex items-center justify-center border border-primary/10"
-                    >
-                      <MapPin className="h-5 w-5 text-primary/80" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Location
-                      </p>
-                      <p className="text-base font-semibold mt-0.5">
-                        {data.project_location}
-                      </p>
-                    </div>
-                  </CardItem>
-                )}
-
-                {/* Description for self-reported certificates */}
-                {isSelfReported && data.description && (
-                  <CardItem
-                    translateZ={50}
-                    className="flex items-start gap-3 mt-6 group/item"
-                  >
-                    <div className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border">
-                      <Clipboard className="text-muted-foreground h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Description
-                      </p>
-                      <p className="text-base font-semibold mt-0.5 leading-relaxed">
-                        {data.description}
-                      </p>
-                    </div>
-                  </CardItem>
-                )}
-              </div>
-            </CardItem>
-
-            {/* Certificate Footer */}
-            <CardItem translateZ={20} className="w-full">
-              <div
-                className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2
-                bg-linear-to-r from-transparent via-secondary/10 to-transparent p-4 rounded-lg"
-              >
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    Record created:{" "}
-                    <TimezoneDateDisplay
-                      dateString={data.issued_at}
-                      format="MMM d, yyyy"
-                      className="text-foreground font-medium"
-                      fallbackText="Loading..."
-                    />
-                  </p>
-                  {!isSelfReported && (
-                    <p className="mt-1 flex items-center">
-                      Check-in method:{" "}
-                      {data.check_in_method?.toLowerCase() === "qr-code" ? (
-                        <QrCode className="mx-1 h-4 w-4 text-primary" />
-                      ) : data.check_in_method?.toLowerCase() === "auto" ? (
-                        <Clock className="mx-1 h-4 w-4 text-primary" />
-                      ) : data.check_in_method?.toLowerCase() ===
-                        "signup-only" ? (
-                        <Clipboard className="mx-1 h-4 w-4 text-primary" />
-                      ) : (
-                        <UserCheck className="mx-1 h-4 w-4 text-primary" />
-                      )}
-                      <span className="text-foreground font-medium ml-1">
-                        {data.check_in_method
-                          ? data.check_in_method.toLowerCase() === "qr-code"
-                            ? "QR Code"
-                            : data.check_in_method.toLowerCase() === "auto"
-                              ? "Automatic Check-in"
-                              : data.check_in_method.toLowerCase() ===
-                                    "signup only" ||
-                                  data.check_in_method.toLowerCase() ===
-                                    "signup-only"
-                                ? "Signup Only"
-                                : data.check_in_method
-                          : "Manual"}
-                      </span>
-                    </p>
-                  )}
-                </div>
-
-                {!isSelfReported && data.project_id && (
-                  <CertificateCardButton projectId={data.project_id} />
-                )}
-              </div>
-            </CardItem>
-          </CardItem>
-
-          {/* Subtle decorative elements */}
-          <div className="absolute -top-2 -left-2 h-24 w-24 bg-primary/5 rounded-full blur-xl pointer-events-none"></div>
-          <div className="flex justify-center items-center pb-6">
-            <Image
-              src="/logo.png"
-              alt="Let's Assist Logo"
-              width={26}
-              height={26}
-              className="mr-2"
-            />
-            <span className="text-base font-bold text-foreground">
-              Let's Assist
-            </span>
-          </div>
-        </CardBody>
-      </CardContainer>
-
-      <div className="mt-8 text-center">
-        <p className="text-sm text-muted-foreground mb-1">
-          {isSelfReported
-            ? "This is a self-reported record of volunteer hours logged by the user."
-            : "This is an official record of volunteer hours from Let's Assist."}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {isSelfReported ? "Record" : "Verification"} ID:{" "}
-          <span
-            className={`font-medium transition-colors ${
-              isSelfReported
-                ? "text-muted-foreground/80 hover:text-muted-foreground"
-                : "text-primary/80 hover:text-primary"
-            }`}
-          >
-            {data.id}
-          </span>
-        </p>
-      </div>
-
-      {/* Print Certificate Component */}
-      <PrintCertificate data={certificateData} />
+      <CertificateDocument
+        data={data}
+        durationText={durationText}
+        isSelfReported={isSelfReported}
+      />
     </div>
   );
 }

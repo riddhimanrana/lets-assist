@@ -136,7 +136,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </h3>
               <div style="display:flex;gap:2rem;margin-top:1rem">
               <div style="text-align:center">
-                <span class="print-accent" aria-hidden="true">📅</span>
                 <p class="print-text" style="margin:.5rem 0">${safeEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
@@ -144,7 +143,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                   data.organization_name
                     ? `
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">🏢</span>
                   <p class="print-text" style="margin:.5rem 0">${safeOrganizationName}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
                 </div>`
@@ -154,14 +152,12 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                   data.project_location
                     ? `
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">📍</span>
                   <p class="print-text" style="margin:.5rem 0">${safeProjectLocation}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
                 </div>`
                     : ""
                 }
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">⏰</span>
                   <p class="print-text" style="margin:.5rem 0">${safeDurationText}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Duration</p>
                 </div>
@@ -178,8 +174,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 data.is_certified
                   ? `
               <div style="display:flex;align-items:center">
-                <span class="print-accent" aria-hidden="true" style="font-size:2rem;">🏅</span>
-                <span class="print-text print-accent" style="font-weight:bold;margin-left:.5rem">OFFICIALLY VERIFIED</span>
+                <span class="print-text print-accent" style="font-weight:bold">OFFICIALLY VERIFIED</span>
               </div>`
                   : ""
               }
@@ -265,28 +260,15 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
     setTimeout(cleanup, 10000); // Failsafe cleanup after 10 seconds
   };
 
-  if (!mounted) return null;
-
   return (
-    <>
-      {/* Print Button */}
-      <Button
-        onClick={handlePrint}
-        variant="outline"
-        size="sm"
-        className="flex items-center gap-2 mt-6 mx-auto print:hidden"
-        aria-label="Print certificate"
-      >
-        <Printer className="h-4 w-4" />
-        Print Certificate
-      </Button>
-
-      {/* Printable Certificate structure (can be kept for reference or removed if not needed elsewhere) */}
-      {/* This div is NOT used by the iframe print method */}
-      <div className="printable-certificate hidden" aria-hidden="true">
-        {/* ... existing certificate structure ... */}
-        {/* This content is now generated dynamically in the handlePrint function */}
-      </div>
-    </>
+    <Button
+      onClick={handlePrint}
+      disabled={!mounted}
+      className="print:hidden"
+      aria-label="Print certificate"
+    >
+      <Printer data-icon="inline-start" aria-hidden="true" />
+      Print certificate
+    </Button>
   );
 }

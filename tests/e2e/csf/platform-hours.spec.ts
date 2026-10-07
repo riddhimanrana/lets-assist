@@ -154,7 +154,7 @@ test("self-reported hours reject a missing local time and preserve a DST interva
     });
     await expect(
       page.getByRole("heading", {
-        name: "Self-Reported Certificate",
+        name: "Self-reported certificate",
         exact: true,
       }),
     ).toBeVisible();
