@@ -247,19 +247,25 @@ export async function getDataExportDownload(jobId: string) {
   return downloadDataExport(jobId);
 }
 
-export async function deleteAccount() {
+export async function deleteAccount(): Promise<
+  { success: true } | { success: false; error: string }
+> {
   const { user, error: authError } = await getAuthUser({
     sensitive: true,
     checkMfa: true,
     allowAccountDeletion: true,
   });
-  if (authError || !user) throw new Error("Not authenticated");
+  if (authError || !user)
+    return {
+      success: false,
+      error: "Sign in again to delete your account.",
+    };
   const report = await deleteUserWithCleanup(getAdminClient(), user.id, {
     deleteProjects: true,
     deleteOrganizations: false,
   });
   if (report.phase !== "completed")
-    throw new Error(accountDeletionFailureMessage(report));
+    return { success: false, error: accountDeletionFailureMessage(report) };
   const supabase = await createClient();
   await supabase.auth.signOut();
   return { success: true };

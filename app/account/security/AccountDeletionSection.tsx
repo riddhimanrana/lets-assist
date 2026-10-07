@@ -65,11 +65,14 @@ export default function AccountDeletionSection() {
           // Account deletion must reload the document so no authenticated client state survives.
           // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = "/?deleted=true&noRedirect=1";
+        } else {
+          toast.error(result.error);
+          setIsDeleting(false);
         }
       }
-    } catch (error) {
+    } catch {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete account",
+        "Account cleanup could not be confirmed. Retry deletion or contact support.",
       );
       setIsDeleting(false);
     }
