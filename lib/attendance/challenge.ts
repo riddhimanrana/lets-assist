@@ -301,7 +301,7 @@ export function listAttendanceScheduleIds(project: Project): string[] {
 }
 
 export function getAttendanceScheduleWindow(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule" | "project_timezone">,
   incomingScheduleId: string,
 ): AttendanceScheduleWindow | null {
   const scheduleId = resolveScheduleId(project, incomingScheduleId);
