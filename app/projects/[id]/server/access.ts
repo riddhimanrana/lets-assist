@@ -143,7 +143,7 @@ export async function getProject(projectId: string) {
     `,
     )
     .eq("id", projectId)
-    .single()) as {
+    .maybeSingle()) as {
     data: Project | null;
     error: { message: string } | null;
   };
