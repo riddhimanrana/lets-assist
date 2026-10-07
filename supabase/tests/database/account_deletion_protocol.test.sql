@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(51);
+SELECT extensions.plan(52);
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
 SELECT ('fd000000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'authenticated','authenticated',
  'delete-'||n||'@local.test',now(),CASE WHEN n=5 THEN '{"role":"super_admin"}'::jsonb ELSE '{}'::jsonb END,'{}',now(),now()
@@ -51,6 +51,11 @@ VALUES('fd100000-0000-4000-8000-000000000001','fd000000-0000-4000-8000-000000000
 SELECT extensions.ok(public.preflight_account_deletion('fd000000-0000-4000-8000-000000000002','fd000000-0000-4000-8000-000000000002') ? 'sheet_sync_ownership',
  'required sync ownership blocks before any destructive phase');
 DELETE FROM public.organization_sheet_syncs WHERE created_by='fd000000-0000-4000-8000-000000000002';
+CREATE TABLE app_private.account_deletion_retained_fixture(user_id uuid REFERENCES auth.users(id) ON DELETE RESTRICT);
+INSERT INTO app_private.account_deletion_retained_fixture VALUES('fd000000-0000-4000-8000-000000000002');
+SELECT extensions.ok(public.preflight_account_deletion('fd000000-0000-4000-8000-000000000002','fd000000-0000-4000-8000-000000000002') ? 'retained_account_references',
+ 'new private retained-owner references block before cleanup rather than stranding Auth deletion');
+DROP TABLE app_private.account_deletion_retained_fixture;
 INSERT INTO plugin_data.org_member_profiles(organization_id,user_id,plugin_key)
 VALUES('fd100000-0000-4000-8000-000000000001','fd000000-0000-4000-8000-000000000002','dvhs-csf');
 SELECT extensions.ok(public.preflight_account_deletion('fd000000-0000-4000-8000-000000000002','fd000000-0000-4000-8000-000000000002') ? 'plugin_retention_review_required',

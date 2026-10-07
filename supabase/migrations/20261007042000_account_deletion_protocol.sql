@@ -97,6 +97,17 @@ BEGIN
  IF found_count>0 THEN result:=result||jsonb_build_object('sheet_sync_ownership',found_count); END IF;
  SELECT count(*) INTO found_count FROM public.projects WHERE reviewed_by=p_target AND creator_id<>p_target;
  IF found_count>0 THEN result:=result||jsonb_build_object('project_review_references',found_count); END IF;
+ FOR relation IN SELECT DISTINCT c.conrelid::regclass AS table_name,a.attname
+  FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace
+  JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=c.conkey[1]
+  WHERE c.contype='f' AND c.confdeltype IN ('r','a') AND cardinality(c.conkey)=1
+   AND n.nspname IN ('public','private','app_private')
+   AND c.confrelid IN ('auth.users'::regclass,'public.profiles'::regclass)
+   AND c.conrelid NOT IN ('public.organization_members'::regclass,'public.projects'::regclass,'public.organization_sheet_syncs'::regclass)
+ LOOP
+  EXECUTE format('SELECT count(*) FROM %s WHERE %I=$1',relation.table_name,relation.attname) INTO found_count USING p_target;
+  IF found_count>0 THEN result:=result||jsonb_build_object('retained_account_references',true); EXIT; END IF;
+ END LOOP;
  SELECT count(*) INTO found_count FROM public.projects WHERE creator_id=p_target
   AND (NOT p_delete_projects OR organization_id IS NOT NULL);
  IF found_count>0 THEN result:=result||jsonb_build_object('project_ownership',found_count); END IF;
