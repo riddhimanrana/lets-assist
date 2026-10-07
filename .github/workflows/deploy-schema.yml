@@ -829,6 +829,13 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: bash scripts/production/verify-postgrest-write-block.sh
 
+      - name: Settle requests admitted before the hook was loaded
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: bash scripts/production/set-application-write-block.sh barrier
+
       - name: Promote maintenance page to Production
         timeout-minutes: 11
         env:
@@ -1015,6 +1022,10 @@ jobs:
             timeout 25s bash scripts/production/verify-postgrest-write-block.sh
           ); then
             echo "The Production application write block is unproven." >&2
+            postcondition_failures=$((postcondition_failures + 1))
+          fi
+          if ! timeout 25s bash scripts/production/set-application-write-block.sh barrier; then
+            echo "Preexisting Production request transactions have not settled." >&2
             postcondition_failures=$((postcondition_failures + 1))
           fi
           if [[ "${postcondition_failures}" -ne 0 ]]; then

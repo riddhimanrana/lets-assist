@@ -902,35 +902,27 @@ describe("CSF Production release preflight", () => {
       },
     });
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator SET pgrst.app_settings.maintenance_write_block TO 'on'",
+      'request-write-fence.mjs" "${mode}"',
     );
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator RESET pgrst.app_settings.maintenance_write_block",
+      'run_linked_query "${request_guard_sql}"',
     );
-    expect(applicationWriteBlock).toContain("array_agg(pid)");
-    expect(applicationWriteBlock).toContain(
-      "pg_terminate_backend(target.target_pid, 0)",
-    );
-    expect(applicationWriteBlock).toContain("pid = ANY (captured_pids)");
-    expect(
-      applicationWriteBlock.match(
-        /LOOP PERFORM pg_stat_clear_snapshot\(\); SELECT count\(\*\) INTO remaining_pids FROM pg_stat_activity WHERE pid = ANY \(captured_pids\)/gu,
-      ) ?? [],
-    ).toHaveLength(2);
-    expect(applicationWriteBlock).toContain("remaining_pids = 0");
-    expect(applicationWriteBlock).toContain("interval '20 seconds'");
-    expect(applicationWriteBlock).toContain("pg_sleep(0.1)");
-    expect(applicationWriteBlock).not.toContain(", 5000)");
+    expect(applicationWriteBlock).not.toContain("pg_terminate_backend");
     expect(applicationWriteBlock.match(/timeout 60s/gu) ?? []).toHaveLength(1);
-    expect(
-      applicationWriteBlock.match(/run_linked_query "/gu) ?? [],
-    ).toHaveLength(5);
-    expect(applicationWriteBlock).toContain(
-      "BEGIN; ${request_guard_check} ALTER ROLE authenticator SET",
-    );
-    expect(applicationWriteBlock).toContain("request-write-fence.mjs");
     expect(applicationWriteBlock).toContain(
       "Fresh API verification is required.",
+    );
+    expect(deploymentWorkflow).toContain(
+      "set-application-write-block.sh barrier",
+    );
+    expect(
+      deploymentWorkflow.indexOf(
+        "run: bash scripts/production/verify-postgrest-write-block.sh",
+      ),
+    ).toBeLessThan(
+      deploymentWorkflow.indexOf(
+        "run: bash scripts/production/set-application-write-block.sh barrier",
+      ),
     );
     expect(postgrestWriteBlockVerifier).toContain(
       "id.eq.00000000-0000-0000-0000-000000000000,id.neq.00000000-0000-0000-0000-000000000000",
