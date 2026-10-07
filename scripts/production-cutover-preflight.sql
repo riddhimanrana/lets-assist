@@ -3377,6 +3377,7 @@ SELECT
 
   WITH expected(signature, role_name) AS (
     VALUES
+      ('public.account_deletion_pending()', 'authenticated'),
       ('public.can_insert_project(uuid)', 'authenticated'),
       ('public.can_insert_project(uuid,text,uuid)', 'authenticated'),
       ('public.can_keep_or_set_public_visibility(uuid,uuid)', 'authenticated'),
@@ -3405,11 +3406,13 @@ SELECT
     SELECT expected.signature, expected.role_name
     FROM expected
     WHERE expected.signature IN (
+      'public.account_deletion_pending()',
       'public.get_csf_application_role_context(uuid,text)',
       'public.get_plugin_application_access_context(uuid,text,text)',
       'public.get_plugin_application_access_context_by_identifier(text,text,text)',
       'public.get_plugin_application_route_target_by_identifier(text,text,text)',
-      'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)'
+      'public.get_plugin_application_asset_route_target_by_identifier(text,text,text,text)',
+      'public.set_csf_staff_view_mode(uuid,text)'
     )
   ),
   actual AS (
