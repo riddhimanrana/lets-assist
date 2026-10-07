@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { decrypt, encrypt } from "@/lib/encryption";
 import { getAdminClient } from "@/lib/supabase/admin";

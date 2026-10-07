@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";

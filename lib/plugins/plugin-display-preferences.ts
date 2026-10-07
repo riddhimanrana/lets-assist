@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 

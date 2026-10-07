@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { differenceInMinutes, isBefore, parseISO } from "date-fns";
 import type { Metadata } from "next";

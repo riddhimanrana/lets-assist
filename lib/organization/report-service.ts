@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { escapeCsvCell } from "@/lib/organization/report-output-safety";
 import { createClient } from "@/lib/supabase/server";

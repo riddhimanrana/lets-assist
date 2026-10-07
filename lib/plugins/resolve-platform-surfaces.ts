@@ -1,5 +1,5 @@
-import { safeConsole } from "@/lib/safe-console";
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import {
