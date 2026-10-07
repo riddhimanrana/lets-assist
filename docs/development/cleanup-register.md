@@ -2751,8 +2751,9 @@ historical evidence. The original September 28 additions are preserved below.
 Remediation has not been deployed. APP-09 and DB-02 describe the same defect.
 
 [Root draft PR 867](https://github.com/riddhimanrana/lets-assist/pull/867)
-publishes `35341eaa`, based on Development `fb326cb3`. Local follow-ups through
-`2462cf88` include the final Storage architecture rule and test repairs. The
+contains the integrated changes through `dc4ef914`, based on Development
+`fb326cb3`. The follow-ups include the exact Storage architecture rule, accepted
+708 catalog, status fields and Development cutover coordinator. The
 request guard, durable image cleanup, organization authorization and application
 conflict repairs have focused local acceptance. The root retains published
 private gitlink `a1d5836f` until the signed batch integration.
@@ -2777,7 +2778,9 @@ Its full local private unit gate passed 6,080 tests and 30,598 assertions across
 554 files and 209 process groups. Hosted plugin quality repeated those counts, and static analysis and
 GitGuardian pass at that exact commit. PR 642 merged into Development as
 `ece8afec` with the identical tested tree. Private main and release tags remain
-unchanged. Signed-version and hosted acceptance are pending.
+unchanged. Updated promotion PR 641 also passes quality, both static scans and
+GitGuardian on `ece8afec`. Separate main/tag approval and signed-version
+acceptance remain pending.
 
 The fresh 708 replay applied all migrations and ran 464 SQL files with 11,737
 assertions. One old test expected a privilege error where the new RLS policy
@@ -2787,18 +2790,29 @@ that correction; there is no single all-green full-run transcript for 708 yet.
 Thirteen follow-on gates passed, including CSF workflows, both scale gates and
 DV database checks. The architecture rule now recognizes only the exact six
 restrictive public-image denial policies. Its real PostgreSQL regression rejects
-changed names, buckets, commands, roles and predicates. Final catalog and
-architecture verification are in progress. The current private runtime gate
-refuses unpublished version metadata, as intended. It requires the actual signed
-batch before final positive acceptance.
+changed names, buckets, commands, roles and predicates. The architecture check now passes. The accepted catalog contains 1,364 objects
+and returns one exact match; nine tamper cases reject altered hooks, grants or
+policies. The runtime check at private `2e0382b` refused its unprepared version
+metadata. Final acceptance requires the actual signed batch.
 
-The latest root unit run is still in progress. Its initial failures exposed
-stale extracted-worker assertions, the new guard's intentional client ACLs,
-the missing disabled image-cleanup flag and a disposable PostgreSQL locale
-issue. Focused corrections pass, including 62 contract tests and 784 assertions.
-These results do not replace the canonical integrated unit run or new signed
-build and browser gates. Historical acceptance results below retain their
-original source pins.
+The canonical root unit run now passes at `296253ea`, whose full tree equals
+parent `21404ba5`: 4,414 tests, 29,173 assertions, 555 files and 140 process
+groups, with zero failures or skips. Full lint, source guards and typecheck pass.
+The initial failures remain in their saved logs. They exposed stale worker
+assertions, the new guard's intentional client ACLs, the missing disabled
+image-cleanup flag and a disposable PostgreSQL locale issue.
+
+The Development coordinator is integrated as `c9e76128`. Its 78 Node cases pass
+on the combined source. The canonical Bun follow-on and affected workflow
+contracts pass 145 tests and 830 assertions across nine files. Full lint and
+typecheck pass with the coordinator; its final test-only credential-scope repair
+also passes focused lint. Review fixed recovery receipt disagreement, inherited
+image/alert worker settings and duplicate maintenance creation after an older
+unknown outcome. Nine real local SQL cases prove fresh write refusal, reads,
+transaction settling, retention drift rollback, exact restoration and reopening.
+Protected Development review rules and the required owner credential remain
+unconfigured; no hosted coordinator ran. Final signed build and browser gates
+remain separate. Historical results below retain their original source pins.
 
 The canonical root unit runner passed at `eda468bc`: 4,295 tests, 28,633 reported
 expect assertions and 538 files across 133 process groups. Installed Next.js
