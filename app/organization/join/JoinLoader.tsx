@@ -3,17 +3,19 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { joinOrganization } from "../actions";
+import { InviteCard, type InviteOrganization } from "./InviteCard";
 import { joinedOrganizationPath } from "./join-result";
 
 interface JoinLoaderProps {
   organizationId: string;
   code: string;
   userId: string;
+  organization: InviteOrganization;
 }
 
-export default function JoinLoader({ code }: JoinLoaderProps) {
+export default function JoinLoader({ code, organization }: JoinLoaderProps) {
   const router = useRouter();
 
   useEffect(() => {
@@ -48,12 +50,11 @@ export default function JoinLoader({ code }: JoinLoaderProps) {
   }, [code, router]);
 
   return (
-    <div className="text-center space-y-4">
-      <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-      <p className="text-lg font-medium">Joining organization...</p>
-      <p className="text-sm text-muted-foreground">
-        Please wait while we process your request
-      </p>
-    </div>
+    <InviteCard organization={organization}>
+      <div className="text-muted-foreground flex items-center justify-center gap-2 text-sm">
+        <Spinner />
+        Joining organization...
+      </div>
+    </InviteCard>
   );
 }

@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
-import AuthDialog from "./AuthDialog";
+import { InviteShell } from "./InviteCard";
+import JoinSignInCard from "./JoinSignInCard";
 import { Metadata } from "next";
 import JoinLoader from "./JoinLoader";
 
@@ -51,18 +52,19 @@ export default async function JoinOrganizationPage({
   }
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center">
+    <InviteShell>
       {user ? (
-        // If user is logged in, show auto-join loader
+        // Signed in: join automatically, showing which organization it is.
         <JoinLoader
           organizationId={organization.id}
           code={code}
           userId={user.id}
+          organization={organization}
         />
       ) : (
-        // If user is not logged in, show auth dialog
-        <AuthDialog organization={organization} joinCode={code} />
+        // Signed out: ask to sign in or sign up first.
+        <JoinSignInCard organization={organization} joinCode={code} />
       )}
-    </div>
+    </InviteShell>
   );
 }

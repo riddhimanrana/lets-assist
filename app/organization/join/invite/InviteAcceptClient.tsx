@@ -4,17 +4,19 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, CheckCircle2, XCircle, Building2, Clock } from "lucide-react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { InviteCard, InviteShell } from "../InviteCard";
 import { acceptInvitation } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
 import { createClient } from "@/lib/supabase/client";
@@ -113,168 +115,127 @@ export default function InviteAcceptClient({
   // Show loading while checking auth
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <InviteShell>
+        <Spinner className="text-muted-foreground size-6" />
+      </InviteShell>
     );
   }
 
   // Show success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="bg-green-100 dark:bg-green-900/20 rounded-full p-4 w-16 h-16 mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">Welcome to {org?.name}!</h1>
-          <p className="text-muted-foreground mb-4">
-            You've successfully joined as a {invitation.role}.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Redirecting you now...
-          </p>
-        </div>
-      </div>
+      <InviteShell>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CheckCircle2 className="text-success" />
+            </EmptyMedia>
+            <EmptyTitle role="heading" aria-level={1}>
+              Welcome to {org?.name}!
+            </EmptyTitle>
+            <EmptyDescription>
+              You&apos;ve successfully joined as a {invitation.role}.
+              Redirecting you now...
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </InviteShell>
     );
   }
 
   // Show error state for expired/used invitations
   if (isExpired || isAlreadyUsed) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-destructive mx-auto" />
-          </div>
-          <h1 className="text-2xl font-bold mb-2">
-            {isExpired ? "Invitation Expired" : "Invitation Already Used"}
-          </h1>
-          <p className="text-muted-foreground mb-6">
-            {isExpired
-              ? "This invitation has expired. Please contact the organization administrator for a new invitation."
-              : `This invitation has already been ${invitation.status}.`}
-          </p>
-          <Button asChild>
-            <Link href="/">Go to Homepage</Link>
-          </Button>
-        </div>
-      </div>
+      <InviteShell>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <XCircle />
+            </EmptyMedia>
+            <EmptyTitle role="heading" aria-level={1}>
+              {isExpired ? "Invitation expired" : "Invitation already used"}
+            </EmptyTitle>
+            <EmptyDescription>
+              {isExpired
+                ? "This invitation has expired. Please contact the organization administrator for a new invitation."
+                : `This invitation has already been ${invitation.status}.`}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild>
+              <Link href="/">Go to homepage</Link>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </InviteShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center pb-2">
-          {org?.logo_url ? (
-            <Avatar className="h-16 w-16 mx-auto mb-2">
-              <AvatarImage src={org.logo_url} alt={org.name} />
-              <AvatarFallback>
-                <Building2 className="h-8 w-8" />
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <div className="bg-primary/10 rounded-full p-4 w-16 h-16 mx-auto mb-2">
-              <Building2 className="h-8 w-8 text-primary mx-auto" />
-            </div>
-          )}
-          <CardTitle className="text-2xl">You're Invited!</CardTitle>
-          <CardDescription>
-            You're invited to join <strong>{org?.name}</strong>
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {/* Role Badge */}
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              You'll join as:
-            </span>
-            <Badge
-              variant={invitation.role === "staff" ? "default" : "secondary"}
-              className="capitalize"
-            >
-              {invitation.role}
-            </Badge>
-          </div>
-
-          {/* Details */}
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Building2 className="h-4 w-4" />
-              <span>Organization: {org?.name}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Expires: {formatDate(invitation.expires_at)}</span>
-            </div>
-          </div>
-
-          {/* Role Description */}
-          <div className="bg-muted/50 rounded-lg p-4 text-sm">
-            {invitation.role === "staff" ? (
-              <p>
-                As a <strong>staff member</strong>, you'll have elevated
-                permissions including the ability to verify volunteer hours and
-                help manage organization activities.
-              </p>
-            ) : (
-              <p>
-                As a <strong>member</strong>, you'll be able to participate in
-                volunteer opportunities and track your community service hours.
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Actions */}
-          {isAuthenticated ? (
-            <div className="space-y-3">
-              <Button
-                onClick={handleAccept}
-                disabled={isPending}
-                className="w-full"
-                size="lg"
-              >
+    <InviteShell>
+      <InviteCard
+        organization={org}
+        badge={
+          <Badge
+            variant={invitation.role === "staff" ? "default" : "secondary"}
+            className="capitalize"
+          >
+            {invitation.role}
+          </Badge>
+        }
+        description={
+          invitation.role === "staff"
+            ? "As a staff member, you'll be able to verify volunteer hours and help manage organization activities."
+            : "As a member, you'll be able to take part in volunteer opportunities and track your community service hours."
+        }
+        footer={
+          isAuthenticated ? (
+            <>
+              <Button onClick={handleAccept} disabled={isPending}>
                 {isPending ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner data-icon="inline-start" />
                     Accepting...
                   </>
                 ) : (
                   "Accept Invitation"
                 )}
               </Button>
-              <Button variant="outline" asChild className="w-full">
+              <Button variant="outline" asChild>
                 <Link href="/">Decline</Link>
               </Button>
-            </div>
+            </>
           ) : (
-            <div className="space-y-4">
-              <Alert>
-                <AlertDescription>
-                  Please sign in or create an account with{" "}
-                  <strong>{invitedEmail}</strong> to accept this invitation.
-                </AlertDescription>
-              </Alert>
-              <div className="grid grid-cols-2 gap-3">
-                <Button asChild>
-                  <Link href={authLinks.login}>Sign In</Link>
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link href={authLinks.signup}>Sign Up</Link>
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            <>
+              <Button asChild>
+                <Link href={authLinks.login}>Sign in</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={authLinks.signup}>Sign up</Link>
+              </Button>
+            </>
+          )
+        }
+      >
+        <p className="text-muted-foreground text-center text-sm">
+          Invitation expires {formatDate(invitation.expires_at)}
+        </p>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {!isAuthenticated && (
+          <Alert>
+            <AlertDescription>
+              Please sign in or create an account with{" "}
+              <strong>{invitedEmail}</strong> to accept this invitation.
+            </AlertDescription>
+          </Alert>
+        )}
+      </InviteCard>
+    </InviteShell>
   );
 }
