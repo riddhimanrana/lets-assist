@@ -144,6 +144,41 @@ export function verifyLocalValidationEvidence(
   };
 }
 
+export function verifyLocalValidationEnvelope(
+  serialized,
+  expected,
+  options = {},
+) {
+  requireValue(
+    typeof serialized === "string" && Buffer.byteLength(serialized) <= 49_152,
+    "Local validation evidence must be a JSON envelope of at most 48 KiB.",
+  );
+  const envelope = JSON.parse(serialized);
+  keys(envelope, ["receipt", "reports"]);
+  keys(envelope.reports, localValidationChecks);
+  for (const name of localValidationChecks) {
+    const report = envelope.reports[name];
+    requireValue(
+      typeof report === "string" &&
+        Buffer.byteLength(report) > 0 &&
+        Buffer.byteLength(report) <= 4096 &&
+        !report.includes("\0"),
+      "Each sanitized local report must contain 1 to 4096 UTF-8 bytes.",
+    );
+  }
+  const evidence = verifyLocalValidationEvidence(envelope.receipt, expected, {
+    now: options.now ?? Date.now(),
+    readReport: (name) => Buffer.from(envelope.reports[name], "utf8"),
+  });
+  return {
+    ...evidence,
+    receiptSha256: createHash("sha256")
+      .update(JSON.stringify(envelope.receipt))
+      .digest("hex"),
+    envelopeSha256: createHash("sha256").update(serialized).digest("hex"),
+  };
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href

@@ -67,7 +67,8 @@ step fails.
 ### Broader local validation override
 
 Both app-only deployment and reviewed forward migrations also expose
-`local_validation_confirmation` and `local_validation_reason`. This is a broader
+`local_validation_confirmation`, `local_validation_reason` and
+`local_validation_evidence`. This is a broader
 exception than the performance waiver. Its confirmation is
 `deploy-with-local-validation:<release SHA>:<Development SHA>`. The controller
 requires a 20–1000 character reason and a GitHub actor with repository write,
@@ -80,9 +81,9 @@ Production operation confirmation still apply.
 | Performance waiver        | Trusted functional acceptance required; performance waived | Required                           |
 | Local validation override | Waived, not passed                                         | Both waived, not passed            |
 
-The local override is an operator attestation. The current controller verifies
-its identity and source bindings, but does not execute or independently verify
-the local tests named in the reason. Do not describe this exception as successful
+The local override is an operator attestation. The controller requires a current
+exact-candidate evidence receipt and checks the supplied sanitized report bytes.
+It does not execute or independently prove the local tests. Do not describe this exception as successful
 hosted acceptance. The two waiver modes are mutually exclusive. Neither bypasses
 exact source trees and ancestry, Production environment review, schema/catalog
 checks, private release verification, deployment identity, rollback safeguards,
@@ -110,11 +111,42 @@ The receipt schema is the strict object used in the companion test fixtures.
 Each report is `<check-name>.log`; retain only sanitized output. Keep receipts
 and reports outside committed source. Include the receipt SHA-256, change-record
 URL, expiry, and exact waived gates in the release reason and current release
-status. The expiry belongs to the operator review. The current dispatch interface
-does not consume this receipt or enforce its expiry. This checker binds recorded
-evidence and detects changed files; it does not prove who executed the tests or
-turn operator evidence into a trusted CI run. Replacing the existing override
-requires a separately reviewed producer and controller contract.
+status. Supply `local_validation_evidence` as a strict JSON envelope with
+`receipt` and `reports` fields. `reports` maps each of the six check names to its
+sanitized UTF-8 report text. The envelope is limited to 48 KiB and each report to
+1–4096 bytes. The controller rejects missing, invalid, changed or expired
+reports before it skips any hosted or remote CI check. It compares the evidence
+tree and private gitlink with the actual release checkout, not receipt claims.
+Normal validation and the narrower performance waiver do not need this input.
+
+After the checker passes, prepare the envelope without publishing it:
+
+```bash
+node --input-type=module <<'JS'
+import { readFileSync, writeFileSync } from "node:fs";
+const dir = ".artifacts/local-validation/";
+const receipt = JSON.parse(readFileSync(dir + "receipt.json", "utf8"));
+const names = ["lint", "typecheck", "unit", "build", "database", "browser"];
+const reports = Object.fromEntries(names.map(name => [name,
+  readFileSync(dir + name + ".log", "utf8")]));
+writeFileSync(dir + "envelope.json", JSON.stringify({ receipt, reports }));
+JS
+```
+
+Paste that envelope into `local_validation_evidence` only after reviewing every
+report for secrets and real user data. Workflow dispatch inputs and step
+environment values can be visible in this public repository. The controller
+prints only fixed failures or verified identities and digests; it never prints
+the report text. The retained source-verification artifact includes receipt and
+envelope hashes, expiry, change record and the explicit operator-attestation
+limit. Report-byte checks do not prove who executed tests or turn those reports
+into a trusted CI run.
+
+The workflows recheck source, actor permission and evidence freshness before a
+Production build, migration application and alias promotion when the local
+override is selected. An expired approval stops forward progress. Existing
+rollback steps remain available to recover a release that already changed the
+alias; the evidence input does not authorize a separate release or worker run.
 
 Before approving the exception, the release owner must inspect the reports,
 confirm the exact candidate and explicit Production authorization, and record

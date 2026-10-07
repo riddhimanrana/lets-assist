@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   localValidationChecks,
   verifyLocalValidationEvidence,
+  verifyLocalValidationEnvelope,
 } from "./local-validation-evidence.mjs";
 const now = Date.parse("2040-01-01T12:00:00Z");
 const expected = {
@@ -99,4 +100,45 @@ test("missing, failed, repeated or stale checks and altered report bytes fail", 
       }),
     /digest mismatch/u,
   );
+});
+
+test("dispatch envelope verifies actual sanitized report bytes and returns digests only", () => {
+  const reports = Object.fromEntries(
+    localValidationChecks.map((name) => [name, report.toString("utf8")]),
+  );
+  const serialized = JSON.stringify({ receipt: receipt(), reports });
+  const result = verifyLocalValidationEnvelope(serialized, expected, { now });
+  assert.equal(
+    result.envelopeSha256,
+    createHash("sha256").update(serialized).digest("hex"),
+  );
+  assert.equal(
+    result.receiptSha256,
+    createHash("sha256").update(JSON.stringify(receipt())).digest("hex"),
+  );
+  assert.ok(!JSON.stringify(result).includes(report.toString("utf8")));
+  assert.match(result.assurance, /operator|Operator/u);
+});
+test("dispatch rejects malformed, oversized, missing and altered report envelopes", () => {
+  const reports = Object.fromEntries(
+    localValidationChecks.map((name) => [name, report.toString("utf8")]),
+  );
+  for (const input of [
+    undefined,
+    "",
+    "invalid",
+    " ".repeat(49153),
+    JSON.stringify({ receipt: receipt() }),
+    JSON.stringify({ receipt: receipt(), reports, extra: true }),
+    JSON.stringify({
+      receipt: receipt(),
+      reports: { ...reports, extra: "raw" },
+    }),
+    ...["", null, 0, "x".repeat(4097), "changed", "x\0y"].map((lint) =>
+      JSON.stringify({ receipt: receipt(), reports: { ...reports, lint } }),
+    ),
+  ])
+    assert.throws(() =>
+      verifyLocalValidationEnvelope(input, expected, { now }),
+    );
 });
