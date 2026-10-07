@@ -7,8 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       development_sha:
-        description: "Exact full SHA at the head of development"
+        description: "Exact Development SHA, or reviewed candidate SHA for cutover"
         required: true
+        type: string
+      cutover_phase:
+        description: "Development maintenance cutover. Parent merges only after prepare succeeds"
+        type: choice
+        required: false
+        default: none
+        options: [none, bootstrap, prepare, complete, recover]
+      cutover_pr_number:
+        description: "Existing root pull request for the exact cutover candidate"
+        required: false
+        type: string
+      cutover_receipt_run:
+        description: "Completed preparation run, or latest mutating run for recovery"
+        required: false
+        type: string
+      external_writers_confirmation:
+        description: "Bootstrap/prepare: external-writers-stopped:<candidate SHA>. Includes Auth, Storage and external schedulers"
+        required: false
         type: string
       build_current_revision:
         description: "Create one exact Development Preview if its automatic build was skipped"
@@ -26,7 +44,7 @@ on:
         default: full
         required: true
       confirmation:
-        description: "Type load-hosted-development:<Development Supabase project ref>"
+        description: "load-hosted-development:<ref>, or cutover-development:<phase>:<candidate SHA>"
         required: true
         type: string
 
@@ -38,7 +56,62 @@ permissions:
   contents: read
 
 jobs:
+  development-cutover:
+    name: Controlled Development maintenance cutover
+    if: github.event_name == 'workflow_dispatch' && inputs.cutover_phase != 'none' && inputs.cutover_phase != ''
+    runs-on: ubuntu-latest
+    environment: development
+    timeout-minutes: 70
+    permissions:
+      actions: read
+      contents: read
+      deployments: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Check controller tools
+        run: |
+          command -v psql >/dev/null
+          command -v unzip >/dev/null
+      - name: Run fixed Development coordinator
+        env:
+          CUTOVER_PHASE: ${{ inputs.cutover_phase }}
+          CUTOVER_PR_NUMBER: ${{ inputs.cutover_pr_number }}
+          CUTOVER_PREPARE_RUN_ID: ${{ inputs.cutover_receipt_run }}
+          ACCEPTED_SHA: ${{ inputs.development_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          DEVELOPMENT_DATABASE_URL: ${{ secrets.DEVELOPMENT_DATABASE_URL }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CSF_DEVELOPMENT_SUPABASE_PUBLISHABLE_KEY }}
+        run: node scripts/hosted-development/development-cutover.mjs
+      - name: Preserve sanitized cutover receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: development-cutover-${{ github.run_id }}
+          path: .artifacts/development-cutover/development-cutover.json
+          if-no-files-found: ignore
+          overwrite: false
+          retention-days: 7
+
   release-selection:
+    if: inputs.cutover_phase == '' || inputs.cutover_phase == 'none'
     name: Select marked Development release
     runs-on: ubuntu-latest
     outputs:

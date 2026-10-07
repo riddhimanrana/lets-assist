@@ -128,7 +128,7 @@ describe("CSF Production release preflight", () => {
       {
         source: hostedDevelopmentWorkflow,
         counts: {
-          "actions/checkout": 3,
+          "actions/checkout": 4,
           "oven-sh/setup-bun": 1,
           "supabase/setup-cli": 0,
         },
