@@ -527,7 +527,7 @@ export default function AttendanceClient({
               variant="outline"
               onClick={() => router.push(`/projects/${project.id}`)}
             >
-              View Project Details
+              View project details
             </Button>
           </CardContent>
         </Card>
@@ -632,7 +632,7 @@ export default function AttendanceClient({
                       <div className="space-y-2 pt-3">
                         <div className="flex justify-between items-center text-sm mb-1">
                           {/* Changed label slightly */}
-                          <span className="font-medium">Session Duration</span>
+                          <span className="font-medium">Session duration</span>
                           <span className="text-muted-foreground">
                             {remainingTimeFormatted} remaining
                           </span>
@@ -653,7 +653,7 @@ export default function AttendanceClient({
                     className="flex items-center gap-2"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    View Project Details
+                    View project details
                   </Link>
                 </Button>
                 <Button
@@ -663,7 +663,7 @@ export default function AttendanceClient({
                   disabled={isCheckingOut}
                 >
                   <LogOut className="h-4 w-4 mr-2" />
-                  {isCheckingOut ? "Leaving..." : "Leave Event"}
+                  {isCheckingOut ? "Leaving..." : "Leave event"}
                 </Button>
                 {checkedInAnonymously && (
                   <Button variant="outline" className="w-full">
@@ -672,7 +672,7 @@ export default function AttendanceClient({
                       className="flex items-center gap-2"
                     >
                       <User className="h-4 w-4" />
-                      Your Anonymous Profile
+                      Your anonymous profile
                     </Link>
                   </Button>
                 )}
@@ -733,10 +733,10 @@ export default function AttendanceClient({
 
             {/* Warning if not mobile */}
             {!scanInfo.isMobileDevice && (
-              <div className="flex items-start gap-2 rounded-md border border-amber-500/30 p-3 bg-amber-500/10 mb-4">
+              <div className="flex items-start gap-2 rounded-md border border-warning/30 p-3 bg-warning/10 mb-4">
                 {" "}
                 {/* Added mb-4 */}
-                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
                   <p>
                     This page is intended for QR code scans on mobile devices.
@@ -907,9 +907,9 @@ export default function AttendanceClient({
                           ? lookupResult.isRegistered
                             ? "bg-primary/10 border-primary/30 text-primary"
                             : lookupResult.message.includes("approved")
-                              ? "bg-green-600/10 border-green-600/30 text-green-600"
+                              ? "bg-success/10 border-success/30 text-success"
                               : lookupResult.message.includes("pending")
-                                ? "bg-amber-500/10 border-amber-500/30 text-amber-500"
+                                ? "bg-warning/10 border-warning/30 text-warning"
                                 : "bg-muted border-muted-foreground/30"
                           : "bg-muted border-muted-foreground/30"
                       }`}

@@ -1,10 +1,16 @@
 import React from "react";
 import { Metadata } from "next";
-import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import Link from "next/link";
+
+import { ArrowRightIcon } from "@/components/icons/animated";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
+import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
+
 import UserProjects from "./UserProjects";
+
 async function getUserData() {
   return getAuthUser();
 }
@@ -32,34 +38,30 @@ export default async function ProjectsPage() {
   }
   // Default content for non-authenticated users
   return (
-    <div className="min-h-screen">
-      <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Volunteer Projects</h1>
-            <p className="text-sm text-muted-foreground">
-              Browse available volunteer opportunities
-            </p>
-          </div>
-          <div className="flex gap-3 items-center text-muted-foreground text-sm">
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6">
+      <PageHeader
+        title="Volunteer projects"
+        description="Browse available volunteer opportunities. Sign up to create projects of your own."
+        actions={
+          <>
             <Link
               href="/login"
               className={buttonVariants({ variant: "outline" })}
             >
               Log in
             </Link>
-            or
-            <Link href="/signup" className={buttonVariants()}>
-              Sign Up
-            </Link>
-            <span className="text-sm text-muted-foreground">
-              to create projects
-            </span>
-          </div>
-        </div>
-        {/* Render the infinite scroll component */}
-        <ProjectsInfiniteScroll />
-      </main>
-    </div>
+            <AnimatedLinkButton
+              href="/signup"
+              icon={ArrowRightIcon}
+              iconPosition="inline-end"
+            >
+              Sign up
+            </AnimatedLinkButton>
+          </>
+        }
+        className="mb-6"
+      />
+      <ProjectsInfiniteScroll />
+    </main>
   );
 }

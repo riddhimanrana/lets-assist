@@ -5,7 +5,6 @@ import {
   SameDayMultiAreaRole,
   Organization,
   ProjectStatus,
-  ProjectDocument,
   AnonymousSignupData,
   Signup,
   WaiverDefinitionFull,
@@ -16,37 +15,19 @@ import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { Separator } from "@/components/ui/separator";
 import { RichTextContent } from "@/components/ui/rich-text-content";
 import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
 import {
   CheckCircle2,
-  MapPin,
-  Users,
-  Share2,
   Clock,
-  FileText,
-  Download,
-  Eye,
-  File,
-  FileImage,
-  Lock,
   UserPlus,
   LogIn,
   Loader2,
-  QrCode,
-  UserCheck,
-  Zap,
   AlertTriangle,
-  Building2,
-  BadgeCheck,
   XCircle,
   Mail,
   Pause,
   MailCheck,
-  MoreVertical,
-  Flag,
   Shield,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -59,7 +40,7 @@ import {
 } from "./actions";
 import {
   formatTimeTo12Hour,
-  formatBytes,
+  cn,
   copyToClipboard,
   isMobileDevice,
 } from "@/lib/utils";
@@ -73,7 +54,7 @@ import {
   isOneTimeSlotPast,
   isForwardProjectStatusTransition,
 } from "@/utils/project";
-import { getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
+import { formatDateDisplay, getProjectStatus } from "@/utils/project"; // Import the getProjectStatus utility and date utils
 import {
   startTransition,
   useState,
@@ -83,8 +64,6 @@ import {
   useRef,
 } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 import {
   type SignupAttemptResult,
   useSignupConfirmationAction,
@@ -102,14 +81,22 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { NoAvatar } from "@/components/shared/NoAvatar";
-import {
-  OrganizationHoverCard,
-  ProfileHoverCard,
-} from "@/components/shared/ProfileHoverCard";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import CreatorDashboard from "./CreatorDashboard";
+import { ProjectDetailsAside } from "./ProjectDetailsAside";
+import { ProjectDetailsHeader } from "./ProjectDetailsHeader";
+import { ProjectDocumentsCard } from "./ProjectDocumentsCard";
+import { ProjectEmailConfirmationDialog } from "./ProjectEmailConfirmationDialog";
+import {
+  ProjectSignupBar,
+  ProjectSignupCta,
+  type ProjectSignupCtaState,
+} from "./ProjectSignupCta";
+import {
+  ProjectSlotRow,
+  formatScheduleDay,
+  formatSlotTimeRange,
+} from "./ProjectSlotRow";
 // Import the new UserDashboard
 import UserDashboard from "./UserDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
@@ -124,19 +111,12 @@ import {
 import { SignupConfirmationModal } from "@/app/projects/_components/SignupConfirmationModal";
 import { CancelSignupModal } from "@/app/projects/_components/CancelSignupModal";
 import CalendarOptionsModal from "@/app/projects/_components/CalendarOptionsModal";
-import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import {
   TurnstileComponent,
   type TurnstileRef,
 } from "@/components/ui/turnstile";
 import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { useSecureCheck } from "@/hooks/useSecureCheck";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ReportContentButton } from "@/components/feedback/ReportContentButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
@@ -175,31 +155,6 @@ interface Props {
   demoMode?: boolean;
   demoPublicAttendees?: SlotAttendee[];
 }
-
-const getFileIcon = (type: string) => {
-  if (type.includes("pdf")) return <FileText className="h-5 w-5" />;
-  if (type.includes("image")) return <FileImage className="h-5 w-5" />;
-  if (type.includes("text")) return <FileText className="h-5 w-5" />;
-  if (type.includes("word")) return <FileText className="h-5 w-5" />;
-  return <File className="h-5 w-5" />;
-};
-
-const downloadFile = async (url: string, filename: string) => {
-  try {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const href = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = href;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(href);
-  } catch (error) {
-    console.error("Download error:", error);
-  }
-};
 
 export default function ProjectDetails({
   project,
@@ -1463,11 +1418,6 @@ export default function ProjectDetails({
     setPreviewOpen(true);
   };
 
-  // Check if file is previewable
-  const isPreviewable = (type: string) => {
-    return type.includes("pdf") || type.includes("image");
-  };
-
   const renderSignupButton = (scheduleId: string) => {
     if (isCreator) {
       return "You are the creator";
@@ -1537,7 +1487,7 @@ export default function ProjectDetails({
             render={
               <span className="flex items-center gap-1.5">
                 <Clock className="size-4" />
-                Pending Approval
+                Pending approval
               </span>
             }
           />
@@ -1555,7 +1505,7 @@ export default function ProjectDetails({
       return (
         <>
           <XCircle className="size-4" />
-          Cancel Signup
+          Cancel signup
         </>
       );
     }
@@ -1580,136 +1530,121 @@ export default function ProjectDetails({
     return (
       <>
         <UserPlus className="size-4" />
-        Sign Up
+        Sign up
       </>
     );
   };
+
+  // One button per slot. The label carries the slot's state; the page's single
+  // filled action lives in the header and the phone sign-up bar.
+  const renderSlotAction = (scheduleId: string, isPast: boolean) => (
+    <Button
+      variant={
+        hasSignedUp[scheduleId] && !pendingSlots[scheduleId]
+          ? "secondary"
+          : rejectedSlots[scheduleId]
+            ? "destructive"
+            : "outline"
+      }
+      onClick={() => handleSignUpClick(scheduleId)}
+      disabled={
+        isCreator ||
+        loadingStates[scheduleId] ||
+        calculatedStatus === "cancelled" ||
+        isPast ||
+        rejectedSlots[scheduleId] ||
+        attendedSlots[scheduleId] ||
+        (!hasSignedUp[scheduleId] && remainingSlots[scheduleId] === 0)
+      }
+    >
+      {isPast ? "Time passed" : renderSignupButton(scheduleId)}
+    </Button>
+  );
+
+  const showSlotAttendees = project.show_attendees_publicly || canManageProject;
+
+  const oneTimeOpen =
+    project.event_type === "oneTime" &&
+    Boolean(project.schedule.oneTime) &&
+    !hasSignedUp["oneTime"] &&
+    !pendingSlots["oneTime"] &&
+    !rejectedSlots["oneTime"] &&
+    !attendedSlots["oneTime"] &&
+    remainingSlots["oneTime"] !== 0 &&
+    !isOneTimeSlotPast(project);
+  const signupCta: ProjectSignupCtaState | null =
+    isCreator ||
+    calculatedStatus === "cancelled" ||
+    calculatedStatus === "completed"
+      ? null
+      : project.event_type === "oneTime"
+        ? oneTimeOpen
+          ? {
+              label: "Sign up",
+              onClick: () => handleSignUpClick("oneTime"),
+              loading: loadingStates["oneTime"],
+            }
+          : null
+        : {
+            label: "Choose a slot",
+            onClick: () =>
+              document
+                .getElementById("volunteer-opportunities")
+                ?.scrollIntoView({
+                  behavior: window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                  ).matches
+                    ? "auto"
+                    : "smooth",
+                  block: "start",
+                }),
+          };
 
   const enableSavedAnonymousInfoReuse = project.event_type !== "oneTime";
 
   return (
     <>
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        {/* Render project management dashboard for creators and organization admins */}
-
-        {/* Confirmation Dialog */}
-        <Dialog
+      <div className="container mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <ProjectEmailConfirmationDialog
           open={showConfirmationAlert}
           onOpenChange={setShowConfirmationAlert}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex justify-center mb-4">
-                <div className="rounded-full bg-primary/10 p-4">
-                  <Mail className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              <DialogTitle className="text-2xl text-center">
-                Check Your Email
-              </DialogTitle>
-              <DialogDescription className="text-center text-base pt-4">
-                We&apos;ve sent a confirmation link to your email address.
-                Please click the link to finalize your signup for this project.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="bg-muted/50 rounded-lg p-4 my-4">
-              <p className="text-sm font-medium text-muted-foreground">
-                Don&apos;t see the email?
-              </p>
-              <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                <li>Check your spam or junk folder</li>
-                <li>Make sure you entered your email correctly</li>
-                <li>Wait a few minutes for it to arrive</li>
-              </ul>
-            </div>
-            <DialogFooter className="gap-2 flex-col-reverse sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={() => setShowConfirmationAlert(false)}
-                className="w-full sm:w-auto"
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => {
-                  copyToClipboard(window.location.href);
-                  toast.success("Project link copied to clipboard!");
-                }}
-                className="w-full sm:w-auto"
-              >
-                Copy Project Link
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          onCopyLink={() => {
+            copyToClipboard(window.location.href);
+            toast.success("Project link copied to clipboard!");
+          }}
+        />
 
-        {/* Project Header */}
-        <div className="mb-6">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
-            <div className="flex-1 min-w-0 order-1 sm:order-0">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">
-                {project.title}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2 sm:mb-0">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="size-4 shrink-0" />
-                  <span>{project.location}</span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mb-1 sm:mb-0 shrink-0 order-0 sm:order-0 justify-between w-full sm:w-auto">
-              {/* Use calculatedStatus instead of project.status */}
-              <ProjectStatusBadge
-                status={calculatedStatus}
-                className="capitalize"
-              />
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" onClick={handleShare}>
-                  <Share2 className="size-4 shrink-0" />
-                </Button>
-
-                {/* Report button - only show for people who do not manage this project */}
-                {!canManageProject && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          suppressHydrationWarning
-                        >
-                          <MoreVertical className="size-4" />
-                          <span className="sr-only">More options</span>
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => setIsReportDialogOpen(true)}
-                      >
-                        <Flag className="mr-2 size-4" />
-                        <span>Report Project</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {/* Fixed Report Content Dialog - moved outside DropdownMenuContent to avoid unmounting when menu closes */}
-                <ReportContentButton
-                  contentType="project"
-                  contentId={project.id}
-                  contentTitle={project.title}
-                  contentCreator={
-                    creator?.full_name || creator?.username || undefined
-                  }
-                  contentContext={organization?.name || undefined}
-                  open={isReportDialogOpen}
-                  onOpenChange={setIsReportDialogOpen}
-                  showTrigger={false}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProjectDetailsHeader
+          title={project.title}
+          status={calculatedStatus}
+          when={formatDateDisplay(project)}
+          location={project.location}
+          hostName={
+            project.organization?.name || creator?.full_name || "Anonymous"
+          }
+          hostIsOrganization={Boolean(project.organization)}
+          hostVerified={Boolean(project.organization?.verified)}
+          primaryAction={
+            signupCta ? (
+              <ProjectSignupCta cta={signupCta} className="hidden lg:flex" />
+            ) : null
+          }
+          onShare={handleShare}
+          onReport={
+            canManageProject ? undefined : () => setIsReportDialogOpen(true)
+          }
+        />
+        {/* Fixed Report Content Dialog - kept outside the menu so it stays mounted when the menu closes */}
+        <ReportContentButton
+          contentType="project"
+          contentId={project.id}
+          contentTitle={project.title}
+          contentCreator={creator?.full_name || creator?.username || undefined}
+          contentContext={organization?.name || undefined}
+          open={isReportDialogOpen}
+          onOpenChange={setIsReportDialogOpen}
+          showTrigger={false}
+        />
 
         {isCreator && (
           <CreatorDashboard
@@ -1732,46 +1667,40 @@ export default function ProjectDetails({
         {/* Project Content */}
         <div className="grid gap-6 lg:grid-cols-5">
           {/* Left Column */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="grid content-start gap-6 lg:col-span-3">
             {/* About Section */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>About this Project</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <RichTextContent
-                  content={project.description}
-                  className="text-muted-foreground text-sm"
-                />
-              </CardContent>
-            </Card>
+            <section className="grid gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">
+                About this project
+              </h2>
+              <RichTextContent
+                content={project.description}
+                className="text-muted-foreground max-w-prose text-sm"
+              />
+            </section>
 
             {/* Volunteer Opportunities */}
-            <Card>
-              <CardHeader className="pb-3">
+            <Card id="volunteer-opportunities" className="scroll-mt-20">
+              <CardHeader>
                 <div className="flex w-full items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <CardTitle>Volunteer Opportunities</CardTitle>
-                  </div>
+                  <CardTitle>Volunteer opportunities</CardTitle>
                   {/* Add the volunteer guide button only for non-managers */}
                   {!canManageProject && (
                     <ProjectInstructionsModal
                       project={project}
                       isCreator={false}
-                      buttonSize="xs"
+                      buttonSize="sm"
                       buttonClassName="whitespace-nowrap"
                     />
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="grid gap-4">
                 {project.pause_signups && (
-                  <Alert className="bg-warning/15 border-warning/50 mb-4">
-                    <Pause className="size-4 text-warning" />
-                    <AlertTitle className="text-warning/90">
-                      Signups are currently paused
-                    </AlertTitle>
-                    <AlertDescription className="text-warning">
+                  <Alert variant="warning">
+                    <Pause aria-hidden="true" />
+                    <AlertTitle>Signups are currently paused</AlertTitle>
+                    <AlertDescription>
                       The project organizer has temporarily paused new volunteer
                       signups. Please check back later or contact the organizer.
                     </AlertDescription>
@@ -1780,409 +1709,160 @@ export default function ProjectDetails({
 
                 {project.event_type === "oneTime" &&
                   project.schedule.oneTime && (
-                    <div className="border rounded-lg p-3 sm:p-4 bg-card/50 hover:bg-card/80 transition-colors">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-sm sm:text-base mb-2">
-                            {(() => {
-                              // Create date with no timezone offset issues
-                              const dateStr = project.schedule.oneTime.date;
-                              const [year, month, dayNum] = dateStr
-                                .split("-")
-                                .map(Number);
-                              // Validate date components
-                              if (
-                                !year ||
-                                !month ||
-                                !dayNum ||
-                                isNaN(year) ||
-                                isNaN(month) ||
-                                isNaN(dayNum)
-                              ) {
-                                return "Invalid date";
-                              }
-                              // Use Date to correctly handle timezones
-                              const date = new Date(year, month - 1, dayNum);
-                              // Check if date is valid
-                              if (isNaN(date.getTime())) {
-                                return "Invalid date";
-                              }
-                              return format(date, "EEEE, MMMM d");
-                            })()}
-                          </h3>
-                          <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-3.5 w-3.5 shrink-0" />
-                              <span>
-                                {(() => {
-                                  const startLabel = project.schedule.oneTime
-                                    .startTime
-                                    ? formatTimeTo12Hour(
-                                        project.schedule.oneTime.startTime,
-                                      )
-                                    : "TBD";
-                                  const endLabel = project.schedule.oneTime
-                                    .endTime
-                                    ? formatTimeTo12Hour(
-                                        project.schedule.oneTime.endTime,
-                                      )
-                                    : undefined;
-                                  return endLabel
-                                    ? `${startLabel} - ${endLabel}`
-                                    : startLabel;
-                                })()}
-                              </span>
-                              {project.project_timezone && (
-                                <TimezoneBadge
-                                  timezone={project.project_timezone}
-                                />
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                              <Users className="h-3.5 w-3.5 shrink-0" />
-                              <span>
-                                <span className="font-medium text-foreground">
-                                  {remainingSlots["oneTime"] ??
-                                    formatSlotCapacity(
-                                      project.schedule.oneTime.volunteers,
-                                    )}
-                                </span>{" "}
-                                of{" "}
-                                {formatSlotCapacity(
-                                  project.schedule.oneTime.volunteers,
-                                )}{" "}
-                                spots
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                          <Button
-                            variant={
-                              pendingSlots["oneTime"]
-                                ? "outline"
-                                : hasSignedUp["oneTime"]
-                                  ? "secondary"
-                                  : rejectedSlots["oneTime"]
-                                    ? "destructive"
-                                    : "default"
-                            }
-                            size="sm"
-                            onClick={() => handleSignUpClick("oneTime")}
-                            disabled={
-                              isCreator ||
-                              loadingStates["oneTime"] ||
-                              calculatedStatus === "cancelled" ||
-                              isOneTimeSlotPast(project) ||
-                              rejectedSlots["oneTime"] ||
-                              attendedSlots["oneTime"] ||
-                              (!hasSignedUp["oneTime"] &&
-                                remainingSlots["oneTime"] === 0)
-                            }
-                            className={`w-full sm:w-auto ${attendedSlots["oneTime"] || isOneTimeSlotPast(project) ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {isOneTimeSlotPast(project)
-                              ? "Time Passed"
-                              : renderSignupButton("oneTime")}
-                          </Button>
-                        </div>
-                      </div>
-                      {(project.show_attendees_publicly ||
-                        canManageProject) && (
-                        <SlotAttendeesDropdown
-                          attendees={getAttendeesForSlot("oneTime")}
+                    <div className="grid gap-2">
+                      <h3 className="text-sm font-medium">
+                        {formatScheduleDay(project.schedule.oneTime.date)}
+                      </h3>
+                      <ul className="divide-y">
+                        <ProjectSlotRow
+                          timeLabel={formatSlotTimeRange(
+                            project.schedule.oneTime.startTime,
+                            project.schedule.oneTime.endTime,
+                          )}
+                          timezone={project.project_timezone}
+                          remaining={
+                            remainingSlots["oneTime"] ??
+                            formatSlotCapacity(
+                              project.schedule.oneTime.volunteers,
+                            )
+                          }
+                          capacity={formatSlotCapacity(
+                            project.schedule.oneTime.volunteers,
+                          )}
+                          action={renderSlotAction(
+                            "oneTime",
+                            isOneTimeSlotPast(project),
+                          )}
+                          attendees={
+                            showSlotAttendees ? (
+                              <SlotAttendeesDropdown
+                                attendees={getAttendeesForSlot("oneTime")}
+                              />
+                            ) : null
+                          }
                         />
-                      )}
+                      </ul>
                     </div>
                   )}
 
                 {project.event_type === "multiDay" &&
-                  project.schedule.multiDay && (
-                    <div className="space-y-3">
-                      {project.schedule.multiDay.map((day, dayIndex) => {
-                        const allSlotsInDayPast = day.slots.every(
-                          (slot, slotIndex) => {
-                            const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
-                            return isMultiDaySlotPastByScheduleId(
-                              project,
-                              scheduleId,
-                            );
-                          },
-                        );
+                  project.schedule.multiDay &&
+                  project.schedule.multiDay.map((day, dayIndex) => {
+                    const allSlotsInDayPast = day.slots.every(
+                      (slot, slotIndex) =>
+                        isMultiDaySlotPastByScheduleId(
+                          project,
+                          `${day.date}-${dayIndex}-${slotIndex}`,
+                        ),
+                    );
 
-                        return (
-                          <div key={`${day.date}-${dayIndex}`} className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-medium">
-                                {(() => {
-                                  const dateStr = day.date;
-                                  const [year, month, dayNum] = dateStr
-                                    .split("-")
-                                    .map(Number);
-                                  // Use Date to correctly handle timezones
-                                  const date = new Date(
-                                    year,
-                                    month - 1,
-                                    dayNum,
-                                  );
-                                  return format(date, "EEEE, MMMM d");
-                                })()}
-                              </h3>
-                              {allSlotsInDayPast && (
-                                <Badge variant="secondary" className="ml-2">
-                                  Passed
-                                </Badge>
-                              )}
-                            </div>
-                            <div
-                              className={`space-y-2 ${allSlotsInDayPast ? "opacity-50" : ""}`}
-                            >
-                              {day.slots.map((slot, slotIndex) => {
-                                const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
-                                return (
-                                  <div
-                                    key={scheduleId}
-                                    className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors"
-                                  >
-                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                      <div className="flex-1 min-w-0">
-                                        <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
-                                          {getMultiDaySlotDisplayName(
-                                            slot,
-                                            slotIndex,
-                                          )}
-                                        </h4>
-                                        <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                                          <div className="flex items-center gap-1.5">
-                                            <Clock className="h-3.5 w-3.5 shrink-0" />
-                                            <span>
-                                              {(() => {
-                                                const startLabel =
-                                                  slot.startTime
-                                                    ? formatTimeTo12Hour(
-                                                        slot.startTime,
-                                                      )
-                                                    : "TBD";
-                                                const endLabel = slot.endTime
-                                                  ? formatTimeTo12Hour(
-                                                      slot.endTime,
-                                                    )
-                                                  : undefined;
-                                                return endLabel
-                                                  ? `${startLabel} - ${endLabel}`
-                                                  : startLabel;
-                                              })()}
-                                            </span>
-                                            {project.project_timezone && (
-                                              <TimezoneBadge
-                                                timezone={
-                                                  project.project_timezone
-                                                }
-                                              />
-                                            )}
-                                          </div>
-                                          <div className="flex items-center gap-1.5">
-                                            <Users className="h-3.5 w-3.5 shrink-0" />
-                                            <span>
-                                              <span className="font-medium text-foreground">
-                                                {remainingSlots[scheduleId] ??
-                                                  formatSlotCapacity(
-                                                    slot.volunteers,
-                                                  )}
-                                              </span>{" "}
-                                              of{" "}
-                                              {formatSlotCapacity(
-                                                slot.volunteers,
-                                              )}{" "}
-                                              spots
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                                        <Button
-                                          variant={
-                                            pendingSlots[scheduleId]
-                                              ? "outline"
-                                              : hasSignedUp[scheduleId]
-                                                ? "secondary"
-                                                : rejectedSlots[scheduleId]
-                                                  ? "destructive"
-                                                  : "default"
-                                          }
-                                          size="sm"
-                                          onClick={() =>
-                                            handleSignUpClick(scheduleId)
-                                          }
-                                          disabled={
-                                            isCreator ||
-                                            loadingStates[scheduleId] ||
-                                            calculatedStatus === "cancelled" ||
-                                            rejectedSlots[scheduleId] ||
-                                            attendedSlots[scheduleId] ||
-                                            isMultiDaySlotPastByScheduleId(
-                                              project,
-                                              scheduleId,
-                                            ) ||
-                                            (!hasSignedUp[scheduleId] &&
-                                              remainingSlots[scheduleId] === 0)
-                                          }
-                                          className={`w-full sm:w-auto ${attendedSlots[scheduleId] || isMultiDaySlotPastByScheduleId(project, scheduleId) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                        >
-                                          {isMultiDaySlotPastByScheduleId(
-                                            project,
-                                            scheduleId,
-                                          )
-                                            ? "Time Passed"
-                                            : renderSignupButton(scheduleId)}
-                                        </Button>
-                                      </div>
-                                    </div>
-                                    {(project.show_attendees_publicly ||
-                                      canManageProject) && (
-                                      <SlotAttendeesDropdown
-                                        attendees={getAttendeesForSlot(
-                                          scheduleId,
-                                        )}
-                                      />
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                    return (
+                      <div
+                        key={`${day.date}-${dayIndex}`}
+                        className="grid gap-2 border-t pt-4 first:border-t-0 first:pt-0"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-medium">
+                            {formatScheduleDay(day.date)}
+                          </h3>
+                          {allSlotsInDayPast && (
+                            <Badge variant="secondary">Passed</Badge>
+                          )}
+                        </div>
+                        <ul
+                          className={cn(
+                            "divide-y",
+                            allSlotsInDayPast && "opacity-50",
+                          )}
+                        >
+                          {day.slots.map((slot, slotIndex) => {
+                            const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
+                            return (
+                              <ProjectSlotRow
+                                key={scheduleId}
+                                title={getMultiDaySlotDisplayName(
+                                  slot,
+                                  slotIndex,
+                                )}
+                                timeLabel={formatSlotTimeRange(
+                                  slot.startTime,
+                                  slot.endTime,
+                                )}
+                                timezone={project.project_timezone}
+                                remaining={
+                                  remainingSlots[scheduleId] ??
+                                  formatSlotCapacity(slot.volunteers)
+                                }
+                                capacity={formatSlotCapacity(slot.volunteers)}
+                                action={renderSlotAction(
+                                  scheduleId,
+                                  isMultiDaySlotPastByScheduleId(
+                                    project,
+                                    scheduleId,
+                                  ),
+                                )}
+                                attendees={
+                                  showSlotAttendees ? (
+                                    <SlotAttendeesDropdown
+                                      attendees={getAttendeesForSlot(
+                                        scheduleId,
+                                      )}
+                                    />
+                                  ) : null
+                                }
+                              />
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })}
 
                 {project.event_type === "sameDayMultiArea" &&
                   project.schedule.sameDayMultiArea && (
-                    <div className="space-y-3">
-                      <div className="mb-4">
-                        <h3 className="font-medium mb-2">
-                          {(() => {
-                            const dateStr =
-                              project.schedule.sameDayMultiArea.date;
-                            const [year, month, dayNum] = dateStr
-                              .split("-")
-                              .map(Number);
-                            // Use Date to correctly handle timezones
-                            const date = new Date(year, month - 1, dayNum);
-                            return format(date, "EEEE, MMMM d");
-                          })()}
-                        </h3>
-                        <div className="space-y-2">
-                          {project.schedule.sameDayMultiArea.roles.map(
-                            (role) => (
-                              <div
-                                key={role.name}
-                                className="border rounded-lg p-3 bg-card/50 hover:bg-card/80 transition-colors"
-                              >
-                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-sm mb-1.5 wrap-break-word">
-                                      {role.name}
-                                    </h4>
-                                    <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
-                                      <div className="flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5 shrink-0" />
-                                        <span>
-                                          {(() => {
-                                            const startLabel = role.startTime
-                                              ? formatTimeTo12Hour(
-                                                  role.startTime,
-                                                )
-                                              : "TBD";
-                                            const endLabel = role.endTime
-                                              ? formatTimeTo12Hour(role.endTime)
-                                              : undefined;
-                                            return endLabel
-                                              ? `${startLabel} - ${endLabel}`
-                                              : startLabel;
-                                          })()}
-                                        </span>
-                                        {project.project_timezone && (
-                                          <TimezoneBadge
-                                            timezone={project.project_timezone}
-                                          />
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-1.5">
-                                        <Users className="h-3.5 w-3.5 shrink-0" />
-                                        <span>
-                                          <span className="font-medium text-foreground">
-                                            {remainingSlots[role.name] ??
-                                              formatSlotCapacity(
-                                                role.volunteers,
-                                              )}
-                                          </span>{" "}
-                                          of{" "}
-                                          {formatSlotCapacity(role.volunteers)}{" "}
-                                          spots
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col gap-2 items-stretch sm:items-end shrink-0">
-                                    <Button
-                                      variant={
-                                        pendingSlots[role.name]
-                                          ? "outline"
-                                          : hasSignedUp[role.name]
-                                            ? "secondary"
-                                            : rejectedSlots[role.name]
-                                              ? "destructive"
-                                              : "default"
-                                      }
-                                      size="sm"
-                                      onClick={() =>
-                                        handleSignUpClick(role.name)
-                                      }
-                                      disabled={
-                                        isCreator ||
-                                        loadingStates[role.name] ||
-                                        calculatedStatus === "cancelled" ||
-                                        isSameDayMultiAreaSlotPast(
-                                          project,
-                                          role.name,
-                                        ) ||
-                                        rejectedSlots[role.name] ||
-                                        attendedSlots[role.name] ||
-                                        (!hasSignedUp[role.name] &&
-                                          remainingSlots[role.name] === 0)
-                                      }
-                                      className={`w-full sm:w-auto ${attendedSlots[role.name] || isSameDayMultiAreaSlotPast(project, role.name) ? "opacity-50 cursor-not-allowed" : ""}`}
-                                    >
-                                      {isSameDayMultiAreaSlotPast(
-                                        project,
-                                        role.name,
-                                      )
-                                        ? "Time Passed"
-                                        : renderSignupButton(role.name)}
-                                    </Button>
-                                  </div>
-                                </div>
-                                {(project.show_attendees_publicly ||
-                                  canManageProject) && (
-                                  <SlotAttendeesDropdown
-                                    attendees={getAttendeesForSlot(role.name)}
-                                  />
-                                )}
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
+                    <div className="grid gap-2">
+                      <h3 className="text-sm font-medium">
+                        {formatScheduleDay(
+                          project.schedule.sameDayMultiArea.date,
+                        )}
+                      </h3>
+                      <ul className="divide-y">
+                        {project.schedule.sameDayMultiArea.roles.map((role) => (
+                          <ProjectSlotRow
+                            key={role.name}
+                            title={role.name}
+                            timeLabel={formatSlotTimeRange(
+                              role.startTime,
+                              role.endTime,
+                            )}
+                            timezone={project.project_timezone}
+                            remaining={
+                              remainingSlots[role.name] ??
+                              formatSlotCapacity(role.volunteers)
+                            }
+                            capacity={formatSlotCapacity(role.volunteers)}
+                            action={renderSlotAction(
+                              role.name,
+                              isSameDayMultiAreaSlotPast(project, role.name),
+                            )}
+                            attendees={
+                              showSlotAttendees ? (
+                                <SlotAttendeesDropdown
+                                  attendees={getAttendeesForSlot(role.name)}
+                                />
+                              ) : null
+                            }
+                          />
+                        ))}
+                      </ul>
                     </div>
                   )}
 
                 {/* Message for cancelled projects */}
                 {calculatedStatus === "cancelled" && (
-                  <div className="flex items-start gap-2 rounded-md border border-destructive p-3 bg-destructive/10 mt-4">
-                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                    <div className="text-sm text-muted-foreground">
+                  <Alert variant="destructive">
+                    <AlertTriangle aria-hidden="true" />
+                    <AlertDescription>
                       <p>
                         This project has been cancelled and is no longer
                         accepting signups.
@@ -2193,260 +1873,32 @@ export default function ProjectDetails({
                           {project.cancellation_reason}
                         </p>
                       )}
-                    </div>
-                  </div>
+                    </AlertDescription>
+                  </Alert>
                 )}
 
                 {/* Message for completed projects */}
                 {calculatedStatus === "completed" && (
-                  <div className="flex items-start gap-2 rounded-md border p-3 bg-muted/50 mt-4">
-                    <CheckCircle2 className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <div className="text-sm text-muted-foreground">
-                      <p>
-                        This project has been completed and is no longer
-                        accepting signups.
-                      </p>
-                    </div>
-                  </div>
+                  <Alert>
+                    <CheckCircle2 aria-hidden="true" />
+                    <AlertDescription>
+                      This project has been completed and is no longer accepting
+                      signups.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </CardContent>
             </Card>
           </div>
 
           {/* Right Column */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Project Details */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>Project Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Project Cover Image - Only show if it exists */}
-                {project.cover_image_url && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                      Project Image
-                    </h3>
-                    <div
-                      className="relative mb-4 cursor-pointer max-w-100"
-                      onClick={() =>
-                        openPreview(
-                          project.cover_image_url!,
-                          project.title,
-                          "image/jpeg",
-                        )
-                      }
-                    >
-                      <div className="overflow-hidden rounded-md border">
-                        <Image
-                          src={project.cover_image_url}
-                          alt={project.title}
-                          width={300}
-                          height={180}
-                          loading={demoMode ? "eager" : "lazy"}
-                          className="object-cover w-full aspect-video h-auto hover:scale-105 transition-transform"
-                        />
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPreview(
-                            project.cover_image_url!,
-                            project.title,
-                            "image/jpeg",
-                          );
-                        }}
-                      >
-                        <Eye className="size-4 mr-1" /> View
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {/* Project Coordinator */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Project Coordinator
-                  </h3>
-                  <div className="space-y-4">
-                    <ProfileHoverCard
-                      username={creator?.username || ""}
-                      fullName={creator?.full_name || "Anonymous"}
-                      avatarUrl={creator?.avatar_url || undefined}
-                      createdAt={creator?.created_at || undefined}
-                    >
-                      <Link
-                        href={`/profile/${creator?.username || ""}`}
-                        className="flex items-center gap-3"
-                      >
-                        <Avatar className="size-10">
-                          {creator?.avatar_url ? (
-                            <AvatarImage
-                              src={creator.avatar_url}
-                              alt={creator?.full_name || "Creator"}
-                            />
-                          ) : null}
-                          <AvatarFallback className="bg-muted">
-                            <NoAvatar
-                              fullName={creator?.full_name}
-                              className="text-sm font-medium"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">
-                            {creator?.full_name || "Anonymous"}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            @{creator?.username || "user"}
-                          </p>
-                        </div>
-                      </Link>
-                    </ProfileHoverCard>
-
-                    {project.organization && (
-                      <>
-                        <div className="flex items-center my-2">
-                          <Separator className="shrink" />
-                          <span className="px-2 text-xs text-muted-foreground flex items-center">
-                            <Building2 className="size-4 mr-1 shrink-0" />{" "}
-                            Organization
-                          </span>
-                          <Separator className="shrink" />
-                        </div>
-                        <OrganizationHoverCard
-                          organization={project.organization}
-                        >
-                          <Link
-                            href={`/organization/${project.organization.username}`}
-                            className="flex items-center gap-3"
-                          >
-                            <Avatar className="size-9 border border-muted">
-                              {project.organization.logo_url ? (
-                                <AvatarImage
-                                  src={project.organization.logo_url}
-                                  alt={project.organization.name}
-                                />
-                              ) : (
-                                <AvatarFallback className="bg-muted text-xs">
-                                  {project.organization.name
-                                    .substring(0, 2)
-                                    .toUpperCase()}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-sm font-medium hover:underline underline-offset-4 truncate">
-                                  {project.organization.name}
-                                </p>
-                                {project.organization.verified && (
-                                  <BadgeCheck className="size-4 text-primary" />
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                @{project.organization.username}
-                              </p>
-                            </div>
-                          </Link>
-                        </OrganizationHoverCard>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                {creator?.email && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                      Contact Information
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-1 text-sm">
-                        <span>{creator.email}</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          window.location.href = `mailto:${creator.email}?subject=Regarding project: ${project.title}`;
-                          toast.success("Opening email client");
-                        }}
-                        className="mt-1 flex items-center gap-2"
-                      >
-                        <Mail className="size-4" />
-                        Contact Project Coordinator
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Sign-up Requirements */}
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Sign-up Requirements
-                  </h3>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge
-                      variant={project.require_login ? "secondary" : "outline"}
-                      className="text-xs flex items-center gap-1"
-                    >
-                      {project.require_login ? (
-                        <>
-                          <Lock className="h-3 w-3" />
-                          Account Required
-                        </>
-                      ) : (
-                        <>
-                          <Users className="h-3 w-3" />
-                          Anonymous Sign-ups Allowed
-                        </>
-                      )}
-                    </Badge>
-
-                    {project.waiver_required && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs flex items-center gap-1"
-                      >
-                        <FileText className="h-3 w-3" />
-                        Waiver Required
-                      </Badge>
-                    )}
-
-                    {/* Add verification method badge */}
-                    <Badge
-                      variant="outline"
-                      className="text-xs flex items-center gap-1"
-                    >
-                      {project.verification_method === "qr-code" ? (
-                        <>
-                          <QrCode className="h-3 w-3" />
-                          QR Code Check-in
-                        </>
-                      ) : project.verification_method === "manual" ? (
-                        <>
-                          <UserCheck className="h-3 w-3" />
-                          Manual Check-in
-                        </>
-                      ) : project.verification_method === "auto" ? (
-                        <>
-                          <Zap className="h-3 w-3" />
-                          Automatic Check-in
-                        </>
-                      ) : (
-                        <>
-                          <Users className="h-3 w-3" />
-                          Sign-up Only
-                        </>
-                      )}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid content-start gap-6 lg:col-span-2">
+            <ProjectDetailsAside
+              project={project}
+              creator={creator}
+              eagerImage={Boolean(demoMode)}
+              onPreviewImage={openPreview}
+            />
 
             {/* Location Map */}
             <LocationMapCard
@@ -2456,63 +1908,22 @@ export default function ProjectDetails({
 
             {/* Project Documents Section */}
             {project.documents && project.documents.length > 0 && (
-              <Card>
-                <CardHeader className="">
-                  <CardTitle>Project Documents</CardTitle>
-                </CardHeader>
-                <CardContent className="">
-                  <div className="space-y-3">
-                    {project.documents.map(
-                      (doc: ProjectDocument, index: number) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 rounded-lg border bg-background hover:bg-muted/20 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 w-0 flex-1">
-                            <div className="bg-muted p-2 rounded-md shrink-0">
-                              {getFileIcon(doc.type)}
-                            </div>
-                            <div className="min-w-0 w-full overflow-hidden">
-                              <p className="font-medium text-sm truncate">
-                                {doc.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatBytes(doc.size)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 shrink-0 ml-2">
-                            {isPreviewable(doc.type) && (
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() =>
-                                  openPreview(doc.url, doc.name, doc.type)
-                                }
-                              >
-                                <Eye className="size-4" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => downloadFile(doc.url, doc.name)}
-                            >
-                              <Download className="size-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+              <ProjectDocumentsCard
+                documents={project.documents}
+                onPreview={openPreview}
+              />
             )}
           </div>
         </div>
       </div>
+
+      {signupCta && !demoMode ? (
+        <ProjectSignupBar
+          title={project.title}
+          detail={formatDateDisplay(project)}
+          cta={signupCta}
+        />
+      ) : null}
 
       {/* Authentication Dialog */}
       <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
@@ -2665,7 +2076,7 @@ export default function ProjectDetails({
         <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-amber-500" />
+              <Mail className="h-5 w-5 text-warning" />
               Email Confirmation Pending
             </DialogTitle>
             <DialogDescription className="pt-2">

@@ -3,14 +3,29 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { getProjectStatus } from "@/utils/project";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, Award, Repeat } from "lucide-react";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { PageHeader } from "@/components/layout/PageHeader";
+import {
+  CalendarDaysIcon,
+  CompassIcon,
+  PlusIcon,
+  UsersIcon,
+} from "@/components/icons/animated";
+import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
+import { EmptyStateIcon } from "@/components/projects/EmptyStateIcon";
+import { Award, Repeat, Users } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
 import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
-import { cn } from "@/lib/utils";
 import { ProjectCard } from "./ProjectCard";
 import { format } from "date-fns";
 import { ACTIVE_PROJECT_SIGNUP_STATUSES } from "@/lib/projects/availability";
@@ -93,6 +108,28 @@ type ProjectSignupRow = { status?: string | null };
 
 interface ProjectWithSignups extends ProjectWithCreator {
   project_signups?: ProjectSignupRow[] | null;
+}
+
+const CARD_GRID =
+  "grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4";
+
+const countVolunteers = (project: ProjectWithSignups) =>
+  (project.project_signups || []).filter(
+    (s) => s.status === "approved" || s.status === "attended",
+  ).length;
+
+const formatVolunteers = (count: number) =>
+  `${count} ${count === 1 ? "volunteer" : "volunteers"}`;
+
+function GroupHeading({ title, count }: { title: string; count: number }) {
+  return (
+    <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
+      {title}
+      <span className="text-muted-foreground text-sm font-normal tabular-nums">
+        {count}
+      </span>
+    </h2>
+  );
 }
 
 export default async function UserProjects() {
@@ -258,118 +295,133 @@ export default async function UserProjects() {
       p.status !== "cancelled",
   );
 
-  return (
-    <main className="mx-auto px-4 sm:px-8 lg:px-12 py-8 min-h-screen">
-      <h1 className="text-3xl font-bold mb-2">My Projects</h1>
-      <p className="text-muted-foreground mb-5">
-        Projects you&apos;ve signed up for and projects you&apos;ve created.
-      </p>
+  const volunteeredCount = processedVolunteeredProjects.length;
+  const createdCount = processedCreatedProjects.length;
 
-      <Tabs defaultValue="volunteering" className="space-y-5">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="volunteering">Volunteering For</TabsTrigger>
-          <TabsTrigger value="created">Created</TabsTrigger>
+  return (
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6">
+      <PageHeader
+        title="My projects"
+        description="Projects you've signed up for and projects you've created."
+      />
+
+      <Tabs defaultValue="volunteering" className="mt-6 gap-6">
+        <TabsList variant="line" className="border-b">
+          <TabsTrigger value="volunteering" className="flex-none px-3">
+            Volunteering for
+            <span className="text-muted-foreground tabular-nums">
+              {volunteeredCount}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="created" className="flex-none px-3">
+            Created
+            <span className="text-muted-foreground tabular-nums">
+              {createdCount}
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Projects you're volunteering for */}
-        <TabsContent value="volunteering" className="space-y-6">
+        <TabsContent value="volunteering" className="grid gap-8">
           {upcomingVolunteered.length === 0 &&
           inProgressVolunteered.length === 0 &&
           pastVolunteered.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="mx-auto size-14 bg-muted flex items-center justify-center rounded-full mb-3">
-                <Calendar className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium mb-2">
-                No volunteer signups yet
-              </h3>
-              <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
-                You haven&apos;t signed up for any volunteer projects yet.
-              </p>
-              <Link
-                href="/projects"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Browse Projects
-              </Link>
-            </div>
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <EmptyStateIcon icon={CalendarDaysIcon} />
+                </EmptyMedia>
+                <EmptyTitle>No volunteer signups yet</EmptyTitle>
+                <EmptyDescription>
+                  You haven&apos;t signed up for any volunteer projects yet.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <AnimatedLinkButton href="/home" icon={CompassIcon}>
+                  Browse projects
+                </AnimatedLinkButton>
+              </EmptyContent>
+            </Empty>
           ) : (
             <>
-              {/* Upcoming volunteer projects */}
-              <section>
-                <h2 className="text-lg font-semibold mb-3">
-                  Upcoming ({upcomingVolunteered.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {upcomingVolunteered.map((project) => (
-                    <ProjectCard
-                      key={`volunteer-${project.id}`}
-                      project={project}
-                      href={`/projects/${project.id}`}
-                      topLeftBadge={
-                        <ProjectStatusBadge size="sm" status={project.status} />
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-
               {/* In progress volunteer projects */}
               {inProgressVolunteered.length > 0 && (
-                <section className="mt-6">
-                  <h2 className="text-lg font-semibold mb-3">
-                    In Progress ({inProgressVolunteered.length})
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <section>
+                  <GroupHeading
+                    title="In progress"
+                    count={inProgressVolunteered.length}
+                  />
+                  <div className={CARD_GRID}>
                     {inProgressVolunteered.map((project) => (
                       <ProjectCard
                         key={`volunteer-progress-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
-                        topLeftBadge={
+                        badge={
                           <ProjectStatusBadge
                             size="sm"
                             status={project.status}
                           />
                         }
-                        className="border-primary/30"
                       />
                     ))}
                   </div>
                 </section>
               )}
 
+              {/* Upcoming volunteer projects */}
+              <section>
+                <GroupHeading
+                  title="Upcoming"
+                  count={upcomingVolunteered.length}
+                />
+                {upcomingVolunteered.length > 0 ? (
+                  <div className={CARD_GRID}>
+                    {upcomingVolunteered.map((project) => (
+                      <ProjectCard
+                        key={`volunteer-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}`}
+                        badge={
+                          <ProjectStatusBadge
+                            size="sm"
+                            status={project.status}
+                          />
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Nothing upcoming.
+                  </p>
+                )}
+              </section>
+
               {/* Past volunteer projects */}
               {pastVolunteered.length > 0 && (
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">
-                    Past ({pastVolunteered.length})
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <GroupHeading title="Past" count={pastVolunteered.length} />
+                  <div className={CARD_GRID}>
                     {pastVolunteered.map((project) => (
                       <ProjectCard
                         key={`volunteer-past-${project.id}-${project.signup_id}`}
                         project={project}
                         href={`/projects/${project.id}`}
-                        topLeftBadge={
+                        badge={
                           project.areHoursPublished ? (
-                            <Badge
-                              variant="default"
-                              className="bg-success text-success-foreground"
-                            >
-                              <Award className="h-3 w-3 mr-1" />
-                              Hours Published
+                            <Badge variant="success">
+                              <Award aria-hidden="true" />
+                              Hours published
                             </Badge>
                           ) : (
                             <Badge variant="secondary">
                               {project.status === "cancelled"
                                 ? "Cancelled"
-                                : "Past Event"}
+                                : "Past event"}
                             </Badge>
                           )
                         }
-                        className="bg-muted/30"
-                        actionVariant="outline"
                       />
                     ))}
                   </div>
@@ -380,87 +432,48 @@ export default async function UserProjects() {
         </TabsContent>
 
         {/* Projects you've created */}
-        <TabsContent value="created" className="space-y-6">
+        <TabsContent value="created" className="grid gap-8">
           {upcomingCreated.length === 0 &&
           inProgressCreated.length === 0 &&
           pastCreated.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="mx-auto size-14 bg-muted flex items-center justify-center rounded-full mb-3">
-                <Users className="h-7 w-7 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium mb-2">
-                No projects created yet
-              </h3>
-              <p className="text-muted-foreground mb-5 max-w-md mx-auto text-sm">
-                You haven&apos;t created any volunteer projects yet.
-              </p>
-              <Link
-                href="/projects/create"
-                className={cn(buttonVariants({ size: "sm" }))}
-              >
-                Create First Project
-              </Link>
-            </div>
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <EmptyStateIcon icon={UsersIcon} />
+                </EmptyMedia>
+                <EmptyTitle>No projects created yet</EmptyTitle>
+                <EmptyDescription>
+                  You haven&apos;t created any volunteer projects yet.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <AnimatedLinkButton href="/projects/create" icon={PlusIcon}>
+                  Create first project
+                </AnimatedLinkButton>
+              </EmptyContent>
+            </Empty>
           ) : (
             <>
-              {/* Recurring Events section */}
-              {recurringCreated.length > 0 && (
-                <section className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Repeat className="h-5 w-5 text-primary" />
-                      <h2 className="text-lg font-semibold">
-                        Recurring Events ({recurringCreated.length})
-                      </h2>
-                    </div>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      Auto-repeat schedule
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    {recurringCreated.map((project) => (
-                      <Link
-                        key={`recurring-${project.id}`}
+              {/* In progress created projects */}
+              {inProgressCreated.length > 0 && (
+                <section>
+                  <GroupHeading
+                    title="In progress"
+                    count={inProgressCreated.length}
+                  />
+                  <div className={CARD_GRID}>
+                    {inProgressCreated.map((project) => (
+                      <ProjectCard
+                        key={`created-progress-${project.id}`}
+                        project={project}
                         href={`/projects/${project.id}`}
-                        className="block group"
-                      >
-                        <div className="flex items-center gap-3 p-3 rounded-lg border border-primary/20 bg-linear-to-r from-primary/5 to-transparent hover:from-primary/10 hover:border-primary/30 transition-all duration-200">
-                          <div className="shrink-0">
-                            <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                              <Repeat className="h-5 w-5 text-primary" />
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                              {project.title}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <p className="text-xs text-muted-foreground truncate">
-                                {project.recurrence_rule &&
-                                  formatRecurrenceSummary(
-                                    project.recurrence_rule,
-                                  )}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="shrink-0 hidden sm:flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {
-                                (project.project_signups || []).filter(
-                                  (s) =>
-                                    s.status === "approved" ||
-                                    s.status === "attended",
-                                ).length
-                              }{" "}
-                              volunteers
-                            </Badge>
-                            <ProjectStatusBadge
-                              size="sm"
-                              status={project.status}
-                            />
-                          </div>
-                        </div>
-                      </Link>
+                        showIdentity={false}
+                        badge={
+                          <Badge variant="outline">
+                            {formatVolunteers(countVolunteers(project))}
+                          </Badge>
+                        }
+                      />
                     ))}
                   </div>
                 </section>
@@ -468,95 +481,95 @@ export default async function UserProjects() {
 
               {/* Upcoming created projects */}
               <section>
-                <h2 className="text-lg font-semibold mb-3">
-                  Upcoming ({upcomingCreated.length})
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {upcomingCreated.map((project) => (
-                    <ProjectCard
-                      key={`created-${project.id}`}
-                      project={project}
-                      href={`/projects/${project.id}`}
-                      showIdentity={false}
-                      topLeftBadge={
-                        <Badge variant="outline" className="text-xs">
-                          {
-                            (project.project_signups || []).filter(
-                              (s) =>
-                                s.status === "approved" ||
-                                s.status === "attended",
-                            ).length
-                          }{" "}
-                          volunteers
-                        </Badge>
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-
-              {/* In progress created projects */}
-              {inProgressCreated.length > 0 && (
-                <section className="mt-6">
-                  <h2 className="text-lg font-semibold mb-3">
-                    In Progress ({inProgressCreated.length})
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {inProgressCreated.map((project) => (
+                <GroupHeading title="Upcoming" count={upcomingCreated.length} />
+                {upcomingCreated.length > 0 ? (
+                  <div className={CARD_GRID}>
+                    {upcomingCreated.map((project) => (
                       <ProjectCard
-                        key={`created-progress-${project.id}`}
+                        key={`created-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
                         showIdentity={false}
-                        topLeftBadge={
-                          <Badge variant="outline" className="text-xs">
-                            {
-                              (project.project_signups || []).filter(
-                                (s) =>
-                                  s.status === "approved" ||
-                                  s.status === "attended",
-                              ).length
-                            }{" "}
-                            volunteers
+                        badge={
+                          <Badge variant="outline">
+                            {formatVolunteers(countVolunteers(project))}
                           </Badge>
                         }
-                        className="border-primary/30"
                       />
                     ))}
                   </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Nothing upcoming.
+                  </p>
+                )}
+              </section>
+
+              {/* Recurring events */}
+              {recurringCreated.length > 0 && (
+                <section>
+                  <GroupHeading
+                    title="Recurring events"
+                    count={recurringCreated.length}
+                  />
+                  <ul className="divide-y rounded-lg border">
+                    {recurringCreated.map((project) => (
+                      <li key={`recurring-${project.id}`}>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="hover:bg-muted focus-visible:ring-ring/50 flex items-center gap-3 px-4 py-3 outline-none focus-visible:ring-[3px]"
+                        >
+                          <Repeat
+                            className="text-muted-foreground size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <div className="grid min-w-0 flex-1 gap-0.5">
+                            <h3 className="truncate text-sm font-medium">
+                              {project.title}
+                            </h3>
+                            <p className="text-muted-foreground truncate text-sm">
+                              {project.recurrence_rule &&
+                                formatRecurrenceSummary(
+                                  project.recurrence_rule,
+                                )}
+                            </p>
+                          </div>
+                          <span className="text-muted-foreground hidden shrink-0 text-sm tabular-nums sm:block">
+                            {formatVolunteers(countVolunteers(project))}
+                          </span>
+                          <ProjectStatusBadge
+                            size="sm"
+                            status={project.status}
+                            className="hidden sm:inline-flex"
+                          />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               )}
 
               {/* Past created projects */}
               {pastCreated.length > 0 && (
                 <section>
-                  <h2 className="text-lg font-semibold mb-3">
-                    Past ({pastCreated.length})
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <GroupHeading title="Past" count={pastCreated.length} />
+                  <div className={CARD_GRID}>
                     {pastCreated.map((project) => (
                       <ProjectCard
                         key={`created-past-${project.id}`}
                         project={project}
                         href={`/projects/${project.id}`}
                         showIdentity={false}
-                        topLeftBadge={
-                          <Badge variant="secondary">Past Event</Badge>
-                        }
-                        className="bg-muted/30"
-                        actionVariant="outline"
+                        badge={<Badge variant="secondary">Past event</Badge>}
                         footerContent={
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>
-                              {
-                                (project.project_signups || []).filter(
-                                  (s) =>
-                                    s.status === "approved" ||
-                                    s.status === "attended",
-                                ).length
-                              }{" "}
-                              volunteers participated
+                          <div className="flex items-center gap-2">
+                            <Users
+                              className="text-muted-foreground size-4 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span className="truncate tabular-nums">
+                              {formatVolunteers(countVolunteers(project))}{" "}
+                              participated
                             </span>
                           </div>
                         }

@@ -1,7 +1,8 @@
 import { revalidatePath } from "next/cache";
 import { SuccessMessage } from "./SuccessMessage";
 import { ErrorMessage } from "./ErrorMessage";
-import { Loader2 } from "lucide-react";
+import { NoticePage } from "@/components/projects/NoticePage";
+import { Spinner } from "@/components/ui/spinner";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
 import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
 
@@ -141,12 +142,7 @@ export default async function ConfirmationPage({
     case "processing": // Should ideally not be shown unless there's an issue before calling performConfirmation
     default:
       return (
-        <div className="container mx-auto flex min-h-[calc(100vh-150px)] items-center justify-center px-4 py-10">
-          <div className="flex flex-col items-center gap-4 text-muted-foreground">
-            <Loader2 className="h-12 w-12 animate-spin" />
-            <p>Processing confirmation...</p>
-          </div>
-        </div>
+        <NoticePage icon={<Spinner />} title="Processing confirmation..." />
       );
   }
 }

@@ -34,7 +34,7 @@ export function CertificatesSection() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Award className="h-5 w-5" />
-            Understanding Certificates
+            Understanding certificates
           </CardTitle>
           <CardDescription>
             Learn how certificates work and how to use them for verification
@@ -43,7 +43,7 @@ export function CertificatesSection() {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold">What are Certificates?</h4>
+              <h4 className="font-semibold">What are certificates?</h4>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Award className="h-4 w-4 text-success" />
@@ -64,7 +64,7 @@ export function CertificatesSection() {
               </ul>
             </div>
             <div className="space-y-3">
-              <h4 className="font-semibold">Certificate Types</h4>
+              <h4 className="font-semibold">Certificate types</h4>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Badge
@@ -105,7 +105,7 @@ export function CertificatesSection() {
             <p>Access your certificates from multiple locations:</p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">Certificates Page:</h6>
+                <h6 className="font-medium mb-2">Certificates page:</h6>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>Click &quot;Certificates&quot; in the main navigation</li>
                   <li>Browse all your certificates in a grid view</li>
@@ -114,7 +114,7 @@ export function CertificatesSection() {
                 </ol>
               </div>
               <div>
-                <h6 className="font-medium mb-2">Dashboard Access:</h6>
+                <h6 className="font-medium mb-2">Dashboard access:</h6>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>View recent certificates on your dashboard</li>
                   <li>See certificate count and total hours</li>
@@ -125,9 +125,11 @@ export function CertificatesSection() {
             </div>
             <Link
               href="/certificates"
-              className={cn(buttonVariants({ size: "sm", className: "mt-2" }))}
+              className={cn(
+                buttonVariants({ variant: "outline", className: "mt-2" }),
+              )}
             >
-              View My Certificates
+              View my certificates
             </Link>
           </AccordionContent>
         </AccordionItem>
@@ -149,7 +151,7 @@ export function CertificatesSection() {
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">Basic Information:</h6>
+                <h6 className="font-medium mb-2">Basic information:</h6>
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li>Project title and description</li>
                   <li>Organization name (if applicable)</li>
@@ -159,7 +161,7 @@ export function CertificatesSection() {
                 </ul>
               </div>
               <div>
-                <h6 className="font-medium mb-2">Verification Details:</h6>
+                <h6 className="font-medium mb-2">Verification details:</h6>
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li>Certification status (Certified/Participated)</li>
                   <li>Issuing organization information</li>
@@ -194,7 +196,7 @@ export function CertificatesSection() {
               <div className="flex items-start gap-3 p-2 border rounded">
                 <Share2 className="h-4 w-4 mt-1 text-primary" />
                 <div>
-                  <h6 className="font-medium text-xs">Direct Links</h6>
+                  <h6 className="font-medium text-xs">Direct links</h6>
                   <p className="text-xs text-muted-foreground">
                     Each certificate has a unique URL that can be shared with
                     schools, employers, or scholarship committees
@@ -204,7 +206,7 @@ export function CertificatesSection() {
               <div className="flex items-start gap-3 p-2 border rounded">
                 <Download className="h-4 w-4 mt-1 text-primary" />
                 <div>
-                  <h6 className="font-medium text-xs">PDF Downloads</h6>
+                  <h6 className="font-medium text-xs">PDF downloads</h6>
                   <p className="text-xs text-muted-foreground">
                     Download individual certificates as PDF files for printing
                     or email attachments
@@ -214,7 +216,7 @@ export function CertificatesSection() {
               <div className="flex items-start gap-3 p-2 border rounded">
                 <Printer className="h-4 w-4 mt-1 text-primary" />
                 <div>
-                  <h6 className="font-medium text-xs">Print Options</h6>
+                  <h6 className="font-medium text-xs">Print options</h6>
                   <p className="text-xs text-muted-foreground">
                     Print single certificates or bulk print multiple
                     certificates for physical submission
@@ -252,7 +254,7 @@ export function CertificatesSection() {
                 </ol>
               </div>
               <div>
-                <h6 className="font-medium mb-2">From Certificates Page:</h6>
+                <h6 className="font-medium mb-2">From Certificates page:</h6>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>Visit your Certificates page</li>
                   <li>Use filter options to select specific certificates</li>
@@ -262,7 +264,7 @@ export function CertificatesSection() {
               </div>
             </div>
             <div className="bg-info/20 p-3 rounded-lg">
-              <h6 className="font-medium text-xs mb-1">CSV Export Includes:</h6>
+              <h6 className="font-medium text-xs mb-1">CSV export includes:</h6>
               <ul className="text-xs space-y-1">
                 <li>• Certificate ID and project details</li>
                 <li>• Organization and verification status</li>
@@ -306,7 +308,7 @@ export function CertificatesSection() {
               </div>
               <div className="p-3 border rounded-lg">
                 <h6 className="font-medium text-xs mb-2">
-                  All Certificates Include:
+                  All certificates include:
                 </h6>
                 <ul className="text-xs text-muted-foreground space-y-1">
                   <li>• Unique certificate ID for tracking</li>
@@ -339,7 +341,7 @@ export function CertificatesSection() {
             <p>Make your certificates more valuable and credible:</p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">When Creating Projects:</h6>
+                <h6 className="font-medium mb-2">When creating projects:</h6>
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li>Include detailed project descriptions</li>
                   <li>Add specific location information</li>
@@ -349,7 +351,7 @@ export function CertificatesSection() {
                 </ul>
               </div>
               <div>
-                <h6 className="font-medium mb-2">For Better Verification:</h6>
+                <h6 className="font-medium mb-2">For better verification:</h6>
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li>Join verified organizations when possible</li>
                   <li>Provide supervisor contact information</li>

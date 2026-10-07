@@ -1,11 +1,6 @@
 import React from "react";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -13,40 +8,25 @@ interface ProjectCardSkeletonProps {
   className?: string;
 }
 
+/** Same shape as a feed card: title, host, then the three fact rows. */
 export function ProjectCardSkeleton({ className }: ProjectCardSkeletonProps) {
   return (
-    <Card
-      className={cn(
-        "overflow-hidden flex flex-col h-full py-0 gap-0",
-        className,
-      )}
-    >
-      <CardHeader className="p-4 pb-2 space-y-3">
-        <div className="flex justify-between items-start gap-2">
-          <Skeleton className="h-5 w-14 rounded-full" />
-          <Skeleton className="h-5 w-20 rounded-full" />
+    <Card className={cn("h-full gap-3", className)}>
+      <div className="grid gap-1.5 px-4">
+        <div className="grid min-h-11 content-start gap-2 pt-1">
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-4 w-1/2" />
         </div>
-        <Skeleton className="h-4 w-4/5" />
-        <Skeleton className="h-4 w-2/3" />
-      </CardHeader>
-
-      <CardContent className="p-4 pt-2 grow space-y-4">
         <div className="flex items-center gap-2">
-          <Skeleton className="size-3.5 rounded-full" />
-          <Skeleton className="h-4 w-32" />
+          <Skeleton className="size-5 rounded-full" />
+          <Skeleton className="h-4 w-28" />
         </div>
-
-        <div className="flex items-center gap-2 pt-1">
-          <Skeleton className="size-6 rounded-full" />
-          <Skeleton className="h-3.5 w-24" />
-        </div>
-
-        <Skeleton className="h-14 w-full" />
-      </CardContent>
-
-      <CardFooter className="p-4 pt-0 mt-auto bg-transparent border-t-0">
-        <Skeleton className="h-9 w-full rounded-md" />
-      </CardFooter>
+      </div>
+      <div className="mt-auto grid gap-1.5 border-t px-4 pt-3">
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-5 w-28" />
+      </div>
     </Card>
   );
 }

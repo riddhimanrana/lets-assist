@@ -1031,7 +1031,7 @@ export default function ProjectTimeline({
 
                     {project.pause_signups &&
                       milestone.id.startsWith("signup") && (
-                        <div className="mt-3 flex items-center bg-yellow-50 text-yellow-800 px-3 py-2 rounded-md text-xs">
+                        <div className="mt-3 flex items-center bg-warning/10 text-foreground px-3 py-2 rounded-md text-xs">
                           <AlertTriangle className="h-3.5 w-3.5 mr-2 shrink-0" />
                           <span>
                             Sign-ups are currently paused by project coordinator
