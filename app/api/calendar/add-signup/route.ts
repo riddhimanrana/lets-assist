@@ -50,6 +50,15 @@ export async function POST(request: Request) {
     if (signupError || !signup) {
       return NextResponse.json({ error: "Signup not found" }, { status: 404 });
     }
+    if (
+      signup.project_id !== project_id ||
+      signup.schedule_id !== schedule_id
+    ) {
+      return NextResponse.json(
+        { error: "Signup does not match the requested project schedule" },
+        { status: 400 },
+      );
+    }
 
     // Check if already synced
     if (signup.volunteer_calendar_event_id) {

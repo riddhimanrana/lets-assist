@@ -17,6 +17,10 @@ import {
 import { decrypt, decryptWithRotation, encrypt } from "@/lib/encryption";
 import { Project } from "@/types";
 import {
+  GOOGLE_EVENT_ID_PATTERN,
+  googleCalendarEventUrl,
+} from "@/lib/google-calendar-identifiers";
+import {
   GOOGLE_CALENDAR_API,
   GOOGLE_REVOKE_URL,
   GOOGLE_SHEETS_SCOPES,
@@ -183,25 +187,23 @@ export async function updateGoogleCalendarEventForCalendar(
   project: Project,
   scheduleId?: string,
 ): Promise<boolean> {
+  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
   const eventData = formatProjectToCalendarEvent(project, scheduleId);
   if (!eventData || Array.isArray(eventData)) {
     throw new Error("Invalid project schedule data");
   }
 
   try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId,
-      )}/events/${eventId}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventData),
+    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
+      method: "PUT",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(eventData),
+    });
 
     return response.ok;
   } catch (error) {
@@ -215,18 +217,16 @@ export async function deleteGoogleCalendarEventForCalendar(
   calendarId: string,
   eventId: string,
 ): Promise<boolean> {
+  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
   try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId,
-      )}/events/${eventId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
+      method: "DELETE",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
       },
-    );
+    });
 
     return response.ok || response.status === 404;
   } catch (error) {
@@ -332,15 +332,17 @@ export async function updateGoogleCalendarEvent(
   project: Project,
   scheduleId?: string,
 ): Promise<boolean> {
+  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
     throw new Error("No valid calendar connection found");
   }
 
-  // Get or create dedicated volunteering calendar
-  const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
+  // Mutating an existing event must never create a replacement calendar.
+  const connection = await getCalendarConnection(userId);
+  const calendarId = connection?.preferences?.volunteering_calendar_id;
   if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
+    console.error("No stored volunteering calendar is available");
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -350,19 +352,16 @@ export async function updateGoogleCalendarEvent(
   }
 
   try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId,
-      )}/events/${eventId}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(eventData),
+    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
+      method: "PUT",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(eventData),
+    });
 
     return response.ok;
   } catch (error) {
@@ -379,30 +378,29 @@ export async function deleteGoogleCalendarEvent(
   userId: string,
   eventId: string,
 ): Promise<boolean> {
+  if (!GOOGLE_EVENT_ID_PATTERN.test(eventId)) return false;
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
     throw new Error("No valid calendar connection found");
   }
 
-  // Get or create dedicated volunteering calendar
-  const calendarId = await getOrCreateVolunteeringCalendar(accessToken, userId);
+  // Mutating an existing event must never create a replacement calendar.
+  const connection = await getCalendarConnection(userId);
+  const calendarId = connection?.preferences?.volunteering_calendar_id;
   if (!calendarId) {
-    console.error("Failed to get or create volunteering calendar");
+    console.error("No stored volunteering calendar is available");
     throw new Error("Failed to access volunteering calendar");
   }
 
   try {
-    const response = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(
-        calendarId,
-      )}/events/${eventId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+    const response = await fetch(googleCalendarEventUrl(calendarId, eventId), {
+      method: "DELETE",
+      redirect: "error",
+      signal: AbortSignal.timeout(10_000),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
       },
-    );
+    });
 
     return response.ok || response.status === 404; // 404 means already deleted
   } catch (error) {
