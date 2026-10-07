@@ -230,26 +230,42 @@ export async function updateContentReportStatus(
   }
 
   const updatedReport = data[0];
+  let notificationWarning: string | undefined;
 
   if (
     (status === "resolved" || status === "dismissed") &&
     updatedReport?.reporter_id
   ) {
-    await notifyReporterOfReportUpdate({
-      supabase,
-      report: updatedReport,
-      status,
-      resolutionNotes,
-    });
+    try {
+      const delivery = await notifyReporterOfReportUpdate({
+        supabase,
+        report: updatedReport,
+        status,
+        resolutionNotes,
+      });
+      if (
+        delivery.notification !== "created" &&
+        delivery.email !== "accepted"
+      ) {
+        notificationWarning =
+          delivery.notification === "skipped" && delivery.email === "skipped"
+            ? "Reporter notifications are disabled by their preferences."
+            : "The reporter's notification could not be confirmed.";
+      }
+    } catch {
+      notificationWarning =
+        "The report was saved, but the reporter's notification could not be confirmed.";
+    }
   }
 
   return {
     data: updatedReport,
+    notificationWarning,
     message:
       status === "resolved"
-        ? "Case resolved. Reporter was notified."
+        ? `Case resolved.${notificationWarning ? ` ${notificationWarning}` : ""}`
         : status === "dismissed"
-          ? "Case dismissed. Reporter was notified."
+          ? `Case dismissed.${notificationWarning ? ` ${notificationWarning}` : ""}`
           : "Report updated",
   };
 }

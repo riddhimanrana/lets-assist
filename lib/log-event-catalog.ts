@@ -1,5 +1,9 @@
 // Reviewed static event names. Unknown messages are replaced before export.
 export const SAFE_LOG_MESSAGES = new Set<string>([
+  "Moderation email attempt",
+  "Moderation contact lookup failed",
+  "Moderation notification preferences could not be read",
+  "Moderation notification write failed",
   "CSF post mutation outcome resolver returned an invalid receipt",
   "CSF worker alert threshold reached",
   "Content report attempt metering failed",

@@ -103,17 +103,25 @@ for (const outcome of [
       supabase: h.client,
       invitationId: id,
       email,
-      dispatch: async () =>
-        ({
-          outcome,
-          success: false,
-          skipped: outcome === "skipped",
-          phase: "provider_request",
-          reason: "Synthetic reason",
-          error: "Synthetic provider failure",
-          code: "synthetic",
-          status: null,
-        }) as SendEmailResult,
+      dispatch: async (): Promise<SendEmailResult> =>
+        outcome === "skipped"
+          ? {
+              outcome,
+              success: false,
+              skipped: true,
+              phase: "transport_setup",
+              reason: "Synthetic reason",
+              code: "synthetic",
+            }
+          : {
+              outcome,
+              success: false,
+              skipped: false,
+              phase: "provider_request",
+              error: "Synthetic provider failure",
+              code: "synthetic",
+              status: null,
+            },
     });
     expect(result.success).toBe(false);
     expect(h.row.last_email_sent_at).toBeNull();
