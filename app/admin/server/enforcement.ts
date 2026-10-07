@@ -8,6 +8,10 @@ import {
   accountDeletionFailureMessage,
   deleteUserWithCleanup,
 } from "@/lib/supabase/delete-user-with-cleanup";
+import {
+  settleEnforcementEmail,
+  type EnforcementEmailState,
+} from "@/lib/admin/enforcement-email";
 import { sendEmail } from "@/services/email";
 import AccountAccessUpdateEmail from "@/emails/account-access-update";
 import { checkSuperAdmin } from "./auth";
@@ -19,26 +23,28 @@ export async function updateUserAccessControl(input: {
   reason?: string;
   /**
    * For bans: human-readable label shown to the user (e.g. "7 days", "indefinitely").
-   * Used in the email only—the actual block duration is supplied separately via banDurationHours.
+   * Used in the email. banDurationHours controls the block duration.
    */
   banDurationLabel?: string;
   /**
    * Supabase ban_duration string for timed bans (e.g. "24h", "168h").
-   * Omit for indefinite bans—defaults to "876000h" (~100 years).
+   * Omit for indefinite bans. The default is "876000h".
    */
   banDurationHours?: string;
   sendEmail?: boolean;
   sendNotification?: boolean;
-}): Promise<{
-  data?: {
-    userId: string;
-    status: AccountAccessStatus;
-    reason: string | null;
-    updatedAt: string;
-    bannedUntil: string | null;
-  };
-  error?: string;
-}> {
+}): Promise<
+  {
+    data?: {
+      userId: string;
+      status: AccountAccessStatus;
+      reason: string | null;
+      updatedAt: string;
+      bannedUntil: string | null;
+    };
+    error?: string;
+  } & Partial<EnforcementEmailState>
+> {
   "use server";
   const service = getAdminClient();
   const { isAdmin, userId: adminUserId } = await checkSuperAdmin();
@@ -92,6 +98,16 @@ export async function updateUserAccessControl(input: {
   const shouldSendEmail = input.sendEmail !== false;
   const supportUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`;
 
+  let emailState: EnforcementEmailState = {
+    emailDelivery: "not_attempted",
+    ...(shouldSendEmail && !userEmail
+      ? {
+          warning:
+            "Account change saved. No email address was available for its notice.",
+        }
+      : {}),
+  };
+
   // --- BAN -------------------------------------------------------------------
   // Block via Supabase native ban_duration. User data is kept intact.
   // Use "876000h" (~100 years) for indefinite bans so the ban is still revocable.
@@ -127,23 +143,27 @@ export async function updateUserAccessControl(input: {
       );
     }
     if (shouldSendEmail && userEmail) {
-      await sendEmail({
-        to: userEmail,
-        subject: "Your Let's Assist account has been banned",
-        react: AccountAccessUpdateEmail({
-          userName,
-          status: "banned",
-          reason: normalizedReason,
-          banDuration: input.banDurationLabel ?? "indefinitely",
-          supportUrl,
+      emailState = await settleEnforcementEmail(() =>
+        sendEmail({
+          to: userEmail,
+          subject: "Your Let's Assist account has been banned",
+          react: AccountAccessUpdateEmail({
+            userName,
+            status: "banned",
+            reason: normalizedReason,
+            banDuration: input.banDurationLabel ?? "indefinitely",
+            supportUrl,
+          }),
+          userId: input.userId,
+          type: "transactional",
+          idempotencyKey: `account-access/${input.userId}/${updatedAt}/banned`,
         }),
-        userId: input.userId,
-        type: "transactional",
-      });
+      );
     }
 
     const bannedUntilBan = readBannedUntil(banResult?.user);
     return {
+      ...emailState,
       data: {
         userId: input.userId,
         status: "banned",
@@ -177,22 +197,28 @@ export async function updateUserAccessControl(input: {
     );
   }
   if (shouldSendEmail && userEmail) {
-    await sendEmail({
-      to: userEmail,
-      subject: "Your Let's Assist account access has been restored",
-      react: AccountAccessUpdateEmail({
-        userName,
-        status: "active",
-        reason: null,
-        supportUrl,
+    emailState = await settleEnforcementEmail(() =>
+      sendEmail({
+        to: userEmail,
+        subject: "Your Let's Assist account access has been restored",
+        react: AccountAccessUpdateEmail({
+          userName,
+          status: "active",
+          reason: null,
+          supportUrl,
+        }),
+        userId: input.userId,
+        type: "transactional",
+        idempotencyKey: activeResult?.user?.updated_at
+          ? `account-access/${input.userId}/${activeResult.user.updated_at}/active`
+          : undefined,
       }),
-      userId: input.userId,
-      type: "transactional",
-    });
+    );
   }
 
   const bannedUntilActive = readBannedUntil(activeResult?.user);
   return {
+    ...emailState,
     data: {
       userId: input.userId,
       status: "active",
@@ -208,7 +234,9 @@ export async function deleteAndBlacklistUser(input: {
   userId: string;
   reason?: string;
   sendEmail?: boolean;
-}): Promise<{ success?: boolean; error?: string }> {
+}): Promise<
+  { success?: boolean; error?: string } & Partial<EnforcementEmailState>
+> {
   "use server";
   const { isAdmin, userId: adminUserId } = await checkSuperAdmin();
   if (!isAdmin || !adminUserId) return { error: "Unauthorized" };
@@ -225,33 +253,46 @@ export async function deleteAndBlacklistUser(input: {
     });
     if (report.phase !== "completed")
       return { error: accountDeletionFailureMessage(report) };
+    let emailState: EnforcementEmailState = { emailDelivery: "not_attempted" };
     // Send only after confirmed completion. A retry of a completed receipt does
     // not send again. A failed notification does not undo account removal.
     if (report.completedNow && input.sendEmail !== false) {
       try {
         const { data } = await service.auth.admin.getUserById(input.userId);
-        if (data.user?.email) {
-          await sendEmail({
-            to: data.user.email,
-            subject: "Your Let's Assist account has been permanently removed",
-            react: AccountAccessUpdateEmail({
-              userName: "there",
-              status: "banned",
-              reason: input.reason?.trim() || null,
-              banDuration: "indefinitely",
-              supportUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`,
+        const recipient = data.user?.email;
+        if (recipient) {
+          emailState = await settleEnforcementEmail(() =>
+            sendEmail({
+              to: recipient,
+              subject: "Your Let's Assist account has been permanently removed",
+              react: AccountAccessUpdateEmail({
+                userName: "there",
+                status: "banned",
+                reason: input.reason?.trim() || null,
+                banDuration: "indefinitely",
+                supportUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "https://lets-assist.com"}/help`,
+              }),
+              userId: input.userId,
+              type: "transactional",
+              idempotencyKey: `account-removal/${report.operationId}`,
             }),
-            userId: input.userId,
-            type: "transactional",
-          });
+          );
+        } else {
+          emailState = {
+            emailDelivery: "not_attempted",
+            warning:
+              "Account removal completed. No email address was available for its notice.",
+          };
         }
       } catch {
-        console.warn(
-          "Account removal completed; its notification could not be delivered.",
-        );
+        emailState = {
+          emailDelivery: "not_attempted",
+          warning:
+            "Account removal completed. Its email could not be prepared.",
+        };
       }
     }
-    return { success: true };
+    return { success: true, ...emailState };
   } catch {
     return {
       error:
