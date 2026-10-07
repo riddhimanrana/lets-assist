@@ -36,7 +36,7 @@ SELECT EXISTS (
   SELECT 1
   FROM pg_roles
   WHERE rolname = 'authenticator'
-    AND 'app.maintenance_write_block=on' = ANY (
+    AND 'pgrst.app_settings.maintenance_write_block=on' = ANY (
       coalesce(rolconfig, ARRAY[]::text[])
     )
 ) AS application_write_block_active

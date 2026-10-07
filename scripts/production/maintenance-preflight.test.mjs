@@ -132,7 +132,7 @@ test("catalog, repeated ledger and every posture check share a read-only snapsho
   ])
     assert.ok(maintenancePostureQuery.includes(`${name} IS NOT FALSE`));
   for (const text of [
-    "app.maintenance_write_block=on",
+    "pgrst.app_settings.maintenance_write_block=on",
     "cron.job WHERE active",
     "cron.job_run_details WHERE status = 'running'",
     "lease_expires_at > now()",

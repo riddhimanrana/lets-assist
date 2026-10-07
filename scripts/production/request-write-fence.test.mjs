@@ -98,8 +98,8 @@ test("Production flag changes require hook verification before writing and fresh
       assert.ok(
         sql.includes(
           mode === "enable"
-            ? "SET app.maintenance_write_block TO 'on'; COMMIT;"
-            : "RESET app.maintenance_write_block; COMMIT;",
+            ? "SET pgrst.app_settings.maintenance_write_block TO 'on'; COMMIT;"
+            : "RESET pgrst.app_settings.maintenance_write_block; COMMIT;",
         ),
       );
       assert.ok(output.includes("Fresh API verification is required."));
