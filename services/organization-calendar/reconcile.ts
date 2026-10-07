@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { removePersonalCalendarEvent } from "@/services/personal-calendar/provider";
+import { createPersonalCalendarEventRemover } from "@/services/personal-calendar/provider";
 import { writeOrganizationCalendarEvent } from "./provider";
 
 export type OrganizationCalendarProjection = {
@@ -28,7 +28,7 @@ type Rpc = (
 type Dependencies = {
   rpc: Rpc;
   write: typeof writeOrganizationCalendarEvent;
-  remove: typeof removePersonalCalendarEvent;
+  remove: ReturnType<typeof createPersonalCalendarEventRemover>;
   now: () => number;
 };
 export type DurableOrganizationCalendarSyncResult =
@@ -54,7 +54,7 @@ export async function reconcileOrganizationCalendar(
   const deps = dependencies ?? {
     rpc: (name, args) => getAdminClient().rpc(name, args),
     write: writeOrganizationCalendarEvent,
-    remove: removePersonalCalendarEvent,
+    remove: createPersonalCalendarEventRemover(),
     now: Date.now,
   };
   const actor = {

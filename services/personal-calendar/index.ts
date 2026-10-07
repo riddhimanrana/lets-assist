@@ -10,7 +10,7 @@ import {
 } from "@/services/calendar";
 import {
   createPersonalCalendarEvent,
-  removePersonalCalendarEvent,
+  createPersonalCalendarEventRemover,
 } from "./provider";
 import {
   CalendarSyncError,
@@ -71,6 +71,7 @@ export async function synchronizePersonalCalendar(input: {
     p_expected_event_id: input.expectedEventId ?? null,
   });
   let token: string | null = null;
+  const remove = createPersonalCalendarEventRemover();
   async function accessToken() {
     token ??= await getValidAccessToken(input.userId);
     if (!token)
@@ -115,7 +116,7 @@ export async function synchronizePersonalCalendar(input: {
     create: async (calendarId, id, event) =>
       createPersonalCalendarEvent(await accessToken(), calendarId, id, event),
     remove: async (calendarId, id) =>
-      removePersonalCalendarEvent(await accessToken(), calendarId, id),
+      remove(await accessToken(), calendarId, id),
   });
   if (result.phase === "synced")
     await markPersonalCalendarConnectionSynced(input.userId).catch(

@@ -1,5 +1,6 @@
 import "server-only";
 import { googleCalendarEventUrl } from "@/lib/google-calendar-identifiers";
+import { verifyOwnedLegacyCalendar } from "./destination";
 import type { PersonalCalendarEvent } from "./reconcile";
 
 export async function createPersonalCalendarEvent(
@@ -54,15 +55,44 @@ export async function removePersonalCalendarEvent(
   id: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<boolean> {
-  try {
-    const response = await fetchImpl(googleCalendarEventUrl(calendarId, id), {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(10_000),
-      redirect: "error",
-    });
-    return response.ok || response.status === 404 || response.status === 410;
-  } catch {
-    return false;
-  }
+  return createPersonalCalendarEventRemover(fetchImpl)(
+    accessToken,
+    calendarId,
+    id,
+  );
+}
+
+/** Keep proof within one reconciliation and one exact token/calendar pair. */
+export function createPersonalCalendarEventRemover(
+  fetchImpl: typeof fetch = fetch,
+) {
+  const proofs = new Map<string, Promise<boolean>>();
+  return async (
+    accessToken: string,
+    calendarId: string,
+    id: string,
+  ): Promise<boolean> => {
+    try {
+      const key = JSON.stringify([accessToken, calendarId]);
+      let proof = proofs.get(key);
+      if (!proof) {
+        proof = verifyOwnedLegacyCalendar(
+          accessToken,
+          calendarId,
+          fetchImpl,
+        ).then((state) => state === "owned");
+        proofs.set(key, proof);
+      }
+      if (!(await proof)) return false;
+      const response = await fetchImpl(googleCalendarEventUrl(calendarId, id), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(10_000),
+        redirect: "error",
+      });
+      return response.ok || response.status === 404 || response.status === 410;
+    } catch {
+      return false;
+    }
+  };
 }
