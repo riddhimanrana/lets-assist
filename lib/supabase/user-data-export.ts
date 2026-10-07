@@ -3,6 +3,10 @@ import "server-only";
 import JSZip from "jszip";
 import { z } from "zod";
 import { getAdminClient } from "@/lib/supabase/admin";
+import {
+  ACCOUNT_EXPORT_MAX_JSON_BYTES as MAX_JSON_BYTES,
+  ACCOUNT_EXPORT_MAX_ZIP_BYTES as MAX_ZIP_BYTES,
+} from "./data-export-limits";
 
 const CATEGORIES = {
   "profile-data": [
@@ -61,8 +65,6 @@ const CATEGORIES = {
 } as const;
 export const ACCOUNT_EXPORT_DATASET_NAMES = Object.values(CATEGORIES).flat();
 const DATASETS = ACCOUNT_EXPORT_DATASET_NAMES;
-const MAX_JSON_BYTES = 40_000_000;
-const MAX_ZIP_BYTES = 50_000_000;
 const SENSITIVE_KEY =
   /(token|secret|password|encrypted|api[_-]?key|access[_-]?key|join[_-]?code|signed[_-]?url)/i;
 const SCOPE = {

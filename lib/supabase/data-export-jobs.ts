@@ -7,6 +7,7 @@ import { logError, logWarn } from "@/lib/logger";
 import { sendEmail, type SendEmailResult } from "@/services/email";
 import { getAdminClient } from "./admin";
 import { createUserDataExportArchive } from "./user-data-export";
+import { ACCOUNT_EXPORT_MAX_ZIP_BYTES } from "./data-export-limits";
 
 const BUCKET = "data-exports";
 const jobSchema = z.object({
@@ -95,7 +96,7 @@ async function verifyStoredArchive(
   if (
     !result.data ||
     result.data.size !== job.zip_size_bytes ||
-    result.data.size > 50_000_000
+    result.data.size > ACCOUNT_EXPORT_MAX_ZIP_BYTES
   ) {
     throw new Error("Account export object size mismatch");
   }

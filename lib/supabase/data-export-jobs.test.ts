@@ -7,6 +7,7 @@ import {
   type DataExportWorkerJob,
 } from "./data-export-jobs";
 import type { createUserDataExportArchive } from "./user-data-export";
+import { ACCOUNT_EXPORT_MAX_ZIP_BYTES } from "./data-export-limits";
 const userId = "fa900000-0000-4000-8000-000000000001";
 const jobId = "fa900000-0000-4000-8000-000000000002";
 const lease = "fa900000-0000-4000-8000-000000000003";
@@ -29,6 +30,7 @@ function fixture(
     uploadUnknown?: boolean;
     skip?: boolean;
     sendThrows?: boolean;
+    downloadSize?: number;
   } = {},
 ) {
   const events: string[] = [];
@@ -103,6 +105,17 @@ function fixture(
         },
         download: async (path: string) => {
           events.push("download");
+          if (options.downloadSize !== undefined)
+            return {
+              data: {
+                size: options.downloadSize,
+                arrayBuffer: async () => {
+                  events.push("read_oversized_body");
+                  throw new Error("Oversized body must not be read");
+                },
+              },
+              error: null,
+            };
           const data = objects.get(path);
           return data
             ? { data: new Blob([new Uint8Array(data)]), error: null }
@@ -181,6 +194,16 @@ test("recovers a committed object without regenerating or uploading", async () =
 test("a mismatched stored object never becomes downloadable or sends mail", async () => {
   const h = fixture({ recover: true, digestMismatch: true });
   expect((await run(h)).ready).toBe(false);
+  expect(h.counts()).toEqual({ archiveCalls: 0, mailCalls: 0 });
+});
+test("an oversized recovered object is refused before reading its body or sending mail", async () => {
+  const size = ACCOUNT_EXPORT_MAX_ZIP_BYTES + 1;
+  const h = fixture({ recover: true, downloadSize: size });
+  h.row.zip_size_bytes = size;
+  expect((await run(h)).ready).toBe(false);
+  expect(h.events).toContain("download");
+  expect(h.events).not.toContain("read_oversized_body");
+  expect(h.events).not.toContain("archive_ready");
   expect(h.counts()).toEqual({ archiveCalls: 0, mailCalls: 0 });
 });
 for (const lost of ["plan_artifact", "archive_ready", "begin_delivery"])
