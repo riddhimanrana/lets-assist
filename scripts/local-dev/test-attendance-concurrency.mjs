@@ -62,6 +62,8 @@ const args = [
   "-i",
   container,
   "psql",
+  "-h",
+  "127.0.0.1",
   "-U",
   "postgres",
   "-d",
@@ -204,7 +206,7 @@ COMMIT;`);
   await race(
     publish(ids.project, ids.signup, 0, 120),
     correct(ids.signup, 0, 150),
-    "40001.*attendance changed; refresh before correcting",
+    "PT409.*attendance changed; refresh before correcting",
   );
   const original = awardState(ids.signup);
   assert.equal(original.count, 1);
@@ -227,7 +229,7 @@ COMMIT;`);
   await race(
     winningCorrection,
     correct(ids.signup, 2, 210),
-    "40001.*attendance changed; refresh before correcting",
+    "PT409.*attendance changed; refresh before correcting",
   );
   assert.deepEqual(awardState(ids.signup), {
     count: 1,
@@ -248,7 +250,7 @@ COMMIT;`);
   await race(
     correct(ids.secondSignup, 0, 90),
     publish(ids.secondProject, ids.secondSignup, 0, 120),
-    "40001.*attendance changed; refresh before publishing",
+    "PT409.*attendance changed; refresh before publishing",
   );
   assert.equal(awardState(ids.secondSignup).count, 0);
   query(publish(ids.secondProject, ids.secondSignup, 1, 90));
@@ -355,6 +357,125 @@ COMMIT;`);
     "PASS simultaneous reconciliation retry: one audited reference, no primary required for Hours attendance, unchanged award and delivery",
   );
 
+  function combineFixture() {
+    const batch = query(
+      `SELECT public.create_manual_attendance_batch(${quote(ids.project)},'oneTime',${quote(ids.owner)},${quote(randomUUID())});`,
+    );
+    const rows = [0, 1, 2].map((index) => {
+      const row = query(
+        `SELECT public.add_paper_attendance_row(${quote(ids.project)},${quote(batch)},${quote(ids.owner)},${quote(randomUUID())});`,
+      );
+      const patch = {
+        expectedRevision: 0,
+        name: `Synthetic combine ${batch}`,
+        decision: "include",
+        attendanceIntervals: [
+          {
+            checkIn: `2021-08-11T${10 + index}:00:00Z`,
+            checkOut: `2021-08-11T${11 + index}:00:00Z`,
+          },
+        ],
+        reviewAcknowledged: true,
+        identityConfirmed: true,
+      };
+      query(
+        `SELECT public.update_paper_scan_review_row(${quote(batch)},${quote(ids.project)},${quote(row)},${quote(ids.owner)},${quote(JSON.stringify(patch))}::jsonb);`,
+      );
+      return row;
+    });
+    return {
+      batch,
+      rows,
+      combine: (target = rows[0]) =>
+        `SELECT public.combine_paper_attendance_rows(${quote(ids.project)},${quote(batch)},${quote(ids.owner)},${quote(target)},ARRAY[${quote(rows[1])}]::uuid[],${quote(randomUUID())});`,
+      commit: () =>
+        `SELECT outcome FROM public.commit_paper_signup_batch(${quote(batch)},${quote(ids.owner)},ARRAY[${quote(rows[1])}]::uuid[],false,${quote(randomUUID())});`,
+    };
+  }
+  const competingCombine = combineFixture();
+  await race(
+    competingCombine.combine(),
+    competingCombine.combine(competingCombine.rows[2]),
+    "22023.*attendance row already combined",
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM private.paper_attendance_review_operations WHERE batch_id=${quote(competingCombine.batch)};`,
+    ),
+    "1",
+  );
+  assert.equal(
+    query(
+      `SELECT jsonb_array_length(attendance_intervals) FROM public.project_paper_scan_rows WHERE id=${quote(competingCombine.rows[2])};`,
+    ),
+    "1",
+  );
+  console.log(
+    "PASS competing combines: one source consumption and no losing target mutation",
+  );
+
+  const competingReview = combineFixture();
+  await race(
+    competingReview.combine(),
+    `SELECT public.update_paper_scan_review_row(${quote(competingReview.batch)},${quote(ids.project)},${quote(competingReview.rows[1])},${quote(ids.owner)},'{"decision":"include","reviewAcknowledged":true}'::jsonb);`,
+    "22023.*attendance row already combined",
+  );
+  assert.equal(
+    query(
+      `SELECT decision || ':' || outcome_detail FROM public.project_paper_scan_rows WHERE id=${quote(competingReview.rows[1])};`,
+    ),
+    `exclude:combined_into:${competingReview.rows[0]}`,
+  );
+  console.log(
+    "PASS combine beats review: source cannot be reactivated after waiting",
+  );
+
+  const competingCommit = combineFixture();
+  await race(competingCommit.combine(), competingCommit.commit());
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_roster_entries WHERE batch_id=${quote(competingCommit.batch)};`,
+    ),
+    "0",
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_scan_rows WHERE batch_id=${quote(competingCommit.batch)} AND committed_signup_id IS NOT NULL;`,
+    ),
+    "0",
+  );
+  assert.equal(
+    query(
+      `SELECT results::text FROM private.paper_attendance_commit_receipts WHERE batch_id=${quote(competingCommit.batch)};`,
+    ),
+    "[]",
+  );
+  console.log(
+    "PASS combine beats commit: excluded source produces no attendance or award",
+  );
+
+  const savedSource = combineFixture();
+  await race(
+    savedSource.commit(),
+    savedSource.combine(),
+    "22023.*source rows must have the same confirmed identity",
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM public.project_paper_roster_entries WHERE batch_id=${quote(savedSource.batch)};`,
+    ),
+    "1",
+  );
+  assert.equal(
+    query(
+      `SELECT count(*) FROM private.paper_attendance_review_operations WHERE batch_id=${quote(savedSource.batch)};`,
+    ),
+    "0",
+  );
+  console.log(
+    "PASS commit beats combine: saved source remains one roster entry",
+  );
+
   const batchId = query(
     `SELECT public.create_manual_attendance_batch(${quote(ids.project)},'oneTime',${quote(ids.owner)},${quote(randomUUID())});`,
   );
@@ -400,6 +521,7 @@ COMMIT;`);
   query(`BEGIN;
 DELETE FROM public.notifications WHERE user_id IN (${quote(ids.owner)},${quote(ids.volunteer)},${quote(ids.staff)});
 DELETE FROM public.projects WHERE id IN (${quote(ids.project)},${quote(ids.secondProject)});
+DELETE FROM public.organization_members WHERE organization_id=${quote(ids.org)};
 DELETE FROM public.organizations WHERE id=${quote(ids.org)};
 DELETE FROM auth.users WHERE id IN (${quote(ids.owner)},${quote(ids.volunteer)},${quote(ids.staff)});
 COMMIT;`);

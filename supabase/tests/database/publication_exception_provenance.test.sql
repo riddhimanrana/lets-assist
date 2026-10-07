@@ -55,7 +55,7 @@ SELECT extensions.throws_ok($$SELECT pg_temp.publish_provenance(4)$$,'22023','ou
 UPDATE public.organization_members SET status='inactive' WHERE organization_id='ce200000-0000-4000-8000-000000000001' AND user_id='ce100000-0000-4000-8000-000000000002';
 SELECT extensions.throws_ok($$SELECT pg_temp.publish_provenance(5,'ce100000-0000-4000-8000-000000000002')$$,'42501','not authorized to publish project hours','revoked organization admin cannot create exception provenance');
 UPDATE provenance_fixtures SET entries=jsonb_set(entries,'{0,attendanceRevision}','9') WHERE id=6;
-SELECT extensions.throws_ok($$SELECT pg_temp.publish_provenance(6)$$,'40001','attendance changed; refresh before publishing','stale revision cannot create exception provenance');
+SELECT extensions.throws_ok($$SELECT pg_temp.publish_provenance(6)$$,'PT409','attendance changed; refresh before publishing','stale revision cannot create exception provenance');
 SELECT extensions.is((SELECT count(*)::integer FROM private.project_attendance_changes a JOIN provenance_fixtures f ON f.project=a.project_id WHERE f.id BETWEEN 2 AND 6),0,'invalid, unauthorized and stale calls create no audit');
 SELECT extensions.is((SELECT count(*)::integer FROM public.hours_publication_receipts r JOIN provenance_fixtures f ON f.project=r.project_id WHERE f.id BETWEEN 2 AND 6),0,'invalid, unauthorized and stale calls create no receipt');
 

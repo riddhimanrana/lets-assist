@@ -153,3 +153,10 @@ delta (31 added and 18 changed objects) to the 683 inventory. Neither delta
 touches an object the other changes, and no object is removed. The manifest is
 derived from those two replays; the next isolated replay must confirm it. These
 migrations are not approved for Production.
+
+The paper-attendance repair moves those unpublished drafts to
+`20261009010000` through `20261009010003`. It also changes the combine, review,
+commit and conflict contracts. The old derived 687 manifest remains historical
+evidence and does not accept that new ledger. Replay the final combined
+candidate and generate a new exact catalog before Development cutover. Do not
+replace the published Development 687 catalog with this branch's derived file.

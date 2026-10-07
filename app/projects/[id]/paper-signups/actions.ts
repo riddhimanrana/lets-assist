@@ -289,6 +289,13 @@ export async function updatePaperScanRow(input: {
   if (updateError) {
     if (
       updateError.code === "22023" &&
+      updateError.message === "attendance row already combined"
+    )
+      return {
+        error: "This row was combined into another row. Edit the combined row.",
+      };
+    if (
+      updateError.code === "22023" &&
       updateError.message === "saved attendance must remain included"
     )
       return {
@@ -297,7 +304,7 @@ export async function updatePaperScanRow(input: {
       };
     return {
       error:
-        updateError.code === "40001"
+        updateError.code === "PT409"
           ? "This row changed in another window. Reload before editing."
           : updateError.code === "23514"
             ? "Check-out must be after check-in."

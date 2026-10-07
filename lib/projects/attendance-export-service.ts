@@ -11,16 +11,13 @@ import {
   parseAttendanceExportFilters,
   type ExportScope,
   type ExportProject,
-  type ExportSignup,
-  type ExportCertificate,
-  type ExportInterval,
 } from "./attendance-export";
+import { buildUnpublishedAttendanceRecords } from "./attendance-export-unpublished";
 import {
-  buildUnpublishedAttendanceRecords,
-  type ExportRosterEntry,
-  type ExportReviewRow,
-} from "./attendance-export-unpublished";
-import { readAllExportPages } from "./attendance-export-pagination";
+  readAllExportPages,
+  type ExportReadBudget,
+} from "./attendance-export-pagination";
+import { loadAttendanceExportSources } from "./attendance-export-sources";
 
 const projectColumns =
   "id,title,organization_id,creator_id,can_be_managed_by_staff,project_timezone,event_type,schedule,published";
@@ -73,18 +70,30 @@ async function projectRows<T extends { id: string }>(
   table: string,
   columns: string,
   projectId: string,
+  budget: ExportReadBudget,
 ): Promise<T[]> {
-  return readAllExportPages<T>(async (after, limit) => {
-    let query = admin
-      .from(table)
-      .select(columns)
-      .eq("project_id", projectId)
-      .order("id")
-      .limit(limit);
-    if (after) query = query.gt("id", after);
-    const result = await query;
-    return { data: result.data as unknown as T[] | null, error: result.error };
-  });
+  return readAllExportPages<T>(
+    async (after, limit) => {
+      let query = admin
+        .from(table)
+        .select(columns)
+        .eq("project_id", projectId)
+        .order("id")
+        .limit(limit);
+      if (after) query = query.gt("id", after);
+      const result = await query;
+      return {
+        data: result.data as unknown as T[] | null,
+        error: result.error,
+      };
+    },
+    async () =>
+      await admin
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", projectId),
+    budget,
+  );
 }
 
 export async function attendanceExportResponse(
@@ -110,24 +119,48 @@ export async function attendanceExportResponse(
     const userId = auth.data.user.id;
     const admin = getAdminClient();
     const project = await assertAccess(admin, scope, scopeId, userId);
-    const projects = project
-      ? [project]
-      : await readAllExportPages<ExportProject>(async (after, limit) => {
-          let query = admin
-            .from("projects")
-            .select(projectColumns)
-            .eq("organization_id", scopeId)
-            .order("id")
-            .limit(limit);
-          if (after) query = query.gt("id", after);
-          if (filters.projectId) query = query.eq("id", filters.projectId);
-          const result = await query;
-          return {
-            data: result.data as ExportProject[] | null,
-            error: result.error,
-          };
-        });
-    if (filters.projectId && projects.length === 0)
+    const sources = await loadAttendanceExportSources(
+      {
+        projects: async (budget) =>
+          readAllExportPages<ExportProject>(
+            async (after, limit) => {
+              let query = admin
+                .from("projects")
+                .select(projectColumns)
+                .order("id")
+                .limit(limit);
+              query =
+                scope === "project"
+                  ? query.eq("id", scopeId)
+                  : query.eq("organization_id", scopeId);
+              if (after) query = query.gt("id", after);
+              if (filters.projectId) query = query.eq("id", filters.projectId);
+              const result = await query;
+              return {
+                data: result.data as ExportProject[] | null,
+                error: result.error,
+              };
+            },
+            async () => {
+              let query = admin
+                .from("projects")
+                .select("id", { count: "exact", head: true });
+              query =
+                scope === "project"
+                  ? query.eq("id", scopeId)
+                  : query.eq("organization_id", scopeId);
+              if (filters.projectId) query = query.eq("id", filters.projectId);
+              return await query;
+            },
+            budget,
+          ),
+        rows: (table, columns, projectId, budget) =>
+          projectRows(admin, table, columns, projectId, budget),
+      },
+      filters.includeUnpublished,
+    );
+    const projects = sources.map((source) => source.project);
+    if ((filters.projectId || project) && projects.length === 0)
       throw new AttendanceExportError(
         "Project is not in this organization",
         403,
@@ -135,31 +168,18 @@ export async function attendanceExportResponse(
     if (
       filters.sessionId &&
       project &&
-      !serviceDate(project, filters.sessionId)
+      !serviceDate(projects[0], filters.sessionId)
     )
       throw new AttendanceExportError("Invalid session filter");
     const records = [];
-    for (const item of projects) {
-      const [signups, certificates, intervals] = await Promise.all([
-        projectRows<ExportSignup>(
-          admin,
-          "project_signups",
-          "id,schedule_id,user_id,anonymous_id,check_in_time,check_out_time,status,attendance_revision,profile:profiles!project_signups_user_id_fkey_profiles(full_name,email),guest:anonymous_signups!project_signups_anonymous_id_fkey(name,email)",
-          item.id,
-        ),
-        projectRows<ExportCertificate>(
-          admin,
-          "certificates",
-          "id,signup_id,schedule_id,user_id,volunteer_name,volunteer_email,event_start,event_end,credited_minutes,attendance_revision,type",
-          item.id,
-        ),
-        projectRows<ExportInterval>(
-          admin,
-          "project_attendance_intervals",
-          "id,signup_id,check_in_time,check_out_time",
-          item.id,
-        ),
-      ]);
+    for (const {
+      project: item,
+      signups,
+      certificates,
+      intervals,
+      roster,
+      review,
+    } of sources) {
       records.push(
         ...buildAttendanceExportRecords(
           item,
@@ -169,25 +189,10 @@ export async function attendanceExportResponse(
           filters,
         ),
       );
-      if (filters.includeUnpublished) {
-        const [roster, review] = await Promise.all([
-          projectRows<ExportRosterEntry>(
-            admin,
-            "project_paper_roster_entries",
-            "id,scan_row_id,schedule_id,name,check_in_time,check_out_time,attendance_intervals",
-            item.id,
-          ),
-          projectRows<ExportReviewRow>(
-            admin,
-            "project_paper_scan_rows",
-            "id,name,email,check_in_time,check_out_time,attendance_intervals,review_revision,review_acknowledged,identity_confirmed,decision,outcome,committed_signup_id,batch:project_paper_scan_batches!batch_id(schedule_id,status)",
-            item.id,
-          ),
-        ]);
+      if (filters.includeUnpublished)
         records.push(
           ...buildUnpublishedAttendanceRecords(item, roster, review, filters),
         );
-      }
       if (records.length > 100_000)
         throw new AttendanceExportError(
           "Export exceeds the row limit. Select a narrower scope.",
@@ -213,6 +218,15 @@ export async function attendanceExportResponse(
             .order("id")
             .limit(limit);
           if (after) query = query.gt("id", after);
+          if (filters.projectId) query = query.eq("id", filters.projectId);
+          return await query;
+        },
+        async () => {
+          let query = admin
+            .from("projects")
+            .select("id", { count: "exact", head: true })
+            .eq("organization_id", scopeId);
+          if (filters.projectId) query = query.eq("id", filters.projectId);
           return await query;
         },
       );

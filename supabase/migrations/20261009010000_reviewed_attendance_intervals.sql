@@ -65,6 +65,19 @@ ALTER TABLE private.paper_attendance_review_operations ENABLE ROW LEVEL SECURITY
 REVOKE ALL ON private.paper_attendance_review_operations FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT ON private.paper_attendance_review_operations TO service_role;
 
+-- A combine receipt permanently consumes its sources, even if display fields change.
+CREATE FUNCTION private.paper_attendance_row_consumed(p_project_id uuid,p_batch_id uuid,p_row_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM private.paper_attendance_review_operations operation
+    WHERE operation.project_id=p_project_id AND operation.batch_id=p_batch_id
+      AND operation.operation='combine'
+      AND operation.payload->'sourceRowIds' @> jsonb_build_array(p_row_id)
+  );
+$$;
+REVOKE ALL ON FUNCTION private.paper_attendance_row_consumed(uuid,uuid,uuid) FROM PUBLIC,anon,authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.paper_attendance_row_consumed(uuid,uuid,uuid) TO postgres;
+
 CREATE FUNCTION private.lock_attendance_management(p_project_id uuid,p_actor_id uuid)
 RETURNS boolean LANGUAGE plpgsql SET search_path='' AS $$
 DECLARE v_project public.projects%ROWTYPE;
@@ -364,7 +377,7 @@ BEGIN
     RETURN v_prior.result || jsonb_build_object('outcome','replayed');
   END IF;
   IF v_signup.attendance_revision <> p_expected_revision THEN
-    RAISE EXCEPTION 'attendance changed; refresh before correcting' USING ERRCODE='40001';
+    RAISE EXCEPTION 'attendance changed; refresh before correcting' USING ERRCODE='PT409';
   END IF;
   IF v_signup.status NOT IN ('approved','attended') THEN
     RAISE EXCEPTION 'signup is not eligible for attendance' USING ERRCODE='22023';
@@ -468,11 +481,14 @@ BEGIN
 
   SELECT * INTO v_row FROM public.project_paper_scan_rows WHERE id=p_row_id AND batch_id=p_batch_id AND project_id=p_project_id FOR UPDATE;
   IF NOT FOUND THEN RETURN 'not_found'; END IF;
+  IF private.paper_attendance_row_consumed(p_project_id,p_batch_id,p_row_id) THEN
+    RAISE EXCEPTION 'attendance row already combined' USING ERRCODE='22023';
+  END IF;
   IF v_row.committed_signup_id IS NOT NULL THEN RETURN 'already_committed'; END IF;
   IF p_patch ? 'expectedRevision' AND
     (jsonb_typeof(p_patch->'expectedRevision') IS DISTINCT FROM 'number'
      OR (p_patch->>'expectedRevision')::integer <> v_row.review_revision) THEN
-    RAISE EXCEPTION 'review row changed; refresh before saving' USING ERRCODE='40001';
+    RAISE EXCEPTION 'review row changed; refresh before saving' USING ERRCODE='PT409';
   END IF;
   IF v_batch.status='committed' THEN
     IF v_row.outcome<>'roster_only' THEN RETURN 'not_review'; END IF;
@@ -746,8 +762,18 @@ BEGIN
   v_payload:=jsonb_build_object('targetRowId',p_target_row_id,'sourceRowIds',to_jsonb(p_source_row_ids),'actorId',p_actor_id);
   SELECT payload INTO v_prior FROM private.paper_attendance_review_operations WHERE request_id=p_request_id;
   IF FOUND THEN
-    IF v_prior<>v_payload THEN RAISE EXCEPTION 'combine request key reused' USING ERRCODE='22023'; END IF;
+    IF v_prior<>v_payload OR NOT EXISTS (
+      SELECT 1 FROM private.paper_attendance_review_operations operation
+      WHERE operation.request_id=p_request_id AND operation.project_id=p_project_id
+        AND operation.batch_id=p_batch_id AND operation.actor_id=p_actor_id
+        AND operation.operation='combine'
+    ) THEN RAISE EXCEPTION 'combine request key reused' USING ERRCODE='22023'; END IF;
     RETURN p_target_row_id;
+  END IF;
+  IF private.paper_attendance_row_consumed(p_project_id,p_batch_id,p_target_row_id)
+    OR EXISTS (SELECT 1 FROM unnest(p_source_row_ids) source(id)
+      WHERE private.paper_attendance_row_consumed(p_project_id,p_batch_id,source.id)) THEN
+    RAISE EXCEPTION 'attendance row already combined' USING ERRCODE='22023';
   END IF;
   IF v_batch.status<>'review' THEN RAISE EXCEPTION 'batch is not in review' USING ERRCODE='22023'; END IF;
   SELECT * INTO STRICT v_target FROM public.project_paper_scan_rows WHERE id=p_target_row_id AND batch_id=p_batch_id AND project_id=p_project_id FOR UPDATE;
@@ -885,6 +911,9 @@ BEGIN
     AND rows.decision='include' ORDER BY rows.sheet_row_number FOR UPDATE LOOP
     row_id:=v_row.id; signup_id:=NULL; anonymous_id:=NULL; user_id:=NULL; over_capacity:=false; detail:=NULL; outcome:='failed';
     v_reconciliation:=NULL;
+    IF private.paper_attendance_row_consumed(v_batch.project_id,p_batch_id,v_row.id) THEN
+      RAISE EXCEPTION 'attendance row already combined' USING ERRCODE='22023';
+    END IF;
     BEGIN
       IF v_row.committed_signup_id IS NOT NULL OR v_row.outcome='roster_only' THEN
         outcome:=v_row.outcome; signup_id:=v_row.committed_signup_id; anonymous_id:=v_row.committed_anonymous_id;
@@ -1304,7 +1333,7 @@ BEGIN
   FOR v_entry IN SELECT value FROM jsonb_array_elements(v_entries) LOOP
     SELECT * INTO STRICT v_signup FROM public.project_signups WHERE id=(v_entry->>'signupId')::uuid;
     IF v_entry ? 'attendanceRevision' AND (v_entry->>'attendanceRevision')::integer IS DISTINCT FROM v_signup.attendance_revision THEN
-      RAISE EXCEPTION 'attendance changed; refresh before publishing' USING ERRCODE='40001';
+      RAISE EXCEPTION 'attendance changed; refresh before publishing' USING ERRCODE='PT409';
     END IF;
     v_old_intervals:=private.signup_attendance_intervals(v_signup.id);
     SELECT COALESCE(certificate.credited_minutes::numeric,

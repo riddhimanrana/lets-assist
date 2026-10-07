@@ -10,7 +10,14 @@ import { assertCleanInventory } from "./generate-final-schema-manifest.mjs";
 import { approvedMigrations } from "./forward-migration-release.mjs";
 
 const repository = resolve(import.meta.dirname, "../..");
-const ledger = expectedVersions(repository);
+const candidateLedger = expectedVersions(repository);
+// Retain the old derived catalog as historical evidence. The repaired forward
+// drafts need a new replay and catalog before the release controller accepts them.
+const ledger = candidateLedger.map((version) =>
+  version.startsWith("2026100901000")
+    ? version.replace("2026100901000", "2026092912000")
+    : version,
+);
 const readManifest = (count) =>
   JSON.parse(
     readFileSync(
@@ -96,7 +103,24 @@ const EXPECTED_CHANGED = [
   "relation:public.user_certificate_read_model",
 ];
 
-test("687 selects the exact attendance ledger without predecessor query rewriting", () => {
+test("the repaired forward attendance ledger requires new catalog acceptance", () => {
+  assert.deepEqual(candidateLedger.slice(-4), [
+    "20261009010000",
+    "20261009010001",
+    "20261009010002",
+    "20261009010003",
+  ]);
+  assert.throws(
+    () => acceptedCatalogQuery("", candidateLedger),
+    /explicit release review/u,
+  );
+  assert.throws(
+    () => finalSchemaCatalog(after, candidateLedger),
+    /reviewed ledger/u,
+  );
+});
+
+test("the historical 687 catalog selects only its recorded ledger", () => {
   assert.equal(ledger.length, 687);
   assert.equal(
     ledgerDigest(ledger),

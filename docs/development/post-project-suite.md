@@ -68,6 +68,14 @@ identifiers, visits, credited minutes, certificate ID, and revision. CSV uses on
 row per participant/session and serializes visits, with spreadsheet-formula escaping.
 
 Downloads use bounded server-side pagination and current authorization checks.
+Each source read checks its exact count before and after pagination. Two complete
+raw reads must agree before the server filters rows or calculates totals. Each
+pass allows at most 100,000 source rows across projects and all source tables,
+including draft rows when requested. The two retained passes have separate
+budgets. Changes observed between reads return a retry error instead of a partial
+download. This is optimistic validation, not a database transaction snapshot;
+changes that revert between reads can escape detection. The server still checks
+the live session, role and organization project scope before releasing the file.
 They return private, non-cacheable responses and exclude guest tokens and scan
 photos. Oversized exports fail explicitly instead of returning a partial report.
 

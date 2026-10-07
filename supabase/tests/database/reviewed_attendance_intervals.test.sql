@@ -45,7 +45,7 @@ SELECT extensions.results_eq($$SELECT * FROM public.commit_paper_signup_batch('a
 SELECT extensions.is(public.update_paper_scan_review_row('a7300000-0000-4000-8000-000000000001','a7100000-0000-4000-8000-000000000001','a7400000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000001',
  '{"expectedRevision":0,"attendanceIntervals":[{"checkIn":"2026-09-18T09:00:00Z","checkOut":null}]}'),'updated','incomplete intervals save as a draft');
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row('a7300000-0000-4000-8000-000000000001','a7100000-0000-4000-8000-000000000001','a7400000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000001','{"expectedRevision":0,"name":"Stale"}')$$,
- '40001','review row changed; refresh before saving','stale row edit is rejected');
+ 'PT409','review row changed; refresh before saving','stale row edit is rejected');
 SELECT extensions.is((SELECT raw_extraction->>'name' FROM public.project_paper_scan_rows WHERE id='a7400000-0000-4000-8000-000000000001'),'Unchanged source','raw transcription remains unchanged');
 
 CREATE TEMP TABLE publication AS SELECT public.publish_volunteer_hours_transactional('a7000000-0000-4000-8000-000000000001','a7100000-0000-4000-8000-000000000001','oneTime',
@@ -68,7 +68,7 @@ SELECT extensions.is(public.correct_project_attendance('a7200000-0000-4000-8000-
  'a7500000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000001')->>'outcome','replayed','correction exact retry is idempotent');
 SELECT extensions.throws_ok($$SELECT public.correct_project_attendance('a7200000-0000-4000-8000-000000000001',1,'Stale correction',
  '[{"checkIn":"2026-09-18T09:00:00Z","checkOut":"2026-09-18T10:30:00Z"}]','a7500000-0000-4000-8000-000000000003','a7000000-0000-4000-8000-000000000001')$$,
- '40001','attendance changed; refresh before correcting','stale correction cannot overwrite a reviewed award');
+ 'PT409','attendance changed; refresh before correcting','stale correction cannot overwrite a reviewed award');
 SELECT extensions.throws_ok($$SELECT public.correct_project_attendance('a7200000-0000-4000-8000-000000000001',2,'Unauthorized correction',
  '[{"checkIn":"2026-09-18T09:00:00Z","checkOut":"2026-09-18T10:30:00Z"}]','a7500000-0000-4000-8000-000000000004','a7000000-0000-4000-8000-000000000003')$$,
  '42501','not authorized to correct attendance','outsider cannot correct attendance');
@@ -112,7 +112,7 @@ FROM public.project_paper_scan_rows rows JOIN public.project_paper_scan_batches 
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001','{"expectedRevision":2,"decision":"exclude"}')$$,'22023','saved attendance must remain included','reopened saved roster rejects exclusion');
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001','{"expectedRevision":2,"decision":"pending"}')$$,'22023','saved attendance must remain included','pending cannot hide previously saved attendance');
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001','{"decision":"exclude"}')$$,'22023','saved attendance must remain included','omitting expected revision does not bypass saved attendance protection');
-SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001','{"expectedRevision":1,"decision":"exclude"}')$$,'40001','review row changed; refresh before saving','stale review remains a revision conflict before the decision guard');
+SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000001','{"expectedRevision":1,"decision":"exclude"}')$$,'PT409','review row changed; refresh before saving','stale review remains a revision conflict before the decision guard');
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row((SELECT id FROM manual),'a7100000-0000-4000-8000-000000000001',(SELECT id FROM manual_row),'a7000000-0000-4000-8000-000000000003','{"expectedRevision":2,"decision":"exclude"}')$$,'P0001','update_paper_scan_review_row: actor is not a project organizer','saved attendance decision still checks current organizer authority');
 SELECT extensions.ok((SELECT to_jsonb(rows)=prior.row_state AND to_jsonb(batches)=prior.batch_state AND to_jsonb(roster)=prior.roster_state FROM public.project_paper_scan_rows rows JOIN public.project_paper_scan_batches batches ON batches.id=rows.batch_id JOIN public.project_paper_roster_entries roster ON roster.scan_row_id=rows.id CROSS JOIN reopened_before_exclusion prior WHERE rows.id=(SELECT id FROM manual_row)),'reopened refusals preserve the complete row, batch, and saved roster');
 UPDATE public.project_paper_scan_rows SET decision='exclude' WHERE id=(SELECT id FROM manual_row);
@@ -216,7 +216,7 @@ SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-000
 SELECT extensions.throws_ok($$SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),3,
  'a7500000-0000-4000-8000-000000000040','a7000000-0000-4000-8000-000000000001')$$,'22023','corrected certificate request key reused','reusing a send request for different hours fails');
 SELECT extensions.throws_ok($$SELECT public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),2,
- 'a7500000-0000-4000-8000-000000000044','a7000000-0000-4000-8000-000000000001')$$,'40001','certificate changed; refresh before sending','a new stale send request cannot dispatch old hours');
+ 'a7500000-0000-4000-8000-000000000044','a7000000-0000-4000-8000-000000000001')$$,'PT409','certificate changed; refresh before sending','a new stale send request cannot dispatch old hours');
 SELECT extensions.is(public.request_corrected_certificate_delivery('a7100000-0000-4000-8000-000000000001',(SELECT id FROM before_correction),3,
  'a7500000-0000-4000-8000-000000000045','a7000000-0000-4000-8000-000000000001')->'deliveries'->0->>'creditedMinutes','180','a new explicit revision receives its own canonical snapshot');
 SELECT extensions.is((SELECT count(*)::integer FROM public.certificates WHERE signup_id='a7200000-0000-4000-8000-000000000001'),1,'multiple correction sends retain one certificate');

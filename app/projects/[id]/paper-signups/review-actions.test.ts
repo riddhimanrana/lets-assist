@@ -134,11 +134,25 @@ test("a concurrent saved-roster exclusion returns an actionable message", async 
 
 test("stale review revisions still tell the coordinator to reload", async () => {
   rpcError = {
-    code: "40001",
+    code: "PT409",
     message: "review row changed; refresh before saving",
   };
   expect(await updatePaperScanRow(input)).toEqual({
     error: "This row changed in another window. Reload before editing.",
+  });
+});
+
+test("consumed source edits direct the coordinator to the combined row", async () => {
+  rpcError = { code: "22023", message: "attendance row already combined" };
+  expect(await updatePaperScanRow(input)).toEqual({
+    error: "This row was combined into another row. Edit the combined row.",
+  });
+});
+
+test("engine serialization failures are not presented as stale review revisions", async () => {
+  rpcError = { code: "40001", message: "could not serialize access" };
+  expect(await updatePaperScanRow(input)).toEqual({
+    error: "Could not save the row.",
   });
 });
 

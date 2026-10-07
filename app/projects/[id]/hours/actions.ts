@@ -495,7 +495,7 @@ async function saveVolunteerAttendance(
     return {
       success: false,
       error:
-        error.code === "40001"
+        error.code === "PT409"
           ? "Attendance changed. Refresh before saving again."
           : error.code === "42501"
             ? "You cannot correct attendance for this project."
@@ -616,7 +616,7 @@ export async function sendCorrectedCertificateEmail(
     return {
       success: false,
       error:
-        transaction.errorCode === "40001"
+        transaction.errorCode === "PT409"
           ? "The certificate changed. Refresh before sending."
           : "The corrected certificate could not be queued. Save an award correction before sending it.",
     };

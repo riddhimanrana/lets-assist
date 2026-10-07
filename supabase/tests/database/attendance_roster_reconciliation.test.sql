@@ -63,7 +63,7 @@ CREATE TEMP TABLE preserved AS SELECT
 SELECT extensions.throws_ok($$SELECT public.commit_paper_signup_batch(rows.batch_id,f.outsider,ARRAY[c.complete],false,gen_random_uuid()) FROM candidates c JOIN public.project_paper_scan_rows rows ON rows.id=c.complete CROSS JOIN reconciliation_fixture f$$,
  '42501','commit_paper_signup_batch: actor is not a project organizer','reconciliation requires current management authority');
 SELECT extensions.throws_ok($$SELECT public.update_paper_scan_review_row(rows.batch_id,f.project,c.complete,f.owner,'{"expectedRevision":1,"name":"Stale match"}') FROM candidates c JOIN public.project_paper_scan_rows rows ON rows.id=c.complete CROSS JOIN reconciliation_fixture f$$,
- '40001','review row changed; refresh before saving','stale review cannot replace the confirmed match');
+ 'PT409','review row changed; refresh before saving','stale review cannot replace the confirmed match');
 SELECT extensions.is((SELECT outcome FROM candidates c CROSS JOIN LATERAL pg_temp.commit_row(c.complete,c.request)), 'skipped','complete union reconciles even when adjacent intervals have different segmentation');
 SELECT extensions.is((SELECT detail FROM candidates c CROSS JOIN LATERAL pg_temp.commit_row(c.complete,c.request)), 'reconciled_existing_attendance','receipt replay preserves the reconciliation result');
 SELECT extensions.is((SELECT count(*)::integer FROM private.paper_attendance_commit_receipts r JOIN candidates c ON c.request=r.request_id),1,'retry records one immutable receipt');

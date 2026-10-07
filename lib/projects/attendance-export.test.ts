@@ -11,7 +11,10 @@ import {
   type ExportProject,
   type ExportSignup,
 } from "./attendance-export";
-import { readAllExportPages } from "./attendance-export-pagination";
+import {
+  createExportReadBudget,
+  readAllExportPages,
+} from "./attendance-export-pagination";
 import { certificateHours } from "./certificate-duration";
 
 const project: ExportProject = {
@@ -330,14 +333,17 @@ test("keyset pagination continues beyond server row caps and exact page boundari
     id: String(n).padStart(5, "0"),
   }));
   let calls = 0;
-  const loaded = await readAllExportPages(async (after, requestedLimit) => {
-    calls++;
-    assert.equal(requestedLimit, 500);
-    return {
-      data: rows.filter((row) => !after || row.id > after).slice(0, 100),
-      error: null,
-    };
-  });
+  const loaded = await readAllExportPages(
+    async (after, requestedLimit) => {
+      calls++;
+      assert.equal(requestedLimit, 500);
+      return {
+        data: rows.filter((row) => !after || row.id > after).slice(0, 100),
+        error: null,
+      };
+    },
+    async () => ({ count: rows.length, error: null }),
+  );
   assert.equal(loaded.length, 1200);
   assert.equal(calls, 13);
   assert.deepEqual(loaded, rows);
@@ -345,20 +351,27 @@ test("keyset pagination continues beyond server row caps and exact page boundari
 
 test("pagination never returns partial data on query failures, duplicates, or limits", async () => {
   await assert.rejects(
-    readAllExportPages(async () => ({
-      data: null,
-      error: { message: "failure" },
-    })),
+    readAllExportPages(
+      async () => ({
+        data: null,
+        error: { message: "failure" },
+      }),
+      async () => ({ count: 1, error: null }),
+    ),
     /complete export/,
   );
   await assert.rejects(
-    readAllExportPages(async () => ({ data: [{ id: "a" }], error: null })),
+    readAllExportPages(
+      async () => ({ data: [{ id: "a" }], error: null }),
+      async () => ({ count: 2, error: null }),
+    ),
     /changed while loading/,
   );
   await assert.rejects(
     readAllExportPages(
       async () => ({ data: [{ id: "a" }, { id: "b" }], error: null }),
-      1,
+      async () => ({ count: 2, error: null }),
+      createExportReadBudget(1),
     ),
     /row limit/,
   );

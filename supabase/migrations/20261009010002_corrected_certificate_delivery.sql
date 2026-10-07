@@ -85,7 +85,7 @@ BEGIN
     RETURN private.hours_publication_result(v_prior.receipt_id,'replayed');
   END IF;
   IF v_certificate.attendance_revision<>p_expected_revision THEN
-    RAISE EXCEPTION 'certificate changed; refresh before sending' USING ERRCODE='40001';
+    RAISE EXCEPTION 'certificate changed; refresh before sending' USING ERRCODE='PT409';
   END IF;
   v_publish_key:='certificate-correction:'||p_certificate_id::text||':'||p_expected_revision::text;
   SELECT * INTO v_receipt FROM public.hours_publication_receipts WHERE project_id=p_project_id AND publish_key=v_publish_key;
