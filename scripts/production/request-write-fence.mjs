@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const applicationRequestWriteFenceBodySha256 =
-  "cd241775632f67399789f0161c57de9d01b80facaae190b9b1adebfec2000da7";
+  "933f1c809e0075542582df4c345d5ddfaac2515320d955d6fd65be204a91a684";
 
 // The legacy default breaks the schema listener and does not enforce API writes.
 // Refuse ambiguous database settings instead of silently changing them.
@@ -18,7 +18,7 @@ const requestSettingsCompatible = `NOT EXISTS (
       AND configured.setdatabase = (SELECT oid FROM pg_catalog.pg_database
         WHERE datname = current_database())
       AND pg_catalog.split_part(entry.setting, '=', 1)
-        IN ('default_transaction_read_only', 'app.maintenance_write_block')
+        IN ('default_transaction_read_only', 'pgrst.app_settings.maintenance_write_block')
   )`;
 
 export const applicationRequestWritesOpenQuery = `SELECT
@@ -28,8 +28,8 @@ export const applicationRequestWritesOpenQuery = `SELECT
     SELECT 1 FROM pg_catalog.pg_roles AS request_role
     CROSS JOIN LATERAL pg_catalog.unnest(request_role.rolconfig) AS entry(setting)
     WHERE request_role.rolname = 'authenticator'
-      AND pg_catalog.split_part(entry.setting, '=', 1) = 'app.maintenance_write_block'
-      AND entry.setting <> 'app.maintenance_write_block=off'
+      AND pg_catalog.split_part(entry.setting, '=', 1) = 'pgrst.app_settings.maintenance_write_block'
+      AND entry.setting <> 'pgrst.app_settings.maintenance_write_block=off'
   ) AS valid`;
 
 // A flag alone cannot block PostgREST's explicitly writable transactions.

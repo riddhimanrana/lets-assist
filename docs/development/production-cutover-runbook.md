@@ -586,7 +586,7 @@ already included in the 414 baseline.
    build, proves the staged application's embedded SHA and Production
    environment, and retains a sanitized recovery manifest before arming the
    cutover. It then reasserts
-   `authenticator.app.maintenance_write_block=on`, terminates existing
+   `authenticator.pgrst.app_settings.maintenance_write_block=on`, terminates existing
    authenticator sessions, and proves a fresh PostgREST mutation returns
    SQLSTATE `25006`. It then promotes and verifies the maintenance alias before
    starting the migration push.
