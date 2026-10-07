@@ -4,73 +4,69 @@ import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/auth-helpers";
+import { basicInfoSchema } from "@/schemas/event-form-schema";
+import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 
-export async function checkProfanity(content: { [key: string]: string }) {
+const projectContentSchema = basicInfoSchema
+  .pick({ title: true, location: true, description: true })
+  .strict();
+
+type ProjectContentCheck = {
+  success: boolean;
+  hasProfanity: boolean;
+  error?: string;
+  fieldResults?: Record<
+    string,
+    { isProfanity: boolean; score?: number; flaggedFor?: string[] }
+  >;
+};
+
+export async function checkProfanity(content: {
+  [key: string]: string;
+}): Promise<ProjectContentCheck> {
   "use server";
   try {
-    // Create a results object to store checks for each field
-    const results: {
-      [key: string]: {
-        isProfanity: boolean;
-        score?: number;
-        flaggedFor?: string[];
+    const { user, error } = await getAuthUser({
+      sensitive: true,
+      checkMfa: true,
+    });
+    if (error || !user) {
+      return {
+        success: false,
+        hasProfanity: false,
+        error: "Content could not be checked. Sign in again and retry.",
       };
-    } = {};
-
-    let hasProfanity = false;
-
-    // Check each field separately
-    for (const [field, text] of Object.entries(content)) {
-      if (!text || text.trim() === "") {
-        results[field] = { isProfanity: false };
-        continue; // Skip empty fields
-      }
-
-      try {
-        const response = await fetch("https://vector.profanity.dev", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text }),
-        });
-
-        if (!response.ok) {
-          // If API call fails for this field, assume no profanity
-          results[field] = { isProfanity: false };
-          continue;
-        }
-
-        const result = await response.json();
-
-        results[field] = {
-          isProfanity: !!result.isProfanity,
-          score: result.score,
-          flaggedFor: result.flaggedFor,
-        };
-
-        // If any field has profanity, mark the overall result as having profanity
-        if (result.isProfanity) {
-          hasProfanity = true;
-        }
-      } catch (error) {
-        // If check fails for this field, assume no profanity
-        safeConsole.error(
-          "Application diagnostic from app/projects/create/server/validation",
-          `Error checking profanity for ${field}:`,
-          error,
-        );
-        results[field] = { isProfanity: false };
-      }
     }
-
+    const parsed = projectContentSchema.safeParse(content);
+    if (!parsed.success) {
+      return {
+        success: false,
+        hasProfanity: false,
+        error:
+          "Check the title, location, and description lengths and try again.",
+      };
+    }
+    const fieldResults: Record<string, { isProfanity: boolean }> = {};
+    for (const [field, text] of Object.entries(parsed.data)) {
+      fieldResults[field] = {
+        isProfanity: (await checkOffensiveLanguage(text)).isProfane,
+      };
+    }
     return {
       success: true,
-      hasProfanity,
-      fieldResults: results,
+      hasProfanity: Object.values(fieldResults).some(
+        (result) => result.isProfanity,
+      ),
+      fieldResults,
     };
-  } catch (error) {
-    safeConsole.error("Error in profanity check function:", error);
-    // If overall check fails, default to allowing content
-    return { success: true, hasProfanity: false };
+  } catch {
+    return {
+      success: false,
+      hasProfanity: false,
+      error:
+        "Content could not be checked. Please retry before creating your project.",
+    };
   }
 }
 
