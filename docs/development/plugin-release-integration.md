@@ -28,6 +28,43 @@ integration PR containing the host changes and publication. Automatic dispatches
 continue to use Development. A candidate from another repository, an older
 Development lineage, or a different workflow revision is refused.
 
+## Paired embedded releases
+
+The single-release lane refuses a private commit that changes another published
+embedded plugin. When one reviewed commit changes multiple embedded plugins,
+prepare and sign a separate release for each changed plugin at that same exact
+private commit. Do not publish an intermediate registry record or relax the
+single-release tree check to make the first release pass.
+
+Use the manual `plugin-release-batch-integration.yml` workflow from the reviewed
+root feature branch. Supply its full `candidate_sha`, the existing Development
+pull request number and a JSON array of two through sixteen exact release tags.
+The candidate must equal the workflow commit, descend from current Development
+and be the current head of that same-repository PR. The workflow updates that
+review branch; it does not open another integration PR or merge either branch.
+
+The batch controller verifies each tag-bound Cosign signature, its source and
+SBOM digests, exact tag resolution and private main plus Development ancestry.
+All releases must be embedded, name one private commit, advance distinct known
+plugins and retain the published install contracts. Every changed published
+embedded tree must be covered by a verified release. Independent applications
+continue through their separate single-release and deployment workflows.
+
+All validation and serving-test planning complete before the first host write.
+The controller generates one publication transaction immediately after the
+current migration head, with a guarded immutable publication for each plugin,
+both registry entries and per-release pgTAP contracts. It updates shared serving
+expectations together and moves the gitlink once. No organization install moves.
+It does not add the new migration to any accepted catalog or digest allowlist.
+Review and prove that generated migration before accepting the new ledger.
+
+Before pushing, the workflow rechecks PR identity and the exact original remote
+head. It proves the immutable result commit descends from that candidate and uses
+an exact expected-head lease. A forward update, rewind or missing remote branch
+refuses the push; the workflow never refreshes the lease to overwrite drift.
+Final strict registry, generated host surface, database/browser and hosted
+Development checks still apply to the complete pair.
+
 ## Application database preflight
 
 The signed application deployment workflow verifies the database before extracting
