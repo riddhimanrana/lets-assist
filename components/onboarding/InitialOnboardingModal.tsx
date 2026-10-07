@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -156,7 +157,7 @@ export default function InitialOnboardingModal({
       }
     } catch (error) {
       if (requestId === usernameRequestIdRef.current) {
-        console.error("Error checking username:", error);
+        safeConsole.error("Error checking username:", error);
         setUsernameAvailable(null);
       }
     } finally {
@@ -272,7 +273,7 @@ export default function InitialOnboardingModal({
               error,
             } = await supabase.auth.getUser();
             if (error) {
-              console.warn(
+              safeConsole.warn(
                 "Error fetching updated user after onboarding:",
                 error,
               );
@@ -335,7 +336,7 @@ export default function InitialOnboardingModal({
         }, 1000);
       }
     } catch (error) {
-      console.error("Onboarding submission error:", error);
+      safeConsole.error("Onboarding submission error:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);

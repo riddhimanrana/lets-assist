@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { getPublicOrganizationForRender } from "./server/public-organization-read";
 import { loadVisibleOrganizationReport } from "./server/overview-report-read";
 import { notFound, redirect } from "next/navigation";
@@ -257,7 +258,7 @@ export default async function OrganizationPage({
     };
 
     if (membersError) {
-      console.error("Error fetching organization members:", membersError);
+      safeConsole.error("Error fetching organization members:", membersError);
     }
 
     memberCount = membersData?.length ?? memberCount;
@@ -275,7 +276,7 @@ export default async function OrganizationPage({
         };
 
       if (profilesError) {
-        console.error("Error fetching member profiles:", profilesError);
+        safeConsole.error("Error fetching member profiles:", profilesError);
       } else {
         profilesData = profiles || [];
       }
@@ -300,7 +301,7 @@ export default async function OrganizationPage({
         };
       }) || [];
 
-    console.log(
+    safeConsole.log(
       "Members query result:",
       formattedMembers.length,
       "members found",

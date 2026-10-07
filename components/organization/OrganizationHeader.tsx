@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ export default function OrganizationHeader({
         return;
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
-          console.error("Share failed: ", err);
+          safeConsole.error("Share failed: ", err);
           toast.error("Could not share link");
         } else {
           return;

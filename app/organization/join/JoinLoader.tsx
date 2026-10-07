@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -38,7 +39,7 @@ export default function JoinLoader({ code }: JoinLoaderProps) {
         toast.error("Could not open the organization. Try again.");
         router.push("/organization");
       } catch (error) {
-        console.error("Error joining:", error);
+        safeConsole.error("Error joining:", error);
         toast.error("Failed to join organization");
         router.push("/organization");
       }

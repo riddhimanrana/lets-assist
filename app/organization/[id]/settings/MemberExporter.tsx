@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,7 @@ export default function MemberExporter({
 
       toast.success("Member data exported successfully");
     } catch (error) {
-      console.error("Error exporting members:", error);
+      safeConsole.error("Error exporting members:", error);
       toast.error("Failed to export member data");
     } finally {
       setIsExporting(false);

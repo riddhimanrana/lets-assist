@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import {
   mapWithConcurrency,
@@ -101,7 +102,8 @@ export async function POST(request: NextRequest) {
           };
         }
       } catch (error) {
-        console.error(
+        safeConsole.error(
+          "Application diagnostic from app/api/cron/organization-calendar-sync/route",
           `Failed to sync calendar for org ${row.organization_id}:`,
           error,
         );

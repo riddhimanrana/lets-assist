@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { preparePublicImage } from "@/lib/storage/public-image";
 import {
@@ -64,7 +65,7 @@ export async function checkOrgUsername(username: string): Promise<boolean> {
     .maybeSingle();
 
   if (error) {
-    console.error("Error checking username:", error);
+    safeConsole.error("Error checking username:", error);
     return false;
   }
 
@@ -122,7 +123,10 @@ export async function createOrganization(data: OrganizationCreationData) {
     .gte("created_at", fourteenDaysAgo);
 
   if (countError) {
-    console.error("Error counting organizations for rate limit:", countError);
+    safeConsole.error(
+      "Error counting organizations for rate limit:",
+      countError,
+    );
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
@@ -208,7 +212,7 @@ export async function createOrganization(data: OrganizationCreationData) {
         .delete()
         .eq("id", organization.id);
       if (cleanupError) {
-        console.error(
+        safeConsole.error(
           "Failed to compensate organization creation after membership failure:",
           cleanupError,
         );
@@ -259,7 +263,7 @@ export async function createOrganization(data: OrganizationCreationData) {
       logoWarning,
     };
   } catch (error) {
-    console.error("Error creating organization:", error);
+    safeConsole.error("Error creating organization:", error);
     return {
       error:
         error instanceof Error
@@ -334,7 +338,7 @@ export async function regenerateJoinCode(organizationId: string) {
   const { data, error } = rotateResult;
 
   if (error || !data) {
-    console.error("Error regenerating join code:", error);
+    safeConsole.error("Error regenerating join code:", error);
     return { error: "Failed to regenerate join code" };
   }
 

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { randomUUID } from "node:crypto";
 import { generateText, Output } from "ai";
 import { NextRequest } from "next/server";
@@ -130,7 +131,8 @@ async function extractImageWithModel(options: {
     const parsed = paperSignupExtractionSchema.safeParse(result.output);
     return parsed.success ? parsed.data : null;
   } catch (error) {
-    console.error(
+    safeConsole.error(
+      "Application diagnostic from app/api/ai/scan-signup-sheet/route",
       `Paper scan extraction failed on ${options.modelId}:`,
       error instanceof Error ? `${error.name}: ${error.message}` : error,
     );
@@ -634,7 +636,7 @@ export async function POST(req: NextRequest) {
       warnings,
     });
   } catch (error) {
-    console.error("Paper signup scan failed:", error);
+    safeConsole.error("Paper signup scan failed:", error);
     if (claimedBatch) {
       await admin
         .from("project_paper_scan_batches")

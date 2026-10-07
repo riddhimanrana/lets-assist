@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -58,7 +59,10 @@ async function findGoogleOAuthBindingEvidence(
 
   const { data, error } = await query.maybeSingle();
   if (error) {
-    console.error("Failed to resolve Google OAuth connection binding:", error);
+    safeConsole.error(
+      "Failed to resolve Google OAuth connection binding:",
+      error,
+    );
     return null;
   }
 
@@ -183,7 +187,7 @@ export async function saveGoogleOAuthConnectionForBinding(
   );
 
   if (error || typeof data !== "string") {
-    console.error("Failed to save bound Google OAuth connection:", error);
+    safeConsole.error("Failed to save bound Google OAuth connection:", error);
     return { connectionId: null, error: error?.message ?? "Save failed" };
   }
 

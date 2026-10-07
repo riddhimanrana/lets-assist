@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -249,7 +250,7 @@ export default function AttendanceClient({
 
         // Check if sessionEndDateTime is valid
         if (isNaN(sessionEndDateTime.getTime())) {
-          console.error(
+          safeConsole.error(
             "Invalid end date/time for progress calculation",
             sessionDetails,
           );
@@ -298,7 +299,7 @@ export default function AttendanceClient({
           setSessionHasEnded(true);
         }
       } catch (error) {
-        console.error("Error calculating progress:", error);
+        safeConsole.error("Error calculating progress:", error);
         setProgressPercentage(0);
         setRemainingTimeFormatted("Error calculating");
       }
@@ -327,7 +328,7 @@ export default function AttendanceClient({
     const targetSignupId = signupIdToCheckIn || existingCheckIn?.id;
 
     if (!targetSignupId || isSubmitting) {
-      console.warn(
+      safeConsole.warn(
         "Check-in prevented: No targetSignupId or already submitting.",
         { targetSignupId, isSubmitting },
       );
@@ -354,7 +355,7 @@ export default function AttendanceClient({
         throw new Error(result.error || "Check-in failed.");
       }
     } catch (error) {
-      console.error("Check-in error:", error);
+      safeConsole.error("Check-in error:", error);
       const message =
         error instanceof Error ? error.message : "Check-in failed.";
       toast.error(`Failed to check in: ${message}`);
@@ -388,7 +389,7 @@ export default function AttendanceClient({
         throw new Error(result.error || "Failed to leave event.");
       }
     } catch (error) {
-      console.error("Leave event error:", error);
+      safeConsole.error("Leave event error:", error);
       const message =
         error instanceof Error ? error.message : "Failed to leave event.";
       toast.error(`Failed to leave event: ${message}`);
@@ -432,7 +433,7 @@ export default function AttendanceClient({
         );
       }
     } catch (err) {
-      console.error("Anonymous check-in error:", err);
+      safeConsole.error("Anonymous check-in error:", err);
       const message =
         err instanceof Error
           ? err.message
@@ -485,7 +486,7 @@ export default function AttendanceClient({
         }
       }
     } catch (error) {
-      console.error("Client-side error during email lookup call:", error);
+      safeConsole.error("Client-side error during email lookup call:", error);
       toast.error("Failed to communicate with server for email lookup.");
       setLookupResult({
         success: false,

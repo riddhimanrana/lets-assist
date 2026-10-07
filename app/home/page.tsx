@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import React, { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -54,7 +55,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   };
 
   if (profileError) {
-    console.warn("[Home] Failed to load profile data:", profileError);
+    safeConsole.warn("[Home] Failed to load profile data:", profileError);
   }
   const authMetadata = user.user_metadata as
     Record<string, unknown> | null | undefined;

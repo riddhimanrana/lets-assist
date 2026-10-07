@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import words from "profane-words";
 
 /**
@@ -55,7 +56,7 @@ export async function checkOffensiveLanguage(
 
     return { isProfane: false };
   } catch (error) {
-    console.error("Profanity check error:", error);
+    safeConsole.error("Profanity check error:", error);
     // Fail open
     return { isProfane: false };
   }

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -68,7 +69,7 @@ export async function togglePauseSignups(
       .eq("id", projectId);
 
     if (error) {
-      console.error("Error updating pause state:", error);
+      safeConsole.error("Error updating pause state:", error);
       return { error: "Failed to update signup status" };
     }
 
@@ -78,7 +79,7 @@ export async function togglePauseSignups(
 
     return { success: true };
   } catch (error) {
-    console.error("Error toggling pause state:", error);
+    safeConsole.error("Error toggling pause state:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -269,7 +270,7 @@ export async function signUpForProject(
             validationResult.warnings &&
             validationResult.warnings.length > 0
           ) {
-            console.warn(
+            safeConsole.warn(
               "Waiver validation warnings:",
               validationResult.warnings,
             );

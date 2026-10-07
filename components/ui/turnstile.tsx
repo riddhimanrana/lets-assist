@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   DEFAULT_SCRIPT_ID,
@@ -148,7 +149,7 @@ export const TurnstileComponent = forwardRef<
 
     if (!siteKey) {
       if (process.env.NODE_ENV !== "production") {
-        console.error(
+        safeConsole.error(
           "Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)",
         );
       }
@@ -169,7 +170,7 @@ export const TurnstileComponent = forwardRef<
 
     const handleError = (errorCode?: string) => {
       if (process.env.NODE_ENV !== "production") {
-        console.warn("[Turnstile] Error", errorCode);
+        safeConsole.warn("[Turnstile] Error", errorCode);
       }
       onError?.(errorCode);
     };

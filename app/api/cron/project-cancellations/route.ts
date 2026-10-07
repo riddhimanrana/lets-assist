@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -123,7 +124,7 @@ async function handle(request: NextRequest) {
       { status: 200 },
     );
   } catch (error) {
-    console.error("Project cancellation worker failed:", error);
+    safeConsole.error("Project cancellation worker failed:", error);
     return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
   }
 }

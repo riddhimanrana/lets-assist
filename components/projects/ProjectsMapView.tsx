@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -91,7 +92,7 @@ function MapContent({
         };
       }
     } catch (e) {
-      console.error("Error getting project position:", e);
+      safeConsole.error("Error getting project position:", e);
     }
     return null;
   };
@@ -157,7 +158,7 @@ function MapContent({
       const data = (await response.json()) as ProjectWithAvailability[];
       setProjects(data);
     } catch (err) {
-      console.error("Error fetching projects:", err);
+      safeConsole.error("Error fetching projects:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch projects");
     } finally {
       setIsLoading(false);
@@ -186,7 +187,7 @@ function MapContent({
           }
         },
         (error) => {
-          console.error("Error getting location:", error);
+          safeConsole.error("Error getting location:", error);
           let errorMessage = "We couldn't determine your location.";
 
           // Provide specific error messages
@@ -210,7 +211,7 @@ function MapContent({
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
       );
     } else {
-      console.error("Geolocation is not supported by this browser");
+      safeConsole.error("Geolocation is not supported by this browser");
       alert("Your browser doesn't support geolocation features.");
     }
   }, []); // No dependencies needed since we're using state setters
@@ -270,7 +271,7 @@ function MapContent({
         map.setCenter(center);
         map.setZoom(zoom);
       } catch (e) {
-        console.error("Error restoring map state:", e);
+        safeConsole.error("Error restoring map state:", e);
       }
     }
   }, []);

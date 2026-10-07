@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
@@ -77,7 +78,7 @@ export function PdfViewerWithOverlay({
         setLoading(false);
       } catch (err) {
         if (isStale) return;
-        console.error("Error loading PDF:", err);
+        safeConsole.error("Error loading PDF:", err);
         setError("Failed to load PDF document.");
         setLoading(false);
       }

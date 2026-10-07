@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -290,7 +291,7 @@ export async function getOrganizationInvitations(
     .range(rangeFrom, rangeTo);
 
   if (error) {
-    console.error("Error fetching invitations:", error);
+    safeConsole.error("Error fetching invitations:", error);
     return {
       invitations: [],
       total: 0,

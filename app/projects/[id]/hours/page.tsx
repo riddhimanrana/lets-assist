@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { notFound, redirect } from "next/navigation";
@@ -308,7 +309,7 @@ export default async function HoursPage({
   }; // Fetch both attended and approved
 
   if (signupsError) {
-    console.error("Error fetching signups:", signupsError);
+    safeConsole.error("Error fetching signups:", signupsError);
     return <div>Error loading volunteer data.</div>;
   }
 

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Configure PDF.js worker
@@ -31,7 +32,7 @@ async function ensurePdfJsWorkerReady() {
       })
       .catch((error) => {
         if (process.env.NODE_ENV !== "test") {
-          console.warn("Failed to preload pdf.js worker module:", error);
+          safeConsole.warn("Failed to preload pdf.js worker module:", error);
         }
       });
   }
@@ -149,7 +150,7 @@ export async function detectPdfWidgets(
       errors: errors.length > 0 ? errors : undefined,
     };
   } catch (error) {
-    console.error("PDF.js detection error:", error);
+    safeConsole.error("PDF.js detection error:", error);
 
     // Fallback to naive detection
     try {
@@ -227,7 +228,7 @@ export function detectPdfSignaturesNaive(pdfBytes: ArrayBuffer): {
 
     return { hasSignatureFields: false, confidence: "low" };
   } catch (error) {
-    console.error("Naive detection error:", error);
+    safeConsole.error("Naive detection error:", error);
     return { hasSignatureFields: false, confidence: "low" };
   }
 }
@@ -281,7 +282,7 @@ function normalizeAnnotation(
       defaultValue: defaultValue ? String(defaultValue) : undefined,
     };
   } catch (error) {
-    console.error("Error normalizing annotation:", error);
+    safeConsole.error("Error normalizing annotation:", error);
     return null;
   }
 }

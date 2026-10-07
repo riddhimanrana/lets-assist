@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Get Synced Events
  * GET /api/calendar/synced-events
@@ -195,7 +196,7 @@ export async function GET(_request: Request) {
       total: syncedEvents.length,
     });
   } catch (error) {
-    console.error("Error getting synced events:", error);
+    safeConsole.error("Error getting synced events:", error);
     return NextResponse.json(
       { error: "Failed to get synced events" },
       { status: 500 },

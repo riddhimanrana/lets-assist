@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -41,7 +42,7 @@ export default function LeaveOrganizationDialog({
         router.push("/organization");
       }
     } catch (error) {
-      console.error("Error leaving organization:", error);
+      safeConsole.error("Error leaving organization:", error);
       toast.error("Failed to leave organization. Please try again.");
       setIsOpen(false);
     } finally {

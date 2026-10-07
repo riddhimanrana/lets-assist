@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -74,7 +75,7 @@ export async function checkInParticipant(
 
     return { success: true };
   } catch (error) {
-    console.error("Error checking in participant:", error);
+    safeConsole.error("Error checking in participant:", error);
     return {
       success: false,
       error: "An unexpected error occurred",
@@ -164,7 +165,7 @@ export async function checkOutParticipant(
 
     return { success: true, checkOutTime: checkout.checkOutTime };
   } catch (error) {
-    console.error("Error checking out participant:", error);
+    safeConsole.error("Error checking out participant:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

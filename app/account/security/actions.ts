@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 import {
@@ -114,7 +115,7 @@ export async function updatePasswordAction(formData: FormData) {
   });
 
   if (updateError) {
-    console.error("Update password error:", updateError);
+    safeConsole.error("Update password error:", updateError);
     return { error: { server: [updateError.message] } as ActionErrorResponse };
   }
 
@@ -122,7 +123,7 @@ export async function updatePasswordAction(formData: FormData) {
   const { error: refreshError } = await supabase.auth.refreshSession();
 
   if (refreshError) {
-    console.error("Session refresh error:", refreshError);
+    safeConsole.error("Session refresh error:", refreshError);
     // Don't fail the update, session will refresh naturally
   }
 
@@ -182,7 +183,7 @@ export async function setPasswordAction(formData: FormData) {
   });
 
   if (updateError) {
-    console.error("Set password error:", updateError);
+    safeConsole.error("Set password error:", updateError);
     return { error: { server: [updateError.message] } as ActionErrorResponse };
   }
 
@@ -222,7 +223,7 @@ export async function updateEmailAction(formData: FormData) {
     );
 
     if (error) {
-      console.error("Update email error:", error);
+      safeConsole.error("Update email error:", error);
       return { error: { server: [error.message] } as ActionErrorResponse };
     }
 

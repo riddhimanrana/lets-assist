@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import crypto from "crypto";
@@ -318,7 +319,7 @@ export async function registerAnonymousSignup({
           .maybeSingle();
 
       if (existingWaiverError) {
-        console.error(
+        safeConsole.error(
           "Error checking existing anonymous waiver signature:",
           existingWaiverError,
         );

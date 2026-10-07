@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -52,7 +53,11 @@ export async function checkProfanity(content: { [key: string]: string }) {
         }
       } catch (error) {
         // If check fails for this field, assume no profanity
-        console.error(`Error checking profanity for ${field}:`, error);
+        safeConsole.error(
+          "Application diagnostic from app/projects/create/server/validation",
+          `Error checking profanity for ${field}:`,
+          error,
+        );
         results[field] = { isProfanity: false };
       }
     }
@@ -63,7 +68,7 @@ export async function checkProfanity(content: { [key: string]: string }) {
       fieldResults: results,
     };
   } catch (error) {
-    console.error("Error in profanity check function:", error);
+    safeConsole.error("Error in profanity check function:", error);
     // If overall check fails, default to allowing content
     return { success: true, hasProfanity: false };
   }
@@ -93,13 +98,13 @@ export async function getProjectById(projectId: string) {
       .single();
 
     if (error) {
-      console.error("Error fetching project:", error);
+      safeConsole.error("Error fetching project:", error);
       return { error: "Failed to fetch project" };
     }
 
     return { project };
   } catch (error) {
-    console.error("Error in getProjectById:", error);
+    safeConsole.error("Error in getProjectById:", error);
     return { error: "Failed to fetch project" };
   }
 }

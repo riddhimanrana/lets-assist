@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import MembersTab from "@/app/organization/[id]/MembersTab";
@@ -454,12 +455,12 @@ export default function OrganizationTabs({
 
   // Validate input data
   if (!Array.isArray(members)) {
-    console.error("OrganizationTabs: members prop is not an array");
+    safeConsole.error("OrganizationTabs: members prop is not an array");
     return <div className="text-destructive">Error: Invalid members data</div>;
   }
 
   if (!Array.isArray(projects)) {
-    console.error("OrganizationTabs: projects prop is not an array");
+    safeConsole.error("OrganizationTabs: projects prop is not an array");
     return <div className="text-destructive">Error: Invalid projects data</div>;
   }
 

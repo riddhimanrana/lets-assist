@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { preparePublicImage } from "@/lib/storage/public-image";
@@ -53,7 +54,7 @@ export async function checkUsernameAvailability(
     .maybeSingle();
 
   if (error) {
-    console.error("Error checking username availability:", error);
+    safeConsole.error("Error checking username availability:", error);
     return false;
   }
 
@@ -99,7 +100,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
     .single();
 
   if (orgError || !currentOrg) {
-    console.error("Error fetching organization:", orgError);
+    safeConsole.error("Error fetching organization:", orgError);
     return { error: "Organization not found" };
   }
 
@@ -215,7 +216,7 @@ export async function updateOrganization(data: OrganizationUpdateData) {
       ...(cleanupPending ? { cleanupPending: true } : {}),
     };
   } catch (error) {
-    console.error("Error updating organization:", error);
+    safeConsole.error("Error updating organization:", error);
     return {
       error:
         error instanceof Error
@@ -273,7 +274,10 @@ export async function deleteOrganization(organizationId: string) {
       .maybeSingle();
 
     if (deleteError) {
-      console.error("Error deleting organization from database:", deleteError);
+      safeConsole.error(
+        "Error deleting organization from database:",
+        deleteError,
+      );
       throw deleteError;
     }
 
@@ -293,13 +297,13 @@ export async function deleteOrganization(organizationId: string) {
             .remove([fileName]);
 
           if (logoRemovalError) {
-            console.error(
+            safeConsole.error(
               "Error removing deleted organization logo:",
               logoRemovalError,
             );
           }
         } catch (error) {
-          console.error("Error removing deleted organization logo:", error);
+          safeConsole.error("Error removing deleted organization logo:", error);
         }
       }
     }
@@ -309,7 +313,7 @@ export async function deleteOrganization(organizationId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error deleting organization:", error);
+    safeConsole.error("Error deleting organization:", error);
     return {
       error:
         error instanceof Error
@@ -365,7 +369,7 @@ export async function generateStaffLink(
       .eq("id", organizationId);
 
     if (updateError) {
-      console.error("Error generating staff link:", updateError);
+      safeConsole.error("Error generating staff link:", updateError);
       throw updateError;
     }
 
@@ -378,7 +382,7 @@ export async function generateStaffLink(
       expiresAt: expiresAt.toISOString(),
     };
   } catch (error) {
-    console.error("Error generating staff link:", error);
+    safeConsole.error("Error generating staff link:", error);
     return {
       error:
         error instanceof Error
@@ -424,7 +428,7 @@ export async function revokeStaffLink(organizationId: string) {
       .eq("id", organizationId);
 
     if (updateError) {
-      console.error("Error revoking staff link:", updateError);
+      safeConsole.error("Error revoking staff link:", updateError);
       throw updateError;
     }
 
@@ -433,7 +437,7 @@ export async function revokeStaffLink(organizationId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error revoking staff link:", error);
+    safeConsole.error("Error revoking staff link:", error);
     return {
       error:
         error instanceof Error ? error.message : "Failed to revoke staff link",
@@ -491,7 +495,7 @@ export async function getStaffLinkDetails(organizationId: string) {
       isExpired,
     };
   } catch (error) {
-    console.error("Error getting staff link details:", error);
+    safeConsole.error("Error getting staff link details:", error);
     return {
       error:
         error instanceof Error

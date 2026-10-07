@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { normalizeRedirectPath } from "@/app/signup/redirect-utils";
 import { passwordRecoveryPath } from "./continuation";
@@ -65,14 +66,14 @@ export async function requestPasswordReset(
         );
 
         if (error) {
-          console.error("Password reset error:", error);
+          safeConsole.error("Password reset error:", error);
         }
 
         return { success: true };
       } catch (error) {
         // Network or unexpected runtime errors: still return success to avoid
         // leaking whether the email address exists, but log the real cause.
-        console.error("Password reset error:", error);
+        safeConsole.error("Password reset error:", error);
         return { success: true };
       }
     },

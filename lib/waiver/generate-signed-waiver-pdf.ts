@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { PDFDocument, rgb } from "pdf-lib";
 import type { SignaturePayload } from "@/types/waiver-definitions";
 
@@ -131,7 +132,8 @@ export async function generateSignedWaiverPdf(
           }
         }
       } catch (error) {
-        console.error(
+        safeConsole.error(
+          "Application diagnostic from lib/waiver/generate-signed-waiver-pdf",
           `Failed to embed signature for ${signerSignature.role_key}:`,
           error,
         );

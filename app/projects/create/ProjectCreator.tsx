@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 import React, {
   useState,
   useEffect,
@@ -399,7 +401,7 @@ export default function ProjectCreator({
           }, 3000);
         } else if (result.error) {
           setAutosaveStatus("error");
-          console.warn("Autosave error:", result.error);
+          safeConsole.warn("Autosave error:", result.error);
 
           // Clear error status after 5 seconds
           setTimeout(() => {
@@ -407,7 +409,7 @@ export default function ProjectCreator({
           }, 5000);
         }
       } catch (err) {
-        console.error("Failed to autosave draft", err);
+        safeConsole.error("Failed to autosave draft", err);
         setAutosaveStatus("error");
         setTimeout(() => {
           setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
@@ -804,7 +806,7 @@ export default function ProjectCreator({
           coverImageUrl = publicUrlData.publicUrl;
           setCoverImageUploadState("processing");
         } catch (error) {
-          console.error("Cover image upload failed:", error);
+          safeConsole.error("Cover image upload failed:", error);
           setCoverImageUploadState("error");
           hasErrors = true;
         }
@@ -861,7 +863,11 @@ export default function ProjectCreator({
           [uploadKey]: "processing",
         }));
       } catch (error) {
-        console.error(`Document upload failed for ${document.name}:`, error);
+        safeConsole.error(
+          "Application diagnostic from app/projects/create/ProjectCreator",
+          `Document upload failed for ${document.name}:`,
+          error,
+        );
         setDocumentUploadStates((current) => ({
           ...current,
           [uploadKey]: "error",
@@ -1083,7 +1089,7 @@ export default function ProjectCreator({
       const publishResult = await publishWaiverStagedProject(projectId);
       return publishResult.error ?? null;
     } catch (error) {
-      console.error("Error completing waiver publication:", error);
+      safeConsole.error("Error completing waiver publication:", error);
       return "The waiver could not be attached. Please try again.";
     }
   };
@@ -1248,7 +1254,7 @@ export default function ProjectCreator({
 
       // Step 5: Finalize project (non-blocking)
       finalizeProject(projectId).catch((error) => {
-        console.error("Error finalizing project:", error);
+        safeConsole.error("Error finalizing project:", error);
       });
 
       // Wait for queued saves and consume only this editor session's draft.
@@ -1279,7 +1285,7 @@ export default function ProjectCreator({
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/projects/${projectId}`;
     } catch (error) {
-      console.error("Error submitting project:", error);
+      safeConsole.error("Error submitting project:", error);
       toast.dismiss();
       toast.error("Something went wrong. Please try again.");
       setIsSubmitting(false);
@@ -1328,7 +1334,7 @@ export default function ProjectCreator({
 
       setIsSavingDraft(false);
     } catch (error) {
-      console.error("Error saving draft:", error);
+      safeConsole.error("Error saving draft:", error);
       toast.dismiss();
       toast.error("Failed to save draft. Please try again.");
       setIsSavingDraft(false);

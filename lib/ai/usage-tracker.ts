@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * AI Usage Tracker
  *
@@ -77,18 +78,25 @@ function reportUsageWriteFailure(
     `scope=${record.gatewayScope} model=${record.modelId} feature=${record.feature ?? "none"}`;
 
   if (writeFailuresSinceStartup === 1) {
-    console.error(summary, {
-      organizationId: record.organizationId ?? null,
-      userId: record.userId ?? null,
-      pluginKey: record.pluginKey ?? null,
-      inputTokens: record.inputTokens ?? 0,
-      outputTokens: record.outputTokens ?? 0,
-      detail,
-    });
+    safeConsole.error(
+      "Application diagnostic from lib/ai/usage-tracker",
+      summary,
+      {
+        organizationId: record.organizationId ?? null,
+        userId: record.userId ?? null,
+        pluginKey: record.pluginKey ?? null,
+        inputTokens: record.inputTokens ?? 0,
+        outputTokens: record.outputTokens ?? 0,
+        detail,
+      },
+    );
     return;
   }
 
-  console.error(summary);
+  safeConsole.error(
+    "Application diagnostic from lib/ai/usage-tracker",
+    summary,
+  );
 }
 
 /**

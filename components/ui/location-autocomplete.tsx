@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { useState, useRef, useEffect } from "react";
@@ -114,7 +115,7 @@ function LocationAutocompleteContent({
           );
         })
         .catch((error) => {
-          console.error("Error fetching autocomplete suggestions:", error);
+          safeConsole.error("Error fetching autocomplete suggestions:", error);
           setPredictions([]);
         })
         .finally(() => {
@@ -160,7 +161,7 @@ function LocationAutocompleteContent({
       setQuery("");
       setShowResults(false);
     } catch (error) {
-      console.error("Error fetching place details:", error);
+      safeConsole.error("Error fetching place details:", error);
     } finally {
       setIsLoading(false);
     }

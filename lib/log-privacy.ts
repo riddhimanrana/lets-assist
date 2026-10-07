@@ -1,4 +1,5 @@
 import { SAFE_LOG_MESSAGES } from "./log-event-catalog";
+import signupSteps from "./signup-diagnostic-steps.json";
 
 type LogValue = string | number | boolean;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -23,6 +24,10 @@ const NUMBER_KEYS = new Set([
   "text_length",
   "status",
   "http_status",
+  "slot_capacity",
+  "active_count",
+  "plugin_count",
+  "occurrenceCount",
 ]);
 const BOOLEAN_KEYS = new Set([
   "has_content_id",
@@ -33,8 +38,65 @@ const BOOLEAN_KEYS = new Set([
   "is_native_sheet",
   "replayed",
   "has_user_id",
+  "has_waiver_evidence",
+  "is_anonymous",
+  "firstCapture",
+  "conflict",
+  "csf",
+  "duplicate",
+  "reductionApplied",
 ]);
 const ENUMS: Record<string, ReadonlySet<string>> = {
+  signup_step: new Set(signupSteps),
+  eventType: new Set([
+    "email.sent",
+    "email.delivered",
+    "email.delivery_delayed",
+    "email.bounced",
+    "email.complained",
+    "email.opened",
+    "email.clicked",
+    "email.failed",
+    "email.suppressed",
+    "unsupported",
+    "unknown",
+  ]),
+  reasonCode: new Set([
+    "unroutable_tenant",
+    "malformed_event_shape",
+    "unsupported_event_shape",
+    "immutable_replay_conflict",
+    "contradictory_routing_evidence",
+    "cross_tenant_evidence",
+    "unknown_tenant_coordinate",
+    "unclassified_ledger_failure",
+  ]),
+  quarantineFailureCode: new Set([
+    "unroutable_tenant",
+    "malformed_event_shape",
+    "unsupported_event_shape",
+    "immutable_replay_conflict",
+    "contradictory_routing_evidence",
+    "cross_tenant_evidence",
+    "unknown_tenant_coordinate",
+    "unclassified_ledger_failure",
+  ]),
+  faultKind: new Set([
+    "type_error",
+    "range_error",
+    "syntax_error",
+    "error",
+    "non_error",
+  ]),
+  classification: new Set(["permanent", "retryable"]),
+  processingState: new Set([
+    "pending",
+    "applied",
+    "ignored",
+    "quarantined",
+    "unknown",
+  ]),
+  alertCode: new Set(["resend_webhook_signature_failure"]),
   outcome: new Set([
     "accepted",
     "definitive_failure",
@@ -107,11 +169,17 @@ export function sanitizeLogRecord(
     )
       attributes[key] = value;
     else if (
-      key === "error_code" &&
+      (key === "error_code" || key === "sqlstate") &&
       typeof value === "string" &&
       /^(?:[0-9]{5}|PGRST[0-9]{3}|ECONNRESET|ETIMEDOUT|ECONNREFUSED)$/.test(
         value,
       )
+    )
+      attributes[key] = value;
+    else if (
+      key === "providerEventDigest" &&
+      typeof value === "string" &&
+      /^[a-f0-9]{16}$/.test(value)
     )
       attributes[key] = value;
     else if (
@@ -132,19 +200,21 @@ export function sanitizeLogRecord(
 export function safeErrorAttributes(error: unknown): Record<string, unknown> {
   if (!error || typeof error !== "object") return { error_kind: "Error" };
   try {
-    const candidate = error as {
-      name?: unknown;
-      code?: unknown;
-      digest?: unknown;
+    const descriptors = Object.getOwnPropertyDescriptors(error);
+    const ownValue = (key: string) => {
+      const descriptor = descriptors[key];
+      return descriptor && "value" in descriptor ? descriptor.value : undefined;
     };
+    const name = ownValue("name");
     return {
       error_kind:
-        typeof candidate.name === "string" &&
-        ENUMS.error_kind.has(candidate.name)
-          ? candidate.name
-          : "Error",
-      error_code: candidate.code,
-      error_digest: candidate.digest,
+        typeof name === "string" && ENUMS.error_kind.has(name)
+          ? name
+          : error instanceof TypeError
+            ? "TypeError"
+            : "Error",
+      error_code: ownValue("code"),
+      error_digest: ownValue("digest"),
     };
   } catch {
     return { error_kind: "Error" };

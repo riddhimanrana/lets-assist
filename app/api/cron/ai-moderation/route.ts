@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { performAiModerationScan } from "@/app/admin/moderation/ai-scan-logic";
 
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     const result = await performAiModerationScan();
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Cron job failed:", error);
+    safeConsole.error("Cron job failed:", error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Internal server error",

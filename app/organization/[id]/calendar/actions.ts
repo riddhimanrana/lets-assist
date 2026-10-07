@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -92,7 +93,7 @@ export async function getOrganizationCalendarStatus(
     .maybeSingle();
 
   if (syncError) {
-    console.error("Failed to load org calendar config:", syncError);
+    safeConsole.error("Failed to load org calendar config:", syncError);
     return {
       connected: false,
       canManage: access.role === "admin",
@@ -161,7 +162,7 @@ export async function disconnectOrganizationCalendarConnection(
     .maybeSingle();
 
   if (syncError) {
-    console.error(
+    safeConsole.error(
       "Failed to load org calendar sync before disconnect:",
       syncError,
     );
@@ -193,7 +194,7 @@ export async function disconnectOrganizationCalendarConnection(
     .eq("organization_id", organizationId);
 
   if (pauseError) {
-    console.error(
+    safeConsole.error(
       "Failed to pause org calendar sync before account disconnect:",
       pauseError,
     );
@@ -235,7 +236,7 @@ export async function updateOrganizationCalendarSettings(
     .eq("organization_id", organizationId);
 
   if (error) {
-    console.error("Failed to update org calendar settings:", error);
+    safeConsole.error("Failed to update org calendar settings:", error);
     return { success: false, error: "Failed to update calendar settings" };
   }
 
@@ -264,7 +265,7 @@ export async function disconnectOrganizationCalendar(
     .eq("organization_id", organizationId);
 
   if (syncError) {
-    console.error("Failed to pause org calendar sync:", syncError);
+    safeConsole.error("Failed to pause org calendar sync:", syncError);
     return { success: false, error: "Failed to disconnect calendar" };
   }
 

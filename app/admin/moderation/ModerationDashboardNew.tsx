@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
@@ -486,7 +487,7 @@ export default function ModerationDashboard({
             break;
         }
       } catch (e) {
-        console.error("Failed to parse SSE event:", e);
+        safeConsole.error("Failed to parse SSE event:", e);
       }
     };
 

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 import { preparePublicImage } from "@/lib/storage/public-image";
@@ -140,7 +141,10 @@ export async function updateProfileInfo(formData: FormData) {
       .eq("id", userId)) as { error: { message?: string } | null };
 
     if (updateError) {
-      console.log(updateError);
+      safeConsole.log(
+        "Application diagnostic from app/account/profile/actions",
+        updateError,
+      );
       return { error: { server: ["Failed to update profile"] } };
     }
   } else {
@@ -160,7 +164,10 @@ export async function updateProfileInfo(formData: FormData) {
       .eq("id", userId)) as { error: { message?: string } | null };
 
     if (updateError) {
-      console.log(updateError);
+      safeConsole.log(
+        "Application diagnostic from app/account/profile/actions",
+        updateError,
+      );
       return { error: { server: ["Failed to update profile"] } };
     }
   }
@@ -311,7 +318,10 @@ export async function completeOnboarding(formData: FormData) {
     });
 
     if (metadataError) {
-      console.error("Failed to sync avatar to auth metadata", metadataError);
+      safeConsole.error(
+        "Failed to sync avatar to auth metadata",
+        metadataError,
+      );
       return { error: { server: ["Failed to update user metadata"] } };
     }
   }
@@ -403,7 +413,10 @@ export async function updateNameAndUsername(
     .eq("id", userId)) as { error: { message?: string; code?: string } | null };
 
   if (updateError) {
-    console.log(updateError);
+    safeConsole.log(
+      "Application diagnostic from app/account/profile/actions",
+      updateError,
+    );
     // Check for unique constraint violation on username
     const errorMessage = updateError.message ?? "";
     if (
@@ -441,7 +454,7 @@ export async function updateProfileVisibility(visibility: ProfileVisibility) {
     .eq("id", user.id)) as { error: { message?: string } | null };
 
   if (updateError) {
-    console.error(
+    safeConsole.error(
       "updateProfileVisibility: failed to update profile",
       updateError,
     );

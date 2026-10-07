@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -62,7 +63,7 @@ export default function CalendarOptionsModal({
         setIsConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
       } catch (error) {
-        console.error("Error checking calendar connection:", error);
+        safeConsole.error("Error checking calendar connection:", error);
         setIsConnected(false);
         setConnectedEmail(null);
       } finally {
@@ -164,7 +165,7 @@ export default function CalendarOptionsModal({
 
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to sync to calendar:", error);
+      safeConsole.error("Failed to sync to calendar:", error);
       toast.error("Sync Failed", {
         description:
           error instanceof Error
@@ -197,7 +198,7 @@ export default function CalendarOptionsModal({
       });
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to download iCal:", error);
+      safeConsole.error("Failed to download iCal:", error);
       toast.error("Download Failed", {
         description:
           error instanceof Error

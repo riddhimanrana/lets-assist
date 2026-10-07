@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,7 +30,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
     const isMobileDevice = /Mobile|Android|iPhone|iPad|iPod/i.test(userAgent);
 
     if (!isMobileDevice) {
-      console.warn(
+      safeConsole.warn(
         "PrepareClient: Access attempt from non-mobile device:",
         userAgent,
       );
@@ -43,7 +44,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
 
     const challenge = searchParams.get("challenge");
 
-    console.log("PrepareClient: Raw URL params:", {
+    safeConsole.log("PrepareClient: Raw URL params:", {
       hasChallenge: Boolean(challenge),
       fullURL: window.location.href,
     });
@@ -59,7 +60,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
         const result = await redeemAttendanceChallenge(projectId, challenge);
 
         if (result.success) {
-          console.log(
+          safeConsole.log(
             "PrepareClient: Cookie set successfully. Redirecting client-side...",
           );
           setStatus("success");
@@ -67,7 +68,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
             `/attend/${encodeURIComponent(result.projectId)}?session=${encodeURIComponent(result.sessionId)}&schedule=${encodeURIComponent(result.scheduleId)}`,
           );
         } else {
-          console.error(
+          safeConsole.error(
             "PrepareClient: Failed to set cookie via server action.",
             result.error,
           );
@@ -78,7 +79,7 @@ export default function PrepareClient({ projectId }: PrepareClientProps) {
           setStatus("error");
         }
       } catch (error) {
-        console.error("PrepareClient: Error calling server action.", error);
+        safeConsole.error("PrepareClient: Error calling server action.", error);
         setErrorMessage(
           "An unexpected error occurred. Please try scanning the QR code again.",
         );

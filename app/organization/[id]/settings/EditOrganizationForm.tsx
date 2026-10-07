@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -237,7 +238,7 @@ export default function EditOrganizationForm({
       const isAvailable = await checkUsernameAvailability(value);
       setUsernameAvailable(isAvailable);
     } catch (error) {
-      console.error("Error checking username:", error);
+      safeConsole.error("Error checking username:", error);
       setUsernameAvailable(false);
     } finally {
       setCheckingUsername(false);
@@ -282,7 +283,7 @@ export default function EditOrganizationForm({
         router.refresh();
       }
     } catch (error) {
-      console.error("Error uploading logo:", error);
+      safeConsole.error("Error uploading logo:", error);
       toast.error("Failed to upload logo. Please try again.");
     } finally {
       setIsUploading(false);
@@ -352,7 +353,7 @@ export default function EditOrganizationForm({
         router.refresh();
       }, 1000);
     } catch (error) {
-      console.error("Error updating organization:", error);
+      safeConsole.error("Error updating organization:", error);
       toast.error("Failed to update organization. Please try again.");
     } finally {
       setIsSubmitting(false);

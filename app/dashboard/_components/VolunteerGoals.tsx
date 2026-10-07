@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -212,7 +213,7 @@ export function VolunteerGoals({
       };
 
       if (error) {
-        console.error("Error filtering certificates:", error);
+        safeConsole.error("Error filtering certificates:", error);
         return;
       }
 
@@ -230,7 +231,7 @@ export function VolunteerGoals({
       setFilteredHours(totalFilteredHours);
       setFilteredEvents(certificates?.length || 0);
     } catch (error) {
-      console.error("Error filtering data:", error);
+      safeConsole.error("Error filtering data:", error);
       toast.error("Failed to filter data by date range");
     }
   };
@@ -273,7 +274,7 @@ export function VolunteerGoals({
         };
 
         if (error) {
-          console.error("Error fetching profile goals:", error);
+          safeConsole.error("Error fetching profile goals:", error);
           toast.error("Failed to load your volunteering goals");
         }
 
@@ -290,7 +291,7 @@ export function VolunteerGoals({
           setGoals({ hours_goal: 0, events_goal: 0 });
         }
       } catch (error) {
-        console.error("Error in fetchGoals:", error);
+        safeConsole.error("Error in fetchGoals:", error);
       } finally {
         setLoading(false);
       }
@@ -350,7 +351,11 @@ export function VolunteerGoals({
         `${type.charAt(0).toUpperCase() + type.slice(1)} goal updated`,
       );
     } catch (error) {
-      console.error(`Error saving ${type} goal:`, error);
+      safeConsole.error(
+        "Application diagnostic from app/dashboard/_components/VolunteerGoals",
+        `Error saving ${type} goal:`,
+        error,
+      );
       toast.error(`Failed to update your ${type} goal`);
     }
   };

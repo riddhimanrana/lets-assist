@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -92,7 +93,7 @@ async function handle(request: NextRequest) {
       durationMs: Date.now() - startedAt,
     });
   } catch (error) {
-    console.error("Project feedback follow-up worker failed:", error);
+    safeConsole.error("Project feedback follow-up worker failed:", error);
     return NextResponse.json({ error: "Worker run failed" }, { status: 500 });
   }
 }

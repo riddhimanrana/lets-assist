@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -129,7 +130,7 @@ export async function updateUserAccessControl(input: {
         app_metadata: banMeta,
       });
     if (banError) {
-      console.error("Error applying ban:", banError);
+      safeConsole.error("Error applying ban:", banError);
       return { error: "Failed to apply ban" };
     }
 
@@ -183,7 +184,7 @@ export async function updateUserAccessControl(input: {
       app_metadata: { ...currentAppMetadata, account_access: null },
     });
   if (activeError) {
-    console.error("Error restoring access:", activeError);
+    safeConsole.error("Error restoring access:", activeError);
     return { error: "Failed to restore user access" };
   }
 

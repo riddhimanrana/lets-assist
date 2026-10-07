@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /** Server auth validation and the durable account-deletion guard. */
 
 import { createClient } from "./server";
@@ -38,7 +39,7 @@ async function sessionRequiresMfa(
   });
 
   if (mfaState.lookupError && process.env.NODE_ENV === "development") {
-    console.warn(
+    safeConsole.warn(
       "[AuthHelpers] MFA assurance lookup failed:",
       mfaState.lookupError.message,
     );

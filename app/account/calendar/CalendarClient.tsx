@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import Image from "next/image";
@@ -105,7 +106,7 @@ export default function CalendarClient({
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to disconnect calendar:", error);
+      safeConsole.error("Failed to disconnect calendar:", error);
       toast.error("Disconnection Failed", {
         description:
           error instanceof Error
@@ -133,7 +134,7 @@ export default function CalendarClient({
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to remove event:", error);
+      safeConsole.error("Failed to remove event:", error);
       toast.error("Removal Failed", {
         description:
           error instanceof Error

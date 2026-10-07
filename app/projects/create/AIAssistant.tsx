@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export default function AIAssistant({
 
       await applyWithAnimation(parsedData);
     } catch (error) {
-      console.error("AI generation error:", error);
+      safeConsole.error("AI generation error:", error);
 
       // Provide more specific error messages
       let errorMessage =
@@ -108,7 +109,7 @@ export default function AIAssistant({
         onClose();
       }, 600);
     } catch (error) {
-      console.error("Error applying AI data:", error);
+      safeConsole.error("Error applying AI data:", error);
       toast.error(
         "Failed to apply project details. Please try entering them manually.",
       );

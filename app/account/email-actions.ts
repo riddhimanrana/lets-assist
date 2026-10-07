@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -37,7 +38,7 @@ async function discardUndeliveredAliasChallenge(input: {
   });
 
   if (error) {
-    console.error(
+    safeConsole.error(
       "Failed to discard undelivered email-alias challenge:",
       error,
     );
@@ -85,7 +86,7 @@ export async function sendVerificationEmail(email: string) {
   const issue = Array.isArray(issueRows) ? issueRows[0] : issueRows;
 
   if (issueError || !issue) {
-    console.error("Error preparing email verification:", issueError);
+    safeConsole.error("Error preparing email verification:", issueError);
     return { error: "Unable to send a verification code." };
   }
 
@@ -129,7 +130,7 @@ export async function sendVerificationEmail(email: string) {
       };
     }
     if (delivery.outcome !== "accepted") {
-      console.error("Email verification was not sent:", delivery.code);
+      safeConsole.error("Email verification was not sent:", delivery.code);
       await discardUndeliveredAliasChallenge({
         challengeId: issue.challenge_id,
         userId: user.id,
@@ -177,7 +178,7 @@ export async function verifyEmailToken(email: string, token: string) {
   });
 
   if (error || data !== "verified") {
-    if (error) console.error("Email alias verification failed:", error);
+    if (error) safeConsole.error("Email alias verification failed:", error);
     return { success: false, error: GENERIC_ALIAS_ERROR };
   }
 
@@ -228,7 +229,7 @@ export async function setPrimaryEmailAction(
     .maybeSingle();
 
   if (aliasError && aliasError.code !== "PGRST116") {
-    console.error("Error fetching alias:", aliasError);
+    safeConsole.error("Error fetching alias:", aliasError);
     return { success: false, error: "Unable to look up email" };
   }
 
@@ -256,7 +257,7 @@ export async function setPrimaryEmailAction(
       );
 
     if (updateError) {
-      console.error("auth.updateUser failed:", updateError);
+      safeConsole.error("auth.updateUser failed:", updateError);
       return {
         success: false,
         error: updateError.message || "Failed to update primary email",

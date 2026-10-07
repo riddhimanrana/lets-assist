@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -41,7 +42,7 @@ export function LeaveOrganizationDialog({
       toast.success("Successfully left the organization");
       router.push("/organization");
     } catch (error) {
-      console.error("Error leaving organization:", error);
+      safeConsole.error("Error leaving organization:", error);
       toast.error("Failed to leave organization");
     } finally {
       setIsLeaving(false);

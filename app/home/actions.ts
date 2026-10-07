@@ -1,4 +1,6 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
+
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
@@ -109,7 +111,7 @@ export async function getActiveProjects(
     };
 
     if (error || !rows) {
-      console.error("Error fetching project discovery read model:", error);
+      safeConsole.error("Error fetching project discovery read model:", error);
       return [];
     }
 
@@ -183,7 +185,7 @@ export async function getActiveProjects(
   };
 
   if (error || !projects) {
-    console.error("Error fetching projects:", error);
+    safeConsole.error("Error fetching projects:", error);
     return [];
   }
 
@@ -237,7 +239,7 @@ export async function getActiveProjects(
     };
 
     if (profilesError) {
-      console.error("Error fetching profiles:", profilesError);
+      safeConsole.error("Error fetching profiles:", profilesError);
     } else {
       profiles = data;
     }
@@ -259,7 +261,7 @@ export async function getActiveProjects(
     };
 
     if (orgsError) {
-      console.error("Error fetching organizations:", orgsError);
+      safeConsole.error("Error fetching organizations:", orgsError);
     } else {
       orgs = organizations ?? [];
     }

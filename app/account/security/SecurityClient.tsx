@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -169,7 +170,7 @@ export default function SecurityClient() {
             null,
         );
       } catch (error) {
-        console.error("Error checking auth methods:", error);
+        safeConsole.error("Error checking auth methods:", error);
       } finally {
         setIsCheckingAuth(false);
       }

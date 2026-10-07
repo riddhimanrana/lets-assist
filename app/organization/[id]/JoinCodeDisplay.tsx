@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -77,7 +78,7 @@ export default function JoinCodeDisplay({
         toast.success("Join code regenerated successfully");
       }
     } catch (error) {
-      console.error("Error regenerating join code:", error);
+      safeConsole.error("Error regenerating join code:", error);
       toast.error("Failed to regenerate join code");
     } finally {
       setIsRegenerating(false);

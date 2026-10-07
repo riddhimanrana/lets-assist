@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import type {
@@ -95,7 +96,8 @@ export async function executeLifecycleHook<
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    console.error(
+    safeConsole.error(
+      "Application diagnostic from lib/plugins/lifecycle",
       `Plugin lifecycle hook ${String(hookName)} failed for ${context.pluginKey}:`,
       error,
     );

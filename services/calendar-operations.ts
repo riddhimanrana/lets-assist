@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
@@ -92,7 +93,7 @@ export async function updateGoogleCalendarEvent(
   const connection = await getCalendarConnection(userId);
   const calendarId = connection?.preferences?.volunteering_calendar_id;
   if (!calendarId) {
-    console.error("No stored volunteering calendar is available");
+    safeConsole.error("No stored volunteering calendar is available");
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -115,7 +116,7 @@ export async function updateGoogleCalendarEvent(
 
     return response.ok;
   } catch (error) {
-    console.error("Error updating calendar event:", error);
+    safeConsole.error("Error updating calendar event:", error);
     return false;
   }
 }
@@ -138,7 +139,7 @@ export async function deleteGoogleCalendarEvent(
   const connection = await getCalendarConnection(userId);
   const calendarId = connection?.preferences?.volunteering_calendar_id;
   if (!calendarId) {
-    console.error("No stored volunteering calendar is available");
+    safeConsole.error("No stored volunteering calendar is available");
     throw new Error("Failed to access volunteering calendar");
   }
 
@@ -154,7 +155,7 @@ export async function deleteGoogleCalendarEvent(
 
     return response.ok || response.status === 404; // 404 means already deleted
   } catch (error) {
-    console.error("Error deleting calendar event:", error);
+    safeConsole.error("Error deleting calendar event:", error);
     return false;
   }
 }
@@ -173,7 +174,7 @@ export async function revokeGoogleCalendarAccess(
 
     return response.ok;
   } catch (error) {
-    console.error("Error revoking access:", error);
+    safeConsole.error("Error revoking access:", error);
     return false;
   }
 }
@@ -233,7 +234,7 @@ export async function deactivateGoogleConnection(
         ? "revoked"
         : "failed";
     } catch (error) {
-      console.error("Failed to revoke Google access:", error);
+      safeConsole.error("Failed to revoke Google access:", error);
       remoteRevocation = "failed";
     }
   }
@@ -248,7 +249,10 @@ export async function deactivateGoogleConnection(
     .eq("provider", "google");
 
   if (deactivateError) {
-    console.error("Failed to deactivate Google connection:", deactivateError);
+    safeConsole.error(
+      "Failed to deactivate Google connection:",
+      deactivateError,
+    );
     return {
       success: false,
       error: "Failed to disconnect Google account",
@@ -416,7 +420,7 @@ export async function getGoogleAccessTokenForUser(
         .update({ access_token: decrypted.reencrypted })
         .eq("id", connection.id)
         .eq("access_token", connection.access_token);
-      if (error) console.error("Failed to rotate Google access credential");
+      if (error) safeConsole.error("Failed to rotate Google access credential");
     }
     return decrypted.plaintext;
   }
@@ -428,7 +432,7 @@ export async function getGoogleAccessTokenForUser(
       .update({ refresh_token: decryptedRefresh.reencrypted })
       .eq("id", connection.id)
       .eq("refresh_token", connection.refresh_token);
-    if (error) console.error("Failed to rotate Google refresh credential");
+    if (error) safeConsole.error("Failed to rotate Google refresh credential");
   }
   const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
 

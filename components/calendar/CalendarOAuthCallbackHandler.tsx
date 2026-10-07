@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export default function CalendarOAuthCallbackHandler() {
           });
         }
       } catch (error) {
-        console.error("Failed to handle pending calendar sync:", error);
+        safeConsole.error("Failed to handle pending calendar sync:", error);
         toast.error("Calendar Sync Failed", {
           description:
             error instanceof Error

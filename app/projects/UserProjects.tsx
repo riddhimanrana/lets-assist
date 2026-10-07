@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
@@ -125,7 +126,7 @@ export default async function UserProjects() {
     .order("created_at", { ascending: false });
 
   if (createdError) {
-    console.error("Error fetching created projects:", createdError);
+    safeConsole.error("Error fetching created projects:", createdError);
   }
 
   // Get projects user has signed up for
@@ -148,7 +149,7 @@ export default async function UserProjects() {
     .order("created_at", { ascending: false });
 
   if (signupsError) {
-    console.error("Error fetching signups:", signupsError);
+    safeConsole.error("Error fetching signups:", signupsError);
   }
 
   // After getting the signups, fetch creator profiles separately if needed

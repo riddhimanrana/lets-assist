@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google - Disconnect
  * POST /api/google/oauth/disconnect
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
       remoteRevocation: deactivateResult.remoteRevocation,
     });
   } catch (error) {
-    console.error("Error disconnecting calendar:", error);
+    safeConsole.error("Error disconnecting calendar:", error);
     return NextResponse.json(
       { error: "Failed to disconnect calendar" },
       { status: 500 },

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound, redirect } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function AnonymousSignupPage({
   });
 
   if (error || !signupData) {
-    console.error("Error fetching anonymous signup:", error);
+    safeConsole.error("Error fetching anonymous signup:", error);
     notFound();
   }
 
@@ -66,7 +67,7 @@ export default async function AnonymousSignupPage({
     .order("created_at", { ascending: true });
 
   if (signupsError) {
-    console.error("Error fetching project signups:", signupsError);
+    safeConsole.error("Error fetching project signups:", signupsError);
     notFound();
   }
 
@@ -74,7 +75,7 @@ export default async function AnonymousSignupPage({
     if (signupData.linked_user_id) {
       redirect("/dashboard");
     }
-    console.error("No linked project signups found");
+    safeConsole.error("No linked project signups found");
     notFound();
   }
 
@@ -86,7 +87,7 @@ export default async function AnonymousSignupPage({
     .single();
 
   if (projectError || !project) {
-    console.error("Error fetching project:", projectError);
+    safeConsole.error("Error fetching project:", projectError);
     notFound();
   }
 
@@ -108,7 +109,10 @@ export default async function AnonymousSignupPage({
       await admin.auth.admin.getUserById(linked_user_id);
 
     if (linkedUserError) {
-      console.error("Error fetching linked account details:", linkedUserError);
+      safeConsole.error(
+        "Error fetching linked account details:",
+        linkedUserError,
+      );
     } else if (linkedUserData?.user) {
       const linkedUser = linkedUserData.user;
       linkedAccountSnapshot = {
@@ -147,7 +151,7 @@ export default async function AnonymousSignupPage({
       .in("signup_id", signupIds);
 
     if (certificatesError) {
-      console.error(
+      safeConsole.error(
         "Error fetching anonymous certificates:",
         certificatesError,
       );

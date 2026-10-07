@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
           }, 50);
         }
       } catch (error) {
-        console.error("Printing failed:", error);
+        safeConsole.error("Printing failed:", error);
         alert(
           "Could not open print dialog. Please try again or check browser settings.",
         );

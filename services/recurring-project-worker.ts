@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@supabase/supabase-js";
 import {
   addDays,
@@ -439,7 +440,8 @@ export async function processRecurringProjects(
         // faults so healthy parents after them are still reached.
         const ruleValidation = validateRecurrenceRule(normalizedRawRule);
         if (!ruleValidation.ok) {
-          console.warn(
+          safeConsole.warn(
+            "Application diagnostic from services/recurring-project-worker",
             `[recurring-cron] Bounded fault — skipping parent ${parent.id} (${parent.title}): ${ruleValidation.error}`,
           );
           errors.push(

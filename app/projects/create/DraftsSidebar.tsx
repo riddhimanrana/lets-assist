@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -113,7 +114,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         router.refresh();
       }
     } catch (error) {
-      console.error("Delete error:", error);
+      safeConsole.error("Delete error:", error);
       toast.error("Failed to delete draft");
     } finally {
       setIsDeleting(null);
@@ -133,7 +134,7 @@ export default function DraftsSidebar({ initialDrafts }: DraftsSidebarProps) {
         router.push(`/projects/${result.id}`);
       }
     } catch (error) {
-      console.error("Publish error:", error);
+      safeConsole.error("Publish error:", error);
       toast.error("Failed to publish project");
     } finally {
       setIsPublishing(null);

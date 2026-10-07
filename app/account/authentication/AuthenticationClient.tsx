@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { motion } from "motion/react";
@@ -123,7 +124,7 @@ function AuthenticationContent() {
         await supabase.auth.getUserIdentities();
 
       if (error) {
-        console.error("Error fetching identities:", error);
+        safeConsole.error("Error fetching identities:", error);
         return;
       }
 
@@ -141,7 +142,7 @@ function AuthenticationContent() {
         setLinkedGoogleEmail(null);
       }
     } catch (error) {
-      console.error("Check connection exception:", error);
+      safeConsole.error("Check connection exception:", error);
     }
   }, [supabase, user]);
 
@@ -170,7 +171,7 @@ function AuthenticationContent() {
       }
 
       if (claimsError) {
-        console.error(
+        safeConsole.error(
           "Failed to load auth claims for MFA settings:",
           claimsError,
         );
@@ -206,7 +207,7 @@ function AuthenticationContent() {
         nextLevel: assuranceData?.nextLevel ?? null,
       });
     } catch (error) {
-      console.error("Failed to load MFA settings:", error);
+      safeConsole.error("Failed to load MFA settings:", error);
       toast.error("We couldn't load your authenticator settings right now.");
       setMfaFactors([]);
       setAalState(null);
@@ -261,7 +262,7 @@ function AuthenticationContent() {
     const { error } = await supabase.auth.refreshSession();
 
     if (error) {
-      console.warn("Session refresh after MFA update failed:", error);
+      safeConsole.warn("Session refresh after MFA update failed:", error);
     }
   }, [supabase]);
 
@@ -281,7 +282,7 @@ function AuthenticationContent() {
 
       toast.info("Redirecting to Google to link your account...");
     } catch {
-      console.error("Google account linking failed");
+      safeConsole.error("Google account linking failed");
       toast.error("Failed to link Google account. Please try again.");
       setIsConnecting(false);
     }
@@ -339,7 +340,7 @@ function AuthenticationContent() {
       setIsGoogleConnected(false);
       setLinkedGoogleEmail(null);
     } catch (error) {
-      console.error("Error disconnecting Google account:", error);
+      safeConsole.error("Error disconnecting Google account:", error);
       toast.error(
         `Failed to disconnect Google account. ${error instanceof Error ? error.message : "Please try again."}`,
       );
@@ -393,7 +394,7 @@ function AuthenticationContent() {
         "Scan the QR code with your authenticator app, then enter the 6-digit code to finish setup.",
       );
     } catch (error) {
-      console.error("Failed to enroll authenticator factor:", error);
+      safeConsole.error("Failed to enroll authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -452,7 +453,7 @@ function AuthenticationContent() {
         "Authenticator app enabled. Future sign-ins will require a verification code.",
       );
     } catch (error) {
-      console.error("Failed to verify authenticator factor:", error);
+      safeConsole.error("Failed to verify authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -484,7 +485,7 @@ function AuthenticationContent() {
       await loadMfaState();
       toast.info("Authenticator setup canceled.");
     } catch (error) {
-      console.error("Failed to cancel authenticator setup:", error);
+      safeConsole.error("Failed to cancel authenticator setup:", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -529,7 +530,7 @@ function AuthenticationContent() {
       );
       setFactorToDisable(null);
     } catch (error) {
-      console.error("Failed to remove authenticator factor:", error);
+      safeConsole.error("Failed to remove authenticator factor:", error);
       toast.error(
         error instanceof Error
           ? error.message

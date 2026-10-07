@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -166,7 +167,7 @@ export function NotificationPopover({
 
   useEffect(() => {
     if (queryError) {
-      console.error(
+      safeConsole.error(
         "NotificationPopover: Error fetching notifications",
         queryError,
       );
@@ -220,7 +221,7 @@ export function NotificationPopover({
           // Also trigger context to stay in sync if needed, though we just optimistically set it.
           // contextRefresh();
         } catch (error) {
-          console.error("Error marking all notifications as read:", error);
+          safeConsole.error("Error marking all notifications as read:", error);
         }
       };
 
@@ -235,7 +236,7 @@ export function NotificationPopover({
       await supabase.from("notifications").update({ read: true }).eq("id", id);
       refresh();
     } catch (error) {
-      console.error("Error marking notification as read:", error);
+      safeConsole.error("Error marking notification as read:", error);
     }
   }
 

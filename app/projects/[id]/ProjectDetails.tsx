@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   Project,
@@ -197,7 +198,7 @@ const downloadFile = async (url: string, filename: string) => {
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
   } catch (error) {
-    console.error("Download error:", error);
+    safeConsole.error("Download error:", error);
   }
 };
 
@@ -324,7 +325,7 @@ export default function ProjectDetails({
       });
 
       if (error) {
-        console.error("Error fetching attendees:", error);
+        safeConsole.error("Error fetching attendees:", error);
         setPublicAttendees([]);
         return;
       }
@@ -365,7 +366,7 @@ export default function ProjectDetails({
     });
 
     if (error) {
-      console.error("Error refetching attendees:", error);
+      safeConsole.error("Error refetching attendees:", error);
       return;
     }
 
@@ -425,7 +426,7 @@ export default function ProjectDetails({
         };
 
         if (rejectedError) {
-          console.error("Error checking for rejections:", rejectedError);
+          safeConsole.error("Error checking for rejections:", rejectedError);
         } else if (rejectedData && rejectedData.length > 0) {
           // Create a record of rejected slots
           const rejections: Record<string, boolean> = {};
@@ -449,7 +450,10 @@ export default function ProjectDetails({
         };
 
         if (attendedError) {
-          console.error("Error checking for attended status:", attendedError);
+          safeConsole.error(
+            "Error checking for attended status:",
+            attendedError,
+          );
         } else if (attendedData && attendedData.length > 0) {
           // Create a record of attended slots
           const attended: Record<string, boolean> = {};
@@ -506,7 +510,7 @@ export default function ProjectDetails({
           setShowSignupConfirmation(true);
         }
       } catch (error) {
-        console.error("Error parsing modal state:", error);
+        safeConsole.error("Error parsing modal state:", error);
         sessionStorage.removeItem("signupModalState");
       }
     }
@@ -522,7 +526,7 @@ export default function ProjectDetails({
         if (!isMounted) return;
 
         if (result.error) {
-          console.error("Error fetching waiver config:", result.error);
+          safeConsole.error("Error fetching waiver config:", result.error);
           return;
         }
 
@@ -530,7 +534,7 @@ export default function ProjectDetails({
           setWaiverDefinition(result.definition as WaiverDefinitionFull);
         }
       } catch (error) {
-        console.error("Error fetching waiver configuration:", error);
+        safeConsole.error("Error fetching waiver configuration:", error);
       }
     };
 
@@ -561,7 +565,7 @@ export default function ProjectDetails({
         });
       }
     } catch (error) {
-      console.error("Error updating project status:", error);
+      safeConsole.error("Error updating project status:", error);
       toast.error("Failed to update project status", {
         description: "Refresh the page and try again.",
         action: {
@@ -592,7 +596,10 @@ export default function ProjectDetails({
 
     setCalculatedStatus((prevStatus) => {
       if (newCalculatedStatus !== prevStatus) {
-        console.log(`Calculated status updated: ${newCalculatedStatus}`);
+        safeConsole.log(
+          "Application diagnostic from app/projects/[id]/ProjectDetails",
+          `Calculated status updated: ${newCalculatedStatus}`,
+        );
         return newCalculatedStatus;
       }
       return prevStatus;
@@ -605,7 +612,8 @@ export default function ProjectDetails({
       isForwardProjectStatusTransition(project.status, newCalculatedStatus) &&
       !statusMismatchHandled.current
     ) {
-      console.log(
+      safeConsole.log(
+        "Application diagnostic from app/projects/[id]/ProjectDetails",
         `Status mismatch detected: prop=${project.status}, calculated=${newCalculatedStatus}`,
       );
       startTransition(() => {
@@ -630,7 +638,7 @@ export default function ProjectDetails({
 
       setCalculatedStatus((prevStatus) => {
         if (newStatus !== prevStatus) {
-          console.log("Status updated via interval:", newStatus);
+          safeConsole.log("Status updated via interval:", newStatus);
 
           if (
             canManageProject &&
@@ -807,7 +815,7 @@ export default function ProjectDetails({
   };
 
   const logSignupClientDebug = (payload: Record<string, unknown>) => {
-    console.log("[signup-client-debug]", JSON.stringify(payload));
+    safeConsole.log("[signup-client-debug]", JSON.stringify(payload));
   };
 
   const formatSlotCapacity = (value: unknown) => {
@@ -1116,7 +1124,7 @@ export default function ProjectDetails({
                 }
               }
             } catch (error) {
-              console.error("Error syncing to calendar:", error);
+              safeConsole.error("Error syncing to calendar:", error);
               // Don't fail the signup if calendar sync fails
             }
           }
@@ -1174,7 +1182,7 @@ export default function ProjectDetails({
       toast.error(error);
       return { success: false, error };
     } catch (error) {
-      console.error(
+      safeConsole.error(
         "[signup-client-debug]",
         JSON.stringify({
           step: "client_exception",
@@ -1367,7 +1375,10 @@ export default function ProjectDetails({
           );
         }
       } catch (error) {
-        console.error("Error processing multi-slot anonymous signup:", error);
+        safeConsole.error(
+          "Error processing multi-slot anonymous signup:",
+          error,
+        );
         toast.error("An unexpected error occurred. Please try again.");
       } finally {
         setLoadingStates((prev) => {
@@ -1404,7 +1415,7 @@ export default function ProjectDetails({
         setShowResendDialog(false);
       }
     } catch (error) {
-      console.error("Error resending confirmation:", error);
+      safeConsole.error("Error resending confirmation:", error);
       toast.error("Failed to resend confirmation email. Please try again.");
     } finally {
       resendTurnstileRef.current?.reset();
@@ -1447,7 +1458,7 @@ export default function ProjectDetails({
         return;
       } catch (error) {
         if ((error as Error)?.name !== "AbortError") {
-          console.error("Share failed:", error);
+          safeConsole.error("Share failed:", error);
         } else {
           // User cancelled the share sheet, don't show error or copy to clipboard
           return;

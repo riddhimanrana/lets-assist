@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 import { type NextRequest, NextResponse } from "next/server";
@@ -313,7 +314,7 @@ export async function updateSession(
     await supabase.auth.getClaims();
 
   if (claimsError && process.env.NODE_ENV === "development") {
-    console.log(
+    safeConsole.log(
       "[Proxy] getClaims error (request will be treated as unauthenticated):",
       claimsError.message,
     );
@@ -338,7 +339,7 @@ export async function updateSession(
 
     if (validationDisposition === "retry") {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] Fresh auth-user validation temporarily failed:",
           freshUserError?.message,
         );
@@ -483,7 +484,7 @@ export async function updateSession(
 
     if (mfaState.invalidUser) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] Detected stale/deleted auth user during MFA validation. Signing out.",
         );
       }
@@ -493,7 +494,7 @@ export async function updateSession(
       user = null;
     } else if (mfaState.lookupError) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] MFA validation temporarily failed:",
           mfaState.lookupError.message,
         );
@@ -592,7 +593,7 @@ export async function updateSession(
         .single();
 
       if (error) {
-        console.error(
+        safeConsole.error(
           "Error fetching project for management-route check:",
           error,
         );
@@ -626,7 +627,7 @@ export async function updateSession(
         );
       }
     } catch (e) {
-      console.error("Exception during project management-route check:", e);
+      safeConsole.error("Exception during project management-route check:", e);
       return finalizeResponse(
         NextResponse.redirect(new URL("/home", request.url)),
       );

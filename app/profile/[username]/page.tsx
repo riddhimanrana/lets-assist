@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import React from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -275,7 +276,7 @@ export default async function ProfilePage(
     .order("created_at", { ascending: false });
 
   if (certificatesError) {
-    console.error(
+    safeConsole.error(
       "Error fetching certificates for profile page:",
       certificatesError,
     );

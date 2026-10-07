@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
@@ -42,7 +43,7 @@ async function cleanupExpiredWaivers() {
   // newly expired rows in this run.
   const initialDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (initialDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error draining waiver Storage deletion queue:",
       initialDrain.error,
     );
@@ -79,7 +80,7 @@ async function cleanupExpiredWaivers() {
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (error) {
-      console.error("Error fetching expired waivers:", error);
+      safeConsole.error("Error fetching expired waivers:", error);
       return { error: "Failed to load expired waivers" };
     }
 
@@ -111,13 +112,19 @@ async function cleanupExpiredWaivers() {
   );
 
   if (archiveError) {
-    console.error("Error atomically archiving waiver records:", archiveError);
+    safeConsole.error(
+      "Error atomically archiving waiver records:",
+      archiveError,
+    );
     return { error: "Failed to archive waiver records for cleanup" };
   }
 
   const finalDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (finalDrain.error) {
-    console.error("Error deleting archived waiver assets:", finalDrain.error);
+    safeConsole.error(
+      "Error deleting archived waiver assets:",
+      finalDrain.error,
+    );
     return { error: finalDrain.error };
   }
 
@@ -138,7 +145,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Waiver cleanup cron failed:", error);
+    safeConsole.error("Waiver cleanup cron failed:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

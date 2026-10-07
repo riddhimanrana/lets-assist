@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/app/projects/[id]/actions";
@@ -42,7 +43,8 @@ async function AttendanceContent({
   sessionUuid?: string;
   scheduleId?: string;
 }) {
-  console.log(
+  safeConsole.log(
+    "Application diagnostic from app/attend/[projectId]/page",
     `AttendPage: projectId=${projectId}, sessionUuid=${sessionUuid}, scheduleId=${scheduleId}`,
   );
 
@@ -99,7 +101,7 @@ async function AttendanceContent({
     scheduleId,
   });
   if (!presence.ok) {
-    console.log("AttendPage: cookie verification failed");
+    safeConsole.log("AttendPage: cookie verification failed");
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">
         <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">

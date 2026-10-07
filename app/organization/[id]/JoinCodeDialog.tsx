@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ export default function JoinCodeDialog({
       const result = await getOrganizationJoinCode(organization.id);
 
       if (result.error || !result.joinCode) {
-        console.error("Error fetching join code:", result.error);
+        safeConsole.error("Error fetching join code:", result.error);
         toast.error("Failed to load join code");
       } else {
         setJoinCode(result.joinCode);
@@ -127,7 +128,7 @@ export default function JoinCodeDialog({
         toast.success("Join code regenerated successfully");
       }
     } catch (error) {
-      console.error("Error regenerating join code:", error);
+      safeConsole.error("Error regenerating join code:", error);
       toast.error("Failed to regenerate join code");
     } finally {
       setRegenerating(false);
@@ -148,7 +149,7 @@ export default function JoinCodeDialog({
         url: joinLink,
       });
     } catch (err) {
-      console.error("Error sharing:", err);
+      safeConsole.error("Error sharing:", err);
     }
   };
 

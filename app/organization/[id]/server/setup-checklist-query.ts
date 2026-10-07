@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
@@ -53,7 +54,7 @@ export async function loadOrganizationSetupChecklist(
 
   if (organizationResult.error) {
     // A checklist is not worth failing the organization page over.
-    console.error(
+    safeConsole.error(
       "Failed to load setup checklist state:",
       organizationResult.error.message,
     );

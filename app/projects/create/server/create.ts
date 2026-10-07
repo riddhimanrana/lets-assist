@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -133,7 +134,7 @@ export async function createBasicProject(
     .gte("created_at", twentyFourHoursAgo);
 
   if (countError) {
-    console.error("Error counting projects for rate limit:", countError);
+    safeConsole.error("Error counting projects for rate limit:", countError);
     // Decide if you want to block creation or allow if count fails. For now, allowing.
   }
 
@@ -382,7 +383,7 @@ export async function createBasicProject(
         }
       }
 
-      console.error("Error creating project:", projectError);
+      safeConsole.error("Error creating project:", projectError);
       return { error: "Failed to create project. Please try again." };
     }
 
@@ -441,7 +442,7 @@ export async function createBasicProject(
       ...(stagesWaiverPublication ? { requiresWaiverPublication: true } : {}),
     };
   } catch (error) {
-    console.error("Error in create project action:", error);
+    safeConsole.error("Error in create project action:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -495,7 +496,7 @@ export async function publishWaiverStagedProject(
     });
 
     if (error) {
-      console.error("Error publishing staged waiver project:", error);
+      safeConsole.error("Error publishing staged waiver project:", error);
       return { error: "Failed to publish the project. Please try again." };
     }
 
@@ -524,7 +525,7 @@ export async function publishWaiverStagedProject(
         "This project cannot be published yet.",
     };
   } catch (error) {
-    console.error("Error in publish staged waiver project action:", error);
+    safeConsole.error("Error in publish staged waiver project action:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }

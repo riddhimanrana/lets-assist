@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 import React, {
   useState,
   useEffect,
@@ -142,7 +144,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           return;
         }
 
-        console.error("Error loading project feed:", fetchError);
+        safeConsole.error("Error loading project feed:", fetchError);
         setError(
           fetchError instanceof Error
             ? fetchError.message

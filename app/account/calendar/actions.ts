@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCalendarConnection } from "@/services/calendar";
@@ -28,7 +29,7 @@ export async function refreshCalendarConnection() {
 
     return { success: true, connection };
   } catch (error) {
-    console.error("Failed to refresh calendar connection:", error);
+    safeConsole.error("Failed to refresh calendar connection:", error);
     return {
       success: false,
       error:
@@ -79,7 +80,7 @@ export async function getSyncedEventsCount() {
       },
     };
   } catch (error) {
-    console.error("Failed to get synced events count:", error);
+    safeConsole.error("Failed to get synced events count:", error);
     return {
       success: false,
       error:

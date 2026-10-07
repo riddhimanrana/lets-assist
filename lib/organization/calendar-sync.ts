@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { revalidatePath } from "next/cache";
@@ -186,7 +187,7 @@ export async function syncOrganizationCalendarInternal(
     .select("organization_id")
     .maybeSingle();
   if (completionError || !completedSync) {
-    console.error(
+    safeConsole.error(
       "Failed to record organization calendar sync completion",
       completionError,
     );

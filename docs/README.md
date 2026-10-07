@@ -31,6 +31,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Environment model](development/environments.md)
 - [Testing and acceptance](development/testing.md)
 - [Account data exports](development/account-exports.md): scope, private downloads, durable processing, and recovery.
+- [Telemetry privacy](development/telemetry-privacy.md)
 - [Dependency security](development/dependency-security.md)
 - [Deployment model](development/deployment.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)

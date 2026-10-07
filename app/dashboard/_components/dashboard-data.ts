@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
@@ -96,7 +97,7 @@ function calculateHours(startTime: string, endTime: string): number {
     if (isBefore(end, start)) return 0;
     return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10; // Round to 1 decimal place
   } catch (e) {
-    console.error("Error calculating hours:", e);
+    safeConsole.error("Error calculating hours:", e);
     return 0;
   }
 }
@@ -119,7 +120,7 @@ function getCombinedDateTime(
     const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
-    console.error("Error parsing date/time:", e);
+    safeConsole.error("Error parsing date/time:", e);
     return null;
   }
 }
@@ -219,7 +220,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (profileError) {
-    console.error("Error fetching profile:", profileError);
+    safeConsole.error("Error fetching profile:", profileError);
   }
 
   // Fetch certificates for this user
@@ -259,7 +260,7 @@ export async function loadVolunteerDashboardData() {
     };
 
   if (certificatesError) {
-    console.error("Error fetching certificates:", certificatesError);
+    safeConsole.error("Error fetching certificates:", certificatesError);
   }
 
   // Fetch upcoming signups
@@ -301,7 +302,7 @@ export async function loadVolunteerDashboardData() {
   }; // Fetch approved and pending
 
   if (signupsError) {
-    console.error("Error fetching upcoming signups:", signupsError);
+    safeConsole.error("Error fetching upcoming signups:", signupsError);
     // Handle error appropriately, maybe show a message
   }
 
@@ -326,7 +327,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (certificatesErrorFetch) {
-    console.error("Error fetching certificates:", certificatesErrorFetch);
+    safeConsole.error("Error fetching certificates:", certificatesErrorFetch);
     // Handle error appropriately
   }
 

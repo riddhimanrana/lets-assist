@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
@@ -356,7 +357,7 @@ export function AttendanceClient({
       .single();
 
     if (error) {
-      console.error("Error loading project:", error);
+      safeConsole.error("Error loading project:", error);
       return;
     }
 
@@ -395,7 +396,7 @@ export function AttendanceClient({
       .order("check_in_time", { ascending: false });
 
     if (error) {
-      console.error("Error loading attendance:", error);
+      safeConsole.error("Error loading attendance:", error);
       toast.error("Failed to load attendance records");
     } else {
       setAttendance(data as unknown as Attendance[]);

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Sync Project to Calendar
  * POST /api/calendar/sync-project
@@ -37,7 +38,10 @@ export async function POST(request: Request) {
     const validation = syncProjectSchema.safeParse(normalizedBody);
 
     if (!validation.success) {
-      console.error("Sync project validation failed:", validation.error.issues);
+      safeConsole.error(
+        "Sync project validation failed:",
+        validation.error.issues,
+      );
       return NextResponse.json(
         {
           error: "Invalid request data",

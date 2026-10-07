@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
@@ -163,7 +164,8 @@ async function processSessionSignups(
   sessionName: string,
 ): Promise<AutoPublishResult> {
   try {
-    console.log(
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
       `Processing ${signups.length} signups for session ${sessionId}`,
     );
 
@@ -196,7 +198,10 @@ async function processSessionSignups(
     entries.sort((left, right) => left.signupId.localeCompare(right.signupId));
 
     if (entries.length === 0 || !project.creator_id) {
-      console.log(`No valid volunteer hours found for session ${sessionId}`);
+      safeConsole.log(
+        "Application diagnostic from app/api/cron/auto-publish-hours/route",
+        `No valid volunteer hours found for session ${sessionId}`,
+      );
       return {
         success: false,
         projectId: project.id,
@@ -241,7 +246,8 @@ async function processSessionSignups(
     const publication = transaction.publication;
     const emailResult = await drainPublicationEmails(publication);
 
-    console.log(
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
       `Email sending completed: ${emailResult.emailsSent} sent, ${emailResult.errors.length} errors`,
     );
 
@@ -255,7 +261,7 @@ async function processSessionSignups(
       errors: emailResult.errors,
     };
   } catch (error: unknown) {
-    console.error("Unexpected error in processSessionSignups:", error);
+    safeConsole.error("Unexpected error in processSessionSignups:", error);
     return {
       success: false,
       projectId: project.id,
@@ -280,14 +286,15 @@ async function processExpiredSessions(): Promise<{
 }> {
   try {
     const supabase = createServiceClient();
-    console.log("Starting auto-publish process...");
+    safeConsole.log("Starting auto-publish process...");
 
     // Calculate the time window: volunteers who checked out between 48-72 hours ago
     const now = new Date();
     const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     const seventyTwoHoursAgo = new Date(now.getTime() - 72 * 60 * 60 * 1000);
 
-    console.log(
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
       `Looking for signups with check-out times between: ${seventyTwoHoursAgo.toISOString()} and ${fortyEightHoursAgo.toISOString()}`,
     );
 
@@ -321,18 +328,19 @@ async function processExpiredSessions(): Promise<{
       .in("status", ["attended", "approved"]);
 
     if (signupsError) {
-      console.error("Error fetching eligible signups:", signupsError);
+      safeConsole.error("Error fetching eligible signups:", signupsError);
       return { processedSessions: 0, successfulSessions: 0, results: [] };
     }
 
     const eligibleSignups = (data ?? []) as SignupRow[];
 
-    console.log(
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
       `Found ${eligibleSignups.length} signups with checkout times in the 48-72 hour window`,
     );
 
     if (eligibleSignups.length === 0) {
-      console.log("No eligible signups found");
+      safeConsole.log("No eligible signups found");
       return { processedSessions: 0, successfulSessions: 0, results: [] };
     }
 
@@ -395,10 +403,13 @@ async function processExpiredSessions(): Promise<{
       }
     });
 
-    console.log(`Found ${sessionGroups.size} unique sessions to process`);
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
+      `Found ${sessionGroups.size} unique sessions to process`,
+    );
 
     if (sessionGroups.size === 0) {
-      console.log("No unpublished sessions found");
+      safeConsole.log("No unpublished sessions found");
       return { processedSessions: 0, successfulSessions: 0, results: [] };
     }
 
@@ -410,7 +421,8 @@ async function processExpiredSessions(): Promise<{
 
     for (const sessionGroup of sessionGroups.values()) {
       if (count >= MAX_SESSIONS) {
-        console.log(
+        safeConsole.log(
+          "Application diagnostic from app/api/cron/auto-publish-hours/route",
           `Reached limit of ${MAX_SESSIONS} sessions per run. Skipping remaining sessions.`,
         );
         break;
@@ -418,7 +430,8 @@ async function processExpiredSessions(): Promise<{
       count++;
 
       const sessionName = `${sessionGroup.project.title} - ${sessionGroup.sessionId}`;
-      console.log(
+      safeConsole.log(
+        "Application diagnostic from app/api/cron/auto-publish-hours/route",
         `Processing session: ${sessionName} (${sessionGroup.signups.length} signups)`,
       );
 
@@ -458,11 +471,13 @@ async function processExpiredSessions(): Promise<{
 
         if (result.success) {
           successfulSessions++;
-          console.log(
+          safeConsole.log(
+            "Application diagnostic from app/api/cron/auto-publish-hours/route",
             `✅ Successfully processed session ${sessionGroup.sessionId}: ${result.certificatesCreated} certificates, ${result.emailsSent} emails`,
           );
         } else {
-          console.log(
+          safeConsole.log(
+            "Application diagnostic from app/api/cron/auto-publish-hours/route",
             `❌ Failed to process session ${sessionGroup.sessionId}: ${result.errors.join(", ")}`,
           );
         }
@@ -470,7 +485,8 @@ async function processExpiredSessions(): Promise<{
         // Small delay between sessions to avoid rate limiting (Supabase/Rest API)
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error: unknown) {
-        console.error(
+        safeConsole.error(
+          "Application diagnostic from app/api/cron/auto-publish-hours/route",
           `Error processing session ${sessionGroup.sessionId}:`,
           error,
         );
@@ -486,7 +502,8 @@ async function processExpiredSessions(): Promise<{
       }
     }
 
-    console.log(
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
       `Auto-publish process completed: ${successfulSessions}/${sessionGroups.size} sessions processed successfully`,
     );
 
@@ -496,7 +513,7 @@ async function processExpiredSessions(): Promise<{
       results,
     };
   } catch (error: unknown) {
-    console.error("Error in processExpiredSessions:", error);
+    safeConsole.error("Error in processExpiredSessions:", error);
     return { processedSessions: 0, successfulSessions: 0, results: [] };
   }
 }
@@ -514,21 +531,24 @@ export async function POST(request: NextRequest) {
 
     // Check if auto-publish is enabled
     if (process.env.AUTO_PUBLISH_ENABLED !== "true") {
-      console.log("Auto-publish is disabled");
+      safeConsole.log("Auto-publish is disabled");
       return NextResponse.json(
         { message: "Auto-publish is disabled", processed: 0, successful: 0 },
         { status: 200 },
       );
     }
 
-    console.log("Auto-publish process initiated");
+    safeConsole.log("Auto-publish process initiated");
     const startTime = Date.now();
 
     // Process expired sessions
     const result = await processExpiredSessions();
 
     const executionTime = Date.now() - startTime;
-    console.log(`Auto-publish process completed in ${executionTime}ms`);
+    safeConsole.log(
+      "Application diagnostic from app/api/cron/auto-publish-hours/route",
+      `Auto-publish process completed in ${executionTime}ms`,
+    );
 
     return NextResponse.json(
       {
@@ -541,7 +561,7 @@ export async function POST(request: NextRequest) {
       { status: 200 },
     );
   } catch (error: unknown) {
-    console.error("Error in auto-publish API route:", error);
+    safeConsole.error("Error in auto-publish API route:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: "Internal server error", message },

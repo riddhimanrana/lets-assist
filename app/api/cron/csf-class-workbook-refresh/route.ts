@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 import { runNextCsfSheetSync } from "@/lib/plugins/private/plugins/dvhs-csf/services/sheet-sync-engine";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
@@ -138,7 +139,7 @@ function logWorkbookFailure(
   disposition: "retryable" | "unknown",
   startedAt: number,
 ) {
-  console.warn("CSF workbook refresh unsettled", {
+  safeConsole.warn("CSF workbook refresh unsettled", {
     failureCode,
     disposition,
     elapsedMs: Math.max(0, Date.now() - startedAt),

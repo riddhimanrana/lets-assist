@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -38,7 +39,10 @@ async function transferAnonymousDataToUser(
     .eq("anonymous_id", anonymousId);
 
   if (signupRowsError) {
-    console.error("Error loading anonymous project signups:", signupRowsError);
+    safeConsole.error(
+      "Error loading anonymous project signups:",
+      signupRowsError,
+    );
     return { error: "Failed to prepare profile transfer. Please try again." };
   }
 
@@ -53,7 +57,10 @@ async function transferAnonymousDataToUser(
     .is("user_id", null);
 
   if (transferSignupsError) {
-    console.error("Error transferring project signups:", transferSignupsError);
+    safeConsole.error(
+      "Error transferring project signups:",
+      transferSignupsError,
+    );
     return { error: "Failed to transfer signups. Please try again." };
   }
 
@@ -64,7 +71,7 @@ async function transferAnonymousDataToUser(
     .is("user_id", null);
 
   if (transferWaiversError) {
-    console.error(
+    safeConsole.error(
       "Error transferring waiver signatures:",
       transferWaiversError,
     );
@@ -79,7 +86,7 @@ async function transferAnonymousDataToUser(
       .is("user_id", null);
 
     if (transferCertificatesError) {
-      console.error(
+      safeConsole.error(
         "Error transferring certificates:",
         transferCertificatesError,
       );
@@ -96,7 +103,7 @@ async function transferAnonymousDataToUser(
       .eq("id", anonymousId);
 
     if (linkError) {
-      console.error("Error linking anonymous profile:", linkError);
+      safeConsole.error("Error linking anonymous profile:", linkError);
       return { error: "Failed to complete account linking. Please try again." };
     }
   }
@@ -154,7 +161,7 @@ export async function startAnonymousGoogleLink(
     });
 
     if (error) {
-      console.error("Error starting anonymous Google linking:", error);
+      safeConsole.error("Error starting anonymous Google linking:", error);
       return { error: "Failed to connect with Google. Please try again." };
     }
 
@@ -257,7 +264,7 @@ export async function linkAnonymousToNewAccount(
             "An account with this email already exists. Try linking to your existing account instead.",
         };
       }
-      console.error("Error creating account:", signupError);
+      safeConsole.error("Error creating account:", signupError);
       return { error: "Failed to create account. Please try again." };
     }
 

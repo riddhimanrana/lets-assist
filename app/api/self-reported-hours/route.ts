@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseSelfReportedHours } from "@/lib/certificates/self-reported-hours";
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       .single();
 
     if (error) {
-      console.error("Error inserting self-reported hours:", error);
+      safeConsole.error("Error inserting self-reported hours:", error);
       return NextResponse.json(
         { error: "Database insert failed" },
         { status: 500 },
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, certificate: data });
   } catch (err) {
-    console.error("Unexpected error in self-reported-hours POST:", err);
+    safeConsole.error("Unexpected error in self-reported-hours POST:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
@@ -137,7 +138,7 @@ export function PdfPage({
         const name = err instanceof Error ? err.name : undefined;
         // RenderingCancelledException is expected on fast navigation/zoom.
         if (name !== "RenderingCancelledException") {
-          console.error("Page render error:", err);
+          safeConsole.error("Page render error:", err);
           // Retry once after 100ms if initial render fails
           if (renderAttempts === 0) {
             retryTimeout = setTimeout(() => {

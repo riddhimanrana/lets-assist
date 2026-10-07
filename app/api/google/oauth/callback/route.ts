@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google OAuth - Handle Callback
  * GET /api/google/oauth/callback
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!parsedState) {
-      console.warn("Rejected Google OAuth callback: malformed state");
+      safeConsole.warn("Rejected Google OAuth callback: malformed state");
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, null, { error: "invalid_state" }),
         attemptCookieName,
@@ -210,7 +211,7 @@ export async function GET(request: NextRequest) {
     if (claim.verdict !== "claimed") {
       // unknown_attempt / cookie_mismatch / user_mismatch / session_mismatch.
       // All four are indistinguishable to the browser on purpose.
-      console.warn("Rejected Google OAuth callback claim:", claim.verdict);
+      safeConsole.warn("Rejected Google OAuth callback claim:", claim.verdict);
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, null, {
           error: "invalid_state",
@@ -246,9 +247,12 @@ export async function GET(request: NextRequest) {
       });
 
       if (!settled) {
-        console.warn("Google OAuth attempt was settled by another callback", {
-          correlationId: claim.correlationId,
-        });
+        safeConsole.warn(
+          "Google OAuth attempt was settled by another callback",
+          {
+            correlationId: claim.correlationId,
+          },
+        );
         return redirectAndConsumeAttemptCookie(
           buildCallbackRedirect(baseUrl, returnTo, {
             error: "connection_in_progress",
@@ -325,9 +329,12 @@ export async function GET(request: NextRequest) {
       claimEpoch,
     });
     if (!exchangeMarked) {
-      console.warn("Google OAuth attempt exchange marker was not committed", {
-        correlationId: claim.correlationId,
-      });
+      safeConsole.warn(
+        "Google OAuth attempt exchange marker was not committed",
+        {
+          correlationId: claim.correlationId,
+        },
+      );
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, returnTo, {
           error: "connection_in_progress",
@@ -357,7 +364,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       // Provider response bodies may include grant diagnostics. Keep callback
       // logs limited to non-sensitive transport metadata.
-      console.error("Google token exchange failed", {
+      safeConsole.error("Google token exchange failed", {
         status: tokenResponse.status,
         correlationId: claim.correlationId,
       });
@@ -404,7 +411,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (!userInfoResponse.ok) {
-      console.error("Failed to get user info");
+      safeConsole.error("Failed to get user info");
       return settle({ error: "failed_to_get_email" });
     }
 
@@ -437,7 +444,7 @@ export async function GET(request: NextRequest) {
         : null;
 
     if (!encryptedRefreshToken) {
-      console.error("No refresh token available");
+      safeConsole.error("No refresh token available");
       return settle({ error: "no_refresh_token" });
     }
 
@@ -517,7 +524,7 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (existingSyncError) {
-          console.error(
+          safeConsole.error(
             "Failed to look up organization sheet sync during OAuth callback:",
             existingSyncError,
           );
@@ -531,7 +538,7 @@ export async function GET(request: NextRequest) {
             .eq("organization_id", attemptBinding.organizationId);
 
           if (ownerUpdateError) {
-            console.error(
+            safeConsole.error(
               "Failed to update organization sheet sync owner during OAuth callback:",
               ownerUpdateError,
             );
@@ -548,7 +555,7 @@ export async function GET(request: NextRequest) {
         : { email: calendarEmail }),
     });
   } catch (error) {
-    console.error("Error in Google Calendar callback:", error);
+    safeConsole.error("Error in Google Calendar callback:", error);
     return redirectAndConsumeAttemptCookie(
       buildCallbackRedirect(baseUrl, null, { error: "unknown" }),
       attemptCookieName,

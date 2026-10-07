@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { type Project } from "@/types";
@@ -65,7 +66,7 @@ export async function resendAnonymousConfirmationEmail(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("Error fetching anonymous signup:", fetchError);
+      safeConsole.error("Error fetching anonymous signup:", fetchError);
       return { error: "Unable to resend the confirmation email." };
     }
 
@@ -82,7 +83,7 @@ export async function resendAnonymousConfirmationEmail(
       .single();
 
     if (projectError || !project) {
-      console.error("Error fetching project:", projectError);
+      safeConsole.error("Error fetching project:", projectError);
       return { error: "Failed to fetch project details." };
     }
 
@@ -166,7 +167,7 @@ export async function resendAnonymousConfirmationEmail(
 
     return { success: true };
   } catch (error) {
-    console.error("Error in resendAnonymousConfirmationEmail:", error);
+    safeConsole.error("Error in resendAnonymousConfirmationEmail:", error);
     return { error: "An unexpected error occurred." };
   }
 }

@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -20,14 +21,22 @@ async function updateUserMetadataAndRefreshSession(
   });
 
   if (authError) {
-    console.error(`Error updating user metadata during ${context}:`, authError);
+    safeConsole.error(
+      "Application diagnostic from components/onboarding/onboarding-actions",
+      `Error updating user metadata during ${context}:`,
+      authError,
+    );
     return { error: "Failed to update user metadata" };
   }
 
   const { error: refreshError } = await supabase.auth.refreshSession();
 
   if (refreshError) {
-    console.error(`Error refreshing session during ${context}:`, refreshError);
+    safeConsole.error(
+      "Application diagnostic from components/onboarding/onboarding-actions",
+      `Error refreshing session during ${context}:`,
+      refreshError,
+    );
   }
 
   return {};
@@ -82,7 +91,7 @@ export async function checkUsernameAvailability(
       .maybeSingle();
 
     if (error) {
-      console.error("Error checking username:", error);
+      safeConsole.error("Error checking username:", error);
       return { available: false, error: error.message };
     }
 
@@ -98,7 +107,7 @@ export async function checkUsernameAvailability(
 
     return { available: !existingUser };
   } catch (e) {
-    console.error("Unexpected error checking username:", e);
+    safeConsole.error("Unexpected error checking username:", e);
     return {
       available: false,
       error: "An unexpected error occurred while checking username",
@@ -165,7 +174,7 @@ export async function completeInitialOnboarding(
       .eq("id", user.id);
 
     if (updateError) {
-      console.log("Error updating profile:", updateError);
+      safeConsole.log("Error updating profile:", updateError);
       if (
         "code" in updateError &&
         updateError.code === "23505" &&
@@ -195,7 +204,7 @@ export async function completeInitialOnboarding(
 
     return { success: true };
   } catch (e) {
-    console.error("Unexpected error in completeInitialOnboarding:", e);
+    safeConsole.error("Unexpected error in completeInitialOnboarding:", e);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -229,7 +238,7 @@ export async function markIntroTourAsComplete(): Promise<{
 
     return { success: true };
   } catch (e) {
-    console.error("Unexpected error in markIntroTourAsComplete:", e);
+    safeConsole.error("Unexpected error in markIntroTourAsComplete:", e);
     return { error: "An unexpected error occurred" };
   }
 }

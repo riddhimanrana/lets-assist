@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
@@ -117,7 +118,7 @@ async function loadActiveMemberships(
     .eq("status", "active");
 
   if (error) {
-    console.warn(
+    safeConsole.warn(
       "[platform-surfaces] Failed to load organization memberships:",
       error,
     );
@@ -405,7 +406,8 @@ function warnResolverFailure(
   contribution: PlatformPluginContribution,
   reason: unknown,
 ) {
-  console.warn(
+  safeConsole.warn(
+    "Application diagnostic from lib/plugins/resolve-platform-surfaces",
     `[platform-surfaces] ${contribution.plugin.manifest.key} failed to resolve ${surface} for organization ${contribution.context.organizationId}:`,
     reason,
   );

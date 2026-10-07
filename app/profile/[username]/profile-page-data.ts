@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import { differenceInMinutes, isBefore, parseISO } from "date-fns";
@@ -108,7 +109,7 @@ export function calculateHours(startTimeStr: string, endTimeStr: string) {
     if (isBefore(end, start)) return 0;
     return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10;
   } catch (error) {
-    console.error("Error calculating hours:", error, {
+    safeConsole.error("Error calculating hours:", error, {
       startTimeStr,
       endTimeStr,
     });

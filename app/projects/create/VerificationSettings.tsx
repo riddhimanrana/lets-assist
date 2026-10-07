@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,7 +177,7 @@ export default function VerificationSettings({
         if (!detectionResult.success) {
           // Log technical details to console for debugging
           if (detectionResult.errors) {
-            console.warn("PDF analysis warnings:", detectionResult.errors);
+            safeConsole.warn("PDF analysis warnings:", detectionResult.errors);
           }
         }
 
@@ -210,7 +211,7 @@ export default function VerificationSettings({
           setShowBuilder(true);
         }
       } catch (error) {
-        console.error("Error validating PDF:", error);
+        safeConsole.error("Error validating PDF:", error);
         setPdfError("Error reading PDF file. Please try again.");
       } finally {
         setIsValidatingPdf(false);

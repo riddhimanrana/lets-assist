@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -200,7 +201,7 @@ export default function MembersTab({
         setMemberHours(result.memberHours);
       }
     } catch (error) {
-      console.error("Error loading member hours:", error);
+      safeConsole.error("Error loading member hours:", error);
     } finally {
       setLoadingHours(false);
     }
@@ -238,7 +239,7 @@ export default function MembersTab({
         window.location.reload();
       }
     } catch (error) {
-      console.error("Error updating member role:", error);
+      safeConsole.error("Error updating member role:", error);
       toast.error("Failed to update member role");
     } finally {
       setProcessingMember(null);
@@ -260,7 +261,7 @@ export default function MembersTab({
         window.location.reload();
       }
     } catch (error) {
-      console.error("Error removing member:", error);
+      safeConsole.error("Error removing member:", error);
       toast.error("Failed to remove member");
     } finally {
       setProcessingMember(null);
@@ -349,7 +350,7 @@ export default function MembersTab({
       document.body.removeChild(a);
       toast.success("Member hours exported successfully");
     } catch (error) {
-      console.error("Error exporting member hours:", error);
+      safeConsole.error("Error exporting member hours:", error);
       toast.error("Failed to export member hours");
     } finally {
       setIsExporting(false);

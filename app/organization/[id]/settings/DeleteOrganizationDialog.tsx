@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export default function DeleteOrganizationDialog({
         router.push("/organization");
       }
     } catch (error) {
-      console.error("Error deleting organization:", error);
+      safeConsole.error("Error deleting organization:", error);
       toast.error("Failed to delete organization. Please try again.");
     } finally {
       setIsDeleting(false);

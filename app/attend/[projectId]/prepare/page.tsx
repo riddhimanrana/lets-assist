@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Suspense } from "react";
 import PrepareClient from "./PrepareClient"; // Import the client component
 import { Loader2 } from "lucide-react";
@@ -33,7 +34,10 @@ export default async function PreparePage({ params }: PreparePageProps) {
       projectId,
     )
   ) {
-    console.error("PreparePage: Invalid projectId format received:", projectId);
+    safeConsole.error(
+      "PreparePage: Invalid projectId format received:",
+      projectId,
+    );
     // Render an error message or redirect
     return (
       <div className="flex items-center justify-center min-h-screen text-destructive">

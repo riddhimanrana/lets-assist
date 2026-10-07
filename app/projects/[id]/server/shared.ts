@@ -1,5 +1,13 @@
 import "server-only";
 import {
+  logSignupDebug,
+  summarizePostgrestError,
+} from "@/lib/signup-diagnostics";
+export {
+  logSignupDebug,
+  summarizePostgrestError,
+} from "@/lib/signup-diagnostics";
+import {
   getMultiDaySlotByScheduleId,
   getMultiDaySlotDisplayName,
 } from "@/utils/project";
@@ -96,33 +104,6 @@ export function isMissingWaiverDisableEsignatureColumnError(
   const knownCode = pgError.code === "PGRST204" || pgError.code === "42703";
 
   return referencesColumn && (knownCode || schemaCacheLike);
-}
-
-export function summarizePostgrestError(error: unknown) {
-  if (!error || typeof error !== "object") return error;
-
-  const pgError = error as PostgrestErrorLike;
-  return {
-    code: pgError.code,
-    message: pgError.message,
-    details: pgError.details,
-    hint: pgError.hint,
-  };
-}
-
-export function logSignupDebug(
-  traceId: string,
-  step: string,
-  details: Record<string, unknown> = {},
-) {
-  console.log(
-    "[signup-debug]",
-    JSON.stringify({
-      traceId,
-      step,
-      ...details,
-    }),
-  );
 }
 
 export function getProjectSignupInsertErrorMessage(error: unknown): string {

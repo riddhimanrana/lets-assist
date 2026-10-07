@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useMemo } from "react";
 import { Project, Signup } from "@/types";
@@ -80,7 +81,7 @@ function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
     const dateTime = parseISO(`${dateStr}T${timeStr}`);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
-    console.error("Error parsing date/time:", e);
+    safeConsole.error("Error parsing date/time:", e);
     return null;
   }
 }
@@ -174,7 +175,10 @@ export default function UserDashboard({
       const result = await getMyWaiverSignatures(project.id);
       if ("error" in result) {
         // Fail soft: leave list empty
-        console.error(result.error);
+        safeConsole.error(
+          "Application diagnostic from app/projects/[id]/UserDashboard",
+          result.error,
+        );
         return;
       }
       setWaiverSignatures(result.signatures);
@@ -201,7 +205,7 @@ export default function UserDashboard({
 
       toast.success("Waiver downloaded successfully!");
     } catch (error) {
-      console.error("Failed to download waiver:", error);
+      safeConsole.error("Failed to download waiver:", error);
       toast.error("Failed to download waiver. Please try again.");
     }
   };
@@ -234,7 +238,7 @@ export default function UserDashboard({
       )
       .then(({ data, error }) => {
         if (error) {
-          console.error("Error fetching certificates:", error);
+          safeConsole.error("Error fetching certificates:", error);
         } else {
           const map: Record<string, string> = {};
           const certificates = (data ?? []) as Array<{

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useState, useMemo, useEffect } from "react";
 import { Project, ProjectSignup } from "@/types"; // Use ProjectSignup type
@@ -327,7 +328,7 @@ export function HoursClient({
       });
       setShowCertificatesModal(true);
     } catch (error) {
-      console.error("Error loading certificates data:", error);
+      safeConsole.error("Error loading certificates data:", error);
       toast.error("Failed to load certificates data");
     } finally {
       setLoadingCertificates(false);
@@ -537,7 +538,7 @@ export function HoursClient({
         });
       }
     } catch (error) {
-      console.error("Error publishing hours:", error);
+      safeConsole.error("Error publishing hours:", error);
       toast.error("Publishing Error", {
         description: "An unexpected error occurred while publishing hours.",
       });
@@ -590,7 +591,7 @@ export function HoursClient({
           : undefined,
       );
     } catch (error) {
-      console.error("Error resending certificates:", error);
+      safeConsole.error("Error resending certificates:", error);
       toast.error("Resend Error", {
         description: "An error occurred while resending certificates.",
       });
@@ -917,7 +918,7 @@ export function HoursClient({
         [sessionId]: false,
       }));
     } catch (error) {
-      console.error("Error applying batch adjustment:", error);
+      safeConsole.error("Error applying batch adjustment:", error);
       toast.error("Failed to apply time adjustment.");
     } finally {
       setApplyingBatchAdjustment((prev) => ({

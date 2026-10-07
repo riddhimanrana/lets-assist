@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Project, ProjectStatus } from "@/types";
 import {
   format,
@@ -359,7 +360,8 @@ export const getProjectStatus = (
   // Guard against unknown event_type (e.g. legacy/malformed DB rows like event_type='event')
   const knownEventTypes = ["oneTime", "multiDay", "sameDayMultiArea"];
   if (!knownEventTypes.includes(project.event_type)) {
-    console.warn(
+    safeConsole.warn(
+      "Application diagnostic from utils/project",
       `[getProjectStatus] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id} — treating as upcoming`,
     );
     return "upcoming";
@@ -536,7 +538,7 @@ export async function getSlotCapacities(
   }; // <-- Updated filter
 
   if (error) {
-    console.error("Error fetching signup counts:", error);
+    safeConsole.error("Error fetching signup counts:", error);
     // Return initial capacities as a fallback, maybe log the error
     return capacities;
   }
@@ -564,7 +566,7 @@ export async function getSlotCapacities(
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) {
     if (shouldLogProjectDebug) {
-      console.log("Invalid project or scheduleId:", {
+      safeConsole.log("Invalid project or scheduleId:", {
         project: !!project,
         scheduleId,
       });
@@ -583,7 +585,7 @@ export function getSlotDetails(project: Project, scheduleId: string) {
     }
 
     if (shouldLogProjectDebug) {
-      console.log("Invalid multiDay scheduleId format:", scheduleId);
+      safeConsole.log("Invalid multiDay scheduleId format:", scheduleId);
     }
   } else if (
     project.event_type === "sameDayMultiArea" &&
@@ -598,7 +600,7 @@ export function getSlotDetails(project: Project, scheduleId: string) {
   }
 
   if (shouldLogProjectDebug) {
-    console.log("No slot found for scheduleId:", scheduleId);
+    safeConsole.log("No slot found for scheduleId:", scheduleId);
   }
   return null;
 }
@@ -611,7 +613,7 @@ export function isSlotAvailable(
 ): boolean {
   // Debug logging to help identify issues
   if (shouldLogProjectDebug) {
-    console.log("isSlotAvailable check:", {
+    safeConsole.log("isSlotAvailable check:", {
       projectId: project.id,
       scheduleId,
       remainingSlots,
@@ -626,7 +628,7 @@ export function isSlotAvailable(
   // Check if the project is cancelled or completed
   if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
     if (shouldLogProjectDebug) {
-      console.log("Project is cancelled or completed, slot not available");
+      safeConsole.log("Project is cancelled or completed, slot not available");
     }
     return false;
   }
@@ -635,7 +637,7 @@ export function isSlotAvailable(
   const slotDetails = getSlotDetails(project, scheduleId);
   if (!slotDetails) {
     if (shouldLogProjectDebug) {
-      console.log("Invalid slot details for", scheduleId);
+      safeConsole.log("Invalid slot details for", scheduleId);
     }
     return false;
   }
@@ -644,7 +646,7 @@ export function isSlotAvailable(
   const slotsRemaining = remainingSlots[scheduleId];
 
   if (shouldLogProjectDebug) {
-    console.log(
+    safeConsole.log(
       "Slots remaining:",
       slotsRemaining,
       "for scheduleId:",

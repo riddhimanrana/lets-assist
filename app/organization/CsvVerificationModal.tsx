@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import {
@@ -698,7 +699,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
         };
       }
     } catch (error) {
-      console.error("Error verifying certificate:", error);
+      safeConsole.error("Error verifying certificate:", error);
       return {
         ...row,
         verificationStatus: "failed",

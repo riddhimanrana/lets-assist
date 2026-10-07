@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -60,7 +61,7 @@ export async function GET(
 
     return NextResponse.json(verificationResult);
   } catch (error) {
-    console.error("Certificate verification error:", error);
+    safeConsole.error("Certificate verification error:", error);
     return NextResponse.json(
       {
         error: "Internal server error during verification",
@@ -117,7 +118,7 @@ export async function POST(
 
     return NextResponse.json(verification);
   } catch (error) {
-    console.error("Certificate batch verification error:", error);
+    safeConsole.error("Certificate batch verification error:", error);
     return NextResponse.json(
       {
         error: "Internal server error during batch verification",

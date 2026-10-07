@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
@@ -173,7 +174,7 @@ function Avatar({ url, onUpload, onRemove }: AvatarProps) {
         router.refresh();
       }, 1000);
     } catch (error) {
-      console.error("Error uploading profile picture:", error);
+      safeConsole.error("Error uploading profile picture:", error);
       toast.error("Failed to upload profile picture");
     } finally {
       setIsUploading(false);
@@ -348,7 +349,7 @@ export default function ProfileClient() {
       setEmails(data as UserEmail[]);
       setPendingPrimaryEmail(null);
     } catch (error) {
-      console.error("Failed to fetch emails:", error);
+      safeConsole.error("Failed to fetch emails:", error);
       toast.error("Failed to load email addresses");
     } finally {
       setEmailLoading(false);
@@ -383,7 +384,7 @@ export default function ProfileClient() {
       toast.success("Verification code sent to " + newEmail);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error adding email:", error);
+      safeConsole.error("Error adding email:", error);
       toast.error(err.message || "Failed to add email");
     } finally {
       setAdding(false);
@@ -405,7 +406,7 @@ export default function ProfileClient() {
       fetchEmails();
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error verifying email:", error);
+      safeConsole.error("Error verifying email:", error);
       toast.error(err.message || "Invalid verification code");
     } finally {
       setVerifying(false);
@@ -419,7 +420,7 @@ export default function ProfileClient() {
       fetchEmails();
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error removing email:", error);
+      safeConsole.error("Error removing email:", error);
       toast.error(err.message || "Failed to remove email");
     }
   };
@@ -444,7 +445,7 @@ export default function ProfileClient() {
       setTimeout(fetchEmails, 500);
     } catch (error: unknown) {
       const err = error as Error;
-      console.error("Error setting primary email:", error);
+      safeConsole.error("Error setting primary email:", error);
       toast.error(err.message || "Failed to update primary email");
     }
   };
@@ -519,7 +520,10 @@ export default function ProfileClient() {
             });
           } else {
             // Handle unexpected error keys, maybe log them or show a generic error
-            console.warn(`Unexpected error key from server: ${key}`);
+            safeConsole.warn(
+              "Application diagnostic from app/account/profile/ProfileClient",
+              `Unexpected error key from server: ${key}`,
+            );
             form.setError("root.serverError", {
               type: "server",
               message: "An unexpected validation error occurred.",
@@ -536,7 +540,7 @@ export default function ProfileClient() {
         }, 1000);
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      safeConsole.error("Error updating profile:", error);
       toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -566,7 +570,7 @@ export default function ProfileClient() {
         toast.success(`Profile is now ${result.visibility}`);
       }
     } catch (error) {
-      console.error("Error updating visibility:", error);
+      safeConsole.error("Error updating visibility:", error);
       toast.error("Failed to update profile visibility");
     } finally {
       setIsVisibilityLoading(false);

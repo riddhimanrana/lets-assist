@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google Calendar API integration service
  * Handles OAuth token management and calendar event operations
@@ -177,7 +178,7 @@ export async function refreshAccessToken(
     if (!response.ok) {
       // OAuth error bodies can include provider diagnostics tied to the grant.
       // Record only non-sensitive transport metadata.
-      console.error("Failed to refresh Google access token", {
+      safeConsole.error("Failed to refresh Google access token", {
         status: response.status,
       });
       return null;
@@ -189,7 +190,7 @@ export async function refreshAccessToken(
       expiresIn: data.expires_in,
     };
   } catch (error) {
-    console.error("Error refreshing access token:", error);
+    safeConsole.error("Error refreshing access token:", error);
     return null;
   }
 }
@@ -216,7 +217,7 @@ export async function getValidAccessToken(
         .update({ access_token: decrypted.reencrypted })
         .eq("id", connection.id)
         .eq("access_token", connection.access_token);
-      if (error) console.error("Failed to rotate Google access credential");
+      if (error) safeConsole.error("Failed to rotate Google access credential");
     }
     return decrypted.plaintext;
   }
@@ -229,7 +230,7 @@ export async function getValidAccessToken(
       .update({ refresh_token: decryptedRefresh.reencrypted })
       .eq("id", connection.id)
       .eq("refresh_token", connection.refresh_token);
-    if (error) console.error("Failed to rotate Google refresh credential");
+    if (error) safeConsole.error("Failed to rotate Google refresh credential");
   }
   const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
 
@@ -433,7 +434,7 @@ export async function getGoogleCalendarAccessState(
     return classifyGoogleCalendarLookupResponse(response);
   } catch (error) {
     const state = classifyGoogleCalendarLookupError(error);
-    console.error("Error checking organization calendar access:", {
+    safeConsole.error("Error checking organization calendar access:", {
       status: state.status,
       reason: state.status === "retryable_error" ? state.reason : undefined,
     });

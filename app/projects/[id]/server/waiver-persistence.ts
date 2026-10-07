@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import crypto from "crypto";
@@ -47,7 +48,7 @@ export async function uploadWaiverAsset(params: {
     });
 
   if (uploadError) {
-    console.error("Error uploading waiver asset:", uploadError);
+    safeConsole.error("Error uploading waiver asset:", uploadError);
     return { error: "Failed to upload waiver file." };
   }
 
@@ -112,7 +113,10 @@ export async function prepareWaiverSignatureRecord(params: {
       fallbackError &&
       !isMissingWaiverDisableEsignatureColumnError(fallbackError)
     ) {
-      console.error("Error fetching project waiver settings:", fallbackError);
+      safeConsole.error(
+        "Error fetching project waiver settings:",
+        fallbackError,
+      );
     }
 
     if (fallbackProject) {
@@ -158,7 +162,7 @@ export async function prepareWaiverSignatureRecord(params: {
       .maybeSingle();
 
     if (defError || !definition) {
-      console.error("Invalid waiver definition in signature payload", {
+      safeConsole.error("Invalid waiver definition in signature payload", {
         projectId: params.projectId,
         evidenceKey: params.evidenceKey,
         waiverDefinitionId,
@@ -188,7 +192,7 @@ export async function prepareWaiverSignatureRecord(params: {
       .remove(uploadedSignaturePaths);
 
     if (error) {
-      console.error("Failed to roll back uploaded waiver assets:", error);
+      safeConsole.error("Failed to roll back uploaded waiver assets:", error);
     }
   };
 
@@ -247,7 +251,7 @@ export async function prepareWaiverSignatureRecord(params: {
 
         if (uploadResult.error) {
           await removeUploadedSignatureAssets();
-          console.error("Error uploading signer asset", {
+          safeConsole.error("Error uploading signer asset", {
             signerRoleKey: signer.role_key,
             uploadError: uploadResult.error,
           });
@@ -403,7 +407,7 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
     .maybeSingle();
 
   if (fetchError) {
-    console.error(
+    safeConsole.error(
       "Error fetching reusable anonymous waiver signature:",
       fetchError,
     );
@@ -429,7 +433,7 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
       .from(WAIVER_SIGNATURE_BUCKET)
       .remove(copiedPaths);
     if (error) {
-      console.error("Failed to roll back cloned waiver evidence:", error);
+      safeConsole.error("Failed to roll back cloned waiver evidence:", error);
     }
   };
 
@@ -519,7 +523,10 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
     }
   } catch (error) {
     await removeCopiedEvidence();
-    console.error("Error copying reusable anonymous waiver evidence:", error);
+    safeConsole.error(
+      "Error copying reusable anonymous waiver evidence:",
+      error,
+    );
     return {
       error: "Failed to attach existing waiver evidence to this signup.",
       uploadedPaths: copiedPaths,

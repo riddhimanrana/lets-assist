@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { hasGoogleSheetsScopes } from "@/services/calendar";
@@ -73,7 +74,7 @@ export async function getSheetSyncStatus(
   }
 
   if (syncError) {
-    console.error("Failed to load sheet sync config:", syncError);
+    safeConsole.error("Failed to load sheet sync config:", syncError);
     return {
       connected,
       connectedEmail,

@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,7 @@ export function SignupConfirmationModal({
           setCurrentUserProfile(result.profile);
         }
       } catch (error) {
-        console.error("Error fetching user profile:", error);
+        safeConsole.error("Error fetching user profile:", error);
         setProfileError(
           "An unexpected error occurred while fetching your information.",
         );
@@ -174,7 +175,7 @@ export function SignupConfirmationModal({
         setCalendarConnected(data.connected || false);
         setConnectedEmail(data.calendar_email || null);
       } catch (error) {
-        console.error("Error checking calendar connection:", error);
+        safeConsole.error("Error checking calendar connection:", error);
         setCalendarConnected(false);
         setConnectedEmail(null);
       } finally {
@@ -205,7 +206,7 @@ export function SignupConfirmationModal({
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = `/api/google/oauth/connect?purpose=personal_calendar&scopes=calendar&return_to=${encodeURIComponent(returnUrl)}`;
     } catch (error) {
-      console.error("Failed to connect calendar:", error);
+      safeConsole.error("Failed to connect calendar:", error);
       toast.error("Connection Failed", {
         description:
           error instanceof Error
@@ -261,7 +262,7 @@ export function SignupConfirmationModal({
             description: "Open the file to add the event to your calendar app",
           });
         } catch (error) {
-          console.error("Failed to download iCal:", error);
+          safeConsole.error("Failed to download iCal:", error);
           toast.error("Download Failed", {
             description: "Failed to download calendar file",
           });

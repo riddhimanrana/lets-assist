@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 /**
  * useAuth Hook: React hook for accessing auth state.
@@ -77,7 +78,7 @@ async function resolveAuthState(
 
   if (user) {
     if (claimsError && process.env.NODE_ENV === "development") {
-      console.debug(
+      safeConsole.debug(
         "[useAuth] Claims unavailable; preserved session through getUser():",
         claimsError.message,
       );
@@ -97,11 +98,11 @@ async function resolveAuthState(
   }
 
   if (claimsError && process.env.NODE_ENV === "development") {
-    console.debug("[useAuth] No active claims:", claimsError.message);
+    safeConsole.debug("[useAuth] No active claims:", claimsError.message);
   }
 
   if (userError && process.env.NODE_ENV === "development") {
-    console.debug("[useAuth] No active user session:", userError.message);
+    safeConsole.debug("[useAuth] No active user session:", userError.message);
   }
 
   return { user: null, claims: null };
@@ -144,7 +145,10 @@ export function useAuth(): AuthState {
             const { data: factors } = await supabase.auth.mfa.listFactors();
             if (factors) mfaFactors = factors as MfaListFactorsLike;
           } catch (mfaError) {
-            console.debug("[useAuth] Could not fetch MFA factors:", mfaError);
+            safeConsole.debug(
+              "[useAuth] Could not fetch MFA factors:",
+              mfaError,
+            );
           }
         }
 
@@ -166,7 +170,7 @@ export function useAuth(): AuthState {
         setNeedsMfa(false);
       },
       onError: (error) => {
-        console.error("[useAuth] Error during auth initialization:", error);
+        safeConsole.error("[useAuth] Error during auth initialization:", error);
         setUser(null);
         setNeedsMfa(false);
       },
@@ -215,7 +219,7 @@ export function useAuthRefresh() {
       error,
     } = await supabase.auth.getUser();
     if (error) {
-      console.error("[useAuthRefresh] Error:", error.message);
+      safeConsole.error("[useAuthRefresh] Error:", error.message);
       return null;
     }
     return user;

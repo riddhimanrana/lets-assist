@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
     // run purges nothing new.
     const initialDrain = await drainPaperScanStorageDeletionQueue(supabase);
     if (initialDrain.error) {
-      console.error(
+      safeConsole.error(
         "Error draining paper-scan deletion queue:",
         initialDrain.error,
       );
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       { p_limit: 50 },
     );
     if (purgeError) {
-      console.error("Error purging expired scan batches:", purgeError);
+      safeConsole.error("Error purging expired scan batches:", purgeError);
       return NextResponse.json(
         { error: "Failed to purge expired scan batches" },
         { status: 500 },
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     const finalDrain = await drainPaperScanStorageDeletionQueue(supabase);
     if (finalDrain.error) {
-      console.error("Error deleting purged scan photos:", finalDrain.error);
+      safeConsole.error("Error deleting purged scan photos:", finalDrain.error);
     }
 
     const drainError = initialDrain.error ?? finalDrain.error;
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
       storageDeleted: initialDrain.deleted + finalDrain.deleted,
     });
   } catch (error) {
-    console.error("Paper-scan cleanup cron failed:", error);
+    safeConsole.error("Paper-scan cleanup cron failed:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
@@ -45,7 +46,7 @@ async function cleanupAnonymousProfiles() {
 
   const initialDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (initialDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error draining waiver Storage deletion queue:",
       initialDrain.error,
     );
@@ -79,7 +80,7 @@ async function cleanupAnonymousProfiles() {
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (candidatesError) {
-      console.error(
+      safeConsole.error(
         "Error fetching candidates for anonymous cleanup:",
         candidatesError,
       );
@@ -113,7 +114,7 @@ async function cleanupAnonymousProfiles() {
   );
 
   if (archiveError) {
-    console.error(
+    safeConsole.error(
       "Error atomically archiving anonymous profiles:",
       archiveError,
     );
@@ -122,7 +123,7 @@ async function cleanupAnonymousProfiles() {
 
   const finalDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (finalDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error deleting archived anonymous waiver assets:",
       finalDrain.error,
     );
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Anonymous cleanup cron failed:", error);
+    safeConsole.error("Anonymous cleanup cron failed:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

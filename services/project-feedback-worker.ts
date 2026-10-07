@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import "server-only";
 
 import * as React from "react";
@@ -593,7 +594,10 @@ export async function runProjectFeedbackWorker(options: {
     try {
       prepared = await prepareFeedbackRequest({ admin, claim, siteUrl });
     } catch (error) {
-      console.error(`Feedback pre-send preparation failed for ${claim.id}`);
+      safeConsole.error(
+        "Application diagnostic from services/project-feedback-worker",
+        `Feedback pre-send preparation failed for ${claim.id}`,
+      );
       if (error instanceof FeedbackDatabaseError) {
         await settle(claim.id, "queued", null, "pre_send_database_error");
         outcomes.retryable += 1;
@@ -644,7 +648,10 @@ export async function runProjectFeedbackWorker(options: {
         idempotencyKey: `project-feedback:${claim.id}:${dispatchAttempt}`,
       });
     } catch {
-      console.error(`Feedback dispatch crashed for ${claim.id}`);
+      safeConsole.error(
+        "Application diagnostic from services/project-feedback-worker",
+        `Feedback dispatch crashed for ${claim.id}`,
+      );
       await settle(claim.id, "unknown_outcome", null, "dispatch_crashed");
       outcomes.unknown += 1;
       continue;

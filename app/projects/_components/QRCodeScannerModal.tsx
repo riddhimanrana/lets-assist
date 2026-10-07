@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export function QRCodeScannerModal({
       playTone(880, audioCtx.currentTime, 0.1, 0.1); // A5
       playTone(1318.51, audioCtx.currentTime + 0.07, 0.15, 0.1); // E6
     } catch (err) {
-      console.warn("Audio feedback failed:", err);
+      safeConsole.warn("Audio feedback failed:", err);
     }
   }, []);
 
@@ -77,7 +78,7 @@ export function QRCodeScannerModal({
   const handleScan = (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes && detectedCodes.length > 0 && !isPaused) {
       const result = detectedCodes[0].rawValue;
-      console.log("QR Scanned:", result);
+      safeConsole.log("QR Scanned:", result);
       setScanError(null);
 
       if (result.includes(projectId)) {
@@ -95,7 +96,7 @@ export function QRCodeScannerModal({
   };
 
   const handleError = (error: unknown) => {
-    console.error("QR Scanner Error:", error);
+    safeConsole.error("QR Scanner Error:", error);
     let friendlyMessage = "Could not start camera. ";
 
     // Check if the error is an instance of Error to safely access properties
@@ -113,7 +114,7 @@ export function QRCodeScannerModal({
       // Handle cases where the error might not be an Error object
       friendlyMessage +=
         "An unknown error occurred. Please ensure your browser supports camera access and permissions are granted.";
-      console.error("Received non-Error object:", error);
+      safeConsole.error("Received non-Error object:", error);
     }
 
     setScanError(friendlyMessage);

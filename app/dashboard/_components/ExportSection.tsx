@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import React, { useState, useMemo } from "react";
 import {
@@ -251,7 +252,7 @@ export function ExportSection({
 
       toast.success(`Successfully exported ${filteredData.length} entries`);
     } catch (error) {
-      console.error("Export failed:", error);
+      safeConsole.error("Export failed:", error);
       toast.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
