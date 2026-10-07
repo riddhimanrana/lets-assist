@@ -73,13 +73,13 @@ describe("compact organization header actions", () => {
 
   test("leaves no header icon exposed to assistive technology", () => {
     const iconPattern =
-      /<(BadgeCheck|GlobeIcon|UsersIcon|Share2|Plus|UserPlus|Ellipsis|Settings|ShieldAlert|LogOut)\b[^>]*?\/>/g;
+      /<(BadgeCheck|GlobeIcon|UsersIcon|Share2|PlusIcon|UserPlusIcon|Ellipsis|Settings|ShieldAlert|LogOut)\b[^>]*?\/>/g;
     const headerIcons = source.match(iconPattern) ?? [];
     const actionIcons = actionsSource.match(iconPattern) ?? [];
     // Header: two BadgeCheck marks, two GlobeIcon, one UsersIcon.
     expect(headerIcons).toHaveLength(5);
-    // Actions: Share2, UserPlus, two Plus, Ellipsis, Settings, UsersIcon,
-    // ShieldAlert, LogOut.
+    // Actions: Share2, UserPlusIcon, two PlusIcon, Ellipsis, Settings,
+    // UsersIcon, ShieldAlert, LogOut.
     expect(actionIcons).toHaveLength(9);
     for (const element of [...headerIcons, ...actionIcons]) {
       expect(element, `${element} is missing aria-hidden`).toContain(

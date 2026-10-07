@@ -31,16 +31,16 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
   // Center position
   const center = size / 2;
 
-  // Default colors based on CSS variables
-  const defaultColor = "hsl(var(--primary))";
-  const defaultTrackColor = "hsl(var(--muted))";
+  // The tokens already hold complete colours, so they are used as they are.
+  const defaultColor = "var(--primary)";
+  const defaultTrackColor = "var(--muted-foreground)";
 
   // Set text size based on circle size
   const fontSize = showLabel ? Math.max(size / 4, 12) : 0;
 
   return (
     <div
-      className="inline-flex items-center justify-center"
+      className="relative inline-flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
       role="progressbar"
       aria-valuenow={normalizedValue}

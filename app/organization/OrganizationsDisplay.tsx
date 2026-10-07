@@ -4,7 +4,6 @@ import { Fragment, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BadgeCheck,
-  Building2,
   ChevronRight,
   FileCheck,
   MoreHorizontal,
@@ -12,7 +11,9 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
+import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -148,6 +149,7 @@ export default function OrganizationsDisplay({
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortValue>("verified-first");
   const verifyTriggerRef = useRef<HTMLButtonElement>(null);
+  const createIcon = useAnimatedIcon();
 
   const canCreate = isTrusted || applicationStatus === true;
   const query = search.toLowerCase().trim();
@@ -225,7 +227,7 @@ export default function OrganizationsDisplay({
                           size="icon"
                           aria-label="More actions"
                         >
-                          <MoreHorizontal />
+                          <MoreHorizontal aria-hidden="true" />
                         </Button>
                       }
                     />
@@ -233,23 +235,28 @@ export default function OrganizationsDisplay({
                       <DropdownMenuItem
                         onClick={() => verifyTriggerRef.current?.click()}
                       >
-                        <FileCheck />
+                        <FileCheck aria-hidden="true" />
                         Verify certificates
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <JoinOrganizationDialog />
                   {canCreate ? (
-                    <Button asChild>
+                    <Button asChild {...createIcon.triggerProps}>
                       <Link href="/organization/create">
-                        <Plus data-icon="inline-start" />
-                        Create Organization
+                        <PlusIcon
+                          ref={createIcon.ref}
+                          size={16}
+                          data-icon="inline-start"
+                          aria-hidden="true"
+                        />
+                        Create organization
                       </Link>
                     </Button>
                   ) : (
                     <Button disabled>
-                      <Plus data-icon="inline-start" />
-                      Create Organization
+                      <Plus data-icon="inline-start" aria-hidden="true" />
+                      Create organization
                     </Button>
                   )}
                 </>
@@ -282,7 +289,7 @@ export default function OrganizationsDisplay({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <InputGroup className="sm:max-w-sm">
           <InputGroupAddon>
-            <Search />
+            <Search aria-hidden="true" />
           </InputGroupAddon>
           <InputGroupInput
             type="search"
@@ -322,7 +329,7 @@ export default function OrganizationsDisplay({
           <Empty className="border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <SearchX />
+                <SearchX aria-hidden="true" />
               </EmptyMedia>
               <EmptyTitle>
                 No results for &quot;{search.trim()}&quot;
@@ -341,7 +348,7 @@ export default function OrganizationsDisplay({
           <Empty className="border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <Building2 />
+                <EmptyStateIcon name="users" />
               </EmptyMedia>
               <EmptyTitle>No organizations yet</EmptyTitle>
               <EmptyDescription>
@@ -394,7 +401,10 @@ export default function OrganizationsDisplay({
                         </ItemContent>
                         <ItemActions>
                           {role ? <OrganizationRoleBadge role={role} /> : null}
-                          <ChevronRight className="text-muted-foreground size-4" />
+                          <ChevronRight
+                            className="text-muted-foreground size-4"
+                            aria-hidden="true"
+                          />
                         </ItemActions>
                       </Item>
                     </Fragment>

@@ -1,6 +1,5 @@
 "use client";
 
-import { Blocks } from "lucide-react";
 import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -30,6 +29,7 @@ import {
   setPluginContentVisibility,
   setPluginSourceVisibility,
 } from "./actions";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 
 interface PluginContentSettingsProps {
   showPluginContent: boolean;
@@ -129,7 +129,7 @@ export function PluginContentSettings({
           <Empty className="p-6">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <Blocks aria-hidden="true" />
+                <EmptyStateIcon name="blocks" />
               </EmptyMedia>
               <EmptyTitle>Nothing to manage yet</EmptyTitle>
               <EmptyDescription>

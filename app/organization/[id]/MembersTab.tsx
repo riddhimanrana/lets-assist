@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, EyeOff } from "lucide-react";
+import { EyeOff } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { DownloadIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { SectionHeader } from "@/components/layout/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,7 @@ export default function MembersTab({
     useState<OrganizationMember | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const exportIcon = useAnimatedIcon();
   const [dateRange, setDateRange] = useState<MemberHoursPeriod>(undefined);
 
   const isAdmin = userRole === "admin";
@@ -229,8 +231,14 @@ export default function MembersTab({
                   href={`/organization/${organizationId}/settings?section=members`}
                 />
               }
+              {...exportIcon.triggerProps}
             >
-              <Download data-icon="inline-start" />
+              <DownloadIcon
+                ref={exportIcon.ref}
+                size={16}
+                data-icon="inline-start"
+                aria-hidden="true"
+              />
               Export members
             </Button>
           ) : undefined

@@ -241,7 +241,7 @@ export function OrganizationPluginActionDialog({
                     {isInstallAction ? "Installing…" : "Removing…"}
                   </>
                 ) : isInstallAction ? (
-                  "Install Plugin"
+                  "Install plugin"
                 ) : activePluginAction?.isForced ? (
                   "Cannot uninstall forced plugin"
                 ) : (

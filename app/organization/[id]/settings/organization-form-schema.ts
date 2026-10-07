@@ -12,10 +12,10 @@ export const WEBSITE_MAX_LENGTH = 100;
 export const DESCRIPTION_MAX_LENGTH = 650;
 
 export const ORG_TYPE_LABELS: Record<string, string> = {
-  nonprofit: "Nonprofit Organization",
-  school: "Educational Institution",
-  company: "Company/Business",
-  government: "Government Agency",
+  nonprofit: "Nonprofit organization",
+  school: "Educational institution",
+  company: "Company/business",
+  government: "Government agency",
   other: "Other",
 };
 

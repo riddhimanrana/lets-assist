@@ -75,10 +75,10 @@ const CONSTANTS = {
 } as const;
 
 const ORG_TYPE_LABELS: Record<OrganizationFormValues["type"], string> = {
-  nonprofit: "Nonprofit Organization",
-  school: "Educational Institution",
-  company: "Company/Business",
-  government: "Government Agency",
+  nonprofit: "Nonprofit organization",
+  school: "Educational institution",
+  company: "Company/business",
+  government: "Government agency",
   other: "Other",
 };
 
@@ -267,7 +267,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                     Creating...
                   </>
                 ) : (
-                  "Create Organization"
+                  "Create organization"
                 )}
               </Button>
             </>

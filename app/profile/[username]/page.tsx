@@ -1,18 +1,17 @@
 import React from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { BadgeCheck, Lock, Pencil, UserRound, Users } from "lucide-react";
+import { BadgeCheck, Lock, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getPublicProfileByUsername } from "@/lib/profile/public";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 import { StatStrip } from "@/components/layout/SettingsSection";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -29,6 +28,7 @@ import { isTrustedForDisplay } from "@/utils/trust";
 import OrganizationCard from "@/app/organization/OrganizationCard";
 import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { ProfileActions } from "./ProfileActions";
+import { ProfileEditButton } from "./ProfileEditButton";
 import { ProfileProjectCard } from "./ProfileProjectCard";
 import {
   buildProfileMetadata,
@@ -360,13 +360,7 @@ export default async function ProfilePage(
           description={`@${profile.username} · Joined ${format(new Date(profile.created_at), "MMMM yyyy")}`}
           actions={
             isOwner ? (
-              <Button
-                variant="outline"
-                render={<Link href="/account/profile" />}
-              >
-                <Pencil data-icon="inline-start" />
-                Edit profile
-              </Button>
+              <ProfileEditButton />
             ) : (
               <ProfileActions
                 profileId={profile.id}
@@ -389,7 +383,7 @@ export default async function ProfilePage(
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <UserRound />
+              <EmptyStateIcon name="user" />
             </EmptyMedia>
             <EmptyTitle>Nothing here yet</EmptyTitle>
             <EmptyDescription>

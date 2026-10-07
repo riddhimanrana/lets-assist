@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { CalendarCheck, MapPin, Trash2 } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 
 import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 
 /** One synced event, whichever list it came from. */
 export type SyncedEvent = {
@@ -171,7 +172,7 @@ export function SyncedEventsSection<T extends SyncedEvent>({
         <Empty className="p-6">
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <CalendarCheck aria-hidden="true" />
+              <EmptyStateIcon name="calendar-check" />
             </EmptyMedia>
             <EmptyTitle>Nothing synced yet</EmptyTitle>
             <EmptyDescription>

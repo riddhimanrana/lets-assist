@@ -29,15 +29,14 @@ export function ProfileActions({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="ghost" size="icon">
-              <MoreVertical />
-              <span className="sr-only">Open menu</span>
+            <Button variant="ghost" size="icon" aria-label="Open menu">
+              <MoreVertical aria-hidden="true" />
             </Button>
           }
         />
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setReportOpen(true)}>
-            <Flag />
+            <Flag aria-hidden="true" />
             Report profile
           </DropdownMenuItem>
         </DropdownMenuContent>

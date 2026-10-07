@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Folders } from "lucide-react";
 
 import { StatStrip } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,7 @@ import type {
   ResolvedOrganizationPluginSurface,
 } from "@/types";
 import { getProjectStatus } from "@/utils/project";
+import { EmptyStateIcon } from "./EmptyStateIcon";
 import {
   formatOrganizationTypeLabel,
   organizationWebsiteHref,
@@ -149,7 +149,7 @@ export function OrganizationOverviewTab({
               <Empty className="p-6">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
-                    <Folders aria-hidden="true" />
+                    <EmptyStateIcon name="folders" />
                   </EmptyMedia>
                   <EmptyTitle>No projects yet</EmptyTitle>
                   <EmptyDescription>

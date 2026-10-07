@@ -5,15 +5,18 @@ import Link from "next/link";
 import {
   Ellipsis,
   LogOut,
-  Plus,
   Settings,
   Share2,
   ShieldAlert,
-  UserPlus,
   UsersIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import {
+  PlusIcon,
+  UserPlusIcon,
+  useAnimatedIcon,
+} from "@/components/icons/animated";
 import JoinCodeDialog from "@/app/organization/[id]/JoinCodeDialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +56,9 @@ export function OrganizationHeaderActions({
   const [showJoinCode, setShowJoinCode] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const inviteIcon = useAnimatedIcon();
+  const joinIcon = useAnimatedIcon();
+  const projectIcon = useAnimatedIcon();
 
   const isAdmin = userRole === "admin";
   const isStaffOrAdmin = userRole === "admin" || userRole === "staff";
@@ -102,15 +108,30 @@ export function OrganizationHeaderActions({
           variant="outline"
           className="shrink-0"
           onClick={() => setShowJoinCode(true)}
+          {...inviteIcon.triggerProps}
         >
-          <UserPlus data-icon="inline-start" aria-hidden="true" />
+          <UserPlusIcon
+            ref={inviteIcon.ref}
+            size={16}
+            data-icon="inline-start"
+            aria-hidden="true"
+          />
           Invite
         </Button>
       )}
 
       {userRole === null && (
-        <Button className="shrink-0" onClick={() => setShowJoinDialog(true)}>
-          <Plus data-icon="inline-start" aria-hidden="true" />
+        <Button
+          className="shrink-0"
+          onClick={() => setShowJoinDialog(true)}
+          {...joinIcon.triggerProps}
+        >
+          <PlusIcon
+            ref={joinIcon.ref}
+            size={16}
+            data-icon="inline-start"
+            aria-hidden="true"
+          />
           Join
         </Button>
       )}
@@ -120,8 +141,14 @@ export function OrganizationHeaderActions({
           className="shrink-0"
           nativeButton={false}
           render={<Link href={`/projects/create?org=${organization.id}`} />}
+          {...projectIcon.triggerProps}
         >
-          <Plus data-icon="inline-start" aria-hidden="true" />
+          <PlusIcon
+            ref={projectIcon.ref}
+            size={16}
+            data-icon="inline-start"
+            aria-hidden="true"
+          />
           New project
         </Button>
       )}
