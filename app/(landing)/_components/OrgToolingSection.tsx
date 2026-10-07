@@ -238,10 +238,7 @@ function OrganizationAnalyticsDemo() {
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((metric) => (
-          <Card
-            key={metric.label}
-            className="border-border/60 bg-background/95 shadow-sm"
-          >
+          <Card key={metric.label} className="bg-background">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -265,7 +262,7 @@ function OrganizationAnalyticsDemo() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
-        <Card className="overflow-hidden border-border/60 bg-background/95 shadow-sm">
+        <Card className="overflow-hidden bg-background">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4 text-primary" />
@@ -311,7 +308,7 @@ function OrganizationAnalyticsDemo() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden border-border/60 bg-background/95 shadow-sm">
+        <Card className="overflow-hidden bg-background">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Users className="h-4 w-4 text-primary" />
@@ -388,10 +385,7 @@ function OrganizationAnalyticsDemo() {
 
       <div className="grid gap-3 md:grid-cols-3">
         {reportMetricCards.map((metric) => (
-          <Card
-            key={metric.label}
-            className="border-border/60 bg-background/95 shadow-sm"
-          >
+          <Card key={metric.label} className="bg-background">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -412,7 +406,7 @@ function OrganizationAnalyticsDemo() {
         ))}
       </div>
 
-      <Card className="overflow-hidden border-border/60 bg-background/95 shadow-sm">
+      <Card className="overflow-hidden bg-background">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
@@ -426,7 +420,7 @@ function OrganizationAnalyticsDemo() {
           <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-background shadow-sm">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-background">
                   <Image
                     src="/resources/google-sheets-logo-2026.png"
                     alt="Google Sheets"
@@ -461,7 +455,7 @@ function OrganizationAnalyticsDemo() {
           <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-background shadow-sm">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-background">
                   <Image
                     src="/resources/google-calendar-logo-2026.png"
                     alt="Google Calendar"
@@ -477,9 +471,7 @@ function OrganizationAnalyticsDemo() {
                   </p>
                 </div>
               </div>
-              <Badge variant="secondary" className="bg-info/10 text-info">
-                Syncing
-              </Badge>
+              <Badge variant="info">Syncing</Badge>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-background/70 p-3">
@@ -495,7 +487,7 @@ function OrganizationAnalyticsDemo() {
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-border/60 bg-background/95 shadow-sm">
+      <Card className="overflow-hidden bg-background">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -1014,7 +1006,7 @@ const citySyncRuns = [
 
 function CityApiSyncPluginTab() {
   return (
-    <Card className="overflow-hidden border-border/60 bg-background/95 shadow-sm">
+    <Card className="overflow-hidden bg-background">
       <CardHeader className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
@@ -1080,7 +1072,7 @@ function CityApiSyncPluginTab() {
             <div className="divide-y divide-border/70">
               {citySyncSources.map((source) => (
                 <div key={source.name} className="flex items-center gap-3 p-4">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background shadow-xs">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background">
                     {source.type === "logo" ? (
                       <Image
                         src={source.logo}
@@ -1330,10 +1322,7 @@ function DemoPluginCard({
             )}
             {isPrivate ? <Badge variant="destructive">Private</Badge> : null}
             {plugin.isForced ? (
-              <Badge
-                variant="default"
-                className="bg-amber-600 hover:bg-amber-600"
-              >
+              <Badge variant="default" className="bg-amber-600">
                 Forced
               </Badge>
             ) : null}
@@ -1523,10 +1512,7 @@ function DemoPluginMarketplace() {
     <Dialog>
       <DialogTrigger
         render={
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto cursor-pointer hover:bg-muted"
-          >
+          <Button variant="outline" className="w-full sm:w-auto cursor-pointer">
             <Store data-icon="inline-start" />
             Open plugin marketplace
           </Button>
@@ -1689,7 +1675,7 @@ export default function OrgToolingSection() {
           className="relative mx-auto mt-12 w-full max-w-6xl"
         >
           <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
-          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
+          <div className="relative rounded-2xl border border-primary/20 bg-card">
             <div
               className="p-4 sm:p-6"
               onClickCapture={handleMockOrganizationClick}
@@ -1722,17 +1708,14 @@ export default function OrgToolingSection() {
         <div className="mt-12 space-y-10">
           <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
             {orgFeatures.map((feat) => (
-              <Card
-                key={feat.title}
-                className="h-full border-border/60 bg-background/90 shadow-xs"
-              >
+              <Card key={feat.title} className="h-full bg-background">
                 <CardContent className="p-4">
                   {feat.logos ? (
                     <div className="mb-2 flex items-center gap-2">
                       {feat.logos.map((logo) => (
                         <span
                           key={logo.src}
-                          className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs"
+                          className="flex size-9 items-center justify-center rounded-lg border bg-background"
                         >
                           <Image
                             src={logo.src}

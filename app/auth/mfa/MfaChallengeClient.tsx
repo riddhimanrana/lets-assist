@@ -216,7 +216,7 @@ export default function MfaChallengeClient({
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 sm:p-6">
-      <Card className="w-full max-w-xl border shadow-xs">
+      <Card className="w-full max-w-xl">
         <CardHeader className="space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ShieldCheck className="h-6 w-6" />

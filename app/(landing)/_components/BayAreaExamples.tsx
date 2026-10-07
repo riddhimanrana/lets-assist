@@ -65,7 +65,7 @@ export default function BayAreaExamples() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, amount: 0.4 }}
                       transition={{ duration: 0.35 }}
-                      className="group relative flex h-16 w-44 shrink-0 items-center justify-center rounded-2xl border bg-background/75 px-5 shadow-xs backdrop-blur transition-colors hover:border-primary/30"
+                      className="group relative flex h-16 w-44 shrink-0 items-center justify-center rounded-2xl border bg-background px-5 transition-colors hover:border-primary/30"
                     >
                       {partner.logo ? (
                         <Image

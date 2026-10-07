@@ -376,7 +376,7 @@ export function OrganizationOverviewTab({
                   >
                     <Button
                       variant="outline"
-                      className="w-full sm:w-auto cursor-pointer hover:bg-muted"
+                      className="w-full sm:w-auto cursor-pointer"
                     >
                       Organization Settings
                     </Button>
@@ -386,7 +386,7 @@ export function OrganizationOverviewTab({
                       render={
                         <Button
                           variant="outline"
-                          className="w-full sm:w-auto cursor-pointer hover:bg-muted"
+                          className="w-full sm:w-auto cursor-pointer"
                         >
                           Apply for Verification
                         </Button>
@@ -536,7 +536,7 @@ export function OrganizationOverviewTab({
                   <Link href={`/projects/create?org=${organization.id}`}>
                     <Button
                       variant="outline"
-                      className="w-full sm:w-auto cursor-pointer hover:bg-muted"
+                      className="w-full sm:w-auto cursor-pointer"
                     >
                       <Folders className="h-4 w-4 mr-2" />
                       Create Project

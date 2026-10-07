@@ -76,7 +76,7 @@ export function QRScannerPreview({
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-6">
       {/* Phone-like scanner frame */}
-      <div className="relative w-[250px] h-[290px] rounded-3xl border border-border/60 bg-card shadow-lg overflow-hidden">
+      <div className="relative w-[250px] h-[290px] rounded-3xl border border-border/60 bg-card overflow-hidden">
         {/* Top bar (camera / notch hint) */}
         <div className="absolute top-0 left-0 right-0 h-10 bg-linear-to-b from-background/80 to-transparent" />
 

@@ -29,7 +29,7 @@ export function CertificateCardButton({
         href={`/projects/${projectId}`}
         className={cn(
           buttonVariants({ variant: "outline", size: "sm" }),
-          "backdrop-blur-xs flex items-center gap-1.5",
+          "flex items-center gap-1.5",
         )}
       >
         View Project Details

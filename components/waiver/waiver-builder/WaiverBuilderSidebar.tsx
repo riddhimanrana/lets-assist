@@ -64,13 +64,13 @@ export function WaiverBuilderSidebar(props: Props) {
         <TabsList className="w-full justify-start h-auto px-2 py-1.5 sm:p-1 bg-muted/50 rounded-none border-b gap-1">
           <TabsTrigger
             value="signers"
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] sm:text-sm py-2 sm:py-2.5"
+            className="flex-1 text-[11px] sm:text-sm py-2 sm:py-2.5"
           >
             1. Signers
           </TabsTrigger>
           <TabsTrigger
             value="fields"
-            className="flex-1 data-[state=active]:bg-background data-[state=active]:shadow-sm text-[11px] sm:text-sm py-2 sm:py-2.5"
+            className="flex-1 text-[11px] sm:text-sm py-2 sm:py-2.5"
           >
             2. Fields & Signatures
           </TabsTrigger>

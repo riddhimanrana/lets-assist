@@ -102,7 +102,7 @@ export function ModernFormRenderer({
   return (
     <div className="max-w-[770px] mx-auto space-y-3">
       {/* Form Header Card */}
-      <Card className="border-none shadow-sm overflow-hidden rounded-lg">
+      <Card className="overflow-hidden rounded-lg">
         <div className="h-2.5 bg-primary w-full" />
         <CardHeader className="pt-6 pb-4">
           <CardTitle className="text-[32px] font-normal leading-tight">
@@ -208,8 +208,8 @@ function FormQuestionCard({
   return (
     <Card
       className={cn(
-        "border-none shadow-sm transition-shadow duration-200 rounded-lg",
-        isFocused && "shadow-md",
+        "transition-shadow duration-200 rounded-lg",
+        isFocused && "ring-primary/40",
         error && "border-l-4 border-l-destructive",
       )}
       onFocus={() => setIsFocused(true)}
@@ -234,7 +234,7 @@ function FormQuestionCard({
                 placeholder="Your answer"
                 value={scalarValue}
                 onChange={(e) => onChange(e.target.value)}
-                className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
+                className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent h-9 text-[14px]"
               />
             </div>
           )}
@@ -245,7 +245,7 @@ function FormQuestionCard({
               placeholder="Your email"
               value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
-              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
+              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent h-9 text-[14px]"
             />
           )}
 
@@ -255,7 +255,7 @@ function FormQuestionCard({
               placeholder="Your answer"
               value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
-              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none h-9 text-[14px]"
+              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent h-9 text-[14px]"
             />
           )}
 
@@ -264,7 +264,7 @@ function FormQuestionCard({
               placeholder="Your answer"
               value={scalarValue}
               onChange={(e) => onChange(e.target.value)}
-              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent shadow-none min-h-[40px] resize-none text-[14px]"
+              className="border-0 border-b border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-b-2 focus-visible:border-primary transition-all bg-transparent min-h-10 resize-none text-[14px]"
             />
           )}
 
@@ -330,7 +330,7 @@ function FormQuestionCard({
                     Add file
                   </div>
                   {value instanceof File && (
-                    <div className="mt-2 flex items-center gap-2 bg-background px-3 py-1 rounded border shadow-sm">
+                    <div className="mt-2 flex items-center gap-2 bg-background px-3 py-1 rounded border">
                       <FileText className="h-4 w-4 text-primary" />
                       <span className="text-xs truncate max-w-[200px]">
                         {value.name}

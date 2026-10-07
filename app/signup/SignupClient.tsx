@@ -175,8 +175,8 @@ export default function SignupClient({
   };
 
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-      <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 sm:px-6 lg:px-8">
+      <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
           <CardTitle className="text-left text-2xl font-semibold tracking-tight">
             {isStaffInvite ? "Staff Invite" : "Create an account"}
@@ -196,7 +196,7 @@ export default function SignupClient({
             <Button
               type="button"
               variant="outline"
-              className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold hover:border-primary/30 hover:bg-primary/5"
+              className="h-10 w-full rounded-full font-semibold"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
             >
@@ -246,7 +246,7 @@ export default function SignupClient({
                     placeholder="John Doe"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -275,7 +275,7 @@ export default function SignupClient({
                     placeholder="m@example.com"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -304,7 +304,7 @@ export default function SignupClient({
                     placeholder="+1 555-1234"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -328,13 +328,13 @@ export default function SignupClient({
                     type="password"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
                   )}
                   <div className="mt-2.5">
-                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-3 shadow-xs">
+                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-3">
                       <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-warning">
                         <AlertCircle className="h-4 w-4" />
                         Password Requirements

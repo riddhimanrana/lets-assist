@@ -12,7 +12,9 @@ const TermsPage = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-8 px-6">
       <main className="flex flex-col items-center justify-center w-full flex-1 sm:px-10 md:px-24 text-center">
-        <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+          Terms of Service
+        </h1>
         <p className="text-sm mt-0 mb-8 text-muted-foreground">
           Last updated December 31, 2025
         </p>

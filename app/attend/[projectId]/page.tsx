@@ -50,7 +50,7 @@ async function AttendanceContent({
   if (!projectId || !sessionUuid || !scheduleId) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">
-        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
+        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full">
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center mb-4">
               <CircleAlert className="h-12 w-12 text-destructive" />
@@ -102,7 +102,7 @@ async function AttendanceContent({
     console.log("AttendPage: cookie verification failed");
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">
-        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
+        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full">
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center mb-4">
               <QrCode className="h-12 w-12 text-warning" />

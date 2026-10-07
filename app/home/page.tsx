@@ -90,7 +90,9 @@ export default async function Home({ searchParams }: HomePageProps) {
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-3xl font-bold">Hi, {userName}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Hi, {userName}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 Check out the latest projects
               </p>
@@ -105,7 +107,7 @@ export default async function Home({ searchParams }: HomePageProps) {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="font-semibold flex items-center gap-2 w-full md:w-auto border-primary/20 hover:bg-primary/5"
+                  className="font-semibold flex items-center gap-2 w-full md:w-auto"
                 >
                   <Shield className="w-4 h-4 text-primary" />
                   <span className="hidden sm:inline">Admin Dashboard</span>

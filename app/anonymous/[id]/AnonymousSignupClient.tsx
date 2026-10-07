@@ -571,7 +571,7 @@ export default function AnonymousSignupClient({
         <CardContent className="space-y-6">
           {/* Status Banner */}
           {!isConfirmed && (
-            <Card className="w-full border-warning/30 bg-warning/5 overflow-hidden">
+            <Card className="w-full ring-warning/30 bg-warning/5 overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="bg-warning/10 p-2 rounded-full shrink-0">
@@ -594,7 +594,7 @@ export default function AnonymousSignupClient({
           )}
 
           {isConfirmed && !isProjectCancelled && (
-            <Card className="w-full border-success/30 bg-success/5 overflow-hidden">
+            <Card className="w-full ring-success/30 bg-success/5 overflow-hidden">
               <CardContent className="">
                 <div className="flex items-start gap-3">
                   <div className="bg-success/10 p-2 rounded-full shrink-0">

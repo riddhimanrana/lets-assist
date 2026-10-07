@@ -347,7 +347,7 @@ export function WaiverSigningStepsPanel(props: Props) {
       </div>
 
       {/* Footer Controls */}
-      <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      <div className="p-4 border-t bg-background shrink-0 flex items-center justify-between gap-4 z-20">
         {currentStep?.type === "review" && !disableEsignature ? (
           // Special footer for review step with choice - no nav buttons
           <div className="w-full text-center text-xs text-muted-foreground">
@@ -374,7 +374,6 @@ export function WaiverSigningStepsPanel(props: Props) {
                     variant="outline"
                     onClick={handleSkipOptionalSigner}
                     disabled={isSubmitting}
-                    className="shadow-sm"
                     data-testid="waiver-signer-skip-optional"
                   >
                     Skip (Optional)
@@ -385,7 +384,7 @@ export function WaiverSigningStepsPanel(props: Props) {
                 <Button
                   onClick={handleSubmit}
                   disabled={!isStepValid || isSubmitting}
-                  className="w-32 shadow-md"
+                  className="w-32"
                   variant="default" // Primary action
                   data-testid="waiver-signer-complete"
                 >
@@ -404,7 +403,6 @@ export function WaiverSigningStepsPanel(props: Props) {
                     !isStepValid ||
                     (currentStep?.type === "review" && !consented)
                   }
-                  className="shadow-sm"
                   data-testid="waiver-signer-next"
                 >
                   Next <ArrowRight className="h-4 w-4 ml-2" />

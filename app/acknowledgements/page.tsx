@@ -21,7 +21,7 @@ export default function AcknowledgementsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
           Acknowledgements
         </h1>
         <p className="text-muted-foreground">
@@ -30,7 +30,7 @@ export default function AcknowledgementsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 mb-1">
               <Image
@@ -69,7 +69,7 @@ export default function AcknowledgementsPage() {
           </CardContent>
         </Card>
 
-        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 mb-1">
               <SimpleIcon icon={siGithub} className="h-6 w-6" />

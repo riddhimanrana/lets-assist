@@ -49,7 +49,7 @@ export function WaiverDefinitionList({
   }
 
   return (
-    <div className="rounded-xl border bg-card shadow-xs">
+    <div className="rounded-xl border bg-card">
       <Table>
         <TableHeader>
           <TableRow>

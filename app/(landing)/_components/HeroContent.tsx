@@ -195,10 +195,9 @@ function MotionLinkButton({
         asChild
         variant={tone === "solid" ? "default" : "outline"}
         className={cn(
-          "group relative h-11 w-full overflow-hidden rounded-full px-5 text-sm font-medium shadow-xs sm:w-auto",
-          tone === "solid"
-            ? "bg-foreground text-background hover:bg-foreground/90"
-            : "border-border bg-background/80 text-foreground backdrop-blur hover:bg-accent",
+          "group relative h-11 w-full overflow-hidden rounded-full px-5 text-sm font-medium sm:w-auto",
+          tone === "solid" &&
+            "bg-foreground text-background hover:bg-foreground/90",
           className,
         )}
       >
@@ -336,12 +335,12 @@ export function ProjectDemo() {
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       className="relative mx-auto w-full max-w-6xl"
     >
-      <Card className="relative overflow-hidden border shadow-2xl shadow-primary/5">
+      <Card className="relative overflow-hidden">
         <CardContent className="p-0">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_390px]">
             <div className="p-4 sm:p-6 lg:p-8">
               <div className="mb-5 flex flex-wrap items-center gap-2">
-                <Badge className="gap-1.5 rounded-full bg-success/15 text-success hover:bg-success/15">
+                <Badge className="gap-1.5 bg-success/15 text-success">
                   <CheckCircle2 className="size-3" />
                   Open for signups
                 </Badge>
@@ -363,7 +362,7 @@ export function ProjectDemo() {
                 Santa Cruz Beach Boardwalk Parking
               </p>
 
-              <Card className="mt-6 shadow-none">
+              <Card className="mt-6">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">
                     About this Project
@@ -376,7 +375,7 @@ export function ProjectDemo() {
                 </CardContent>
               </Card>
 
-              <Card className="mt-4 shadow-none">
+              <Card className="mt-4">
                 <CardHeader className="flex-row items-center justify-between gap-3 pb-3">
                   <CardTitle className="text-base">
                     Volunteer Opportunities
@@ -402,7 +401,7 @@ export function ProjectDemo() {
             </div>
 
             <aside className="border-t bg-muted/20 p-4 sm:p-6 lg:border-l lg:border-t-0">
-              <Card className="overflow-hidden shadow-none">
+              <Card className="overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Project Details</CardTitle>
                 </CardHeader>
@@ -822,7 +821,7 @@ function RealProjectDemoWindow() {
     >
       <div
         ref={demoWindowRef}
-        className="relative overflow-hidden rounded-[1.75rem] border border-primary/25 bg-background shadow-2xl shadow-primary/10 ring-1 ring-primary/15"
+        className="relative overflow-hidden rounded-3xl border border-primary/25 bg-background"
         onClickCapture={(event) => {
           const target = event.target as HTMLElement;
           if (target.closest("[data-demo-scroll-toggle]")) {
@@ -838,7 +837,7 @@ function RealProjectDemoWindow() {
             <span className="size-2.5 rounded-full bg-success/70" />
           </div>
           <div className="min-w-0 text-center">
-            <p className="max-w-[58vw] truncate rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs sm:max-w-none sm:px-4">
+            <p className="max-w-[58vw] truncate rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground sm:max-w-none sm:px-4">
               {PROJECT_DISPLAY_URL}
             </p>
           </div>
@@ -942,7 +941,7 @@ export const HeroContent = () => {
             render={
               <button
                 type="button"
-                className="group flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="group flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Image
                   src="/logos/congressional-app-challenge-cropped.svg"
@@ -1043,7 +1042,7 @@ export const HeroContent = () => {
         className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
       >
         {platformHighlights.map((item) => (
-          <Card key={item.title} className="bg-card/80 shadow-xs backdrop-blur">
+          <Card key={item.title}>
             <CardContent className="p-4">
               <div className="mb-4 flex h-10 items-center">
                 {item.logos ? (
@@ -1051,7 +1050,7 @@ export const HeroContent = () => {
                     {item.logos.map((logo) => (
                       <span
                         key={logo.src}
-                        className="flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs"
+                        className="flex size-10 items-center justify-center rounded-lg border bg-background"
                       >
                         <Image
                           src={logo.src}

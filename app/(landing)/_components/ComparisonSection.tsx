@@ -279,7 +279,7 @@ function ModernDashboardMockup() {
 
       <div className="absolute -inset-2 sm:-inset-4 bg-linear-to-r from-primary/10 via-info/10 to-primary/10 rounded-2xl sm:rounded-3xl blur-xl sm:blur-2xl opacity-60" />
 
-      <div className="relative w-full h-full rounded-xl sm:rounded-2xl border border-primary/20 bg-background/80 backdrop-blur-md overflow-hidden flex flex-col shadow-2xl">
+      <div className="relative w-full h-full rounded-xl sm:rounded-2xl border border-primary/20 bg-background overflow-hidden flex flex-col">
         {/* Browser chrome */}
 
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/40 bg-muted/20 shrink-0 z-20">
@@ -339,7 +339,7 @@ function ModernDashboardMockup() {
                 <div className="space-y-2">
                   {/* Card 1 */}
 
-                  <div className="p-2.5 rounded-lg border bg-card shadow-xs opacity-60">
+                  <div className="p-2.5 rounded-lg border bg-card opacity-60">
                     <div className="h-2 w-1/3 bg-muted rounded mb-2"></div>
 
                     <div className="h-1.5 w-full bg-muted/50 rounded"></div>
@@ -347,15 +347,13 @@ function ModernDashboardMockup() {
 
                   {/* Card 2 (Target) */}
 
-                  <div className="p-2.5 rounded-lg border border-primary/40 bg-card shadow-sm relative group">
+                  <div className="p-2.5 rounded-lg border border-primary/40 bg-card relative group">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-medium text-xs sm:text-sm">
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/30 dark:text-primary-foreground">
-                        Open
-                      </Badge>
+                      <Badge className="h-4 text-[9px]">Open</Badge>
                     </div>
 
                     <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-2">
@@ -375,7 +373,7 @@ function ModernDashboardMockup() {
 
                   {/* Card 3 */}
 
-                  <div className="p-2.5 rounded-lg border bg-card shadow-xs opacity-60">
+                  <div className="p-2.5 rounded-lg border bg-card opacity-60">
                     <div className="h-2 w-1/4 bg-muted rounded mb-2"></div>
 
                     <div className="h-1.5 w-2/3 bg-muted/50 rounded"></div>
@@ -450,7 +448,7 @@ function ModernDashboardMockup() {
                 className="flex flex-col items-center justify-center h-full relative"
               >
                 {/* Scanner Frame */}
-                <div className="relative w-[180px] h-[220px] rounded-2xl border border-border/60 bg-card shadow-lg overflow-hidden flex flex-col">
+                <div className="relative w-[180px] h-[220px] rounded-2xl border border-border/60 bg-card overflow-hidden flex flex-col">
                   {/* Camera feed simulation */}
                   <div className="absolute inset-0 bg-muted/50 flex items-center justify-center">
                     <div className="w-32 h-32 border-2 border-primary/50 rounded-lg relative overflow-hidden bg-background/20 backdrop-blur-xs">
@@ -1072,7 +1070,7 @@ export default function ComparisonSection() {
           viewport={{ once: true }}
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
         >
-          <Card className="overflow-hidden border-border/60 shadow-xl py-[-2]">
+          <Card className="overflow-hidden py-0">
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[360px]">
                 <TableHeader>
@@ -1082,7 +1080,7 @@ export default function ComparisonSection() {
                     </TableHead>
                     <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
                       <div className="flex flex-col items-center gap-1 sm:gap-1.5">
-                        <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
+                        <div className="rounded-xl bg-primary/20 flex items-center justify-center">
                           <Image
                             src="/logo.png"
                             alt="Let's Assist"

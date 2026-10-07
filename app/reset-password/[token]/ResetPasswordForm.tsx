@@ -120,7 +120,7 @@ export default function ResetPasswordForm({
                     <FormMessage errors={[fieldState.error]} />
                   )}
                   <div className="mt-3 space-y-2">
-                    <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 shadow-xs">
+                    <div className="rounded-lg bg-warning/15 border border-warning/40 p-3">
                       <p className="text-xs font-semibold text-warning mb-2 flex items-center gap-2">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         Password Requirements

@@ -27,7 +27,7 @@ export function MiniCertificate({
       transition={{ duration: 0.5 }}
       className="p-4"
     >
-      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div
@@ -42,7 +42,10 @@ export function MiniCertificate({
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", duration: 0.6, delay: 0.3 }}
           >
-            <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+            <Badge
+              variant="secondary"
+              className="bg-primary/10 text-primary border-primary/20"
+            >
               <BadgeCheck className="h-3 w-3 mr-1" />
               Verified
             </Badge>
@@ -68,7 +71,7 @@ export function MiniCertificate({
             <span>{organizationName}</span>
           </div>
 
-          <div className="p-3 bg-linear-to-r from-primary/5 to-transparent backdrop-blur-xs rounded-lg border border-primary/10">
+          <div className="p-3 bg-linear-to-r from-primary/5 to-transparent rounded-lg border border-primary/10">
             <p className="text-sm font-semibold mb-1">{volunteerName}</p>
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5 text-primary" />

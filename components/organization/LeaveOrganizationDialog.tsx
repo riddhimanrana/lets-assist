@@ -53,10 +53,7 @@ export function LeaveOrganizationDialog({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger
         render={
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto text-destructive hover:bg-destructive/10"
-          >
+          <Button variant="destructive" className="w-full sm:w-auto">
             <LogOut className="h-4 w-4 mr-2" />
             Leave Organization
           </Button>

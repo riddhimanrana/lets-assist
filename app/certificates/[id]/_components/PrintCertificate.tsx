@@ -273,7 +273,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
         onClick={handlePrint}
         variant="outline"
         size="sm"
-        className="flex items-center gap-2 mt-6 mx-auto print:hidden hover:bg-primary/10 transition-colors"
+        className="flex items-center gap-2 mt-6 mx-auto print:hidden"
         aria-label="Print certificate"
       >
         <Printer className="h-4 w-4" />

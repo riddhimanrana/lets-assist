@@ -247,7 +247,7 @@ export function PdfPage({
   return (
     <div
       ref={containerRef}
-      className="relative ring-1 ring-border shadow-sm"
+      className="relative ring-1 ring-border"
       style={{ width: viewport.width, height: viewport.height }}
       onClick={handleCanvasClick}
     >

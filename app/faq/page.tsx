@@ -55,7 +55,7 @@ export default function FAQPage() {
           <p className="text-xs uppercase tracking-[0.5em] text-muted-foreground">
             Frequently asked questions
           </p>
-          <h1 className="text-3xl font-bold sm:text-4xl">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Everything you want to know about Let’s Assist
           </h1>
           <p className="mx-auto max-w-3xl text-sm sm:text-base text-muted-foreground">
@@ -65,7 +65,7 @@ export default function FAQPage() {
           </p>
         </div>
 
-        <section className="rounded-3xl border border-border/60 bg-card/80 p-6 shadow-lg shadow-foreground/5">
+        <section className="rounded-3xl border border-border/60 bg-card p-6">
           <Accordion className="w-full" defaultValue={["item-1"]}>
             {faqs.map((faq, index) => (
               <AccordionItem key={faq.question} value={`item-${index + 1}`}>
