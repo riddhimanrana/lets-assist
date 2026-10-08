@@ -32,12 +32,14 @@
 
 ---
 
-## 👥 Optional DV Speech & Debate fixtures
+## Archived Speech and Debate fixtures
+
+These records describe retained tooling, not a supported local setup. Speech and Debate is no longer registered or offered. Normal fixture and browser gates do not use these accounts.
 
 All accounts use the run-specific password supplied through
 `CSF_LOCAL_TEST_PASSWORD` or `DV_LOCAL_TEST_PASSWORD`.
 
-Run `bun run dv:fixtures` after the default platform seed to add the following
+The retained `bun run dv:fixtures` script formerly added these
 three organizations: DV Speech & Debate (`508833`), Acts of Hearts (`111607`),
 and WRMS Speech & Debate (`830672`). `dv.admin@local.test` is an administrator
 in all three. The remaining named accounts are scoped as follows:
@@ -162,15 +164,12 @@ user IDs or expose the mapping through a `NEXT_PUBLIC_*` variable.
 ```bash
 export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"
 bun run supabase
-# Optional DV Speech & Debate workspace:
-bun run dv:fixtures
 ```
 
 > `bun run supabase` starts the shared local Supabase stack, resets its database,
 > and seeds the default non-CSF platform fixtures. It seeds **no** DVHS CSF data:
 > `PLATFORM_SEED_MODE=shared-local-v1` creates, replaces, and deletes no DVHS CSF
 > organization, plugin, profile, membership, import, or synthetic fixture record.
-> `bun run dv:fixtures` adds the optional DV Speech & Debate workspace.
 >
 > The DVHS CSF rows in the tables above are seeded only by
 > `bun run csf:seed:platform:isolated` on a generated isolated stack — see the
@@ -212,14 +211,13 @@ export CSF_ISOLATED_WORK_DIR=/tmp/lets-assist-csf-browser-<run-id>
 node scripts/local-dev/dv-local-env.mjs --print-app-env   # 17 allowlisted KEY=VALUE lines
 # export each line after checking its key against the allowlist — see README.md
 bun run csf:seed:platform:isolated
-bun run dv:fixtures   # optional DV workspace
 ```
 
 `supabase-browser.env` in the same directory is only the raw `supabase status`
 snapshot and is not sufficient for app or seed validation.
 
-`bun run csf:seed:platform:isolated` and `bun run dv:fixtures` create the
-fictional JavaScript-managed platform and DV records shown above — they do not
+`bun run csf:seed:platform:isolated` creates the
+fictional JavaScript-managed platform records. It does not
 replay migrations or SQL seeds. The isolated seed script carries
 `PLATFORM_SEED_MODE=csf-isolated-v1`, refuses to run without a validated
 `CSF_ISOLATED_WORK_DIR`, and is the only mode that seeds the deterministic
