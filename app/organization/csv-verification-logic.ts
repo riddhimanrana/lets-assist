@@ -176,6 +176,10 @@ export const verifyCertificateId = async (
           ) / 10; // Round to 1 decimal
       }
 
+      if (typeof result.event?.creditedMinutes === "number") {
+        calculatedHours = result.event.creditedMinutes / 60;
+      }
+
       // Compare with CSV data
       const csvHours = row.duration ? parseFloat(row.duration) : 0;
       const hoursMatch = Math.abs(calculatedHours - csvHours) <= 0.1; // Allow 0.1h difference

@@ -56,9 +56,12 @@ repository review guidelines. Keep branch protection and `ci-gate` independent
 of the AI review; resolved review threads and successful tests remain required.
 
 Private PR 643 received an automatic Codex review against bde1aef on October 7.
-It identified narrow-screen DV navigation, and the fix is ece31d6. This confirms
-review on a newly opened private PR. The root PR was still a draft at that point;
-root review and review-on-push settings remain unverified.
+It identified narrow-screen DV navigation, and the fix is ece31d6. Later automatic
+reviews identified the runtime checklist and three partner attendance defects;
+those fixes are 5a76115 and 6c271f0. This proves that the integration reviewed
+updates to this private PR. Direct settings readback and review of the final head
+remain separate checks. Root PR 867 remains a draft pending complete integration,
+so automatic review of its final candidate is still unverified.
 Do not add a privileged `pull_request_target` job that executes candidate code
 or a second API-key workflow to claim the native integration is configured.
 

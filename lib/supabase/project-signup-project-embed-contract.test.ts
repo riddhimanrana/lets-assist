@@ -411,7 +411,7 @@ test("project page, calendar and mutation reads omit review fields and wildcards
     "app/projects/[id]/server/access.ts",
     "app/projects/[id]/signups/SignupsClient.tsx",
     "app/projects/[id]/paper-signups/page.tsx",
-    "app/projects/[id]/hours/page.tsx",
+    "app/projects/[id]/paper-signups/access.ts",
     "app/anonymous/[id]/page.tsx",
     "app/organization/[id]/page.tsx",
   ]);

@@ -86,7 +86,7 @@ test("certificate resend is permission checked and scoped to one project session
   assert.match(resendSource, /drainPublicationEmails/u);
   assert.match(
     resendSource,
-    /publishKey === sessionId \? \[sessionId\] : \[sessionId, publishKey\]/u,
+    /getScheduleIdAliases\(typedProject, sessionId\)/u,
   );
   assert.match(resendSource, /\.eq\("project_id", projectId\)/u);
   assert.match(resendSource, /\.in\("schedule_id", legacyScheduleIds\)/u);

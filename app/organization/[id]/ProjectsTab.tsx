@@ -1,5 +1,7 @@
 "use client";
 
+import { AttendanceExport } from "@/components/projects/AttendanceExport";
+import { canManageProjectAccess } from "@/lib/projects/management-access";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -44,6 +46,7 @@ interface ProjectsTabProps {
   projects: Project[];
   userRole: string | null;
   organizationId: string;
+  currentUserId?: string;
   /**
    * Show "New project" in this tab's header. Off by default because the
    * organization header already carries it; on when a plugin hides it there.
@@ -104,6 +107,7 @@ export default function ProjectsTab({
   userRole,
   organizationId,
   showCreateAction = false,
+  currentUserId,
 }: ProjectsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -222,10 +226,34 @@ export default function ProjectsTab({
         </ToggleGroup>
       </div>
 
+      {userRole === "admin" && (
+        <AttendanceExport
+          scope="organization"
+          scopeId={organizationId}
+          projects={projects}
+        />
+      )}
+
       {filteredProjects.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map(({ project, status }) => (
-            <ProjectCard key={project.id} project={project} status={status} />
+            <div key={project.id} className="grid content-start gap-2">
+              <ProjectCard project={project} status={status} />
+              {currentUserId &&
+                canManageProjectAccess({
+                  creatorId: project.creator_id,
+                  userId: currentUserId,
+                  organizationRole: userRole,
+                  canBeManagedByStaff: project.can_be_managed_by_staff,
+                }) && (
+                  <Button
+                    variant="outline"
+                    render={<Link href={`/projects/${project.id}/hours`} />}
+                  >
+                    Volunteer hours
+                  </Button>
+                )}
+            </div>
           ))}
         </div>
       ) : (

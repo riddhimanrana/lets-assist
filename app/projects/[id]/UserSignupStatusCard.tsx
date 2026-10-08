@@ -18,10 +18,12 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { cn, formatTimeTo12Hour } from "@/lib/utils";
 import type { Project } from "@/types";
+import { type SignupStatus } from "./user-dashboard-status";
+
 import {
-  calculateVolunteerDuration,
-  type SignupStatus,
-} from "./user-dashboard-status";
+  volunteerAttendanceDuration,
+  type VolunteerCertificate,
+} from "@/lib/projects/volunteer-attendance-duration";
 
 type Tone = "info" | "success" | "warning" | "destructive";
 
@@ -99,7 +101,11 @@ function StatusCard({
   );
 }
 
-function attendanceFacts(status: SignupStatus): Fact[] {
+function attendanceFacts(
+  status: SignupStatus,
+  certificate: VolunteerCertificate | undefined,
+  certificateReadComplete: boolean,
+): Fact[] {
   const facts: Fact[] = [
     { label: "Session", value: status.sessionDisplayName },
   ];
@@ -115,10 +121,13 @@ function attendanceFacts(status: SignupStatus): Fact[] {
       value: format(checkOut, "MMM d, h:mm a"),
     });
   }
-  if (checkIn && checkOut) {
-    const duration = calculateVolunteerDuration(
-      checkIn.toISOString(),
-      checkOut.toISOString(),
+  {
+    const duration = volunteerAttendanceDuration(
+      status.signup,
+      certificate,
+      status.renderState === "hoursPublished"
+        ? { certificateReadComplete }
+        : undefined,
     );
     facts.push({
       label: "Total hours",
@@ -136,11 +145,15 @@ function attendanceFacts(status: SignupStatus): Fact[] {
 export function UserSignupStatusCard({
   status,
   project,
+  certificate,
+  certificateReadComplete,
   hideReminder,
   onScan,
 }: {
   status: SignupStatus;
   project: Project;
+  certificate?: VolunteerCertificate;
+  certificateReadComplete: boolean;
   hideReminder: boolean;
   onScan: (scheduleId: string) => void;
 }) {
@@ -179,7 +192,7 @@ export function UserSignupStatusCard({
           badge="Published"
           title="Volunteer hours published!"
           description={`Your hours for ${project.title} have been finalized.`}
-          facts={attendanceFacts(status)}
+          facts={attendanceFacts(status, certificate, certificateReadComplete)}
           notes={[
             {
               title: "View your record",
@@ -187,18 +200,16 @@ export function UserSignupStatusCard({
             },
           ]}
         >
-          <Button
-            variant="outline"
-            className="justify-self-start"
-            render={
-              <Link
-                href={`/certificates/${"certificateId" in status ? status.certificateId : null}`}
-              />
-            }
-          >
-            <TicketCheck data-icon="inline-start" aria-hidden="true" />
-            View certificate
-          </Button>
+          {certificate && (
+            <Button
+              variant="outline"
+              className="justify-self-start"
+              render={<Link href={`/certificates/${certificate.id}`} />}
+            >
+              <TicketCheck data-icon="inline-start" aria-hidden="true" />
+              View certificate
+            </Button>
+          )}
         </StatusCard>
       );
 
@@ -210,7 +221,7 @@ export function UserSignupStatusCard({
           title="Hours being processed"
           description={`Thank you for your participation in ${project.title}`}
           facts={[
-            ...attendanceFacts(status),
+            ...attendanceFacts(status, certificate, certificateReadComplete),
             {
               label: "Processing time remaining",
               value: `${48 - (("hoursSinceEnd" in status && status.hoursSinceEnd) || 0)} hours`,

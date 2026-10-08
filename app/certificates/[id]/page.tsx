@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { safeConsole } from "@/lib/safe-console";
 import { Metadata } from "next";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -6,7 +7,10 @@ import { differenceInMinutes, parseISO, isValid } from "date-fns";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CertificateDocument } from "./_components/CertificateDocument";
-import { PrintCertificate } from "./_components/PrintCertificate";
+import {
+  PrintCertificate,
+  type PrintCertificateData,
+} from "./_components/PrintCertificate";
 
 // Define the expected shape of the fetched data based on the 'certificates' table
 interface CertificateData {
@@ -14,17 +18,14 @@ interface CertificateData {
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
-  type?: "verified" | "self-reported"; // Optional for backward compatibility
+  type?: "verified" | "self-reported" | null; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
-  event_end: string; // Assuming ISO string format from Supabase
-  user_id: string | null;
+  event_end: string;
+  credited_minutes?: number | null;
   check_in_method: string;
-  created_at: string | null; // Keep for potential use, though issued_at is primary
   organization_name: string | null;
   project_id: string | null;
-  schedule_id: string | null;
   issued_at: string; // Assuming ISO string format from Supabase
-  signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
   description: string | null; // For self-reported description
@@ -32,14 +33,23 @@ interface CertificateData {
 }
 
 // Helper function to calculate and format duration
-function formatDuration(startISO: string, endISO: string): string {
+function formatDuration(
+  startISO: string,
+  endISO: string,
+  creditedMinutes?: number | null,
+): string {
   try {
     const start = parseISO(startISO);
     const end = parseISO(endISO);
     if (!isValid(start) || !isValid(end)) {
       return "N/A";
     }
-    const diffMins = differenceInMinutes(end, start);
+    const diffMins = Math.round(
+      certificateHours(
+        { credited_minutes: creditedMinutes },
+        () => differenceInMinutes(end, start) / 60,
+      ) * 60,
+    );
     if (diffMins < 0) return "Invalid";
     const hours = Math.floor(diffMins / 60);
     const minutes = diffMins % 60;
@@ -93,14 +103,11 @@ export default async function VolunteerRecordPage({
       type,
       event_start,
       event_end,
-      user_id,
+      credited_minutes,
       check_in_method,
-      created_at,
       organization_name,
       project_id,
-      schedule_id,
       issued_at,
-      signup_id,
       volunteer_name,
       project_location,
       description,
@@ -122,14 +129,23 @@ export default async function VolunteerRecordPage({
   const isSelfReported = data.type === "self-reported";
 
   // Calculate duration (this doesn't need timezone conversion)
-  const durationText = formatDuration(data.event_start, data.event_end);
+  const durationText = formatDuration(
+    data.event_start,
+    data.event_end,
+    data.credited_minutes,
+  );
 
-  // Prepare the certificate data for the print component
-  const certificateData = {
-    ...data,
-    volunteer_email: null,
+  const certificateData: PrintCertificateData = {
+    id: data.id,
+    project_title: data.project_title,
+    creator_name: data.creator_name,
+    is_certified: data.is_certified,
+    event_start: data.event_start,
+    organization_name: data.organization_name,
+    issued_at: data.issued_at,
+    volunteer_name: data.volunteer_name,
+    project_location: data.project_location,
     durationText,
-    creator_username: data.creator_username || null,
   };
 
   return (
@@ -147,7 +163,22 @@ export default async function VolunteerRecordPage({
       />
 
       <CertificateDocument
-        data={data}
+        data={{
+          id: data.id,
+          project_title: data.project_title,
+          creator_name: data.creator_name,
+          creator_username: data.creator_username,
+          organization_name: data.organization_name,
+          volunteer_name: data.volunteer_name,
+          project_location: data.project_location,
+          project_id: data.project_id,
+          event_start: data.event_start,
+          event_end: data.event_end,
+          issued_at: data.issued_at,
+          is_certified: data.is_certified,
+          check_in_method: data.check_in_method,
+          description: data.description,
+        }}
         durationText={durationText}
         isSelfReported={isSelfReported}
       />

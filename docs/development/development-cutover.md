@@ -18,7 +18,7 @@ Before an operator runs it:
 - Stop the five CSF release controls: workbook refresh, import commit, communications, scheduled post publication and publication notifications. Stop all database cron jobs and drain active runs and publication leases. Preparation verifies these conditions; it does not stop them for the operator.
 - Hold Auth and Storage administration, external API writers and external schedulers. Include data exports, project cancellation, feedback, recurrence, moderation, cleanup, paper notifications, organization calendars and organization Sheets. The PostgREST request guard does not block these other channels. The required `external-writers-stopped:<candidate SHA>` confirmation records the approving operator's attestation, not independently measured provider state.
 
-The observed Development environment had no review rules and no `DEVELOPMENT_DATABASE_URL` when this controller was written. Provider setup and credential handoff remain separate approved operations. Local controller tests do not establish those prerequisites or a hosted cutover.
+The October 7 provider readback confirms that the Development environment now requires review by `riddhimanrana`, permits that owner to review their own run, and allows only `development` and `codex/*` branch deployments. `DEVELOPMENT_DATABASE_URL` is still absent. Credential setup, external-writer shutdown and an approved workflow run remain required before cutover. Local controller tests do not establish those prerequisites or a hosted cutover.
 
 ## Install the request guard before preparation
 

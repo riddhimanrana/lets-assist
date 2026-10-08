@@ -40,7 +40,7 @@ test("admins get sync now and a link to the settings that own configuration", ()
   expect(html).toContain("Fictional hours");
   expect(html).toContain("Connected");
   expect(html).toContain("Sync now");
-  expect(html).toContain(`href="${settingsHref.replace("&", "&amp;")}"`);
+  expect(html).toContain(`href="${settingsHref.replaceAll("&", "&amp;")}"`);
   expect(html).toContain("Manage");
   // Configuration lives in settings only.
   expect(html).not.toContain("Destination");

@@ -37,6 +37,7 @@ export async function GET(
         is_certified,
         event_start,
         event_end,
+        credited_minutes,
         volunteer_name,
         volunteer_email,
         issued_at,

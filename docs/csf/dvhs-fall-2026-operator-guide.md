@@ -561,15 +561,17 @@ it into a Fall 2026 rule.
 2. Review the saved details and member-facing signup/proof consequence. Select
    **Publish** only when the record is complete. A row reading
    **Published** is publication evidence; a saved draft is not.
-3. Open **Point submissions**. Select **Review**, inspect the activity or club,
-   claimed number, source relationship, and proof, then enter **Awarded points**
-   and **Review notes**. Use **Request changes**, **Reject**, or **Approve
-   award** according to the evidence. Review notes are required for rejection,
-   requested changes, and an adjusted award.
-4. Confirm the result in **CSF point awards** and in the student's **My CSF**
-   view. After **Request changes**, the member uses **Update and resubmit**; an
-   appeal is a separate decision. Neither rewrites the original submission or
-   award history.
+3. Open **Point submissions** and select **Review & proof**. Inspect the activity
+   or club, claimed number, source relationship, and proof, then enter **Awarded
+   points** and **Review notes**. Use **Reject** or **Approve award** according
+   to the evidence. Member-submitted claims also offer **Request changes**.
+   Organizer attendance claims cannot return to the member for editing; staff
+   approve, reject, or retry attendance sync. Review notes are required for
+   rejection, requested changes, and an adjusted award.
+4. Confirm approved points in **CSF point awards** and the student's **My CSF**
+   view. After **Request changes** on a member-submitted claim, the member uses
+   **Update and resubmit**. Appeals remain separate decisions, and prior history
+   remains intact.
 
 Every mutation rechecks the acting account, active membership, current open
 term, published policy, source relationship, cap, class, and finalized proof.

@@ -16,10 +16,12 @@ export function VerificationSentDialog({
   open,
   onOpenChange,
   email,
+  loginHref,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   email: string;
+  loginHref: string;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -27,22 +29,23 @@ export function VerificationSentDialog({
         <DialogHeader>
           <DialogTitle>Check your email to finish account access</DialogTitle>
           <DialogDescription>
-            We created your account and linked this volunteer profile. Verify{" "}
+            Your guest attendance is saved. Verify{" "}
             <span className="text-foreground font-medium wrap-break-word">
               {email}
             </span>
-            , then sign in to access your dashboard.
+            , then sign in and return here to link it to your account.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-2 text-sm">
           <h3 className="font-medium">What happens next</h3>
           <p className="text-muted-foreground">
-            Your volunteer signups are already attached to the new account.
+            Your volunteer signups and certificates remain available through
+            this guest link.
           </p>
           <p className="text-muted-foreground">
-            Once you verify the email address, you&apos;ll be able to sign in
-            and manage hours, attendance, and certificates from your dashboard.
+            After verifying, sign in using the button below. You will return
+            here to finish linking your attendance.
           </p>
         </div>
 
@@ -54,7 +57,7 @@ export function VerificationSentDialog({
           >
             Close
           </Button>
-          <Link href="/login" className={buttonVariants()}>
+          <Link href={loginHref} className={buttonVariants()}>
             Go to login
           </Link>
         </DialogFooter>
