@@ -19,7 +19,7 @@ BEGIN
   schedule:=CASE c.event_type
    WHEN 'oneTime' THEN '{"oneTime":{"date":"2020-09-18","startTime":"09:00","endTime":"12:00","volunteers":1}}'::jsonb
    WHEN 'multiDay' THEN '{"multiDay":[{"date":"2020-09-18","slots":[{"startTime":"09:00","endTime":"12:00","volunteers":1},{"startTime":"12:00","endTime":"15:00","volunteers":1}]},{"date":"2020-09-19","slots":[{"startTime":"09:00","endTime":"12:00","volunteers":1}]}]}'::jsonb
-   ELSE '{"sameDayMultiArea":{"date":"2020-09-18","roles":[{"name":"Morning","startTime":"09:00","endTime":"12:00","volunteers":1},{"name":"Afternoon","startTime":"12:00","endTime":"15:00","volunteers":1}]}}'::jsonb END;
+   ELSE '{"sameDayMultiArea":{"date":"2020-09-18","overallStart":"09:00","overallEnd":"15:00","roles":[{"name":"Morning","startTime":"09:00","endTime":"12:00","volunteers":1},{"name":"Afternoon","startTime":"12:00","endTime":"15:00","volunteers":1}]}}'::jsonb END;
   INSERT INTO public.projects(id,creator_id,title,location,description,event_type,verification_method,schedule,status,project_timezone,published)
   VALUES(project_id,'ba100000-0000-4000-8000-000000000001','Session aliases fixture','Local','Synthetic schedule alias',c.event_type,'manual',schedule,'upcoming','UTC',jsonb_build_object(c.canonical_id,true));
   INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status)

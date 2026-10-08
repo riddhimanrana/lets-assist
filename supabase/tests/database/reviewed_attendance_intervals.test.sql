@@ -156,7 +156,7 @@ SELECT extensions.is(public.combine_paper_attendance_rows('a7100000-0000-4000-80
 -- A person cannot earn overlapping sessions of the same project.
 INSERT INTO public.projects(id,creator_id,title,location,description,event_type,verification_method,schedule,require_login,status,project_timezone) VALUES
  ('a7100000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000001','Attendance session fixture','Local','Synthetic intervals','sameDayMultiArea','manual',
- '{"sameDayMultiArea":{"date":"2026-09-18","roles":[{"name":"Morning","startTime":"09:00","endTime":"12:00","volunteers":5},{"name":"Afternoon","startTime":"10:00","endTime":"13:00","volunteers":5}]}}',true,'upcoming','UTC');
+ '{"sameDayMultiArea":{"date":"2026-09-18","overallStart":"09:00","overallEnd":"13:00","roles":[{"name":"Morning","startTime":"09:00","endTime":"12:00","volunteers":5},{"name":"Afternoon","startTime":"10:00","endTime":"13:00","volunteers":5}]}}',true,'upcoming','UTC');
 INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status) VALUES
  ('a7200000-0000-4000-8000-000000000002','a7100000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000002','Morning','approved'),
  ('a7200000-0000-4000-8000-000000000003','a7100000-0000-4000-8000-000000000002','a7000000-0000-4000-8000-000000000002','Afternoon','approved');

@@ -30,7 +30,7 @@ BEGIN
   schedule:=CASE c.event_type
    WHEN 'oneTime' THEN '{"oneTime":{"date":"2020-09-18","startTime":"09:00","endTime":"15:00","volunteers":10}}'::jsonb
    WHEN 'multiDay' THEN '{"multiDay":[{"date":"2020-09-18","slots":[{"startTime":"09:00","endTime":"11:00","volunteers":10},{"startTime":"12:00","endTime":"15:00","volunteers":10}]}]}'::jsonb
-   ELSE '{"sameDayMultiArea":{"date":"2020-09-18","roles":[{"name":"Morning","startTime":"09:00","endTime":"11:00","volunteers":10},{"name":"Afternoon","startTime":"12:00","endTime":"15:00","volunteers":10}]}}'::jsonb END;
+   ELSE '{"sameDayMultiArea":{"date":"2020-09-18","overallStart":"09:00","overallEnd":"15:00","roles":[{"name":"Morning","startTime":"09:00","endTime":"11:00","volunteers":10},{"name":"Afternoon","startTime":"12:00","endTime":"15:00","volunteers":10}]}}'::jsonb END;
   INSERT INTO public.projects(id,creator_id,title,location,description,event_type,verification_method,schedule,status,project_timezone)
   VALUES(p,'ab100000-0000-4000-8000-000000000001','Guest link alias fixture','Local','Synthetic alias conflict',c.event_type,'manual',schedule,'upcoming','UTC');
   INSERT INTO public.anonymous_signups(id,project_id,email,name,token,confirmed_at)
