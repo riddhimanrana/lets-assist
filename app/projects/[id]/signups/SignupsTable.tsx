@@ -33,11 +33,16 @@ export type SignupSortDirection = "asc" | "desc";
 
 const STATUS_BADGE: Record<
   OrganizerSignup["status"],
-  { label: string; variant: "success" | "warning" | "destructive" }
+  {
+    label: string;
+    variant: "success" | "warning" | "destructive" | "info" | "secondary";
+  }
 > = {
   approved: { label: "Approved", variant: "success" },
   pending: { label: "Pending", variant: "warning" },
   rejected: { label: "Rejected", variant: "destructive" },
+  attended: { label: "Attended", variant: "info" },
+  cancelled: { label: "Cancelled", variant: "secondary" },
 };
 
 /** One slot's signups. Row actions sit on the right edge, always in one place. */
