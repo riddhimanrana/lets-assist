@@ -135,7 +135,11 @@ export default function ReportsTab({
         description="Hours, members and projects for the selected dates."
         actions={
           <>
-            <DateRangePicker value={dateRange} onChange={setDateRange} />
+            <DateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+              className="w-auto"
+            />
             <Button
               variant="outline"
               size="icon"

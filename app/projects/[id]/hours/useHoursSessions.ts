@@ -32,6 +32,19 @@ export type HoursSession = {
   summary: ReturnType<typeof summarizeAttendanceHours>;
 };
 
+/** Shows a stored YYYY-MM-DD schedule day as "Sat, Dec 5, 2026" without shifting it across timezones. */
+function formatSessionDay(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  if (!year || !month || !date) return day;
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, date)));
+}
+
 export function buildHoursSessions({
   project,
   signups,
@@ -54,13 +67,16 @@ export function buildHoursSessions({
     if (!groups.has(key)) groups.set(key, { scheduleId, name, attendees: [] });
   };
   if (project.event_type === "oneTime" && project.schedule.oneTime) {
-    add("oneTime", `Main session · ${project.schedule.oneTime.date}`);
+    add(
+      "oneTime",
+      `Main session · ${formatSessionDay(project.schedule.oneTime.date)}`,
+    );
   } else if (project.event_type === "multiDay") {
     for (const [dayIndex, day] of (project.schedule.multiDay ?? []).entries()) {
       for (const [slotIndex, slot] of day.slots.entries()) {
         add(
           `${day.date}-${dayIndex}-${slotIndex}`,
-          `${day.date}: ${getMultiDaySlotDisplayName(slot, slotIndex)}`,
+          `${formatSessionDay(day.date)}: ${getMultiDaySlotDisplayName(slot, slotIndex)}`,
         );
       }
     }
