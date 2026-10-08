@@ -21,6 +21,10 @@ permissions:
   contents: read
 
 env:
+  SUPABASE_EXPERIMENTAL_STACK: "0"
+  SUPABASE_TRACE_FILE: ""
+  SUPABASE_OTLP_ENDPOINT: ""
+  SUPABASE_OTLP_HEADERS: ""
   PRIVATE_PLUGINS_BRANCH: ${{ (github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'development' }}
 
 jobs:
@@ -241,7 +245,7 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
-          version: 2.117.0
+          version: 2.120.0
 
       - name: Allocate one bounded isolated run identity
         run: |
@@ -337,7 +341,7 @@ jobs:
           echo "The clean isolated schema matches the reviewed release catalog."
 
       - name: Validate database tests on the same running isolated stack
-        run: supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
+        run: SUPABASE_PROJECT_ID="$(node scripts/local-dev/supabase-project-id.mjs --workdir "${CSF_ISOLATED_WORK_DIR}")" supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
       - name: Validate CSF decision release REST timeout and rollback
         run: node scripts/csf/check-decision-release-timeout.mjs

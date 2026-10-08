@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { supabaseCliEnvironment } from "./supabase-cli-environment.mjs";
 import {
   ensureGatewayHealthy,
   parseLocalGatewayStatus,
@@ -7,7 +8,7 @@ import {
   selectGatewayContainer,
 } from "./supabase-gateway-health-core.mjs";
 
-const REQUIRED_CLI_VERSION = "2.117.0";
+const REQUIRED_CLI_VERSION = "2.120.0";
 const repositoryRoot = new URL("../../", import.meta.url);
 
 function run(command, args) {
@@ -16,6 +17,7 @@ function run(command, args) {
     encoding: "utf8",
     timeout: 30_000,
     maxBuffer: 4 * 1024 * 1024,
+    env: supabaseCliEnvironment(process.env, projectId),
   });
   if (result.error || result.status !== 0) {
     throw new Error(`${command} ${args[0] ?? ""} failed.`);
@@ -23,6 +25,9 @@ function run(command, args) {
   return result.stdout;
 }
 
+const projectId = parseTopLevelProjectId(
+  await readFile(new URL("supabase/config.toml", repositoryRoot), "utf8"),
+);
 const cliVersion = run("supabase", ["--version"]).trim();
 if (cliVersion !== REQUIRED_CLI_VERSION) {
   throw new Error(
@@ -32,9 +37,6 @@ if (cliVersion !== REQUIRED_CLI_VERSION) {
 
 const status = parseLocalGatewayStatus(
   run("supabase", ["status", "-o", "json"]),
-);
-const projectId = parseTopLevelProjectId(
-  await readFile(new URL("supabase/config.toml", repositoryRoot), "utf8"),
 );
 
 async function probe() {

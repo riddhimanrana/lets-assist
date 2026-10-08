@@ -63,6 +63,8 @@ afterEach(async () => {
 
 export const FAKE_SUPABASE = [
   "#!/bin/sh",
+  'if [ "${SUPABASE_EXPERIMENTAL_STACK:-}" != "0" ]; then echo "unsafe CLI backend" >&2; exit 97; fi',
+  'if [ "${SUPABASE_TRACE_FILE+x}${SUPABASE_OTLP_ENDPOINT+x}${SUPABASE_OTLP_HEADERS+x}" != "" ]; then echo "inherited CLI tracing" >&2; exit 98; fi',
   'printf "%s\\n" "$*" >> "${FAKE_SUPABASE_CALLS:-/dev/null}"',
   'state="${FAKE_DOCKER_STATE}"',
   'workdir=""',
@@ -77,9 +79,12 @@ export const FAKE_SUPABASE = [
   '  project_id=$(sed -n \'s/^project_id = "\\(.*\\)"$/\\1/p\' "$workdir/supabase/config.toml" | head -n 1)',
   "  api_port=$(awk '/^\\[api\\]/{f=1} f && /^port = /{print $3; exit}' \"$workdir/supabase/config.toml\")",
   "fi",
+  'if [ "$1" != "--version" ] && [ -n "$project_id" ] && [ "${SUPABASE_PROJECT_ID:-}" != "$project_id" ]; then echo "unsafe CLI project" >&2; exit 99; fi',
+  'if [ "$1" = "start" ] && [ "${SUPABASE_NETWORK_ID:-}" != "" ]; then echo "unsafe CLI network" >&2; exit 96; fi',
+  'if [ "$1" = "start" ]; then case " $* " in *" --network-id= "*) ;; *) echo "unbound CLI network" >&2; exit 95;; esac; fi',
   'case "$1" in',
   "  --version)",
-  "    printf '%s\\n' '2.117.0'",
+  "    printf '%s\\n' '2.120.0'",
   "    ;;",
   "  start)",
   '    if [ -n "${FAKE_SUPABASE_START_FAIL:-}" ]; then echo "fake start failure" >&2; exit 1; fi',
