@@ -2764,6 +2764,10 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Integrated database regression, October 7
+
+CSF-RESTORE-ANNOUNCEMENT-20261007, P2: the new partner attendance wrapper replaced the existing restoration-specific email guard. The integrated database test reproduced acceptance of an invalid announcement request. Forward migration `20261009050000` restores explicit refusal and returns the restoration receipt before email intent capture, retaining the project-first lock order and actor authorization. Expanded SQL coverage checks true and null email choices, unchanged activity state and the absence of a success receipt. All 23 restoration assertions pass on the clean 716 replay, and 76 catalog/cutover tests pass. No hosted change has been made.
+
 ### Private integration review, October 7
 
 Private PR 643's Codex review identified three defects in the partner attendance feature. Commit `6c271f0` fixes them; hosted acceptance remains pending.

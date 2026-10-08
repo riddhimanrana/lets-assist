@@ -1440,4 +1440,6 @@ export const migrationDigests = {
     "187c912ddcbe6bffcdeec6d6e6f786d0b0ceb042d719d6b459024dc10f8d5093",
   "20261009040000_platform_experience_in_app_prompts.sql":
     "fff696c593622e0fe5b7ae843cc56111aa841460cd5c0c77cedf289f74c75bed",
+  "20261009050000_preserve_csf_activity_restore_email_guard.sql":
+    "2b5cfbce90ea2007046c7f8b16aee0bccd37d2c944c22792a5a91cddd1d2ca7a",
 };
