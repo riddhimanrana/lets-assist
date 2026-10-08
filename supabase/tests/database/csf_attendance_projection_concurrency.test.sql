@@ -33,6 +33,12 @@ SET search_path = ''
 AS $function$
 DECLARE
   v_chapter constant uuid := 'a8100000-0000-4000-8000-000000000001';
+  v_users constant uuid[] := ARRAY[
+    'a8000000-0000-4000-8000-000000000001'::uuid,
+    'a8000000-0000-4000-8000-000000000002'::uuid,
+    'a8000000-0000-4000-8000-000000000003'::uuid,
+    'a8000000-0000-4000-8000-000000000004'::uuid
+  ];
 BEGIN
   -- Remove chapter rows first so certificate deletion projects nothing.
   DELETE FROM plugin_data.csf_opportunities WHERE organization_id = v_chapter;
@@ -43,7 +49,7 @@ BEGIN
   DELETE FROM public.hours_publication_receipts
   WHERE project_id IN ('a8500000-0000-4000-8000-000000000001', 'a8500000-0000-4000-8000-000000000002');
   DELETE FROM public.notifications
-  WHERE user_id::text LIKE 'a8000000-0000-4000-8000-00000000000%';
+  WHERE user_id = ANY(v_users);
   DELETE FROM public.project_signups
   WHERE project_id IN ('a8500000-0000-4000-8000-000000000001', 'a8500000-0000-4000-8000-000000000002');
   DELETE FROM public.projects
@@ -59,9 +65,11 @@ BEGIN
   WHERE organization_id IN (v_chapter, 'a8100000-0000-4000-8000-000000000002');
   DELETE FROM public.organizations
   WHERE id IN (v_chapter, 'a8100000-0000-4000-8000-000000000002');
-  DELETE FROM auth.users WHERE id::text LIKE 'a8000000-0000-4000-8000-00000000000%';
+  DELETE FROM auth.users WHERE id = ANY(v_users);
 END;
 $function$;
+REVOKE ALL ON FUNCTION pg_temp.cleanup_attendance_race_fixtures() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.cleanup_attendance_race_fixtures() TO postgres;
 
 -- Audit rows are immutable; replica mode is confined to this transaction.
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_race_receipts()
@@ -127,55 +135,67 @@ BEGIN
 END;
 $$;
 
-BEGIN;
-SET LOCAL session_replication_role = replica;
-SELECT pg_temp.cleanup_attendance_race_receipts();
-COMMIT;
-SELECT pg_temp.cleanup_attendance_race_fixtures();
-
 -- N1 fixture: fifteen fictional chapters linking one partner project.
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_multi_fixtures()
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = ''
 AS $function$
+DECLARE
+  v_chapters uuid[];
 BEGIN
-  DELETE FROM plugin_data.csf_opportunities WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_point_submissions WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_attendance_projection_outcomes WHERE organization_id::text LIKE 'a8c10000-%';
+  SELECT pg_catalog.array_agg(('a8c10000-0000-4000-8000-' || pg_catalog.lpad(i::text, 12, '0'))::uuid)
+    INTO v_chapters FROM pg_catalog.generate_series(1, 15) AS i;
+  DELETE FROM plugin_data.csf_opportunities WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_point_submissions WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_attendance_projection_outcomes WHERE organization_id = ANY(v_chapters);
   DELETE FROM public.certificates WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
   DELETE FROM public.hours_publication_receipts WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
   DELETE FROM public.notifications WHERE user_id = 'a8000000-0000-4000-8000-000000000005';
   DELETE FROM public.project_signups WHERE project_id = 'a8500000-0000-4000-8000-000000000003';
   DELETE FROM public.projects WHERE id = 'a8500000-0000-4000-8000-000000000003';
-  DELETE FROM plugin_data.csf_term_memberships WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_profile_accounts WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_profiles WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_term_policies WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM plugin_data.csf_terms WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM public.organization_plugin_installs WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM public.organization_plugin_entitlements WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM public.organization_members WHERE organization_id::text LIKE 'a8c10000-%';
-  DELETE FROM public.organizations WHERE id::text LIKE 'a8c10000-%';
+  DELETE FROM plugin_data.csf_term_memberships WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_profile_accounts WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_profiles WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_term_policies WHERE organization_id = ANY(v_chapters);
+  DELETE FROM plugin_data.csf_terms WHERE organization_id = ANY(v_chapters);
+  DELETE FROM public.organization_plugin_installs WHERE organization_id = ANY(v_chapters);
+  DELETE FROM public.organization_plugin_entitlements WHERE organization_id = ANY(v_chapters);
+  DELETE FROM public.organization_members WHERE organization_id = ANY(v_chapters);
+  DELETE FROM public.organizations WHERE id = ANY(v_chapters);
   DELETE FROM auth.users WHERE id = 'a8000000-0000-4000-8000-000000000005';
 END;
 $function$;
+REVOKE ALL ON FUNCTION pg_temp.cleanup_attendance_multi_fixtures() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.cleanup_attendance_multi_fixtures() TO postgres;
 
 CREATE OR REPLACE FUNCTION pg_temp.cleanup_attendance_multi_receipts()
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = ''
 AS $function$
+DECLARE
+  v_chapters uuid[];
 BEGIN
-  DELETE FROM plugin_data.csf_admin_audit_events WHERE organization_id::text LIKE 'a8c10000-%';
+  SELECT pg_catalog.array_agg(('a8c10000-0000-4000-8000-' || pg_catalog.lpad(i::text, 12, '0'))::uuid)
+    INTO v_chapters FROM pg_catalog.generate_series(1, 15) AS i;
+  DELETE FROM plugin_data.csf_admin_audit_events WHERE organization_id = ANY(v_chapters);
 END;
 $function$;
+REVOKE ALL ON FUNCTION pg_temp.cleanup_attendance_multi_receipts() FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.cleanup_attendance_multi_receipts() TO postgres;
 
+-- Remove shared-project fixtures before deleting their partner organization and actors.
 BEGIN;
 SET LOCAL session_replication_role = replica;
 SELECT pg_temp.cleanup_attendance_multi_receipts();
 COMMIT;
 SELECT pg_temp.cleanup_attendance_multi_fixtures();
+BEGIN;
+SET LOCAL session_replication_role = replica;
+SELECT pg_temp.cleanup_attendance_race_receipts();
+COMMIT;
+SELECT pg_temp.cleanup_attendance_race_fixtures();
 
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at, raw_app_meta_data,
@@ -348,10 +368,13 @@ SELECT extensions.is(
 -- 12-16: an account unlink is in flight while late attendance is written.
 -- The host write never waits for CSF; the source is deferred and a later
 -- retry sees the committed unlink.
-UPDATE public.project_signups SET status = 'attended',
-  check_in_time = pg_temp.ended_fixture('2041-09-27T16:30:00Z')::timestamptz,
-  check_out_time = pg_temp.ended_fixture('2041-09-27T18:00:00Z')::timestamptz
-WHERE id = 'a8600000-0000-4000-8000-000000000001';
+SELECT public.correct_project_attendance(
+  'a8600000-0000-4000-8000-000000000001',
+  (SELECT attendance_revision FROM public.project_signups
+   WHERE id = 'a8600000-0000-4000-8000-000000000001'),
+  'Reviewed arrival time before the unlink race',
+  pg_temp.ended_fixture('[{"checkIn":"2041-09-27T16:30:00Z","checkOut":"2041-09-27T18:00:00Z"}]')::jsonb,
+  'a8900000-0000-4000-8000-000000000005', 'a8000000-0000-4000-8000-000000000003');
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
 VALUES ('a8600000-0000-4000-8000-000000000004', 'a8500000-0000-4000-8000-000000000001',
   'a8000000-0000-4000-8000-000000000004', 'oneTime', 'approved');
@@ -765,11 +788,6 @@ SET LOCAL session_replication_role = replica;
 SELECT pg_temp.cleanup_attendance_multi_receipts();
 COMMIT;
 SELECT pg_temp.cleanup_attendance_multi_fixtures();
-BEGIN;
-SET LOCAL session_replication_role = replica;
-SELECT pg_temp.cleanup_attendance_race_receipts();
-COMMIT;
-SELECT pg_temp.cleanup_attendance_race_fixtures();
 BEGIN;
 SET LOCAL session_replication_role = replica;
 SELECT pg_temp.cleanup_attendance_race_receipts();

@@ -504,23 +504,51 @@ SELECT extensions.ok(
   'R12: the invalidation pass locks profile and account before submissions and evidence'
 );
 
-INSERT INTO public.projects(id,creator_id,organization_id,title,location,description,event_type,verification_method,schedule,require_login,visibility)
-SELECT 'a7500000-0000-4000-8000-000000000005',creator_id,organization_id,'Fictional cap event',location,description,event_type,verification_method,schedule,require_login,visibility
+-- Give every source a real, ended slot and a matching reviewed interval.
+CREATE TEMP TABLE attendance_cap_sessions ON COMMIT DROP AS
+WITH local_sessions AS (
+  SELECT i,
+    pg_temp.ended_fixture('2041-08-30')::date + time '09:00'
+      + (i - 1) * interval '1 minute' AS local_start,
+    pg_temp.ended_fixture('2041-08-30')::date + time '09:00'
+      + i * interval '1 minute' AS local_end
+  FROM generate_series(1,201) AS fixture(i)
+)
+SELECT i, local_start, local_end,
+  local_start::date::text || '-' || (i - 1)::text AS schedule_id,
+  local_start AT TIME ZONE 'America/Los_Angeles' AS event_start,
+  local_end AT TIME ZONE 'America/Los_Angeles' AS event_end
+FROM local_sessions;
+
+INSERT INTO public.projects(id,creator_id,organization_id,title,location,description,event_type,verification_method,schedule,require_login,visibility,project_timezone)
+SELECT 'a7500000-0000-4000-8000-000000000005',creator_id,organization_id,'Fictional cap event',location,description,'multiDay',verification_method,
+  (SELECT jsonb_build_object('multiDay', jsonb_build_array(jsonb_build_object(
+    'date', min(local_start)::date::text,
+    'slots', jsonb_agg(jsonb_build_object(
+      'startTime', to_char(local_start, 'HH24:MI'),
+      'endTime', to_char(local_end, 'HH24:MI'),
+      'volunteers', 1
+    ) ORDER BY i)
+  ))) FROM attendance_cap_sessions),
+  require_login,visibility,'America/Los_Angeles'
 FROM public.projects WHERE id='a7500000-0000-4000-8000-000000000003';
 UPDATE plugin_data.csf_opportunities SET linked_project_id='a7500000-0000-4000-8000-000000000005'
 WHERE id='a7700000-0000-4000-8000-000000000004';
 -- Exactly 200 certificates run inline; the remaining source stays visible for replay.
-INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status)
+INSERT INTO public.project_signups(id,project_id,user_id,schedule_id,status,check_in_time,check_out_time)
 SELECT ('a7ca0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
  'a7500000-0000-4000-8000-000000000005','a7000000-0000-4000-8000-000000000006',
- 'cap-fixture-'||i,'approved' FROM generate_series(1,201) i;
+ schedule_id,'approved',event_start,event_end FROM attendance_cap_sessions;
+INSERT INTO public.project_attendance_intervals(signup_id,project_id,check_in_time,check_out_time)
+SELECT ('a7ca0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
+ 'a7500000-0000-4000-8000-000000000005',event_start,event_end
+FROM attendance_cap_sessions;
 INSERT INTO public.certificates(id,project_id,signup_id,user_id,schedule_id,type,event_start,event_end,volunteer_name,project_title,organization_name,creator_name,is_certified,check_in_method)
 SELECT ('a7cb0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
  'a7500000-0000-4000-8000-000000000005',('a7ca0000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid,
- 'a7000000-0000-4000-8000-000000000006','cap-fixture-'||i,'verified',
- pg_temp.ended_fixture('2041-08-30T17:00:00Z')::timestamptz,pg_temp.ended_fixture('2041-08-30T19:00:00Z')::timestamptz,
+ 'a7000000-0000-4000-8000-000000000006',schedule_id,'verified',event_start,event_end,
  'Fixture Guest','Fictional cap event','Fictional partner','Fixture organizer',true,'manual'
-FROM generate_series(1,201) i;
+FROM attendance_cap_sessions ORDER BY i;
 SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_attendance_evidence
  WHERE certificate_id::text LIKE 'a7cb0000-%' AND state='active'),200,
  'inline projection processes the first 200 certificates');
