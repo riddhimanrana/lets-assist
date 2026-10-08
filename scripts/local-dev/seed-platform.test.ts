@@ -11,7 +11,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { preserveMigratedPluginVersions } from "./seed-platform-fixtures.mjs";
+import {
+  buildSeedFixtureSets,
+  preserveMigratedPluginVersions,
+} from "./seed-platform-fixtures.mjs";
 
 const seedSource = [
   "./seed-platform.mjs",
@@ -77,6 +80,30 @@ test("post fixtures preserve manual drafts after scheduling retirement", () => {
 });
 
 describe("local platform seed authorization", () => {
+  test("shared and CSF platform fixtures preserve the paused Speech and Debate offering", () => {
+    expect(localOnlySeed).toMatch(
+      /'dv-speech-debate',[\s\S]*?'private',\s*false,/u,
+    );
+    for (const seedsCsf of [false, true]) {
+      const { seededPluginCatalogRows } = buildSeedFixtureSets(seedsCsf);
+      const paused = seededPluginCatalogRows.find(
+        (plugin) => plugin.key === "dv-speech-debate",
+      );
+      expect(paused).toMatchObject({
+        visibility: "private",
+        is_active: false,
+      });
+      expect(
+        preserveMigratedPluginVersions(seededPluginCatalogRows, [
+          { key: "dv-speech-debate", latest_version: "2.0.3" },
+        ]).find(
+          (plugin: { key: string; is_active: boolean }) =>
+            plugin.key === "dv-speech-debate",
+        )?.is_active,
+      ).toBe(false);
+    }
+  });
+
   test("keeps catalog seeds aligned with each serving runtime", () => {
     const catalog = sourceSection(
       "const pluginCatalogRows = [",

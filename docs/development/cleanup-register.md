@@ -2764,6 +2764,18 @@ sources.
 
 ## Repository-owned P0–P2
 
+
+### Development consolidation, October 7, 2026
+
+| Boundary | Current evidence | Remaining gate |
+| --- | --- | --- |
+| Brand and feature integration | Claude confirmed all finished redesign work is in root `ade0cf57` and private `6012a1b7`. The integration branch also contains the coordinated Bun 1.4.2 update. | Merge the reviewed candidate into Development, then retire only contained branches and worktrees. |
+| Speech and Debate offering | Forward migration `20261009070000` pauses the private catalog entry and clears forced updates. Standard SQL and JavaScript fixtures preserve that state. Existing releases, installs, and data remain intact. Five pgTAP assertions and 61 focused source tests pass locally. | Signed release alignment and hosted Development verification remain pending. The optional local DV fixture command explicitly enables its retained test runtime. |
+| Schema acceptance | A fresh CLI 2.120 / PostgreSQL 17.11 replay applied all 718 migrations. All 1,434 reviewed catalog objects match; the existing transaction wrapper accounts for seven local fixture helpers and restores them on rollback. | Run the full integrated release gate after signed plugin alignment. The first pause replay caught seed reactivation; its failed receipt is retained beside the corrected passing receipt. |
+| Runtime alignment | Root and private frozen installs pass on Bun 1.4.2. All 569 private test files pass after updating JSX test mocks for both runtime entry points. | Private Development CI, signed publication, and root CI remain pending. |
+
+Sanitized local receipts are under `.artifacts/integration/`, including `pause-db/replay-receipt.json`, `pause-db-corrected/replay-receipt.json`, `pause-focused-tests.log`, and `consolidation-private-full-corrected.log`. These are local evidence, not hosted acceptance. No Production change is included.
+
 ### Account export integration review, October 7
 
 ACCOUNT-EXPORT-RATING-20261007 and ACCOUNT-EXPORT-ATTENDANCE-20261007, P2: root PR 867's automatic Codex review found that the earlier export projection omitted platform rating context and canonical attendance. Forward migration `20261009060000` includes rating fields, certificate minutes and revisions, signup revisions, and a separately bounded interval dataset joined through exact account ownership. It preserves service-only execution, private audit exclusion, legacy null values and whole-export refusal on limits. All 35 database assertions, 11 archive unit tests and 79 catalog/cutover tests pass. The measured 717 catalog changes only the export function. Hosted verification remains pending.

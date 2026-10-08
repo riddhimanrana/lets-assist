@@ -7,7 +7,7 @@ The ordered path from a fresh clone to a running environment and a green gate. T
 | Tool         | Version             | Pinned by                                                                      |
 | ------------ | ------------------- | ------------------------------------------------------------------------------ |
 | Node.js      | `24.21.0`           | `.node-version` (`package.json` accepts the Node 24 LTS line, `>=24.21.0 <25`) |
-| Bun          | `1.3.14`            | `packageManager` in `package.json`, and CI                                     |
+| Bun          | `1.4.2`             | `packageManager` in `package.json`, and CI                                     |
 | Supabase CLI | `2.120.0`           | `scripts/local-dev/require-supabase-cli-version.sh`                            |
 | Docker       | any current release | Required for every local database                                              |
 

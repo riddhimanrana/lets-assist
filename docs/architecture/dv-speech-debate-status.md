@@ -1,4 +1,20 @@
-# DV Speech & Debate Capability Report
+# DV Speech and Debate status
+
+Development is on hold as of October 7, 2026. The private source, migration
+history, and existing organization data are retained. The catalog pause removes
+the plugin from marketplace offerings and prevents new installation through the
+existing active-catalog checks. It does not delete or upgrade organization
+installations.
+
+Normal platform fixtures preserve the inactive catalog entry. The explicit DV
+fixture command remains available for isolated regression tests of retained
+code. It is not a command to reopen the offering in a hosted environment.
+
+The capability report below records earlier work. Its unfinished items are
+paused, not an active development plan. Deployment of the catalog pause requires
+the normal environment-specific migration workflow.
+
+## Historical capability report
 
 Status date: June 21, 2026
 

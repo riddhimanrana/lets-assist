@@ -192,6 +192,15 @@ async function main() {
 
   await waitForPostgrestSchema(admin);
 
+  // This explicit local-only command opts into testing the paused plugin.
+  await must(
+    "enable-retained-dv-fixture-runtime",
+    admin
+      .from("plugins")
+      .update({ is_active: true })
+      .eq("key", "dv-speech-debate"),
+  );
+
   for (const account of accounts) {
     users[account.key] = await upsertAuthUser(admin, account);
   }

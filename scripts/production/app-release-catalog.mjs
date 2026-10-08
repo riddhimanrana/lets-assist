@@ -1,3 +1,4 @@
+import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { accountDeletionStorageCatalog } from "./account-deletion-storage-catalog.mjs";
 import { publicImageStorageCatalog } from "./public-image-storage-catalog.mjs";
@@ -349,6 +350,13 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  if (
+    ledgerDigest(versions) ===
+    "b81bff016e314147481bb92e536618d3d979094429b3f389ab37781e5a8ac88f"
+  )
+    return pausedSpeechDebateCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, -1)),
+    );
   if (
     ledgerDigest(versions) ===
     "016aaae758a9d1eb6d1a9c277adfe921643ce76c75c1597af33741962b92edb2"

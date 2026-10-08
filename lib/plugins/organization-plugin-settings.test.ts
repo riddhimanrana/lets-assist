@@ -41,6 +41,31 @@ function runtimePlugin(version: string) {
 }
 
 describe("organization plugin update deployment truth", () => {
+  test("a paused private offering stays hidden despite an active forced entitlement and install", () => {
+    const paused = {
+      ...catalog[0],
+      key: "dv-speech-debate",
+      visibility: "private" as const,
+      is_active: false,
+    };
+    expect(
+      buildOrganizationPluginAdminSettings({
+        catalog: [paused],
+        entitlements: [
+          {
+            plugin_key: paused.key,
+            status: "active",
+            starts_at: null,
+            ends_at: null,
+            is_forced: true,
+          },
+        ],
+        installs: [{ ...installs[0], plugin_key: paused.key }],
+        runtimePlugins: [{ ...runtimePlugin("1.1.0"), key: paused.key }],
+      }),
+    ).toEqual([]);
+  });
+
   test("a catalog release is pending while the serving deployment has older code", () => {
     const [plugin] = buildOrganizationPluginAdminSettings({
       catalog,

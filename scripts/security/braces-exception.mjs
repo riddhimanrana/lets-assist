@@ -14,7 +14,7 @@ export const BRACES_EXCEPTION = Object.freeze({
     "packages/plugin-sdk":
       "34f55231c04ea7e1af41fccf7e25b1b46cd454b24cb14c63adc5e3dda944e99b",
     "lib/plugins/private/apps/csf":
-      "3ac32fdc780a02d0d72d3249b0cad24902d257227b5bfbe31aece02d6bfaf2db",
+      "a566906cdf1bb5831a6696de62e40b6a961ac3c43719b4ac80a87d0b79271624",
   },
   affectedGraphs: [".", "lib/plugins/private/apps/csf"],
   sourceHashes: {
