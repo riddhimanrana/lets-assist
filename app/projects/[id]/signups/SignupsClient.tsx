@@ -146,8 +146,14 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
         const direction = sort.direction === "asc" ? 1 : -1;
 
         if (sort.field === "status") {
-          // Sort logic: 'pending' < 'approved' < 'rejected'
-          const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+          // Sort logic: 'pending' < 'approved' < 'attended' < 'rejected' < 'cancelled'
+          const statusOrder = {
+            pending: 0,
+            approved: 1,
+            attended: 2,
+            rejected: 3,
+            cancelled: 4,
+          };
           const statusA = statusOrder[a.status];
           const statusB = statusOrder[b.status];
           return (statusA - statusB) * direction;

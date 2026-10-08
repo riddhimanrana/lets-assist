@@ -1,4 +1,5 @@
 import type { Project } from "@/types";
+import type { SignupStatus } from "@/types/common";
 import type { WaiverPreviewSignature } from "@/components/projects/WaiverPreviewDialog";
 import {
   formatScheduleDisplay,
@@ -10,7 +11,7 @@ import { getMultiDaySlotDisplayName } from "@/utils/project";
 export type OrganizerSignup = {
   id: string;
   created_at: string;
-  status: "pending" | "rejected" | "approved";
+  status: SignupStatus;
   user_id: string | null;
   anonymous_id: string | null; // FK to anonymous_signups
   schedule_id: string;
