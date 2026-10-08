@@ -24,8 +24,10 @@ export function prepareEmbeddedServingExpectations(
   )) {
     const path = join(migrationTestsDir, file);
     let source = previousUpdates.get(path) ?? readFileSync(path, "utf8");
-    const targetsServingCatalog = source.includes(
-      `FROM public.plugins WHERE key = '${pluginKey}'`,
+    const targetsServingCatalog = columns.some(([column]) =>
+      source.includes(
+        `SELECT ${column} FROM public.plugins WHERE key = '${pluginKey}'`,
+      ),
     );
     if (!targetsServingCatalog) continue;
 

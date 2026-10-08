@@ -384,6 +384,22 @@ test("integrates an independently reconstructed signed release", () => {
   assert.match(migrationTest, /1\.2\.3/u);
 });
 
+test("embedded publication preserves offering availability assertions", () => {
+  const input = fixture();
+  const path = join(input.root, "tests/database/offering_paused.test.sql");
+  const source = `BEGIN;
+SELECT extensions.is(
+  (SELECT is_active FROM public.plugins WHERE key = 'example-plugin'),
+  false,
+  'the offering remains paused after publication'
+);
+ROLLBACK;
+`;
+  writeFileSync(path, source);
+  integrate(input);
+  assert.equal(readFileSync(path, "utf8"), source);
+});
+
 test("consecutive embedded releases refresh historical serving expectations", () => {
   const input = fixture();
   const testsDir = join(input.root, "tests/database");
