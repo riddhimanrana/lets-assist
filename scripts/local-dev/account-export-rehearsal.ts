@@ -193,8 +193,8 @@ async function main() {
   ) as Record<string, number>;
   if (
     manifest.userId !== userId ||
-    manifest.totalDatasets !== 48 ||
-    saved.data.datasets_count !== 48 ||
+    manifest.totalDatasets !== ACCOUNT_EXPORT_DATASET_NAMES.length ||
+    saved.data.datasets_count !== ACCOUNT_EXPORT_DATASET_NAMES.length ||
     JSON.stringify(Object.keys(counts).sort()) !==
       JSON.stringify([...ACCOUNT_EXPORT_DATASET_NAMES].sort()) ||
     Object.values(counts).reduce((sum, value) => sum + value, 0) !==
@@ -221,7 +221,7 @@ async function main() {
       ready: true,
       delivery: "skipped",
       mailAttempts,
-      datasets: 48,
+      datasets: ACCOUNT_EXPORT_DATASET_NAMES.length,
       records: saved.data.record_count,
       bytes: bytes.length,
     }) + "\n",

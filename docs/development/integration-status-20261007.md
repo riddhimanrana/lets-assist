@@ -43,6 +43,8 @@ the connected persistent Supabase Development branch applies migrations.
 
 The GitHub Development environment now requires review by `riddhimanrana` and limits deployments to `development` and `codex/*`. The owner may approve their own run. Readback confirms that `DEVELOPMENT_DATABASE_URL` is still missing. No cutover or deployment has run.
 
+Forward 717 export verification also passes 93 SQL assertions across snapshot, job protocol and deletion-crossover suites. The real local worker created, downloaded and digest-verified a private 49-dataset archive with delivery skipped and no refused egress. The synthetic account and archive were removed afterward. This verifies the worker path, not the browser journey.
+
 The root unit rerun passes its 2,946-test general group with one skip, then stops in an isolated test because the unsigned DV source version 2.0.3 exceeds the published adoption range ending at 2.0.2. The database gate stops at the same release boundary. Neither is a complete green gate. The host import surface has been regenerated and its 144-module boundary check passes. Hosted CI at 0f58692d separately failed five access-audit tests because the runner lacks ripgrep. The infrastructure tooling update owns that prerequisite repair. CodeQL passed both language analyses on that head.
 
 GitGuardian incidents 37947219 and 37948874 concern historical synthetic fixture
