@@ -18,6 +18,9 @@ export async function createFakeRepository(sandbox: Sandbox) {
     "start-dvhs-csf-isolated-stack.sh",
     "stop-dvhs-csf-isolated-stack.sh",
     "require-supabase-cli-version.sh",
+    "supabase-cli-environment.mjs",
+    "supabase-project-id.mjs",
+    "supabase-gateway-health-core.mjs",
   ]) {
     const target = join(root, "scripts/local-dev", script);
     await cp(join(repositoryRoot, "scripts/local-dev", script), target);

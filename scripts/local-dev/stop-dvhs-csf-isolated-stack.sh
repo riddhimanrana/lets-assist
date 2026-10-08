@@ -164,7 +164,7 @@ case "${MARKER_STATE}" in
 esac
 
 # One pinned, test-owned contract of exact resource names for Supabase CLI
-# 2.117.0, typed by kind and shared with the launcher so preflight and residual
+# 2.120.0, typed by kind and shared with the launcher so preflight and residual
 # checks stay identical.
 CANONICAL_CONTAINER_NAMES="$(node "${SCRIPT_DIR}/dv-local-env.mjs" --canonical-docker-names container "${PROJECT_ID}")" ||
   die "Unable to derive the pinned canonical Docker container names for ${PROJECT_ID}."
@@ -383,6 +383,8 @@ fi
 
 # Both selectors are intentional: --workdir loads only this generated config,
 # and --project-id filters Docker resources to the same validated project label.
+export SUPABASE_PROJECT_ID="${PROJECT_ID}"
+export SUPABASE_NETWORK_ID=""
 supabase stop \
   --workdir "${WORK_DIR}" \
   --project-id "${PROJECT_ID}" \
