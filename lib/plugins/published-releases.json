@@ -1,32 +1,32 @@
 [
   {
     "pluginKey": "dv-speech-debate",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "manifestFile": "plugins/dv-speech-debate/plugin.tsx",
-    "manifestHash": "745f4422d3e59bb38ff26f1219bb91881864f7226e83f78677bc90ad46d19861",
-    "sourceCommit": "99c3df1a7e9f39523c7a615017461c14ed88c7fc",
+    "manifestHash": "c01b1846be90ed60dfc8a862063a0e10d19507b403738998acc8369be151b203",
+    "sourceCommit": "d100831bd2fe3374715de20510d9ae2a77dcfba8",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
-    "sourceTree": "8f1bbfcb8000e468f5339e6e004ee17def0cede0",
-    "contentDigest": "sha256:5b7facdf91a1338bf19373007e413e1cea168f606bec8300480ae985b660c845",
+    "sourceTree": "c04f8a0dc45e4820aee4847afb32defdd7646fc3",
+    "contentDigest": "sha256:4494a5ffe6131dcc474ec9d64db5832754dbca5b2fdb61ded711a5c8f93c1395",
     "releaseInputs": ["plugins/dv-speech-debate"],
     "buildDigest": null,
     "buildArtifact": null,
-    "sbomDigest": "sha256:634933965c17e2233bfc8d3e6961d61c6aae099c6ec53ca458ba5c6ea87571a2",
+    "sbomDigest": "sha256:ccb135724d41b41db0a067642536806134088fbdde881968bd81f18f6e364a45",
     "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dv-speech-debate/v2.0.2",
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dv-speech-debate/v2.0.3",
       "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dv-speech-debate/v2.0.2/release-manifest.sigstore.json"
+      "attestationRef": "github-release:dv-speech-debate/v2.0.3/release-manifest.sigstore.json"
     },
     "hostApiRange": {
       "minimum": "1.0.0"
     },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "20260412000001",
+    "requiredPlatformSchemaVersion": "20261008020000",
     "supportedInstallContracts": {
       "minimum": "2.0.0",
-      "maximum": "2.0.2"
+      "maximum": "2.0.3"
     }
   },
   {
@@ -78,33 +78,33 @@
   },
   {
     "pluginKey": "dvhs-csf",
-    "version": "1.2.85",
+    "version": "1.2.86",
     "manifestFile": "plugins/dvhs-csf/plugin-manifest.ts",
-    "manifestHash": "4fbf8536fe93bf9d7279f1bc91b22aaa339a422063b179830e3c3f80a657f039",
-    "sourceCommit": "a1d5836fb800ad4afef7cfbfc6ed4a5f63e23f3d",
+    "manifestHash": "df369b3179e7b0b8487d186f20bfa6b57defb43d48f2d1222d14e1b3d1d5d790",
+    "sourceCommit": "d100831bd2fe3374715de20510d9ae2a77dcfba8",
     "automaticUpdate": false,
     "rolloutPercentage": 0,
     "runtimeProfile": "embedded",
-    "sourceTree": "f6cd9019d26787370df3453aea2f554af71c227c",
-    "contentDigest": "sha256:4bca514172604a94ae73eb04f5e8ae337549d88a5ef36d44e3b48908b837c9c7",
+    "sourceTree": "1e9edea7dc9bd89e9ef28fb791b3deee31100214",
+    "contentDigest": "sha256:f2f9d7a29a716417bf88adf2e26ab8d0c7a1355f9b7c3027618a4de0afa997d3",
     "releaseInputs": ["plugins/dvhs-csf"],
     "buildDigest": null,
     "buildArtifact": null,
-    "sbomDigest": "sha256:2d349c7a2dbe3f0a2fdeae64ef63da06ac6bcba956a23455657afdab7bff8b52",
+    "sbomDigest": "sha256:5636166e7b4326d4e0d6aafcaa8c76978ca9ca3af55d9fde1df104b687e2ed62",
     "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.85",
+      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dvhs-csf/v1.2.86",
       "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dvhs-csf/v1.2.85/release-manifest.sigstore.json"
+      "attestationRef": "github-release:dvhs-csf/v1.2.86/release-manifest.sigstore.json"
     },
     "hostApiRange": {
       "minimum": "1.0.0",
       "maximum": "1.0.0"
     },
     "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "20260929044000",
+    "requiredPlatformSchemaVersion": "20261009030000",
     "supportedInstallContracts": {
       "minimum": "1.1.0",
-      "maximum": "1.2.85"
+      "maximum": "1.2.86"
     }
   }
 ]
