@@ -18,6 +18,11 @@ Production have not changed.
 | Development                 | Readback remains at ledger 687. CSF worker controls are off, but three database cron jobs remain active.                                                                                                                                                                                                                                               | Owner database credential, external writer hold, protected bootstrap and prepared maintenance receipt before merge.                                                                       |
 | Cleanup                     | Local patches, untracked configuration, private Git history and local evidence are archived before retirement.                                                                                                                                                                                                                                         | Delete feature branches only after proving ancestry to remote Development.                                                                                                                |
 
+Calendar cleanup controls now disable removal while disconnected and explain
+how to reconnect. Connected and disconnected render regressions pass. The full
+CI run at `1bfc8190` was canceled to include this final review correction in the
+integrated candidate. It provides no final acceptance claim.
+
 ## Publication and controller evidence
 
 Signed release runs 37712612944 and 37712613235 published both embedded releases

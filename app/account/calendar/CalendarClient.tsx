@@ -192,7 +192,11 @@ export default function CalendarClient({
       {cleanupEvents.length > 0 && (
         <SettingsSection
           title="Calendar entries awaiting removal"
-          description="These entries remain in Google Calendar after their project or signup was removed. Removal clears every occurrence in the saved plan."
+          description={
+            connection
+              ? "These entries remain in Google Calendar after their project or signup was removed. Removal clears every occurrence in the saved plan."
+              : "Reconnect the same Google account to remove these entries from your calendar."
+          }
         >
           <div className="flex flex-col gap-3">
             {cleanupEvents.map((event) => {
@@ -208,7 +212,7 @@ export default function CalendarClient({
                   <span>{title}</span>
                   <Button
                     variant="outline"
-                    disabled={removingEventId !== null}
+                    disabled={!connection || removingEventId !== null}
                     onClick={() =>
                       setEventToRemove({
                         title,
@@ -283,7 +287,9 @@ export default function CalendarClient({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={removingEventId !== null}>
+            <AlertDialogCancel
+              disabled={!connection || removingEventId !== null}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -291,7 +297,7 @@ export default function CalendarClient({
               onClick={() => {
                 if (eventToRemove) void handleRemoveEvent(eventToRemove.source);
               }}
-              disabled={removingEventId !== null}
+              disabled={!connection || removingEventId !== null}
             >
               {removingEventId !== null ? "Removing..." : "Remove"}
             </AlertDialogAction>

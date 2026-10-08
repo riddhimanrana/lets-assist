@@ -2764,6 +2764,10 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Disconnected calendar cleanup, October 8, 2026
+
+`AUD-CALENDAR-CLEANUP-20261008`, P2, fixed in source. Saved cleanup entries showed enabled removal buttons after the user disconnected Google Calendar, but the provider call required reconnection. The entries now remain visible with disabled removal controls and guidance to reconnect the same account. Two render regressions cover project and signup receipts in disconnected and connected states. Hosted browser acceptance remains open.
+
 ### Attendance correction retention, October 8, 2026
 
 `AUD-ATTENDANCE-RETENTION-20261008`, P1, fixed in source and isolated SQL. Account deletion removed sign-ups and cascaded into `private.project_attendance_changes`, destroying the correction receipt. Forward migration `20261009080000` changes only that foreign key to `ON DELETE SET NULL` and makes its reference nullable. The audit values, corrected certificate, existing access controls and account-deletion workflow stay intact. Nine pgTAP assertions pass on a fresh 720-migration replay; restoring the old foreign key reproduces three failures. Development has not applied this migration. The final integrated release gate remains required.
