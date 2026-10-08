@@ -15,6 +15,41 @@ function job(name, nextName) {
 }
 
 describe("CI delivery modes", () => {
+  test("installs ripgrep before root tests in pull request and reusable full gates", () => {
+    const quality = job("quality", "db-replay-validation");
+    const install = quality.indexOf("- name: Install source audit tools\n");
+    expect(install).toBeGreaterThan(0);
+    const nextStep = quality.indexOf("\n      - name:", install);
+    const setup = quality.slice(install, nextStep);
+    expect(setup).not.toContain("if:");
+    expect(setup).not.toContain("continue-on-error:");
+    expect(setup).toContain("sudo apt-get update");
+    expect(setup).toContain(
+      "sudo apt-get install --yes --no-install-recommends ripgrep",
+    );
+    expect(setup.indexOf("sudo apt-get install")).toBeGreaterThan(
+      setup.indexOf("sudo apt-get update"),
+    );
+    expect(setup.indexOf("rg --version")).toBeGreaterThan(
+      setup.indexOf("sudo apt-get install"),
+    );
+    for (const command of [
+      "run: bun run test\n",
+      'run: bun run test:affected "$PR_BASE_SHA"',
+      "run: bun test scripts/ci/*.test.mjs",
+    ]) {
+      expect(quality.indexOf(command)).toBeGreaterThan(nextStep);
+    }
+    expect(workflow).toContain("  workflow_call:\n");
+    const release = readFileSync(
+      join(import.meta.dir, "../../.github/workflows/deploy-schema.yml"),
+      "utf8",
+    );
+    expect(release).toMatch(
+      /\n  csf-release-gates:\n(?:(?!\n  [\w-]+:)[\s\S])*uses: \.\/\.github\/workflows\/ci\.yml/u,
+    );
+  });
+
   test("pull requests run the short quality gate", () => {
     const quality = job("quality", "db-replay-validation");
     expect(quality).toContain("run: bun run plugin:apps:contract");

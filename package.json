@@ -89,7 +89,7 @@
     "email:dev": "email dev",
     "test:affected": "node scripts/ci/run-affected-unit-tests.mjs"
   },
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.2",
   "engines": {
     "node": ">=24.21.0 <25"
   },
@@ -175,7 +175,7 @@
     "@react-email/ui": "6.9.1",
     "@tailwindcss/postcss": "4.3.3",
     "@tailwindcss/typography": "0.5.20",
-    "@types/bun": "1.3.14",
+    "@types/bun": "1.4.2",
     "@types/google.maps": "3.65.4",
     "@types/node": "24.19.1",
     "@types/nodemailer": "^8.0.1",

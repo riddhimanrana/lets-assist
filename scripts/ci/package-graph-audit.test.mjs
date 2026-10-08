@@ -77,6 +77,22 @@ describe("independent dependency audits", () => {
     ).toThrow("root index gitlink");
   });
 
+  test("refuses a private package left on the previous Bun pin", () => {
+    const data = fixture();
+    for (const directory of [
+      data.root,
+      join(data.root, "packages/plugin-sdk"),
+    ]) {
+      writeFileSync(
+        join(directory, "package.json"),
+        JSON.stringify({ packageManager: "bun@1.4.2" }),
+      );
+    }
+    expect(() => discoverPackageGraphs(data.root, data.list)).toThrow(
+      "lib/plugins/private/apps/one: packageManager must match the exact root Bun pin.",
+    );
+  });
+
   test("fails closed when a package loses its tracked lockfile", () => {
     const data = fixture();
     data.files.set(
