@@ -2778,6 +2778,8 @@ Private PR 643's Codex review identified three defects in the partner attendance
 | CSF-ATTEND-EVIDENCE-CAP-20261007, P2   | Organizer evidence is loaded for every submission in bounded chunks and ordered pages. Unexpected failures refuse the review load. Tests cover 1,101 submissions, 1,001 rows for one claim and a failed later page. |
 | CSF-PARTNER-OVERNIGHT-DST-20261007, P2 | Overnight ends advance the local calendar date before timezone conversion. Schedule bounds and proposed shifts share the helper. Spring and fall transition regressions pass.                                       |
 
+Integration readback: the complete 716 replay passes 491 SQL files and 12,845 assertions. The registry gate then refuses unpublished DV source version 2.0.3 against published 2.0.2. Root unit verification stops at that same signed-release boundary. Private promotion PR 641 requires separate main/tag authorization; no release guard was relaxed.
+
 The [October 7 integration status](integration-status-20261007.md) tracks the combined brand/audit candidate, preserved feature branches, local checks and remaining provider gates. Integration regressions in draft serialization, account export/deletion layout, uncertain delivery copy and CSV formula prefixes are fixed locally. Final database/browser and hosted acceptance remain open.
 
 ### Full-stack remediation, October 7, 2026
