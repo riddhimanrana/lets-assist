@@ -159,7 +159,7 @@ VALUES
     'bd000000-0000-4000-8000-000000000001',
     'Staff Manageable Boundary Project', 'Local', 'Synthetic boundary fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2032-08-11","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2022-08-11","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, 'bd100000-0000-4000-8000-000000000001', true
   ),
   (
@@ -167,7 +167,7 @@ VALUES
     'bd000000-0000-4000-8000-000000000001',
     'Admin Only Boundary Project', 'Local', 'Synthetic boundary fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2032-08-12","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2022-08-12","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, 'bd100000-0000-4000-8000-000000000001', false
   ),
   (
@@ -175,7 +175,7 @@ VALUES
     'bd000000-0000-4000-8000-000000000001',
     'Creator Boundary Project', 'Local', 'Synthetic boundary fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2032-08-13","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2022-08-13","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, 'bd100000-0000-4000-8000-000000000001', true
   );
 
@@ -203,7 +203,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000001',
     'bd200000-0000-4000-8000-000000000001',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-11T16:00:00Z","checkOut":"2032-08-11T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-11T16:00:00Z","checkOut":"2022-08-11T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
   )$$,
   '42501',
@@ -230,7 +230,7 @@ SELECT extensions.throws_ok(
     NULL,
     'bd200000-0000-4000-8000-000000000001',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-11T16:00:00Z","checkOut":"2032-08-11T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-11T16:00:00Z","checkOut":"2022-08-11T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
   )$$,
   '42501',
@@ -243,7 +243,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000005',
     'bd200000-0000-4000-8000-000000000003',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2032-08-13T16:00:00Z","checkOut":"2032-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2022-08-13T16:00:00Z","checkOut":"2022-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
   )$$,
   '42501',
@@ -256,7 +256,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000003',
     'bd200000-0000-4000-8000-000000000001',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-11T16:00:00Z","checkOut":"2032-08-11T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-11T16:00:00Z","checkOut":"2022-08-11T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
   )$$,
   '42501',
@@ -269,7 +269,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000002',
     'bd200000-0000-4000-8000-000000000002',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000002","checkIn":"2032-08-12T16:00:00Z","checkOut":"2032-08-12T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000002","checkIn":"2022-08-12T16:00:00Z","checkOut":"2022-08-12T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   )$$,
   '42501',
@@ -282,7 +282,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000001',
     'bd200000-0000-4000-8000-000000000003',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-13T16:00:00Z","checkOut":"2032-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-13T16:00:00Z","checkOut":"2022-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
   )$$,
   '22023',
@@ -295,7 +295,7 @@ SELECT extensions.is(
     'bd000000-0000-4000-8000-000000000004',
     'bd200000-0000-4000-8000-000000000002',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000002","checkIn":"2032-08-12T16:00:00Z","checkOut":"2032-08-12T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000002","checkIn":"2022-08-12T16:00:00Z","checkOut":"2022-08-12T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:1111111111111111111111111111111111111111111111111111111111111111'
   ) ->> 'outcome',
   'accepted',
@@ -321,7 +321,7 @@ SELECT extensions.is(
     'bd000000-0000-4000-8000-000000000002',
     'bd200000-0000-4000-8000-000000000001',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-11T16:00:00Z","checkOut":"2032-08-11T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-11T16:00:00Z","checkOut":"2022-08-11T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:2222222222222222222222222222222222222222222222222222222222222222'
   ) ->> 'outcome',
   'accepted',
@@ -333,7 +333,7 @@ SELECT extensions.is(
     'bd000000-0000-4000-8000-000000000001',
     'bd200000-0000-4000-8000-000000000003',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2032-08-13T16:00:00Z","checkOut":"2032-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2022-08-13T16:00:00Z","checkOut":"2022-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:3333333333333333333333333333333333333333333333333333333333333333'
   ) ->> 'outcome',
   'accepted',
@@ -345,7 +345,7 @@ SELECT extensions.is(
     'bd000000-0000-4000-8000-000000000001',
     'bd200000-0000-4000-8000-000000000003',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2032-08-13T16:00:00Z","checkOut":"2032-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000003","checkIn":"2022-08-13T16:00:00Z","checkOut":"2022-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:3333333333333333333333333333333333333333333333333333333333333333'
   ) ->> 'outcome',
   'replayed',
@@ -389,7 +389,7 @@ SELECT extensions.throws_ok(
     'bd000000-0000-4000-8000-000000000002',
     'bd200000-0000-4000-8000-000000000001',
     'oneTime',
-    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2032-08-11T16:00:00Z","checkOut":"2032-08-11T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"bd300000-0000-4000-8000-000000000001","checkIn":"2022-08-11T16:00:00Z","checkOut":"2022-08-11T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:2222222222222222222222222222222222222222222222222222222222222222'
   )$$,
   '42501',

@@ -14,15 +14,17 @@ const auditedLedger = expectedVersions(root).filter(
   (version) => version <= "20261008040000",
 );
 const publishedLedger = auditedLedger.slice(0, 687);
-const attendanceDrafts = [
+const attendanceMigrations = [
   "20261009010000_reviewed_attendance_intervals",
   "20261009010001_attendance_print_manifests",
   "20261009010002_corrected_certificate_delivery",
   "20261009010003_atomic_guest_account_link",
 ];
-const attendanceVersions = attendanceDrafts.map((name) => name.slice(0, 14));
-// This provisional union checks refusal before the drafts join the checkout.
-// It is not a database replay or approval of their SQL bytes.
+const attendanceVersions = attendanceMigrations.map((name) =>
+  name.slice(0, 14),
+);
+// This historical partial union never received its own catalog approval.
+// The integrated 715/716 ledgers have separate measured manifests.
 const combinedLedger = [...auditedLedger, ...attendanceVersions];
 const publishedSource = readFileSync(
   new URL("./final-schema-687.json", import.meta.url),
@@ -58,7 +60,7 @@ test("the provisional 712 ledger preserves the audit prefix and all four forward
   assert.deepEqual([...combinedLedger].sort(), combinedLedger);
 });
 
-test("every partial or complete attendance suffix requires explicit catalog review", () => {
+test("the standalone attendance suffix cannot reuse an integrated catalog", () => {
   for (let count = 1; count <= attendanceVersions.length; count++) {
     assert.throws(
       () =>
@@ -96,12 +98,22 @@ test("the former paper 683 plus four ledger cannot reuse the published 687 ident
   );
 });
 
-test("attendance drafts do not inherit approval from historical migration counts", () => {
-  for (const name of attendanceDrafts) {
+test("reviewed attendance bytes remain excluded from the historical online controller", () => {
+  for (const name of attendanceMigrations) {
     assert.ok(
       !approvedMigrations.some(([approved]) => approved === name),
       name,
     );
-    assert.ok(!Object.hasOwn(migrationDigests, `${name}.sql`), name);
+    assert.equal(
+      migrationDigests[`${name}.sql`],
+      createHash("sha256")
+        .update(
+          readFileSync(
+            new URL(`../../supabase/migrations/${name}.sql`, import.meta.url),
+          ),
+        )
+        .digest("hex"),
+      name,
+    );
   }
 });

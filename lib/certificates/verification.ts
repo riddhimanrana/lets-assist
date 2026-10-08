@@ -11,6 +11,7 @@ type VerificationCertificate = {
   is_certified: boolean | null;
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_name: string | null;
   volunteer_email: string | null;
   issued_at: string | null;
@@ -44,9 +45,13 @@ export function certificateVerification(certificate: VerificationCertificate) {
     Date.parse(certificate.event_end) - Date.parse(certificate.event_start);
   // Match the dashboard export's completed minutes and one-decimal hours.
   const duration =
-    Number.isFinite(elapsed) && elapsed >= 0
-      ? Math.round((Math.trunc(elapsed / 60_000) / 60) * 10) / 10
-      : null;
+    typeof certificate.credited_minutes === "number" &&
+    Number.isFinite(certificate.credited_minutes) &&
+    certificate.credited_minutes >= 0
+      ? certificate.credited_minutes / 60
+      : Number.isFinite(elapsed) && elapsed >= 0
+        ? Math.round((Math.trunc(elapsed / 60_000) / 60) * 10) / 10
+        : null;
   return {
     valid: true,
     exists: true,
@@ -64,6 +69,7 @@ export function certificateVerification(certificate: VerificationCertificate) {
       startDate: certificate.event_start,
       endDate: certificate.event_end,
       duration,
+      creditedMinutes: certificate.credited_minutes,
     },
     project: {
       id: certificate.project_id,

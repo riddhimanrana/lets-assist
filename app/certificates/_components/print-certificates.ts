@@ -1,3 +1,4 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
 import { endOfDay, format, parseISO, startOfDay } from "date-fns";
 
 import { escapeHtml } from "@/lib/security/html";
@@ -134,7 +135,7 @@ export function printCertificates({
                     }
                   })()}`,
                 )}</td>
-                <td>${escapeHtml(formatTotalDuration(calculateDecimalHours(cert.event_start, cert.event_end)))}</td>
+                <td>${escapeHtml(formatTotalDuration(certificateHours(cert, () => calculateDecimalHours(cert.event_start, cert.event_end))))}</td>
                 <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
               </tr>
             `,

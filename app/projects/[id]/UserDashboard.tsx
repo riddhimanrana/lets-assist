@@ -5,6 +5,10 @@ import { useState, useEffect, useMemo } from "react";
 import { Project, Signup } from "@/types";
 import { AuthUser } from "@/lib/supabase/types";
 import {
+  matchVolunteerCertificate,
+  type VolunteerCertificate,
+} from "@/lib/projects/volunteer-attendance-duration";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -55,8 +59,11 @@ export default function UserDashboard({
   >(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // 🆕 store map of signup_id → certificate.id
-  const [certMap, setCertMap] = useState<Record<string, string>>({});
+  // Certificate snapshots are keyed by their exact signup.
+  const [certMap, setCertMap] = useState<Record<string, VolunteerCertificate>>(
+    {},
+  );
+  const [certificateReadComplete, setCertificateReadComplete] = useState(false);
   const [waiverSignatures, setWaiverSignatures] = useState<
     Array<{ id: string; signed_at: string | null; created_at: string }>
   >([]);
@@ -122,32 +129,47 @@ export default function UserDashboard({
     return () => clearInterval(intervalId);
   }, []);
 
-  // 🆕 fetch certificates for all signups once
   useEffect(() => {
+    let current = true;
+    setCertMap({});
+    setCertificateReadComplete(false);
     const supabase = createClient();
     supabase
       .from("certificates")
-      .select("id, signup_id")
+      .select(
+        "id, signup_id, project_id, schedule_id, type, credited_minutes, event_start, event_end",
+      )
+      .eq("project_id", project.id)
+      .or("type.eq.verified,type.is.null")
+      .order("created_at", { ascending: false })
       .in(
         "signup_id",
         signups.map((s) => s.id),
       )
       .then(({ data, error }) => {
+        if (!current) return;
+        setCertificateReadComplete(true);
         if (error) {
-          safeConsole.error("Error fetching certificates:", error);
+          safeConsole.error("Could not load volunteer certificates.");
         } else {
-          const map: Record<string, string> = {};
-          const certificates = (data ?? []) as Array<{
-            id: string;
-            signup_id: string;
-          }>;
-          certificates.forEach((cert) => {
-            map[cert.signup_id] = cert.id;
-          });
+          const map: Record<string, VolunteerCertificate> = {};
+          for (const cert of (data ?? []) as VolunteerCertificate[]) {
+            const signup = signups.find((item) => item.id === cert.signup_id);
+            if (
+              signup &&
+              !map[signup.id] &&
+              matchVolunteerCertificate(project, signup, cert)
+            ) {
+              map[signup.id] = cert;
+            }
+          }
           setCertMap(map);
         }
       });
-  }, [signups]);
+    return () => {
+      current = false;
+    };
+  }, [signups, project]);
 
   // --- ADDED: Calculate overall project phase for signup-only alerts ---
   const projectStartDateTime = useMemo(
@@ -302,6 +324,8 @@ export default function UserDashboard({
       key={status.signup.id}
       status={status}
       project={project}
+      certificate={certMap[status.signup.id]}
+      certificateReadComplete={certificateReadComplete}
       hideReminder={hideReminder}
       onScan={openScanner}
     />

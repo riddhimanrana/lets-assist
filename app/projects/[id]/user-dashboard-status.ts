@@ -11,6 +11,11 @@ import {
 } from "date-fns";
 import type { Project, Signup } from "@/types";
 import { formatTimeTo12Hour } from "@/lib/utils";
+import {
+  isVolunteerSessionPublished,
+  type VolunteerCertificate,
+} from "@/lib/projects/volunteer-attendance-duration";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import { getSlotDetails } from "@/utils/project";
 
 // Helper function to format remaining time (copied from AttendanceClient)
@@ -41,62 +46,8 @@ function getCombinedDateTime(dateStr: string, timeStr: string): Date | null {
   }
 }
 
-// Helper function to calculate and format duration between check-in and check-out
-export function calculateVolunteerDuration(
-  checkIn: string | null,
-  checkOut: string | null,
-): {
-  text: string;
-  isValid: boolean;
-  totalMinutes: number;
-} {
-  if (!checkIn || !checkOut) {
-    return { text: "Incomplete", isValid: false, totalMinutes: 0 };
-  }
+type SlotDetails = NonNullable<ReturnType<typeof getSlotDetails>>;
 
-  try {
-    const checkInDate = parseISO(checkIn);
-    const checkOutDate = parseISO(checkOut);
-
-    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-      return { text: "Invalid times", isValid: false, totalMinutes: 0 };
-    }
-
-    const diffMinutes = differenceInMinutes(checkOutDate, checkInDate);
-
-    if (diffMinutes < 0) {
-      return { text: "Invalid duration", isValid: false, totalMinutes: 0 };
-    }
-
-    if (diffMinutes > 24 * 60) {
-      return { text: "Over 24h", isValid: false, totalMinutes: diffMinutes };
-    }
-
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-
-    if (hours > 0 && minutes > 0) {
-      return {
-        text: `${hours}h ${minutes}m`,
-        isValid: true,
-        totalMinutes: diffMinutes,
-      };
-    } else if (hours > 0) {
-      return { text: `${hours}h`, isValid: true, totalMinutes: diffMinutes };
-    } else {
-      return { text: `${minutes}m`, isValid: true, totalMinutes: diffMinutes };
-    }
-  } catch {
-    return { text: "Error calculating", isValid: false, totalMinutes: 0 };
-  }
-}
-
-type SlotDetails =
-  | NonNullable<Project["schedule"]["oneTime"]>
-  | NonNullable<Project["schedule"]["multiDay"]>[number]["slots"][number]
-  | NonNullable<Project["schedule"]["sameDayMultiArea"]>["roles"][number];
-
-// Helper function to get a consistent session display name
 function getSessionDisplayName(
   project: Project,
   startTime: Date | null,
@@ -131,7 +82,7 @@ export function getSignupStatuses(
   signups: Signup[],
   project: Project,
   now: Date,
-  certMap: Record<string, string>,
+  certMap: Record<string, VolunteerCertificate>,
 ) {
   return signups
     .map((signup) => {
@@ -148,7 +99,11 @@ export function getSignupStatuses(
 
       // Handle pending signups (e.g., from linked anonymous profiles)
       if (signup.status === "pending") {
-        const details = getSlotDetails(project, signup.schedule_id);
+        const details = getSlotDetails(
+          project,
+          getScheduleIdAliases(project, signup.schedule_id)[0] ??
+            signup.schedule_id,
+        );
         if (!details) return null; // Skip if slot details not found
 
         // Find the date for the slot
@@ -191,7 +146,11 @@ export function getSignupStatuses(
         };
       }
 
-      const details = getSlotDetails(project, signup.schedule_id);
+      const details = getSlotDetails(
+        project,
+        getScheduleIdAliases(project, signup.schedule_id)[0] ??
+          signup.schedule_id,
+      );
       if (!details) return null; // Skip if slot details not found
 
       // Find the date for the slot
@@ -245,11 +204,13 @@ export function getSignupStatuses(
       const isPastPostEventWindow = sessionOver && hoursSinceEnd >= 48;
 
       // --- ADDED: Check if hours are published for this specific schedule_id ---
-      const areHoursPublished =
-        project.published && project.published[signup.schedule_id] === true;
+      const areHoursPublished = isVolunteerSessionPublished(
+        project,
+        signup.schedule_id,
+      );
 
       // --- Check for corresponding certificate based on signup_id ---
-      const certificateId = certMap[signup.id] ?? null;
+      const certificateId = certMap[signup.id]?.id ?? null;
       // --- END ADDED ---
 
       // --- For approved users who didn't attend, show no-show message after event ---

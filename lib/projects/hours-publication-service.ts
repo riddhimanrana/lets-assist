@@ -16,6 +16,8 @@ export type PublicationDelivery = {
   volunteerEmail: string | null;
   eventStart: string;
   eventEnd: string;
+  creditedMinutes?: number | null;
+  attendanceRevision?: number;
 };
 
 export type TransactionalPublication = {
@@ -52,7 +54,14 @@ export async function publishVolunteerHoursTransaction(input: {
   actorId: string;
   projectId: string;
   scheduleId: string;
-  entries: Array<{ signupId: string; checkIn: string; checkOut: string }>;
+  entries: Array<{
+    signupId: string;
+    checkIn: string;
+    checkOut: string;
+    intervals?: Array<{ checkIn: string; checkOut: string }>;
+    attendanceRevision?: number;
+    timeExceptionReason?: string;
+  }>;
   requestKey: string;
   origin?: "manual" | "automatic";
 }): Promise<HoursPublicationRpcResult<TransactionalPublication>> {
@@ -73,6 +82,28 @@ export async function publishVolunteerHoursTransaction(input: {
           : "publish_volunteer_hours_transactional",
         rpcArguments,
       ),
+    isTransactionalPublication,
+  );
+}
+
+export async function requestCorrectedCertificateDelivery(input: {
+  actorId: string;
+  projectId: string;
+  certificateId: string;
+  expectedRevision: number;
+  requestId: string;
+}): Promise<HoursPublicationRpcResult<TransactionalPublication>> {
+  const admin = getAdminClient();
+  const rpcArguments = {
+    p_actor_id: input.actorId,
+    p_project_id: input.projectId,
+    p_certificate_id: input.certificateId,
+    p_expected_revision: input.expectedRevision,
+    p_request_id: input.requestId,
+  };
+  return executeReplaySafeHoursPublicationRpc(
+    async () =>
+      await admin.rpc("request_corrected_certificate_delivery", rpcArguments),
     isTransactionalPublication,
   );
 }

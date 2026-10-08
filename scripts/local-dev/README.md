@@ -4,12 +4,16 @@ This folder contains the deterministic fixtures and health checks for the local 
 
 ## What to run
 
-From the repository root:
+Choose a workflow from the repository root. See [development environments](../../docs/development/environments.md) for the environment boundaries.
+
+For isolated CSF development, run `bun run dev`. It owns a separate database and seeds fictional CSF records.
+
+For shared platform development:
 
 1. Create a run-scoped fixture password: `export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"`
 2. Reuse it for the optional DV fixtures: `export DV_LOCAL_TEST_PASSWORD="$CSF_LOCAL_TEST_PASSWORD"`
-3. `bun run supabase`
-4. `bun run dev`
+3. Run `bun run supabase` to prepare the shared local backend.
+4. Run `bun run dev:next` against that backend.
 
 `bun run supabase` does the full **shared local, non-CSF only** backend bootstrap:
 

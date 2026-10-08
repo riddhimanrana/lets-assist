@@ -25,11 +25,9 @@ describe("production review consistency boundaries", () => {
     expect(source).not.toContain(
       '.from("project_paper_scan_rows")\n    .update({',
     );
-    expect(editor).toContain("const identityChanged =");
-    expect(editor).toContain(
-      "matchSignupId: identityChanged ? null : row.matchSignupId",
-    );
-    expect(editor).toContain("matchSignupId: patch.matchSignupId");
+    expect(editor).toContain('matchSignupId: ""');
+    expect(editor).toContain("identityConfirmed: false");
+    expect(editor).toContain("expectedRevision: row.reviewRevision");
   });
 
   test("claim-owned final transitions prove a matched update", async () => {
@@ -50,13 +48,20 @@ describe("production review consistency boundaries", () => {
   test("vision calls are bounded by the route budget", async () => {
     const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
 
+    const extraction = await read(
+      "../../../api/ai/scan-signup-sheet/scan-extraction.ts",
+    );
     expect(source).toContain("EXTRACTION_ROUTE_BUDGET_MS");
-    expect(source).toContain("MODEL_CALL_TIMEOUT_MS");
-    expect(source).toContain("maxRetries: 0");
     expect(source).toContain(
+      'import { extractImage } from "./scan-extraction"',
+    );
+    expect(source).toContain("deadlineMs: extractionDeadlineMs");
+    expect(extraction).toContain("MODEL_CALL_TIMEOUT_MS");
+    expect(extraction).toContain("maxRetries: 0");
+    expect(extraction).toContain(
       "timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs)",
     );
-    expect(source).toContain("if (Date.now() >= options.deadlineMs) break");
+    expect(extraction).toContain("if (Date.now() >= options.deadlineMs) break");
   });
 
   test("supplemental certificate failures remain visible and retryable", async () => {
@@ -104,9 +109,19 @@ describe("production review consistency boundaries", () => {
   test("candidate read failures abort extraction instead of matching an empty roster", async () => {
     const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
 
-    expect(source).toContain("signupCandidatesError");
-    expect(source).toContain("anonCandidatesError");
-    expect(source).toContain("Failed to load scan match candidates");
+    expect(
+      source.match(/loadScanCandidatePages\(\(start, end\)/g),
+    ).toHaveLength(2);
+    const { loadScanCandidatePages } =
+      await import("../../../api/ai/scan-signup-sheet/scan-candidates");
+    await expect(
+      loadScanCandidatePages(async () => ({
+        data: null,
+        error: { code: "candidate_read_failure" },
+      })),
+    ).rejects.toThrow(
+      "Failed to load scan match candidates: candidate_read_failure",
+    );
   });
 
   test("paper signup notification outbox has a hosted scheduler", async () => {

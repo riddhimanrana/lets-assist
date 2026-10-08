@@ -54,3 +54,45 @@ export function getPublishStateKey(
 
   return scheduleId;
 }
+
+export function getScheduleIdAliases(
+  project: Pick<Project, "event_type" | "schedule">,
+  scheduleId: string,
+): string[] {
+  if (!scheduleId.trim() || scheduleId.length > 200) return [];
+  const groups: string[][] = [];
+  if (project.event_type === "oneTime" && project.schedule?.oneTime) {
+    groups.push(["oneTime", "0", "default"]);
+  } else if (
+    project.event_type === "multiDay" &&
+    Array.isArray(project.schedule?.multiDay)
+  ) {
+    for (const [dayIndex, day] of (
+      project.schedule?.multiDay ?? []
+    ).entries()) {
+      for (const slotIndex of day.slots.keys()) {
+        groups.push([
+          `${day.date}-${dayIndex}-${slotIndex}`,
+          `${dayIndex}-${slotIndex}`,
+          `${day.date}-${slotIndex}`,
+          `day-${dayIndex}-slot-${slotIndex}`,
+        ]);
+      }
+    }
+  } else if (
+    project.event_type === "sameDayMultiArea" &&
+    Array.isArray(project.schedule?.sameDayMultiArea?.roles)
+  ) {
+    for (const [index, role] of (
+      project.schedule?.sameDayMultiArea?.roles ?? []
+    ).entries()) {
+      if (role?.name) groups.push([role.name, `role-${index}`]);
+    }
+  }
+  const aliases = groups.find((group) => group.includes(scheduleId));
+  if (!aliases) return [];
+  const key = getPublishStateKey(project, scheduleId);
+  return [...new Set(aliases)].filter(
+    (alias) => getPublishStateKey(project, alias) === key,
+  );
+}
