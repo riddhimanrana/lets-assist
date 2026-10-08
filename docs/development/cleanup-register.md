@@ -1,5 +1,7 @@
 # Repository cleanup register
 
+P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
+
 P2, certificate rendering: the integrated attendance browser test found that the certificate project link called a client-exported styling function from a server component. It now imports the server-safe styling module. The regression simulates the forbidden client call and passes. The fresh isolated attendance journey also passes certificate access, account linking and corrected-hour readback. The correction is part of PR 867.
 
 P2, hours dialog readiness: the integrated browser gate observed an enabled self-reported-hours trigger that did not open its dialog after the first click. The trigger now stays disabled through server rendering until the client handler can run. Render regressions and the fresh isolated browser flow pass, including DST validation and certificate creation. The correction is part of PR 867.

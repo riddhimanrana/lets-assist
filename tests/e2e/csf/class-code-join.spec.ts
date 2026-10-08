@@ -855,10 +855,12 @@ test.describe("class join code connections", () => {
       name: "Review account connection",
     });
     await expect(resolveDialog).toBeVisible();
-    // Without canonical identity evidence the one-click connect is not merely
-    // disabled: it is not offered at all.
+    // Opening manual staff verification does not submit a connection.
+    // Without canonical evidence, the direct connection submit is absent.
     await expect(
-      resolveDialog.getByRole("button", { name: "Connect account" }),
+      resolveDialog.locator(
+        'button[type="submit"][name="decision"][value="connect"]',
+      ),
     ).toHaveCount(0);
     await resolveDialog
       .getByText("Reject this request", { exact: true })
