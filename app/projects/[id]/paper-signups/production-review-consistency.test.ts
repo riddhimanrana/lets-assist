@@ -48,13 +48,20 @@ describe("production review consistency boundaries", () => {
   test("vision calls are bounded by the route budget", async () => {
     const source = await read("../../../api/ai/scan-signup-sheet/route.ts");
 
+    const extraction = await read(
+      "../../../api/ai/scan-signup-sheet/scan-extraction.ts",
+    );
     expect(source).toContain("EXTRACTION_ROUTE_BUDGET_MS");
-    expect(source).toContain("MODEL_CALL_TIMEOUT_MS");
-    expect(source).toContain("maxRetries: 0");
     expect(source).toContain(
+      'import { extractImage } from "./scan-extraction"',
+    );
+    expect(source).toContain("deadlineMs: extractionDeadlineMs");
+    expect(extraction).toContain("MODEL_CALL_TIMEOUT_MS");
+    expect(extraction).toContain("maxRetries: 0");
+    expect(extraction).toContain(
       "timeout: Math.min(MODEL_CALL_TIMEOUT_MS, remainingMs)",
     );
-    expect(source).toContain("if (Date.now() >= options.deadlineMs) break");
+    expect(extraction).toContain("if (Date.now() >= options.deadlineMs) break");
   });
 
   test("supplemental certificate failures remain visible and retryable", async () => {

@@ -8,26 +8,26 @@ source integration. It does not certify hosted Development or Production.
 
 | Area                                                           | Current result                                                                                                                                             | Required next evidence                                                           |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Brand, landing and account layouts                             | All six brand follow-up slices are integrated. Root project extraction is 1e20ac71; private combined source is 5a76115.                                    | Final signed-in desktop/mobile walkthrough.                                      |
+| Brand, landing and account layouts                             | All six brand follow-up slices are integrated. Root project extraction is 1e20ac71; private Development merge is 6012a1b7.                                 | Final signed-in desktop/mobile walkthrough.                                      |
 | Login, scheduler, plugin workflow and Docker diagnostics fixes | Included in root candidate.                                                                                                                                | Required PR checks and final integrated full gate.                               |
 | Root static checks                                             | Lint, typecheck and agent policy pass under Node 24.21.0.                                                                                                  | Repeat affected checks after later integration.                                  |
-| Private source                                                 | All 567 private test files pass after officer/partner integration. Root lint and typecheck pass.                                                           | Private PR CI, then Development merge before root gitlink update.                |
+| Private source                                                 | All 569 private test files pass. PR 643 merged into private Development as 6012a1b7 with required CI checks passing.                                       | Signed release integration and hosted acceptance. Root gitlink is 6012a1b7.      |
 | Independent CSF app                                            | Lint, typecheck, tests, build and data-access/route gates pass.                                                                                            | Hosted runtime and organization selection readback after release.                |
 | Security regressions                                           | CSV control prefixes, notification URL normalization and Sheets status UI tests pass. Signup confirmation no longer claims unconfirmed delivery succeeded. | Final integrated source and browser checks.                                      |
 | Dependencies                                                   | Next 16.4.0, React 19.3.0, Node 24.21.0, current Supabase clients and shadcn 4.21.4. Tailwind 4.3.3.                                                       | CLI 2.120.0 and Bun 1.4.2 compatibility work remains. See the dependency ledger. |
-| Database                                                       | Officer and partner migrations are integrated after ledger 708. Four paper migrations and one rating migration are being reconciled.                       | Final combined replay/catalog and database/browser gates.                        |
-| AI review                                                      | Private PR 643 received automatic review on bde1aef and ece31d6. Mobile DV navigation and Node runtime checklist findings are fixed.                       | Root review, review-on-push settings and final-head review remain unverified.    |
+| Database                                                       | All feature migrations are integrated. Clean catalog 716 includes the restoration guard fix; 76 catalog/cutover tests pass.                                | Finish combined database behavior and browser gates.                             |
+| AI review                                                      | Private PR 643 received automatic review on creation and updates. All five review findings are fixed and resolved.                                         | Root automatic review and final candidate checks remain pending.                 |
 | Branch cleanup                                                 | Removed local claude/csf-partner-linking and codex/plugin-release-dvhs-csf-v1.2.85 after proving remote Development ancestry and no active worktree.       | Other feature branches remain until their work reaches remote Development.       |
 
 ## Preserved work
 
-| Branch                         | Remaining work                                                                                                                                    |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| codex/paper-attendance         | Source fixes pass 624 SQL assertions, 11 concurrency scenarios and 145 unit tests. Reconciliation with extracted brand components is in progress. |
-| codex/csf-officer-approval     | Integrated root 6c02af74 and private ccc1ae5a. Refusal tests and forward migration 20261009020000 are included.                                   |
-| claude/csf-partner-projects    | Integrated root 4b0379d5 and private 47244ace. Forward migration 20261009030000 and verified race fixes are included.                             |
-| claude/platform-rating-prompts | Original untracked draft is preserved while an owned source pass adds wiring, refusal tests and migration 20261009040000.                         |
-| claude/pass4-*                 | All six completed source slices are integrated. Their source worktrees remain preserved until remote Development contains the work.               |
+| Branch                         | Remaining work                                                                                                                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| codex/paper-attendance         | Final paper source 56f64463 is integrated. Follow-up fixture reconciliation is in progress against the combined attendance guards.              |
+| codex/csf-officer-approval     | Integrated root 6c02af74 and private ccc1ae5a. Refusal tests and forward migration 20261009020000 are included.                                 |
+| claude/csf-partner-projects    | Integrated root 4b0379d5 and private 47244ace. Forward migration 20261009030000 and verified race fixes are included.                           |
+| claude/platform-rating-prompts | Completed source c89303b6 is integrated, including prompt wiring, refusal tests and migration 20261009040000. Original draft remains preserved. |
+| claude/pass4-*                 | All six completed source slices are integrated. Their source worktrees remain preserved until remote Development contains the work.             |
 
 The audit chat owns paper, officer and partner source repairs in their existing
 worktrees. The integration owner controls PR 867, the private brand PR and all
@@ -41,6 +41,8 @@ environment, its database credential, verified external-writer shutdown and an
 accepted maintenance-hold receipt before the root merge. Do not merge first:
 the connected persistent Supabase Development branch applies migrations.
 
+The GitHub Development environment now requires review by `riddhimanrana` and limits deployments to `development` and `codex/*`. The owner may approve their own run. Readback confirms that `DEVELOPMENT_DATABASE_URL` is still missing. No cutover or deployment has run.
+
 GitGuardian incidents 37947219 and 37948874 concern historical synthetic fixture
 commits and still need provider disposition. Incident 16430109 flags password-form
 declarations in 34a70ca8 and 34210edc7; local inspection confirmed that all password
@@ -49,8 +51,7 @@ form defaults. Their provider status is still Triggered. Do not suppress the
 scanner or rewrite shared history.
 
 Root CodeQL check 113069683538 identified first-only escaping in a Sheets status
-test. Commit bec23b1e uses replaceAll; all five tests pass. A fresh provider scan
-must confirm that finding is closed.
+test. Commit bec23b1e uses replaceAll; all five tests pass. Latest candidate CodeQL analyses report zero findings for Actions and JavaScript/TypeScript. Final-head checks remain pending.
 
 The time-limited braces exception still expires October 21 and prints the
 advisory. It is an accepted risk, not a patched dependency. New private source
