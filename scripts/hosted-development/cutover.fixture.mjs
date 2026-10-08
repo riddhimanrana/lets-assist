@@ -253,6 +253,10 @@ export function controllerFixture(phase = "prepare") {
     throw new Error(`Unexpected Vercel fixture path ${path}`);
   };
   const query = (_url, sql) => {
+    if (sql.includes("SELECT 'development-bootstrap-cron-paused'")) {
+      state.writes.push({ kind: "cron-pause", sql });
+      return "development-bootstrap-cron-paused";
+    }
     if (sql.includes("SELECT 'request-fence-bootstrap-applied'")) {
       state.writes.push({ kind: "bootstrap", sql });
       state.bootstrapped = true;

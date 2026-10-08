@@ -1,5 +1,7 @@
 -- Fictional membership writes, correction refusals, and retry evidence.
 BEGIN;
+-- Enable only this rolled-back fictional fixture for the paused plugin.
+UPDATE public.plugins SET is_active=true WHERE key='dv-speech-debate';
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SELECT extensions.plan(30);
 

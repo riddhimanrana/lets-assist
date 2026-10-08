@@ -1,5 +1,7 @@
 -- Fictional staff decisions use the same authorization and retry boundary as the UI.
 BEGIN;
+-- Enable only this rolled-back fictional fixture for the paused plugin.
+UPDATE public.plugins SET is_active=true WHERE key='dv-speech-debate';
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SELECT extensions.plan(28);
 INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)

@@ -1,72 +1,103 @@
-# Development integration status, October 7, 2026
+# Development integration status, October 8, 2026
 
-Root [PR 867](https://github.com/riddhimanrana/lets-assist/pull/867) is the
-combined brand and infrastructure candidate. Private
-[PR 643](https://github.com/riddhimanrana/lets-assist-plugins/pull/643) combines
-brand layouts with audited CSF and Speech & Debate workflows. This page tracks
-source integration. It does not certify hosted Development or Production.
+Root [PR 867](https://github.com/riddhimanrana/lets-assist/pull/867) combines the
+brand redesign, infrastructure audit, paper attendance, officer approval,
+partner projects and rating prompts. It targets Development. Root main and
+Production have not changed.
 
-| Area                                                           | Current result                                                                                                                                                                                                                               | Required next evidence                                                                                                                                                                                                                |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Brand, landing and account layouts                             | All six brand follow-up slices are integrated. Root project extraction is 1e20ac71; private Development merge is 6012a1b7.                                                                                                                   | Signed-in browser gate waits for the signed plugin registry integration.                                                                                                                                                              |
-| Login, scheduler, plugin workflow and Docker diagnostics fixes | Included in root candidate.                                                                                                                                                                                                                  | Required PR checks and completion of the registry, build and browser gates.                                                                                                                                                           |
-| Root static checks                                             | Lint, typecheck and agent policy pass under Node 24.21.0.                                                                                                                                                                                    | Repeat affected checks after later integration.                                                                                                                                                                                       |
-| Private source                                                 | All 569 private test files pass. PR 643 merged into private Development as 6012a1b7 with required CI checks passing.                                                                                                                         | Signed release integration and hosted acceptance. Root gitlink is 6012a1b7.                                                                                                                                                           |
-| Independent CSF app                                            | Lint, typecheck, tests, build and data-access/route gates pass.                                                                                                                                                                              | Hosted runtime and organization selection readback after release.                                                                                                                                                                     |
-| Security regressions                                           | CSV control prefixes, notification URL normalization and Sheets status UI tests pass. Signup confirmation no longer claims unconfirmed delivery succeeded.                                                                                   | Final integrated source and browser checks.                                                                                                                                                                                           |
-| Dependencies                                                   | Next 16.4.0, React 19.3.0, Node 24.21.0, current Supabase clients and shadcn 4.21.4. Tailwind 4.3.3.                                                                                                                                         | CLI 2.120.0 is integrated; its PostgreSQL 17.11 replay passed SQL and security checks, and the accepted catalog matches all 1,434 release entries. Bun 1.4.2 work is preserved separately until the private app pin can move with it. |
-| Database                                                       | Fresh 717 replay on CLI 2.120.0 and PostgreSQL 17.11 passes 492 SQL files and 12,865 assertions, advisors, architecture and plugin isolation. The corrected fixture-excluding catalog check passes with all 1,434 release entries unchanged. | Combined gate stopped at the unsigned plugin version mismatch before runtime/browser checks.                                                                                                                                          |
-| AI review                                                      | Private PR 643 received automatic review on creation and updates. All five review findings are fixed and resolved.                                                                                                                           | Root review completed on d6abe1d. Its two export findings are fixed in 2d3236b5; final-head review remains pending.                                                                                                                   |
-| Branch cleanup                                                 | Removed local claude/csf-partner-linking and codex/plugin-release-dvhs-csf-v1.2.85 after proving remote Development ancestry and no active worktree.                                                                                         | Other feature branches remain until their work reaches remote Development.                                                                                                                                                            |
+| Area                        | Current result                                                                                                                                                                                                                                   | Remaining evidence                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source consolidation        | All 96 local root branch heads are ancestors of the integrated candidate. Claude confirmed that every finished redesign change is included.                                                                                                      | Merge PR 867 after the Development maintenance gate.                                                                                                                               |
+| Private source and releases | Private PRs 643, 644 and the approved promotion PR 641 are merged. The exact gitlink is `d100831bd2fe3374715de20510d9ae2a77dcfba8`. Signed CSF 1.2.86 and Speech and Debate 2.0.3 releases are integrated.                                       | Hosted plugin acceptance. Existing organization installs were not advanced.                                                                                                        |
+| Speech and Debate           | Migration 718 hides the offering and clears forced upgrades. Standard seeds keep it hidden. Code, releases and data remain preserved. Explicit local fixtures opt in for retained regression coverage.                                           | Apply the reviewed ledger through the Development cutover.                                                                                                                         |
+| Members layout              | Keep the current redesign, with Members under Classes. The user chose to archive the older top-level Members alternative.                                                                                                                        | No alternative-layout integration is planned.                                                                                                                                      |
+| Toolchain                   | Bun 1.4.2 pins agree across root, SDK, private app and CI. Node 24.21.0, Next 16.4.0 and Supabase CLI 2.120.0 are integrated.                                                                                                                    | The braces exception remains time-limited through October 21.                                                                                                                      |
+| Local checks                | Lint, typecheck, formatting and the exact gitlink check pass. All 601 plugin test files pass. The private-only suite passes all 569 files.                                                                                                       | Repeat affected checks for final corrections.                                                                                                                                      |
+| GitHub quality              | [Run 37713616896](https://github.com/riddhimanrana/lets-assist/actions/runs/37713616896) passed full quality, including root/plugin tests and the production build, at `99e8c63e`. Short PR CI passed.                                           | The database job stopped at two DV fixture setups that had not opted into the paused plugin. Their transaction-scoped setup is corrected. Database/browser rerun remains required. |
+| Database ledger             | Fresh CLI 2.120.0/PostgreSQL 17.11 replay applied all 719 migrations. The pause and signed publication checks pass 21 assertions. The accepted catalog matches all 1,434 release objects after excluding only seven known local fixture helpers. | Full integrated database and browser acceptance.                                                                                                                                   |
+| Development                 | Readback remains at ledger 687. CSF worker controls are off, but three database cron jobs remain active.                                                                                                                                         | Owner database credential, external writer hold, protected bootstrap and prepared maintenance receipt before merge.                                                                |
+| Cleanup                     | Local patches, untracked configuration, private Git history and local evidence are archived before retirement.                                                                                                                                   | Delete feature branches only after proving ancestry to remote Development.                                                                                                         |
 
-## Preserved work
+## Publication and controller evidence
 
-| Branch                         | Remaining work                                                                                                                                  |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| codex/paper-attendance         | Final paper source 56f64463 is integrated. Fixture corrections 41f27cfc pass 144 assertions and leave no fixture rows.                          |
-| codex/csf-officer-approval     | Integrated root 6c02af74 and private ccc1ae5a. Refusal tests and forward migration 20261009020000 are included.                                 |
-| claude/csf-partner-projects    | Integrated root 4b0379d5 and private 47244ace. Forward migration 20261009030000 and verified race fixes are included.                           |
-| claude/platform-rating-prompts | Completed source c89303b6 is integrated, including prompt wiring, refusal tests and migration 20261009040000. Original draft remains preserved. |
-| claude/pass4-*                 | All six completed source slices are integrated. Their source worktrees remain preserved until remote Development contains the work.             |
+Signed release runs 37712612944 and 37712613235 published both embedded releases
+from the approved private source. The paired root workflow verified both
+signatures and pushed `a982101c`. Its immediate pull-request readback was stale;
+fresh GitHub and Git readbacks proved the pushed commit. The controller now
+retries only that bounded stale-head state and rejects a competing head. It does
+not repeat the push. Fifteen workflow tests pass.
 
-Paper, officer and partner source repairs are integrated from their preserved
-worktrees. The integration owner controls PR 867, the private brand PR and all
-release steps. Shared root Development and its unrelated dirty files remain
-untouched. No feature worktree was removed.
+The publication controller also preserves availability-only pgTAP queries.
+Those checks do not select serving versions and must not be treated as malformed
+release assertions. Forty-seven single/batch integration tests pass.
 
-## Local tooling verification and incident
+Migration 719 records both signed releases without reactivating Speech and
+Debate or advancing organization installs. Its accepted ledger digest is
+`17fbc32edbdd067c47a56399c17df4365dd264e47445234036bd0648b718eada`.
+The independent CSF application remains at its existing release.
 
-Supabase CLI 2.120.0 replayed all 717 migrations on PostgreSQL 17.11 (`supabase/postgres:17.11.0.004`). The 492-file SQL suite passes 12,865 assertions, followed by advisor, architecture and plugin-isolation checks. The first catalog check returned 0 because its ad hoc runner omitted the repository's local-fixture wrapper. A focused fresh retry proved that the only differences were the seven known fixture helpers; all 1,434 release objects match. The existing wrapper returned 1 and rollback restored the helpers. The failed and corrected receipts are retained separately. Both owned temporary stacks were removed, with the parent integration stack's resource IDs unchanged.
+The protected Development bootstrap now pauses only its three reviewed cron
+jobs before installing the request guard. Sixty-one controller tests pass. A
+fresh 687 baseline SQL replay proved unknown-job refusal without partial
+shutdown, successful shutdown and an idempotent retry. Failed setup receipts and
+the corrected replay remain separate. The owned stack was removed and the
+parent stack's resource identities stayed unchanged.
 
-The CLI patch passes 54 focused tests on the integrated Bun 1.3.14 tree. Full lint and type checking pass under Node 24.21.0. The separate Bun 1.4.2 candidate is preserved in the infrastructure worktree; it cannot join this candidate while the private application pins 1.3.14. Package-manager equality remains enforced.
+## Preserved work and cleanup
 
-A reviewer intended to use a mock CLI but invoked installed CLI 2.119.0 for shared-local `start` and `db start` at 00:37:31–00:37:33 UTC on October 8. Both returned success. Subsequent read-only inspection found the existing healthy database, volume and network predated those calls, with no observed restart or replacement. There is no pre-command data snapshot, and the Docker event buffer did not retain the incident interval, so no complete data-diff or transient-effect claim is supported. No shared reset, reseed, cleanup or repair followed. These accidental calls are excluded from test evidence. Sanitized incident and verification receipts remain in the infrastructure worktree's ignored `.artifacts/toolchain-upgrade-20261007/` directory.
+The local archive under the primary checkout's ignored
+`.artifacts/consolidation-20261008/` contains working patches and configuration
+from 44 root/private repository views, a bare private-history repository,
+archive manifests and local evidence. It includes the older Members navigation
+alternative that the user chose not to integrate. Never commit or upload this
+archive because its local environment files can contain credentials.
+
+Claude's pass-four dirty copies were compared with the integrated private
+source. They are identical or superseded. No finished redesign work is missing.
+The current integration checkout remains active until delivery. Preserve the
+shared local database, Claude's `brandwalk2` stack and the parent integration
+stack during cleanup.
+
+## Historical local evidence and incident
+
+The earlier 717 replay passed 492 SQL files and 12,865 assertions, advisors,
+architecture and plugin isolation. Its first ad hoc catalog check omitted the
+local-fixture wrapper. A fresh corrected check matched all 1,434 release objects
+and proved fixture rollback. Both failed and corrected receipts remain local.
+
+The first 718 pause replay found that the SQL seed reactivated Speech and Debate.
+The seed correction passed a fresh five-assertion replay. The later 719 replay
+passed all 21 publication/pause assertions. Each owned stack was removed after
+verification, with the parent stack's resource identities unchanged.
+
+A reviewer intended to use a mock CLI but invoked installed CLI 2.119.0 for
+shared-local `start` and `db start` at 00:37:31 to 00:37:33 UTC on October 8.
+Readback found that the healthy database, volume and network predated those
+calls, with no observed restart or replacement. No pre-command data snapshot or
+retained Docker event history establishes a complete impact comparison. No
+shared reset, reseed, cleanup or repair followed. These calls are excluded from
+test evidence. Their receipts are preserved in the local archive.
 
 ## Provider gates
 
-The [Development cutover procedure](development-cutover.md) requires a protected
-environment, its database credential, verified external-writer shutdown and an
-accepted maintenance-hold receipt before the root merge. Do not merge first:
-the connected persistent Supabase Development branch applies migrations.
+The [Development cutover procedure](development-cutover.md) requires its owner
+database credential, an operator hold on external writes and a protected
+maintenance receipt before merging. The persistent Supabase Development branch
+automatically applies migrations after the merge. Several pending migrations
+contract permissions, so application/database ordering matters.
 
-The GitHub Development environment now requires review by `riddhimanrana` and limits deployments to `development` and `codex/*`. The owner may approve their own run. Readback confirms that `DEVELOPMENT_DATABASE_URL` is still missing. No cutover or deployment has run.
+The GitHub Development environment requires owner review and permits only
+`development` and `codex/*` deployments. The owner may review their own run.
+`DEVELOPMENT_DATABASE_URL` is absent. The personal token in the local credential
+vault returned HTTP 401 when reading the Development branch configuration.
+No password was reset and no hosted cutover mutation has run.
 
-Forward 717 export verification also passes 93 SQL assertions across snapshot, job protocol and deletion-crossover suites. The real local worker created, downloaded and digest-verified a private 49-dataset archive with delivery skipped and no refused egress. The synthetic account and archive were removed afterward. This verifies the worker path, not the browser journey.
+GitGuardian still marks incidents 37947219, 37948874 and 16430109 as Triggered.
+Local historical inspection found synthetic test values in the first two and
+empty password-form defaults in the third. The provider still needs to record
+the disposition. Do not suppress scanning or rewrite shared history.
 
-The root unit rerun passes its 2,946-test general group with one skip, then stops in an isolated test because the unsigned DV source version 2.0.3 exceeds the published adoption range ending at 2.0.2. The database gate stops at the same release boundary. Neither is a complete green gate. The host import surface has been regenerated and its 144-module boundary check passes. Hosted CI at 0f58692d separately failed five access-audit tests because the runner lacks ripgrep. Commit b2e63902 installs ripgrep before all shared quality gates; 17 focused tests pass on the integrated tree. Its first hosted rerun exposed a regex lint issue, repaired in 4067da43. That run now reaches the same unsigned plugin contract failure as local verification. CodeQL passed both language analyses on that head.
-
-GitGuardian incidents 37947219 and 37948874 concern historical synthetic fixture
-commits and still need provider disposition. Incident 16430109 flags password-form
-declarations in 34a70ca8, 34210edc7 and 56f64463; local inspection confirmed that all password
-defaults in those commits are empty strings. No credential was found in those
-form defaults. Their provider status is still Triggered. Do not suppress the
-scanner or rewrite shared history.
-
-Root CodeQL check 113069683538 identified first-only escaping in a Sheets status
-test. Commit bec23b1e uses replaceAll; all five tests pass. Latest candidate CodeQL analyses report zero findings for Actions and JavaScript/TypeScript. Final-head checks remain pending.
-
-The time-limited braces exception still expires October 21 and prints the
-advisory. It is an accepted risk, not a patched dependency. New private source
-also needs signed release integration before hosted plugin acceptance. Main,
-Production, provider credentials and installed plugin selections have not been
-changed by this integration.
+CodeQL reports no findings on the integrated source. A canceled Vercel Preview
+is not hosted acceptance. Private release publication, local green checks and
+GitHub quality checks do not prove a Development deployment or a Production
+release.

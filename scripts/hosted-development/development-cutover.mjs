@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { maintenanceTarget } from "../production/maintenance-preflight.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
+import { pauseBootstrapCron } from "./cutover-cron.mjs";
 import {
   bootstrapPlan,
   bootstrapWriteFence,
@@ -107,10 +108,13 @@ export async function runDevelopmentCutover(config, dependencies = {}) {
       createdAt: now(),
       expiresAt: now() + 4 * 60 * 60 * 1000,
     };
-    verifyQuiescence(config, query);
     await authority();
     persist("bootstrap-started");
     try {
+      pauseBootstrapCron(config, query);
+      receipt.cron = "reviewed-baseline-jobs-paused";
+      persist("bootstrap-cron-paused");
+      verifyQuiescence(config, query);
       receipt.schema = bootstrapWriteFence(config, query);
       await probeReadAvailability(config, fetcher);
       await probeWriteBlock(config, fetcher, false);
