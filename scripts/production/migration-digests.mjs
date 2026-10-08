@@ -1450,4 +1450,6 @@ export const migrationDigests = {
     "bc73b0911d4566b65109b1e1f74ba2459e755737a8ddce38e57457ab41cd584e",
   "20261009080000_retain_attendance_corrections_after_account_deletion.sql":
     "d332f9fd6d77b2b79977152ce8e99001a4c84f9041b89c31abc583188c5296b0",
+  "20261009080001_publish_dvhs_csf_1_2_87.sql":
+    "2bb1b3bf2610d0580cb52222c09a30842243f511c054a551ddfc0d1446815bb8",
 };

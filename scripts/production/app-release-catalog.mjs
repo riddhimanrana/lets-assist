@@ -1,3 +1,4 @@
+import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { publishedEmbeddedBatch719Catalog } from "./published-embedded-batch-719-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
@@ -351,6 +352,29 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  if (
+    ledgerDigest(versions) ===
+    "1520323451f2c0074970b20d2f969ac875e5c295f032e26140d20ad2e1e12336"
+  )
+    return publishedEmbedded721Catalog(
+      pausedSpeechDebateCatalog(
+        publicImageStorageCatalog(
+          accountDeletionStorageCatalog(
+            csfSubmissionDeletionCatalog(
+              finalSchemaCatalog(
+                JSON.parse(
+                  readFileSync(
+                    new URL("./final-schema-721.json", import.meta.url),
+                    "utf8",
+                  ),
+                ),
+                versions,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   if (
     ledgerDigest(versions) ===
     "5a3ab169f9c90996054a0ebe74ed84eab8aaed91e48e62260c496d73dd71345f"
