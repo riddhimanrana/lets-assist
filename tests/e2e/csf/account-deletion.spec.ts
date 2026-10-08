@@ -161,11 +161,11 @@ async function expectObjectsPresent(
 
 async function confirmDeletion(page: Page) {
   await page
-    .getByRole("button", { name: "Delete Account", exact: true })
+    .getByRole("button", { name: "Delete account", exact: true })
     .click();
   const dialog = page.getByRole("alertdialog");
   const submit = dialog.getByRole("button", {
-    name: "Delete Account",
+    name: "Delete account",
     exact: true,
   });
   await expect(submit).toBeDisabled();
@@ -400,7 +400,7 @@ test("settings deletion refuses retained plugin evidence without removing accoun
     });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("button", { name: "Delete Account", exact: true }),
+      page.getByRole("button", { name: "Delete account", exact: true }),
     ).toBeVisible();
   } finally {
     await page.close();

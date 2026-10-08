@@ -305,9 +305,9 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
       - menu "More":
         - group "More":
-          - text: More
           - separator
           - menuitem "Terms"
+          - menuitem "Point submissions"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
           - menuitem "Officers & access"
@@ -335,8 +335,8 @@ test.describe("DVHS CSF accessibility acceptance", () => {
           - menuitem "Applications"
         - separator
         - group "More":
-          - text: More
           - menuitem "Terms"
+          - menuitem "Point submissions"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
           - menuitem "Officers & access"

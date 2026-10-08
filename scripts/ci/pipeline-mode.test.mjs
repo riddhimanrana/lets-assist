@@ -88,7 +88,7 @@ describe("CI delivery modes", () => {
     const databaseTests = replay.indexOf(
       "Validate database tests on the same running isolated stack",
     );
-    const seed = replay.indexOf("Seed fictional platform and DV fixtures");
+    const seed = replay.indexOf("Seed fictional platform fixtures");
     expect(catalog).toBeGreaterThan(0);
     expect(databaseTests).toBeGreaterThan(catalog);
     expect(seed).toBeGreaterThan(databaseTests);
