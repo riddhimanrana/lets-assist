@@ -46,7 +46,7 @@ describe("CI delivery modes", () => {
       "utf8",
     );
     expect(release).toMatch(
-      /\n  csf-release-gates:\n(?:(?!\n  [\w-]+:)[\s\S])*uses: \.\/\.github\/workflows\/ci\.yml/u,
+      /\n {2}csf-release-gates:\n(?:(?!\n {2}[\w-]+:)[\s\S])*uses: \.\/\.github\/workflows\/ci\.yml/u,
     );
   });
 

@@ -8,7 +8,7 @@ The ordered path from a fresh clone to a running environment and a green gate. T
 | ------------ | ------------------- | ------------------------------------------------------------------------------ |
 | Node.js      | `24.21.0`           | `.node-version` (`package.json` accepts the Node 24 LTS line, `>=24.21.0 <25`) |
 | Bun          | `1.3.14`            | `packageManager` in `package.json`, and CI                                     |
-| Supabase CLI | `2.117.0`           | `scripts/local-dev/require-supabase-cli-version.sh`                            |
+| Supabase CLI | `2.120.0`           | `scripts/local-dev/require-supabase-cli-version.sh`                            |
 | Docker       | any current release | Required for every local database                                              |
 
 **Use Bun.** Not npm, not pnpm, not Yarn. CI installs Node explicitly before Bun so every `node`-backed script runs on the same runtime as hosted application code.

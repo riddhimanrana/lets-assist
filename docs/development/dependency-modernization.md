@@ -149,17 +149,17 @@ The dependency-series completion condition is met locally: no critical/high or u
 
 ## Brand and audit integration, October 7, 2026
 
-| Family           | Selected candidate  | Evidence and boundary                                                                                                                                                                          |
-| ---------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Next.js          | 16.4.0              | Host and CSF application use the same Next and ESLint family.                                                                                                                                  |
-| React            | 19.3.0              | React DOM and React typings match in both apps.                                                                                                                                                |
-| Tailwind CSS     | 4.3.3               | Current stable registry version; PostCSS plugin matches.                                                                                                                                       |
-| shadcn CLI       | 4.21.4              | Current stable CLI; existing branded components are preserved.                                                                                                                                 |
-| Node.js          | 24.21.0             | Current LTS patch, supported by Vercel. Both apps and CI select the 24.x line.                                                                                                                 |
-| Supabase clients | 2.117.3, SSR 0.12.7 | Host and CSF application share the updated client family.                                                                                                                                      |
-| Supabase CLI     | 2.117.0             | Retained exact Docker resource contract. Latest registry version 2.120.0 moved the legacy Docker ID source and changed config.go; that upgrade needs a new resource audit and isolated replay. |
-| PostgreSQL       | 17                  | Supabase-supported major retained. No hosted database upgrade was performed.                                                                                                                   |
-| Bun              | 1.3.14              | Repository and workflow pins retained for this candidate. Latest registry version 1.4.2 needs its own runner compatibility check.                                                              |
+| Family           | Selected candidate  | Evidence and boundary                                                                                                                                                                            |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Next.js          | 16.4.0              | Host and CSF application use the same Next and ESLint family.                                                                                                                                    |
+| React            | 19.3.0              | React DOM and React typings match in both apps.                                                                                                                                                  |
+| Tailwind CSS     | 4.3.3               | Current stable registry version; PostCSS plugin matches.                                                                                                                                         |
+| shadcn CLI       | 4.21.4              | Current stable CLI; existing branded components are preserved.                                                                                                                                   |
+| Node.js          | 24.21.0             | Current LTS patch, supported by Vercel. Both apps and CI select the 24.x line.                                                                                                                   |
+| Supabase clients | 2.117.3, SSR 0.12.7 | Host and CSF application share the updated client family.                                                                                                                                        |
+| Supabase CLI     | 2.120.0             | Exact Docker names were reviewed against tagged source. Launchers bind the project and network and disable inherited experimental backends and trace exporters. Fresh 717 replay is in progress. |
+| PostgreSQL       | 17                  | Supabase-supported major retained. No hosted database upgrade was performed.                                                                                                                     |
+| Bun              | 1.3.14              | Matching root and private pins retained. Bun 1.4.2 passes focused tooling checks, but its separate candidate needs the private app pin updated before package-graph gates can pass.              |
 
 The CSF application's independent lint, typecheck, tests, build and data-access
 gates pass under Node 24.21.0. Host typecheck and lint pass. Combined root tests,

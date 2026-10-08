@@ -39,7 +39,7 @@ and restarting the local stack.
 
 Gateway recovery is implemented by
 `scripts/local-dev/ensure-supabase-gateway.mjs`. It requires the pinned Supabase
-CLI `2.117.0`, accepts no hosted URL, logs no local key, and identifies the
+CLI `2.120.0`, accepts no hosted URL, logs no local key, and identifies the
 gateway by its exact project label plus published API port rather than a Kong or
 Envoy service name. `bun run supabase:refresh:kong` remains a compatibility
 alias for the same health-first check; it no longer performs or suppresses an
