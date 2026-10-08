@@ -231,7 +231,8 @@ export function SignupsTable({
                           "Unreject"
                         )}
                       </Button>
-                    ) : (
+                    ) : signup.status === "pending" ||
+                      signup.status === "approved" ? (
                       <Button
                         variant="destructive-ghost"
                         onClick={() => onReject(signup.id)}
@@ -246,7 +247,7 @@ export function SignupsTable({
                           "Reject"
                         )}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </TableCell>
               </TableRow>

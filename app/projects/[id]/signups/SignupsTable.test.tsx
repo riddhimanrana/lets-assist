@@ -40,4 +40,6 @@ test("organizers can render attended and cancelled sign-ups together", () => {
   expect(html).toContain("Cancelled");
   expect(html).toContain("Fictional volunteer 0");
   expect(html).toContain("Fictional volunteer 1");
+  expect(html).not.toContain(">Reject<");
+  expect(html).not.toContain(">Unreject<");
 });
