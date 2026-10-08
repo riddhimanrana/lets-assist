@@ -439,7 +439,10 @@ test("content rejection keeps the draft and a valid retry creates one project", 
       await route.continue();
     });
 
-    const create = page.getByRole("button", { name: "Create", exact: true });
+    const create = page.getByRole("button", {
+      name: "Create project",
+      exact: true,
+    });
     await create.click();
     await expect(
       page.getByText(

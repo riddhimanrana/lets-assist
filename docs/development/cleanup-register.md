@@ -1,5 +1,7 @@
 # Repository cleanup register
 
+P2, hours dialog readiness: the integrated browser gate observed an enabled self-reported-hours trigger that did not open its dialog after the first click. The trigger now stays disabled through server rendering until the client handler can run. Render regression tests pass; browser retest is pending. The correction is part of PR 867.
+
 Current consolidation and archival status is maintained in [the integration status](integration-status-20261007.md). Speech and Debate is archived reference code; older pause and release entries below are historical evidence.
 
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.

@@ -327,9 +327,8 @@ test.describe("DVHS CSF accessibility acceptance", () => {
 
     await switcher.click();
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
-      - menu:
+      - menu /Home .* change section/:
         - group "Workspace":
-          - text: Workspace
           - menuitem "Home"
           - menuitem "Classes"
           - menuitem "Applications"

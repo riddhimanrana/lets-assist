@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ export function AddVolunteerHoursModal({
   onAdd,
   trigger,
 }: AddVolunteerHoursModalProps) {
+  const hydrated = useHydrated();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<UnverifiedHoursData>({
@@ -240,6 +242,7 @@ export function AddVolunteerHoursModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger
+        disabled={!hydrated}
         render={
           (React.isValidElement(trigger)
             ? trigger

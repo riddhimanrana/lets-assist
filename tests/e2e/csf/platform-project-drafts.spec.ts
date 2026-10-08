@@ -219,6 +219,11 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
       documentNavigations.push(url);
   });
   await page
+    .getByRole("button", { name: /^Drafts(?: \d+)?$/ })
+    .filter({ visible: true })
+    .click();
+  const drafts = page.getByRole("dialog", { name: "My drafts", exact: true });
+  await drafts
     .getByRole("button", { name: "Save as new draft", exact: true })
     .click();
   await expect
@@ -227,6 +232,7 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
   const copyId = draftId(page);
   expect(copyId).toMatch(uuid);
   expect(new URL(page.url()).searchParams.get("creation")).toBe(creationId);
+  await drafts.getByRole("button", { name: "Close", exact: true }).click();
   const editedTitle = `${prefix} copied and edited`;
   await title.fill(editedTitle);
   await expect
