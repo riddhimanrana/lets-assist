@@ -17,7 +17,7 @@ function checked(error: unknown, operation: string) {
   if (error) throw new Error(`Fictional worker export ${operation} failed.`);
 }
 
-test("the real account snapshot worker produces a private 48-dataset archive that its owner can download", async ({
+test("the real account snapshot worker produces a private 49-dataset archive that its owner can download", async ({
   page,
 }, testInfo) => {
   const local = getCsfIsolatedSupabaseEnv();
