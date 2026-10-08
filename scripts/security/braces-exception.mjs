@@ -10,7 +10,7 @@ export const BRACES_EXCEPTION = Object.freeze({
   expiresAt: "2026-10-21T00:00:00.000Z",
   owner: "repository owner",
   graphHashes: {
-    ".": "c8ca6a265a2e859e0809606561ee182567c02cbcf41672a8143cc08ea4d43905",
+    ".": "afdf179e3d1938c4ef3ec455b8225fcfc1688f0d7e4f7a2db5e9b26838fa87df",
     "packages/plugin-sdk":
       "34f55231c04ea7e1af41fccf7e25b1b46cd454b24cb14c63adc5e3dda944e99b",
     "lib/plugins/private/apps/csf":
