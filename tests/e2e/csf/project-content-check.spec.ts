@@ -525,12 +525,12 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     expect(deniedInsert.data).toEqual([]);
 
     await page.goto("/projects", { waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "Created", exact: true }).click();
+    await page.getByRole("tab", { name: /^Created(?: \d+)?$/ }).click();
     await expect(
       page.getByRole("heading", { name: title, exact: true }),
     ).toBeVisible();
     const projectLink = page.locator(`a[href="/projects/${projectId}"]`);
-    await expect(projectLink).toHaveAccessibleName("View Project");
+    await expect(projectLink).toHaveAccessibleName(new RegExp(title));
     await projectLink.click();
     await page.waitForURL(`**/projects/${projectId}`, {
       waitUntil: "domcontentloaded",

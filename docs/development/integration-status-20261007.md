@@ -132,3 +132,29 @@ release.
 The owner clarified that Speech and Debate is reference code, not a hidden offering. The integration removes its runtime registration, current release selection and catalog controls. Normal CI seeds and tests CSF only. The private source path, signed release history and existing database records remain intact. Restoring the product requires a reviewed code integration, not a visibility toggle.
 
 Private [PR 647](https://github.com/riddhimanrana/lets-assist-plugins/pull/647) passed quality and security checks before merging into private Development. All 550 active private test files pass locally. CSF 1.2.87 and archived DV 2.0.3 source trees remain byte-identical to their previously integrated versions. No private main promotion or new tag was needed.
+
+## Integrated browser corrections
+
+The archived-plugin candidate replayed all 721 migrations and passed platform
+seeding, CSF workflows, scale checks and the cron network boundary. The initial
+browser run passed 144 tests, skipped four and failed 14. Most failures referred
+to labels or navigation markup replaced by the brand redesign. The hours-entry
+failure exposed a trigger that accepted clicks before its client handler was
+ready. It now remains disabled until hydration.
+
+Focused reruns pass account deletion, both calendar states, proof submission,
+login return, phone navigation, hours entry and all project-draft flows. The
+hours flow also verifies DST rejection and certificate creation. Project
+capacity and private review-field protection also pass. The paper-attendance
+journey reached publication, export, reconciliation and correction before
+finding a certificate server/client boundary error. The certificate link now
+imports its style function from the server-safe module. Its render regression,
+TypeScript and full attendance browser journey pass. The browser verifies
+guest certificate access, account linking, exactly one preserved award and
+corrected totals across split visits. The original failed receipts remain
+alongside the corrections. Each isolated stack is removed with an ownership
+check; the parent stack's resource identities remain unchanged.
+
+Short CI at `10f1f33f` found one remaining assertion that expected two registered
+plugins. The corrected contract requires exactly `dvhs-csf`; all ten embedded
+adapter tests pass. Final candidate CI remains pending.

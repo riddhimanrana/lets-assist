@@ -95,8 +95,7 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
       .filter({ visible: true });
     await search.fill(title);
     await expect(
-      page.getByRole("heading", {
-        name: "Couldn't load projects",
+      page.getByText("Couldn't load projects", {
         exact: true,
       }),
     ).toBeVisible();
@@ -131,8 +130,7 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
       card.getByText("795 spots left", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: "Couldn't load projects",
+      page.getByText("Couldn't load projects", {
         exact: true,
       }),
     ).toHaveCount(0);

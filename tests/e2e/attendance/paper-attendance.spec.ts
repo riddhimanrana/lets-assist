@@ -359,7 +359,9 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/projects/${projectId}/hours`);
     await expect(
-      page.getByRole("heading", { name: "Walk-in Fixture" }),
+      page.getByRole("row").filter({
+        has: page.getByText("Walk-in Fixture", { exact: true }),
+      }),
     ).toBeVisible();
     await page
       .getByRole("button", { name: /Review and publish 1 volunteers?/ })
@@ -820,18 +822,18 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         });
       await guestPage.goto(guestUrl);
       await guestPage
-        .getByRole("button", { name: "Link or Create Account", exact: true })
+        .getByRole("button", { name: "Link or create account", exact: true })
         .click();
       const linker = guestPage.getByRole("dialog");
       if (env.hosted) {
         await linker
-          .getByRole("button", { name: "Link to Current Account", exact: true })
+          .getByRole("button", { name: "Link to current account", exact: true })
           .click();
       } else {
         await linker.getByLabel("Email", { exact: true }).fill(walkinEmail);
         await linker.getByLabel("Password", { exact: true }).fill(password);
         await linker
-          .getByRole("button", { name: "Sign In & Link", exact: true })
+          .getByRole("button", { name: "Sign in & link", exact: true })
           .click();
       }
       await expect(guestPage).toHaveURL(/\/dashboard$/, { timeout: 120_000 });
@@ -865,7 +867,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       );
       await guestPage.goto(`${origin}/projects/${projectId}`);
       await expect(
-        guestPage.getByText("Volunteer Hours Published!", { exact: true }),
+        guestPage.getByText("Volunteer hours published!", { exact: true }),
       ).toBeVisible();
       const feedback = guestPage.getByRole("dialog", {
         name: "How did volunteering here go?",
@@ -877,7 +879,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         .click();
       await expect(feedback).not.toBeVisible();
       const volunteerTotal = guestPage
-        .getByText("Total Hours:", { exact: true })
+        .getByText("Total hours", { exact: true })
         .locator("..");
       await expect(volunteerTotal).toBeVisible();
       await expect(volunteerTotal).toContainText("2h 30m");
