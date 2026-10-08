@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
+# shellcheck source=require-supabase-cli-version.sh
+source "${ROOT_DIR}/scripts/local-dev/require-supabase-cli-version.sh"
 
 run_step() {
   local label="$1"
@@ -201,6 +203,9 @@ EOF
 }
 
 run_step "${APP_ENV_STEP_LABEL}" load_validated_app_environment
+SUPABASE_PROJECT_ID="$(node scripts/local-dev/supabase-project-id.mjs --workdir "${CSF_ISOLATED_WORK_DIR}")"
+export SUPABASE_PROJECT_ID
+export SUPABASE_NETWORK_ID=""
 run_step "${TARGET_STEP_LABEL}" node scripts/local-dev/dv-local-env.mjs --csf-health
 run_step "${PGTAP_STEP_LABEL}" supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 # The isolated seed script only. It carries PLATFORM_SEED_MODE=csf-isolated-v1,

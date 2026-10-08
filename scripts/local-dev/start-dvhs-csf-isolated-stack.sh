@@ -33,6 +33,8 @@ if [[ ! "${RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
   fail "CSF_ISOLATED_RUN_ID must contain only 1-16 letters, numbers, dots, underscores, or hyphens."
 fi
 PROJECT_ID="lets-assist-csf-browser-${RUN_ID}"
+export SUPABASE_PROJECT_ID="${PROJECT_ID}"
+export SUPABASE_NETWORK_ID=""
 WORK_DIR="${CSF_ISOLATED_WORK_DIR:-${TMPDIR:-/tmp}/${PROJECT_ID}}"
 # The preferred DVHS CSF recovery topology: app 3000, isolated Supabase base 55320
 # (API 55321, DB 55322, Studio 55323, Mailpit UI 55324, SMTP 55325, edge
@@ -205,7 +207,7 @@ port_bundle_is_available() {
   return 0
 }
 
-# One pinned, test-owned contract of exact names for Supabase CLI 2.117.0, typed
+# One pinned, test-owned contract of exact names for Supabase CLI 2.120.0, typed
 # by Docker resource kind and shared with the stop script. Exact names only:
 # `supabase_*_<project>` style globs both miss real CLI resources
 # (realtime-dev.supabase_realtime_<project>) and would accept an unexpected
@@ -800,9 +802,9 @@ write_marker starting
 
 START_ATTEMPTED=true
 run_supabase_start() {
-  # Analytics is disabled in the generated config above. Supabase CLI 2.117.0
+  # Analytics is disabled in the generated config above. Supabase CLI 2.120.0
   # no longer accepts the historical `analytics` name in --exclude.
-  supabase start --workdir "${WORK_DIR}" --yes
+  supabase start --workdir "${WORK_DIR}" --yes --network-id=
 }
 if ! run_supabase_start >"${START_LOG}" 2>&1; then
   fail "supabase start failed for isolated project ${PROJECT_ID}; see ${START_LOG}."

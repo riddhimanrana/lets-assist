@@ -17,6 +17,8 @@ if [[ ! "${RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
   exit 1
 fi
 PROJECT_ID="lets-assist-csf-replay-${RUN_ID}"
+export SUPABASE_PROJECT_ID="${PROJECT_ID}"
+export SUPABASE_NETWORK_ID=""
 BASE_PORT="${CSF_REPLAY_BASE_PORT:-$((55000 + ($$ % 700)))}"
 if [[ ! "${BASE_PORT}" =~ ^[0-9]+$ ]] || ((BASE_PORT < 1024 || BASE_PORT > 65526)); then
   echo "CSF_REPLAY_BASE_PORT must be an integer between 1024 and 65526." >&2
@@ -191,7 +193,7 @@ fs.writeFileSync(path, source);
 NODE
 
 echo "Starting isolated Supabase project ${PROJECT_ID} on database port $((BASE_PORT + 2))"
-supabase db start --workdir "$TMP_DIR" --yes
+supabase db start --workdir "$TMP_DIR" --yes --network-id=
 supabase test db --workdir "$TMP_DIR"
 
 DB_URL=$(supabase status --workdir "$TMP_DIR" -o env \

@@ -6,6 +6,11 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=local-dev/require-supabase-cli-version.sh
+source "${SCRIPT_DIR}/local-dev/require-supabase-cli-version.sh"
+require_supabase_cli_version
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -17,6 +22,12 @@ NC='\033[0m'
 LINKED=false
 if [[ "${1:-}" == "--linked" ]]; then
   LINKED=true
+fi
+if [[ "${LINKED}" == false ]]; then
+  SUPABASE_PROJECT_ID="$(node "${SCRIPT_DIR}/local-dev/supabase-project-id.mjs")"
+  export SUPABASE_PROJECT_ID
+  export SUPABASE_NETWORK_ID=""
+  unset SUPABASE_WORKDIR
 fi
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

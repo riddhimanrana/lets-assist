@@ -1,43 +1,33 @@
 /**
- * Pinned Supabase CLI v2.117.0 Docker resource oracle.
+ * Supabase CLI v2.120.0 legacy Docker resource oracle, transcribed from source.
+ * Keep this fixture independent of dv-local-env.mjs. The hermetic CLI creates
+ * resources from this list so implementation drift cannot change its oracle.
  *
- * This is a literal transcription of the resources the pinned CLI actually
- * creates. It is deliberately independent of
- * `scripts/local-dev/dv-local-env.mjs`: the implementation is asserted against
- * this file, and the hermetic fake CLI materializes its "observed" resources
- * from this file, so an implementation drift cannot be hidden by a fake that
- * drifted the same way.
+ * Verified source commit: 753520fa7202ed5f8b25883a4c0aa7e5e9ad1fc4.
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/command-internal/docker-ids.ts#L25-L93
+ * defines fourteen container names and the network. It retains the v2.117.0
+ * naming rule, supabase_<service>_<project>, after project-ID sanitization.
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/command-internal/db-bootstrap/container-lifecycle.ts#L665-L695
+ * sets com.supabase.cli.project and com.docker.compose.project on resources.
+ * Containers also carry com.supabase.cli.workdir. Volumes do not.
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/command-internal/db-bootstrap/postgres.service.ts#L312
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/commands/start/services/storage.service.ts#L193
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/command-internal/pgdelta.ts#L49-L51
+ * identify the database, storage, and edge runtime volumes.
+ * https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/commands/db/shared/migra.ts#L257-L303
+ * precreates the existing edge runtime cache with project labels.
  *
- * Provenance (verified against the tag, not inferred from local behaviour):
- * - `apps/cli-go/internal/utils/config.go` @ `v2.117.0` (byte-identical to
- *   `v2.111.0`) assigns the identifiers:
- *   NetId "supabase_network_", DbId "supabase_db_", KongId "supabase_kong_",
- *   GotrueId "supabase_auth_", InbucketId "supabase_inbucket_",
- *   RealtimeId "supabase_realtime_", RestId "supabase_rest_",
- *   StorageId "supabase_storage_", ImgProxyId "supabase_imgproxy_",
- *   DifferId "supabase_differ_", PgmetaId "supabase_pg_meta_",
- *   StudioId "supabase_studio_", EdgeRuntimeId "supabase_edge_runtime_",
- *   LogflareId "supabase_analytics_", VectorId "supabase_vector_",
- *   PoolerId "supabase_pooler_". Every identifier is `supabase_<name>_` +
- *   `Config.ProjectId` via GetId(); there is no `realtime-dev.` container form
- *   and no `storage_imgproxy_` container form at this tag.
- * - `supabase start` is served by the TypeScript shell at this tag; the Go
- *   `apps/cli-go/internal/start/start.go` used for `v2.111.0` no longer exists.
- *   `apps/cli/src/command-internal/legacy-docker-ids.ts` @ `v2.117.0` ports
- *   GetId unchanged: the same thirteen service containers plus `db`, and the
- *   `network`, all named `supabase_<service>_<project id>`.
- * - `apps/cli-go/internal/utils/docker.go` @ `v2.117.0` and the TypeScript
- *   port both label resources with `com.supabase.cli.project`.
- * - The distributed `v2.117.0` CLI creates named volumes for database, storage,
- *   and edge runtime state. The launcher verifies the observed names and project
- *   labels before recording ownership.
+ * The downloaded Darwin ARM64 release archive matched both checksums.txt and
+ * the GitHub release asset digest, SHA-256:
+ * 3b8546cc61aeabab6fd1f68edc7f664ebdfa96bdd6a9b18d8d612708f430ae28.
+ * Source verification does not claim a completed runtime acceptance run.
  *
- * DifferId exists as a constant but the tagged implementation does not create a
- * persistent named differ container, and migra / pg_prove / test helpers run
- * without stable container names. A constant alone is not a cleanup target.
+ * SUPABASE_EXPERIMENTAL_STACK=0 is mandatory. Managed-stack names and volumes
+ * are outside this oracle. DifferId exists as a constant but does not establish
+ * a persistent container; migra, pg_prove, and test helpers have no stable names.
  */
 
-export const PINNED_SUPABASE_CLI_VERSION = "2.117.0";
+export const PINNED_SUPABASE_CLI_VERSION = "2.120.0";
 
 export const PINNED_SUPABASE_CLI_RESOURCE_PREFIXES = {
   container: [
