@@ -117,7 +117,8 @@ describe("compact organization navigation on phones", () => {
     for (const coreTab of ["overview", "members", "projects", "reports"]) {
       expect(navigationSource).not.toContain(`value="${coreTab}"`);
     }
-    expect(navigationSource).toContain('variant="line"');
+    // The organization workspace uses the segmented switch, not line tabs.
+    expect(navigationSource).not.toContain('variant="line"');
   });
 
   test("retires the competing mobile overflow strip", () => {

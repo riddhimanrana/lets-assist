@@ -152,12 +152,15 @@ describe("decorative brand surfaces", () => {
     });
   }
 
-  test("the organization page no longer paints a backdrop wash", () => {
+  test("the organization backdrop wash is decorative and uses --brand, never --primary", () => {
     const source = readFileSync(
       join(repoRoot, "app/organization/[id]/page.tsx"),
       "utf8",
     );
-    expect(source).not.toMatch(/bg-linear-to|from-brand/u);
+    expect(source).toMatch(/bg-linear-to-br/u);
+    expect(source).toMatch(/from-brand\/15/u);
+    expect(source).toContain('aria-hidden="true"');
+    expect(source).not.toMatch(/from-primary|via-primary/u);
   });
 
   test("the verified badge stays on --primary because it reports state", () => {

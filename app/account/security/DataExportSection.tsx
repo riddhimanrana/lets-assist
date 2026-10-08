@@ -221,6 +221,7 @@ export default function DataExportSection() {
         <div className="flex flex-wrap gap-3">
           <Button
             type="button"
+            variant="outline"
             onClick={requestExport}
             disabled={loading || requesting || active}
           >

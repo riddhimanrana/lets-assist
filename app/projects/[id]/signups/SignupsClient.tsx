@@ -413,7 +413,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     signups.filter((signup) => signup.status === status).length;
 
   return (
-    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+    <div className="container mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-6">
       <WaiverPreviewDialog
         open={previewOpen}
         onOpenChange={setPreviewOpen}
@@ -536,7 +536,7 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
           </Empty>
         ) : (
           slotEntries.map(([slot, slotSignups]) => (
-            <div key={slot} className="grid gap-2">
+            <div key={slot} className="grid grid-cols-[minmax(0,1fr)] gap-2">
               <h2 className="text-sm font-medium">
                 {project && formatScheduleSlot(project, slot)}{" "}
                 <span className="text-muted-foreground font-normal tabular-nums">

@@ -1,12 +1,8 @@
 import React from "react";
 import { Metadata } from "next";
-import Link from "next/link";
 
-import { ArrowRightIcon } from "@/components/icons/animated";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
-import { buttonVariants } from "@/components/ui/button-variants";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 
 import UserProjects from "./UserProjects";
@@ -41,24 +37,7 @@ export default async function ProjectsPage() {
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6">
       <PageHeader
         title="Volunteer projects"
-        description="Browse available volunteer opportunities. Sign up to create projects of your own."
-        actions={
-          <>
-            <Link
-              href="/login"
-              className={buttonVariants({ variant: "outline" })}
-            >
-              Log in
-            </Link>
-            <AnimatedLinkButton
-              href="/signup"
-              icon={ArrowRightIcon}
-              iconPosition="inline-end"
-            >
-              Sign up
-            </AnimatedLinkButton>
-          </>
-        }
+        description="Browse available volunteer opportunities. Sign up to join one or to run your own."
         className="mb-6"
       />
       <ProjectsInfiniteScroll />

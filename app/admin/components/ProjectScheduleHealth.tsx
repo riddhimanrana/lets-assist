@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 import {
   scheduleMaintenanceState,
   type ProjectScheduleHealthResult,
@@ -12,8 +14,9 @@ export function ProjectScheduleHealth({
   const health = result.data;
   const state = health ? scheduleMaintenanceState(health) : "unavailable";
   return (
-    <section
-      className="rounded-2xl border bg-card/80 p-4 sm:p-6"
+    <Card
+      role="region"
+      className="gap-0 p-4 sm:p-6"
       aria-labelledby="schedule-health-title"
     >
       <h2 id="schedule-health-title" className="text-lg font-semibold">
@@ -27,16 +30,20 @@ export function ProjectScheduleHealth({
               : `${health.invalid_count} published projects need schedule correction before their status can advance.`}
           </p>
           {state === "no_run" && (
-            <p className="mt-2 text-sm text-destructive">
-              Status maintenance has no recorded run. A zero correction count
-              does not confirm that the worker is running.
-            </p>
+            <Alert variant="warning" className="mt-3">
+              <AlertDescription>
+                Status maintenance has no recorded run. A zero correction count
+                does not confirm that the worker is running.
+              </AlertDescription>
+            </Alert>
           )}
           {state === "stale" && (
-            <p className="mt-2 text-sm text-destructive">
-              Status maintenance has not reported within 15 minutes. Check the
-              scheduled job.
-            </p>
+            <Alert variant="warning" className="mt-3">
+              <AlertDescription>
+                Status maintenance has not reported within 15 minutes. Check the
+                scheduled job.
+              </AlertDescription>
+            </Alert>
           )}
           {health.last_run && (
             <p className="mt-2 text-sm text-muted-foreground">
@@ -81,8 +88,10 @@ export function ProjectScheduleHealth({
           )}
         </>
       ) : (
-        <p className="mt-2 text-sm text-destructive">{result.error}</p>
+        <Alert variant="destructive" className="mt-3">
+          <AlertDescription>{result.error}</AlertDescription>
+        </Alert>
       )}
-    </section>
+    </Card>
   );
 }

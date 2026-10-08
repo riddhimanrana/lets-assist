@@ -475,60 +475,85 @@ export default async function OrganizationPage({
   }
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full flex-col px-4 pb-8 sm:px-6",
-        // A plugin workspace keeps its wider canvas so its dense tables do not
-        // re-wrap; every other organization uses the shared profile width.
-        navOverrides.compactHeader
-          ? "max-w-7xl gap-4 pt-4 sm:pt-5"
-          : "max-w-6xl gap-6 pt-6 sm:pt-8",
-      )}
-    >
-      {previewSource === "remote" && (
-        <Alert variant="warning">
-          <AlertDescription>
-            Remote preview mode is active (read-only). Member and org data shown
-            here comes from remote, but all edits still apply to local data.
-          </AlertDescription>
-        </Alert>
-      )}
-      <OrganizationHeader
-        organization={organizationForDisplay}
-        userRole={userRole}
-        memberCount={memberCount}
-        showMemberCount={!navOverrides.hideMemberCount}
-        showInviteAction={!navOverrides.hideInviteAction}
-        showProjectAction={!navOverrides.hideProjectAction}
-        showMembersLink={
-          availableEmbeddedTabs.includes("members") &&
-          !navOverrides.coreTabReplacements?.members
-        }
-        compact={navOverrides.compactHeader}
+    <div className="relative flex w-full flex-col">
+      {/*
+        Decorative wash behind the organization identity. It carries the brand
+        green rather than the AA-tuned --primary, and fades into the page.
+      */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "from-brand/15 via-brand/5 to-background/0 before:to-background pointer-events-none absolute inset-x-0 top-0 bg-linear-to-br before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:content-['']",
+          navOverrides.compactHeader ? "min-h-40" : "min-h-72",
+        )}
       />
-
-      {setupChecklist?.shouldShow && (
-        <OrganizationSetupChecklist
-          organizationId={organization.id}
-          checklist={setupChecklist}
+      <div
+        className={cn(
+          "relative z-10 mx-auto flex w-full flex-col px-4 pb-8 sm:px-6",
+          // A plugin workspace keeps its wider canvas so its dense tables do not
+          // re-wrap; every other organization uses the shared profile width.
+          navOverrides.compactHeader
+            ? "max-w-7xl gap-4 pt-4 sm:pt-5"
+            : "max-w-6xl gap-6 pt-6 sm:pt-8",
+        )}
+      >
+        {previewSource === "remote" && (
+          <Alert variant="warning">
+            <AlertDescription>
+              Remote preview mode is active (read-only). Member and org data
+              shown here comes from remote, but all edits still apply to local
+              data.
+            </AlertDescription>
+          </Alert>
+        )}
+        <OrganizationHeader
+          organization={organizationForDisplay}
+          userRole={userRole}
+          memberCount={memberCount}
+          showMemberCount={!navOverrides.hideMemberCount}
+          showInviteAction={!navOverrides.hideInviteAction}
+          showProjectAction={!navOverrides.hideProjectAction}
+          showMembersLink={
+            availableEmbeddedTabs.includes("members") &&
+            !navOverrides.coreTabReplacements?.members
+          }
+          compact={navOverrides.compactHeader}
         />
-      )}
 
-      <OrganizationTabs
-        organization={organizationForDisplay}
-        members={formattedMembers}
-        projects={projects || []}
-        userRole={userRole}
-        currentUserId={effectiveUserId}
-        reportSummary={reportSummary}
-        organizationSlug={organizationForDisplay.username}
-        organizationCreatedLabel={organizationCreatedLabel}
-        canViewMembers={canViewMembers}
-        pluginOverviewExtensions={visiblePluginOverviewExtensions}
-        pluginTabs={activePluginTabs}
-        pluginRouteTabs={pluginRouteTabs}
-        pluginNavigationOverrides={navOverrides}
-      />
+        {setupChecklist?.shouldShow && (
+          <OrganizationSetupChecklist
+            organizationId={organization.id}
+            checklist={setupChecklist}
+          />
+        )}
+
+        {/*
+        The workspace sheet: the tab bar and the active tab share one surface,
+        so switching tabs reads as changing panes of the same organization.
+      */}
+        <div
+          className={cn(
+            "bg-card rounded-xl border shadow-(--card-shadow)",
+            navOverrides.compactHeader ? "p-3 sm:p-4" : "p-4 sm:p-6",
+          )}
+        >
+          <OrganizationTabs
+            organization={organizationForDisplay}
+            members={formattedMembers}
+            projects={projects || []}
+            userRole={userRole}
+            currentUserId={effectiveUserId}
+            reportSummary={reportSummary}
+            organizationSlug={organizationForDisplay.username}
+            organizationCreatedLabel={organizationCreatedLabel}
+            canViewMembers={canViewMembers}
+            pluginOverviewExtensions={visiblePluginOverviewExtensions}
+            pluginTabs={activePluginTabs}
+            pluginRouteTabs={pluginRouteTabs}
+            pluginNavigationOverrides={navOverrides}
+          />
+        </div>
+      </div>
     </div>
   );
 }
