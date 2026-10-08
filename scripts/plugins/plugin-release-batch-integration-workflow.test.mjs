@@ -154,7 +154,12 @@ if (args[0] === 'auth' && args[1] === 'setup-git') process.exit(0);
 if (args[0] !== 'api') process.exit(90);
 if (args.includes('--paginate')) { process.stdout.write(fs.readFileSync(process.env.TEST_OPEN)); process.exit(0); }
 const pr = JSON.parse(fs.readFileSync(process.env.TEST_PR));
-if (fs.existsSync(process.env.TEST_PUSHED)) pr.head.sha = cp.execFileSync(process.env.TEST_GIT, ['--git-dir',process.env.TEST_REMOTE,'rev-parse','refs/heads/'+process.env.GITHUB_REF_NAME],{encoding:'utf8'}).trim();
+if (fs.existsSync(process.env.TEST_PUSHED)) {
+  const count = Number(fs.readFileSync(process.env.TEST_PUSHED, 'utf8'));
+  fs.writeFileSync(process.env.TEST_PUSHED, String(count + 1));
+  if (count > Number(process.env.TEST_STALE_READS ?? 0)) pr.head.sha = cp.execFileSync(process.env.TEST_GIT, ['--git-dir',process.env.TEST_REMOTE,'rev-parse','refs/heads/'+process.env.GITHUB_REF_NAME],{encoding:'utf8'}).trim();
+  if (process.env.TEST_POST_PUSH_HEAD) pr.head.sha = process.env.TEST_POST_PUSH_HEAD;
+}
 process.stdout.write(JSON.stringify(pr));
 `,
   );
@@ -305,6 +310,34 @@ test("the valid authority proof permits only the exact descendant result on the 
     !f
       .called()
       .some((args) => args[0] === "gh" && ["pr", "release"].includes(args[1])),
+  );
+});
+
+test("post-push verification waits for a stale PR head without publishing twice", (t) => {
+  const f = authorityFixture(t);
+  const result = run(names.publish, f.work, {
+    ...f.env,
+    TEST_STALE_READS: "1",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(f.remoteHead(), f.result);
+  assert.equal(
+    f.called().filter((args) => args[0] === "git" && args[1] === "push").length,
+    1,
+  );
+});
+
+test("post-push verification refuses a competing PR head", (t) => {
+  const f = authorityFixture(t);
+  const result = run(names.publish, f.work, {
+    ...f.env,
+    TEST_POST_PUSH_HEAD: f.forward,
+  });
+  assert.notEqual(result.status, 0);
+  assert.equal(f.remoteHead(), f.result);
+  assert.equal(
+    f.called().filter((args) => args[0] === "git" && args[1] === "push").length,
+    1,
   );
 });
 

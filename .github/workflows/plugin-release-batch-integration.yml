@@ -275,10 +275,24 @@ jobs:
           gh auth setup-git
           git push --force-with-lease="refs/heads/$GITHUB_REF_NAME:$CANDIDATE_SHA" \
             https://github.com/riddhimanrana/lets-assist.git "$RESULT_SHA:refs/heads/$GITHUB_REF_NAME"
-          pr="$(gh api "/repos/$ROOT_REPOSITORY/pulls/$EXISTING_PR_NUMBER")"
-          jq -e --argjson number "$EXISTING_PR_NUMBER" --arg repository "$ROOT_REPOSITORY" \
-            --arg branch "$GITHUB_REF_NAME" --arg result "$RESULT_SHA" \
-            '.number == $number and .state == "open" and .merged == false
-             and .head.repo.full_name == $repository and .base.repo.full_name == $repository
-             and .head.ref == $branch and .head.sha == $result and .base.ref == "development"' \
-            <<<"$pr" >/dev/null
+          # The branch write can become visible before the pull-request read model.
+          # Retry only the original candidate; never accept a competing result.
+          for attempt in 1 2 3 4 5; do
+            pr="$(gh api "/repos/$ROOT_REPOSITORY/pulls/$EXISTING_PR_NUMBER")"
+            jq -e --argjson number "$EXISTING_PR_NUMBER" --arg repository "$ROOT_REPOSITORY" \
+              --arg branch "$GITHUB_REF_NAME" --arg development "$development_sha" \
+              '.number == $number and .state == "open" and .merged == false
+               and .head.repo.full_name == $repository and .base.repo.full_name == $repository
+               and .head.ref == $branch and .base.ref == "development" and .base.sha == $development' \
+              <<<"$pr" >/dev/null
+            observed_sha="$(jq -er '.head.sha' <<<"$pr")"
+            remote_sha="$(git ls-remote https://github.com/riddhimanrana/lets-assist.git "refs/heads/$GITHUB_REF_NAME" | cut -f1)"
+            test "$remote_sha" = "$RESULT_SHA"
+            if [[ "$observed_sha" == "$RESULT_SHA" ]]; then
+              exit 0
+            fi
+            test "$observed_sha" = "$CANDIDATE_SHA"
+            if [[ "$attempt" != 5 ]]; then sleep 2; fi
+          done
+          echo 'The push succeeded, but the pull-request head did not converge. Inspect the result before retrying.' >&2
+          exit 1

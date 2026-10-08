@@ -1446,4 +1446,6 @@ export const migrationDigests = {
     "b72f60fe9c28f7847f33d44758935f9e28f790167c1e2dd6311f9375a4e895bd",
   "20261009070000_pause_speech_debate_offering.sql":
     "6ab3b35219ada95ed223a4a37aa5bae6ffeddfb58b26c11a93983d8b0044a30b",
+  "20261009070001_publish_private_plugin_batch.sql":
+    "bc73b0911d4566b65109b1e1f74ba2459e755737a8ddce38e57457ab41cd584e",
 };
