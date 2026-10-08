@@ -78,6 +78,12 @@ jobs:
       - name: Validate exact private plugin gitlink
         run: bun run plugin:submodules:check:strict
 
+      - name: Install source audit tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ripgrep
+          rg --version
+
       - name: Audit agent and tool configuration
         run: bun run agent:check
 
