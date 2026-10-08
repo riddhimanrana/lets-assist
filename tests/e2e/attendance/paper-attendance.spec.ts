@@ -213,7 +213,10 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     );
     await page.goto(`/projects/${projectId}/hours`);
     await expect(
-      page.getByRole("heading", { name: "Volunteer hours", exact: true }),
+      page.getByRole("heading", {
+        name: "Manage volunteer hours",
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(page).toHaveTitle(/Volunteer hours/);
     console.info("Attendance acceptance: authenticated hours page loaded");

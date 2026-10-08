@@ -433,7 +433,7 @@ test.describe("DVHS CSF proof submission", () => {
         .filter({ has: page.getByText(description, { exact: true }) });
       await expect(submission).toBeVisible();
       await expect(
-        submission.getByText("Submitted", { exact: true }),
+        submission.getByText("Under review", { exact: true }),
       ).toBeVisible();
 
       const savedSubmission = await loadSyntheticSubmission(
@@ -441,6 +441,7 @@ test.describe("DVHS CSF proof submission", () => {
         description,
       );
       expect(savedSubmission).not.toBeNull();
+      expect(savedSubmission!.status).toBe("submitted");
       const { data: proofs, error: proofError } = await fixture.admin
         .schema("plugin_data")
         .from("csf_submission_files")
