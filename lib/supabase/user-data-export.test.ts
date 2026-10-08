@@ -143,3 +143,53 @@ test("fails instead of truncating a dataset beyond the declared bound", async ()
     }),
   ).rejects.toThrow();
 });
+
+test("archive includes rating context and canonical attendance records", async () => {
+  const value = snapshot();
+  value.datasets.feedback = [
+    {
+      rating: 5,
+      purpose: "platform_experience",
+      context_kind: "volunteer_hours",
+      context_id: userId,
+      feedback: "",
+    },
+  ];
+  value.datasets.certificates = [
+    {
+      id: "award",
+      signup_id: "signup",
+      credited_minutes: 150,
+      attendance_revision: 2,
+    },
+  ];
+  value.datasets.attendanceIntervals = [
+    {
+      signup_id: "signup",
+      check_in_time: "2020-09-18T09:00:00Z",
+      check_out_time: "2020-09-18T10:30:00Z",
+    },
+    {
+      signup_id: "signup",
+      check_in_time: "2020-09-18T12:00:00Z",
+      check_out_time: "2020-09-18T13:00:00Z",
+    },
+  ];
+  for (const [key, rows] of Object.entries(value.datasets))
+    value.counts[key] = rows.length;
+  value.totalRecords = 4;
+  const archive = await createUserDataExportArchive(userId, undefined, {
+    readSnapshot: async () => value,
+  });
+  const zip = await JSZip.loadAsync(archive.zipBuffer);
+  for (const [path, key] of [
+    ["trust-safety-and-feedback/feedback.json", "feedback"],
+    ["certificates-and-hours/certificates.json", "certificates"],
+    ["certificates-and-hours/attendanceIntervals.json", "attendanceIntervals"],
+  ]) {
+    expect(JSON.parse(await zip.file(path)!.async("string"))).toEqual(
+      value.datasets[key],
+    );
+  }
+  expect(archive.manifest.totalRecords).toBe(4);
+});

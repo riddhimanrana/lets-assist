@@ -60,8 +60,11 @@ It identified narrow-screen DV navigation, and the fix is ece31d6. Later automat
 reviews identified the runtime checklist and three partner attendance defects;
 those fixes are 5a76115 and 6c271f0. This proves that the integration reviewed
 updates to this private PR. Direct settings readback and review of the final head
-remain separate checks. Root PR 867 remains a draft pending complete integration,
-so automatic review of its final candidate is still unverified.
+remain separate checks. Root PR 867 automatically started a Codex review for
+`d6abe1d` when the draft became ready on October 7. The completed review found
+two account export omissions. Forward migration `20261009060000` includes rating
+context and canonical attendance, with 35 database assertions and 11 archive
+unit tests passing. Review of subsequent candidate updates remains pending.
 Do not add a privileged `pull_request_target` job that executes candidate code
 or a second API-key workflow to claim the native integration is configured.
 

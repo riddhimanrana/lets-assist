@@ -23,6 +23,7 @@ const CATEGORIES = {
   "certificates-and-hours": [
     "certificates",
     "projectSignups",
+    "attendanceIntervals",
     "waiverSignatures",
     "anonymousSignupsLinked",
   ],

@@ -26,15 +26,23 @@ INSERT INTO public.notifications(user_id,title,body,type)
 VALUES('fa800000-0000-4000-8000-000000000002','Other account private marker','Other record','info');
 INSERT INTO public.project_drafts(user_id,title,draft_data)
 VALUES('fa800000-0000-4000-8000-000000000001','Owned synthetic draft','{"title":"Owned draft"}');
+INSERT INTO public.feedback(user_id,section,email,title,feedback,rating,purpose,context_kind,context_id)
+VALUES ('fa800000-0000-4000-8000-000000000001','other','export-one@local.test','Platform experience','',5,'platform_experience','volunteer_hours','fa800000-0000-4000-8000-000000000001'),
+ ('fa800000-0000-4000-8000-000000000002','other','export-two@local.test','Other rating private marker','',1,'platform_experience','volunteer_hours','fa800000-0000-4000-8000-000000000002');
 CREATE TEMP TABLE export_snapshot AS SELECT public.account_data_export_snapshot('fa800000-0000-4000-8000-000000000001') value;
 SELECT extensions.is((SELECT jsonb_array_length(value->'datasets'->'notifications') FROM export_snapshot),1205,'more than 1000 records survive the projection');
 SELECT extensions.is((SELECT (value->'counts'->>'notifications')::integer FROM export_snapshot),1205,'manifest count agrees with projected rows');
-SELECT extensions.is((SELECT count(*)::integer FROM export_snapshot, jsonb_object_keys(value->'datasets')),48,'all declared datasets are present even when empty');
+SELECT extensions.is((SELECT count(*)::integer FROM export_snapshot, jsonb_object_keys(value->'datasets')),49,'all declared datasets are present even when empty');
 SELECT extensions.is((SELECT jsonb_array_length(value->'datasets'->'csfProfile') FROM export_snapshot),1,'only a verified profile link establishes CSF ownership');
 SELECT extensions.is((SELECT value->'datasets'->'csfProfile'->0->>'first_name' FROM export_snapshot),'Owned','email equality does not export pending or unlinked profiles');
 SELECT extensions.is((SELECT jsonb_array_length(value->'datasets'->'dvStudents') FROM export_snapshot),1,'DV ownership uses the canonical user UUID');
 SELECT extensions.is((SELECT jsonb_array_length(value->'datasets'->'projectDrafts') FROM export_snapshot),1,'saved project drafts are included');
 SELECT extensions.ok((SELECT value::text NOT LIKE '%private-marker%' AND value::text NOT LIKE '%Other account private marker%' AND value::text NOT LIKE '%Other DV private marker%' FROM export_snapshot),'Auth metadata, source material, staff notes, and other-account rows stay out');
+SELECT extensions.is((SELECT jsonb_array_length(value->'datasets'->'feedback') FROM export_snapshot),1,'feedback export includes only the account owner');
+SELECT extensions.is((SELECT value->'datasets'->'feedback'->0->>'rating' FROM export_snapshot),'5','a commentless rating remains meaningful in the export');
+SELECT extensions.is((SELECT value->'datasets'->'feedback'->0->>'purpose' FROM export_snapshot),'platform_experience','rating purpose is included');
+SELECT extensions.is((SELECT value->'datasets'->'feedback'->0->>'context_kind' FROM export_snapshot),'volunteer_hours','rating context kind is included');
+SELECT extensions.is((SELECT value->'datasets'->'feedback'->0->>'context_id' FROM export_snapshot),'fa800000-0000-4000-8000-000000000001','rating context identity is included');
 UPDATE plugin_data.csf_profile_accounts SET status='revoked' WHERE profile_id='fa820000-0000-4000-8000-000000000001';
 SELECT extensions.is(jsonb_array_length(public.account_data_export_snapshot('fa800000-0000-4000-8000-000000000001')->'datasets'->'csfProfile'),0,'a revoked link does not export former linked profile data');
 INSERT INTO public.notifications(user_id,title,body,type)

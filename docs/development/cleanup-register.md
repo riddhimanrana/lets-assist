@@ -2764,6 +2764,10 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Account export integration review, October 7
+
+ACCOUNT-EXPORT-RATING-20261007 and ACCOUNT-EXPORT-ATTENDANCE-20261007, P2: root PR 867's automatic Codex review found that the earlier export projection omitted platform rating context and canonical attendance. Forward migration `20261009060000` includes rating fields, certificate minutes and revisions, signup revisions, and a separately bounded interval dataset joined through exact account ownership. It preserves service-only execution, private audit exclusion, legacy null values and whole-export refusal on limits. All 35 database assertions, 11 archive unit tests and 79 catalog/cutover tests pass. The measured 717 catalog changes only the export function. Hosted verification remains pending.
+
 ### Integrated database regression, October 7
 
 CSF-RESTORE-ANNOUNCEMENT-20261007, P2: the new partner attendance wrapper replaced the existing restoration-specific email guard. The integrated database test reproduced acceptance of an invalid announcement request. Forward migration `20261009050000` restores explicit refusal and returns the restoration receipt before email intent capture, retaining the project-first lock order and actor authorization. Expanded SQL coverage checks true and null email choices, unchanged activity state and the absence of a success receipt. All 23 restoration assertions pass on the clean 716 replay, and 76 catalog/cutover tests pass. No hosted change has been made.

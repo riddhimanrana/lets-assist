@@ -116,7 +116,7 @@ test("the real account snapshot worker produces a private 48-dataset archive tha
       ready: true,
       delivery: "skipped",
       mailAttempts: 1,
-      datasets: 48,
+      datasets: 49,
     });
     expect(readFileSync(ledger, "utf8")).toBe("");
     const saved = await admin
@@ -131,7 +131,7 @@ test("the real account snapshot worker produces a private 48-dataset archive tha
     expect(saved.data).toMatchObject({
       status: "completed",
       delivery_status: "skipped",
-      datasets_count: 48,
+      datasets_count: 49,
     });
     await page
       .getByRole("button", { name: "Refresh status", exact: true })
@@ -160,7 +160,7 @@ test("the real account snapshot worker produces a private 48-dataset archive tha
     );
     expect(manifest).toMatchObject({
       userId,
-      totalDatasets: 48,
+      totalDatasets: 49,
       sanitized: true,
       totalRecords: saved.data!.record_count,
     });

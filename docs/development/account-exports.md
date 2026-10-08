@@ -14,10 +14,16 @@ matching an email address or name does not grant export access.
 ## Snapshot and scope
 
 `account_data_export_snapshot` runs as one stable database statement, including
-its Auth projection. Its 48 datasets use explicit columns. CSF records require
+its Auth projection. Its 49 datasets use explicit columns. CSF records require
 a verified account link in the same organization; DV student records require
 the canonical user UUID. Legacy authenticated submissions and memberships have
 separate datasets. Revoked and pending CSF links do not expose profile records.
+
+Feedback includes submitted ratings and their context. Certificates include canonical
+credited minutes and attendance revision. The attendance intervals dataset joins
+only the account's own signups, with its own row and byte limits. Legacy awards
+keep null canonical minutes until reviewed; the export does not invent a value
+from their outer timestamps.
 
 A preflight counts projected rows and their serialized byte sizes in that same
 snapshot before JSON aggregation. Limits are 10,000 rows per dataset, 100,000

@@ -1442,4 +1442,6 @@ export const migrationDigests = {
     "fff696c593622e0fe5b7ae843cc56111aa841460cd5c0c77cedf289f74c75bed",
   "20261009050000_preserve_csf_activity_restore_email_guard.sql":
     "2b5cfbce90ea2007046c7f8b16aee0bccd37d2c944c22792a5a91cddd1d2ca7a",
+  "20261009060000_account_export_ratings_attendance.sql":
+    "b72f60fe9c28f7847f33d44758935f9e28f790167c1e2dd6311f9375a4e895bd",
 };
