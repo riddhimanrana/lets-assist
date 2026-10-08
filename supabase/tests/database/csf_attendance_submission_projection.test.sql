@@ -8,6 +8,22 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SELECT extensions.plan(72);
 
+-- Keep event months and clock times together in an ended calendar year.
+-- These fixtures use August through October daylight time in Los Angeles.
+CREATE FUNCTION pg_temp.ended_attendance_fixture(p_text text)
+RETURNS text
+LANGUAGE sql STABLE STRICT
+SET search_path = ''
+AS $$
+  SELECT pg_catalog.replace(
+    p_text, '2041-',
+    (extract(year FROM CURRENT_DATE)::integer - 1)::text || '-'
+  )
+$$;
+REVOKE ALL ON FUNCTION pg_temp.ended_attendance_fixture(text)
+  FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.ended_attendance_fixture(text) TO postgres;
+
 -- ---------------------------------------------------------------------------
 -- Privileges
 -- ---------------------------------------------------------------------------
@@ -173,17 +189,17 @@ INSERT INTO public.projects (
 ) VALUES
   ('a7500000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000005', 'a7100000-0000-4000-8000-000000000002',
    'Partner Beach Cleanup', 'Coast', 'Fictional partner event', 'oneTime', 'manual',
-   '{"oneTime":{"date":"2041-09-20","startTime":"09:00","endTime":"12:00","volunteers":40}}', true, 'public', 'America/Los_Angeles'),
+   pg_temp.ended_attendance_fixture('{"oneTime":{"date":"2041-09-20","startTime":"09:00","endTime":"12:00","volunteers":40}}')::jsonb, true, 'public', 'America/Los_Angeles'),
   ('a7500000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000005', 'a7100000-0000-4000-8000-000000000002',
    'Partner Food Bank Shifts', 'Warehouse', 'Fictional partner shifts', 'multiDay', 'manual',
-   '{"multiDay":[{"date":"2041-10-04","slots":[{"startTime":"09:00","endTime":"11:00","volunteers":10},{"startTime":"11:00","endTime":"13:00","volunteers":10}]}]}',
+   pg_temp.ended_attendance_fixture('{"multiDay":[{"date":"2041-10-04","slots":[{"startTime":"09:00","endTime":"11:00","volunteers":10},{"startTime":"11:00","endTime":"13:00","volunteers":10}]}]}')::jsonb,
    true, 'public', 'America/Los_Angeles'),
   ('a7500000-0000-4000-8000-000000000003', 'a7000000-0000-4000-8000-000000000005', 'a7100000-0000-4000-8000-000000000002',
    'Partner Library Day', 'Library', 'Fictional earlier event', 'oneTime', 'manual',
-   '{"oneTime":{"date":"2041-08-30","startTime":"10:00","endTime":"12:00","volunteers":10}}', true, 'public', 'America/Los_Angeles'),
+   pg_temp.ended_attendance_fixture('{"oneTime":{"date":"2041-08-30","startTime":"10:00","endTime":"12:00","volunteers":10}}')::jsonb, true, 'public', 'America/Los_Angeles'),
   ('a7500000-0000-4000-8000-000000000004', 'a7000000-0000-4000-8000-000000000005', 'a7100000-0000-4000-8000-000000000002',
    'Partner Staff Retreat', 'Office', 'Organization-only event', 'oneTime', 'manual',
-   '{"oneTime":{"date":"2041-09-21","startTime":"09:00","endTime":"10:00","volunteers":5}}', true, 'organization_only', 'America/Los_Angeles');
+   pg_temp.ended_attendance_fixture('{"oneTime":{"date":"2041-09-21","startTime":"09:00","endTime":"10:00","volunteers":5}}')::jsonb, true, 'organization_only', 'America/Los_Angeles');
 
 INSERT INTO public.project_signups (id, project_id, user_id, anonymous_id, schedule_id, status)
 VALUES
@@ -191,8 +207,8 @@ VALUES
   ('a7600000-0000-4000-8000-000000000002', 'a7500000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000003', NULL, 'oneTime', 'approved'),
   ('a7600000-0000-4000-8000-000000000003', 'a7500000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000004', NULL, 'oneTime', 'approved'),
   ('a7600000-0000-4000-8000-000000000004', 'a7500000-0000-4000-8000-000000000001', 'a7000000-0000-4000-8000-000000000009', NULL, 'oneTime', 'approved'),
-  ('a7600000-0000-4000-8000-000000000011', 'a7500000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000007', NULL, '2041-10-04-0', 'approved'),
-  ('a7600000-0000-4000-8000-000000000012', 'a7500000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000007', NULL, '2041-10-04-1', 'approved'),
+  ('a7600000-0000-4000-8000-000000000011', 'a7500000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000007', NULL, pg_temp.ended_attendance_fixture('2041-10-04-0'), 'approved'),
+  ('a7600000-0000-4000-8000-000000000012', 'a7500000-0000-4000-8000-000000000002', 'a7000000-0000-4000-8000-000000000007', NULL, pg_temp.ended_attendance_fixture('2041-10-04-1'), 'approved'),
   ('a7600000-0000-4000-8000-000000000021', 'a7500000-0000-4000-8000-000000000003', 'a7000000-0000-4000-8000-000000000003', NULL, 'oneTime', 'approved');
 
 -- Activities: fixed points on the beach cleanup (and a later duplicate link),
@@ -213,9 +229,9 @@ INSERT INTO plugin_data.csf_opportunities (
   ('a7700000-0000-4000-8000-000000000003', 'a7100000-0000-4000-8000-000000000001', 'a7200000-0000-4000-8000-000000000001', NULL,
    'Food bank shifts', 'Partner shifts', 'published', 'lets_assist_project', 'a7500000-0000-4000-8000-000000000002',
    '/projects/a7500000-0000-4000-8000-000000000002', 0, 'non_drive', true, 'required',
-   '{"version":1,"mode":"shifts","shiftPolicy":{"allowMultiple":true,"combinedMaxPoints":4},"components":[
+   pg_temp.ended_attendance_fixture('{"version":1,"mode":"shifts","shiftPolicy":{"allowMultiple":true,"combinedMaxPoints":4},"components":[
      {"key":"morning","label":"Morning shift","category":"non_drive","kind":"shift","points":2,"startsAt":"2041-10-04T16:00:00Z","endsAt":"2041-10-04T18:00:00Z"},
-     {"key":"midday","label":"Midday shift","category":"non_drive","kind":"shift","points":2,"startsAt":"2041-10-04T18:00:00Z","endsAt":"2041-10-04T20:00:00Z"}]}'::jsonb,
+     {"key":"midday","label":"Midday shift","category":"non_drive","kind":"shift","points":2,"startsAt":"2041-10-04T18:00:00Z","endsAt":"2041-10-04T20:00:00Z"}]}')::jsonb,
    NULL, now(), 'a7000000-0000-4000-8000-000000000001', now()),
   ('a7700000-0000-4000-8000-000000000004', 'a7100000-0000-4000-8000-000000000001', 'a7200000-0000-4000-8000-000000000001', NULL,
    'Library day', 'Partner library', 'published', 'lets_assist_project', 'a7500000-0000-4000-8000-000000000003',
@@ -252,7 +268,7 @@ SELECT extensions.is(
 -- Before enabling, publication creates nothing.
 SELECT public.publish_volunteer_hours_transactional(
   'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000003', 'oneTime',
-  '[{"signupId":"a7600000-0000-4000-8000-000000000021","checkIn":"2041-08-30T17:00:00Z","checkOut":"2041-08-30T19:00:00Z"}]'::jsonb,
+  pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000021","checkIn":"2041-08-30T17:00:00Z","checkOut":"2041-08-30T19:00:00Z"}]')::jsonb,
   'hours-publication:v1:3333333333333333333333333333333333333333333333333333333333333333'
 );
 SELECT extensions.is(
@@ -287,7 +303,7 @@ SELECT extensions.is(
 );
 SELECT extensions.ok(
   (SELECT source = 'attendance' AND status = 'submitted' AND submitted_by IS NULL AND claimed_points = 1
-     AND suggested_points = 1 AND activity_date = '2041-08-30'
+     AND suggested_points = 1 AND activity_date = pg_temp.ended_attendance_fixture('2041-08-30')::date
    FROM plugin_data.csf_point_submissions WHERE opportunity_id = 'a7700000-0000-4000-8000-000000000004'),
   'the backfilled claim is a pending system submission with rule-calculated points'
 );
@@ -326,10 +342,10 @@ SELECT 'enable-shifts', plugin_data.csf_set_activity_attendance_submissions(
 INSERT INTO attendance_results
 SELECT 'publish-beach', public.publish_volunteer_hours_transactional(
   'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000001', 'oneTime',
-  '[{"signupId":"a7600000-0000-4000-8000-000000000001","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
+  pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000001","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
     {"signupId":"a7600000-0000-4000-8000-000000000002","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T18:00:00Z"},
     {"signupId":"a7600000-0000-4000-8000-000000000003","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
-    {"signupId":"a7600000-0000-4000-8000-000000000004","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"}]'::jsonb,
+    {"signupId":"a7600000-0000-4000-8000-000000000004","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"}]')::jsonb,
   'hours-publication:v1:1111111111111111111111111111111111111111111111111111111111111111'
 );
 SELECT extensions.is(
@@ -380,10 +396,10 @@ SELECT extensions.is(
 SELECT extensions.is(
   public.publish_volunteer_hours_transactional(
     'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000001', 'oneTime',
-    '[{"signupId":"a7600000-0000-4000-8000-000000000001","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
+    pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000001","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
       {"signupId":"a7600000-0000-4000-8000-000000000002","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T18:00:00Z"},
       {"signupId":"a7600000-0000-4000-8000-000000000003","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"},
-      {"signupId":"a7600000-0000-4000-8000-000000000004","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"}]'::jsonb,
+      {"signupId":"a7600000-0000-4000-8000-000000000004","checkIn":"2041-09-20T16:00:00Z","checkOut":"2041-09-20T19:00:00Z"}]')::jsonb,
     'hours-publication:v1:1111111111111111111111111111111111111111111111111111111111111111'
   ) ->> 'outcome',
   'replayed',
@@ -423,7 +439,7 @@ SELECT extensions.throws_ok(
   $$SELECT plugin_data.csf_begin_point_submission_request_v2(
     'a7100000-0000-4000-8000-000000000001', 'a7400000-0000-4000-8000-000000000002',
     'a7200000-0000-4000-8000-000000000001', 'a7700000-0000-4000-8000-000000000001', NULL,
-    'student', 'Beach cleanup', 2, 'non_drive', '2041-09-20',
+    'student', 'Beach cleanup', 2, 'non_drive', pg_temp.ended_attendance_fixture('2041-09-20')::date,
     'a7000000-0000-4000-8000-000000000002', 'proof.pdf', 'application/pdf', 1000,
     repeat('a', 64), 'a7900000-0000-4000-8000-000000000008', NULL)$$,
   '23505', NULL,
@@ -522,8 +538,8 @@ SELECT extensions.is(
 -- ---------------------------------------------------------------------------
 
 SELECT public.publish_volunteer_hours_transactional(
-  'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000002', '2041-10-04-0',
-  '[{"signupId":"a7600000-0000-4000-8000-000000000011","checkIn":"2041-10-04T16:00:00Z","checkOut":"2041-10-04T18:00:00Z"}]'::jsonb,
+  'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000002', pg_temp.ended_attendance_fixture('2041-10-04-0'),
+  pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000011","checkIn":"2041-10-04T16:00:00Z","checkOut":"2041-10-04T18:00:00Z"}]')::jsonb,
   'hours-publication:v1:4444444444444444444444444444444444444444444444444444444444444444'
 );
 SELECT extensions.ok(
@@ -533,8 +549,8 @@ SELECT extensions.ok(
   'the first slot maps to the morning shift by its scheduled window'
 );
 SELECT public.publish_volunteer_hours_transactional(
-  'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000002', '2041-10-04-1',
-  '[{"signupId":"a7600000-0000-4000-8000-000000000012","checkIn":"2041-10-04T18:05:00Z","checkOut":"2041-10-04T19:55:00Z"}]'::jsonb,
+  'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000002', pg_temp.ended_attendance_fixture('2041-10-04-1'),
+  pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000012","checkIn":"2041-10-04T18:05:00Z","checkOut":"2041-10-04T19:55:00Z"}]')::jsonb,
   'hours-publication:v1:5555555555555555555555555555555555555555555555555555555555555555'
 );
 SELECT extensions.is(
@@ -567,7 +583,7 @@ INSERT INTO public.anonymous_signups (id, project_id, email, name, confirmed_at)
 VALUES ('a7800000-0000-4000-8000-000000000001', 'a7500000-0000-4000-8000-000000000002', 'guest-shift@local.test', 'Fixture Guest', now());
 INSERT INTO public.project_signups (id, project_id, user_id, anonymous_id, schedule_id, status, check_in_time, check_out_time)
 VALUES ('a7600000-0000-4000-8000-000000000013', 'a7500000-0000-4000-8000-000000000002', NULL,
-  'a7800000-0000-4000-8000-000000000001', '2041-10-04-0', 'attended', '2041-10-04T16:00:00Z', '2041-10-04T18:00:00Z');
+  'a7800000-0000-4000-8000-000000000001', pg_temp.ended_attendance_fixture('2041-10-04-0'), 'attended', pg_temp.ended_attendance_fixture('2041-10-04T16:00:00Z')::timestamptz, pg_temp.ended_attendance_fixture('2041-10-04T18:00:00Z')::timestamptz);
 SELECT extensions.is(
   (SELECT count(*)::integer FROM public.certificates WHERE signup_id = 'a7600000-0000-4000-8000-000000000013' AND user_id IS NULL),
   1,
@@ -598,7 +614,7 @@ SELECT extensions.is(
 
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status, check_in_time, check_out_time, source)
 VALUES ('a7600000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000001',
-  'a7000000-0000-4000-8000-000000000007', 'oneTime', 'attended', '2041-09-20T16:30:00Z', '2041-09-20T18:30:00Z', 'digital');
+  'a7000000-0000-4000-8000-000000000007', 'oneTime', 'attended', pg_temp.ended_attendance_fixture('2041-09-20T16:30:00Z')::timestamptz, pg_temp.ended_attendance_fixture('2041-09-20T18:30:00Z')::timestamptz, 'digital');
 SELECT extensions.ok(
   (SELECT source = 'attendance' AND status = 'submitted' AND claimed_points = 2
    FROM plugin_data.csf_point_submissions
@@ -617,11 +633,11 @@ INSERT INTO attendance_results
 SELECT 'manual-begin', plugin_data.csf_begin_point_submission_request_v2(
   'a7100000-0000-4000-8000-000000000001', 'a7400000-0000-4000-8000-000000000002',
   'a7200000-0000-4000-8000-000000000001', 'a7700000-0000-4000-8000-000000000004', NULL,
-  'student', 'I sorted books', 1, 'non_drive', '2041-08-30',
+  'student', 'I sorted books', 1, 'non_drive', pg_temp.ended_attendance_fixture('2041-08-30')::date,
   'a7000000-0000-4000-8000-000000000002', 'proof.pdf', 'application/pdf', 1000,
   repeat('b', 64), 'a7900000-0000-4000-8000-000000000012', NULL);
 UPDATE public.project_signups
-SET status = 'attended', check_in_time = '2041-08-30T17:00:00Z', check_out_time = '2041-08-30T19:00:00Z'
+SET status = 'attended', check_in_time = pg_temp.ended_attendance_fixture('2041-08-30T17:00:00Z')::timestamptz, check_out_time = pg_temp.ended_attendance_fixture('2041-08-30T19:00:00Z')::timestamptz
 WHERE id = 'a7600000-0000-4000-8000-000000000022';
 SELECT extensions.ok(
   (SELECT s.source = 'student' AND s.description = 'I sorted books'
@@ -728,7 +744,7 @@ INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status
 VALUES ('a7600000-0000-4000-8000-000000000031', 'a7500000-0000-4000-8000-000000000004', 'a7000000-0000-4000-8000-000000000002', 'oneTime', 'approved');
 SELECT public.publish_volunteer_hours_transactional(
   'a7000000-0000-4000-8000-000000000005', 'a7500000-0000-4000-8000-000000000004', 'oneTime',
-  '[{"signupId":"a7600000-0000-4000-8000-000000000031","checkIn":"2041-09-21T16:00:00Z","checkOut":"2041-09-21T17:00:00Z"}]'::jsonb,
+  pg_temp.ended_attendance_fixture('[{"signupId":"a7600000-0000-4000-8000-000000000031","checkIn":"2041-09-21T16:00:00Z","checkOut":"2041-09-21T17:00:00Z"}]')::jsonb,
   'hours-publication:v1:6666666666666666666666666666666666666666666666666666666666666666'
 );
 SELECT extensions.is(
@@ -812,14 +828,14 @@ SELECT extensions.is(
 
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
 VALUES ('a7600000-0000-4000-8000-000000000041', 'a7500000-0000-4000-8000-000000000002',
-  'a7000000-0000-4000-8000-000000000003', '2041-10-04-1', 'approved');
+  'a7000000-0000-4000-8000-000000000003', pg_temp.ended_attendance_fixture('2041-10-04-1'), 'approved');
 UPDATE plugin_data.csf_profile_accounts SET status = 'verified', revoked_at = NULL
 WHERE organization_id = 'a7100000-0000-4000-8000-000000000001' AND user_id = 'a7000000-0000-4000-8000-000000000003';
 ALTER TABLE plugin_data.csf_point_submissions
   ADD CONSTRAINT attendance_fixture_forced_failure CHECK (source <> 'attendance' OR claimed_points > 99) NOT VALID;
 SELECT extensions.lives_ok(
   $$UPDATE public.project_signups
-    SET status = 'attended', check_in_time = '2041-10-04T18:00:00Z', check_out_time = '2041-10-04T20:00:00Z'
+    SET status = 'attended', check_in_time = pg_temp.ended_attendance_fixture('2041-10-04T18:00:00Z')::timestamptz, check_out_time = pg_temp.ended_attendance_fixture('2041-10-04T20:00:00Z')::timestamptz
     WHERE id = 'a7600000-0000-4000-8000-000000000041'$$,
   'a CSF projection failure never fails the host late-attendance write'
 );
