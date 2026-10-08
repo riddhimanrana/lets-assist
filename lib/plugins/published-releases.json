@@ -1,35 +1,5 @@
 [
   {
-    "pluginKey": "dv-speech-debate",
-    "version": "2.0.3",
-    "manifestFile": "plugins/dv-speech-debate/plugin.tsx",
-    "manifestHash": "c01b1846be90ed60dfc8a862063a0e10d19507b403738998acc8369be151b203",
-    "sourceCommit": "d100831bd2fe3374715de20510d9ae2a77dcfba8",
-    "automaticUpdate": false,
-    "rolloutPercentage": 0,
-    "runtimeProfile": "embedded",
-    "sourceTree": "c04f8a0dc45e4820aee4847afb32defdd7646fc3",
-    "contentDigest": "sha256:4494a5ffe6131dcc474ec9d64db5832754dbca5b2fdb61ded711a5c8f93c1395",
-    "releaseInputs": ["plugins/dv-speech-debate"],
-    "buildDigest": null,
-    "buildArtifact": null,
-    "sbomDigest": "sha256:ccb135724d41b41db0a067642536806134088fbdde881968bd81f18f6e364a45",
-    "signer": {
-      "identity": "https://github.com/riddhimanrana/lets-assist-plugins/.github/workflows/plugin-release.yml@refs/tags/dv-speech-debate/v2.0.3",
-      "issuer": "https://token.actions.githubusercontent.com",
-      "attestationRef": "github-release:dv-speech-debate/v2.0.3/release-manifest.sigstore.json"
-    },
-    "hostApiRange": {
-      "minimum": "1.0.0"
-    },
-    "pluginDataSchemaVersion": 1,
-    "requiredPlatformSchemaVersion": "20261008020000",
-    "supportedInstallContracts": {
-      "minimum": "2.0.0",
-      "maximum": "2.0.3"
-    }
-  },
-  {
     "pluginKey": "dvhs-csf",
     "version": "1.2.32",
     "manifestFile": "apps/csf/lib/manifest.ts",

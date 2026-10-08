@@ -33,6 +33,8 @@ export default tseslint.config(
       // Application-profile plugins own a locked package toolchain and run the
       // required gates through plugin:apps:check.
       "lib/plugins/private/apps/**",
+      // Archived reference code is outside the active product.
+      "lib/plugins/private/plugins/dv-speech-debate/**",
     ],
   },
   js.configs.recommended,

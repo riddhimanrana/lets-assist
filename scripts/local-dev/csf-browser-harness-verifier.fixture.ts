@@ -63,7 +63,7 @@ export function runVerifier(
           PINNED_SUPABASE_CLI_RESOURCE_PREFIXES.network.join(" "),
         CSF_ISOLATED_CLAIM_ROOT: sandbox.claimRoot,
         CSF_ISOLATED_TEST_CLAIM_ROOT: "hermetic-test",
-        DV_LOCAL_TEST_PASSWORD: "fake-run-scoped-password",
+        CSF_LOCAL_TEST_PASSWORD: "fake-run-scoped-password",
         ...overrides,
       },
       stdout: "pipe",

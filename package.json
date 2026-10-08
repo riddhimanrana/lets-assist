@@ -10,7 +10,7 @@
     "build": "bun run security:seeds && node scripts/verify-deployment-environment.mjs && node scripts/sync-private-submodules.mjs && node scripts/check-private-submodules.mjs --strict && next build",
     "postbuild": "next-sitemap",
     "start": "next start",
-    "supabase": "bun run supabase:start && bun run supabase:reset && bun run supabase:gateway:health && bun run supabase:seed:local-dev && bun run dv:dev:health",
+    "supabase": "bun run supabase:start && bun run supabase:reset && bun run supabase:gateway:health && bun run supabase:seed:local-dev && bun run local:env:health",
     "supabase:start": "bash scripts/local-dev/run-supabase-cli.sh start",
     "supabase:stop": "bash scripts/local-dev/run-supabase-cli.sh stop",
     "supabase:status": "bash scripts/local-dev/run-supabase-cli.sh status",
@@ -87,7 +87,8 @@
     "lint": "bun run source:check:organization && eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "email:dev": "email dev",
-    "test:affected": "node scripts/ci/run-affected-unit-tests.mjs"
+    "test:affected": "node scripts/ci/run-affected-unit-tests.mjs",
+    "local:env:health": "node scripts/local-dev/dv-local-env.mjs --health"
   },
   "packageManager": "bun@1.4.2",
   "engines": {

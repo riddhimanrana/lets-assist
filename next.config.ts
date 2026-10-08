@@ -73,7 +73,6 @@ const nextConfig: NextConfig = {
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
   serverExternalPackages: ["pdfjs-dist"],
-  transpilePackages: ["la-plugin-dv-speech-debate"],
 
   webpack(config) {
     config.resolve.alias = {
@@ -94,6 +93,8 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
+    // Isolated probes prohibit startup network calls. CI audits dependencies separately.
+    agentUpgrade: requestedDistDir ? false : "security",
     serverActions: {
       bodySizeLimit: "15mb",
     },

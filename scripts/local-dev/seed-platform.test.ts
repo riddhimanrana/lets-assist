@@ -80,6 +80,20 @@ test("post fixtures preserve manual drafts after scheduling retirement", () => {
 });
 
 describe("local platform seed authorization", () => {
+  test("platform fixtures grant installs only for active plugins", () => {
+    const shared = buildSeedFixtureSets(false);
+    const csf = buildSeedFixtureSets(true);
+    expect(shared.seededActivePluginKeys).toEqual([]);
+    expect(csf.seededActivePluginKeys).toEqual(["dvhs-csf"]);
+    for (const fixtures of [shared, csf]) {
+      expect(fixtures.seededPluginKeys).toContain("dv-speech-debate");
+      expect(fixtures.seededActivePluginKeys).not.toContain("dv-speech-debate");
+    }
+    expect(seedSource).toContain(
+      "for (const pluginKey of seededActivePluginKeys)",
+    );
+  });
+
   test("shared and CSF platform fixtures preserve the paused Speech and Debate offering", () => {
     expect(localOnlySeed).toMatch(
       /'dv-speech-debate',[\s\S]*?'private',\s*false,/u,
@@ -914,12 +928,13 @@ describe("seed modes have the footprint they claim", () => {
       "organizations",
       "organization_members",
       "plugins",
-      "organization_plugin_entitlements",
-      "organization_plugin_installs",
       "projects",
     ]) {
       expect(tables, table).toContain(table);
     }
+
+    expect(tables).not.toContain("organization_plugin_entitlements");
+    expect(tables).not.toContain("organization_plugin_installs");
 
     expect(run.stdout).toContain(
       "shared local, non-CSF only: no DVHS CSF record was created, replaced, or deleted",
@@ -1002,13 +1017,28 @@ describe("seed modes have the footprint they claim", () => {
       "anonymous_signups",
       "project_signups",
     ]);
+    const pluginAccessTables = new Set([
+      "organization_plugin_entitlements",
+      "organization_plugin_installs",
+    ]);
+    for (const table of pluginAccessTables) {
+      expect(shared.entries.filter((entry) => entry.table === table)).toEqual(
+        [],
+      );
+      expect(
+        isolated.entries.filter(
+          (entry) => entry.table === table && entry.op === "upsert",
+        ),
+      ).toHaveLength(1);
+    }
     const nonCsfTables = (entries: LedgerEntry[]) =>
       entries
         .filter(
           (entry) =>
             entry.schema === "public" &&
             entry.table &&
-            !csfLinkedProjectTables.has(entry.table),
+            !csfLinkedProjectTables.has(entry.table) &&
+            !pluginAccessTables.has(entry.table),
         )
         .map((entry) => `${entry.op}:${entry.table}`);
 

@@ -271,7 +271,15 @@ export function buildSeedFixtureSets(seedsDvhsCsf) {
   const seededPluginCatalogRows = pluginCatalogRows.filter((row) =>
     seededPluginKeys.includes(row.key),
   );
-  return { seededAccounts, seededPluginKeys, seededPluginCatalogRows };
+  const seededActivePluginKeys = seededPluginCatalogRows
+    .filter((plugin) => plugin.is_active)
+    .map((plugin) => plugin.key);
+  return {
+    seededAccounts,
+    seededPluginKeys,
+    seededPluginCatalogRows,
+    seededActivePluginKeys,
+  };
 }
 
 export function preserveMigratedPluginVersions(seedRows, migratedRows) {

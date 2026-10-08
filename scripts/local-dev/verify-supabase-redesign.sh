@@ -17,9 +17,7 @@ run_step() {
   "$@"
 }
 
-: "${DV_LOCAL_TEST_PASSWORD:?Set DV_LOCAL_TEST_PASSWORD to a run-scoped fixture password}"
-export DV_LOCAL_TEST_PASSWORD
-: "${CSF_LOCAL_TEST_PASSWORD:=${DV_LOCAL_TEST_PASSWORD}}"
+: "${CSF_LOCAL_TEST_PASSWORD:?Set CSF_LOCAL_TEST_PASSWORD to a run-scoped fixture password}"
 export CSF_LOCAL_TEST_PASSWORD
 
 # ---------------------------------------------------------------------------
@@ -214,7 +212,6 @@ run_step "${PGTAP_STEP_LABEL}" supabase test db --workdir "${CSF_ISOLATED_WORK_D
 # local, non-CSF only, so neither script can touch the shared 54321 stack's CSF
 # tables from here.
 run_step "Seed Fictional Platform Fixtures (isolated mode, deterministic synthetic DVHS CSF records)" bun run csf:seed:platform:isolated
-run_step "Seed Fictional DV Fixtures (JavaScript-managed records)" bun run dv:fixtures
 run_step "${WORKFLOW_STEP_LABEL}" bun run csf:test:workflows
 run_step \
   "Supabase Advisors" \

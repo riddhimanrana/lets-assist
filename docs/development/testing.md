@@ -1,5 +1,7 @@
 # Testing and acceptance
 
+Speech and Debate is archived reference code. Its explicit legacy commands remain for historical reproduction, but normal setup, unit discovery, database workflow fixtures and browser gates do not run it. Historical SQL regression tests still protect retained data.
+
 Use the narrowest focused regression first, then expand to the appropriate gate. Mock-sensitive Bun suites run in separate processes because `mock.module` state is global to a process.
 
 ## Delivery stages

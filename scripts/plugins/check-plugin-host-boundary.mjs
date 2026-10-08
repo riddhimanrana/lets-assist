@@ -58,6 +58,8 @@ function collectByPlugin() {
   const byPlugin = new Map();
 
   for (const pluginKey of readdirSync(pluginsRoot).sort()) {
+    // Retained reference code is not compiled into the host.
+    if (pluginKey === "dv-speech-debate") continue;
     const pluginDirectory = join(pluginsRoot, pluginKey);
     if (!statSync(pluginDirectory).isDirectory()) continue;
 

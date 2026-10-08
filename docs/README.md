@@ -24,8 +24,6 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Data and authorization boundaries](architecture/data.md)
 - [AI key architecture](architecture/ai-keys.md)
 - [Supabase redesign audit](architecture/supabase-redesign-audit.md)
-- [DV Speech & Debate system](architecture/dv-speech-debate.md)
-- [DV Speech & Debate status](architecture/dv-speech-debate-status.md)
 
 ## Development
 
@@ -75,3 +73,6 @@ This directory is the canonical documentation home for humans and coding agents.
 Archived documents are historical design context, not current operating instructions. Any still-actionable item must also appear in the cleanup register.
 
 - [CSF review workspace design, 2026-08-02](archive/csf-review-workspace-design-20260802.md)
+
+- [Archived Speech and Debate system](architecture/dv-speech-debate.md)
+- [Archived Speech and Debate status](architecture/dv-speech-debate-status.md)

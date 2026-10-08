@@ -27,7 +27,6 @@ bun install --frozen-lockfile
 bun run plugin:submodules:init
 bun run plugin:submodules:check:strict
 export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"
-export DV_LOCAL_TEST_PASSWORD="$CSF_LOCAL_TEST_PASSWORD"
 bun run supabase
 bun run dev:next
 ```

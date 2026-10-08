@@ -377,15 +377,14 @@ describe("pinned Supabase CLI helper", () => {
     // shared 54321 stack and then reset-upsert its CSF tables.
     expect(source).not.toContain("bun run supabase:seed:local-dev");
     const platformSeed = source.indexOf("bun run csf:seed:platform:isolated");
-    const dvSeed = source.indexOf("bun run dv:fixtures");
+    expect(source).not.toContain("bun run dv:fixtures");
     const workflows = source.indexOf('run_step "${WORKFLOW_STEP_LABEL}"');
 
     expect(load).toBeGreaterThan(-1);
     expect(liveIdentity).toBeGreaterThan(load);
     expect(pgTap).toBeGreaterThan(liveIdentity);
     expect(platformSeed).toBeGreaterThan(pgTap);
-    expect(dvSeed).toBeGreaterThan(platformSeed);
-    expect(workflows).toBeGreaterThan(dvSeed);
+    expect(workflows).toBeGreaterThan(platformSeed);
   });
 
   test("verifier teardown failure is never swallowed", async () => {

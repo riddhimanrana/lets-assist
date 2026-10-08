@@ -162,12 +162,10 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     const pluginInstall = job.indexOf(
       "run: bun run plugin:apps:check -- --install-only",
     );
-    const dvBrowser = job.indexOf("run: bun run dv:test:e2e");
     const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
 
     expect(rootInstall).toBeGreaterThan(-1);
     expect(pluginInstall).toBeGreaterThan(rootInstall);
-    expect(pluginInstall).toBeLessThan(dvBrowser);
     expect(pluginInstall).toBeLessThan(csfBrowser);
     expect(
       job.match(/bun run plugin:apps:check -- --install-only/gu)?.length,
@@ -194,22 +192,18 @@ describe("CI db-replay-validation uses the recovery topology and isolated seed",
     expect(job.match(/bun run csf:test:import:scale/gu)?.length).toBe(1);
   });
 
-  test("both isolated production browser builds skip only their redundant typecheck", () => {
+  test("the CSF browser build skips only its redundant typecheck", () => {
     const job = dbReplayJob();
-    const dvStep = job.slice(
-      job.indexOf("- name: Validate DV browser workflows"),
-      job.indexOf("- name: Skip private DV browser workflows"),
-    );
     const csfStep = job.slice(
       job.indexOf("- name: Validate CSF browser workflows"),
       job.indexOf("- name: Verify isolated Supabase remains healthy"),
     );
 
-    for (const step of [dvStep, csfStep]) {
+    for (const step of [csfStep]) {
       expect(step).toContain('CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"');
     }
     expect(job.match(/CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"/gu)?.length).toBe(
-      2,
+      1,
     );
   });
 });
@@ -375,7 +369,7 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
 describe("CI replays the twelve-route cron smoke in the right order", () => {
   test("dev:test:cron runs after seeding and before Playwright", () => {
     const job = dbReplayJob();
-    const seed = job.indexOf("- name: Seed fictional platform and DV fixtures");
+    const seed = job.indexOf("- name: Seed fictional platform fixtures");
     const cron = job.indexOf("run: bun run dev:test:cron");
     const playwrightInstall = job.indexOf(
       "- name: Install Playwright Chromium",

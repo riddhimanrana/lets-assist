@@ -10,12 +10,12 @@ Choose the environment before running commands. The shared local and isolated CS
 
 CI installs the declared Node runtime explicitly before Bun so every `node`-backed script uses the same supported runtime as hosted application code.
 
-| Environment         | Purpose                                    | Start                                       | Data                                         | Production impact                       |
-| ------------------- | ------------------------------------------ | ------------------------------------------- | -------------------------------------------- | --------------------------------------- |
-| Shared local        | Platform and non-CSF work                  | `bun run supabase`, then `bun run dev:next` | Deterministic fictional platform/DV fixtures | None                                    |
-| Isolated CSF local  | CSF development and acceptance             | `bun run dev`                               | Namespaced fictional CSF fixture             | None                                    |
-| Development preview | Hosted integration proof for `development` | CI/Vercel/Supabase workflow                 | Development-only resources                   | None when correctly scoped              |
-| Production          | Live product                               | Release from `main`                         | Live data                                    | Explicit release authorization required |
+| Environment         | Purpose                                    | Start                                       | Data                                      | Production impact                       |
+| ------------------- | ------------------------------------------ | ------------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| Shared local        | Platform and non-CSF work                  | `bun run supabase`, then `bun run dev:next` | Deterministic fictional platform fixtures | None                                    |
+| Isolated CSF local  | CSF development and acceptance             | `bun run dev`                               | Namespaced fictional CSF fixture          | None                                    |
+| Development preview | Hosted integration proof for `development` | CI/Vercel/Supabase workflow                 | Development-only resources                | None when correctly scoped              |
+| Production          | Live product                               | Release from `main`                         | Live data                                 | Explicit release authorization required |
 
 ## Shared local
 

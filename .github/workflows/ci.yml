@@ -358,7 +358,7 @@ jobs:
       - name: Validate volunteer-hours lock concurrency
         run: bun run db:test:hours-concurrency
 
-      - name: Seed fictional platform and DV fixtures
+      - name: Seed fictional platform fixtures
         run: |
           # JavaScript-managed fictional records only. The migration and SQL-seed
           # replay already happened when the launcher created its new volume.
@@ -368,15 +368,8 @@ jobs:
           # shared-local script must never appear in this job: it would select
           # the shared 54321 stack and then reset-upsert its CSF tables.
           bun run csf:seed:platform:isolated
-          bun run dv:fixtures
         env:
-          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
           CSF_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-CsfTest!
-
-      - name: Validate DV fixtures and RLS
-        run: bun run dv:test:db
-        env:
-          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
 
       - name: Validate CSF database workflows
         run: bun run csf:test:workflows
@@ -409,20 +402,6 @@ jobs:
 
       - name: Validate attendance match option refresh
         run: bun scripts/local-dev/test-csf-attendance-match-options.ts
-
-      - name: Validate DV browser workflows
-        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') != '' }}
-        run: bun run dv:test:e2e
-        env:
-          DV_LOCAL_TEST_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-DvTest!
-          # Standalone typecheck and the full quality build already passed on
-          # this SHA. Keep the second isolated browser build compile-only while
-          # its Supabase stack is resident, matching the CSF browser step.
-          CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"
-
-      - name: Skip private DV browser workflows
-        if: ${{ hashFiles('lib/plugins/private/plugins/dv-speech-debate/plugin.tsx') == '' }}
-        run: echo "Private DV plugin submodule unavailable; skipping private DV browser workflows."
 
       - name: Validate CSF browser workflows
         run: bun run csf:test:e2e

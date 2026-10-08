@@ -1,5 +1,7 @@
 # DV Speech and Debate status
 
+> Archived reference. Speech and Debate is no longer registered or offered by the app. The implementation and database history remain for reference; the instructions below describe its former operation.
+
 Development is on hold as of October 7, 2026. The private source, migration
 history, and existing organization data are retained. The catalog pause removes
 the plugin from marketplace offerings and prevents new installation through the

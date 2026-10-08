@@ -188,7 +188,8 @@ describe("db-replay-validation CI job contract", () => {
     expect(job.match(/supabase test db --workdir/gu)?.length).toBe(1);
     expect(job.match(/bun run csf:seed:platform:isolated/gu)?.length).toBe(1);
     expect(job).not.toContain("bun run supabase:seed:local-dev");
-    expect(job.match(/bun run dv:fixtures/gu)?.length).toBe(1);
+    expect(job).not.toContain("bun run dv:fixtures");
+    expect(job).not.toContain("bun run dv:test:");
   });
 
   test("loads the app environment through the exact-byte loader, never by sourcing it", () => {
@@ -232,7 +233,7 @@ describe("db-replay-validation CI job contract", () => {
     expect(job).not.toContain("- name: Validate DB reset replay");
     expect(job).toContain("- name: Validate volunteer-hours lock concurrency");
     expect(job).toContain("run: bun run db:test:hours-concurrency");
-    expect(job).toContain("- name: Seed fictional platform and DV fixtures");
+    expect(job).toContain("- name: Seed fictional platform fixtures");
     expect(job).toContain("- name: Stop isolated Let’s Assist Supabase");
     expect(job).toContain("if: always()");
     expect(job.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length).toBe(1);

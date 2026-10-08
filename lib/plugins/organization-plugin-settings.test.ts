@@ -41,12 +41,12 @@ function runtimePlugin(version: string) {
 }
 
 describe("organization plugin update deployment truth", () => {
-  test("a paused private offering stays hidden despite an active forced entitlement and install", () => {
+  test("archived reference code stays out of offerings even if old catalog access is active", () => {
     const paused = {
       ...catalog[0],
       key: "dv-speech-debate",
       visibility: "private" as const,
-      is_active: false,
+      is_active: true,
     };
     expect(
       buildOrganizationPluginAdminSettings({

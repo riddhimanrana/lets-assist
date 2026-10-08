@@ -1,5 +1,7 @@
 # Repository cleanup register
 
+Current consolidation and archival status is maintained in [the integration status](integration-status-20261007.md). Speech and Debate is archived reference code; older pause and release entries below are historical evidence.
+
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.
 
 The [September 25 CSF experience audit](../csf/experience-audit-20260925.md) shipped as CSF 1.2.81 through Production PR #845. Its evidence table records local, hosted Development, Production, chapter installation, and restored worker verification. Intermittent Terms readiness and workbook worker errors remain open below.

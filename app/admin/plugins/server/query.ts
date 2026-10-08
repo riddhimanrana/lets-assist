@@ -1,5 +1,6 @@
 "use server";
 
+import { isArchivedPlugin } from "@/lib/plugins/archived-plugins";
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -298,8 +299,9 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
     });
   }
 
-  const plugins = ((pluginsResult.data ?? []) as PluginCatalogBaseRow[]).map(
-    (plugin) => {
+  const plugins = ((pluginsResult.data ?? []) as PluginCatalogBaseRow[])
+    .filter((plugin) => !isArchivedPlugin(plugin.key))
+    .map((plugin) => {
       const pluginInstalls = installsByPlugin.get(plugin.key) ?? [];
 
       const installedCount = pluginInstalls.filter(
@@ -324,8 +326,7 @@ export async function getPluginControlPlaneData(): Promise<PluginControlPlaneDat
         installed_count: installedCount,
         force_pending_count: forcePendingCount,
       } satisfies PluginCatalogControlRow;
-    },
-  );
+    });
 
   const runtimeProfiles: PluginRuntimeProfileSummary[] =
     publishedPluginReleases.map((release) => ({

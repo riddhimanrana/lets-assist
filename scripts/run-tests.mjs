@@ -106,6 +106,7 @@ const sharedDiscoveryIgnore = [
   "**/.next/**",
   "**/node_modules/**",
   "lib/plugins/private/apps/**",
+  "lib/plugins/private/plugins/dv-speech-debate/**",
   "tests/e2e/**",
 ];
 const discoveryIgnore = [...sharedDiscoveryIgnore, "lib/plugins/**"];
