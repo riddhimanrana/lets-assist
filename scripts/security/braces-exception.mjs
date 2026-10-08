@@ -19,15 +19,15 @@ export const BRACES_EXCEPTION = Object.freeze({
   affectedGraphs: [".", "lib/plugins/private/apps/csf"],
   sourceHashes: {
     "scripts/run-tests.mjs":
-      "c018dbc55d966f8bf129f2320aa6e2fc0586e49831dda3cc3ec594eaa087cf0f",
+      "647a0ce32e5289ea36cbabf015d3cedb8a33953ed6f567322baa552558ed7a8b",
     "scripts/generate-audit-surface-inventory.mjs":
       "83018c843b436145cb11e99ac6ab48de52547854505062da943e7be789b1d36a",
     "next-sitemap.config.js":
       "aeb6892c0a0fac0f98b751a8b4d61ba9f53fdc07eb14363463d37c63c31dc5cf",
     "next.config.ts":
-      "4abbf269b00471f8a15ea650eccf7ffa5527ac33937fe46b9e157263151eaa65",
+      "e70883c6d0946a1d737f040521ac8786ff69900a7df2741af66f7a83fb99144f",
     "eslint.config.mjs":
-      "4b7409a0fb5fe369cd5cf9505ee1b58f52dc95982daae84ced9c3b6940c8c706",
+      "e5ade98b8209ba9527503ae4621130620bcad47816c5e54580dfbb87de62db3d",
     "proxy.ts":
       "4c9e1ce0568f2d7b0300d16ab8955d774950f28edc1dea0133f7500fe3d42618",
     "lib/plugins/private/apps/csf/next.config.ts":

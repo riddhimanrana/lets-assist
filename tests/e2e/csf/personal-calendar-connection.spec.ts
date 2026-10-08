@@ -163,9 +163,7 @@ test("connected calendar protects credentials and supports local-only disconnect
     );
 
     await loginWithEmail(page, email, "/account/security");
-    await page
-      .getByRole("link", { name: "Calendar Sync & integrations", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Calendar", exact: true }).click();
     await expect(page.getByText("Connected", { exact: true })).toBeVisible();
     await expect(page.getByText(calendarEmail, { exact: true })).toBeVisible();
     await expect(

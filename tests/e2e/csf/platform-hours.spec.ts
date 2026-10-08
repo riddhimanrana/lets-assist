@@ -34,15 +34,15 @@ test("self-reported hours reject a missing local time and preserve a DST interva
   try {
     await loginAs(page, "member", "/dashboard");
     await page
-      .getByRole("button", { name: "Add Self-Reported Hours", exact: true })
+      .getByRole("button", { name: "Add self-reported hours", exact: true })
       .click();
     const dialog = page.getByRole("dialog", {
-      name: "Add Self-Reported Hours",
+      name: "Add self-reported hours",
     });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Title *", { exact: true }).fill(title);
     await dialog
-      .getByLabel("Creator / Supervisor *", { exact: true })
+      .getByLabel("Creator / supervisor *", { exact: true })
       .fill("Fictional timezone supervisor");
     await dialog
       .getByRole("button", { name: "Select date", exact: true })
@@ -65,7 +65,7 @@ test("self-reported hours reject a missing local time and preserve a DST interva
         response.request().method() === "POST",
     );
     await dialog
-      .getByRole("button", { name: "Add Hours", exact: true })
+      .getByRole("button", { name: "Add hours", exact: true })
       .click();
     const invalid = await invalidResponse;
     expect(invalid.status()).toBe(400);
@@ -126,7 +126,7 @@ test("self-reported hours reject a missing local time and preserve a DST interva
         response.request().method() === "POST",
     );
     await dialog
-      .getByRole("button", { name: "Add Hours", exact: true })
+      .getByRole("button", { name: "Add hours", exact: true })
       .click();
     const valid = await validResponse;
     expect(valid.status()).toBe(200);

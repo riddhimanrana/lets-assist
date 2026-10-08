@@ -91,7 +91,7 @@ test("project discovery counts beyond the API cap and retries an unavailable fee
     });
     await loginAs(page, "member", "/home");
     const search = page
-      .getByPlaceholder("Search projects...")
+      .getByRole("textbox", { name: "Search projects", exact: true })
       .filter({ visible: true });
     await search.fill(title);
     await expect(

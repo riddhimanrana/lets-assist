@@ -127,3 +127,7 @@ input is unchanged from the reviewed audit candidate. The same-day provider
 metadata readback above remains the last hosted evidence; no provider setting
 was changed during this integration. The advisory still has no patched release.
 The acceptance scope, operator-input restriction and expiry are unchanged.
+
+### Archived plugin input review, October 8
+
+The Speech and Debate archival adds one literal path exclusion to unit discovery and ESLint. Next removes the unused DV transpilation entry and disables upgrade reminders only for the existing isolated test output directories. None of these changes accepts a request, file body, or environment value as a glob pattern. The reviewed source fingerprints now cover those edits. The dependency versions, accepted advisory and October 21 expiry are unchanged.

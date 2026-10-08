@@ -97,7 +97,7 @@ test("new personal creation leaves the latest organization draft untouched throu
   await loginAs(page, "admin");
   await page.goto("/projects/create", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("e2e-project-mock")).toHaveCount(0);
-  const title = page.getByLabel("Project Title", { exact: true });
+  const title = page.getByLabel("Project title", { exact: true });
   await expect(title).toHaveValue("");
   await expect(
     page.getByRole("combobox").filter({ hasText: "Personal Project" }),
@@ -136,7 +136,7 @@ test("edits made while the first autosave settles are persisted to that draft", 
   const failures = watchBrowserFailures(page);
   await loginAs(page, "admin");
   await page.goto("/projects/create", { waitUntil: "domcontentloaded" });
-  const title = page.getByLabel("Project Title", { exact: true });
+  const title = page.getByLabel("Project title", { exact: true });
   await expect(title).toHaveValue("");
   let held = false;
   let release = () => {};
@@ -198,7 +198,7 @@ test("save as new draft moves subsequent autosave to the copy and preserves expl
     waitUntil: "domcontentloaded",
   });
   await expect(page.getByTestId("e2e-project-mock")).toHaveCount(0);
-  const title = page.getByLabel("Project Title", { exact: true });
+  const title = page.getByLabel("Project title", { exact: true });
   await expect(title).toHaveValue(`${prefix} original`);
   await expect(
     page.getByRole("combobox").filter({ hasText: "DVHS CSF" }),

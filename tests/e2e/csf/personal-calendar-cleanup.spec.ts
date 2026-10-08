@@ -102,7 +102,7 @@ test("orphan calendar cleanup stays visible through refused removal and rejects 
 
     await loginWithEmail(page, owner.email, "/account/calendar");
     await expect(
-      page.getByRole("heading", { name: "Calendar Settings", exact: true }),
+      page.getByRole("heading", { name: "Calendar", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText("Not connected", { exact: true }),
@@ -113,31 +113,28 @@ test("orphan calendar cleanup stays visible through refused removal and rejects 
     await expect(
       page.getByText("Removed project", { exact: true }),
     ).toHaveCount(1);
-    // No Google connection is created. The real handler must refuse before
-    // provider access, retain the receipt, and release its lease for retry.
+    const remove = page.getByRole("button", {
+      name: "Remove from calendar",
+      exact: true,
+    });
+    await expect(remove).toBeDisabled();
+    await expect(
+      page.getByText(
+        "Reconnect the same Google account to remove these entries from your calendar.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    // A direct request must still refuse, retain the receipt and release its lease.
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const response = page.waitForResponse(
-        (candidate) =>
-          new URL(candidate.url()).pathname === "/api/calendar/remove-event" &&
-          candidate.request().method() === "DELETE",
+      const response = await page.request.delete(
+        new URL("/api/calendar/remove-event", page.url()).toString(),
+        { data: { event_id: eventId, event_type: "creator" } },
       );
-      await page
-        .getByRole("button", { name: "Remove from calendar", exact: true })
-        .click();
-      expect((await response).status()).toBe(409);
-      await expect(
-        page
-          .getByText("Connect or repair your Google Calendar before retrying", {
-            exact: true,
-          })
-          .first(),
-      ).toBeVisible();
+      expect(response.status()).toBe(409);
       await expect(
         page.getByText("Removed project", { exact: true }),
       ).toHaveCount(1);
-      await expect(
-        page.getByText("Event Removed", { exact: true }),
-      ).toHaveCount(0);
+      await expect(remove).toBeDisabled();
     }
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(

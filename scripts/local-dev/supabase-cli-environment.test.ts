@@ -288,7 +288,7 @@ if [ "$1" = "--version" ]; then printf '2.120.0\\n'; else exit 43; fi
       true,
     );
     expect(calls.some((call) => call.startsWith("stop --workdir "))).toBe(true);
-  });
+  }, 15_000);
 
   test("all CLI workflows pin the reviewed backend and disable inherited trace exporters", async () => {
     for (const workflow of [

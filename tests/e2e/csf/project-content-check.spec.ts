@@ -385,7 +385,7 @@ test("content rejection keeps the draft and a valid retry creates one project", 
     });
     await loginAs(page, "admin", `/projects/create?draft=${draftId}`);
     await expect(
-      page.getByText("Step 5 of 5: Finalize", { exact: true }),
+      page.getByRole("heading", { name: "Review your project", exact: true }),
     ).toBeVisible();
     await expect(page.getByTestId("e2e-project-mock")).toHaveCount(0);
     const origin = new URL(page.url()).origin;
