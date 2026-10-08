@@ -136,7 +136,7 @@ export function OrganizationTabsNavigation(props: Props) {
               value={destination.value}
               aria-current={ownsActiveChild ? "page" : undefined}
               className={cn(
-                "min-w-0 flex-1 gap-2 px-3 sm:flex-none",
+                "flex-none gap-2 px-3",
                 // A child route keeps its parent tab raised, the same way the
                 // active tab is.
                 ownsActiveChild &&
@@ -146,7 +146,7 @@ export function OrganizationTabsNavigation(props: Props) {
               {destination.icon ? (
                 <span className="hidden sm:contents">{destination.icon}</span>
               ) : null}
-              <span className="truncate">{destination.label}</span>
+              {destination.label}
             </TabsTrigger>
           );
         })}

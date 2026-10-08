@@ -533,8 +533,10 @@ export default async function OrganizationPage({
       */}
         <div
           className={cn(
-            "bg-card rounded-xl border shadow-(--card-shadow)",
-            navOverrides.compactHeader ? "p-3 sm:p-4" : "p-4 sm:p-6",
+            // The sheet starts at tablet width. On a phone the tabs and panes
+            // sit on the page, so cards are not nested inside a card.
+            "sm:bg-card sm:rounded-xl sm:border sm:shadow-(--card-shadow)",
+            navOverrides.compactHeader ? "sm:p-4" : "sm:p-6",
           )}
         >
           <OrganizationTabs

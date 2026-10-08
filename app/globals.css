@@ -514,3 +514,39 @@
     opacity: 0.2;
   }
 }
+
+/*
+  Native disclosures. Every <details> gets the same quiet chevron in place of
+  the browser triangle, so a "Show more" row looks designed without each screen
+  restating it. A summary that draws its own indicator opts out with list-none.
+*/
+@layer base {
+  details > summary:not([class*="list-none"]) {
+    cursor: pointer;
+    list-style: none;
+  }
+  details > summary:not([class*="list-none"])::-webkit-details-marker {
+    display: none;
+  }
+  details > summary:not([class*="list-none"])::before {
+    content: "";
+    display: inline-block;
+    width: 0.4em;
+    height: 0.4em;
+    margin-right: 0.6em;
+    margin-left: 0.15em;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.7;
+    transform: translateY(-0.15em) rotate(-45deg);
+    transition: transform 150ms ease;
+  }
+  details[open] > summary:not([class*="list-none"])::before {
+    transform: translateY(-0.25em) rotate(45deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    details > summary:not([class*="list-none"])::before {
+      transition: none;
+    }
+  }
+}
