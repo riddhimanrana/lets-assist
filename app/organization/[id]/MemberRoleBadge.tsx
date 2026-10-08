@@ -7,14 +7,14 @@ export function MemberRoleBadge({ role }: { role: string }) {
   switch (role) {
     case "admin":
       return (
-        <Badge variant="default">
+        <Badge variant="secondary">
           <Shield />
           Admin
         </Badge>
       );
     case "staff":
       return (
-        <Badge variant="info">
+        <Badge variant="outline">
           <UserRoundCog />
           Staff
         </Badge>

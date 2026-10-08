@@ -73,11 +73,10 @@ export function OrganizationTabsNavigation(props: Props) {
   return (
     <div
       className={cn(
-        // The tab strip sits straight on the page as an underline row; the
-        // hairline belongs to the row so the utility menu shares it.
+        // A segmented switch on the workspace sheet, with the utility menu
+        // beside it.
         "flex min-w-0 items-center gap-2",
-        usesFullSectionMobileNav ? "sm:border-b" : "border-b",
-        pluginNavigationOverrides.compactHeader ? "mb-3" : "mb-6",
+        pluginNavigationOverrides.compactHeader ? "mb-3" : "mb-5",
       )}
     >
       {usesFullSectionMobileNav && switcherDestinations.length > 0 ? (
@@ -119,9 +118,8 @@ export function OrganizationTabsNavigation(props: Props) {
         </DropdownMenu>
       ) : null}
       <TabsList
-        variant="line"
         className={cn(
-          "min-w-0 flex-1 gap-0 p-0 group-data-horizontal/tabs:h-10",
+          "w-full min-w-0 sm:w-fit",
           usesFullSectionMobileNav && "hidden sm:flex",
         )}
       >
@@ -138,8 +136,11 @@ export function OrganizationTabsNavigation(props: Props) {
               value={destination.value}
               aria-current={ownsActiveChild ? "page" : undefined}
               className={cn(
-                "h-10 flex-none shrink-0 gap-2 rounded-none px-3 group-data-[orientation=horizontal]/tabs:after:bottom-0",
-                ownsActiveChild && "text-foreground after:opacity-100",
+                "min-w-0 flex-1 gap-2 px-3 sm:flex-none",
+                // A child route keeps its parent tab raised, the same way the
+                // active tab is.
+                ownsActiveChild &&
+                  "bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm",
               )}
             >
               {destination.icon ? (
@@ -156,7 +157,7 @@ export function OrganizationTabsNavigation(props: Props) {
           <DropdownMenuTrigger
             render={
               <Button
-                variant={activeMoreTab ? "secondary" : "ghost"}
+                variant={activeMoreTab ? "secondary" : "outline"}
                 size="sm"
                 className={cn(
                   "shrink-0",

@@ -199,8 +199,12 @@ export function AttendanceClient({
           (diffMs % (1000 * 60 * 60)) / (1000 * 60),
         );
 
+        // Past two days out, hours stop being readable; count days instead.
+        const diffDays = Math.floor(diffHours / 24);
         setTimeUntilOpen(
-          `${diffHours} hour${diffHours !== 1 ? "s" : ""} and ${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""}`,
+          diffDays >= 2
+            ? `${diffDays} days`
+            : `${diffHours} hour${diffHours !== 1 ? "s" : ""} and ${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""}`,
         );
       }
     }
