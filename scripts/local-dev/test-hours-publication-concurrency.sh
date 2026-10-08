@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Exercise the project row lock with two real PostgreSQL sessions. This script
+# Exercise publication locking with two real PostgreSQL sessions. This script
 # accepts loopback Supabase only and uses synthetic, deterministic fixtures.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -151,13 +151,10 @@ VALUES (
 SQL
 
 (
-  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
+  PGAPPNAME=hours_publication_session_a \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
 BEGIN;
 SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000001', true);
-SELECT id FROM public.projects
-WHERE id = 'ac200000-0000-4000-8000-000000000001'
-FOR UPDATE;
-SELECT pg_sleep(1);
 SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
@@ -165,12 +162,35 @@ SELECT public.publish_volunteer_hours_transactional(
   '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
+SELECT pg_sleep(5);
 COMMIT;
 SQL
 ) &
 SESSION_A_PID=$!
 
-sleep 0.2
+# Hold the real entrypoint's locks in their actual order. Taking the project
+# row first would invert the account-before-project order and create a deadlock.
+PUBLICATION_A_READY=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  PUBLICATION_A_READY="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1 FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_publication_session_a'
+    AND state = 'active' AND wait_event_type = 'Timeout'
+    AND wait_event = 'PgSleep' AND xact_start IS NOT NULL
+);
+SQL
+  )"
+  [[ "${PUBLICATION_A_READY}" == "t" ]] && break
+  if ! kill -0 "${SESSION_A_PID}" 2>/dev/null; then break; fi
+  sleep 0.05
+done
+if [[ "${PUBLICATION_A_READY}" != "t" ]]; then
+  wait "${SESSION_A_PID}" || true
+  echo "Publication session A never reached its uncommitted hold point." >&2
+  exit 1
+fi
 
 psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
 BEGIN;
@@ -512,6 +532,7 @@ SQL
 (
   psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 BEGIN;
+SELECT private.lock_paper_attendance_account('ac000000-0000-4000-8000-000000000003');
 SELECT user_id FROM public.organization_members
 WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
   AND user_id = 'ac000000-0000-4000-8000-000000000003'
@@ -600,10 +621,10 @@ VALUES
   );
 SQL
 
-# Session A keeps the overlapping signup's unique-index entry uncommitted.
+# Session A keeps its supplemental issuance transaction uncommitted.
 # The pg_stat_activity handshakes prove A has completed the insert before B
-# starts and that B waits on A's transaction before the commit releases it.
-# B must then skip only that conflict and still insert its unrelated signup.
+# starts and that B waits on A's account lock before commit releases it.
+# B must then skip the existing award and still insert its unrelated signup.
 (
   PGAPPNAME=hours_supplemental_session_a \
     psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
@@ -672,10 +693,15 @@ for ((attempt = 0; attempt < 100; attempt += 1)); do
     psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
 SELECT EXISTS (
   SELECT 1
-  FROM pg_catalog.pg_stat_activity
-  WHERE application_name = 'hours_supplemental_session_b'
-    AND wait_event_type = 'Lock'
-    AND wait_event = 'transactionid'
+  FROM pg_catalog.pg_stat_activity AS waiting
+  WHERE waiting.application_name = 'hours_supplemental_session_b'
+    AND waiting.wait_event_type = 'Lock'
+    AND waiting.wait_event = 'advisory'
+    AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_stat_activity AS holder
+      WHERE holder.application_name = 'hours_supplemental_session_a'
+        AND holder.pid = ANY(pg_catalog.pg_blocking_pids(waiting.pid))
+    )
 );
 SQL
   )"
@@ -690,7 +716,7 @@ if [[ "${SUPPLEMENTAL_B_BLOCKED}" != "t" ]] \
   || ! kill -0 "${SUPPLEMENTAL_B_PID}" 2>/dev/null; then
   wait "${SUPPLEMENTAL_A_PID}" || true
   wait "${SUPPLEMENTAL_B_PID}" || true
-  echo "Supplemental session B did not block on session A's uncommitted certificate." >&2
+  echo "Supplemental session B did not block on session A's account lock." >&2
   exit 1
 fi
 
@@ -713,4 +739,4 @@ if [[ "${SUPPLEMENTAL_COUNT}" != "3" ]]; then
   exit 1
 fi
 
-echo "Concurrent publication replay, wall-clock delivery expiry, signup-status locking, membership-revocation locking, and conflict-tolerant supplemental issuance passed."
+echo "Concurrent publication replay, wall-clock delivery expiry, signup-status locking, membership-revocation locking, and serialized supplemental issuance passed."
