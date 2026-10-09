@@ -167,7 +167,7 @@ export function RangeBuilder({
               />
             </div>
             <p className="text-muted-foreground text-sm">
-              Data starts here and expands to fit the report.
+              Data starts here. The report has to fit the size you set.
             </p>
           </div>
           <div className="grid content-start gap-2">

@@ -47,6 +47,7 @@ export function SheetSyncConfig({
   settingsDisabled,
   onToggleAutoSync,
   onIntervalChange,
+  autoSyncWorkerEnabled,
 }: {
   syncConfig: NonNullable<SheetSyncStatus["syncConfig"]>;
   setup: SheetSyncSetup;
@@ -60,6 +61,8 @@ export function SheetSyncConfig({
   settingsDisabled: boolean;
   onToggleAutoSync: (enabled: boolean) => void;
   onIntervalChange: (interval: string | null) => void;
+  /** False when this deployment does not run the scheduled sync worker. */
+  autoSyncWorkerEnabled: boolean;
 }) {
   const ownerMissing =
     availableOwners.length > 0 &&
@@ -78,7 +81,7 @@ export function SheetSyncConfig({
             <SheetDestinationFields
               idPrefix="sheet-config"
               destination={setup.destination}
-              rangeHint="Use this as the top-left anchor. Data expands to fit the report columns."
+              rangeHint="Full tab grows with the report. A custom range is a fixed box, and the sync stops with an error if the report no longer fits it."
               rangeFooter={
                 syncConfig.sheetUrl ? (
                   <a
@@ -139,6 +142,12 @@ export function SheetSyncConfig({
                 disabled={settingsDisabled}
               />
             </IntegrationOption>
+            {!autoSyncWorkerEnabled && (
+              <p className="text-muted-foreground text-sm">
+                Automatic sync is turned off for this deployment. Use Sync now,
+                or ask a platform admin to enable it.
+              </p>
+            )}
 
             <IntegrationOption
               htmlFor="sheet-sync-interval"

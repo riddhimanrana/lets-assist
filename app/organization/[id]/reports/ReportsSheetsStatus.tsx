@@ -18,23 +18,29 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import type { SheetSyncStatus } from "./sheets-actions";
 import { getSyncIntervalLabel } from "./sheets/sheet-sync-options";
+import { SheetSyncAttention } from "./sheets/SheetSyncAttention";
 
 /**
  * Where the report goes in Google Sheets, at a glance. Admins can sync now and
  * jump to the configuration in settings; staff see the status only.
  */
 export function ReportsSheetsStatus({
+  organizationId,
   sheetStatus,
   isAdmin,
   settingsHref,
   syncing,
   onSyncNow,
+  onChanged,
 }: {
+  organizationId: string;
   sheetStatus: SheetSyncStatus | null;
   isAdmin: boolean;
   settingsHref: string;
   syncing: boolean;
   onSyncNow: () => void;
+  /** Reload the status after the destination was fixed from this card. */
+  onChanged: () => void | Promise<void>;
 }) {
   if (!sheetStatus) {
     return (
@@ -55,6 +61,10 @@ export function ReportsSheetsStatus({
     sheetStatus.connected && sheetStatus.scopesOk === false;
   const needsReconnect =
     Boolean(syncConfig) && (!sheetStatus.connected || ownerNeedsSheets);
+  const destinationProblem =
+    syncConfig && !needsReconnect
+      ? (sheetStatus.destinationProblem ?? null)
+      : null;
   const lastSynced = syncConfig?.lastSyncedAt
     ? format(new Date(syncConfig.lastSyncedAt), "MMM d, yyyy h:mm a")
     : null;
@@ -95,6 +105,8 @@ export function ReportsSheetsStatus({
             {syncConfig ? (
               needsReconnect ? (
                 <Badge variant="warning">Needs reconnect</Badge>
+              ) : destinationProblem ? (
+                <Badge variant="warning">Needs attention</Badge>
               ) : (
                 <Badge variant="success">Connected</Badge>
               )
@@ -119,7 +131,9 @@ export function ReportsSheetsStatus({
                 <Button
                   variant="outline"
                   onClick={onSyncNow}
-                  disabled={syncing || needsReconnect}
+                  disabled={
+                    syncing || needsReconnect || Boolean(destinationProblem)
+                  }
                 >
                   <RefreshCw
                     data-icon="inline-start"
@@ -136,6 +150,19 @@ export function ReportsSheetsStatus({
           </ItemActions>
         ) : null}
       </Item>
+      {destinationProblem ? (
+        <div className="px-4 pb-4">
+          <SheetSyncAttention
+            organizationId={organizationId}
+            problem={destinationProblem}
+            isAdmin={isAdmin}
+            canPick={Boolean(
+              sheetStatus.viewerConnected && sheetStatus.viewerScopesOk,
+            )}
+            onChanged={onChanged}
+          />
+        </div>
+      ) : null}
     </Card>
   );
 }

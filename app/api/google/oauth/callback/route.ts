@@ -33,6 +33,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { flagSheetSyncAfterOwnerChange } from "@/app/organization/[id]/reports/server/destination-probe";
 import {
   getGoogleOAuthConnectionForBinding,
   saveGoogleOAuthConnectionForBinding,
@@ -519,7 +520,7 @@ export async function GET(request: NextRequest) {
         const { data: existingSync, error: existingSyncError } =
           await serviceSupabase
             .from("organization_sheet_syncs")
-            .select("id")
+            .select("id, sheet_id")
             .eq("organization_id", attemptBinding.organizationId)
             .maybeSingle();
 
@@ -542,6 +543,17 @@ export async function GET(request: NextRequest) {
               "Failed to update organization sheet sync owner during OAuth callback:",
               ownerUpdateError,
             );
+          } else if (existingSync.sheet_id) {
+            // Taking over changes whose Google account the sync uses, and that
+            // account has usually never picked this file. Turn automatic sync
+            // off when it cannot open it, so the settings card can ask for the
+            // file to be chosen again instead of every sync failing.
+            await flagSheetSyncAfterOwnerChange({
+              supabase: serviceSupabase,
+              organizationId: attemptBinding.organizationId,
+              sheetId: existingSync.sheet_id,
+              accessToken: tokens.access_token,
+            });
           }
         }
       }

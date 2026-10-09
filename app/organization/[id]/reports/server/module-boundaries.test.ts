@@ -28,6 +28,7 @@ describe("organization sheet action modules", () => {
         "getSheetReportPreview",
         "getSheetsAccessTokenForPicker",
         "getSpreadsheetSetupMetadata",
+        "reselectSheetDestination",
         "syncSheetNow",
         "unlinkSheetSync",
         "updateSheetOwner",

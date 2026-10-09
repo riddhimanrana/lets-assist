@@ -12,11 +12,20 @@ test("manual and cron report syncs share the RAW write-first replacement", () =>
   const cron = readWorkspaceFile(
     "app/api/cron/organization-sheet-sync/route.ts",
   );
+  const sharedSync = readWorkspaceFile(
+    "lib/google-sheets/organization-report-sync.ts",
+  );
 
+  // Both paths run the one shared sync, and neither writes to Sheets itself.
   for (const source of [manual, cron]) {
-    assert.match(source, /replaceSpreadsheetReportValues\(/u);
+    assert.match(source, /runOrganizationSheetSync\(/u);
+    assert.doesNotMatch(source, /replaceSpreadsheetReportValues\(/u);
     assert.doesNotMatch(source, /clearSpreadsheetValues\(/u);
+    assert.match(source, /ORGANIZATION_SHEET_SYNC_COLUMNS/u);
   }
+  assert.match(sharedSync, /replaceSpreadsheetReportValues\(/u);
+  assert.doesNotMatch(sharedSync, /clearSpreadsheetValues\(/u);
+  assert.match(sharedSync, /layout_config/u);
 });
 
 test("organization integration crons use an explicit concurrency bound", () => {

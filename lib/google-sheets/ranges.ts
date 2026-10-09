@@ -82,75 +82,206 @@ export const formatSheetNameForA1 = (tabName: string) => {
   return `'${escaped}'`;
 };
 
+/**
+ * A saved report destination. Unlike `parseA1Range`, an end may be open: a
+ * whole-column range such as `A:H` bounds the columns and leaves the rows free.
+ */
+export type ReportRange = {
+  tabName: string | null;
+  startColumn: string;
+  startRow: number;
+  /** Null when the range does not bound its columns. */
+  endColumn: string | null;
+  /** Null when the range does not bound its rows. */
+  endRow: number | null;
+  /** The range as the admin wrote it, without its tab. */
+  label: string;
+};
+
+type ReportRows = ReadonlyArray<ReadonlyArray<unknown>>;
+
+const DEFAULT_REPORT_RANGE: Omit<ReportRange, "tabName"> = {
+  startColumn: "A",
+  startRow: 1,
+  endColumn: null,
+  endRow: null,
+  label: "A1",
+};
+
+const parseReportCorner = (corner: string) => {
+  const match = /^([A-Za-z]{1,3})(\d+)?$/u.exec(corner);
+  if (!match) return null;
+  const columnIndex = columnToIndex(match[1]);
+  const row = match[2] === undefined ? null : Number.parseInt(match[2], 10);
+  if (!Number.isSafeInteger(columnIndex)) return null;
+  if (row !== null && (!Number.isSafeInteger(row) || row < 1)) return null;
+  return { columnIndex, row };
+};
+
+/**
+ * Reads `A1`, `A1:H20`, `A:H` and `A2:H`. Returns null for anything else, and
+ * callers then fall back to the top-left cell of the tab.
+ */
+export function parseReportRange(
+  range: string | null | undefined,
+): ReportRange | null {
+  const trimmed = (range ?? "").trim();
+  if (!trimmed) return null;
+  const match = /^(?:('(?:[^']|'')*'|[^'!]+)!)?([^!:]+)(?::([^!:]+))?$/u.exec(
+    trimmed,
+  );
+  if (!match) return null;
+  const start = parseReportCorner(match[2].trim());
+  const end =
+    match[3] === undefined ? null : parseReportCorner(match[3].trim());
+  if (!start || (match[3] !== undefined && !end)) return null;
+  // A lone column is not a destination. A lone cell is an open-ended anchor.
+  if (!end && start.row === null) return null;
+
+  const rawTab = match[1];
+  const tabName = rawTab?.startsWith("'")
+    ? rawTab.slice(1, -1).replace(/''/g, "'")
+    : rawTab;
+  const label = `${match[2].trim()}${end ? `:${match[3].trim()}` : ""}`;
+
+  if (!end) {
+    return {
+      tabName: tabName || null,
+      startColumn: indexToColumn(start.columnIndex),
+      startRow: start.row ?? 1,
+      endColumn: null,
+      endRow: null,
+      label: label.toUpperCase(),
+    };
+  }
+
+  const startColumnIndex = Math.min(start.columnIndex, end.columnIndex);
+  const endColumnIndex = Math.max(start.columnIndex, end.columnIndex);
+  const rows = [start.row, end.row].filter(
+    (row): row is number => row !== null,
+  );
+  // `A:H` has no rows at all, and `A2:H` has only a first row. Both leave the
+  // bottom open.
+  const startRow = rows.length > 0 ? Math.min(...rows) : 1;
+  const endRow = rows.length === 2 ? Math.max(...rows) : null;
+
+  return {
+    tabName: tabName || null,
+    startColumn: indexToColumn(startColumnIndex),
+    startRow,
+    endColumn: indexToColumn(endColumnIndex),
+    endRow,
+    label: label.toUpperCase(),
+  };
+}
+
+const measureReport = (rows: ReportRows) => ({
+  rowCount: Math.max(rows.length, 1),
+  columnCount: Math.max(
+    rows.reduce((max, row) => Math.max(max, row.length), 0),
+    1,
+  ),
+});
+
+/**
+ * Says why a report does not fit the saved range, or returns null when it
+ * fits. A range with an end is a box the admin chose, so a report that would
+ * spill past it must fail instead of overwriting the cells around the box.
+ */
+export function describeReportRangeOverflow(
+  rangeA1: string | null | undefined,
+  rows: ReportRows,
+): string | null {
+  const range = parseReportRange(rangeA1);
+  if (!range) return null;
+  const { rowCount, columnCount } = measureReport(rows);
+
+  if (range.endRow !== null) {
+    const capacity = range.endRow - range.startRow + 1;
+    if (rowCount > capacity) {
+      return `The report has ${rowCount} rows but the selected range ${range.label} holds ${capacity}. Widen the range or remove its end.`;
+    }
+  }
+
+  if (range.endColumn !== null) {
+    const capacity =
+      columnToIndex(range.endColumn) - columnToIndex(range.startColumn) + 1;
+    if (columnCount > capacity) {
+      return `The report has ${columnCount} columns but the selected range ${range.label} holds ${capacity}. Widen the range or remove its end.`;
+    }
+  }
+
+  return null;
+}
+
 export function buildWriteRange(
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][],
+  rows: ReportRows,
 ) {
-  const totalRows = Math.max(rows.length, 1);
-  const totalColumns = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startIndex = columnToIndex(startColumn);
-  const endColumn = indexToColumn(startIndex + totalColumns - 1);
-  const endRow = startRow + totalRows - 1;
-  const resolvedTab = parsed?.tabName || tabName;
+  const overflow = describeReportRangeOverflow(rangeA1, rows);
+  if (overflow) throw new RangeError(overflow);
+
+  const range = parseReportRange(rangeA1);
+  const { startColumn, startRow } = range ?? DEFAULT_REPORT_RANGE;
+  const { rowCount, columnCount } = measureReport(rows);
+  const endColumn = indexToColumn(columnToIndex(startColumn) + columnCount - 1);
+  const endRow = startRow + rowCount - 1;
+  const resolvedTab = range?.tabName || tabName;
 
   return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
 }
 
+/**
+ * The outer edge of what a sync may clear: the saved box where the admin drew
+ * one, and a generous margin past the report where the range is open.
+ */
+const resolveClearExtent = (range: ReportRange | null, rows: ReportRows) => {
+  const { startColumn, startRow, endColumn, endRow } =
+    range ?? DEFAULT_REPORT_RANGE;
+  const startColumnIndex = columnToIndex(startColumn);
+  const { columnCount } = measureReport(rows);
+  return {
+    startColumn,
+    startRow,
+    startColumnIndex,
+    endColumnIndex:
+      endColumn !== null
+        ? columnToIndex(endColumn)
+        : Math.max(startColumnIndex + columnCount - 1, 26),
+    endRow: endRow ?? Math.max(startRow + rows.length + 50, 1000),
+  };
+};
+
 export function buildClearRange(
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][],
+  rows: ReportRows,
 ) {
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startIndex = columnToIndex(startColumn);
-  const totalColumns = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
-  const resolvedTab = parsed?.tabName || tabName;
+  const range = parseReportRange(rangeA1);
+  const extent = resolveClearExtent(range, rows);
+  const resolvedTab = range?.tabName || tabName;
 
-  if (parsed?.end) {
-    return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${parsed.end.column}${parsed.end.row}`;
-  }
-
-  const endColumn = indexToColumn(Math.max(startIndex + totalColumns - 1, 26));
-  const endRow = Math.max(startRow + rows.length + 50, 1000);
-  return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+  return `${formatSheetNameForA1(resolvedTab)}!${extent.startColumn}${extent.startRow}:${indexToColumn(extent.endColumnIndex)}${extent.endRow}`;
 }
 
 export function buildStaleClearRanges(
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][],
+  rows: ReportRows,
 ): string[] {
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startColumnIndex = columnToIndex(startColumn);
-  const rowCount = Math.max(rows.length, 1);
-  const columnCount = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
+  const range = parseReportRange(rangeA1);
+  const {
+    startColumn,
+    startRow,
+    startColumnIndex,
+    endColumnIndex: clearEndColumnIndex,
+    endRow: clearEndRow,
+  } = resolveClearExtent(range, rows);
+  const { rowCount, columnCount } = measureReport(rows);
   const writeEndColumnIndex = startColumnIndex + columnCount - 1;
   const writeEndRow = startRow + rowCount - 1;
-  const clearEndColumnIndex = parsed?.end
-    ? Math.max(startColumnIndex, columnToIndex(parsed.end.column))
-    : Math.max(writeEndColumnIndex, 26);
-  const clearEndRow = parsed?.end
-    ? Math.max(startRow, parsed.end.row)
-    : Math.max(startRow + rows.length + 50, 1000);
-  const resolvedTab = parsed?.tabName || tabName;
-  const formattedTab = formatSheetNameForA1(resolvedTab);
+  const formattedTab = formatSheetNameForA1(range?.tabName || tabName);
   const clearEndColumn = indexToColumn(clearEndColumnIndex);
   const staleRanges: string[] = [];
 

@@ -86,6 +86,8 @@ export default function ReportsTab({
       handleLoadSheetStatus();
     } else {
       toast.error(result.error || "Failed to sync sheet");
+      // A failed sync can change what the card should offer.
+      handleLoadSheetStatus();
     }
     setSyncingSheet(false);
   }, [organizationId, handleLoadSheetStatus]);
@@ -200,11 +202,13 @@ export default function ReportsTab({
       <ReportsTopProjects projects={topProjects} loading={loading} />
 
       <ReportsSheetsStatus
+        organizationId={organizationId}
         sheetStatus={sheetStatus}
         isAdmin={isAdmin}
         settingsHref={sheetsSettingsHref}
         syncing={syncingSheet}
         onSyncNow={handleSyncSheetNow}
+        onChanged={handleLoadSheetStatus}
       />
     </div>
   );

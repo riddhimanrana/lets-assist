@@ -7,15 +7,14 @@ import { hasGoogleSheetsScopes } from "@/services/calendar";
 import {
   createSpreadsheet,
   ensureSpreadsheetTab,
-  replaceSpreadsheetReportValues,
 } from "@/services/google-sheets";
-import { buildOrganizationReportRows } from "@/lib/organization/report-service";
-import { getOrganizationReportData, type ReportType } from "../actions";
 import {
-  buildRowsWithLayout,
-  validateLayout,
-  type ReportLayoutConfig,
-} from "../report-layouts";
+  ORGANIZATION_SHEET_SYNC_COLUMNS,
+  runOrganizationSheetSync,
+  type OrganizationSheetSyncErrorCode,
+} from "@/lib/google-sheets/organization-report-sync";
+import type { ReportType } from "../actions";
+import { validateLayout, type ReportLayoutConfig } from "../report-layouts";
 import {
   assertOrgAccess,
   DEFAULT_RANGE_A1,
@@ -142,9 +141,12 @@ export async function createSheetSync(
   return { success: true, sheetUrl: sheet.sheetUrl };
 }
 
-export async function syncSheetNow(
-  organizationId: string,
-): Promise<{ success: boolean; error?: string }> {
+export async function syncSheetNow(organizationId: string): Promise<{
+  success: boolean;
+  error?: string;
+  /** Lets the cards offer the matching fix, such as choosing the file again. */
+  code?: OrganizationSheetSyncErrorCode;
+}> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
     return { success: false, error: access.error ?? undefined };
@@ -153,9 +155,7 @@ export async function syncSheetNow(
   const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
-    .select(
-      "sheet_id, tab_name, range_a1, report_type, layout_config, sheet_url, sync_interval_minutes, created_by",
-    )
+    .select(`${ORGANIZATION_SHEET_SYNC_COLUMNS}, sheet_url, created_by`)
     .eq("organization_id", organizationId)
     .maybeSingle();
 
@@ -205,80 +205,13 @@ export async function syncSheetNow(
     };
   }
 
-  const ensured = await ensureSpreadsheetTab(
+  // The same function the scheduled worker runs, so the saved layout, the
+  // range check and the tab check cannot drift between the two paths.
+  return runOrganizationSheetSync({
+    supabase: serviceSupabase,
+    config: syncConfig,
     accessToken,
-    syncConfig.sheet_id,
-    syncConfig.tab_name || DEFAULT_TAB_NAME,
-  );
-  if (!ensured) {
-    return {
-      success: false,
-      error: "Unable to access the selected sheet tab.",
-    };
-  }
-
-  const { rows: defaultRows, error: rowsError } =
-    await buildOrganizationReportRows(
-      organizationId,
-      syncConfig.report_type as ReportType,
-    );
-
-  if (rowsError || !defaultRows) {
-    return { success: false, error: rowsError || "Failed to build report" };
-  }
-
-  // Use custom layout if configured, otherwise use default
-  let rows = defaultRows;
-  if (syncConfig.layout_config) {
-    try {
-      let layoutConfig: ReportLayoutConfig;
-      if (typeof syncConfig.layout_config === "string") {
-        layoutConfig = JSON.parse(syncConfig.layout_config);
-      } else {
-        layoutConfig =
-          syncConfig.layout_config as unknown as ReportLayoutConfig;
-      }
-
-      if (layoutConfig.reportType !== (syncConfig.report_type as ReportType)) {
-        throw new Error("Layout report type mismatch");
-      }
-
-      const { data: reportData } =
-        await getOrganizationReportData(organizationId);
-      if (reportData) {
-        rows = buildRowsWithLayout(reportData, layoutConfig);
-      }
-    } catch (error) {
-      safeConsole.warn("Failed to apply custom layout, using default:", error);
-      // Fall back to default rows
-    }
-  }
-
-  const replacement = await replaceSpreadsheetReportValues(
-    accessToken,
-    syncConfig.sheet_id,
-    syncConfig.tab_name || DEFAULT_TAB_NAME,
-    syncConfig.range_a1,
-    rows,
-  );
-
-  if (!replacement.success && replacement.stage === "write") {
-    return { success: false, error: "Failed to update Google Sheet" };
-  }
-
-  if (!replacement.success) {
-    return {
-      success: false,
-      error: "Google Sheet updated, but stale values could not be cleared",
-    };
-  }
-
-  await serviceSupabase
-    .from("organization_sheet_syncs")
-    .update({ last_synced_at: new Date().toISOString() })
-    .eq("organization_id", organizationId);
-
-  return { success: true };
+  });
 }
 
 export async function updateSheetSyncSettings(
@@ -372,7 +305,7 @@ export async function updateSheetSyncConfig(
   const serviceSupabase = getAdminClient();
   const { data: existingSync } = await serviceSupabase
     .from("organization_sheet_syncs")
-    .select("organization_id")
+    .select("organization_id, sheet_id, tab_name, created_by")
     .eq("organization_id", organizationId)
     .maybeSingle();
 
@@ -396,6 +329,35 @@ export async function updateSheetSyncConfig(
       return {
         success: false,
         error: `Invalid layout: ${validation.errors.join("; ")}`,
+      };
+    }
+  }
+
+  // A sync never creates a tab, so a tab an admin names here is created now,
+  // while it is still their explicit choice.
+  const nextTabName = updates.tabName?.trim();
+  if (
+    nextTabName &&
+    nextTabName !== existingSync.tab_name &&
+    existingSync.sheet_id &&
+    existingSync.created_by
+  ) {
+    const ownerToken = await getOrganizationSheetsAccessToken(
+      existingSync.created_by,
+      organizationId,
+      true,
+    );
+    if (
+      ownerToken &&
+      !(await ensureSpreadsheetTab(
+        ownerToken,
+        existingSync.sheet_id,
+        nextTabName,
+      ))
+    ) {
+      return {
+        success: false,
+        error: `Unable to open or create the tab "${nextTabName}". Check that the connected Google account can edit the spreadsheet.`,
       };
     }
   }

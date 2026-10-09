@@ -14,16 +14,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   getSheetSyncStatus,
   disconnectOrganizationSheetConnection,
   syncSheetNow,
@@ -33,7 +23,9 @@ import {
   getAvailableSheetOwners,
   type SheetSyncStatus,
 } from "../reports/sheets-actions";
+import { SheetDisconnectDialogs } from "../reports/sheets/SheetDisconnectDialogs";
 import { SheetSetupPanel } from "../reports/sheets/SheetSetupPanel";
+import { SheetSyncAttention } from "../reports/sheets/SheetSyncAttention";
 import { SheetSyncConfig } from "../reports/sheets/SheetSyncConfig";
 import {
   getSyncIntervalLabel,
@@ -51,11 +43,14 @@ type OrganizationSheetsSettingsProps = {
   organizationId: string;
   organizationSlug: string;
   organizationName: string;
+  /** Read from the environment on the server. Only this boolean reaches here. */
+  autoSyncWorkerEnabled: boolean;
 };
 
 export default function OrganizationSheetsSettings({
   organizationId,
   organizationSlug,
+  autoSyncWorkerEnabled,
 }: OrganizationSheetsSettingsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -201,8 +196,10 @@ export default function OrganizationSheetsSettings({
       toast.error(result.error || "Failed to sync sheet");
     } else {
       toast.success("Sheet synced successfully");
-      await loadStatus();
     }
+    // A failed sync can change what the card should offer, such as choosing
+    // the file again.
+    await loadStatus();
     setSyncingNow(false);
   };
 
@@ -241,7 +238,13 @@ export default function OrganizationSheetsSettings({
     if (!ownerId) return;
     const result = await updateSheetOwner(organizationId, ownerId);
     if (result.success) {
-      toast.success("Sheet owner updated");
+      if (result.needsReselect) {
+        toast.warning(
+          "Owner updated. The new owner has to choose the spreadsheet again before it can sync.",
+        );
+      } else {
+        toast.success("Sheet owner updated");
+      }
       loadStatus();
     } else {
       toast.error(result.error || "Failed to update owner");
@@ -343,6 +346,15 @@ export default function OrganizationSheetsSettings({
     </Alert>
   ) : status.connected ? (
     <>
+      {status.destinationProblem && (
+        <SheetSyncAttention
+          organizationId={organizationId}
+          problem={status.destinationProblem}
+          isAdmin
+          canPick={viewerConnected && viewerScopesOk}
+          onChanged={loadStatus}
+        />
+      )}
       {ownerNeedsSheets && (
         <Alert variant="warning">
           <AlertTriangle />
@@ -391,7 +403,9 @@ export default function OrganizationSheetsSettings({
       <Button
         variant="outline"
         onClick={handleSyncNow}
-        disabled={syncingNow || ownerNeedsSheets}
+        disabled={
+          syncingNow || ownerNeedsSheets || Boolean(status.destinationProblem)
+        }
       >
         <RefreshCw
           data-icon="inline-start"
@@ -446,6 +460,7 @@ export default function OrganizationSheetsSettings({
                 settingsDisabled={updatingSettings || ownerNeedsSheets}
                 onToggleAutoSync={handleToggleAutoSync}
                 onIntervalChange={handleIntervalChange}
+                autoSyncWorkerEnabled={autoSyncWorkerEnabled}
               />
             </div>
 
@@ -517,72 +532,17 @@ export default function OrganizationSheetsSettings({
         ) : null}
       </IntegrationCard>
 
-      <AlertDialog open={showUnlinkDialog} onOpenChange={setShowUnlinkDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {unlinkIntent === "switch"
-                ? "Switch spreadsheet destination?"
-                : "Unlink Google Sheet?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {unlinkIntent === "switch"
-                ? "This will unlink the current sheet destination while keeping your Google account connected. You can choose a new destination right after."
-                : "This will stop all automatic sync jobs and disconnect the organization from this spreadsheet. The spreadsheet itself will not be deleted from your Google Drive."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={unlinking}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={(e) => {
-                e.preventDefault();
-                handleUnlink();
-              }}
-              disabled={unlinking}
-            >
-              {unlinking
-                ? "Unlinking..."
-                : unlinkIntent === "switch"
-                  ? "Unlink and switch"
-                  : "Unlink sheet"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={showAccountDisconnectDialog}
-        onOpenChange={setShowAccountDisconnectDialog}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Remove the connected Google account?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will disconnect the Google account from this organization and
-              remove the sheet sync configuration. You&apos;ll need to connect
-              another Google account to resume automatic spreadsheet updates.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={disconnectingAccount}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={(e) => {
-                e.preventDefault();
-                handleDisconnectAccount();
-              }}
-              disabled={disconnectingAccount}
-            >
-              {disconnectingAccount ? "Removing..." : "Remove account"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SheetDisconnectDialogs
+        unlinkOpen={showUnlinkDialog}
+        onUnlinkOpenChange={setShowUnlinkDialog}
+        unlinkIntent={unlinkIntent}
+        unlinking={unlinking}
+        onUnlink={handleUnlink}
+        accountOpen={showAccountDisconnectDialog}
+        onAccountOpenChange={setShowAccountDisconnectDialog}
+        disconnectingAccount={disconnectingAccount}
+        onDisconnectAccount={handleDisconnectAccount}
+      />
     </>
   );
 }

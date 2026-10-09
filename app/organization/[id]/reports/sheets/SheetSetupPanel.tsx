@@ -83,41 +83,24 @@ export function SheetSetupPanel({
 
       {setupMode === "existing" && (
         <div className="grid gap-4">
-          <Field>
-            <FieldLabel htmlFor="sheet-setup-spreadsheet">
-              Spreadsheet
-            </FieldLabel>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="sheet-setup-spreadsheet"
-                value={setup.sheetInput}
-                onChange={(event) =>
-                  setup.handleSheetInputChange(event.target.value)
-                }
-                placeholder="Paste a Google Sheets URL or ID"
-              />
-              <Button
-                variant="outline"
-                onClick={() => setup.handleLoadSheetMetadata()}
-                disabled={!setup.sheetInput.trim() || blocked}
-              >
-                Load
-              </Button>
-              <Button
-                variant="outline"
-                onClick={setup.handleOpenPicker}
-                disabled={setup.pickerLoading || blocked}
-              >
-                {setup.pickerLoading ? "Opening..." : "Pick from Drive"}
-              </Button>
-            </div>
-            {!setup.pickerReady && (
-              <FieldDescription>
-                Google Picker will open in a new window. Allow pop-ups if
-                blocked.
-              </FieldDescription>
-            )}
-          </Field>
+          <div className="grid gap-2">
+            <p className="text-sm font-medium">Spreadsheet</p>
+            <Button
+              variant="outline"
+              className="w-fit"
+              onClick={setup.handleOpenPicker}
+              disabled={setup.pickerLoading || blocked}
+            >
+              {setup.pickerLoading ? "Opening..." : "Choose from Google Drive"}
+            </Button>
+            <p className="text-muted-foreground text-sm">
+              Let&apos;s Assist can only open a spreadsheet after you choose it
+              here.
+              {setup.pickerReady
+                ? ""
+                : " The picker opens in a new window. Allow pop-ups if it is blocked."}
+            </p>
+          </div>
 
           {sheetMetadata && (
             <div className="grid gap-2 rounded-md border p-3">
@@ -154,6 +137,36 @@ export function SheetSetupPanel({
               )}
             </div>
           )}
+
+          <Field>
+            <FieldLabel htmlFor="sheet-setup-spreadsheet">
+              Or paste a link to a spreadsheet you chose before
+            </FieldLabel>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="sheet-setup-spreadsheet"
+                value={setup.sheetInput}
+                onChange={(event) =>
+                  setup.handleSheetInputChange(event.target.value)
+                }
+                placeholder="Google Sheets link or ID"
+              />
+              <Button
+                variant="outline"
+                onClick={() => setup.handleLoadSheetMetadata()}
+                disabled={
+                  !setup.sheetInput.trim() || setup.loadingMetadata || blocked
+                }
+              >
+                {setup.loadingMetadata ? "Loading..." : "Load"}
+              </Button>
+            </div>
+            <FieldDescription>
+              A link works only for a file you already chose with the picker, or
+              one Let&apos;s Assist created. For any other file, use Choose from
+              Google Drive.
+            </FieldDescription>
+          </Field>
         </div>
       )}
 
@@ -165,7 +178,7 @@ export function SheetSetupPanel({
             ? "Use an existing tab name or type a new one."
             : undefined
         }
-        rangeHint="Pick the top-left anchor. The report will expand to fit the data."
+        rangeHint="Full tab grows with the report. A custom range is a fixed box, and the sync stops with an error if the report no longer fits it."
       />
 
       <Accordion>

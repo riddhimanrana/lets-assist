@@ -14,6 +14,7 @@ import {
   extractSpreadsheetId,
   getSpreadsheetMetadata,
 } from "@/services/google-sheets";
+import { inspectSpreadsheet } from "@/services/google-sheets-report";
 import { hasGoogleSheetsScopes } from "@/services/calendar";
 import { getOrganizationReportData, type ReportType } from "../actions";
 import {
@@ -30,6 +31,21 @@ import {
   getOrganizationSheetsConnection,
 } from "./shared";
 import { syncSheetNow } from "./sync";
+
+// The app holds the drive.file scope: it can open a spreadsheet only after the
+// connected person picks it in the Google picker, or after the app creates it.
+const PICKER_REQUIRED_MESSAGE =
+  "Let's Assist can only open spreadsheets you choose with the picker. Use Choose from Google Drive to select this file.";
+
+function describeInspectionFailure(reason: string) {
+  if (reason === "access_denied" || reason === "not_found") {
+    return PICKER_REQUIRED_MESSAGE;
+  }
+  if (reason === "timeout") {
+    return "Google Sheets did not respond in time. Try again in a few minutes.";
+  }
+  return "Google Sheets returned an error. Try again in a few minutes.";
+}
 
 export async function getSheetsAccessTokenForPicker(
   organizationId: string,
@@ -118,18 +134,102 @@ export async function getSpreadsheetSetupMetadata(
     return { success: false, error: "Sheets permissions missing" };
   }
 
-  const metadata = await getSpreadsheetMetadata(accessToken, sheetId);
-  if (!metadata) {
-    return { success: false, error: "Unable to access spreadsheet" };
+  const inspection = await inspectSpreadsheet(accessToken, sheetId);
+  if (!inspection.ok) {
+    return {
+      success: false,
+      error: describeInspectionFailure(inspection.reason),
+    };
   }
 
+  const { metadata } = inspection;
   return {
     success: true,
     metadata: {
-      ...metadata,
+      sheetId: metadata.sheetId,
+      sheetTitle: metadata.sheetTitle,
+      tabs: metadata.tabs,
       sheetUrl: buildSpreadsheetUrl(metadata.sheetId),
     },
   };
+}
+
+/**
+ * Points the existing sync at a spreadsheet the admin just picked, keeping the
+ * tab, range, layout and schedule. The admin who picks the file becomes the
+ * sync owner, because Google grants access to the account that picked it.
+ */
+export async function reselectSheetDestination(
+  organizationId: string,
+  sheetInput: string,
+): Promise<{
+  success: boolean;
+  error?: string;
+  /** Automatic sync is off, usually because the file could not be opened. */
+  autoSyncOff?: boolean;
+}> {
+  const access = await assertOrgAccess(organizationId);
+  if (access.error || !access.userId) {
+    return { success: false, error: access.error };
+  }
+
+  if (access.role !== "admin") {
+    return { success: false, error: "Admin access required" };
+  }
+
+  const sheetId = extractSpreadsheetId(sheetInput);
+  if (!sheetId) {
+    return { success: false, error: "Invalid spreadsheet URL or ID" };
+  }
+
+  const accessToken = await getOrganizationSheetsAccessToken(
+    access.userId,
+    organizationId,
+  );
+  if (!accessToken) {
+    return {
+      success: false,
+      error:
+        "Connect your Google account with Sheets access, then choose the file again.",
+    };
+  }
+
+  const inspection = await inspectSpreadsheet(accessToken, sheetId);
+  if (!inspection.ok) {
+    return {
+      success: false,
+      error: describeInspectionFailure(inspection.reason),
+    };
+  }
+
+  const serviceSupabase = getAdminClient();
+  const { data: updated, error: updateError } = await serviceSupabase
+    .from("organization_sheet_syncs")
+    .update({
+      created_by: access.userId,
+      sheet_id: inspection.metadata.sheetId,
+      sheet_url: buildSpreadsheetUrl(inspection.metadata.sheetId),
+      sheet_title: inspection.metadata.sheetTitle,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("organization_id", organizationId)
+    .select("organization_id, auto_sync");
+
+  if (updateError) {
+    safeConsole.error("Failed to reselect sheet destination:", updateError);
+    return { success: false, error: "Failed to save the selected spreadsheet" };
+  }
+  if (!updated?.length) {
+    return { success: false, error: "Sheet sync not configured" };
+  }
+
+  const syncResult = await syncSheetNow(organizationId);
+  return syncResult.success
+    ? { success: true, autoSyncOff: !updated[0].auto_sync }
+    : {
+        success: false,
+        error: syncResult.error || "Spreadsheet selected, but the sync failed.",
+      };
 }
 
 export async function connectExistingSheet(
@@ -177,7 +277,7 @@ export async function connectExistingSheet(
 
   const metadata = await getSpreadsheetMetadata(accessToken, params.sheetId);
   if (!metadata) {
-    return { success: false, error: "Unable to access spreadsheet" };
+    return { success: false, error: PICKER_REQUIRED_MESSAGE };
   }
 
   const ensured = await ensureSpreadsheetTab(

@@ -36,10 +36,21 @@ test("service-role report sync is not exported from a Server Action module", () 
     "lib/organization/report-service.ts",
   );
 
+  const sharedSync = readWorkspaceFile(
+    "lib/google-sheets/organization-report-sync.ts",
+  );
+
   assert.match(internalService, /^import "server-only";/mu);
+  assert.match(sharedSync, /^import "server-only";/mu);
   assert.doesNotMatch(actions, /getAdminClient|ForSync/u);
-  assert.match(cronRoute, /from "@\/lib\/organization\/report-service"/u);
-  assert.doesNotMatch(cronRoute, /reports\/actions/u);
+  assert.match(
+    cronRoute,
+    /from "@\/lib\/google-sheets\/organization-report-sync"/u,
+  );
+  assert.match(sharedSync, /from "@\/lib\/organization\/report-service"/u);
+  for (const source of [cronRoute, sharedSync]) {
+    assert.doesNotMatch(source, /reports\/actions/u);
+  }
 });
 
 test("global waiver actions expose no unguarded active-definition lookup", () => {

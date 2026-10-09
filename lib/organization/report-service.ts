@@ -10,7 +10,11 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { differenceInMinutes, endOfDay, format, startOfDay } from "date-fns";
 
-import { buildReportRows } from "@/lib/organization/report/rows";
+import {
+  buildReportRows,
+  buildReportSheetRows,
+  type ReportSheetCell,
+} from "@/lib/organization/report/rows";
 import type {
   CertificateRow,
   MonthlyHours,
@@ -34,6 +38,7 @@ export type {
   ReportDateRange,
   ReportType,
 } from "@/lib/organization/report/types";
+export type { ReportSheetCell } from "@/lib/organization/report/rows";
 
 const roundHours = (hours: number) => Math.round(hours * 10) / 10;
 const calculateHours = (start?: string | null, end?: string | null): number => {
@@ -532,11 +537,18 @@ export async function buildOrganizationReportRows(
   return { rows: buildReportRows(report.data, reportType) };
 }
 
+/**
+ * Builds the rows a spreadsheet sync writes. `buildRows` lets the caller apply
+ * a saved layout to the same report data. The default is the standard layout.
+ */
 export async function buildOrganizationReportRowsForSync(
   organizationId: string,
   reportType: ReportType,
   dateRange?: ReportDateRange,
-): Promise<{ rows?: string[][]; error?: string }> {
+  buildRows: (report: OrganizationReportData) => ReportSheetCell[][] = (
+    report,
+  ) => buildReportSheetRows(report, reportType),
+): Promise<{ rows?: ReportSheetCell[][]; error?: string }> {
   const report = await getOrganizationReportDataForSync(
     organizationId,
     dateRange,
@@ -544,7 +556,7 @@ export async function buildOrganizationReportRowsForSync(
   if (!report.data || report.error) {
     return { error: report.error || "Report unavailable" };
   }
-  return { rows: buildReportRows(report.data, reportType) };
+  return { rows: buildRows(report.data) };
 }
 
 export async function exportOrganizationReport(

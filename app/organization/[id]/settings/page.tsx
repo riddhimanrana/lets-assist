@@ -220,6 +220,9 @@ export default async function OrganizationSettingsPage({ params }: Props) {
                 organizationId={organization.id}
                 organizationSlug={organizationSlug}
                 organizationName={organization.name}
+                autoSyncWorkerEnabled={
+                  process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true"
+                }
               />
             </>
           ),

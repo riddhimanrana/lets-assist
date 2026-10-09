@@ -4,22 +4,17 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { ReportType } from "../actions";
-import {
-  buildReportsGoogleSheetPicker,
-  type GoogleApiWindow,
-  type PickerCallbackData,
-} from "../google-picker";
 import { type ReportLayoutConfig } from "../report-layouts";
 import {
   connectExistingSheet,
   createSheetSync,
   getSheetReportPreview,
-  getSheetsAccessTokenForPicker,
   getSpreadsheetSetupMetadata,
   updateSheetSyncConfig,
   type SheetSyncStatus,
 } from "../sheets-actions";
 import { parseSavedRange, type SheetSetupMetadata } from "./sheet-sync-options";
+import { useSheetPicker } from "./useSheetPicker";
 
 /**
  * Destination, layout and setup state for the organization Sheets sync, with
@@ -54,12 +49,9 @@ export function useSheetSyncSetup({
   const [previewRows, setPreviewRows] = useState<string[][] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [setupError, setSetupError] = useState<string | null>(null);
-  const [pickerReady, setPickerReady] = useState(false);
-  const [pickerLoading, setPickerLoading] = useState(false);
+  const [loadingMetadata, setLoadingMetadata] = useState(false);
   const [connectingSheet, setConnectingSheet] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
-
-  const pickerApiKey = process.env.NEXT_PUBLIC_GOOGLE_PICKER_API_KEY;
 
   // Show the saved destination, not the defaults, when a sync already exists.
   const savedConfig = sheetStatus?.syncConfig ?? null;
@@ -172,22 +164,37 @@ export function useSheetSyncSetup({
     handleLoadSheetStatus,
   ]);
 
+  const loadSheetMetadata = useCallback(
+    async (sheetReference: string) => {
+      setLoadingMetadata(true);
+      try {
+        const result = await getSpreadsheetSetupMetadata(
+          organizationId,
+          sheetReference,
+        );
+        if (!result.success || result.error || !result.metadata) {
+          setSheetMetadata(null);
+          setSetupError(
+            result.error || "Unable to load selected spreadsheet metadata.",
+          );
+        } else {
+          setSheetMetadata(result.metadata);
+          setSetupError(null);
+        }
+      } catch {
+        setSheetMetadata(null);
+        setSetupError("Unable to load selected spreadsheet metadata.");
+      } finally {
+        setLoadingMetadata(false);
+      }
+    },
+    [organizationId],
+  );
+
   const handleLoadSheetMetadata = useCallback(async () => {
     if (!sheetInput.trim()) return;
-    setPickerLoading(true);
-    const result = await getSpreadsheetSetupMetadata(
-      organizationId,
-      sheetInput.trim(),
-    );
-    if (!result.success || result.error) {
-      setSheetMetadata(null);
-      setSetupError(result.error ?? null);
-    } else if (result.metadata) {
-      setSheetMetadata(result.metadata);
-      setSetupError(null);
-    }
-    setPickerLoading(false);
-  }, [organizationId, sheetInput]);
+    await loadSheetMetadata(sheetInput.trim());
+  }, [loadSheetMetadata, sheetInput]);
 
   const handleSetupModeChange = (mode: "create" | "existing") => {
     setSetupMode(mode);
@@ -233,144 +240,19 @@ export function useSheetSyncSetup({
     handleLoadSheetStatus,
   ]);
 
-  const loadGoogleApi = useCallback(() => {
-    const win = window as unknown as GoogleApiWindow;
-    if (win.gapi?.load) return Promise.resolve(true);
+  const picker = useSheetPicker({
+    organizationId,
+    onPicked: async (sheetId) => {
+      setSheetInput(sheetId);
+      await loadSheetMetadata(sheetId);
+    },
+    onError: setSetupError,
+  });
 
-    return new Promise<boolean>((resolve, reject) => {
-      const existing = document.querySelector(
-        'script[data-google-picker="true"]',
-      );
-      if (existing) {
-        existing.addEventListener("load", () => resolve(true));
-        existing.addEventListener("error", () =>
-          reject(new Error("Failed to load Google API")),
-        );
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://apis.google.com/js/api.js";
-      script.async = true;
-      script.defer = true;
-      script.dataset.googlePicker = "true";
-      script.onload = () => resolve(true);
-      script.onerror = () => reject(new Error("Failed to load Google API"));
-      document.body.appendChild(script);
-    });
-  }, []);
-
-  const initPicker = useCallback(async () => {
-    const win = window as unknown as GoogleApiWindow;
-    if (win.google?.picker) {
-      setPickerReady(true);
-      return true;
-    }
-
-    try {
-      await loadGoogleApi();
-    } catch {
-      return false;
-    }
-
-    return await new Promise<boolean>((resolve) => {
-      win.gapi?.load("picker", {
-        callback: () => {
-          setPickerReady(true);
-          resolve(true);
-        },
-      });
-    });
-  }, [loadGoogleApi]);
-
-  const handleOpenPicker = useCallback(async () => {
-    setPickerLoading(true);
+  const handleOpenPicker = async () => {
     setSetupError(null);
-
-    try {
-      const tokenResult = await getSheetsAccessTokenForPicker(organizationId);
-      if (!tokenResult.success) {
-        setSetupError(
-          tokenResult.error || "Unable to open Google Picker. Try again.",
-        );
-        return;
-      }
-
-      if (!pickerApiKey) {
-        setSetupError(
-          "Google Picker is not configured. Missing NEXT_PUBLIC_GOOGLE_PICKER_API_KEY.",
-        );
-        return;
-      }
-
-      if (!(await initPicker())) {
-        setSetupError("Unable to load Google Picker library.");
-        return;
-      }
-
-      const win = window as unknown as GoogleApiWindow;
-      const google = win.google;
-      if (!google?.picker) {
-        setSetupError("Google Picker is not available.");
-        return;
-      }
-
-      const view = new google.picker.DocsView(
-        google.picker.ViewId.SPREADSHEETS,
-      );
-      view.setMimeTypes("application/vnd.google-apps.spreadsheet");
-
-      const picker = buildReportsGoogleSheetPicker({
-        builder: new google.picker.PickerBuilder(),
-        title: "Select a Google Sheet",
-        view,
-        accessToken: tokenResult.accessToken,
-        developerKey: pickerApiKey,
-        pickerAppId: tokenResult.pickerAppId,
-        callback: async (data: PickerCallbackData) => {
-          if (data.action !== google.picker.Action.PICKED) {
-            return;
-          }
-
-          const doc = data.docs?.[0];
-          if (!doc?.id) {
-            return;
-          }
-
-          setSheetInput(doc.id);
-
-          try {
-            const metadataResult = await getSpreadsheetSetupMetadata(
-              organizationId,
-              doc.id,
-            );
-            if (
-              !metadataResult.success ||
-              metadataResult.error ||
-              !metadataResult.metadata
-            ) {
-              setSheetMetadata(null);
-              setSetupError(
-                metadataResult.error ||
-                  "Unable to load selected spreadsheet metadata.",
-              );
-              return;
-            }
-
-            setSetupError(null);
-            setSheetMetadata(metadataResult.metadata);
-          } catch {
-            setSheetMetadata(null);
-            setSetupError("Unable to load selected spreadsheet metadata.");
-          }
-        },
-      });
-
-      picker.setVisible(true);
-    } finally {
-      setPickerLoading(false);
-    }
-  }, [organizationId, initPicker, pickerApiKey]);
+    await picker.openPicker();
+  };
 
   return {
     columnOptions,
@@ -412,8 +294,9 @@ export function useSheetSyncSetup({
     sheetMetadata,
     setupError,
     resetSetup,
-    pickerReady,
-    pickerLoading,
+    pickerReady: picker.pickerReady,
+    pickerLoading: picker.pickerLoading,
+    loadingMetadata,
     creatingSheet,
     connectingSheet,
     savingConfig,

@@ -8,7 +8,12 @@ import {
   hasGoogleSheetsScopes,
   organizationSheetsGoogleBinding,
 } from "@/services/calendar";
-import { assertOrgAccess, getOrganizationSheetsConnection } from "./shared";
+import { flagSheetSyncAfterOwnerChange } from "./destination-probe";
+import {
+  assertOrgAccess,
+  getOrganizationSheetsAccessToken,
+  getOrganizationSheetsConnection,
+} from "./shared";
 
 export async function unlinkSheetSync(
   organizationId: string,
@@ -188,8 +193,10 @@ export async function getAvailableSheetOwners(organizationId: string): Promise<
     return { success: false, error: "Failed to load organization members" };
   }
 
+  // Only an active admin can own the sync: every sync re-checks that the
+  // owner still administers the organization.
   const eligibleMembers = members.filter(
-    (member) => member.role === "admin" || member.role === "staff",
+    (member) => member.role === "admin",
   ) as unknown as Array<{
     user_id: string;
     role: string;
@@ -243,7 +250,12 @@ export async function getAvailableSheetOwners(organizationId: string): Promise<
 export async function updateSheetOwner(
   organizationId: string,
   ownerId: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{
+  success: boolean;
+  error?: string;
+  /** The new owner's Google account cannot open the saved spreadsheet yet. */
+  needsReselect?: boolean;
+}> {
   const access = await assertOrgAccess(organizationId);
   if (access.error || !access.userId) {
     return { success: false, error: access.error };
@@ -256,12 +268,37 @@ export async function updateSheetOwner(
   const serviceSupabase = getAdminClient();
   const { data: syncConfig } = await serviceSupabase
     .from("organization_sheet_syncs")
-    .select("organization_id")
+    .select("organization_id, sheet_id")
     .eq("organization_id", organizationId)
     .maybeSingle();
 
   if (!syncConfig) {
     return { success: false, error: "Sheets sync is not configured" };
+  }
+
+  const { data: ownerMembership, error: membershipError } =
+    await serviceSupabase
+      .from("organization_members")
+      .select("role, status")
+      .eq("organization_id", organizationId)
+      .eq("user_id", ownerId)
+      .maybeSingle();
+
+  if (membershipError) {
+    safeConsole.error("Failed to verify sheet owner membership:", {
+      code: membershipError.code,
+    });
+    return { success: false, error: "Failed to verify the selected owner" };
+  }
+
+  if (
+    ownerMembership?.status !== "active" ||
+    ownerMembership.role !== "admin"
+  ) {
+    return {
+      success: false,
+      error: "The sync owner must be an active admin of this organization.",
+    };
   }
 
   const ownerConnection = await getOrganizationSheetsConnection(
@@ -287,5 +324,20 @@ export async function updateSheetOwner(
     return { success: false, error: "Failed to update sheet owner" };
   }
 
-  return { success: true };
+  // Google grants file access to the account that picked the file, not to the
+  // organization, so check that the new owner can actually open it.
+  const ownerToken = syncConfig.sheet_id
+    ? await getOrganizationSheetsAccessToken(ownerId, organizationId, true)
+    : null;
+  if (!ownerToken) {
+    return { success: true };
+  }
+
+  const { needsReselect } = await flagSheetSyncAfterOwnerChange({
+    supabase: serviceSupabase,
+    organizationId,
+    sheetId: syncConfig.sheet_id,
+    accessToken: ownerToken,
+  });
+  return { success: true, needsReselect };
 }
