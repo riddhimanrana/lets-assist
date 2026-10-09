@@ -411,7 +411,11 @@ export function useEditProjectMedia(project: Project) {
     } catch (error) {
       safeConsole.error("Upload waiver PDF error:", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to upload waiver PDF");
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to upload waiver PDF",
+      );
     } finally {
       setWaiverPdfUploading(false);
       if (waiverPdfInputRef.current) {
@@ -441,7 +445,11 @@ export function useEditProjectMedia(project: Project) {
     } catch (error) {
       safeConsole.error("Remove waiver PDF error:", error);
       toast.dismiss(loadingToast);
-      toast.error("Failed to remove waiver PDF");
+      toast.error(
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to remove waiver PDF",
+      );
     } finally {
       setWaiverPdfUploading(false);
     }

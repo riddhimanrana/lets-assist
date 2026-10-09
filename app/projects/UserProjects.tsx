@@ -27,73 +27,14 @@ import { Award, Repeat, Users } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import { redirect } from "next/navigation";
-import type { Project, RecurrenceRule, RecurrenceWeekday } from "@/types";
+import type { Project } from "@/types";
 import { ProjectCard } from "./ProjectCard";
-import { format } from "date-fns";
+import { formatRecurrenceSummary } from "./recurrence-summary";
 import { ACTIVE_PROJECT_SIGNUP_STATUSES } from "@/lib/projects/availability";
 import {
   deduplicateVolunteerProjectCards,
   isHoursPublished,
 } from "@/lib/projects/user-project-cards";
-
-// Helper to format recurrence summary for display
-function formatRecurrenceSummary(rule: RecurrenceRule): string {
-  if (!rule.frequency) return "";
-
-  const WEEKDAY_LABELS: Record<RecurrenceWeekday, string> = {
-    monday: "Mon",
-    tuesday: "Tue",
-    wednesday: "Wed",
-    thursday: "Thu",
-    friday: "Fri",
-    saturday: "Sat",
-    sunday: "Sun",
-  };
-
-  const interval = rule.interval || 1;
-  let frequencyLabel: string;
-  switch (rule.frequency) {
-    case "daily":
-      frequencyLabel = interval === 1 ? "day" : `${interval} days`;
-      break;
-    case "weekly":
-      frequencyLabel = interval === 1 ? "week" : `${interval} weeks`;
-      break;
-    case "monthly":
-      frequencyLabel = interval === 1 ? "month" : `${interval} months`;
-      break;
-    case "yearly":
-      frequencyLabel = interval === 1 ? "year" : `${interval} years`;
-      break;
-    default:
-      frequencyLabel = "week";
-  }
-
-  let summary = `Repeats every ${frequencyLabel}`;
-
-  if (
-    rule.frequency === "weekly" &&
-    rule.weekdays &&
-    rule.weekdays.length > 0
-  ) {
-    const dayNames = rule.weekdays
-      .map((d) => WEEKDAY_LABELS[d])
-      .filter(Boolean)
-      .join(", ");
-    summary += ` on ${dayNames}`;
-  }
-
-  if (rule.end_type === "on_date" && rule.end_date) {
-    const [year, month, day] = rule.end_date.split("-").map(Number);
-    summary += ` until ${format(new Date(year, month - 1, day), "MMM d, yyyy")}`;
-  } else if (rule.end_type === "after_occurrences" && rule.end_occurrences) {
-    summary += `, ${rule.end_occurrences} times`;
-  } else if (rule.end_type === "never") {
-    summary += " (ongoing)";
-  }
-
-  return summary;
-}
 
 // Add interface for the project with creator
 interface ProjectWithCreator extends Project {
@@ -278,21 +219,31 @@ export default async function UserProjects() {
     (p) => p.status === "completed" || p.status === "cancelled",
   );
 
+  // A draft is a project row that is not published yet: a duplicated project,
+  // or one whose waiver is still missing. Volunteers cannot see it, so it is
+  // listed on its own and opens in the editor, where it can be published.
+  const draftCreated = processedCreatedProjects.filter(
+    (p) => p.workflow_status === "draft" && p.status !== "cancelled",
+  );
+  const publishedCreated = processedCreatedProjects.filter(
+    (p) => !draftCreated.includes(p),
+  );
+
   // Group created projects by status
-  const upcomingCreated = processedCreatedProjects.filter(
+  const upcomingCreated = publishedCreated.filter(
     (p) => p.status === "upcoming",
   );
 
-  const inProgressCreated = processedCreatedProjects.filter(
+  const inProgressCreated = publishedCreated.filter(
     (p) => p.status === "in-progress",
   );
 
-  const pastCreated = processedCreatedProjects.filter(
+  const pastCreated = publishedCreated.filter(
     (p) => p.status === "completed" || p.status === "cancelled",
   );
 
   // Filter recurring projects (those with recurrence_rule set and have frequency)
-  const recurringCreated = processedCreatedProjects.filter(
+  const recurringCreated = publishedCreated.filter(
     (p) =>
       p.recurrence_rule &&
       p.recurrence_rule.frequency &&
@@ -437,7 +388,8 @@ export default async function UserProjects() {
 
         {/* Projects you've created */}
         <TabsContent value="created" className="grid gap-8">
-          {upcomingCreated.length === 0 &&
+          {draftCreated.length === 0 &&
+          upcomingCreated.length === 0 &&
           inProgressCreated.length === 0 &&
           pastCreated.length === 0 ? (
             <Empty className="border">
@@ -458,6 +410,23 @@ export default async function UserProjects() {
             </Empty>
           ) : (
             <>
+              {draftCreated.length > 0 && (
+                <section>
+                  <GroupHeading title="Drafts" count={draftCreated.length} />
+                  <div className={CARD_GRID}>
+                    {draftCreated.map((project) => (
+                      <ProjectCard
+                        key={`created-draft-${project.id}`}
+                        project={project}
+                        href={`/projects/${project.id}/edit`}
+                        showIdentity={false}
+                        badge={<Badge variant="neutral">Draft</Badge>}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* In progress created projects */}
               {inProgressCreated.length > 0 && (
                 <section>

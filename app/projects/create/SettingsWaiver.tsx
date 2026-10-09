@@ -47,6 +47,10 @@ export interface WaiverSettingsProps {
   ) => void;
   updateDetectedFieldsAction?: (fields: DetectedPdfField[] | null) => void;
   clearWaiverPdfAction?: () => void;
+  /** What still blocks this step, shown once Continue was pressed. */
+  error?: string;
+  /** Why a waiver cannot be required, when it cannot. */
+  blockedReason?: string;
 }
 
 export function WaiverSettings({
@@ -66,6 +70,8 @@ export function WaiverSettings({
   updateWaiverDefinitionAction,
   updateDetectedFieldsAction,
   clearWaiverPdfAction,
+  error,
+  blockedReason,
 }: WaiverSettingsProps) {
   const [isValidatingPdf, setIsValidatingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -194,21 +200,34 @@ export function WaiverSettings({
       <ToggleRow
         id="waiver-required"
         label="Require waiver signature"
-        description="Volunteers must sign your waiver before completing signup."
+        description={
+          blockedReason && !waiverRequired
+            ? blockedReason
+            : "Volunteers must sign your waiver before completing signup."
+        }
         checked={waiverRequired}
         onCheckedChange={updateWaiverRequiredAction}
+        // Turning it off always stays possible.
+        disabled={Boolean(blockedReason) && !waiverRequired}
       />
 
       {waiverRequired && (
         <>
-          <Alert variant={hasWaiverPdf ? "warning" : "destructive"}>
-            <AlertTriangle aria-hidden="true" />
-            <AlertDescription>
-              {hasWaiverPdf
-                ? "Waiver-enabled projects must be created directly; drafts aren't available for these projects."
-                : "Upload the waiver PDF before you can continue or save this project."}
-            </AlertDescription>
-          </Alert>
+          {error ? (
+            <Alert variant="destructive" role="alert">
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant={hasWaiverPdf ? "warning" : "destructive"}>
+              <AlertTriangle aria-hidden="true" />
+              <AlertDescription>
+                {hasWaiverPdf
+                  ? "Waiver-enabled projects must be created directly; drafts aren't available for these projects."
+                  : "Upload the waiver PDF before you can continue or save this project."}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {showWaiverReuploadNotice && !hasWaiverPdf && (
             <Alert variant="warning">

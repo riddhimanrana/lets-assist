@@ -20,10 +20,13 @@ export function EditProjectWaiver({
   form,
   media,
   projectWaiverPdfUrl,
+  blockedReason,
 }: {
   form: UseFormReturn<FormValues>;
   media: EditProjectMedia;
   projectWaiverPdfUrl?: string | null;
+  /** Why a waiver cannot be required, when it cannot. */
+  blockedReason?: string;
 }) {
   const waiverRequired = form.watch("waiver_required");
   const esignatureDisabled = form.watch("waiver_disable_esignature");
@@ -40,9 +43,15 @@ export function EditProjectWaiver({
             <ToggleRow
               id={field.name}
               label="Require waiver signature"
-              description="Volunteers must sign your waiver PDF or the active global waiver definition before signing up."
+              description={
+                blockedReason && !field.value
+                  ? blockedReason
+                  : "Volunteers must sign your waiver PDF or the active global waiver definition before signing up."
+              }
               checked={field.value}
               onCheckedChange={field.onChange}
+              // Turning it off always stays possible.
+              disabled={Boolean(blockedReason) && !field.value}
             />
           )}
         />

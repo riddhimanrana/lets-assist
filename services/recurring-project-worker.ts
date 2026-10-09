@@ -5,7 +5,6 @@ import {
   addWeeks,
   addMonths,
   addYears,
-  differenceInCalendarDays,
   format,
   isAfter,
   isBefore,
@@ -21,6 +20,8 @@ import {
 export const MAX_ITERATIONS_PER_PARENT = 500;
 /** Page size, not a per-run prefix: every stable page is visited. */
 export const RECURRING_PARENT_PAGE_SIZE = 20;
+/** Upper bound on the occurrence index a search may reach for one parent. */
+const MAX_OCCURRENCE_INDEX = 1_000_000;
 
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -63,6 +64,14 @@ interface Project {
   recurrence_rule: RecurrenceRule;
   recurrence_sequence: number | null;
   recurrence_occurrence_date?: string | null;
+  signup_form_schema?: unknown;
+  cover_image_url?: string | null;
+  documents?: unknown;
+  can_be_managed_by_staff?: boolean | null;
+  pause_signups?: boolean | null;
+  waiver_required?: boolean | null;
+  waiver_allow_upload?: boolean | null;
+  waiver_disable_esignature?: boolean | null;
 }
 
 type RecurringProjectsClient = ReturnType<typeof createServiceClient>;
@@ -113,61 +122,118 @@ function isMissingRecurrenceOccurrenceDateColumnError(error: unknown): boolean {
   return referencesColumn && missingColumn;
 }
 
-function calculateNextDate(
-  currentDate: Date,
+const WEEKDAY_INDEX: Record<string, number> = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
+/**
+ * The date of an occurrence, counted from the series' first date.
+ *
+ * Index 0 is the first date itself and index N is N steps after it. Every
+ * occurrence is computed from the first date, never from the one before it, so
+ * a short month only affects its own occurrence: a series that starts on
+ * January 31 lands on February 28, March 31, April 30, and a series that
+ * starts on February 29 returns to February 29 in the next leap year.
+ *
+ * A weekly rule with weekdays visits each chosen weekday left in the first
+ * date's week (Sunday to Saturday), then every chosen weekday of each
+ * `interval`-th week after it.
+ */
+export function getOccurrenceDate(
+  firstDate: Date,
   rule: RecurrenceRule,
+  occurrenceIndex: number,
 ): Date | null {
-  // Use the raw interval without a falsy-fallback; validation ensures it is a
-  // positive integer before this function is ever reached.
+  if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0) return null;
+  if (occurrenceIndex === 0) return firstDate;
+
+  // Validation ensures the interval is a positive integer before this is
+  // reached; anything else is treated as 1.
   const interval =
     typeof rule.interval === "number" && rule.interval >= 1 ? rule.interval : 1;
 
   switch (rule.frequency) {
     case "daily":
-      return addDays(currentDate, interval);
-    case "weekly":
-      if (rule.weekdays && rule.weekdays.length > 0) {
-        return findNextWeekday(currentDate, rule.weekdays, interval);
+      return addDays(firstDate, occurrenceIndex * interval);
+    case "weekly": {
+      const targetDays = [
+        ...new Set(
+          (rule.weekdays ?? [])
+            .map((day) => WEEKDAY_INDEX[day.toLowerCase()])
+            .filter((day) => day !== undefined),
+        ),
+      ].sort((left, right) => left - right);
+      if (targetDays.length === 0) {
+        return addWeeks(firstDate, occurrenceIndex * interval);
       }
-      return addWeeks(currentDate, interval);
+
+      const firstDay = firstDate.getDay();
+      const weekStart = addDays(firstDate, -firstDay);
+      const laterThisWeek = targetDays.filter((day) => day > firstDay);
+      if (occurrenceIndex <= laterThisWeek.length) {
+        return addDays(weekStart, laterThisWeek[occurrenceIndex - 1]);
+      }
+
+      const offset = occurrenceIndex - laterThisWeek.length - 1;
+      const week = 1 + Math.floor(offset / targetDays.length);
+      return addDays(
+        weekStart,
+        7 * interval * week + targetDays[offset % targetDays.length],
+      );
+    }
     case "monthly":
-      return addMonths(currentDate, interval);
+      return addMonths(firstDate, occurrenceIndex * interval);
     case "yearly":
-      return addYears(currentDate, interval);
+      return addYears(firstDate, occurrenceIndex * interval);
     default:
       return null;
   }
 }
 
-function findNextWeekday(
-  currentDate: Date,
-  weekdays: string[],
-  interval: number,
-): Date {
-  const dayMap: Record<string, number> = {
-    sunday: 0,
-    monday: 1,
-    tuesday: 2,
-    wednesday: 3,
-    thursday: 4,
-    friday: 5,
-    saturday: 6,
+/**
+ * The first occurrence index, at or above `minimumIndex`, whose date is after
+ * `boundary`. Occurrence dates only move forward, so a doubling search finds
+ * it without walking years of history one occurrence at a time.
+ */
+export function firstOccurrenceIndexAfter(
+  firstDate: Date,
+  rule: RecurrenceRule,
+  boundary: Date,
+  minimumIndex = 1,
+): number | null {
+  const isPastBoundary = (index: number): boolean | null => {
+    const date = getOccurrenceDate(firstDate, rule, index);
+    return date ? isAfter(date, boundary) : null;
   };
 
-  const targetDays = weekdays
-    .map((d) => dayMap[d.toLowerCase()])
-    .filter((d) => d !== undefined);
-  const currentDay = currentDate.getDay();
+  const atMinimum = isPastBoundary(minimumIndex);
+  if (atMinimum === null) return null;
+  if (atMinimum) return minimumIndex;
 
-  for (const targetDay of targetDays.sort((a, b) => a - b)) {
-    if (targetDay > currentDay) {
-      return addDays(currentDate, targetDay - currentDay);
-    }
+  let low = minimumIndex;
+  let high = minimumIndex + 1;
+  for (let step = 1; ; step *= 2) {
+    if (high > MAX_OCCURRENCE_INDEX) return null;
+    const past = isPastBoundary(high);
+    if (past === null) return null;
+    if (past) break;
+    low = high;
+    high += step * 2;
   }
 
-  const firstTargetDay = Math.min(...targetDays);
-  const daysUntilNextWeek = 7 * interval - currentDay + firstTargetDay;
-  return addDays(currentDate, daysUntilNextWeek);
+  while (high - low > 1) {
+    const middle = Math.floor((low + high) / 2);
+    if (isPastBoundary(middle)) high = middle;
+    else low = middle;
+  }
+
+  return high;
 }
 
 function shouldGenerateOccurrence(
@@ -213,53 +279,6 @@ function getProjectDate(project: Project): Date | null {
   return null;
 }
 
-export function fastForwardNeverRecurrence(
-  lastDate: Date,
-  rule: RecurrenceRule,
-  currentSequence: number,
-  today: Date,
-): { nextDate: Date | null; currentSequence: number } {
-  let nextDate = calculateNextDate(lastDate, rule);
-  if (rule.end_type !== "never" || !nextDate || isAfter(nextDate, today)) {
-    return { nextDate, currentSequence };
-  }
-
-  // The common fixed-stride rules can jump directly across years of history.
-  // currentSequence names nextDate, so it advances by the number of skipped
-  // occurrences on or before today.
-  if (
-    rule.frequency === "daily" ||
-    (rule.frequency === "weekly" && !rule.weekdays?.length)
-  ) {
-    const strideDays =
-      rule.frequency === "daily" ? rule.interval : 7 * rule.interval;
-    const skipped = Math.max(
-      1,
-      Math.floor(differenceInCalendarDays(today, lastDate) / strideDays),
-    );
-    const skippedThrough = addDays(lastDate, skipped * strideDays);
-    nextDate = calculateNextDate(skippedThrough, rule);
-    return {
-      nextDate,
-      currentSequence: currentSequence + skipped,
-    };
-  }
-
-  // Month/year clamping and multi-weekday rules are not fixed-duration. Walk
-  // them in memory without database calls or sleeps; the future-generation
-  // defense cap below remains reserved for actual writes.
-  while (nextDate && !isAfter(nextDate, today)) {
-    const previousTime = nextDate.getTime();
-    currentSequence += 1;
-    nextDate = calculateNextDate(nextDate, rule);
-    if (nextDate && nextDate.getTime() <= previousTime) {
-      return { nextDate: null, currentSequence };
-    }
-  }
-
-  return { nextDate, currentSequence };
-}
-
 function canLegacyDateCheck(eventType: string): boolean {
   return eventType === "oneTime" || eventType === "sameDayMultiArea";
 }
@@ -277,6 +296,7 @@ async function hasExistingOccurrence(
     .limit(1)
     .maybeSingle();
 
+  let occurrenceDateColumnMissing = false;
   if (byDateResult.error && !isNoRowsError(byDateResult.error)) {
     if (!isMissingRecurrenceOccurrenceDateColumnError(byDateResult.error)) {
       return {
@@ -284,6 +304,7 @@ async function hasExistingOccurrence(
         errorMessage: `Failed date-based dedupe check for ${parent.title}: ${byDateResult.error.message}`,
       };
     }
+    occurrenceDateColumnMissing = true;
   }
 
   if (byDateResult.data) {
@@ -298,6 +319,13 @@ async function hasExistingOccurrence(
     .from("projects")
     .select("id")
     .eq("recurrence_parent_id", parent.id);
+
+  // The schedule date only identifies an occurrence that predates
+  // recurrence_occurrence_date. A newer occurrence whose date an organizer
+  // edited must not be mistaken for a different one.
+  if (!occurrenceDateColumnMissing) {
+    legacyQuery = legacyQuery.is("recurrence_occurrence_date", null);
+  }
 
   if (parent.event_type === "oneTime") {
     legacyQuery = legacyQuery.filter(
@@ -384,6 +412,8 @@ export async function processRecurringProjects(
   checkedProjects: number;
   successfulProjects: number;
   failedParents: number;
+  /** Series left alone because a repeating project cannot require a waiver. */
+  skippedWaiverParents: number;
   createdOccurrences: number;
   errors: string[];
 }> {
@@ -398,6 +428,7 @@ export async function processRecurringProjects(
   let checkedProjects = 0;
   let successfulProjects = 0;
   let failedParents = 0;
+  let skippedWaiverParents = 0;
   let parentCursor: string | null = null;
   const parentPageSize = Math.max(
     1,
@@ -471,13 +502,45 @@ export async function processRecurringProjects(
           );
           continue;
         }
+        // A generated occurrence is a new project, and a waiver PDF has to
+        // live under its own project's prefix. Until occurrences can carry
+        // their own copy, generating them would publish events that require
+        // no waiver at all, so the series is left alone and reported.
+        if (parent.waiver_required === true) {
+          skippedWaiverParents++;
+          safeConsole.warn(
+            "Application diagnostic from services/recurring-project-worker",
+            `[recurring-cron] Skipping parent ${parent.id}: a repeating project cannot require a waiver.`,
+          );
+          errors.push(
+            `Skipping parent ${parent.title} (a repeating project cannot require a waiver)`,
+          );
+          continue;
+        }
         parentsProcessed++;
 
+        // The series is anchored to the parent's own date. Every occurrence
+        // is that date plus a whole number of steps.
+        const firstDate = getProjectDate(parent);
+        if (!firstDate) {
+          errors.push(`Invalid occurrence date for ${parent.title}`);
+          continue;
+        }
+
+        // The last generated occurrence is the one with the latest
+        // recurrence_occurrence_date. That column is written once by this
+        // worker and cannot be edited, unlike the occurrence's schedule.
         const latestOccurrenceResult = await supabase
           .from("projects")
-          .select("id, schedule, recurrence_sequence")
+          .select(
+            "id, schedule, recurrence_sequence, recurrence_occurrence_date",
+          )
           .eq("recurrence_parent_id", parent.id)
-          .order("recurrence_sequence", { ascending: false })
+          .order("recurrence_occurrence_date", {
+            ascending: false,
+            nullsFirst: false,
+          })
+          .order("recurrence_sequence", { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
 
@@ -492,41 +555,69 @@ export async function processRecurringProjects(
         }
 
         const latestOccurrence = latestOccurrenceResult.data;
+        let nextIndex = 1;
 
-        let currentSequence = 1;
-        let lastDate: Date | null;
+        if (latestOccurrence) {
+          const lastSequence = latestOccurrence.recurrence_sequence;
+          if (typeof lastSequence === "number" && lastSequence >= 1) {
+            nextIndex = lastSequence + 1;
+          }
 
-        if (!latestOccurrence) {
-          lastDate = getProjectDate(parent);
-          currentSequence = 1;
-        } else {
-          lastDate = getProjectDate({
-            ...parent,
-            schedule: latestOccurrence.schedule,
-          } as Project);
-          currentSequence = (latestOccurrence.recurrence_sequence || 1) + 1;
+          const recordedDate = latestOccurrence.recurrence_occurrence_date;
+          // Occurrences generated before the column existed fall back to
+          // their schedule date, which is all they ever recorded.
+          const lastDate =
+            typeof recordedDate === "string" &&
+            isStrictCalendarDate(recordedDate)
+              ? parseISO(recordedDate)
+              : getProjectDate({
+                  ...parent,
+                  schedule: latestOccurrence.schedule,
+                });
+
+          if (lastDate) {
+            const indexAfterLast = firstOccurrenceIndexAfter(
+              firstDate,
+              rule,
+              lastDate,
+            );
+            if (indexAfterLast === null) {
+              errors.push(`Invalid recurrence position for ${parent.title}`);
+              continue;
+            }
+            nextIndex = Math.max(nextIndex, indexAfterLast);
+          }
         }
 
-        if (!lastDate) {
-          errors.push(`Invalid occurrence date for ${parent.title}`);
+        // Occurrences dated today or earlier are never created, so skip
+        // straight to the first one after today.
+        const firstFutureIndex = firstOccurrenceIndexAfter(
+          firstDate,
+          rule,
+          today,
+          nextIndex,
+        );
+        if (firstFutureIndex === null) {
+          errors.push(`Invalid recurrence position for ${parent.title}`);
           continue;
         }
 
-        const fastForwarded = fastForwardNeverRecurrence(
-          lastDate,
-          rule,
-          currentSequence,
-          today,
-        );
-        let { nextDate } = fastForwarded;
-        currentSequence = fastForwarded.currentSequence;
         let iterationCount = 0;
 
-        while (
-          nextDate &&
-          isBefore(nextDate, lookAheadDate) &&
-          shouldGenerateOccurrence(rule, nextDate, currentSequence)
-        ) {
+        for (let occurrenceIndex = firstFutureIndex; ; occurrenceIndex++) {
+          const occurrenceDate = getOccurrenceDate(
+            firstDate,
+            rule,
+            occurrenceIndex,
+          );
+          if (
+            !occurrenceDate ||
+            !isBefore(occurrenceDate, lookAheadDate) ||
+            !shouldGenerateOccurrence(rule, occurrenceDate, occurrenceIndex)
+          ) {
+            break;
+          }
+
           if (++iterationCount > MAX_ITERATIONS_PER_PARENT) {
             errors.push(
               `Iteration cap (${MAX_ITERATIONS_PER_PARENT}) reached for ${parent.title}; skipping remaining occurrences.`,
@@ -534,87 +625,92 @@ export async function processRecurringProjects(
             break;
           }
 
-          if (isBefore(today, nextDate)) {
-            const formattedNextDate = format(nextDate, "yyyy-MM-dd");
+          const formattedOccurrenceDate = format(occurrenceDate, "yyyy-MM-dd");
 
-            const existingCheck = await hasExistingOccurrence(
-              supabase,
-              parent,
-              formattedNextDate,
-            );
-            if (existingCheck.errorMessage) {
-              errors.push(existingCheck.errorMessage);
-            }
+          const existingCheck = await hasExistingOccurrence(
+            supabase,
+            parent,
+            formattedOccurrenceDate,
+          );
+          if (existingCheck.errorMessage) {
+            errors.push(existingCheck.errorMessage);
+          }
+          if (existingCheck.exists) continue;
 
-            if (!existingCheck.exists) {
-              const newSchedule = updateScheduleDate(
-                parent.schedule,
-                parent.event_type,
-                nextDate,
-              );
-              const publishedState = initializePublishedState(
-                parent.event_type,
-                newSchedule,
-              );
+          const newSchedule = updateScheduleDate(
+            parent.schedule,
+            parent.event_type,
+            occurrenceDate,
+          );
+          const publishedState = initializePublishedState(
+            parent.event_type,
+            newSchedule,
+          );
 
-              const insertPayload = {
-                creator_id: parent.creator_id,
-                title: parent.title,
-                description: parent.description,
-                location: parent.location,
-                location_data: parent.location_data,
-                event_type: parent.event_type,
-                schedule: newSchedule,
-                verification_method: parent.verification_method,
-                require_login: parent.require_login,
-                enable_volunteer_comments: parent.enable_volunteer_comments,
-                show_attendees_publicly: parent.show_attendees_publicly,
-                organization_id: parent.organization_id,
-                visibility: parent.visibility,
-                project_timezone: parent.project_timezone,
-                restrict_to_org_domains: parent.restrict_to_org_domains,
-                status: "upcoming",
-                workflow_status: "published",
-                published: publishedState,
-                recurrence_parent_id: parent.id,
-                recurrence_sequence: currentSequence,
-                recurrence_occurrence_date: formattedNextDate,
-              };
+          const insertPayload = {
+            creator_id: parent.creator_id,
+            title: parent.title,
+            description: parent.description,
+            location: parent.location,
+            location_data: parent.location_data,
+            event_type: parent.event_type,
+            schedule: newSchedule,
+            verification_method: parent.verification_method,
+            require_login: parent.require_login,
+            enable_volunteer_comments: parent.enable_volunteer_comments,
+            show_attendees_publicly: parent.show_attendees_publicly,
+            organization_id: parent.organization_id,
+            visibility: parent.visibility,
+            project_timezone: parent.project_timezone,
+            restrict_to_org_domains: parent.restrict_to_org_domains,
+            // An occurrence is the same event on another day, so it keeps the
+            // sign-up questions, cover image, documents and management
+            // settings of its series. The cover image and documents are the
+            // parent's own stored files, shared by reference.
+            signup_form_schema: parent.signup_form_schema,
+            cover_image_url: parent.cover_image_url,
+            documents: parent.documents,
+            can_be_managed_by_staff: parent.can_be_managed_by_staff,
+            pause_signups: parent.pause_signups,
+            waiver_allow_upload: parent.waiver_allow_upload,
+            waiver_disable_esignature: parent.waiver_disable_esignature,
+            status: "upcoming",
+            workflow_status: "published",
+            published: publishedState,
+            recurrence_parent_id: parent.id,
+            recurrence_sequence: occurrenceIndex,
+            recurrence_occurrence_date: formattedOccurrenceDate,
+          };
 
-              let insertResult = await supabase
-                .from("projects")
-                .insert(insertPayload);
+          let insertResult = await supabase
+            .from("projects")
+            .insert(insertPayload);
 
-              if (
-                insertResult.error &&
-                isMissingRecurrenceOccurrenceDateColumnError(insertResult.error)
-              ) {
-                const legacyInsertPayload = { ...insertPayload } as Record<
-                  string,
-                  unknown
-                >;
-                delete legacyInsertPayload.recurrence_occurrence_date;
-                insertResult = await supabase
-                  .from("projects")
-                  .insert(legacyInsertPayload);
-              }
-
-              const insertError = insertResult.error;
-
-              if (insertError) {
-                if (!isUniqueViolation(insertError)) {
-                  errors.push(
-                    `Failed to create occurrence for ${parent.title}: ${insertError.message}`,
-                  );
-                }
-              } else {
-                createdOccurrences++;
-              }
-            }
+          if (
+            insertResult.error &&
+            isMissingRecurrenceOccurrenceDateColumnError(insertResult.error)
+          ) {
+            const legacyInsertPayload = { ...insertPayload } as Record<
+              string,
+              unknown
+            >;
+            delete legacyInsertPayload.recurrence_occurrence_date;
+            insertResult = await supabase
+              .from("projects")
+              .insert(legacyInsertPayload);
           }
 
-          currentSequence++;
-          nextDate = calculateNextDate(nextDate, rule);
+          const insertError = insertResult.error;
+
+          if (insertError) {
+            if (!isUniqueViolation(insertError)) {
+              errors.push(
+                `Failed to create occurrence for ${parent.title}: ${insertError.message}`,
+              );
+            }
+          } else {
+            createdOccurrences++;
+          }
         }
       } catch (error) {
         const errorMessage =
@@ -635,6 +731,7 @@ export async function processRecurringProjects(
     checkedProjects,
     successfulProjects,
     failedParents,
+    skippedWaiverParents,
     createdOccurrences,
     errors,
   };

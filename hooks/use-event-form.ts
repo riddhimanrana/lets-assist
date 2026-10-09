@@ -278,7 +278,7 @@ const initialState: EventFormState = {
   pluginData: {},
 };
 
-const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
+export const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
   state,
   action,
 ) => {
@@ -564,6 +564,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
     }
     case "UPDATE_RECURRENCE": {
       const { field, value } = action.payload;
+      // A multi-day project cannot repeat, whoever asks: the toggle, a
+      // restored draft, or the AI auto-fill that runs after the event type
+      // was set.
+      if (field === "enabled" && value && state.eventType === "multiDay") {
+        return state;
+      }
       return {
         ...state,
         recurrence: {
@@ -667,6 +673,9 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         recurrence: {
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
+          ...((payload.eventType ?? state.eventType) === "multiDay"
+            ? { enabled: false }
+            : {}),
         },
         requireLogin:
           payload.verificationMethod === "signup-only"

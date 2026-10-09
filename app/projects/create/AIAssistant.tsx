@@ -26,6 +26,8 @@ interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
   onClose: () => void;
   isOpen: boolean;
+  /** The project's timezone, so "today" means today where the project is. */
+  projectTimezone?: string;
 }
 
 export type AIParseResult = ParseProjectResult;
@@ -34,6 +36,7 @@ export default function AIAssistant({
   onApplyData,
   onClose,
   isOpen,
+  projectTimezone,
 }: AIAssistantProps) {
   const [prompt, setPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -53,7 +56,10 @@ export default function AIAssistant({
       const response = await fetch("/api/ai/parse-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt.trim() }),
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          ...(projectTimezone ? { timezone: projectTimezone } : {}),
+        }),
       });
 
       if (!response.ok) {

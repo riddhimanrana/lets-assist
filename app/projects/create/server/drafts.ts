@@ -20,7 +20,14 @@ import {
 import {
   validateProjectTimezone,
   validateRecurrenceRule,
+  type ValidatedRecurrenceRule,
 } from "@/lib/projects/schedule-validation";
+import {
+  buildRecurrenceRuleFromState,
+  firstRecurrenceError,
+  validateRecurrenceFormState,
+} from "@/lib/projects/recurrence";
+import { parseCreateProjectPayload } from "@/schemas/project-create-schema";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -47,10 +54,25 @@ export async function createProject(formData: FormData) {
       return { error: "You must be logged in to create a project" };
     }
 
-    // Parse project data
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
+    // The form posts its state as JSON. It stays untyped until
+    // createBasicProject parses it against the form's own schemas.
+    const projectDataStr = formData.get("projectData");
+    if (typeof projectDataStr !== "string" || !projectDataStr) {
+      return { error: "Missing project data" };
+    }
+    let projectData: unknown;
+    try {
+      projectData = JSON.parse(projectDataStr);
+    } catch {
+      return { error: "The project details could not be read. Try again." };
+    }
+    if (
+      !projectData ||
+      typeof projectData !== "object" ||
+      Array.isArray(projectData)
+    ) {
+      return { error: "The project details could not be read. Try again." };
+    }
     const creationIdempotencyKey = formData.get("creationIdempotencyKey");
 
     // Create basic project record. The key makes a replayed create resolve to
@@ -291,8 +313,15 @@ export async function publishDraft(draftId: string) {
     return { error: "Draft not found" };
   }
 
-  // Create the project from draft data
-  const projectData = draft.draft_data;
+  // A draft is saved with relaxed rules, so it can be missing anything. It is
+  // checked against the create form's rules here, and the first thing that
+  // still needs attention is named instead of a generic failure.
+  const draftValidation = parseCreateProjectPayload(draft.draft_data);
+  if (!draftValidation.ok) {
+    return { error: draftValidation.error };
+  }
+  const projectData = draftValidation.data;
+
   const waiverConfigurationError = getWaiverConfigurationError(projectData);
   if (waiverConfigurationError) {
     return { error: waiverConfigurationError };
@@ -308,7 +337,7 @@ export async function publishDraft(draftId: string) {
     };
   }
 
-  const basicResult = await createBasicProject(projectData, false);
+  const basicResult = await createBasicProject(draft.draft_data, false);
 
   if (basicResult.error) {
     return basicResult;
@@ -406,20 +435,22 @@ export async function updateDraft(
     return { error: `Invalid project timezone: ${timezoneResult.error}` };
   }
 
-  // Build and validate recurrence rule if enabled.
-  let recurrenceRule:
-    | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
-    | null = null;
+  // Build and validate recurrence rule if enabled. Only the fields that apply
+  // to the chosen frequency and end type are sent.
+  let recurrenceRule: ValidatedRecurrenceRule | null = null;
   if (projectData.recurrence?.enabled) {
-    const rawRule = {
-      frequency: projectData.recurrence.frequency,
-      interval: projectData.recurrence.interval,
-      end_type: projectData.recurrence.endType,
-      end_date: projectData.recurrence.endDate || null,
-      end_occurrences: projectData.recurrence.endOccurrences || null,
-      weekdays: projectData.recurrence.weekdays || [],
-    };
-    const ruleResult = validateRecurrenceRule(rawRule);
+    const recurrenceError = firstRecurrenceError(
+      validateRecurrenceFormState(projectData.recurrence, {
+        eventType: projectData.eventType,
+        waiverRequired: projectData.waiverRequired,
+      }),
+    );
+    if (recurrenceError) {
+      return { error: recurrenceError };
+    }
+    const ruleResult = validateRecurrenceRule(
+      buildRecurrenceRuleFromState(projectData.recurrence),
+    );
     if (!ruleResult.ok) {
       return { error: `Invalid recurrence rule: ${ruleResult.error}` };
     }

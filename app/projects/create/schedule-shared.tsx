@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
+import { isDateTimeInPast } from "@/schemas/event-form-helpers";
 import type {
   RecurrenceEndType,
   RecurrenceFrequency,
@@ -95,18 +96,9 @@ export const isPastDate = (date: Date) => {
   return date < today;
 };
 
-export const isTimeInPast = (date: string, time: string) => {
-  if (!date || !time) return false;
-
-  const [hours, minutes] = time.split(":").map(Number);
-  const selectedDate = parseStringToDate(date);
-  if (!selectedDate) return false;
-
-  const datetime = new Date(selectedDate);
-  datetime.setHours(hours, minutes, 0, 0);
-
-  return datetime < new Date();
-};
+/** Whether a date and time, read in the project's timezone, has passed. */
+export const isTimeInPast = (date: string, time: string, timeZone?: string) =>
+  isDateTimeInPast(date, time, timeZone);
 
 // Get field error from Zod issues
 export const getFieldError = (

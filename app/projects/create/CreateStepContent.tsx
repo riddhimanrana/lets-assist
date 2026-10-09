@@ -3,6 +3,7 @@
 import React from "react";
 
 import type { useEventForm } from "@/hooks/use-event-form";
+import { RECURRENCE_WAIVER_CONFLICT_MESSAGE } from "@/lib/projects/recurrence";
 
 import BasicInfo from "./BasicInfo";
 import EventTypeStep from "./EventType";
@@ -28,7 +29,7 @@ export interface CreateOrgOption {
   allowed_email_domains?: string[] | null;
 }
 
-/** Renders the step the form is on. The step order and every prop are unchanged. */
+/** Renders the step the form is on. */
 export function CreateStepContent({
   form,
   validation,
@@ -92,6 +93,8 @@ export function CreateStepContent({
     handleMultiDayScheduleUpdate,
     handleMultiRoleScheduleUpdate,
     getFieldError,
+    recurrenceErrors,
+    waiverError,
   } = validation;
   const {
     setCoverImage,
@@ -168,6 +171,13 @@ export function CreateStepContent({
           removeRoleAction={removeRole}
           updateRecurrenceAction={updateRecurrence}
           errors={validationAttempted ? scheduleErrors : []}
+          projectTimezone={state.basicInfo.projectTimezone}
+          recurrenceErrors={recurrenceErrors}
+          recurrenceBlockedReason={
+            state.waiverRequired
+              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
+              : undefined
+          }
         />
       );
     case 4:
@@ -239,7 +249,13 @@ export function CreateStepContent({
               "verificationMethod",
               verificationErrors,
             ),
+            waiver: waiverError,
           }}
+          waiverBlockedReason={
+            state.recurrence.enabled
+              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
+              : undefined
+          }
         />
       );
     default:

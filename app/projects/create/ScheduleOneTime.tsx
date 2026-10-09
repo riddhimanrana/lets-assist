@@ -17,6 +17,7 @@ export function ScheduleOneTime({
   oneTime,
   updateOneTimeScheduleAction,
   errors,
+  timeZone,
 }: {
   oneTime: ScheduleState["schedule"]["oneTime"];
   updateOneTimeScheduleAction: (
@@ -24,6 +25,8 @@ export function ScheduleOneTime({
     value: string | number,
   ) => void;
   errors: ZodIssue[];
+  /** The project's timezone, which decides whether a time has passed. */
+  timeZone?: string;
 }) {
   const timeRangeInvalid = isTimeRangeInvalid(
     oneTime.startTime,
@@ -36,8 +39,8 @@ export function ScheduleOneTime({
   const endTimeError = getFieldError(errors, "endTime");
   const volunteersError = getFieldError(errors, "volunteers");
 
-  const startInPast = isTimeInPast(oneTime.date, oneTime.startTime);
-  const endInPast = isTimeInPast(oneTime.date, oneTime.endTime);
+  const startInPast = isTimeInPast(oneTime.date, oneTime.startTime, timeZone);
+  const endInPast = isTimeInPast(oneTime.date, oneTime.endTime, timeZone);
 
   return (
     <FormGroup title="Date and time">

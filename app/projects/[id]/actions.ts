@@ -23,6 +23,7 @@ export {
   deleteProject,
   updateProject,
 } from "./server/lifecycle";
+export { publishProjectDraft } from "./server/publish-draft";
 export { checkInParticipant, checkOutParticipant } from "./server/attendance";
 export {
   getUserProfile,

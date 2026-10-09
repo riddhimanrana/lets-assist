@@ -15,7 +15,6 @@ import {
   checkProfanity,
 } from "./actions";
 import { saveWaiverDefinition } from "../[id]/actions";
-import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
 import {
   clearStagedWaiverAttempt,
   createStagedWaiverAttempt,
@@ -23,17 +22,9 @@ import {
   writeStagedWaiverAttempt,
   type StagedWaiverAttempt,
 } from "@/lib/projects/staged-waiver-attempt";
-// Import Zod schemas
-import {
-  basicInfoSchema,
-  oneTimeSchema,
-  multiDaySchema,
-  multiRoleSchema,
-  verificationSettingsSchema,
-} from "@/schemas/event-form-schema";
-import { z } from "zod";
 import type { Draft } from "./DraftsSidebar";
 import { applyAIProjectData } from "./apply-ai-data";
+import { getWaiverStepError } from "./create-blockers";
 import { CreateActionBar } from "./CreateActionBar";
 import { CreateHeader } from "./CreateHeader";
 import {
@@ -42,8 +33,10 @@ import {
   type CreatePluginStep,
 } from "./CreateStepContent";
 import { CreateStepper } from "./CreateStepper";
+import { fileToBase64 } from "./file-base64";
 import { useDraftAutosave } from "./use-draft-autosave";
 import { useWaiverReuploadNotice } from "./use-draft-restore";
+import { useOrganizationSteps } from "./use-organization-steps";
 import { useProjectFileUploads } from "./use-project-file-uploads";
 import { useStepValidation } from "./use-step-validation";
 
@@ -112,7 +105,9 @@ export default function ProjectCreator({
     initialDraftData,
     state,
   );
-  const waiverPdfRequirementError = getWaiverConfigurationError(state);
+  // What still stops this project from being created because of its waiver.
+  // The final step disables Create and says why.
+  const waiverBlockedReason = getWaiverStepError(state);
   const totalSteps = 5 + pluginSteps.length;
   const finalStep = totalSteps;
   const stepLabels = useMemo(
@@ -142,6 +137,7 @@ export default function ProjectCreator({
     handleMultiDayScheduleUpdate,
     handleMultiRoleScheduleUpdate,
     validateCurrentStep,
+    validateAllSteps,
   } = validation;
 
   // Serialize state for change detection
@@ -183,6 +179,14 @@ export default function ProjectCreator({
     getDraftSafeState,
   });
 
+  useOrganizationSteps({
+    organizationId: state.basicInfo.organizationId || null,
+    resolvedOrganizationId: initialOrgId || null,
+    creationSessionId,
+    draftSession,
+    getDraftSafeState,
+  });
+
   // Handle AI-generated data
   const handleApplyAIData = (data: AIParseResult) => {
     applyAIProjectData(data, {
@@ -207,16 +211,6 @@ export default function ProjectCreator({
 
     // Show a pointer to the location field to encourage manual verification/filling
     setShowLocationPointer(true);
-  };
-
-  // Function to convert File to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
-    });
   };
 
   // Handler for continuing to next step
@@ -247,7 +241,9 @@ export default function ProjectCreator({
    *
    * The upload is skipped when this attempt already attached its waiver, so a
    * retry after a failed publication does not upload a second copy and orphan
-   * the first.
+   * the first. The signature placements are saved on every attempt that has
+   * them: a first attempt may have had none, and a retry has to be able to
+   * supply them.
    */
   const completeWaiverPublication = async (
     projectId: string,
@@ -266,19 +262,19 @@ export default function ProjectCreator({
           return waiverResult.error;
         }
 
-        if (state.waiverDefinition) {
-          const defResult = await saveWaiverDefinition(
-            projectId,
-            state.waiverDefinition,
-          );
-
-          if (defResult.error) {
-            return defResult.error;
-          }
-        }
-
         persistAttempt({ ...attempt, waiverAttached: true });
         attempt.waiverAttached = true;
+      }
+
+      if (state.waiverDefinition) {
+        const defResult = await saveWaiverDefinition(
+          projectId,
+          state.waiverDefinition,
+        );
+
+        if (defResult.error) {
+          return defResult.error;
+        }
       }
 
       const publishResult = await publishWaiverStagedProject(projectId);
@@ -297,39 +293,14 @@ export default function ProjectCreator({
     }
 
     // Final validation of all steps before submission
-    try {
-      basicInfoSchema.parse(state.basicInfo);
-
-      if (state.eventType === "oneTime") {
-        oneTimeSchema.parse(state.schedule.oneTime);
-      } else if (state.eventType === "multiDay") {
-        multiDaySchema.parse(state.schedule.multiDay);
-      } else if (state.eventType === "sameDayMultiArea") {
-        multiRoleSchema.parse(state.schedule.sameDayMultiArea);
-      }
-
-      verificationSettingsSchema.parse({
-        verificationMethod: state.verificationMethod,
-        requireLogin: state.requireLogin,
-        visibility: state.visibility,
-        enableVolunteerComments: state.enableVolunteerComments,
-        showAttendeesPublicly: state.showAttendeesPublicly,
-        waiverRequired: state.waiverRequired,
-        waiverAllowUpload: state.waiverAllowUpload,
-        waiverDisableEsignature: state.waiverDisableEsignature,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        setValidationAttempted(true);
-        // Show a toast with general error message
-        toast.error("Please fix all validation errors before submitting");
-        return;
-      }
+    if (!validateAllSteps()) {
+      toast.error("Please fix all validation errors before submitting");
+      return;
     }
 
     try {
-      if (waiverPdfRequirementError) {
-        toast.error(waiverPdfRequirementError);
+      if (waiverBlockedReason) {
+        toast.error(waiverBlockedReason);
         return;
       }
 
@@ -564,6 +535,7 @@ export default function ProjectCreator({
           isOpen={showAIAssistant}
           onClose={() => setShowAIAssistant(false)}
           onApplyData={handleApplyAIData}
+          projectTimezone={state.basicInfo.projectTimezone}
         />
       )}
 
@@ -588,7 +560,12 @@ export default function ProjectCreator({
         primaryDisabled={
           isSubmitting ||
           isSavingDraft ||
-          (state.step === finalStep && Boolean(waiverPdfRequirementError))
+          (state.step === finalStep && Boolean(waiverBlockedReason))
+        }
+        blockedReason={
+          state.step === finalStep
+            ? (waiverBlockedReason ?? undefined)
+            : undefined
         }
         autosaveStatus={autosaveDraftId ? autosaveStatus : null}
         onBack={prevStep}

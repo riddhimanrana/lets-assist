@@ -2,6 +2,8 @@
 
 import type { ZodIssue } from "zod";
 
+import type { RecurrenceFieldErrors } from "@/lib/projects/recurrence";
+
 import { StepSection } from "./form-parts";
 import RecurrenceSettings from "./RecurrenceSettings";
 import { ScheduleMultiDay } from "./ScheduleMultiDay";
@@ -37,6 +39,11 @@ interface ScheduleProps {
     value: ScheduleProps["state"]["recurrence"][keyof ScheduleProps["state"]["recurrence"]],
   ) => void;
   errors?: ZodIssue[];
+  /** The project's timezone, which decides whether a time has passed. */
+  projectTimezone?: string;
+  recurrenceErrors?: RecurrenceFieldErrors;
+  /** Set when the repeat schedule cannot be turned on, with the reason. */
+  recurrenceBlockedReason?: string;
 }
 
 export default function Schedule({
@@ -52,6 +59,9 @@ export default function Schedule({
   removeRoleAction,
   updateRecurrenceAction,
   errors = [],
+  projectTimezone,
+  recurrenceErrors,
+  recurrenceBlockedReason,
 }: ScheduleProps) {
   if (state.eventType === "oneTime") {
     return (
@@ -63,6 +73,7 @@ export default function Schedule({
           oneTime={state.schedule.oneTime}
           updateOneTimeScheduleAction={updateOneTimeScheduleAction}
           errors={errors}
+          timeZone={projectTimezone}
         />
         {/* Recurrence Settings for oneTime events */}
         {updateRecurrenceAction && (
@@ -70,6 +81,8 @@ export default function Schedule({
             recurrence={state.recurrence}
             updateRecurrence={updateRecurrenceAction}
             eventType={state.eventType}
+            errors={recurrenceErrors}
+            blockedReason={recurrenceBlockedReason}
           />
         )}
       </StepSection>
@@ -90,6 +103,7 @@ export default function Schedule({
           removeDayAction={removeDayAction}
           removeSlotAction={removeSlotAction}
           errors={errors}
+          timeZone={projectTimezone}
         />
       </StepSection>
     );
@@ -107,6 +121,7 @@ export default function Schedule({
           addRoleAction={addRoleAction}
           removeRoleAction={removeRoleAction}
           errors={errors}
+          timeZone={projectTimezone}
         />
         {/* Recurrence Settings for sameDayMultiArea events */}
         {updateRecurrenceAction && (
@@ -114,6 +129,8 @@ export default function Schedule({
             recurrence={state.recurrence}
             updateRecurrence={updateRecurrenceAction}
             eventType={state.eventType}
+            errors={recurrenceErrors}
+            blockedReason={recurrenceBlockedReason}
           />
         )}
       </StepSection>

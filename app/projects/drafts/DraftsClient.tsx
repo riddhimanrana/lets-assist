@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, isValid, parse } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -35,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertTriangle,
   Calendar,
   MapPin,
   Building2,
@@ -88,6 +90,11 @@ function descriptionPreview(description: string) {
     .trim();
 }
 
+/** A saved draft reopens in the create flow. Its id is not a project id. */
+function draftEditorHref(draftId: string) {
+  return `/projects/create?draft=${encodeURIComponent(draftId)}`;
+}
+
 interface DraftsClientProps {
   drafts: Draft[];
 }
@@ -99,6 +106,11 @@ export default function DraftsClient({
   const [drafts, setDrafts] = useState(initialDrafts);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [draftToDelete, setDraftToDelete] = useState<string | null>(null);
+  // Why a draft could not be published, by draft id. It stays on the draft
+  // until the next attempt so the reason is still there after a toast would be.
+  const [publishErrors, setPublishErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   const handleDelete = async (draftId: string) => {
     try {
@@ -116,16 +128,21 @@ export default function DraftsClient({
 
   const handlePublish = async (draftId: string) => {
     setIsPublishing(draftId);
+    setPublishErrors(({ [draftId]: _cleared, ...rest }) => rest);
     try {
       const result = await publishDraft(draftId);
       if ("error" in result && result.error) {
-        toast.error(result.error);
+        const message = result.error;
+        setPublishErrors((current) => ({ ...current, [draftId]: message }));
       } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         router.push(`/projects/${result.id}`);
       }
     } catch {
-      toast.error("Failed to publish project");
+      setPublishErrors((current) => ({
+        ...current,
+        [draftId]: "This draft could not be published. Please try again.",
+      }));
     } finally {
       setIsPublishing(null);
     }
@@ -277,7 +294,7 @@ export default function DraftsClient({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>
                       <Link
-                        href={`/projects/${draft.id}/edit`}
+                        href={draftEditorHref(draft.id)}
                         className="flex w-full items-center gap-2"
                       >
                         <Edit aria-hidden="true" />
@@ -305,10 +322,26 @@ export default function DraftsClient({
                 </DropdownMenu>
               </div>
 
+              {publishErrors[draft.id] ? (
+                <Alert variant="destructive" role="alert">
+                  <AlertTriangle aria-hidden="true" />
+                  <AlertTitle>This draft is not ready to publish</AlertTitle>
+                  <AlertDescription>
+                    {publishErrors[draft.id]}{" "}
+                    <Link
+                      href={draftEditorHref(draft.id)}
+                      className="font-medium underline underline-offset-4"
+                    >
+                      Continue editing
+                    </Link>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               {/* Quick actions on phones, where the menu is easy to miss. */}
               <div className="flex gap-2 sm:hidden">
                 <Link
-                  href={`/projects/${draft.id}/edit`}
+                  href={draftEditorHref(draft.id)}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "flex-1",

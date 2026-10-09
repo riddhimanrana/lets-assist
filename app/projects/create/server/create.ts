@@ -7,21 +7,24 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
-import type { EventFormState } from "@/hooks/use-event-form";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
 import { runProjectCreate } from "@/lib/plugins/lifecycle";
 import { OrganizationWithRole } from "@/types/plugin";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { parseCreateProjectPayload } from "@/schemas/project-create-schema";
+import {
+  buildInitialPublishedState,
+  describeProjectWriteError,
+  isDuplicateKeyError,
+  logProjectWriteError,
+  normalizeIdempotencyKey,
+} from "./create-support";
 import {
   isMissingSignupFormSchemaColumnError,
   isMissingWaiverDisableEsignatureColumnError,
   normalizeRequireLoginForVerificationMethod,
   omitProjectColumns,
 } from "./shared";
-import {
-  validateRecurrenceRule,
-  validateProjectTimezone,
-} from "@/lib/projects/schedule-validation";
 
 export type CreateBasicProjectResult = {
   success?: boolean;
@@ -33,62 +36,72 @@ export type CreateBasicProjectResult = {
   reusedExistingAttempt?: boolean;
 };
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+type StagedAttempt = {
+  id: string;
+  workflow_status: string | null;
+  waiver_required: boolean | null;
+  organization_id: string | null;
+};
+type ProjectWriteResult = { data: { id: string } | null; error: unknown };
 
-function isDuplicateKeyError(error: unknown): boolean {
-  return (
-    !!error &&
-    typeof error === "object" &&
-    (error as { code?: unknown }).code === "23505"
-  );
+async function findCreationAttempt(
+  supabase: ServerClient,
+  userId: string,
+  creationIdempotencyKey: string,
+): Promise<StagedAttempt | null> {
+  const { data } = await supabase
+    .from("projects")
+    .select("id, workflow_status, waiver_required, organization_id")
+    .eq("creator_id", userId)
+    .eq("creation_idempotency_key", creationIdempotencyKey)
+    .maybeSingle();
+
+  return data?.id ? data : null;
 }
 
-function normalizeIdempotencyKey(key: unknown): string | null {
-  return typeof key === "string" && UUID_PATTERN.test(key.trim())
-    ? key.trim().toLowerCase()
-    : null;
+function reusedAttemptResult(attempt: StagedAttempt): CreateBasicProjectResult {
+  return {
+    success: true,
+    id: attempt.id,
+    reusedExistingAttempt: true,
+    ...(attempt.workflow_status === "draft" && attempt.waiver_required
+      ? { requiresWaiverPublication: true }
+      : {}),
+  };
+}
+
+/** Retries a write without columns an older schema does not have yet. */
+async function writeWithColumnFallback(
+  payloads: Record<string, unknown>[],
+  write: (payload: Record<string, unknown>) => PromiseLike<ProjectWriteResult>,
+): Promise<ProjectWriteResult> {
+  let result: ProjectWriteResult = { data: null, error: null };
+
+  for (const payload of payloads) {
+    result = await write(payload);
+    if (result.data && !result.error) return result;
+
+    if (
+      !isMissingSignupFormSchemaColumnError(result.error) &&
+      !isMissingWaiverDisableEsignatureColumnError(result.error)
+    ) {
+      break;
+    }
+  }
+
+  return result;
 }
 
 export async function createBasicProject(
-  projectData: EventFormState & {
-    userNow?: string;
-    creationIdempotencyKey?: string;
-  },
+  input: unknown,
   isDraft: boolean = false,
 ): Promise<CreateBasicProjectResult> {
   "use server";
-  // Validate that all dates and times are in the future (using user's local time)
-  // if (projectData.eventType === "oneTime") {
-  //   if (isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.startTime, userNow) ||
-  //       isDateTimeInPast(projectData.schedule.oneTime.date, projectData.schedule.oneTime.endTime, userNow)) {
-  //     return { error: "Event dates and times must be in the future" };
-  //   }
-  // } else if (projectData.eventType === "multiDay") {
-  //   for (const day of projectData.schedule.multiDay) {
-  //     for (const slot of day.slots) {
-  //       if (isDateTimeInPast(day.date, slot.startTime, userNow) ||
-  //           isDateTimeInPast(day.date, slot.endTime, userNow)) {
-  //         return { error: "Event dates and times must be in the future" };
-  //       }
-  //     }
-  //   }
-  // } else if (projectData.eventType === "sameDayMultiArea") {
-  //   const date = projectData.schedule.sameDayMultiArea.date;
-  //   if (isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallStart, userNow) ||
-  //       isDateTimeInPast(date, projectData.schedule.sameDayMultiArea.overallEnd, userNow)) {
-  //     return { error: "Event dates and times must be in the future" };
-  //   }
-  //   for (const role of projectData.schedule.sameDayMultiArea.roles) {
-  //     if (isDateTimeInPast(date, role.startTime, userNow) ||
-  //         isDateTimeInPast(date, role.endTime, userNow)) {
-  //       return { error: "Event dates and times must be in the future" };
-  //     }
-  //   }
-  // }
   const supabase = await createClient();
 
-  // Get current user
+  // Authentication first: an anonymous caller must not be able to probe the
+  // validation messages or an attempt key.
   const {
     data: { user },
     error: userError,
@@ -98,7 +111,33 @@ export async function createBasicProject(
     return { error: "You must be logged in to create a project" };
   }
 
-  const requestedVisibility = projectData.visibility || "unlisted";
+  // A staged waiver project is created before its PDF exists, so a reload or a
+  // failed publication has to be able to finish the same row. The creator
+  // scoped key makes that convergence durable instead of depending on client
+  // memory: the same key always resolves to the same project.
+  const creationIdempotencyKey = normalizeIdempotencyKey(
+    input && typeof input === "object" && "creationIdempotencyKey" in input
+      ? input.creationIdempotencyKey
+      : null,
+  );
+  const existingAttempt = creationIdempotencyKey
+    ? await findCreationAttempt(supabase, user.id, creationIdempotencyKey)
+    : null;
+
+  // An attempt that already left the staged state is finished. It converges
+  // on its row whatever the form holds now.
+  if (existingAttempt && existingAttempt.workflow_status !== "draft") {
+    return reusedAttemptResult(existingAttempt);
+  }
+
+  // The server is authoritative: the payload is parsed with the same schemas
+  // the form uses, and nothing unparsed reaches the database.
+  const parsed = parseCreateProjectPayload(input);
+  if (!parsed.ok) {
+    return { error: parsed.error };
+  }
+  const projectData = parsed.data;
+  const requestedVisibility = projectData.visibility;
 
   // Trusted member gating only for projects that appear in public feed.
   if (requestedVisibility === "public") {
@@ -123,26 +162,29 @@ export async function createBasicProject(
     }
   }
 
-  // Rate limiting: Check projects created in the last 24 hours
-  const twentyFourHoursAgo = new Date(
-    Date.now() - 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const { count: projectsCount, error: countError } = await supabase
-    .from("projects")
-    .select("id", { count: "exact", head: true })
-    .eq("creator_id", user.id)
-    .gte("created_at", twentyFourHoursAgo);
+  // Rate limiting: Check projects created in the last 24 hours. A retry of a
+  // staged attempt creates nothing, so it is not counted again.
+  if (!existingAttempt) {
+    const twentyFourHoursAgo = new Date(
+      Date.now() - 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const { count: projectsCount, error: countError } = await supabase
+      .from("projects")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", user.id)
+      .gte("created_at", twentyFourHoursAgo);
 
-  if (countError) {
-    safeConsole.error("Error counting projects for rate limit:", countError);
-    // Decide if you want to block creation or allow if count fails. For now, allowing.
-  }
+    if (countError) {
+      safeConsole.error("Error counting projects for rate limit:", countError);
+      // Decide if you want to block creation or allow if count fails. For now, allowing.
+    }
 
-  if (projectsCount !== null && projectsCount >= 50) {
-    return {
-      error:
-        "You have created too many projects recently. Please try again in 24 hours.",
-    };
+    if (projectsCount !== null && projectsCount >= 50) {
+      return {
+        error:
+          "You have created too many projects recently. Please try again in 24 hours.",
+      };
+    }
   }
 
   // Get organization_id from the project data
@@ -171,122 +213,31 @@ export async function createBasicProject(
     }
   }
 
+  // A staged row keeps the organization it was created for: the database
+  // treats that association as immutable.
+  if (
+    existingAttempt &&
+    (existingAttempt.organization_id ?? null) !== organizationId
+  ) {
+    return {
+      error:
+        "This project was already saved for a different organization. Start a new project to change who it is created as.",
+    };
+  }
+
   const waiverConfigurationError = getWaiverConfigurationError(projectData);
   if (waiverConfigurationError) {
     return { error: waiverConfigurationError };
   }
 
   const stagesWaiverPublication = !isDraft && !!projectData.waiverRequired;
-  const creationIdempotencyKey = normalizeIdempotencyKey(
-    projectData.creationIdempotencyKey,
-  );
-
-  // A staged waiver project is created before its PDF exists, so a reload or a
-  // failed publication has to be able to finish the same row. The creator
-  // scoped key makes that convergence durable instead of depending on client
-  // memory: the same key always resolves to the same project.
-  if (creationIdempotencyKey) {
-    const { data: existingAttempt } = await supabase
-      .from("projects")
-      .select("id, workflow_status, waiver_required")
-      .eq("creator_id", user.id)
-      .eq("creation_idempotency_key", creationIdempotencyKey)
-      .maybeSingle();
-
-    if (existingAttempt?.id) {
-      return {
-        success: true,
-        id: existingAttempt.id,
-        reusedExistingAttempt: true,
-        ...(existingAttempt.workflow_status === "draft" &&
-        existingAttempt.waiver_required
-          ? { requiresWaiverPublication: true }
-          : {}),
-      };
-    }
-  }
 
   try {
-    // Initialize published field based on event type
-    let publishedState: { [key: string]: boolean } = {};
-
-    if (projectData.eventType === "oneTime") {
-      // For one-time events, simple oneTime key
-      publishedState = { oneTime: false };
-    } else if (
-      projectData.eventType === "multiDay" &&
-      projectData.schedule.multiDay
-    ) {
-      // For multi-day events, create keys for each day and slot combination
-      projectData.schedule.multiDay.forEach(
-        (
-          day: {
-            date: string;
-            slots: { startTime: string; endTime: string }[];
-          },
-          dayIndex: number,
-        ) => {
-          day.slots.forEach(
-            (
-              slot: { startTime: string; endTime: string },
-              slotIndex: number,
-            ) => {
-              // Format: "YYYY-MM-DD-dayIndex-slotIndex" (unique even if dates are duplicate)
-              const sessionKey = `${day.date}-${dayIndex}-${slotIndex}`;
-              publishedState[sessionKey] = false;
-            },
-          );
-        },
-      );
-    } else if (
-      projectData.eventType === "sameDayMultiArea" &&
-      projectData.schedule.sameDayMultiArea
-    ) {
-      // For multi-area events, use role names as keys
-      projectData.schedule.sameDayMultiArea.roles.forEach(
-        (role: { name: string; startTime: string; endTime: string }) => {
-          // Use role name as the key
-          publishedState[role.name] = false;
-        },
-      );
-    }
-
-    // Validate project_timezone (server is authoritative).
-    const rawTimezone =
-      projectData.basicInfo.projectTimezone || "America/Los_Angeles";
-    const timezoneValidation = validateProjectTimezone(rawTimezone);
-    if (!timezoneValidation.ok) {
-      return { error: `Invalid project timezone: ${timezoneValidation.error}` };
-    }
-    const projectTimezone = rawTimezone;
-
-    // Build and validate recurrence rule if enabled.
-    let recurrenceRule:
-      | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
-      | null = null;
-    if (projectData.recurrence?.enabled) {
-      const rawRule = {
-        frequency: projectData.recurrence.frequency,
-        interval: projectData.recurrence.interval,
-        end_type: projectData.recurrence.endType,
-        end_date: projectData.recurrence.endDate || null,
-        end_occurrences: projectData.recurrence.endOccurrences || null,
-        weekdays: projectData.recurrence.weekdays || [],
-      };
-      const ruleValidation = validateRecurrenceRule(rawRule);
-      if (!ruleValidation.ok) {
-        return {
-          error: `Invalid recurrence rule: ${ruleValidation.error}`,
-        };
-      }
-      recurrenceRule = ruleValidation.rule;
-    }
-
     const baseProjectPayload = {
       creator_id: user.id,
       title: projectData.basicInfo.title,
       location: projectData.basicInfo.location,
-      location_data: projectData.basicInfo.locationData, // Add locationData field
+      location_data: projectData.basicInfo.locationData,
       description: sanitizeRichTextHtml(projectData.basicInfo.description),
       event_type: projectData.eventType,
       schedule: projectData.schedule,
@@ -296,113 +247,143 @@ export async function createBasicProject(
         projectData.verificationMethod,
         projectData.requireLogin,
       ),
-      enable_volunteer_comments: projectData.enableVolunteerComments || false,
-      show_attendees_publicly: projectData.showAttendeesPublicly || false,
-      waiver_required: projectData.waiverRequired || false,
-      waiver_allow_upload: projectData.waiverAllowUpload ?? true,
-      organization_id: organizationId || null, // Save organization_id if provided
+      enable_volunteer_comments: projectData.enableVolunteerComments,
+      show_attendees_publicly: projectData.showAttendeesPublicly,
+      waiver_required: projectData.waiverRequired,
+      waiver_allow_upload: projectData.waiverAllowUpload,
+      organization_id: organizationId, // Save organization_id if provided
       visibility: requestedVisibility, // Public requires Trusted Member. Unlisted / org-only do not.
-      published: publishedState, // Add the published state tracking
-      project_timezone: projectTimezone,
-      restrict_to_org_domains: projectData.restrictToOrgDomains || false, // Add domain restriction flag
+      published: buildInitialPublishedState(projectData.schedule),
+      project_timezone: projectData.basicInfo.projectTimezone,
+      restrict_to_org_domains: projectData.restrictToOrgDomains,
       // A waiver project is staged unpublished. The client marker for an
       // attached PDF is not proof, so the row stays invisible to the public
       // and unsignable until publish_waiver_staged_project verifies the real
       // Storage object and the signing configuration.
       workflow_status:
         isDraft || stagesWaiverPublication ? "draft" : "published",
-      recurrence_rule: recurrenceRule, // Support recurring projects
-      signup_form_schema: projectData.signupFormSchema || null,
+      recurrence_rule: projectData.recurrenceRule, // Support recurring projects
+      signup_form_schema: projectData.signupFormSchema,
       creation_idempotency_key: creationIdempotencyKey,
+      waiver_disable_esignature: projectData.waiverDisableEsignature,
     };
 
-    const projectInsertPayload = {
-      ...baseProjectPayload,
-      waiver_disable_esignature: projectData.waiverDisableEsignature ?? false,
-    };
+    // The retried attempt already owns a staged row. Its ownership columns
+    // and key stay as they are; everything the form controls is rewritten so
+    // the row matches what the user sees now.
+    if (existingAttempt) {
+      const stagedUpdatePayload = omitProjectColumns(baseProjectPayload, [
+        "creator_id",
+        "organization_id",
+        "creation_idempotency_key",
+      ]);
+      const stagedUpdate = await writeWithColumnFallback(
+        [
+          stagedUpdatePayload,
+          omitProjectColumns(stagedUpdatePayload, ["signup_form_schema"]),
+          omitProjectColumns(stagedUpdatePayload, [
+            "waiver_disable_esignature",
+          ]),
+          omitProjectColumns(stagedUpdatePayload, [
+            "signup_form_schema",
+            "waiver_disable_esignature",
+          ]),
+        ],
+        (payload) =>
+          supabase
+            .from("projects")
+            .update(payload)
+            .eq("id", existingAttempt.id)
+            .eq("creator_id", user.id)
+            .eq("workflow_status", "draft")
+            .select("id")
+            .maybeSingle(),
+      );
+
+      if (stagedUpdate.error) {
+        logProjectWriteError(
+          "Error updating staged project:",
+          stagedUpdate.error,
+        );
+        return {
+          error:
+            describeProjectWriteError(stagedUpdate.error) ??
+            "Your changes could not be saved to the project. Please try again.",
+        };
+      }
+
+      // No row matched: another request published it in the meantime.
+      if (stagedUpdate.data?.id !== existingAttempt.id) {
+        return {
+          success: true,
+          id: existingAttempt.id,
+          reusedExistingAttempt: true,
+        };
+      }
+
+      return {
+        success: true,
+        id: existingAttempt.id,
+        reusedExistingAttempt: true,
+        ...(stagesWaiverPublication ? { requiresWaiverPublication: true } : {}),
+      };
+    }
 
     const projectInsertPayloads = [
-      projectInsertPayload,
-      omitProjectColumns(projectInsertPayload, ["signup_form_schema"]),
-      omitProjectColumns(projectInsertPayload, ["waiver_disable_esignature"]),
-      omitProjectColumns(projectInsertPayload, [
+      baseProjectPayload,
+      omitProjectColumns(baseProjectPayload, ["signup_form_schema"]),
+      omitProjectColumns(baseProjectPayload, ["waiver_disable_esignature"]),
+      omitProjectColumns(baseProjectPayload, [
         "signup_form_schema",
         "waiver_disable_esignature",
       ]),
     ];
 
-    let project: { id: string } | null = null;
-    let projectError: unknown = null;
-
-    for (const payload of projectInsertPayloads) {
-      const { data, error } = await supabase
-        .from("projects")
-        .insert(payload)
-        .select("id")
-        .single();
-
-      if (data && !error) {
-        project = data;
-        projectError = null;
-        break;
-      }
-
-      projectError = error;
-
-      const missingSignupFormSchema =
-        isMissingSignupFormSchemaColumnError(error);
-      const missingWaiverDisableEsignature =
-        isMissingWaiverDisableEsignatureColumnError(error);
-      if (!missingSignupFormSchema && !missingWaiverDisableEsignature) {
-        break;
-      }
-    }
+    const { data: project, error: projectError } =
+      await writeWithColumnFallback(projectInsertPayloads, (payload) =>
+        supabase.from("projects").insert(payload).select("id").single(),
+      );
 
     if (projectError || !project) {
       // Two submits of the same attempt race here. The loser resolves to the
       // row the winner created instead of reporting a failure the user would
       // retry into a duplicate.
       if (creationIdempotencyKey && isDuplicateKeyError(projectError)) {
-        const { data: racedAttempt } = await supabase
-          .from("projects")
-          .select("id, workflow_status, waiver_required")
-          .eq("creator_id", user.id)
-          .eq("creation_idempotency_key", creationIdempotencyKey)
-          .maybeSingle();
+        const racedAttempt = await findCreationAttempt(
+          supabase,
+          user.id,
+          creationIdempotencyKey,
+        );
 
-        if (racedAttempt?.id) {
-          return {
-            success: true,
-            id: racedAttempt.id,
-            reusedExistingAttempt: true,
-            ...(racedAttempt.workflow_status === "draft" &&
-            racedAttempt.waiver_required
-              ? { requiresWaiverPublication: true }
-              : {}),
-          };
+        if (racedAttempt) {
+          return reusedAttemptResult(racedAttempt);
         }
       }
 
-      safeConsole.error("Error creating project:", projectError);
-      return { error: "Failed to create project. Please try again." };
+      logProjectWriteError("Error creating project:", projectError);
+      return {
+        error:
+          describeProjectWriteError(projectError) ??
+          "Failed to create project. Please try again.",
+      };
     }
 
     // Handle plugin hooks after project creation
-    if (projectData.basicInfo.organizationId) {
+    if (organizationId) {
       const admin = getAdminClient();
       const { data: organization } = await admin
         .from("organizations")
         .select(
           "id, name, username, description, logo_url, type, verified, allowed_email_domains, show_members_publicly",
         )
-        .eq("id", projectData.basicInfo.organizationId)
+        .eq("id", organizationId)
         .single();
 
       if (organization) {
         const { data: member } = await supabase
           .from("organization_members")
           .select("role")
-          .eq("organization_id", projectData.basicInfo.organizationId)
+          .eq("organization_id", organizationId)
           .eq("user_id", user.id)
           .eq("status", "active")
           .single();
@@ -410,7 +391,7 @@ export async function createBasicProject(
         const userRole = member?.role || null;
 
         const plugins = await resolveOrganizationPlugins({
-          organizationId: projectData.basicInfo.organizationId,
+          organizationId,
           userRole,
           viewerUserId: user.id,
         });

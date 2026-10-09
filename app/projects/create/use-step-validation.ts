@@ -5,19 +5,22 @@ import { z } from "zod";
 
 import type { useEventForm } from "@/hooks/use-event-form";
 import {
+  DUPLICATE_ROLE_NAME_MESSAGE,
   basicInfoSchema,
-  oneTimeSchema,
-  multiDaySchema,
-  multiRoleSchema,
+  createMultiDaySchema,
+  createMultiRoleSchema,
+  createOneTimeSchema,
   verificationSettingsSchema,
 } from "@/schemas/event-form-schema";
+
+import { getRecurrenceStepErrors, getWaiverStepError } from "./create-blockers";
 
 type EventForm = ReturnType<typeof useEventForm>;
 
 /**
- * Per-step Zod validation for the create flow, plus the field updaters that
- * clear a field's error as soon as it is edited. Moved out of ProjectCreator
- * unchanged.
+ * Per-step validation for the create flow, plus the field updaters that clear
+ * a field's error as soon as it is edited. Every rule here is also enforced by
+ * the create action, so a step that passes is a step the server accepts.
  */
 export function useStepValidation({
   state,
@@ -43,6 +46,62 @@ export function useStepValidation({
 
   // Validation tracking - only validate after continue is clicked
   const [validationAttempted, setValidationAttempted] = useState(false);
+  // Repeat and waiver problems are recomputed from the form once their step
+  // has been checked, so a message leaves as soon as its cause is fixed.
+  const [recurrenceChecked, setRecurrenceChecked] = useState(false);
+  const [waiverChecked, setWaiverChecked] = useState(false);
+
+  const recurrenceErrors = recurrenceChecked
+    ? getRecurrenceStepErrors(state)
+    : {};
+  const waiverError = waiverChecked
+    ? (getWaiverStepError(state) ?? undefined)
+    : undefined;
+
+  // Times are judged in the project's timezone, as the server judges them.
+  const scheduleIssues = (): z.ZodIssue[] => {
+    const options = { timeZone: state.basicInfo.projectTimezone };
+    const result =
+      state.eventType === "oneTime"
+        ? createOneTimeSchema(options).safeParse(state.schedule.oneTime)
+        : state.eventType === "multiDay"
+          ? createMultiDaySchema(options).safeParse(state.schedule.multiDay)
+          : createMultiRoleSchema(options).safeParse(
+              state.schedule.sameDayMultiArea,
+            );
+    return result.success ? [] : result.error.issues;
+  };
+
+  const verificationIssues = (): z.ZodIssue[] => {
+    const result = verificationSettingsSchema.safeParse({
+      verificationMethod: state.verificationMethod,
+      requireLogin: state.requireLogin,
+      visibility: state.visibility,
+      enableVolunteerComments: state.enableVolunteerComments,
+      showAttendeesPublicly: state.showAttendeesPublicly,
+      waiverRequired: state.waiverRequired,
+      waiverAllowUpload: state.waiverAllowUpload,
+      waiverDisableEsignature: state.waiverDisableEsignature,
+    });
+    return result.success ? [] : result.error.issues;
+  };
+
+  const validateSchedule = (): boolean => {
+    const issues = scheduleIssues();
+    const recurrenceValid =
+      Object.keys(getRecurrenceStepErrors(state)).length === 0;
+    setScheduleErrors(issues);
+    setRecurrenceChecked(!recurrenceValid);
+    return issues.length === 0 && recurrenceValid;
+  };
+
+  const validateSettings = (): boolean => {
+    const issues = verificationIssues();
+    const waiverValid = getWaiverStepError(state) === null;
+    setVerificationErrors(issues);
+    setWaiverChecked(!waiverValid);
+    return issues.length === 0 && waiverValid;
+  };
 
   // Clear errors when a field is updated
   const handleBasicInfoUpdate = (
@@ -104,6 +163,13 @@ export function useStepValidation({
     if (validationAttempted) {
       setScheduleErrors((prev) =>
         prev.filter((error) => {
+          // Renaming one role can resolve the clash on another.
+          if (
+            field === "name" &&
+            error.message === DUPLICATE_ROLE_NAME_MESSAGE
+          ) {
+            return false;
+          }
           if (roleIndex !== undefined) {
             return !(
               error.path[0] === "roles" &&
@@ -118,68 +184,47 @@ export function useStepValidation({
     updateMultiRoleSchedule(field, value, roleIndex);
   };
 
-  // Validate current step with Zod
+  // Validate the current step. Returns whether the form may move on.
   const validateCurrentStep = (): boolean => {
-    try {
-      switch (state.step) {
-        case 1: // Basic Info
-          basicInfoSchema.parse(state.basicInfo);
-          setBasicInfoErrors([]);
-          return true;
+    let valid: boolean;
 
-        case 2: // Event Type
-          // No validation needed for event type selection
-          return true;
-
-        case 3: // Schedule
-          if (state.eventType === "oneTime") {
-            oneTimeSchema.parse(state.schedule.oneTime);
-          } else if (state.eventType === "multiDay") {
-            multiDaySchema.parse(state.schedule.multiDay);
-          } else if (state.eventType === "sameDayMultiArea") {
-            multiRoleSchema.parse(state.schedule.sameDayMultiArea);
-          }
-          setScheduleErrors([]);
-          return true;
-
-        case 4: // Verification Settings
-          verificationSettingsSchema.parse({
-            verificationMethod: state.verificationMethod,
-            requireLogin: state.requireLogin,
-            visibility: state.visibility,
-            waiverRequired: state.waiverRequired,
-            waiverAllowUpload: state.waiverAllowUpload,
-            waiverDisableEsignature: state.waiverDisableEsignature,
-          });
-          setVerificationErrors([]);
-          return true;
-
-        default:
-          if (state.step === finalStep) {
-            // No validation needed for files
-            return true;
-          }
-          return false;
+    switch (state.step) {
+      case 1: {
+        const result = basicInfoSchema.safeParse(state.basicInfo);
+        setBasicInfoErrors(result.success ? [] : result.error.issues);
+        valid = result.success;
+        break;
       }
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        // Store errors according to the current step
-        switch (state.step) {
-          case 1:
-            setBasicInfoErrors(error.issues);
-            break;
-          case 3:
-            setScheduleErrors(error.issues);
-            break;
-          case 4:
-            setVerificationErrors(error.issues);
-            break;
-        }
-        // Mark validation as attempted so errors will show
-        setValidationAttempted(true);
-      }
-      return false;
+      case 2: // Event type: any choice is valid.
+        return true;
+      case 3:
+        valid = validateSchedule();
+        break;
+      case 4:
+        valid = validateSettings();
+        break;
+      default:
+        // Organization plugin steps and the final step have nothing to
+        // validate here. Returning false for a plugin step used to leave its
+        // Continue button doing nothing.
+        return state.step <= finalStep;
     }
+
+    // Mark validation as attempted so errors will show
+    if (!valid) setValidationAttempted(true);
+    return valid;
+  };
+
+  /** Every step at once, before the project is submitted. */
+  const validateAllSteps = (): boolean => {
+    const basicInfo = basicInfoSchema.safeParse(state.basicInfo);
+    setBasicInfoErrors(basicInfo.success ? [] : basicInfo.error.issues);
+    const scheduleValid = validateSchedule();
+    const settingsValid = validateSettings();
+
+    const valid = basicInfo.success && scheduleValid && settingsValid;
+    if (!valid) setValidationAttempted(true);
+    return valid;
   };
 
   // Get field error from Zod issues
@@ -212,6 +257,9 @@ export function useStepValidation({
     handleMultiDayScheduleUpdate,
     handleMultiRoleScheduleUpdate,
     validateCurrentStep,
+    validateAllSteps,
     getFieldError,
+    recurrenceErrors,
+    waiverError,
   };
 }

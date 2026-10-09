@@ -30,6 +30,7 @@ export function ScheduleMultiDay({
   removeDayAction,
   removeSlotAction,
   errors,
+  timeZone,
 }: {
   days: ScheduleState["schedule"]["multiDay"];
   updateMultiDayScheduleAction: (
@@ -43,6 +44,8 @@ export function ScheduleMultiDay({
   removeDayAction: (dayIndex: number) => void;
   removeSlotAction: (dayIndex: number, slotIndex: number) => void;
   errors: ZodIssue[];
+  /** The project's timezone, which decides whether a time has passed. */
+  timeZone?: string;
 }) {
   const addDayIcon = useAnimatedIcon();
 
@@ -109,8 +112,12 @@ export function ScheduleMultiDay({
                 slotIndex,
                 "volunteers",
               );
-              const startInPast = isTimeInPast(day.date, slot.startTime);
-              const endInPast = isTimeInPast(day.date, slot.endTime);
+              const startInPast = isTimeInPast(
+                day.date,
+                slot.startTime,
+                timeZone,
+              );
+              const endInPast = isTimeInPast(day.date, slot.endTime, timeZone);
 
               return (
                 <div

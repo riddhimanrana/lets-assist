@@ -9,11 +9,16 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { updateProject, deleteProject, updateProjectStatus } from "../actions";
+import {
+  updateProject,
+  deleteProject,
+  updateProjectStatus,
+  publishProjectDraft,
+} from "../actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +38,10 @@ import { updateCalendarEventForProject } from "@/utils/calendar-helpers";
 import Schedule from "@/app/projects/create/Schedule";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import { WaiverBuilderDialog } from "@/components/waiver/WaiverBuilderDialog";
-import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
+import {
+  RECURRENCE_WAIVER_CONFLICT_MESSAGE,
+  buildRecurrenceRuleFromState,
+} from "@/lib/projects/recurrence";
 import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import {
   formSchema,
@@ -59,6 +67,8 @@ export default function EditProjectClient({ project }: Props) {
   const [locationChars, setLocationChars] = useState(project.location.length);
   const [hasChanges, setHasChanges] = useState(false);
 
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -225,13 +235,37 @@ export default function EditProjectClient({ project }: Props) {
           // Don't show error to user - this is non-critical
         }
 
-        router.push(`/projects/${project.id}`);
+        // A draft stays on this page: publishing is the next step.
+        if (project.workflow_status !== "draft") {
+          router.push(`/projects/${project.id}`);
+        }
         router.refresh();
       }
     } catch {
       toast.error("Failed to update project");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // A draft row (a duplicated project, or one whose waiver was never
+  // attached) is published from here. The server checks everything again.
+  const handlePublishDraft = async () => {
+    setIsPublishing(true);
+    setPublishError(null);
+    try {
+      const result = await publishProjectDraft(project.id);
+      if (!result.success) {
+        setPublishError(result.error);
+        return;
+      }
+      toast.success("Project published");
+      router.push(`/projects/${project.id}`);
+      router.refresh();
+    } catch {
+      setPublishError("The project could not be published. Please try again.");
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -303,6 +337,7 @@ export default function EditProjectClient({ project }: Props) {
     isWithinDeletionRestrictionWindow(project);
   const canDelete = canDeleteProject(project);
   const isCancelled = project.status === "cancelled";
+  const isDraft = project.workflow_status === "draft" && !isCancelled;
   const waiverPdfUrl = media.waiverPdfUrl || project.waiver_pdf_url;
 
   return (
@@ -319,6 +354,17 @@ export default function EditProjectClient({ project }: Props) {
         description="Update the details of your project"
       />
 
+      {isDraft ? (
+        <Alert variant="info">
+          <Info aria-hidden="true" />
+          <AlertTitle>This project is a draft</AlertTitle>
+          <AlertDescription>
+            Volunteers cannot see it or sign up yet. Check the details and the
+            schedule, save your changes, then publish it.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-8">
         <EditProjectDetails
           form={form}
@@ -333,6 +379,11 @@ export default function EditProjectClient({ project }: Props) {
           form={form}
           media={media}
           projectWaiverPdfUrl={project.waiver_pdf_url}
+          blockedReason={
+            recurrenceState.enabled && !project.recurrence_parent_id
+              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
+              : undefined
+          }
         />
 
         <div className="grid gap-4">
@@ -353,6 +404,12 @@ export default function EditProjectClient({ project }: Props) {
             removeRoleAction={schedule.removeRole}
             updateRecurrenceAction={schedule.updateRecurrence}
             errors={scheduleErrors}
+            projectTimezone={project.project_timezone}
+            recurrenceBlockedReason={
+              form.watch("waiver_required")
+                ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
+                : undefined
+            }
           />
           <Alert variant="warning">
             <AlertTriangle aria-hidden="true" />
@@ -370,9 +427,19 @@ export default function EditProjectClient({ project }: Props) {
         {/* The form's one Save action. It stays in reach while the form
             scrolls and lets go before the danger section. */}
         <div className="bg-card sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex flex-col gap-3 rounded-xl border p-3 shadow-md sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-sm" aria-live="polite">
-            {hasChanges ? "You have unsaved changes." : "No changes to save."}
-          </p>
+          {publishError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {publishError}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-sm" aria-live="polite">
+              {hasChanges
+                ? isDraft
+                  ? "Save your changes before publishing."
+                  : "You have unsaved changes."
+                : "No changes to save."}
+            </p>
+          )}
           <div className="flex gap-2">
             <Button
               type="button"
@@ -382,14 +449,28 @@ export default function EditProjectClient({ project }: Props) {
             >
               Cancel
             </Button>
+            {/* Publishing is the one primary action of a draft, so saving
+                steps back to a secondary button there. */}
             <Button
               type="submit"
+              variant={isDraft ? "outline" : "default"}
               className="flex-1 sm:flex-none"
-              disabled={saving || !hasChanges || !isFormValid}
+              disabled={saving || isPublishing || !hasChanges || !isFormValid}
             >
               {saving && <Spinner data-icon="inline-start" />}
               Save changes
             </Button>
+            {isDraft ? (
+              <Button
+                type="button"
+                className="flex-1 sm:flex-none"
+                disabled={saving || isPublishing || hasChanges}
+                onClick={handlePublishDraft}
+              >
+                {isPublishing && <Spinner data-icon="inline-start" />}
+                Publish project
+              </Button>
+            ) : null}
           </div>
         </div>
       </form>

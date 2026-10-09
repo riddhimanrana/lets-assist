@@ -48,9 +48,8 @@ export interface ApplyAIDataContext {
 }
 
 /**
- * Writes an AI-parsed project into the form. Moved out of ProjectCreator
- * unchanged; the caller closes the assistant and points at the location field
- * afterwards.
+ * Writes an AI-parsed project into the form. The caller closes the assistant
+ * and points at the location field afterwards.
  */
 export function applyAIProjectData(
   data: AIParseResult,
@@ -271,7 +270,11 @@ export function applyAIProjectData(
   // Apply recurrence settings
   if (data.recurrence) {
     if (data.recurrence.enabled !== undefined) {
-      updateRecurrence("enabled", data.recurrence.enabled);
+      // A multi-day project cannot repeat. The reducer refuses it too.
+      updateRecurrence(
+        "enabled",
+        data.recurrence.enabled && data.eventType !== "multiDay",
+      );
     }
     if (data.recurrence.frequency) {
       updateRecurrence("frequency", data.recurrence.frequency);

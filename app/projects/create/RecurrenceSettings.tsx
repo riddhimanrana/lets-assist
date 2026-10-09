@@ -25,6 +25,8 @@ import {
   RecurrenceWeekday,
 } from "@/types";
 import { RECURRENCE_OCCURRENCE_MAX } from "@/lib/projects/schedule-validation";
+import type { RecurrenceFieldErrors } from "@/lib/projects/recurrence";
+import { FieldError } from "@/components/ui/field";
 import { FormField, FormGroup, ToggleRow } from "./form-parts";
 
 interface RecurrenceSettingsProps {
@@ -42,6 +44,10 @@ interface RecurrenceSettingsProps {
     value: RecurrenceSettingsProps["recurrence"][keyof RecurrenceSettingsProps["recurrence"]],
   ) => void;
   eventType: string;
+  /** Field-level problems found when the step was validated. */
+  errors?: RecurrenceFieldErrors;
+  /** Why the repeat schedule cannot be turned on, when it cannot. */
+  blockedReason?: string;
 }
 
 const WEEKDAYS: { value: RecurrenceWeekday; label: string; short: string }[] = [
@@ -58,6 +64,8 @@ export default function RecurrenceSettings({
   recurrence,
   updateRecurrence,
   eventType,
+  errors = {},
+  blockedReason,
 }: RecurrenceSettingsProps) {
   // Helper to parse date string to Date object without timezone shifting
   const parseStringToDate = (dateString: string): Date | undefined => {
@@ -154,23 +162,32 @@ export default function RecurrenceSettings({
         description={
           recurrence.enabled
             ? getRecurrenceSummary()
-            : "Set up this event to repeat automatically. New events will be created based on your schedule."
+            : (blockedReason ??
+              "Set up this event to repeat automatically. New events will be created based on your schedule.")
         }
         checked={recurrence.enabled}
         onCheckedChange={(checked) => updateRecurrence("enabled", checked)}
+        // Turning it off always stays possible.
+        disabled={Boolean(blockedReason) && !recurrence.enabled}
       />
+      {errors.enabled ? <FieldError>{errors.enabled}</FieldError> : null}
 
       {recurrence.enabled && (
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             {/* Frequency and Interval */}
-            <FormField label="Repeat every" htmlFor="recurrence-interval">
+            <FormField
+              label="Repeat every"
+              htmlFor="recurrence-interval"
+              error={errors.interval}
+            >
               <div className="flex gap-2">
                 <Input
                   id="recurrence-interval"
                   type="number"
                   min="1"
                   max="99"
+                  aria-invalid={errors.interval ? true : undefined}
                   value={recurrence.interval || 1}
                   onChange={(e) =>
                     updateRecurrence("interval", parseInt(e.target.value) || 1)
@@ -231,9 +248,10 @@ export default function RecurrenceSettings({
             <FormField
               label="Repeat on"
               error={
-                recurrence.weekdays.length === 0
+                errors.weekdays ??
+                (recurrence.weekdays.length === 0
                   ? "Select at least one day"
-                  : undefined
+                  : undefined)
               }
             >
               <div className="flex flex-wrap gap-2">
@@ -264,7 +282,11 @@ export default function RecurrenceSettings({
 
           {/* End date picker */}
           {recurrence.endType === "on_date" && (
-            <FormField label="End date" htmlFor="recurrence-end-date">
+            <FormField
+              label="End date"
+              htmlFor="recurrence-end-date"
+              error={errors.endDate}
+            >
               <Popover>
                 <PopoverTrigger
                   render={
@@ -309,6 +331,7 @@ export default function RecurrenceSettings({
             <FormField
               label="Total occurrences"
               htmlFor="recurrence-end-occurrences"
+              error={errors.endOccurrences}
             >
               <div className="flex items-center gap-3">
                 <Input

@@ -39,6 +39,7 @@ const PUBLIC_ACTIONS = [
   "getWaiverDefinition",
   "getWaiverDownloadUrl",
   "isProjectCreator",
+  "publishProjectDraft",
   "rejectSignup",
   "removeProjectWaiverPdf",
   "resendAnonymousConfirmationEmail",

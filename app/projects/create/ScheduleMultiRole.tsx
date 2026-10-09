@@ -1,9 +1,12 @@
 "use client";
 
+import { AlertTriangle } from "lucide-react";
 import type { ZodIssue } from "zod";
 
 import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DUPLICATE_ROLE_NAME_MESSAGE } from "@/schemas/event-form-schema";
 import { TimePicker } from "@/components/ui/time-picker";
 
 import { FormField, FormGroup } from "./form-parts";
@@ -26,6 +29,7 @@ export function ScheduleMultiRole({
   addRoleAction,
   removeRoleAction,
   errors,
+  timeZone,
 }: {
   sameDayMultiArea: ScheduleState["schedule"]["sameDayMultiArea"];
   updateMultiRoleScheduleAction: (
@@ -36,8 +40,30 @@ export function ScheduleMultiRole({
   addRoleAction: () => void;
   removeRoleAction: (roleIndex: number) => void;
   errors: ZodIssue[];
+  /** The project's timezone, which decides whether a time has passed. */
+  timeZone?: string;
 }) {
   const addRoleIcon = useAnimatedIcon();
+
+  // Problems that belong to the role list as a whole, plus one line for
+  // repeated names so the reason is visible without scrolling to the field.
+  const roleListMessages = [
+    ...new Set(
+      errors
+        .filter(
+          (issue) =>
+            issue.path[0] === "roles" &&
+            (issue.path.length === 1 ||
+              issue.path[1] === "roles" ||
+              issue.message === DUPLICATE_ROLE_NAME_MESSAGE),
+        )
+        .map((issue) =>
+          issue.message === DUPLICATE_ROLE_NAME_MESSAGE
+            ? "Two or more roles share a name. Give each role a different name."
+            : issue.message,
+        ),
+    ),
+  ];
 
   // Get errors for sameDayMultiArea fields
   const dateError = getFieldError(errors, "date");
@@ -83,6 +109,25 @@ export function ScheduleMultiRole({
         </div>
       </FormGroup>
 
+      {roleListMessages.length > 0 ? (
+        <FormGroup>
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden="true" />
+            <AlertDescription>
+              {roleListMessages.length === 1 ? (
+                roleListMessages[0]
+              ) : (
+                <ul className="list-inside list-disc">
+                  {roleListMessages.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
+          </Alert>
+        </FormGroup>
+      ) : null}
+
       {sameDayMultiArea.roles.map((role, roleIndex) => {
         const roleTimeInvalid = isTimeRangeInvalid(
           role.startTime,
@@ -109,8 +154,16 @@ export function ScheduleMultiRole({
           roleIndex,
           "volunteers",
         );
-        const startInPast = isTimeInPast(sameDayMultiArea.date, role.startTime);
-        const endInPast = isTimeInPast(sameDayMultiArea.date, role.endTime);
+        const startInPast = isTimeInPast(
+          sameDayMultiArea.date,
+          role.startTime,
+          timeZone,
+        );
+        const endInPast = isTimeInPast(
+          sameDayMultiArea.date,
+          role.endTime,
+          timeZone,
+        );
 
         return (
           <FormGroup

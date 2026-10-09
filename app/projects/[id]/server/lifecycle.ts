@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
-import { ProjectStatus } from "@/types";
-import { type Project } from "@/types";
+import { type Project, ProjectStatus } from "@/types";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import { removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +19,7 @@ import {
   getWaiverSettingsErrorMessage,
   type WaiverSettingUpdates,
 } from "@/lib/projects/waiver-settings";
+import { getRecurrenceWaiverEditError } from "@/lib/projects/recurrence";
 import { canUserManageProject } from "./access-helpers";
 import {
   getExactCancellationReceipt,
@@ -96,13 +96,11 @@ export async function updateProjectStatus(
     | { enqueued: boolean; triggerAttempted: boolean; error?: string }
     | undefined;
 
-  // Get current user using getClaims() for better performance
   const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to update project status" };
   }
 
-  // Verify user has permission to update the project
   const { project, error: projectError } = await getProjectForMutation(
     supabase,
     projectId,
@@ -223,7 +221,6 @@ export async function updateProjectStatus(
     }
   }
 
-  // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
   if (project.organization_id) {
     revalidatePath(`/organization/${project.organization_id}`);
@@ -325,7 +322,6 @@ export async function cloneProject(projectId: string) {
     return { error: `Failed to create clone: ${insertError.message}` };
   }
 
-  // Trigger plugin hooks if organization-scoped
   if (source.organization_id) {
     try {
       const { data: orgMember } = await supabase
@@ -378,13 +374,11 @@ export async function deleteProject(projectId: string) {
   "use server";
   const supabase = await createClient();
 
-  // Get current user using getClaims() for better performance
   const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to delete a project" };
   }
 
-  // Verify user has permission to delete the project
   const { project, error: projectError } = await getProjectForMutation(
     supabase,
     projectId,
@@ -394,7 +388,6 @@ export async function deleteProject(projectId: string) {
     return { error: "Project not found" };
   }
 
-  // Check if user has permission
   let hasPermission = project.creator_id === user.id;
   if (project.organization_id && !hasPermission) {
     const { data: orgMember, error: orgMemberError } = await supabase
@@ -466,7 +459,6 @@ export async function deleteProject(projectId: string) {
     }
   }
 
-  // Delete cover image if it exists
   if (project.cover_image_url) {
     const fileName = project.cover_image_url.split("/").pop();
     if (fileName) {
@@ -510,7 +502,6 @@ export async function deleteProject(projectId: string) {
     return { error: "Failed to delete project" };
   }
 
-  // Revalidate paths
   revalidatePath("/home");
   if (project.organization_id) {
     revalidatePath(`/organization/${project.organization_id}`);
@@ -534,11 +525,10 @@ export async function updateProject(
       return { error: "Unauthorized" };
     }
 
-    // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
       .select(
-        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility",
+        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility, waiver_required",
       )
       .eq("id", projectId)
       .single();
@@ -580,7 +570,7 @@ export async function updateProject(
       "recurrence_sequence",
       "recurrence_occurrence_date",
       // Publication is a consequential transition, not a generic field write.
-      // It is owned by publish_waiver_staged_project / publishDraft.
+      // It is owned by publish_waiver_staged_project / publishProjectDraft.
       "workflow_status",
       "creation_idempotency_key",
     ] as const;
@@ -629,6 +619,17 @@ export async function updateProject(
       }
       sanitizedUpdates.recurrence_rule = ruleResult.rule;
     }
+
+    // A repeating project cannot require a waiver: its occurrences are new
+    // projects that cannot carry the waiver PDF.
+    const recurrenceWaiverError = getRecurrenceWaiverEditError({
+      isOccurrence: project.recurrence_parent_id != null,
+      currentRule: project.recurrence_rule,
+      nextRule: sanitizedUpdates.recurrence_rule,
+      currentWaiverRequired: project.waiver_required,
+      nextWaiverRequired: requestedWaiverSettings?.waiver_required,
+    });
+    if (recurrenceWaiverError) return { error: recurrenceWaiverError };
 
     const requestsPublicVisibility =
       Object.prototype.hasOwnProperty.call(sanitizedUpdates, "visibility") &&
@@ -759,9 +760,7 @@ export async function updateProject(
           };
         }
         if (updateError) throw updateError;
-        return {
-          error: "Failed to update project",
-        };
+        return { error: "Failed to update project" };
       }
     }
 

@@ -29,6 +29,7 @@ export function CreateActionBar({
   backDisabled,
   primaryDisabled,
   autosaveStatus,
+  blockedReason,
   onBack,
   onPrimary,
 }: {
@@ -38,6 +39,8 @@ export function CreateActionBar({
   primaryDisabled: boolean;
   /** Null until this project has a draft that autosave writes to. */
   autosaveStatus: AutosaveStatus | null;
+  /** Why the primary action is disabled, when the user can fix it. */
+  blockedReason?: string;
   onBack: () => void;
   onPrimary: () => void;
 }) {
@@ -51,7 +54,15 @@ export function CreateActionBar({
         Back
       </Button>
       <div className="flex min-w-0 items-center gap-3">
-        {autosaveStatus ? (
+        {blockedReason ? (
+          <p
+            id="create-blocked-reason"
+            role="alert"
+            className="text-destructive min-w-0 text-xs sm:text-sm"
+          >
+            {blockedReason}
+          </p>
+        ) : autosaveStatus ? (
           <p
             role="status"
             className={cn(
@@ -68,6 +79,9 @@ export function CreateActionBar({
           <Button
             onClick={onPrimary}
             disabled={primaryDisabled}
+            aria-describedby={
+              blockedReason ? "create-blocked-reason" : undefined
+            }
             {...createIcon.triggerProps}
           >
             {isSubmitting ? (
