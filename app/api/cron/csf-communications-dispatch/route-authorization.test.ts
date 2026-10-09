@@ -508,6 +508,28 @@ describe("the bounded CSF dispatch worker route refuses every call it cannot aut
     expect(sendCalls).toHaveLength(0);
   });
 
+  test("Vercel's CRON_SECRET authenticates when CRON_TOKEN and the worker token differ from it", async () => {
+    process.env.CRON_SECRET = "synthetic-vercel-cron-secret";
+    process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN =
+      "synthetic-worker-token";
+
+    for (const token of [
+      "synthetic-vercel-cron-secret",
+      "synthetic-cron-token",
+      "synthetic-worker-token",
+    ]) {
+      const response = await GET(
+        request({ authorization: `Bearer ${token}` }, "GET"),
+      );
+      expect(`${token}=${response.status}`).toBe(`${token}=200`);
+    }
+    const refused = await GET(
+      request({ authorization: "Bearer synthetic-other-token" }, "GET"),
+    );
+    expect(refused.status).toBe(401);
+    expect(sendCalls).toHaveLength(0);
+  });
+
   test("neither the header nor the secret is ever logged", async () => {
     // Two channels can leak a credential: the permitted logger, and a bare
     // console call that bypassed it. Both are captured, and the console is

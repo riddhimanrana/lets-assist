@@ -254,6 +254,23 @@ describe("CSF class workbook refresh route", () => {
     expect(observationCalls).toEqual(["csf-class-workbook-refresh"]);
   });
 
+  test("accepts every configured token when CRON_TOKEN differs from Vercel's CRON_SECRET", async () => {
+    process.env.CRON_TOKEN = "synthetic-cron-token";
+    process.env.CRON_SECRET = "synthetic-cron-secret";
+    for (const token of [
+      "synthetic-workbook-token",
+      "synthetic-cron-token",
+      "synthetic-cron-secret",
+    ]) {
+      expect((await GET(request(token, "GET"))).status).toBe(200);
+    }
+    expect((await GET(request("synthetic-other-token", "GET"))).status).toBe(
+      401,
+    );
+    expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
+  });
+
   test("returns count-only truth when no job is available", async () => {
     process.env.CSF_WORKBOOK_WORKER_ENABLED = "true";
     rpcResults = [{ data: { claimed: false }, error: null }];

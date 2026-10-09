@@ -81,6 +81,21 @@ describe("CSF import commit worker route", () => {
     expect(observationCalls).toHaveLength(0);
   });
 
+  test("accepts every configured token when CRON_TOKEN differs from Vercel's CRON_SECRET", async () => {
+    process.env.CRON_TOKEN = "synthetic-cron-token";
+    process.env.CRON_SECRET = "synthetic-cron-secret";
+    for (const token of [
+      "synthetic-import-token",
+      "synthetic-cron-token",
+      "synthetic-cron-secret",
+    ]) {
+      expect((await POST(request(token))).status).toBe(200);
+    }
+    expect((await POST(request("synthetic-other-token"))).status).toBe(401);
+    expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
+  });
+
   test("does no work while disabled", async () => {
     const response = await POST(request());
     expect(await response.json()).toEqual({

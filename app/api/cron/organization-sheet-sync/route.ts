@@ -7,10 +7,10 @@ import {
 } from "@/lib/async/map-with-concurrency";
 import { getAdminClient } from "@/lib/supabase/admin";
 import {
-  buildOrganizationReportRowsForSync,
-  type ReportType,
-} from "@/lib/organization/report-service";
-import { replaceSpreadsheetReportValues } from "@/services/google-sheets";
+  ORGANIZATION_SHEET_SYNC_COLUMNS,
+  runOrganizationSheetSync,
+} from "@/lib/google-sheets/organization-report-sync";
+import { logError, logInfo, logWarn } from "@/lib/logger";
 import {
   getGoogleAccessTokenForSheetsForUser,
   organizationSheetsGoogleBinding,
@@ -19,13 +19,40 @@ import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 
+export const maxDuration = 60;
+
 const WORKER_ENABLED = process.env.ORG_SHEET_SYNC_WORKER_ENABLED === "true";
-const DEFAULT_TAB_NAME = "Member Hours";
 const SHEET_SYNC_CONCURRENCY = readPositiveInteger(
   process.env.ORG_SHEET_SYNC_CONCURRENCY,
   3,
   10,
 );
+
+// One run takes the least recently synced organizations first and leaves the
+// rest for the next run, so a long queue cannot outlast the function limit.
+const MAX_ORGANIZATIONS_PER_RUN = readPositiveInteger(
+  process.env.ORG_SHEET_SYNC_MAX_PER_RUN,
+  25,
+  200,
+);
+
+type SheetSyncRunResult =
+  | { organizationId: string; success: true }
+  | { organizationId: string; success: false; error: string; code: string };
+
+function failed(
+  organizationId: string,
+  code: string,
+  error: string,
+): SheetSyncRunResult {
+  // The response body is only read by the worker summary, so each failure is
+  // also logged with a code that can be searched and alerted on.
+  logWarn("Organization sheet sync failed", {
+    organization_id: organizationId,
+    error_code: code,
+  });
+  return { organizationId, success: false, error, code };
+}
 
 function isAuthorized(request: NextRequest) {
   return isCronBearerAuthorized(
@@ -47,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   // Strictly after real authentication and before the worker-enable check,
   // getAdminClient(), any query, the Google OAuth authorization, the Sheets
-  // access token, and replaceSpreadsheetReportValues().
+  // access token, and runOrganizationSheetSync().
   const probe = cronAuthShapeProbe("organization-sheet-sync", request);
   if (probe) return probe;
 
@@ -66,9 +93,10 @@ export async function POST(request: NextRequest) {
       const { data: syncRows, error } = await supabase
         .from("organization_sheet_syncs")
         .select(
-          "organization_id, sheet_id, sheet_url, tab_name, range_a1, report_type, auto_sync, sync_interval_minutes, last_synced_at, created_by",
+          `${ORGANIZATION_SHEET_SYNC_COLUMNS}, auto_sync, sync_interval_minutes, last_synced_at, created_by`,
         )
-        .eq("auto_sync", true);
+        .eq("auto_sync", true)
+        .order("last_synced_at", { ascending: true, nullsFirst: true });
 
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -77,10 +105,18 @@ export async function POST(request: NextRequest) {
       const dueRows = (syncRows || []).filter((row) =>
         isDue(row.last_synced_at, row.sync_interval_minutes || 1440),
       );
+      const selectedRows = dueRows.slice(0, MAX_ORGANIZATIONS_PER_RUN);
+      if (dueRows.length > selectedRows.length) {
+        logInfo("Organization sheet sync deferred organizations", {
+          deferred: dueRows.length - selectedRows.length,
+          selected: selectedRows.length,
+        });
+      }
+
       const results = await mapWithConcurrency(
-        dueRows,
+        selectedRows,
         SHEET_SYNC_CONCURRENCY,
-        async (row) => {
+        async (row): Promise<SheetSyncRunResult> => {
           try {
             const ownerAuthorization =
               await authorizeGoogleOAuthOrganizationRequest({
@@ -98,12 +134,11 @@ export async function POST(request: NextRequest) {
                   updated_at: new Date().toISOString(),
                 })
                 .eq("organization_id", row.organization_id);
-              return {
-                organizationId: row.organization_id,
-                success: false,
-                error:
-                  "Sync owner no longer has active organization admin access",
-              };
+              return failed(
+                row.organization_id,
+                "owner_not_admin",
+                "Sync owner no longer has active organization admin access",
+              );
             }
 
             const accessToken = await getGoogleAccessTokenForSheetsForUser(
@@ -112,63 +147,34 @@ export async function POST(request: NextRequest) {
               organizationSheetsGoogleBinding(row.organization_id),
             );
             if (!accessToken) {
-              return {
-                organizationId: row.organization_id,
-                success: false,
-                error: "No Google token",
-              };
-            }
-
-            const { rows, error: rowsError } =
-              await buildOrganizationReportRowsForSync(
+              return failed(
                 row.organization_id,
-                row.report_type as ReportType,
+                "no_google_token",
+                "No Google token",
               );
-
-            if (rowsError || !rows) {
-              return {
-                organizationId: row.organization_id,
-                success: false,
-                error: rowsError || "Report error",
-              };
             }
 
-            const replacement = await replaceSpreadsheetReportValues(
+            // The same function the manual "Sync now" action runs, so the
+            // saved layout, the range check and the tab check cannot drift.
+            const result = await runOrganizationSheetSync({
+              supabase,
+              config: row,
               accessToken,
-              row.sheet_id,
-              row.tab_name || DEFAULT_TAB_NAME,
-              row.range_a1,
-              rows,
-            );
-
-            if (!replacement.success && replacement.stage === "write") {
-              return {
-                organizationId: row.organization_id,
-                success: false,
-                error: "Sheet update failed",
-              };
+            });
+            if (!result.success) {
+              return failed(row.organization_id, result.code, result.error);
             }
-
-            if (!replacement.success) {
-              return {
-                organizationId: row.organization_id,
-                success: false,
-                error: "Sheet updated, but stale values could not be cleared",
-              };
-            }
-
-            await supabase
-              .from("organization_sheet_syncs")
-              .update({ last_synced_at: new Date().toISOString() })
-              .eq("organization_id", row.organization_id);
 
             return { organizationId: row.organization_id, success: true };
           } catch (error) {
-            return {
-              organizationId: row.organization_id,
-              success: false,
-              error: error instanceof Error ? error.message : "Unknown error",
-            };
+            logError("Organization sheet sync threw", error, {
+              organization_id: row.organization_id,
+            });
+            return failed(
+              row.organization_id,
+              "unexpected_error",
+              "Unexpected error",
+            );
           }
         },
       );

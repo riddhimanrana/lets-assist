@@ -124,6 +124,27 @@ describe("CSF scheduled-post publisher route", () => {
     expect(revalidationCalls).toHaveLength(0);
   });
 
+  test("accepts every configured token when CRON_TOKEN differs from Vercel's CRON_SECRET", async () => {
+    process.env.CRON_TOKEN = "synthetic-cron-token";
+    process.env.CRON_SECRET = "synthetic-vercel-cron-secret";
+    for (const token of [
+      "synthetic-scheduled-publisher-token",
+      "synthetic-cron-token",
+      "synthetic-vercel-cron-secret",
+    ]) {
+      const response = await GET(
+        request({ authorization: `Bearer ${token}` }, "GET"),
+      );
+      expect(response.status, token).toBe(200);
+    }
+    const refused = await GET(
+      request({ authorization: "Bearer synthetic-other-token" }, "GET"),
+    );
+    expect(refused.status).toBe(401);
+    expect(clientCalls).toHaveLength(0);
+    expect(rpcCalls).toHaveLength(0);
+  });
+
   test("authentication and exact bearer grammar precede the probe and every database/cache boundary", async () => {
     const malformed = [
       "",

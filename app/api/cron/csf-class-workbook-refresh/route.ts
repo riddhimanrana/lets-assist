@@ -4,9 +4,8 @@ import { safeConsole } from "@/lib/safe-console";
 import { runNextCsfSheetSync } from "@/lib/plugins/private/plugins/dvhs-csf/services/sheet-sync-engine";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 import { linkCsfClassSheetAction } from "@/lib/plugins/private/plugins/dvhs-csf/server/actions/class-sheet-sync";
 import { type CsfClassWorkbookWorkerContext } from "@/lib/plugins/private/plugins/dvhs-csf/services/class-workbook-worker-context";
@@ -20,7 +19,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
-const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
 const claimSchema = z.discriminatedUnion("claimed", [
   z.object({ claimed: z.literal(false) }),
   z.object({
@@ -75,24 +73,10 @@ const dispatchResultSchema = z.object({
   unknown: z.number().int().min(0).max(1),
 });
 
-function secretsMatch(expected: string, presented: string): boolean {
-  const expectedDigest = createHash("sha256").update(expected).digest();
-  const presentedDigest = createHash("sha256").update(presented).digest();
-  return timingSafeEqual(expectedDigest, presentedDigest);
-}
-
 function isAuthorized(request: NextRequest): boolean {
-  const header = request.headers.get("authorization");
-  const match = typeof header === "string" ? BEARER_GRAMMAR.exec(header) : null;
-  if (!match) return false;
-  const allowed = [
-    process.env.CSF_WORKBOOK_WORKER_SECRET_TOKEN,
-    process.env.CRON_TOKEN ?? process.env.CRON_SECRET,
-  ].filter((value): value is string => Boolean(value));
-  if (allowed.length === 0) return false;
-  return allowed.reduce(
-    (authorized, expected) => secretsMatch(expected, match[1]) || authorized,
-    false,
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.CSF_WORKBOOK_WORKER_SECRET_TOKEN),
   );
 }
 

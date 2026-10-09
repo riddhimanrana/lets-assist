@@ -2,9 +2,8 @@ import "server-only";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 import {
   classifyCsfImportCommitFailure,
@@ -26,7 +25,6 @@ const importCommitLeaseSeconds = maxDuration + 100;
 // function budget plus settlement time, so the next minute's invocation cannot
 // reclaim a job while its original worker is still allowed to run.
 
-const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
 const claimSchema = z.union([
   z.object({
     claimed: z.literal(false),
@@ -49,24 +47,11 @@ const finishSchema = z.object({
   status: z.enum(["completed", "blocked", "failed"]),
 });
 
-function secretsMatch(expected: string, presented: string): boolean {
-  const expectedDigest = createHash("sha256").update(expected).digest();
-  const presentedDigest = createHash("sha256").update(presented).digest();
-  return timingSafeEqual(expectedDigest, presentedDigest);
-}
-
 function isAuthorized(request: NextRequest): boolean {
-  const match = BEARER_GRAMMAR.exec(request.headers.get("authorization") ?? "");
-  if (!match) return false;
-  return [
-    process.env.CSF_IMPORT_WORKER_SECRET_TOKEN,
-    process.env.CRON_TOKEN ?? process.env.CRON_SECRET,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .reduce(
-      (authorized, expected) => secretsMatch(expected, match[1]) || authorized,
-      false,
-    );
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.CSF_IMPORT_WORKER_SECRET_TOKEN),
+  );
 }
 
 function json(body: unknown, status = 200) {

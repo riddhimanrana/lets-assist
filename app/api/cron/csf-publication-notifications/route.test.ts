@@ -132,13 +132,19 @@ for (const [method, handler] of [
     expect(observationCalls).toEqual(["csf-publication-notifications"]);
   });
 }
-test("a configured route secret takes precedence over the shared cron secret", async () => {
-  process.env.CRON_SECRET = "other-fictional-token";
-  expect((await POST(request("Bearer other-fictional-token"))).status).toBe(
-    401,
-  );
+test("a configured route secret does not lock out Vercel's CRON_SECRET", async () => {
+  process.env.CRON_TOKEN = "fictional-shared-token";
+  process.env.CRON_SECRET = "fictional-vercel-secret";
+  for (const token of [
+    "fictional-cron-token",
+    "fictional-shared-token",
+    "fictional-vercel-secret",
+  ]) {
+    expect((await GET(request(`Bearer ${token}`))).status).toBe(200);
+  }
+  expect((await GET(request("Bearer fictional-other-token"))).status).toBe(401);
   delete process.env.CSF_PUBLICATION_NOTIFICATIONS_SECRET_TOKEN;
-  expect((await POST(request("Bearer other-fictional-token"))).status).toBe(
+  expect((await POST(request("Bearer fictional-vercel-secret"))).status).toBe(
     200,
   );
 });
