@@ -640,7 +640,11 @@ already included in the 414 baseline.
     deleting jobs or reversing receipts. After each enable, verify one bounded
     run. Require import receipts before communications and a controlled email
     path before scheduled publishing.
-14. Restore other cron jobs by reconciliation.
+14. Restore other cron jobs by reconciliation. Migration `20261009090000`
+    adds `process-project-statuses` and leaves it paused during the window.
+    Production already has a dashboard-created `Process project status` job
+    for the same function. Keep exactly one of the two active, preferring the
+    migration-owned job, and confirm a fresh project schedule health run.
 15. Watch advisors and logs for an hour.
 
 ---

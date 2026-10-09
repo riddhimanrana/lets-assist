@@ -2772,6 +2772,10 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Project status maintenance schedule, October 8, 2026
+
+`AUD-PROJECT-STATUS-CRON-20261008`, P1, fixed in source only. No migration scheduled `public.process_projects()`, so a database built from the ledger never advanced published projects to in-progress or completed, the Admin Overview reported no recorded run, and feedback follow-ups and experience prompts that require `completed` never fired. Production has a dashboard-created `Process project status` job; Development and local databases have none. Forward migration `20261009090000` schedules `process-project-statuses` every five minutes and leaves it paused when applied during a maintenance hold. Six pgTAP assertions and five catalog tests are written; the catalog tests pass, and no replay has applied the migration. Remaining: an isolated replay, then one job per database after reconciling the Production duplicate.
+
 ### Disconnected calendar cleanup, October 8, 2026
 
 `AUD-CALENDAR-CLEANUP-20261008`, P2, fixed in source. Saved cleanup entries showed enabled removal buttons after the user disconnected Google Calendar, but the provider call required reconnection. The entries now remain visible with disabled removal controls and guidance to reconnect the same account. Two render regressions cover project and signup receipts in disconnected and connected states. Hosted browser acceptance remains open.

@@ -144,6 +144,7 @@ Before a destructive hosted change, record the available backup/PITR coverage an
 ## Source references
 
 - Schedule validation and health: `20261007044000_project_schedule_health.sql` and `project_schedule_health.test.sql`.
+- Status maintenance schedule: `20261009090000_schedule_project_status_maintenance.sql` and `project_status_cron.test.sql`. The `process-project-statuses` job calls `public.process_projects()` every five minutes. A maintenance window leaves it paused, so restore it with the other database jobs.
 - Scope observation and synthetic workload: `20261007045000_csf_sheet_scope_observation.sql` and `csf_sheet_scope_observation.test.sql`.
 - Paper staging retention: `20260811100000_project_paper_signup_scans.sql`; Storage serialization: `20260819020000_serialize_paper_scan_orphan_cleanup.sql`.
 - Graduated-cohort retention: `20260917100000_csf_graduated_cohort_retention.sql` and `20260917150000_csf_course_retention_coverage.sql`.

@@ -1,3 +1,4 @@
+import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { publishedEmbeddedBatch719Catalog } from "./published-embedded-batch-719-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
@@ -352,6 +353,13 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  if (
+    ledgerDigest(versions) ===
+    "ade4f2159734ea1e0cb49dbb49b6327f72d34a20cf454db793599bf1ca5b01a2"
+  )
+    return projectStatusCronCatalog(
+      acceptedCatalogQuery(source, versions.slice(0, -1)),
+    );
   if (
     ledgerDigest(versions) ===
     "1520323451f2c0074970b20d2f969ac875e5c295f032e26140d20ad2e1e12336"

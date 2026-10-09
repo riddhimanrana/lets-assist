@@ -17,7 +17,7 @@
       "app/anonymous/[id]/AnonymousSignupClient.tsx": 1082,
       "app/api/ai/analyze-waiver/route.ts": 1975,
       "app/api/ai/scan-signup-sheet/route.ts": 656,
-      "app/api/cron/csf-communications-dispatch/route.ts": 669,
+      "app/api/cron/csf-communications-dispatch/route.ts": 616,
       "app/api/resend/webhook/implementation.ts": 1422,
       "app/api/waivers/[signatureId]/preview/route.ts": 601,
       "app/attend/[projectId]/AttendanceClient.tsx": 973,

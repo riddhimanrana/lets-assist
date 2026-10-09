@@ -64,6 +64,9 @@ Development Resend variables are deliberately additive rather than fallbacks:
 - `PROJECT_FEEDBACK_WORKER_ENABLED` and
   `PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED` remain unset until their own
   Development acceptance is complete.
+- `ORG_SHEET_SYNC_WORKER_ENABLED` gates the organization Sheets auto-sync
+  worker. It defaults to off, and auto-sync runs in Production only when the
+  Production environment sets it to `true`.
 
 No Production credential is a valid generic Preview fallback.
 

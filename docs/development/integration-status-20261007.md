@@ -56,6 +56,11 @@ candidate. It pushed `262ca1b5`, then stopped because the separate PR-creation
 token is absent. That verified commit was incorporated into PR 867. No extra PR
 or publication was needed.
 
+Ledger 722 schedules `public.process_projects()` every five minutes as
+`process-project-statuses`. Its acceptance reuses the measured 721 catalog and
+pins the job's schedule, command and owner. No replay has applied it yet, so
+its pgTAP file and the paused-under-maintenance branch are unverified.
+
 Ledger 721 adds CSF 1.2.87 after the attendance-retention fix. Its measured
 structural catalog is identical to ledger 720. The new acceptance binds the
 current signed CSF and retained DV identities. Fresh SQL checks proved exact
