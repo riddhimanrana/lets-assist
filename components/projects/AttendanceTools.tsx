@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PencilLine, Printer, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function AttendanceTools({ projectId }: { projectId: string }) {
@@ -9,6 +10,7 @@ export function AttendanceTools({ projectId }: { projectId: string }) {
         size="sm"
         render={<Link href={`/projects/${projectId}/attendance-sheet`} />}
       >
+        <Printer data-icon="inline-start" />
         Print attendance sheet
       </Button>
       <Button
@@ -16,6 +18,7 @@ export function AttendanceTools({ projectId }: { projectId: string }) {
         size="sm"
         render={<Link href={`/projects/${projectId}/paper-signups`} />}
       >
+        <ScanLine data-icon="inline-start" />
         Scan completed sheets
       </Button>
       <Button
@@ -25,6 +28,7 @@ export function AttendanceTools({ projectId }: { projectId: string }) {
           <Link href={`/projects/${projectId}/paper-signups?mode=manual`} />
         }
       >
+        <PencilLine data-icon="inline-start" />
         Add attendance manually
       </Button>
     </div>

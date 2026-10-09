@@ -1,7 +1,13 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,13 +63,14 @@ export function AttendanceExport({
     }
   }
   return (
-    <section
+    <Card
+      role="region"
       aria-label="Export volunteer hours"
-      className="space-y-3 rounded-lg border p-4"
+      className="gap-4 p-4"
     >
-      <div>
+      <div className="grid gap-1">
         <h3 className="font-medium">Export volunteer hours</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Includes guests and volunteers outside the organization. Dates use
           each project's timezone.
         </p>
@@ -72,19 +79,21 @@ export function AttendanceExport({
         {scope === "organization" && projects && (
           <div className="space-y-1">
             <Label htmlFor={`${id}-project`}>Project</Label>
-            <select
+            <NativeSelect
               id={`${id}-project`}
-              className="flex h-10 max-w-full rounded-md border bg-background px-3 text-sm"
+              className="max-w-full"
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
             >
-              <option value="">All organization projects</option>
+              <NativeSelectOption value="">
+                All organization projects
+              </NativeSelectOption>
               {projects.map((project) => (
-                <option key={project.id} value={project.id}>
+                <NativeSelectOption key={project.id} value={project.id}>
                   {project.title}
-                </option>
+                </NativeSelectOption>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         )}
         <div className="space-y-1">
@@ -110,6 +119,7 @@ export function AttendanceExport({
           disabled={busy}
           onClick={() => download("csv")}
         >
+          <Download data-icon="inline-start" />
           Export CSV
         </Button>
         <Button
@@ -117,6 +127,7 @@ export function AttendanceExport({
           disabled={busy}
           onClick={() => download("json")}
         >
+          <Download data-icon="inline-start" />
           Export JSON
         </Button>
       </div>
@@ -130,6 +141,6 @@ export function AttendanceExport({
           Include pending and unresolved attendance without credited hours
         </Label>
       </div>
-    </section>
+    </Card>
   );
 }
