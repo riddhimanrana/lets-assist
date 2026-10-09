@@ -37,6 +37,7 @@
     "@/components/ui/radio-group",
     "@/components/ui/rich-text-content",
     "@/components/ui/rich-text-editor",
+    "@/components/ui/segmented-control",
     "@/components/ui/select",
     "@/components/ui/separator",
     "@/components/ui/skeleton",
