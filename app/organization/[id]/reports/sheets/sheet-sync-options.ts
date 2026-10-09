@@ -1,7 +1,4 @@
-import {
-  columnToIndex,
-  isLegacyDefaultReportRange,
-} from "@/lib/google-sheets/ranges";
+import { columnToIndex } from "@/lib/google-sheets/ranges";
 
 import type { ReportType } from "../actions";
 
@@ -91,18 +88,15 @@ export function buildRangeA1(fields: RangeFields): string {
 /**
  * Splits a saved A1 range into the range builder's fields. Returns null for a
  * range that starts at A1 with no end, which the builder shows as "Full tab".
- * The old pre-filled `A1:H20` is one of those: the sync treats it as open, so
- * the form shows what the sync does.
+ * The old pre-filled `A1:H20` keeps its own fields, so saving the form without
+ * touching the range stores the same value. Turning it into `A1` on a save the
+ * admin did not ask for would widen what the sync clears.
  */
 export function parseSavedRange(
   rangeA1: string | null | undefined,
 ): RangeFields | null {
   const range = (rangeA1 ?? "").split("!").pop()?.trim() ?? "";
-  if (
-    !range ||
-    range.toUpperCase() === "A1" ||
-    isLegacyDefaultReportRange(range)
-  ) {
+  if (!range || range.toUpperCase() === "A1") {
     return null;
   }
   const match = range.match(/^([A-Za-z]+)(\d+)(?::([A-Za-z]+)(\d+))?$/);

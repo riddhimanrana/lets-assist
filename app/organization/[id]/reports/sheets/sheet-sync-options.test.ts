@@ -63,8 +63,16 @@ describe("parseSavedRange", () => {
     );
   });
 
-  test("the old pre-filled range shows as the open tab the sync treats it as", () => {
-    expect(parseSavedRange("A1:H20")).toBeNull();
+  test("the old pre-filled range keeps its fields, so an untouched save stores the same value", () => {
+    const fields = parseSavedRange("A1:H20");
+    expect(fields).toEqual({
+      mode: "custom",
+      startColumn: "A",
+      startRow: "1",
+      endColumn: "H",
+      endRow: "20",
+    });
+    expect(fields && buildRangeA1(fields)).toBe("A1:H20");
   });
 
   test("every saved range survives a round trip through the form", () => {
