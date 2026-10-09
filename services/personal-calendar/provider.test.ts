@@ -216,6 +216,15 @@ mock.module("@/services/calendar", () => ({
   ...calendar,
   getValidAccessToken: async () => "fictional-owner-token",
 }));
+const connectionStore =
+  await import("@/lib/auth/google-oauth-connection-store");
+mock.module("@/lib/auth/google-oauth-connection-store", () => ({
+  ...connectionStore,
+  // The sync re-reads the active binding before every provider write.
+  getGoogleOAuthConnectionForBinding: async () => ({
+    id: "00000000-0000-4000-8000-000000000105",
+  }),
+}));
 const steps: string[] = [];
 let receipt: import("./reconcile").PersonalCalendarReceipt;
 mock.module("@/lib/supabase/admin", () => ({

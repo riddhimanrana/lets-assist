@@ -1,7 +1,9 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { Project } from "@/types";
 import {
+  PERSONAL_CALENDAR_GOOGLE_BINDING,
   formatProjectToCalendarEvent,
   getCalendarConnection,
   getOrCreateVolunteeringCalendar,
@@ -71,15 +73,48 @@ export async function synchronizePersonalCalendar(input: {
     p_expected_event_id: input.expectedEventId ?? null,
   });
   let token: string | null = null;
+  let authorizedConnectionId: string | null = null;
   const remove = createPersonalCalendarEventRemover();
+  /** The user's active personal-calendar connection, read fresh every call. */
+  async function activeConnectionId() {
+    const connection = await getGoogleOAuthConnectionForBinding(
+      input.userId,
+      PERSONAL_CALENDAR_GOOGLE_BINDING,
+      { useServiceRole: true },
+    );
+    return connection?.id ?? null;
+  }
   async function accessToken() {
-    token ??= await getValidAccessToken(input.userId);
+    if (!token) {
+      // Pin the connection this credential belongs to before it is cached.
+      authorizedConnectionId = await activeConnectionId();
+      token = authorizedConnectionId
+        ? await getValidAccessToken(input.userId)
+        : null;
+    }
     if (!token)
       throw new CalendarSyncError(
         "Please connect your Google Calendar first",
         409,
       );
     return token;
+  }
+  /**
+   * A disconnect can deactivate the connection after the credential is cached,
+   * and the cached credential keeps working at Google until it is revoked. So
+   * every provider write first confirms the same connection is still active.
+   */
+  async function accessTokenForWrite() {
+    const value = await accessToken();
+    if (
+      !authorizedConnectionId ||
+      (await activeConnectionId()) !== authorizedConnectionId
+    )
+      throw new CalendarSyncError(
+        "Your Google Calendar was disconnected. Reconnect it to sync events.",
+        409,
+      );
+    return value;
   }
   const result = await reconcilePersonalCalendar(initial, {
     advance: (receipt, step, payload = {}) =>
@@ -93,7 +128,10 @@ export async function synchronizePersonalCalendar(input: {
       }),
     destination: async (create) =>
       create
-        ? getOrCreateVolunteeringCalendar(await accessToken(), input.userId)
+        ? getOrCreateVolunteeringCalendar(
+            await accessTokenForWrite(),
+            input.userId,
+          )
         : ((await getCalendarConnection(input.userId))?.preferences
             ?.volunteering_calendar_id ?? null),
     events: () => {
@@ -114,9 +152,14 @@ export async function synchronizePersonalCalendar(input: {
       ) as PersonalCalendarEvent[];
     },
     create: async (calendarId, id, event) =>
-      createPersonalCalendarEvent(await accessToken(), calendarId, id, event),
+      createPersonalCalendarEvent(
+        await accessTokenForWrite(),
+        calendarId,
+        id,
+        event,
+      ),
     remove: async (calendarId, id) =>
-      remove(await accessToken(), calendarId, id),
+      remove(await accessTokenForWrite(), calendarId, id),
   });
   if (result.phase === "synced")
     await markPersonalCalendarConnectionSynced(input.userId).catch(

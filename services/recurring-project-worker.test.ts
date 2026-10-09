@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { format, parseISO } from "date-fns";
 
+import { getProjectCalendarDate } from "@/lib/projects/recurrence-occurrence-dates";
+
 import {
   firstOccurrenceIndexAfter,
   getOccurrenceDate,
@@ -223,4 +225,33 @@ describe("finding the first occurrence after a date", () => {
       ).toBe(expected);
     });
   }
+});
+
+describe("today for a series is the date in its own time zone", () => {
+  const earlyUtc = new Date("2026-08-12T01:10:00Z");
+
+  test.each([
+    ["America/Los_Angeles", "2026-08-11"],
+    ["UTC", "2026-08-12"],
+    ["Asia/Kolkata", "2026-08-12"],
+    ["Pacific/Kiritimati", "2026-08-12"],
+  ])("at 01:10 UTC it is %s -> %s", (timeZone, expected) => {
+    expect(getProjectCalendarDate(earlyUtc, timeZone)).toBe(expected);
+  });
+
+  test("a zone ahead of UTC is already on the next date late in the UTC day", () => {
+    expect(
+      getProjectCalendarDate(
+        new Date("2026-08-11T13:00:00Z"),
+        "Pacific/Auckland",
+      ),
+    ).toBe("2026-08-12");
+  });
+
+  test.each([null, undefined, "", "not-a-zone"])(
+    "a missing or invalid zone (%p) falls back to UTC",
+    (timeZone) => {
+      expect(getProjectCalendarDate(earlyUtc, timeZone)).toBe("2026-08-12");
+    },
+  );
 });

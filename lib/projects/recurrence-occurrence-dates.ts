@@ -12,6 +12,37 @@ export interface RecurrenceRule {
   weekdays?: string[];
 }
 
+/**
+ * The calendar date (YYYY-MM-DD) it is at `instant` where the project takes
+ * place. A recurring series is dated in its own zone, so "today" for a series
+ * is never the worker host's date. Falls back to UTC only when the zone is
+ * missing or is not one the runtime knows.
+ */
+export function getProjectCalendarDate(
+  instant: Date,
+  timeZone: string | null | undefined,
+): string {
+  const dateIn = (zone: string) => {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(instant);
+    const part = (type: string) =>
+      parts.find((entry) => entry.type === type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  };
+  if (typeof timeZone === "string" && timeZone) {
+    try {
+      return dateIn(timeZone);
+    } catch {
+      // Not an IANA zone: use UTC below.
+    }
+  }
+  return dateIn("UTC");
+}
+
 const WEEKDAY_INDEX: Record<string, number> = {
   sunday: 0,
   monday: 1,

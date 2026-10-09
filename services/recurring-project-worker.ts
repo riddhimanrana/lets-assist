@@ -1,9 +1,10 @@
 import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@supabase/supabase-js";
-import { addWeeks, format, isAfter, isBefore, parseISO } from "date-fns";
+import { addWeeks, format, isAfter, parseISO } from "date-fns";
 import {
   firstOccurrenceIndexAfter,
   getOccurrenceDate,
+  getProjectCalendarDate,
   type RecurrenceRule,
 } from "@/lib/projects/recurrence-occurrence-dates";
 import {
@@ -320,9 +321,6 @@ export async function processRecurringProjects(
   const errors: string[] = [];
   let createdOccurrences = 0;
   const now = options.now ? new Date(options.now) : new Date();
-  const lookAheadDate = addWeeks(now, 4);
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
   let parentsProcessed = 0;
   let checkedProjects = 0;
   let successfulProjects = 0;
@@ -438,6 +436,16 @@ export async function processRecurringProjects(
         }
         parentsProcessed++;
 
+        // "Today" is the date where the project happens, not the date on the
+        // worker host: at 01:10 UTC a Los Angeles series is still on the day
+        // before. Occurrence dates are calendar dates, so both bounds are too.
+        const projectToday = getProjectCalendarDate(
+          now,
+          parent.project_timezone,
+        );
+        const today = parseISO(projectToday);
+        const lookAheadDate = addWeeks(today, 4);
+
         // An occurrence of a waiver-required series is a new project that
         // needs its own copy of the waiver. It is staged as a draft and only
         // the database publishes it, once the copy is proven. The waiver is
@@ -463,7 +471,7 @@ export async function processRecurringProjects(
           const resumeResult = await resumeWaiverOccurrenceDrafts(
             supabase,
             waiverSource,
-            format(today, "yyyy-MM-dd"),
+            projectToday,
           );
           if (!resumeResult.ok) {
             settleWaiverOccurrence(
@@ -572,7 +580,7 @@ export async function processRecurringProjects(
           );
           if (
             !occurrenceDate ||
-            !isBefore(occurrenceDate, lookAheadDate) ||
+            isAfter(occurrenceDate, lookAheadDate) ||
             !shouldGenerateOccurrence(rule, occurrenceDate, occurrenceIndex)
           ) {
             break;

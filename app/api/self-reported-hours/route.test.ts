@@ -67,6 +67,26 @@ describe("self-reported hours route", () => {
     ).toBe(400);
     expect(inserted).toEqual([]);
   });
+  test("a wall time that happens twice returns its explanation and writes nothing", async () => {
+    const response = await POST(
+      request(
+        JSON.stringify({
+          ...input,
+          date: "2026-11-01",
+          startTime: "01:30",
+          endTime: "02:30",
+          timeZone: "America/Los_Angeles",
+        }),
+      ),
+    );
+    expect(response.status).toBe(400);
+    // The hours form shows this `error` as the toast description.
+    expect(await response.json()).toEqual({
+      error:
+        "That time happens twice on this date because clocks change. Enter a time before 1:00 AM or after 2:00 AM, or split the entry.",
+    });
+    expect(inserted).toEqual([]);
+  });
   test("requires authentication before parsing a write", async () => {
     authorized = false;
     expect((await POST(request(JSON.stringify(input)))).status).toBe(401);

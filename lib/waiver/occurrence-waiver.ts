@@ -372,12 +372,19 @@ export async function createWaiverOccurrence(
 export async function resumeWaiverOccurrenceDrafts(
   client: ServiceClient,
   source: ParentWaiverSource,
-  /** YYYY-MM-DD. Occurrences dated today or earlier are never published. */
+  /**
+   * YYYY-MM-DD, the current date in the series' own time zone. Occurrences
+   * dated today or earlier are never published.
+   */
   today: string,
 ): Promise<
   | { ok: true; resumed: ResumedOccurrenceOutcome[] }
   | { ok: false; code: OccurrenceWaiverFailureCode }
 > {
+  if (!CALENDAR_DATE_PATTERN.test(today)) {
+    return { ok: false, code: "occurrence_lookup_failed" };
+  }
+
   const { data, error } = await client
     .from("projects")
     .select(
@@ -385,11 +392,17 @@ export async function resumeWaiverOccurrenceDrafts(
     )
     .eq("recurrence_parent_id", source.parentId)
     .eq("workflow_status", "draft")
+    .eq("waiver_required", true)
+    .gt("recurrence_occurrence_date", today)
+    .or("status.is.null,status.neq.cancelled")
     .order("recurrence_occurrence_date", { ascending: true })
+    .order("id", { ascending: true })
     .limit(RESUME_LIMIT);
 
   if (error) return { ok: false, code: "occurrence_lookup_failed" };
 
+  // The query already excludes ineligible drafts, so the cap only ever counts
+  // rows that can be resumed. The checks below repeat it on what came back.
   const resumed: ResumedOccurrenceOutcome[] = [];
   for (const row of (data ?? []) as Array<
     OccurrenceDraft & {

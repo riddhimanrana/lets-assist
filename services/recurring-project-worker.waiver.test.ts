@@ -50,7 +50,8 @@ class Query {
   private readonly notFilters: Array<[string, string, unknown]> = [];
   private readonly jsonFilters: Array<[string, string]> = [];
   private readonly orders: Array<[string, boolean]> = [];
-  private greaterThanId: string | null = null;
+  private readonly greaterThan: Array<[string, string]> = [];
+  private readonly anyOf: string[][] = [];
   private rowLimit: number | null = null;
 
   constructor(
@@ -92,7 +93,12 @@ class Query {
     return this;
   }
   gt(column: string, value: string) {
-    if (column === "id") this.greaterThanId = value;
+    this.greaterThan.push([column, value]);
+    return this;
+  }
+  /** PostgREST `or`: a row passes when any `column.operator.value` holds. */
+  or(conditions: string) {
+    this.anyOf.push(conditions.split(","));
     return this;
   }
   filter(path: string, _operator: string, value: string) {
@@ -119,7 +125,21 @@ class Query {
         if (operator === "is" && value === null && !present) return false;
         if (operator === "eq" && row[column] === value) return false;
       }
-      if (this.greaterThanId && row.id <= this.greaterThanId) return false;
+      for (const [column, value] of this.greaterThan) {
+        // As in SQL, a null never compares greater than anything.
+        const present = row[column] !== null && row[column] !== undefined;
+        if (!present || String(row[column]) <= value) return false;
+      }
+      for (const conditions of this.anyOf) {
+        const passes = conditions.some((condition) => {
+          const [column, operator, value] = condition.split(".");
+          const present = row[column] !== null && row[column] !== undefined;
+          if (operator === "is" && value === "null") return !present;
+          if (operator === "neq") return present && row[column] !== value;
+          throw new Error(`Unexpected or-condition: ${condition}`);
+        });
+        if (!passes) return false;
+      }
       for (const [path, value] of this.jsonFilters) {
         const eventType = path.includes("oneTime")
           ? "oneTime"
@@ -718,6 +738,175 @@ describe("a later run finishes what an earlier run could not", () => {
     const whileCancelled = await run(database);
     expect(whileCancelled.resumedWaiverOccurrences).toBe(0);
     expect(published(database)).toHaveLength(0);
+  });
+});
+
+describe("the resume cap only counts drafts that can be resumed", () => {
+  /** A staged draft of the series, as a failed run leaves it. */
+  function draft(date: string, overrides: Record<string, unknown> = {}): Row {
+    return {
+      ...parentProject(),
+      id: randomUUID(),
+      recurrence_rule: null,
+      recurrence_parent_id: PARENT_ID,
+      recurrence_sequence: null,
+      recurrence_occurrence_date: date,
+      workflow_status: "draft",
+      waiver_pdf_storage_path: null,
+      waiver_pdf_url: null,
+      waiver_definition_id: null,
+      ...overrides,
+    };
+  }
+  const day = (offset: number) =>
+    new Date(Date.UTC(2026, 5, 1 + offset)).toISOString().slice(0, 10);
+
+  test("more than 50 ineligible drafts do not hide a later eligible one", async () => {
+    const database = waiverSeries();
+    // 60 past drafts (June and July), then 30 cancelled and 30 waiver-free
+    // future drafts, every one dated before the single eligible draft.
+    for (let index = 0; index < 60; index++) {
+      database.projects.push(draft(day(index)));
+    }
+    for (let index = 0; index < 30; index++) {
+      database.projects.push(
+        draft(day(72 + index), { status: "cancelled" }),
+        draft(day(102 + index), { waiver_required: false }),
+      );
+    }
+    const eligible = draft("2026-12-01");
+    database.projects.push(eligible);
+
+    const result = await run(database);
+
+    expect(result).toMatchObject({
+      resumedWaiverOccurrences: 1,
+      createdOccurrences: 0,
+      waiverFailures: [],
+      errors: [],
+    });
+    expect(published(database).map((row) => row.id)).toEqual([eligible.id]);
+    expect(
+      occurrences(database).filter((row) => row.workflow_status === "draft"),
+    ).toHaveLength(120);
+  });
+
+  test("eligible drafts are resumed earliest occurrence first", async () => {
+    const database = waiverSeries();
+    database.projects.push(
+      draft("2026-08-25"),
+      draft("2026-08-22"),
+      draft("2026-08-23"),
+    );
+
+    await run(database);
+
+    const publishedDates = database.rpcCalls
+      .filter((call) => call.name === "publish_waiver_staged_project")
+      .map(
+        (call) =>
+          database.projects.find((row) => row.id === call.args.p_project_id)
+            ?.recurrence_occurrence_date,
+      );
+    expect(publishedDates).toEqual(["2026-08-22", "2026-08-23", "2026-08-25"]);
+  });
+});
+
+describe("today is the date in the project's own time zone", () => {
+  // 01:10 UTC on the 12th is 18:10 on the 11th in Los Angeles.
+  const EARLY_UTC = new Date("2026-08-12T01:10:00Z");
+  const losAngelesSeries = () =>
+    waiverSeries({
+      project_timezone: "America/Los_Angeles",
+      schedule: {
+        oneTime: {
+          date: "2026-08-10",
+          startTime: "09:00",
+          endTime: "10:00",
+          volunteers: 5,
+        },
+      },
+      // Occurrences on the 11th and the 12th.
+      recurrence_rule: {
+        frequency: "daily",
+        interval: 1,
+        end_type: "after_occurrences",
+        end_occurrences: 3,
+      },
+    });
+
+  test("the 01:10 UTC run resumes a draft dated tomorrow in Los Angeles", async () => {
+    const database = losAngelesSeries();
+    database.failures.copy = true;
+    // The afternoon before, Los Angeles time: the 12th is staged and fails.
+    const first = await run(database, new Date("2026-08-11T22:00:00Z"));
+    expect(first.waiverFailures).toHaveLength(1);
+    expect(occurrences(database)).toMatchObject([
+      { recurrence_occurrence_date: "2026-08-12", workflow_status: "draft" },
+    ]);
+
+    database.failures.copy = false;
+    const result = await run(database, EARLY_UTC);
+
+    expect(result).toMatchObject({
+      resumedWaiverOccurrences: 1,
+      createdOccurrences: 0,
+      waiverFailures: [],
+      errors: [],
+    });
+    expect(published(database)).toMatchObject([
+      { recurrence_occurrence_date: "2026-08-12" },
+    ]);
+  });
+
+  test("the 01:10 UTC run still creates the occurrence dated tomorrow in Los Angeles", async () => {
+    const database = losAngelesSeries();
+
+    const result = await run(database, EARLY_UTC);
+
+    expect(result).toMatchObject({ createdOccurrences: 1, errors: [] });
+    expect(published(database)).toMatchObject([
+      { recurrence_occurrence_date: "2026-08-12" },
+    ]);
+  });
+
+  test("a draft dated today in Los Angeles is not resumed", async () => {
+    const database = losAngelesSeries();
+    database.failures.copy = true;
+    await run(database, new Date("2026-08-11T22:00:00Z"));
+    database.failures.copy = false;
+
+    // 07:10 UTC on the 12th is 00:10 on the 12th in Los Angeles.
+    const result = await run(database, new Date("2026-08-12T07:10:00Z"));
+
+    expect(result.resumedWaiverOccurrences).toBe(0);
+    expect(published(database)).toHaveLength(0);
+  });
+
+  test("a zone ahead of UTC does not publish for a date that has already begun there", async () => {
+    const database = waiverSeries({
+      project_timezone: "Pacific/Auckland",
+      schedule: {
+        oneTime: {
+          date: "2026-08-10",
+          startTime: "09:00",
+          endTime: "10:00",
+          volunteers: 5,
+        },
+      },
+      recurrence_rule: {
+        frequency: "daily",
+        interval: 1,
+        end_type: "after_occurrences",
+        end_occurrences: 3,
+      },
+    });
+
+    // 13:00 UTC on the 11th is 01:00 on the 12th in Auckland.
+    const result = await run(database, new Date("2026-08-11T13:00:00Z"));
+
+    expect(result.createdOccurrences).toBe(0);
+    expect(occurrences(database)).toHaveLength(0);
   });
 });
 
