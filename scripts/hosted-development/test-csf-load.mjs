@@ -732,9 +732,9 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   assertFixtureLocation(officerPage.url(), appUrl);
   const rosterSearch = applicationsRosterSearch(officerPage);
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
-  const roster = rosterSearch.locator(
-    "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
-  );
+  // The nearest ancestor that also holds the list, so a change to the
+  // wrapper's layout classes cannot break the lookup.
+  const roster = rosterSearch.locator("xpath=ancestor::div[.//ul][1]");
   const firstSubject = roster.locator("ul > li button").first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
   await firstSubject.click({ timeout: 60_000 });
