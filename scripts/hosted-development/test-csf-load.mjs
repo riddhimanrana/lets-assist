@@ -22,7 +22,10 @@ import {
   createHostedReadMetrics,
   passesHostedReadRouteBudgets,
 } from "./csf-load-metrics.mjs";
-import { applicationsRosterSearch } from "./csf-load-applications-roster.mjs";
+import {
+  applicationsRosterSearch,
+  applicationsRosterSubjects,
+} from "./csf-load-applications-roster.mjs";
 import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
@@ -732,10 +735,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   assertFixtureLocation(officerPage.url(), appUrl);
   const rosterSearch = applicationsRosterSearch(officerPage);
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
-  // The nearest ancestor that also holds the list, so a change to the
-  // wrapper's layout classes cannot break the lookup.
-  const roster = rosterSearch.locator("xpath=ancestor::div[.//ul][1]");
-  const firstSubject = roster.locator("ul > li button").first();
+  const firstSubject = applicationsRosterSubjects(rosterSearch).first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
   await firstSubject.click({ timeout: 60_000 });
   assertFixtureLocation(officerPage.url(), appUrl);
