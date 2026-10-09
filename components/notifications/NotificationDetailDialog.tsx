@@ -13,6 +13,7 @@ import {
 import { notificationActionLabel } from "@/services/notification-action-label";
 
 import { formatTimeAgo, type Notification } from "./notification-format";
+import { readableNotificationText } from "./notification-text";
 
 type Props = {
   notification: Notification | null;
@@ -46,7 +47,7 @@ export function NotificationDetailDialog({
         <div className="flex flex-col items-start gap-4">
           {statusLabel ? <Badge variant="neutral">{statusLabel}</Badge> : null}
           <p className="text-sm leading-relaxed whitespace-pre-line">
-            {notification?.body}
+            {readableNotificationText(notification?.body)}
           </p>
           {/* An in-app path is only ids; the action button already goes there.
               An outside address stays visible so people see where it leads. */}

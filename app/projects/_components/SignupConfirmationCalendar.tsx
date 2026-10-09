@@ -31,7 +31,7 @@ export function SignupConfirmationCalendar({
 }: SignupConfirmationCalendarProps) {
   return (
     <div className="space-y-3 border-t pt-3">
-      <h4 className="text-text text-sm font-semibold">Add to Calendar</h4>
+      <h4 className="text-text text-sm font-semibold">Add to calendar</h4>
       {checkingConnection ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />

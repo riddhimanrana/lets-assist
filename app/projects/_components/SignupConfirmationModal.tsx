@@ -359,8 +359,8 @@ export function SignupConfirmationModal({
             )}
             <DialogTitle>
               {step === "confirmation"
-                ? "Confirm Event Signup"
-                : "Tournament Registration"}
+                ? "Confirm your sign-up"
+                : "Tournament registration"}
             </DialogTitle>
           </div>
           <DialogDescription>
@@ -377,7 +377,7 @@ export function SignupConfirmationModal({
             <div className="space-y-6">
               {/* User Information */}
               <div className="space-y-3">
-                <h4 className="font-semibold text-sm">Your Information</h4>
+                <h4 className="font-semibold text-sm">Your information</h4>
                 {isFetchingProfile ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin" />
@@ -416,7 +416,7 @@ export function SignupConfirmationModal({
               {/* Event Information */}
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm text-text">
-                  Event Details
+                  Event details
                 </h4>
                 <div className="space-y-2">
                   <div className="flex items-start gap-3">
@@ -561,7 +561,7 @@ export function SignupConfirmationModal({
                     ? "Loading..."
                     : signupFormSchema
                       ? "Next: registration"
-                      : "Confirm Signup"}
+                      : "Confirm sign-up"}
               </Button>
             </DialogFooter>
           </>

@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { notificationActionLabel } from "@/services/notification-action-label";
 
 import { formatTimeAgo, type Notification } from "./notification-format";
+import { readableNotificationText } from "./notification-text";
 
 type Props = {
   notifications: Notification[];
@@ -184,7 +185,7 @@ function NotificationRow({
           </time>
         </div>
         <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-          {notification.body}
+          {readableNotificationText(notification.body)}
         </p>
         {notification.action_url ? (
           <Button

@@ -228,7 +228,7 @@ export default function CalendarOptionsModal({
               </div>
             </div>
           ) : (
-            <DialogTitle className="text-xl">Add to Calendar</DialogTitle>
+            <DialogTitle className="text-xl">Add to calendar</DialogTitle>
           )}
           <DialogDescription className="text-base">
             {showSuccessMessage ? (
