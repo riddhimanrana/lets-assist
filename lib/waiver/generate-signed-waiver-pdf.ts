@@ -292,6 +292,15 @@ async function renderSignedWaiverPdf(
         continue;
       }
 
+      // Only a drawn or uploaded signature is an image. Any other method
+      // must never reach the storage read below.
+      if (
+        signerSignature.method !== "draw" &&
+        signerSignature.method !== "upload"
+      ) {
+        continue;
+      }
+
       // Handle drawn signatures (embed as image)
 
       // Phase 2: Detect if data is a data URL or storage path

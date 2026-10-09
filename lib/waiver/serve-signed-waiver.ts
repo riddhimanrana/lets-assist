@@ -16,6 +16,7 @@ import {
 } from "@/lib/waiver/preview-auth-helpers";
 import { loadWaiverSourcePdf } from "@/lib/waiver/source-pdf-loader";
 import type { SignaturePayload } from "@/types/waiver-definitions";
+import { isProjectWaiverEvidencePath } from "./evidence-path";
 
 /**
  * Serves one signed waiver for the preview and download routes. The two routes
@@ -364,6 +365,11 @@ export async function serveSignedWaiver(
 
   // All signed evidence is stored in the private signature bucket.
   const storageResolver = async (path: string): Promise<ArrayBuffer> => {
+    // The path comes from the signature record. Only evidence this project's
+    // sign-up flow could have written is ever read with the service role.
+    if (!isProjectWaiverEvidencePath(path, typedSignature.project_id)) {
+      throw new Error("Refused a signature asset outside this project");
+    }
     const { data, error } = await adminClient.storage
       .from("waiver-signatures")
       .download(path);
@@ -433,6 +439,14 @@ export async function serveSignedWaiver(
 
   // Priority 1: Uploaded full waiver (offline mode)
   if (typedSignature.upload_storage_path) {
+    if (
+      !isProjectWaiverEvidencePath(
+        typedSignature.upload_storage_path,
+        typedSignature.project_id,
+      )
+    ) {
+      return fail(404, MESSAGES.fileMissing);
+    }
     try {
       const { data, error } = await adminClient.storage
         .from("waiver-signatures")

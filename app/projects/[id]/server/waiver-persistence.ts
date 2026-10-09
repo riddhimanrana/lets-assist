@@ -223,6 +223,20 @@ export async function prepareWaiverSignatureRecord(params: {
 
     // Process each signer (upload assets)
     for (const signer of rawPayload.signers) {
+      // Checked here for every project, with or without a waiver definition.
+      // A signer whose method is not one of these would keep its `data` as
+      // sent, and that value is later read as a storage path.
+      if (
+        signer.method !== "draw" &&
+        signer.method !== "typed" &&
+        signer.method !== "upload"
+      ) {
+        await removeUploadedSignatureAssets();
+        return {
+          error: "One of the waiver signatures is not in a supported format.",
+          uploadedPaths: uploadedSignaturePaths,
+        };
+      }
       const processedSigner = { ...signer };
 
       if (

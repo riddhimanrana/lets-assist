@@ -124,7 +124,7 @@ beforeEach(() => {
     signature_payload: null,
     signature_storage_path: null,
     signed_at: "2026-03-01T20:15:00.000Z",
-    upload_storage_path: `signed-waivers/${PROJECT_ID}/key/file.pdf`,
+    upload_storage_path: `signed-waivers/${PROJECT_ID}/3d6a1cd5-60a6-4a61-8b13-06a4402fe143/9f0e1d2c-3b4a-4c5d-8e6f-708192a3b4c5.pdf`,
     signature_text: null,
     waiver_definition_id: null,
     project_id: PROJECT_ID,
@@ -280,7 +280,7 @@ describe("serveSignedWaiver responses", () => {
     storedObject = new Blob(["jpeg"], { type: "image/jpeg" });
     signatureRow = {
       ...signatureRow,
-      upload_storage_path: `signed-waivers/${PROJECT_ID}/key/file.jpg`,
+      upload_storage_path: `signed-waivers/${PROJECT_ID}/3d6a1cd5-60a6-4a61-8b13-06a4402fe143/9f0e1d2c-3b4a-4c5d-8e6f-708192a3b4c5.jpg`,
     };
 
     const response = await serve();
@@ -294,7 +294,7 @@ describe("serveSignedWaiver responses", () => {
     expect(downloads).toEqual([
       {
         bucket: "waiver-signatures",
-        path: `signed-waivers/${PROJECT_ID}/key/file.jpg`,
+        path: `signed-waivers/${PROJECT_ID}/3d6a1cd5-60a6-4a61-8b13-06a4402fe143/9f0e1d2c-3b4a-4c5d-8e6f-708192a3b4c5.jpg`,
       },
     ]);
   });
