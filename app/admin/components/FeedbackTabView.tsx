@@ -24,6 +24,33 @@ import {
   type ModerationStatus,
 } from "./FeedbackTabModel";
 
+type SortOrder = "pending_first" | "newest" | "oldest";
+
+// Base UI shows the raw value in the trigger unless the root knows the labels.
+const TYPE_OPTIONS = [
+  { value: "all", label: "All types" },
+  { value: "issue", label: "Issues" },
+  { value: "idea", label: "Ideas" },
+  { value: "other", label: "Other" },
+];
+
+const STATUS_OPTIONS: Array<{
+  value: "all" | ModerationStatus;
+  label: string;
+}> = [
+  { value: "all", label: "All statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "flagged", label: "Flagged" },
+  { value: "archived", label: "Archived" },
+];
+
+const SORT_OPTIONS: Array<{ value: SortOrder; label: string }> = [
+  { value: "pending_first", label: "Pending first" },
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+];
+
 export function FeedbackTabView({
   searchQuery,
   setSearchQuery,
@@ -51,8 +78,8 @@ export function FeedbackTabView({
   setTypeFilter: (value: string) => void;
   statusFilter: "all" | ModerationStatus;
   setStatusFilter: (value: "all" | ModerationStatus) => void;
-  sortOrder: "pending_first" | "newest" | "oldest";
-  setSortOrder: (value: "pending_first" | "newest" | "oldest") => void;
+  sortOrder: SortOrder;
+  setSortOrder: (value: SortOrder) => void;
   counts: FeedbackCounts;
   filteredFeedback: FeedbackItem[];
   selectedId: string | null;
@@ -95,6 +122,7 @@ export function FeedbackTabView({
           </InputGroup>
 
           <Select
+            items={TYPE_OPTIONS}
             value={typeFilter}
             onValueChange={(val) => val && setTypeFilter(val)}
           >
@@ -102,14 +130,16 @@ export function FeedbackTabView({
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="issue">Issues</SelectItem>
-              <SelectItem value="idea">Ideas</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              {TYPE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           <Select
+            items={STATUS_OPTIONS}
             value={statusFilter}
             onValueChange={(val) =>
               val && setStatusFilter(val as "all" | ModerationStatus)
@@ -122,27 +152,28 @@ export function FeedbackTabView({
               <SelectValue placeholder="Moderation status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="flagged">Flagged</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
           <Select
+            items={SORT_OPTIONS}
             value={sortOrder}
-            onValueChange={(val) =>
-              val && setSortOrder(val as "pending_first" | "newest" | "oldest")
-            }
+            onValueChange={(val) => val && setSortOrder(val as SortOrder)}
           >
             <SelectTrigger aria-label="Sort" className="w-full lg:w-44">
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pending_first">Pending first</SelectItem>
-              <SelectItem value="newest">Newest first</SelectItem>
-              <SelectItem value="oldest">Oldest first</SelectItem>
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

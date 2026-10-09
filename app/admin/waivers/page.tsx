@@ -1,7 +1,7 @@
 import { getProjectWaiverDefinitions } from "./actions";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { AdminPage } from "../components/AdminPage";
-import { WaiverDefinitionList } from "@/components/admin/GlobalWaiverDefinitionList";
+import { WaiverDefinitionTable } from "./WaiverDefinitionTable";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function AdminWaiversPage() {
         title="Project waiver definitions"
         description="Review the waiver definitions attached to projects. Project managers configure and update waivers from each project's edit flow."
       />
-      <WaiverDefinitionList definitions={definitions} />
+      <WaiverDefinitionTable definitions={definitions} />
     </AdminPage>
   );
 }

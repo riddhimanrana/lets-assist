@@ -42,12 +42,15 @@ interface DataTableProps<TData extends RowData> {
   columns: ColumnDef<TData>[];
   data: TData[];
   searchKey?: string;
+  /** What one row is, for the footer count: "report" gives "3 reports". */
+  rowNoun?: string;
 }
 
 export function DataTable<TData extends RowData>({
   columns,
   data,
   searchKey,
+  rowNoun = "result",
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -75,6 +78,9 @@ export function DataTable<TData extends RowData>({
       rowSelection,
     },
   });
+
+  const rowCount = table.getFilteredRowModel().rows.length;
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
 
   return (
     <div className="grid w-full gap-3">
@@ -179,8 +185,9 @@ export function DataTable<TData extends RowData>({
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {selectedCount > 0
+            ? `${selectedCount} of ${rowCount} selected`
+            : `${rowCount} ${rowNoun}${rowCount === 1 ? "" : "s"}`}
         </p>
         <div className="flex items-center gap-2">
           <Button

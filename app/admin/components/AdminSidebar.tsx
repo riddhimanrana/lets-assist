@@ -18,6 +18,7 @@ import {
   MenuIcon,
   MessageCircleIcon,
   ShieldCheckIcon,
+  SquarePenIcon,
   UserCheckIcon,
   UsersRoundIcon,
   useAnimatedIcon,
@@ -104,6 +105,12 @@ const navItems: NavItem[] = [
     label: "Moderation",
     icon: ClipboardCheckIcon,
   },
+  {
+    id: "waivers",
+    href: "/admin/waivers",
+    label: "Waivers",
+    icon: SquarePenIcon,
+  },
 ];
 
 const navRowClass =
@@ -183,21 +190,25 @@ export function AdminSidebar(props: AdminSidebarProps = {}) {
   const isActive = useIsActive(props);
 
   return (
-    <aside className="hidden w-60 shrink-0 flex-col border-r p-3 md:sticky md:top-0 md:flex md:h-screen">
-      <p className="px-2.5 pt-1 pb-3 text-sm font-semibold">Admin console</p>
-      <nav
-        aria-label="Admin"
-        className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
-      >
-        {navItems.map((item) => (
-          <NavRow
-            key={item.id}
-            item={item}
-            isActive={isActive(item)}
-            onTabChange={props.onTabChange}
-          />
-        ))}
-      </nav>
+    // The aside stretches with the page so its border runs the full height;
+    // only the inner column sticks to the viewport.
+    <aside className="hidden w-60 shrink-0 border-r md:block">
+      <div className="sticky top-0 flex h-screen flex-col p-3">
+        <p className="px-2.5 pt-1 pb-3 text-sm font-semibold">Admin console</p>
+        <nav
+          aria-label="Admin"
+          className="flex flex-1 flex-col gap-0.5 overflow-y-auto"
+        >
+          {navItems.map((item) => (
+            <NavRow
+              key={item.id}
+              item={item}
+              isActive={isActive(item)}
+              onTabChange={props.onTabChange}
+            />
+          ))}
+        </nav>
+      </div>
     </aside>
   );
 }

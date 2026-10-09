@@ -102,12 +102,10 @@ export const getReportColumns = (
       return (
         <div className="grid gap-0.5 py-1">
           <span className="line-clamp-1 font-medium">
-            {report.reason || "No reason provided"}
+            {humanize(report.reason, "No reason provided")}
           </span>
           <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
-            <span className="capitalize">
-              {report.content_type?.replace("_", " ") || "Content"}
-            </span>
+            <span>{humanize(report.content_type, "Content")}</span>
             <span aria-hidden="true">·</span>
             <span>Reported by</span>
             {report.reporter ? (
@@ -233,7 +231,7 @@ export const getFlaggedColumns = (
           <div className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
             {item.content_type && (
               <>
-                <span className="capitalize">{item.content_type}</span>
+                <span>{humanize(item.content_type)}</span>
                 <span aria-hidden="true">·</span>
               </>
             )}

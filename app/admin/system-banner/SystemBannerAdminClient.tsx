@@ -9,7 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -144,6 +149,10 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
   ]);
 
   const deactivateFormId = `${scope}-deactivate`;
+  const scopeName = isLandingScope ? "landing" : "sitewide";
+  const savedTypeLabel =
+    typeOptions.find((option) => option.value === banner?.banner_type)?.label ??
+    "";
   const set = <K extends keyof BannerFormValues>(
     key: K,
     value: BannerFormValues[K],
@@ -164,11 +173,15 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
               : "Shown across the website unless a landing-specific banner overrides it on /."
           }
           status={
-            <Badge variant={banner?.is_active ? "success" : "outline"}>
-              {banner?.is_active ? "Active" : "Inactive"}
-            </Badge>
+            banner?.is_active ? (
+              <Badge variant="success">Active</Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Inactive
+              </Badge>
+            )
           }
-          footerHint="Only one active banner per scope is allowed. Activating this one auto-disables other active banners in the same scope."
+          footerHint={`Saving this banner as active replaces any other active ${scopeName} banner.`}
           footer={
             <>
               <Button
@@ -177,19 +190,17 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
                 variant="outline"
                 disabled={deactivatePending}
               >
-                {deactivatePending
-                  ? "Deactivating..."
-                  : "Deactivate current active banner"}
+                {deactivatePending ? "Deactivating..." : "Deactivate"}
               </Button>
               <Button type="submit" disabled={savePending}>
-                {savePending ? "Saving..." : "Save banner"}
+                {savePending ? "Saving..." : `Save ${scopeName} banner`}
               </Button>
             </>
           }
         >
           <p className="text-muted-foreground text-sm">
             {banner
-              ? `Last updated ${new Date(banner.updated_at).toLocaleString()} · Type: ${banner.banner_type}`
+              ? `Last updated ${new Date(banner.updated_at).toLocaleString()} · ${savedTypeLabel}`
               : "No banner configured for this scope yet."}
           </p>
 
@@ -232,6 +243,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
               <Field>
                 <FieldLabel htmlFor={`${scope}-type`}>Banner type</FieldLabel>
                 <Select
+                  items={typeOptions}
                   value={formValues.bannerType}
                   onValueChange={(value) =>
                     set("bannerType", value as SystemBannerType)
@@ -255,6 +267,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
                   Text alignment
                 </FieldLabel>
                 <Select
+                  items={textAlignOptions}
                   value={formValues.textAlign}
                   onValueChange={(value) =>
                     set("textAlign", value as SystemBannerTextAlign)
@@ -347,11 +360,14 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
                 <Input
                   id={`${scope}-ctaUrl`}
                   name="ctaUrl"
-                  placeholder="/status or https://status.example.com"
+                  placeholder="/status"
                   maxLength={255}
                   value={formValues.ctaUrl}
                   onChange={(event) => set("ctaUrl", event.target.value)}
                 />
+                <FieldDescription>
+                  A path such as /status, or a full URL.
+                </FieldDescription>
               </Field>
             </div>
 
@@ -417,7 +433,7 @@ export function SystemBannerAdminClient({
   landingBanner,
 }: SystemBannerAdminClientProps) {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="grid gap-6">
       <BannerScopeForm scope="sitewide" banner={sitewideBanner} />
       <BannerScopeForm scope="landing" banner={landingBanner} />
     </div>

@@ -20,6 +20,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Define the shape of our data
 export interface TrustedMember {
@@ -159,37 +164,50 @@ function ActionsCell({ member }: { member: TrustedMember }) {
   };
 
   const name = member.profiles?.full_name || member.name;
+  const denyLabel = member.status === true ? "Revoke access" : "Deny";
 
   return (
     <div className="flex justify-end gap-1">
       {/* Pending and denied applications can be approved */}
       {member.status !== true && (
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={handleApprove}
-          title="Approve"
-          aria-label={`Approve ${name}`}
-        >
-          <Check />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleApprove}
+                aria-label={`Approve ${name}`}
+              />
+            }
+          >
+            <Check aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent>Approve</TooltipContent>
+        </Tooltip>
       )}
 
       {/* Pending applications can be denied; approved members can be revoked */}
       {member.status !== false && (
-        <Button
-          size="icon"
-          variant="destructive-ghost"
-          onClick={handleDeny}
-          title={member.status === true ? "Revoke access" : "Deny"}
-          aria-label={
-            member.status === true
-              ? `Revoke access for ${name}`
-              : `Deny ${name}`
-          }
-        >
-          <X />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon"
+                variant="destructive-ghost"
+                onClick={handleDeny}
+                aria-label={
+                  member.status === true
+                    ? `Revoke access for ${name}`
+                    : `Deny ${name}`
+                }
+              />
+            }
+          >
+            <X aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent>{denyLabel}</TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

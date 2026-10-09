@@ -37,7 +37,7 @@ export default async function AdminSystemBannerPage() {
     data.find((banner) => banner.target_scope === "landing") ?? null;
 
   return (
-    <AdminPage>
+    <AdminPage width="form">
       <PageHeader
         title="System sticky banners"
         description="Configure outage notices, maintenance updates, and announcement banners."

@@ -178,6 +178,7 @@ export default function ModerationDashboard({
                 columns={reportColumns}
                 data={contentReports}
                 searchKey="reason"
+                rowNoun="report"
               />
             </ModerationQueue>
           </TabsContent>
@@ -207,6 +208,7 @@ export default function ModerationDashboard({
                 columns={flaggedColumns}
                 data={flaggedContent}
                 searchKey="content_details"
+                rowNoun="flag"
               />
             </ModerationQueue>
           </TabsContent>

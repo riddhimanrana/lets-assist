@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ExternalLink, FileSignature } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ type WaiverDefinitionRow = {
   title: string;
   version: number;
   active: boolean;
-  scope?: string | null;
+  project_id?: string | null;
   pdf_public_url?: string | null;
   pdf_storage_path?: string | null;
   created_at?: string | null;
@@ -46,7 +47,8 @@ function formatDate(value?: string | null) {
   }).format(date);
 }
 
-export function WaiverDefinitionList({
+/** Read-only inventory of project waiver definitions for platform admins. */
+export function WaiverDefinitionTable({
   definitions,
 }: {
   definitions: WaiverDefinitionRow[];
@@ -72,13 +74,13 @@ export function WaiverDefinitionList({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Title</TableHead>
+            <TableHead className="pl-4">Title</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Version</TableHead>
             <TableHead>Signers</TableHead>
             <TableHead>Fields</TableHead>
             <TableHead>Updated</TableHead>
-            <TableHead className="text-right">PDF</TableHead>
+            <TableHead className="pr-4 text-right">PDF</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -88,15 +90,17 @@ export function WaiverDefinitionList({
 
             return (
               <TableRow key={definition.id}>
-                <TableCell className="font-medium">
+                <TableCell className="pl-4 font-medium">
                   <div className="flex flex-col gap-1">
                     <span>{definition.title}</span>
-                    <span className="text-muted-foreground text-xs font-normal">
-                      {definition.scope ?? "project"},{" "}
-                      <span className="font-mono">
-                        {definition.id.slice(0, 8)}
-                      </span>
-                    </span>
+                    {definition.project_id ? (
+                      <Link
+                        href={`/projects/${definition.project_id}`}
+                        className="text-muted-foreground hover:text-foreground w-fit text-xs font-normal underline-offset-4 hover:underline"
+                      >
+                        View project
+                      </Link>
+                    ) : null}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -112,7 +116,7 @@ export function WaiverDefinitionList({
                 <TableCell>
                   {formatDate(definition.updated_at ?? definition.created_at)}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="pr-4 text-right">
                   {definition.pdf_public_url ? (
                     <a
                       href={definition.pdf_public_url}

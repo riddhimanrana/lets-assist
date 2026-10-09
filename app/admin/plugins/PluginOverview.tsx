@@ -51,7 +51,7 @@ function RuntimeRows({ profiles }: { profiles: RuntimeProfile[] }) {
               <RuntimeIcon profiles={[profile]} />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium capitalize">
+              <p className="truncate text-sm font-medium capitalize">
                 {profile.profile === "application"
                   ? "Microfrontend app"
                   : `${profile.profile} runtime`}
@@ -169,37 +169,41 @@ export default function PluginOverview({
                   </CardAction>
                 </CardHeader>
 
-                <CardContent className="grid gap-6 sm:grid-cols-2">
-                  <div className="grid content-start gap-3">
-                    <h4 className="text-sm font-medium">Release channels</h4>
-                    <RuntimeRows profiles={profiles} />
-                  </div>
+                <CardContent className="@container">
+                  <div className="grid gap-6 @md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+                    <div className="grid min-w-0 content-start gap-3">
+                      <h4 className="text-sm font-medium">Release channels</h4>
+                      <RuntimeRows profiles={profiles} />
+                    </div>
 
-                  <div className="grid content-start gap-3">
-                    <h4 className="text-sm font-medium">Organization state</h4>
-                    <dl className="divide-y text-sm">
-                      <div className="flex items-center justify-between gap-3 pb-2.5">
-                        <dt>Installed</dt>
-                        <dd className="font-medium tabular-nums">
-                          {installs.length}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 py-2.5">
-                        <dt>Using app</dt>
-                        <dd className="font-medium tabular-nums">
-                          {selectedApplications.length}
-                        </dd>
-                      </div>
-                      {selectedApplications.length > 0 ? (
-                        <div className="pt-2.5">
-                          <Badge variant={allHealthy ? "success" : "warning"}>
-                            {allHealthy
-                              ? "Selected deployments are healthy"
-                              : "Check the selected deployment"}
-                          </Badge>
+                    <div className="grid min-w-0 content-start gap-3">
+                      <h4 className="text-sm font-medium">
+                        Organization state
+                      </h4>
+                      <dl className="divide-y text-sm">
+                        <div className="flex items-center justify-between gap-3 pb-2.5">
+                          <dt>Installed</dt>
+                          <dd className="font-medium tabular-nums">
+                            {installs.length}
+                          </dd>
                         </div>
-                      ) : null}
-                    </dl>
+                        <div className="flex items-center justify-between gap-3 py-2.5">
+                          <dt>Using app</dt>
+                          <dd className="font-medium tabular-nums">
+                            {selectedApplications.length}
+                          </dd>
+                        </div>
+                        {selectedApplications.length > 0 ? (
+                          <div className="pt-2.5">
+                            <Badge variant={allHealthy ? "success" : "warning"}>
+                              {allHealthy
+                                ? "Selected deployments are healthy"
+                                : "Check the selected deployment"}
+                            </Badge>
+                          </div>
+                        ) : null}
+                      </dl>
+                    </div>
                   </div>
                 </CardContent>
 

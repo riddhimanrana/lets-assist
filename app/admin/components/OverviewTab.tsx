@@ -30,6 +30,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  parseReportDescription,
+  type ReportMetadataKey,
+} from "@/lib/moderation/report-description";
 import { cn } from "@/lib/utils";
 
 import { AdminPage } from "./AdminPage";
@@ -88,6 +92,37 @@ const chartConfig = {
     color: "var(--chart-3)",
   },
 } satisfies ChartConfig;
+
+const REPORT_DETAIL_LABELS: Array<{ key: ReportMetadataKey; label: string }> = [
+  { key: "contentTitle", label: "Content" },
+  { key: "contentCreator", label: "Creator" },
+  { key: "contentUrl", label: "Page" },
+  { key: "context", label: "Context" },
+];
+
+/** The reporter's notes, then the server-composed details as labelled rows. */
+function ReportDetails({ description }: { description: string }) {
+  const { notes, metadata } = parseReportDescription(description);
+  const details = REPORT_DETAIL_LABELS.filter(({ key }) => metadata[key]);
+
+  return (
+    <>
+      {notes && (
+        <p className="text-muted-foreground line-clamp-2 text-sm">{notes}</p>
+      )}
+      {details.length > 0 && (
+        <dl className="text-muted-foreground grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs">
+          {details.map(({ key, label }) => (
+            <div key={key} className="col-span-2 grid grid-cols-subgrid">
+              <dt>{label}</dt>
+              <dd className="text-foreground truncate">{metadata[key]}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </>
+  );
+}
 
 /** A headline count that also takes you to the screen that clears it. */
 function StatLink({ href, children }: { href: string; children: string }) {
@@ -230,7 +265,10 @@ export function OverviewTab({
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ChartContainer config={chartConfig} className="min-h-50 w-full">
+            <ChartContainer
+              config={chartConfig}
+              className="aspect-auto h-56 w-full"
+            >
               <BarChart accessibilityLayer data={data}>
                 <CartesianGrid vertical={false} />
                 <XAxis
@@ -241,7 +279,12 @@ export function OverviewTab({
                   tickFormatter={(value) => value.slice(0, 12)}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+                <Bar
+                  dataKey="total"
+                  fill="var(--color-total)"
+                  radius={4}
+                  maxBarSize={56}
+                />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -375,7 +418,7 @@ export function OverviewTab({
                         {formatPriority(report.priority)}
                       </Badge>
                       <span className="text-sm font-medium">
-                        {report.reason}
+                        {humanize(report.reason, "Report")}
                       </span>
                       {report.created_at && (
                         <span className="text-muted-foreground ml-auto">
@@ -384,9 +427,7 @@ export function OverviewTab({
                       )}
                     </div>
                     {report.description && (
-                      <p className="text-muted-foreground line-clamp-2 text-sm">
-                        {report.description}
-                      </p>
+                      <ReportDetails description={report.description} />
                     )}
                     {report.ai_metadata?.verdict && (
                       <p className="text-muted-foreground text-xs">

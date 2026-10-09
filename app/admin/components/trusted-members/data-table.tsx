@@ -78,6 +78,8 @@ export function DataTable<TData extends RowData>({
     },
   });
 
+  const rowCount = table.getFilteredRowModel().rows.length;
+
   return (
     <div className="grid gap-3">
       <div className="flex items-center justify-between gap-2">
@@ -178,7 +180,7 @@ export function DataTable<TData extends RowData>({
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">
-          {table.getFilteredRowModel().rows.length} row(s).
+          {rowCount} {rowCount === 1 ? "member" : "members"}
         </p>
         <div className="flex items-center gap-2">
           <Button
