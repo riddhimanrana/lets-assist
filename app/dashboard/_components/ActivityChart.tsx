@@ -30,7 +30,7 @@ interface ActivityChartProps {
 const chartConfig = {
   hours: {
     label: "Hours",
-    color: "var(--chart-3)",
+    color: "var(--primary)",
   },
 } satisfies ChartConfig;
 

@@ -41,7 +41,7 @@ export function ReportsCharts({
       ({
         total: {
           label: "Hours",
-          color: "var(--chart-3)",
+          color: "var(--primary)",
         },
         verified: {
           label: "Verified",

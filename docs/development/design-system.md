@@ -45,9 +45,9 @@ Rules that follow from the tiers:
 Two kinds, and they look different on purpose.
 
 - **Labels** say what something is: a role, a type, a count. They are glossy. Use `default` for the one that matters, `secondary` or `outline` for the rest.
-- **Statuses** say what state something is in. They are flat tints so they never compete with a button. Use `success`, `warning`, `info`, `destructive`.
+- **Statuses** say what state something is in. They are flat tints so they never compete with a button. Use `success`, `warning`, `info`, `destructive`. A state with no tone (not connected, not set up, draft, inactive) uses `neutral`.
 
-Never hand-tint a badge with palette classes such as `bg-emerald-500/10`. If a status has no variant, it is one of the four above.
+Never hand-tint a badge with palette classes such as `bg-emerald-500/10`. If a status has no variant, it is one of the five above.
 
 ## Fields
 
@@ -68,6 +68,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 
 - **Segmented tabs** (the default `TabsList`): a muted track with a raised white active pill. Use for switching panes inside a card or a section.
 - **Line tabs** (`variant="line"`): an underline. Use for page-level navigation between tabs of one entity, such as an organization's Overview, Members, and Projects.
+- **Segmented control** (`SegmentedControl`, `SegmentedItem`): the same muted track and raised pill, for segments that are links or filter states and not on-page panes.
 - Never use ghost or secondary buttons as a tab bar.
 
 ## Alerts, empty states, notices

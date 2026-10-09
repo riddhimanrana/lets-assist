@@ -89,7 +89,7 @@ type ReportsStats = {
 const chartConfig = {
   total: {
     label: "Total",
-    color: "var(--chart-3)",
+    color: "var(--primary)",
   },
 } satisfies ChartConfig;
 

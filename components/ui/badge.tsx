@@ -22,6 +22,10 @@ const badgeVariants = cva(
           "bg-success/10 text-success border-success/20 [a]:hover:bg-success/20",
         warning:
           "bg-warning/10 text-warning border-warning/25 [a]:hover:bg-warning/20",
+        // A state that is not good, bad or pending: not connected, not set
+        // up, draft, inactive. Flat like the other statuses, with no tone.
+        neutral:
+          "bg-muted text-muted-foreground border-border [a]:hover:bg-muted/70",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
