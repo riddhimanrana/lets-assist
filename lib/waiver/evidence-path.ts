@@ -53,9 +53,32 @@ const SCOPED_FOLDERS: readonly WaiverEvidenceFolder[] = [
 const SCOPED_TAIL =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]{2,5}$/u;
 
+/**
+ * Evidence written by this code always sits under its project's own folder.
+ * The older flat signer-image name carries no project, so it is accepted only
+ * on a record signed before this moment and never on a newer one.
+ *
+ * The moment is set a little after this change is expected to reach
+ * Production, because the release before it still writes the flat name and
+ * those waivers must stay readable. Once this code is live the writer refuses
+ * any signer value that is not a fresh upload, so nothing new can carry a
+ * flat name in the meantime.
+ */
+export const WAIVER_EVIDENCE_PROJECT_SCOPED_SINCE = Date.parse(
+  "2026-11-01T00:00:00Z",
+);
+
+function signedBeforeProjectScoping(signedAt: string | null | undefined) {
+  if (typeof signedAt !== "string") return false;
+  const time = Date.parse(signedAt);
+  return Number.isFinite(time) && time < WAIVER_EVIDENCE_PROJECT_SCOPED_SINCE;
+}
+
 export function isProjectWaiverEvidencePath(
   path: string | null | undefined,
   projectId: string | null | undefined,
+  /** The record's own `signed_at`, which the database never lets change. */
+  signedAt?: string | null,
 ): path is string {
   if (typeof path !== "string" || path.length === 0 || path.length > 300) {
     return false;
@@ -63,7 +86,9 @@ export function isProjectWaiverEvidencePath(
   if (path.includes("..") || path.includes("\\") || path.startsWith("/")) {
     return false;
   }
-  if (LEGACY_FLAT_SIGNER_ASSET.test(path)) return true;
+  if (LEGACY_FLAT_SIGNER_ASSET.test(path)) {
+    return signedBeforeProjectScoping(signedAt);
+  }
 
   if (typeof projectId !== "string" || projectId.length === 0) return false;
   for (const folder of SCOPED_FOLDERS) {

@@ -12,8 +12,6 @@ const FILE = "9f0e1d2c-3b4a-4c5d-8e6f-708192a3b4c5";
 
 test("accepts every shape the sign-up flow writes for this project", () => {
   for (const path of [
-    `waiver_${KEY}_volunteer_1760000000000.png`,
-    `waiver_${KEY}_parent_guardian_1760000000000.jpg`,
     `signatures/${PROJECT}/${KEY}/${FILE}.png`,
     `signed-waivers/${PROJECT}/${KEY}/${FILE}.pdf`,
     `cloned-waiver-evidence/${PROJECT}/${KEY}/${FILE}.jpg`,
@@ -84,11 +82,20 @@ test("the builder refuses ids and file types that would escape the folder", () =
   ).toThrow();
 });
 
-test("an older signer image with an unusual role key still loads", () => {
+test("the flat signer image name loads only on a record signed before project scoping", () => {
+  const flat = `waiver_${KEY}_Parent or guardian (1)_1760000000000.png`;
   expect(
-    isProjectWaiverEvidencePath(
-      `waiver_${KEY}_Parent or guardian (1)_1760000000000.png`,
-      PROJECT,
-    ),
+    isProjectWaiverEvidencePath(flat, PROJECT, "2026-09-01T12:00:00Z"),
   ).toBe(true);
+  // A newer record can only hold project-scoped evidence.
+  expect(
+    isProjectWaiverEvidencePath(flat, PROJECT, "2026-11-01T00:00:00Z"),
+  ).toBe(false);
+  expect(
+    isProjectWaiverEvidencePath(flat, PROJECT, "2027-01-01T00:00:00Z"),
+  ).toBe(false);
+  // No timestamp, or one that does not parse, is never treated as old.
+  expect(isProjectWaiverEvidencePath(flat, PROJECT)).toBe(false);
+  expect(isProjectWaiverEvidencePath(flat, PROJECT, null)).toBe(false);
+  expect(isProjectWaiverEvidencePath(flat, PROJECT, "not a date")).toBe(false);
 });

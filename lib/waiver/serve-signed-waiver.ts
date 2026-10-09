@@ -367,7 +367,13 @@ export async function serveSignedWaiver(
   const storageResolver = async (path: string): Promise<ArrayBuffer> => {
     // The path comes from the signature record. Only evidence this project's
     // sign-up flow could have written is ever read with the service role.
-    if (!isProjectWaiverEvidencePath(path, typedSignature.project_id)) {
+    if (
+      !isProjectWaiverEvidencePath(
+        path,
+        typedSignature.project_id,
+        typedSignature.signed_at,
+      )
+    ) {
       throw new Error("Refused a signature asset outside this project");
     }
     const { data, error } = await adminClient.storage
@@ -443,6 +449,7 @@ export async function serveSignedWaiver(
       !isProjectWaiverEvidencePath(
         typedSignature.upload_storage_path,
         typedSignature.project_id,
+        typedSignature.signed_at,
       )
     ) {
       return fail(404, MESSAGES.fileMissing);
