@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   isSheetSyncDue,
   selectSheetSyncBatch,
+  sheetSyncWindowCursor,
 } from "./organization-sync-queue";
 
 describe("the organization sheet sync queue", () => {
@@ -41,4 +42,14 @@ describe("the organization sheet sync queue", () => {
       expect(runs.some((batch) => batch.includes(row))).toBe(true);
     }
   });
+});
+
+test("the window cursor is a valid UUID that moves between runs", () => {
+  const uuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+  const first = sheetSyncWindowCursor(1_760_000_000_000);
+  const later = sheetSyncWindowCursor(1_760_000_000_000 + 2 * 60 * 60 * 1000);
+  expect(first).toMatch(uuid);
+  expect(later).toMatch(uuid);
+  expect(later).not.toBe(first);
 });

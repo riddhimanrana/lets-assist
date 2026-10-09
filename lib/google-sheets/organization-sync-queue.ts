@@ -33,3 +33,15 @@ export function selectSheetSyncBatch<Row>(
     (_, index) => dueRows[(start + index) % dueRows.length],
   );
 }
+
+/**
+ * Where a run starts reading due organizations, as a point in the UUID space
+ * that moves with the run time. Reading from here and wrapping around gives
+ * every due organization a turn at being loaded, however many others are
+ * failing.
+ */
+export function sheetSyncWindowCursor(seed: number) {
+  const mixed = Math.imul(Math.floor(seed / 1000) | 0, 0x9e3779b1) >>> 0;
+  const prefix = (mixed >>> 16).toString(16).padStart(4, "0");
+  return `${prefix}0000-0000-0000-0000-000000000000`;
+}

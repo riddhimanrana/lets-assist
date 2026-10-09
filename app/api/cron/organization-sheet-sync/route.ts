@@ -14,6 +14,7 @@ import {
   isSheetSyncDue,
   ORGANIZATION_SHEET_SYNC_MIN_INTERVAL_MINUTES,
   selectSheetSyncBatch,
+  sheetSyncWindowCursor,
 } from "@/lib/google-sheets/organization-sync-queue";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import {
@@ -53,6 +54,9 @@ const ORGANIZATION_BUDGET_MS = readPositiveInteger(
   30_000,
 );
 const MINIMUM_START_BUDGET_MS = Math.min(5_000, ORGANIZATION_BUDGET_MS);
+// How long a slot waits for a timed-out organization's work to end before
+// the next organization may use it.
+const SETTLE_GRACE_MS = Math.min(2_000, ORGANIZATION_BUDGET_MS);
 
 type SheetSyncRunResult =
   | { organizationId: string; success: true }
@@ -118,18 +122,49 @@ export async function POST(request: NextRequest) {
       const earliestDue = new Date(
         startedAt - ORGANIZATION_SHEET_SYNC_MIN_INTERVAL_MINUTES * 60 * 1000,
       ).toISOString();
-      const { data: syncRows, error } = await supabase
-        .from("organization_sheet_syncs")
-        .select(
-          `${ORGANIZATION_SHEET_SYNC_COLUMNS}, auto_sync, sync_interval_minutes, last_synced_at`,
+      // The window starts at a point in the id space that moves with the run
+      // time and wraps around. Ordering by last sync alone would let the
+      // organizations that never succeed fill the window on every run and
+      // keep the ones behind them from ever being loaded.
+      const cursor = sheetSyncWindowCursor(startedAt);
+      const loadWindow = (side: "from" | "before", count: number) => {
+        const query = supabase
+          .from("organization_sheet_syncs")
+          .select(
+            `${ORGANIZATION_SHEET_SYNC_COLUMNS}, auto_sync, sync_interval_minutes, last_synced_at`,
+          )
+          .eq("auto_sync", true)
+          .or(`last_synced_at.is.null,last_synced_at.lte.${earliestDue}`);
+        return (
+          side === "from"
+            ? query.gte("organization_id", cursor)
+            : query.lt("organization_id", cursor)
         )
-        .eq("auto_sync", true)
-        .or(`last_synced_at.is.null,last_synced_at.lte.${earliestDue}`)
-        .order("last_synced_at", { ascending: true, nullsFirst: true })
-        .limit(CANDIDATE_WINDOW);
+          .order("organization_id", { ascending: true })
+          .limit(count);
+      };
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      const first = await loadWindow("from", CANDIDATE_WINDOW);
+      if (first.error) {
+        return NextResponse.json(
+          { error: first.error.message },
+          { status: 500 },
+        );
+      }
+      const firstRows = first.data || [];
+      let syncRows = firstRows;
+      if (firstRows.length < CANDIDATE_WINDOW) {
+        const wrapped = await loadWindow(
+          "before",
+          CANDIDATE_WINDOW - firstRows.length,
+        );
+        if (wrapped.error) {
+          return NextResponse.json(
+            { error: wrapped.error.message },
+            { status: 500 },
+          );
+        }
+        syncRows = [...firstRows, ...(wrapped.data || [])];
       }
 
       const dueRows = (syncRows || []).filter((row) =>
@@ -213,12 +248,20 @@ export async function POST(request: NextRequest) {
           const deadline = AbortSignal.timeout(
             Math.min(ORGANIZATION_BUDGET_MS, remaining),
           );
+          // The slot stays taken until this organization's work has really
+          // ended. Reporting a timeout while the report build carries on in
+          // the background would let the next organization start beside it
+          // and push the run past its concurrency limit.
+          const work = syncOrganization(row, deadline);
           try {
-            return await Promise.race([
-              syncOrganization(row, deadline),
-              untilAborted(deadline),
-            ]);
+            return await Promise.race([work, untilAborted(deadline)]);
           } catch (error) {
+            // Bounded, so work that never settles cannot hold the slot for
+            // the rest of the run.
+            await Promise.race([
+              work.catch(() => undefined),
+              new Promise((resolve) => setTimeout(resolve, SETTLE_GRACE_MS)),
+            ]);
             if (deadline.aborted) {
               return failed(
                 row.organization_id,

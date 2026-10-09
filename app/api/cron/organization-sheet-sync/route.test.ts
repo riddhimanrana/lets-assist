@@ -18,6 +18,8 @@ let dueFilter = "";
 let disabled: Array<{ payload: Row; filters: Row }> = [];
 let ownerAllowed = true;
 let limited: number | null = null;
+let wrappedLimit: number | null = null;
+let rowsBeforeCursor: Row[] = [];
 let synced: Row[] = [];
 let warnings: Array<{ message: string; attributes: Row }> = [];
 let syncResult: (config: Row) => Row | Promise<Row> = () => ({
@@ -32,16 +34,29 @@ const adminClient = {
         eq: () => ({
           or: (filter: string) => {
             dueFilter = filter;
-            return {
+            // The route reads a window from a moving cursor, then wraps
+            // around to the rows before it.
+            const window = (side: "from" | "before") => ({
               order: (...args: unknown[]) => {
                 ordered = args;
                 return {
                   limit: async (count: number) => {
+                    if (side === "before") {
+                      wrappedLimit = count;
+                      return {
+                        data: rowsBeforeCursor.slice(0, count),
+                        error: null,
+                      };
+                    }
                     limited = count;
                     return { data: syncRows.slice(0, count), error: null };
                   },
                 };
               },
+            });
+            return {
+              gte: () => window("from"),
+              lt: () => window("before"),
             };
           },
         }),
@@ -140,6 +155,8 @@ beforeEach(() => {
   disabled = [];
   ownerAllowed = true;
   limited = null;
+  wrappedLimit = null;
+  rowsBeforeCursor = [];
   synced = [];
   warnings = [];
   syncResult = () => ({ success: true });
@@ -170,10 +187,11 @@ describe("the scheduled organization sheet sync", () => {
     expect(dueFilter).toMatch(
       /^last_synced_at\.is\.null,last_synced_at\.lte\.\d{4}-/u,
     );
-    expect(ordered).toEqual([
-      "last_synced_at",
-      { ascending: true, nullsFirst: true },
-    ]);
+    // Read in id order from a moving cursor, so organizations that never
+    // succeed cannot fill the window on every run.
+    expect(ordered).toEqual(["organization_id", { ascending: true }]);
+    // The window was not full, so the read wrapped around for the rest.
+    expect(wrappedLimit).toBe(8 - syncRows.length);
     // Four candidates per slot of the cap, never the whole table.
     expect(limited).toBe(8);
     expect(synced).toHaveLength(2);
