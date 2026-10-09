@@ -22,7 +22,10 @@ import {
   createHostedReadMetrics,
   passesHostedReadRouteBudgets,
 } from "./csf-load-metrics.mjs";
-import { applicationsRosterSearch } from "./csf-load-applications-roster.mjs";
+import {
+  applicationsRosterSearch,
+  applicationsRosterSubjects,
+} from "./csf-load-applications-roster.mjs";
 import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
@@ -732,10 +735,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   assertFixtureLocation(officerPage.url(), appUrl);
   const rosterSearch = applicationsRosterSearch(officerPage);
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
-  const roster = rosterSearch.locator(
-    "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
-  );
-  const firstSubject = roster.locator("ul > li button").first();
+  const firstSubject = applicationsRosterSubjects(rosterSearch).first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
   await firstSubject.click({ timeout: 60_000 });
   assertFixtureLocation(officerPage.url(), appUrl);
