@@ -178,7 +178,6 @@ export function SheetSetupPanel({
             ? "Use an existing tab name or type a new one."
             : undefined
         }
-        rangeHint="Full tab grows with the report. A custom range is a fixed box, and the sync stops with an error if the report no longer fits it."
       />
 
       <Accordion>

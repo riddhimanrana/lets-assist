@@ -1,3 +1,8 @@
+import {
+  columnToIndex,
+  isLegacyDefaultReportRange,
+} from "@/lib/google-sheets/ranges";
+
 import type { ReportType } from "../actions";
 
 export const reportTypeLabels: Record<ReportType, string> = {
@@ -44,16 +49,60 @@ export type SheetSetupMetadata = {
   tabs: string[];
 };
 
-/** Splits a saved A1 range into the range builder's fields. */
-export function parseSavedRange(rangeA1: string | null | undefined): {
+export type RangeFields = {
   mode: "full" | "custom";
   startColumn: string;
   startRow: string;
+  /** Empty when the range has no end. */
   endColumn: string;
+  /** Empty when the range has no end. */
   endRow: string;
-} | null {
+};
+
+/** One sentence, shown wherever a range is chosen. */
+export const RANGE_END_EXPLANATION =
+  "Leave the end open and the report can grow. Set an end and the report stays inside that box, and the sync stops if it no longer fits.";
+
+export const LEGACY_DEFAULT_RANGE_NOTE =
+  "This sync was set up with the old default range, so the report is allowed to grow past row 20. Set a range end to keep it inside a box.";
+
+/**
+ * The A1 range the builder's fields describe. The end counts only when both
+ * its column and its row are set, and it never sits before the start cell.
+ */
+export function buildRangeA1(fields: RangeFields): string {
+  if (fields.mode === "full") return "A1";
+  const startColumn = fields.startColumn || "A";
+  const startRow = Math.max(Number.parseInt(fields.startRow, 10) || 1, 1);
+  const start = `${startColumn}${startRow}`;
+  if (!fields.endColumn || !fields.endRow) return start;
+
+  const endColumn =
+    columnToIndex(fields.endColumn) < columnToIndex(startColumn)
+      ? startColumn
+      : fields.endColumn;
+  const endRow = Math.max(
+    Number.parseInt(fields.endRow, 10) || startRow,
+    startRow,
+  );
+  return `${start}:${endColumn}${endRow}`;
+}
+
+/**
+ * Splits a saved A1 range into the range builder's fields. Returns null for a
+ * range that starts at A1 with no end, which the builder shows as "Full tab".
+ * The old pre-filled `A1:H20` is one of those: the sync treats it as open, so
+ * the form shows what the sync does.
+ */
+export function parseSavedRange(
+  rangeA1: string | null | undefined,
+): RangeFields | null {
   const range = (rangeA1 ?? "").split("!").pop()?.trim() ?? "";
-  if (!range || range.toUpperCase() === "A1") {
+  if (
+    !range ||
+    range.toUpperCase() === "A1" ||
+    isLegacyDefaultReportRange(range)
+  ) {
     return null;
   }
   const match = range.match(/^([A-Za-z]+)(\d+)(?::([A-Za-z]+)(\d+))?$/);
@@ -64,7 +113,7 @@ export function parseSavedRange(rangeA1: string | null | undefined): {
     mode: "custom",
     startColumn: match[1].toUpperCase(),
     startRow: match[2],
-    endColumn: (match[3] ?? match[1]).toUpperCase(),
-    endRow: match[4] ?? match[2],
+    endColumn: (match[3] ?? "").toUpperCase(),
+    endRow: match[4] ?? "",
   };
 }

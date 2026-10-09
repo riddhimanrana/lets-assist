@@ -488,9 +488,14 @@ export async function replaceSpreadsheetReportValues(
   rangeA1: string | null | undefined,
   rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
   options: SheetsRequestOptions = {},
+  /**
+   * The range that bounds stale-cell clearing, when it differs from the write
+   * range. Only a sync saved with the legacy default range passes it.
+   */
+  staleClearRangeA1: string | null | undefined = rangeA1,
 ): Promise<SpreadsheetReportReplaceResult> {
   const writeRange = buildWriteRange(tabName, rangeA1, rows);
-  const staleRanges = buildStaleClearRanges(tabName, rangeA1, rows);
+  const staleRanges = buildStaleClearRanges(tabName, staleClearRangeA1, rows);
   // One write and a fixed number of clears: a report can never fan out into
   // an unbounded number of Sheets requests.
   if (staleRanges.length > MAX_REPORT_STALE_CLEAR_REQUESTS) {

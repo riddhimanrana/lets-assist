@@ -29,14 +29,15 @@ export function SheetDestinationFields({
   destination,
   disabled,
   tabNameHint,
-  rangeHint,
+  rangeNote,
   rangeFooter,
 }: {
   idPrefix: string;
   destination: SheetSyncSetup["destination"];
   disabled?: boolean;
   tabNameHint?: string;
-  rangeHint: string;
+  /** Something the admin should know about the saved range. */
+  rangeNote?: ReactNode;
   rangeFooter?: ReactNode;
 }) {
   return (
@@ -91,11 +92,8 @@ export function SheetDestinationFields({
 
       <div className="grid gap-2">
         <p className="text-sm font-medium">Range</p>
-        <RangeBuilder
-          {...destination.range}
-          disabled={disabled}
-          helperText={rangeHint}
-        />
+        <RangeBuilder {...destination.range} disabled={disabled} />
+        {rangeNote}
         {rangeFooter}
       </div>
     </FieldGroup>

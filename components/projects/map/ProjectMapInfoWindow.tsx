@@ -6,7 +6,10 @@ import { Calendar, Users, MapPin } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import type { Project } from "@/types";
-import { getProjectRemainingSpots } from "@/lib/projects/availability";
+import {
+  formatSpotsLeft,
+  getProjectRemainingSpots,
+} from "@/lib/projects/availability";
 import type { ProjectWithAvailability } from "./types";
 
 export function ProjectMapInfoWindow({
@@ -76,11 +79,6 @@ export function ProjectMapInfoWindow({
     }
   };
 
-  // Format volunteer spots
-  const formatSpots = (count: number) => {
-    return `${count} ${count === 1 ? "spot" : "spots"} left`;
-  };
-
   return (
     <div className="custom-info-window bg-white dark:bg-black p-3 rounded-lg shadow-lg max-w-75 border">
       <Button
@@ -105,7 +103,7 @@ export function ProjectMapInfoWindow({
           </Badge>
           <Badge variant="outline">
             <Users className="h-3 w-3" />
-            {formatSpots(getProjectRemainingSpots(project))}
+            {formatSpotsLeft(getProjectRemainingSpots(project))}
           </Badge>
         </div>
         <Link href={`/projects/${project.id}`}>

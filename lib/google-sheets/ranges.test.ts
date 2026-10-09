@@ -5,6 +5,8 @@ import {
   buildStaleClearRanges,
   buildWriteRange,
   describeReportRangeOverflow,
+  isLegacyDefaultReportRange,
+  openLegacyDefaultReportRange,
   parseReportRange,
 } from "./ranges";
 
@@ -112,5 +114,68 @@ describe("whole-column report ranges", () => {
     expect(
       buildWriteRange("Member Hours", "'Bob''s tab'!A:B", rowsOf(1, 2)),
     ).toBe("'Bob''s tab'!A1:B1");
+  });
+});
+
+describe("the legacy default range", () => {
+  const rows = rowsOf(101, 8);
+
+  test("A1:H20 is read as the start cell A1 with an open end", () => {
+    const range = openLegacyDefaultReportRange("A1:H20");
+
+    expect(range).toBe("A1");
+    expect(describeReportRangeOverflow(range, rows)).toBeNull();
+    expect(buildWriteRange("Member Hours", range, rows)).toBe(
+      "'Member Hours'!A1:H101",
+    );
+  });
+
+  test("A1:H21 with 101 rows fails with the specific message", () => {
+    const range = openLegacyDefaultReportRange("A1:H21");
+
+    expect(range).toBe("A1:H21");
+    expect(describeReportRangeOverflow(range, rows)).toBe(
+      "The report has 101 rows but the selected range A1:H21 holds 21. Widen the range or remove its end.",
+    );
+  });
+
+  test("A1 is open", () => {
+    expect(openLegacyDefaultReportRange("A1")).toBe("A1");
+    expect(isLegacyDefaultReportRange("A1")).toBe(false);
+    expect(describeReportRangeOverflow("A1", rows)).toBeNull();
+  });
+
+  test("B2:D20 stays strict", () => {
+    const range = openLegacyDefaultReportRange("B2:D20");
+
+    expect(range).toBe("B2:D20");
+    expect(describeReportRangeOverflow(range, rowsOf(20, 3))).toBe(
+      "The report has 20 rows but the selected range B2:D20 holds 19. Widen the range or remove its end.",
+    );
+    expect(describeReportRangeOverflow(range, rowsOf(19, 4))).toContain(
+      "4 columns",
+    );
+  });
+
+  test("only the exact pre-filled value counts", () => {
+    expect(isLegacyDefaultReportRange("A1:H20")).toBe(true);
+    for (const range of [
+      "A1:H21",
+      "A1:G20",
+      "A2:H20",
+      "a1:h20",
+      "'Member Hours'!A1:H20",
+      "A1",
+      "",
+      null,
+      undefined,
+    ]) {
+      expect(isLegacyDefaultReportRange(range)).toBe(false);
+      expect(openLegacyDefaultReportRange(range)).toBe(range);
+    }
+  });
+
+  test("the range functions themselves stay strict about A1:H20", () => {
+    expect(describeReportRangeOverflow("A1:H20", rows)).toContain("holds 20");
   });
 });

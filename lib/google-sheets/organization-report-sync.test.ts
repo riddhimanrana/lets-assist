@@ -262,14 +262,57 @@ describe("the shared organization sheet sync", () => {
   test("refuses to write past a bounded range", async () => {
     volunteerCount = 100;
 
-    expect(await run({ range_a1: "A1:H20" })).toEqual({
+    for (const [range, holds] of [
+      ["A1:H21", 21],
+      ["B2:D20", 19],
+    ] as const) {
+      const result = await run({ range_a1: range });
+      expect(result).toMatchObject({ success: false, code: "range_too_small" });
+      expect(result).toHaveProperty(
+        "error",
+        expect.stringContaining(`the selected range ${range} holds ${holds}.`),
+      );
+    }
+    expect(await run({ range_a1: "A1:H21" })).toEqual({
       success: false,
       code: "range_too_small",
       error:
-        "The report has 101 rows but the selected range A1:H20 holds 20. Widen the range or remove its end.",
+        "The report has 101 rows but the selected range A1:H21 holds 21. Widen the range or remove its end.",
     });
     expect(writes()).toHaveLength(0);
     expect(updates).toHaveLength(0);
+  });
+
+  test("a sync saved with the old default range A1:H20 still grows past row 20", async () => {
+    volunteerCount = 100;
+
+    expect(await run({ range_a1: "A1:H20" })).toEqual({ success: true });
+
+    const [write] = writes();
+    expect(writtenValues()).toHaveLength(101);
+    expect(decodeURIComponent(write.url)).toContain("'Member Hours'!A1:");
+    expect(decodeURIComponent(write.url)).toMatch(/!A1:[A-Z]+101(\?|$)/u);
+
+    // A later, shorter report clears stale cells only inside the saved range,
+    // as it always did. Nothing beside or below the old box is touched.
+    volunteerCount = 2;
+    calls = [];
+    expect(await run({ range_a1: "A1:H20" })).toEqual({ success: true });
+    expect(
+      calls
+        .filter((call) => call.url.includes(":clear"))
+        .map((call) => decodeURIComponent(call.url).split("/values/")[1]),
+    ).toEqual(["'Member Hours'!A4:H20:clear"]);
+
+    // The stored value is not rewritten by a sync.
+    expect(updates.some((update) => "range_a1" in update)).toBe(false);
+  });
+
+  test("an open start cell has no row limit", async () => {
+    volunteerCount = 100;
+
+    expect(await run({ range_a1: "A1" })).toEqual({ success: true });
+    expect(writtenValues()).toHaveLength(101);
   });
 
   test("asks for the file to be chosen again when the owner cannot open it", async () => {
@@ -310,7 +353,7 @@ describe("the shared organization sheet sync", () => {
     }) as typeof fetch;
 
     // A narrower layout leaves stale cells, so the clear requests run too.
-    await run({ range_a1: "A1:H20" });
+    await run({ range_a1: "A1:H21" });
 
     expect(signals.length).toBeGreaterThan(2);
     expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);

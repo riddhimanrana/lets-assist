@@ -175,6 +175,39 @@ export function parseReportRange(
   };
 }
 
+/**
+ * The custom range the setup form used to pre-fill. Nobody typed it.
+ */
+export const LEGACY_DEFAULT_REPORT_RANGE = "A1:H20";
+
+/** True only for the exact pre-filled value, never for any other range. */
+export function isLegacyDefaultReportRange(
+  rangeA1: string | null | undefined,
+): boolean {
+  return rangeA1?.trim() === LEGACY_DEFAULT_REPORT_RANGE;
+}
+
+/**
+ * Reads the old pre-filled range `A1:H20` as the start cell `A1` with an open
+ * end, and returns every other range unchanged.
+ *
+ * Why this exists: the sync used to write from the start cell and ignore the
+ * end, so a saved `A1:H20` let the report grow past row 20. A bounded range is
+ * now a strict box. Without this, every sync that kept the form's default
+ * would start failing once its report passed 20 rows, though no admin chose a
+ * 20-row box.
+ *
+ * It applies only to that exact string. `A1:H21`, `B2:H20` and every other
+ * range with an end stay strict. Use the result for the fit check and the
+ * write range. Keep the stored value for clearing stale cells, so the sync
+ * still clears only inside the box it always cleared.
+ */
+export function openLegacyDefaultReportRange<
+  Range extends string | null | undefined,
+>(rangeA1: Range): Range | "A1" {
+  return isLegacyDefaultReportRange(rangeA1) ? "A1" : rangeA1;
+}
+
 const measureReport = (rows: ReportRows) => ({
   rowCount: Math.max(rows.length, 1),
   columnCount: Math.max(

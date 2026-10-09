@@ -18,12 +18,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { isLegacyDefaultReportRange } from "@/lib/google-sheets/ranges";
 
 import { IntegrationOption } from "../../settings/IntegrationCard";
 import type { SheetSyncStatus } from "../sheets-actions";
 import { SheetDestinationFields } from "./SheetDestinationFields";
 import { SheetLayoutPreview } from "./SheetLayoutPreview";
 import {
+  LEGACY_DEFAULT_RANGE_NOTE,
   getSyncIntervalLabel,
   syncIntervalOptions,
   type SheetOwnerOption,
@@ -81,7 +83,13 @@ export function SheetSyncConfig({
             <SheetDestinationFields
               idPrefix="sheet-config"
               destination={setup.destination}
-              rangeHint="Full tab grows with the report. A custom range is a fixed box, and the sync stops with an error if the report no longer fits it."
+              rangeNote={
+                isLegacyDefaultReportRange(syncConfig.rangeA1) ? (
+                  <p className="text-muted-foreground text-sm">
+                    {LEGACY_DEFAULT_RANGE_NOTE}
+                  </p>
+                ) : null
+              }
               rangeFooter={
                 syncConfig.sheetUrl ? (
                   <a

@@ -11,6 +11,10 @@ import {
   isWithinInterval,
 } from "date-fns";
 import { TZDate } from "@date-fns/tz";
+import {
+  ACTIVE_PROJECT_SIGNUP_STATUSES,
+  summarizeProjectOccupancy,
+} from "@/lib/projects/availability";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -525,17 +529,17 @@ export async function getSlotCapacities(
     return {}; // No schedules found
   }
 
-  // Fetch counts of approved AND attended signups for these schedule IDs
+  // Count the sign-ups that hold a spot. The status list is shared with the
+  // project cards so the two can never disagree about what "taken" means.
   const { data: signups, error } = (await supabase
     .from("project_signups")
-    .select("schedule_id, status") // Select status to potentially group by later if needed, though count works directly
+    .select("schedule_id, status")
     .eq("project_id", projectId)
     .in("schedule_id", scheduleIds)
-    // Use .in() or .or() to filter for multiple statuses
-    .in("status", ["approved", "attended"])) as {
+    .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])) as {
     data: { schedule_id: string; status: string }[] | null;
     error: { message: string } | null;
-  }; // <-- Updated filter
+  };
 
   if (error) {
     safeConsole.error("Error fetching signup counts:", error);
@@ -543,14 +547,13 @@ export async function getSlotCapacities(
     return capacities;
   }
 
-  // Count signups per schedule ID
-  const signupCounts: Record<string, number> = {};
-  if (signups) {
-    signups.forEach((signup) => {
-      signupCounts[signup.schedule_id] =
-        (signupCounts[signup.schedule_id] || 0) + 1;
-    });
-  }
+  const signupCounts = summarizeProjectOccupancy(
+    (signups ?? []).map((signup) => ({
+      project_id: projectId,
+      schedule_id: signup.schedule_id,
+      status: signup.status,
+    })),
+  ).slotsFilledBySchedule;
 
   // Calculate remaining slots
   const remainingSlots: Record<string, number> = {};

@@ -13,7 +13,11 @@ import {
   updateSheetSyncConfig,
   type SheetSyncStatus,
 } from "../sheets-actions";
-import { parseSavedRange, type SheetSetupMetadata } from "./sheet-sync-options";
+import {
+  buildRangeA1,
+  parseSavedRange,
+  type SheetSetupMetadata,
+} from "./sheet-sync-options";
 import { useSheetPicker } from "./useSheetPicker";
 
 /**
@@ -36,8 +40,9 @@ export function useSheetSyncSetup({
   const [rangeMode, setRangeMode] = useState<"full" | "custom">("full");
   const [rangeStartColumn, setRangeStartColumn] = useState("A");
   const [rangeStartRow, setRangeStartRow] = useState("1");
-  const [rangeEndColumn, setRangeEndColumn] = useState("H");
-  const [rangeEndRow, setRangeEndRow] = useState("20");
+  // The end starts empty: a range is a fixed box only when an admin sets one.
+  const [rangeEndColumn, setRangeEndColumn] = useState("");
+  const [rangeEndRow, setRangeEndRow] = useState("");
   const [layoutConfig, setLayoutConfig] = useState<ReportLayoutConfig | null>(
     null,
   );
@@ -78,6 +83,10 @@ export function useSheetSyncSetup({
       setRangeEndRow(savedRange.endRow);
     } else {
       setRangeMode("full");
+      setRangeStartColumn("A");
+      setRangeStartRow("1");
+      setRangeEndColumn("");
+      setRangeEndRow("");
     }
     // savedConfigKey stands in for the saved destination's identity.
   }, [savedConfigKey]);
@@ -88,14 +97,17 @@ export function useSheetSyncSetup({
     [],
   );
 
-  const rangeA1 = useMemo(() => {
-    if (rangeMode === "full") {
-      return "A1";
-    }
-    const startRow = rangeStartRow || "1";
-    const endRow = rangeEndRow || startRow;
-    return `${rangeStartColumn}${startRow}:${rangeEndColumn}${endRow}`;
-  }, [rangeMode, rangeStartColumn, rangeStartRow, rangeEndColumn, rangeEndRow]);
+  const rangeA1 = useMemo(
+    () =>
+      buildRangeA1({
+        mode: rangeMode,
+        startColumn: rangeStartColumn,
+        startRow: rangeStartRow,
+        endColumn: rangeEndColumn,
+        endRow: rangeEndRow,
+      }),
+    [rangeMode, rangeStartColumn, rangeStartRow, rangeEndColumn, rangeEndRow],
+  );
 
   const handleUpdateSheetConfig = useCallback(async () => {
     if (!sheetStatus?.syncConfig) return;

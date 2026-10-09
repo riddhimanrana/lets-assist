@@ -1,6 +1,9 @@
 import { format, parse } from "date-fns";
 
-import { getProjectRemainingSpots } from "@/lib/projects/availability";
+import {
+  formatSpotsLeft,
+  getProjectRemainingSpots,
+} from "@/lib/projects/availability";
 import { getProjectStatus } from "@/utils/project";
 
 import type { ProjectWithExtras } from "./types";
@@ -18,8 +21,7 @@ const parseLocalDate = (dateString: string) => {
   return new Date(year, month - 1, day);
 };
 
-export const formatSpots = (count: number) =>
-  `${count} ${count === 1 ? "spot" : "spots"} left`;
+export const formatSpots = (count: number) => formatSpotsLeft(count);
 
 export const formatDateDisplay = (project: ProjectWithExtras) => {
   if (!project.event_type || !project.schedule) return "";

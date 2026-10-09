@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { format } from "date-fns";
 import type { Project, ProjectStatus } from "@/types";
+import { formatSpotsLeft } from "@/lib/projects/availability";
 import { formatTimeTo12Hour } from "@/lib/utils";
 import {
   getMultiDaySlotDisplayName,
@@ -94,7 +95,7 @@ export function useAnonymousSlotOptions({
             return {
               scheduleId,
               title: `${formatScheduleDateLabel(day.date)} · ${getMultiDaySlotDisplayName(slot, idx)}`,
-              subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? slot.volunteers} spot(s) left`,
+              subtitle: `${timeLabel} • ${formatSpotsLeft(remainingSlots[scheduleId] ?? slot.volunteers, slot.volunteers)}`,
             };
           })
           .filter(
@@ -125,7 +126,7 @@ export function useAnonymousSlotOptions({
           return {
             scheduleId,
             title: role.name,
-            subtitle: `${timeLabel} • ${remainingSlots[scheduleId] ?? role.volunteers} spot(s) left`,
+            subtitle: `${timeLabel} • ${formatSpotsLeft(remainingSlots[scheduleId] ?? role.volunteers, role.volunteers)}`,
           };
         })
         .filter(

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { format } from "date-fns";
 
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { formatSpotsLeft } from "@/lib/projects/availability";
 import { formatTimeTo12Hour } from "@/lib/utils";
 
 /** "Saturday, March 14" from a yyyy-MM-dd string, without timezone drift. */
@@ -40,11 +41,17 @@ export function ProjectSlotRow({
   timezone?: string | null;
   /** The slot's day, yyyy-MM-dd. */
   date?: string | null;
-  remaining: ReactNode;
-  capacity: ReactNode;
+  /** Spots not held by a pending, approved or attended sign-up. */
+  remaining: number;
+  capacity: number;
   action: ReactNode;
   attendees?: ReactNode;
 }) {
+  // The wording comes from the shared formatter; only its leading count (or
+  // the whole of "Full") is set in the stronger weight.
+  const spotsLabel = formatSpotsLeft(remaining, capacity);
+  const spotsLead = remaining > 0 ? String(remaining) : spotsLabel;
+
   return (
     <li className="py-3 first:pt-0 last:pb-0">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -66,9 +73,9 @@ export function ProjectSlotRow({
           </p>
           <p className="text-muted-foreground text-sm">
             <span className="text-foreground font-medium tabular-nums">
-              {remaining}
-            </span>{" "}
-            of {capacity} {capacity === 1 ? "spot" : "spots"} left
+              {spotsLead}
+            </span>
+            {spotsLabel.slice(spotsLead.length)}
           </p>
         </div>
         <div className="shrink-0">{action}</div>

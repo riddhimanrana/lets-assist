@@ -17,7 +17,10 @@ import {
   type SheetsFailureReason,
 } from "@/services/google-sheets-report";
 
-import { describeReportRangeOverflow } from "./ranges";
+import {
+  describeReportRangeOverflow,
+  openLegacyDefaultReportRange,
+} from "./ranges";
 
 export const ORGANIZATION_SHEET_SYNC_DEFAULT_TAB = "Member Hours";
 
@@ -349,7 +352,10 @@ async function writeOrganizationReport(
     };
   }
 
-  const overflow = describeReportRangeOverflow(config.range_a1, rows);
+  // A sync saved with the old pre-filled range keeps growing from A1, as it
+  // always did. Every other bounded range is a strict box.
+  const writeRangeA1 = openLegacyDefaultReportRange(config.range_a1);
+  const overflow = describeReportRangeOverflow(writeRangeA1, rows);
   if (overflow) {
     return { success: false, code: "range_too_small", error: overflow };
   }
@@ -358,9 +364,11 @@ async function writeOrganizationReport(
     accessToken,
     config.sheet_id,
     tabName,
-    config.range_a1,
+    writeRangeA1,
     rows,
     sheets,
+    // Stale cells are still cleared only inside the saved range.
+    config.range_a1,
   );
   if (!replacement.success && replacement.stage === "write") {
     // The spreadsheet opened a moment ago, so a refusal here is about editing.
