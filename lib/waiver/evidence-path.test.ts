@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
 
-import { isProjectWaiverEvidencePath } from "./evidence-path";
+import {
+  buildWaiverEvidencePath,
+  isProjectWaiverEvidencePath,
+} from "./evidence-path";
 
 const PROJECT = "10000000-0000-4000-8000-000000000020";
 const OTHER = "20000000-0000-4000-8000-000000000099";
@@ -39,4 +42,53 @@ test("refuses another project's evidence and anything that is not evidence", () 
       null,
     ),
   ).toBe(false);
+});
+
+test("every path the builder writes is accepted for its own project only", () => {
+  for (const folder of [
+    "signatures",
+    "signed-waivers",
+    "cloned-waiver-evidence",
+  ] as const) {
+    for (const extension of ["png", "jpg", "pdf"]) {
+      const path = buildWaiverEvidencePath({
+        folder,
+        projectId: PROJECT,
+        evidenceKey: KEY,
+        extension,
+      });
+      expect(isProjectWaiverEvidencePath(path, PROJECT)).toBe(true);
+      expect(isProjectWaiverEvidencePath(path, OTHER)).toBe(false);
+    }
+  }
+});
+
+test("the builder refuses ids and file types that would escape the folder", () => {
+  const base = {
+    folder: "signatures",
+    evidenceKey: KEY,
+    extension: "png",
+  } as const;
+  expect(() =>
+    buildWaiverEvidencePath({ ...base, projectId: "../other" }),
+  ).toThrow();
+  expect(() =>
+    buildWaiverEvidencePath({
+      ...base,
+      projectId: PROJECT,
+      evidenceKey: "a/b",
+    }),
+  ).toThrow();
+  expect(() =>
+    buildWaiverEvidencePath({ ...base, projectId: PROJECT, extension: "p/ng" }),
+  ).toThrow();
+});
+
+test("an older signer image with an unusual role key still loads", () => {
+  expect(
+    isProjectWaiverEvidencePath(
+      `waiver_${KEY}_Parent or guardian (1)_1760000000000.png`,
+      PROJECT,
+    ),
+  ).toBe(true);
 });

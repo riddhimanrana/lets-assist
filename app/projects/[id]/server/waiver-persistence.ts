@@ -1,7 +1,6 @@
 import "server-only";
 import { safeConsole } from "@/lib/safe-console";
 
-import crypto from "crypto";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { type WaiverSignatureInput } from "@/types";
@@ -18,6 +17,7 @@ import {
   isMissingWaiverDisableEsignatureColumnError,
   parseDataUrl,
 } from "./shared";
+import { buildWaiverEvidencePath } from "@/lib/waiver/evidence-path";
 
 export async function uploadWaiverAsset(params: {
   bucket: string;
@@ -259,7 +259,12 @@ export async function prepareWaiverSignatureRecord(params: {
           fileExt = "jpg";
         }
 
-        const fileName = `waiver_${params.evidenceKey}_${signer.role_key}_${Date.now()}.${fileExt}`;
+        const fileName = buildWaiverEvidencePath({
+          folder: "signatures",
+          projectId: params.projectId,
+          evidenceKey: params.evidenceKey,
+          extension: fileExt,
+        });
 
         // Upload asset
         const uploadResult = await uploadWaiverAsset({
@@ -306,7 +311,12 @@ export async function prepareWaiverSignatureRecord(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.signatureImageDataUrl ?? "",
-      fileName: `signatures/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
+      fileName: buildWaiverEvidencePath({
+        folder: "signatures",
+        projectId: params.projectId,
+        evidenceKey: params.evidenceKey,
+        extension,
+      }),
       maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
       allowedTypes: ["image/png", "image/jpeg", "image/jpg"],
     });
@@ -352,7 +362,12 @@ export async function prepareWaiverSignatureRecord(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.uploadFileDataUrl ?? "",
-      fileName: `signed-waivers/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
+      fileName: buildWaiverEvidencePath({
+        folder: "signed-waivers",
+        projectId: params.projectId,
+        evidenceKey: params.evidenceKey,
+        extension,
+      }),
       maxBytes: SIGNED_WAIVER_UPLOAD_MAX_BYTES,
       allowedTypes: [...SIGNED_WAIVER_UPLOAD_TYPES, "image/jpg"],
     });
@@ -477,7 +492,12 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
 
     const extensionMatch = sourcePath.match(/\.([a-z0-9]{1,5})$/iu);
     const extension = extensionMatch?.[1]?.toLowerCase() ?? "bin";
-    const destinationPath = `cloned-waiver-evidence/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`;
+    const destinationPath = buildWaiverEvidencePath({
+      folder: "cloned-waiver-evidence",
+      projectId: params.projectId,
+      evidenceKey: params.evidenceKey,
+      extension,
+    });
     const { error } = await serviceSupabase.storage
       .from(WAIVER_SIGNATURE_BUCKET)
       .copy(sourcePath, destinationPath);

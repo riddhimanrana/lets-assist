@@ -8,14 +8,47 @@
  * record. Every shape the server writes is listed here and nothing else is
  * accepted.
  */
-const FLAT_SIGNER_ASSET =
-  /^waiver_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_[A-Za-z0-9_-]{1,64}_\d{10,16}\.(?:png|jpe?g)$/u;
+// Signer images written before paths were scoped to their project. The name
+// carries a random evidence key and the signer's role key, which an organizer
+// chooses, so the role part is matched loosely. It can never hold a slash.
+const LEGACY_FLAT_SIGNER_ASSET =
+  /^waiver_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_[^/\\]{1,160}_\d{10,16}\.(?:png|jpe?g)$/u;
 
-const SCOPED_FOLDERS = [
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+export type WaiverEvidenceFolder =
+  "signatures" | "signed-waivers" | "cloned-waiver-evidence";
+
+/**
+ * Builds the path for a new piece of signature evidence. Every writer uses
+ * this, so what is written and what `isProjectWaiverEvidencePath` accepts
+ * cannot drift apart.
+ */
+export function buildWaiverEvidencePath({
+  folder,
+  projectId,
+  evidenceKey,
+  extension,
+}: {
+  folder: WaiverEvidenceFolder;
+  projectId: string;
+  evidenceKey: string;
+  extension: string;
+}): string {
+  if (!UUID.test(projectId) || !UUID.test(evidenceKey)) {
+    throw new Error("Waiver evidence needs a project id and an evidence key");
+  }
+  if (!/^[a-z0-9]{2,5}$/u.test(extension)) {
+    throw new Error("Unsupported waiver evidence file type");
+  }
+  return `${folder}/${projectId}/${evidenceKey}/${crypto.randomUUID()}.${extension}`;
+}
+
+const SCOPED_FOLDERS: readonly WaiverEvidenceFolder[] = [
   "signatures",
   "signed-waivers",
   "cloned-waiver-evidence",
-] as const;
+];
 
 const SCOPED_TAIL =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]{2,5}$/u;
@@ -30,8 +63,7 @@ export function isProjectWaiverEvidencePath(
   if (path.includes("..") || path.includes("\\") || path.startsWith("/")) {
     return false;
   }
-  // The signer image name carries a random evidence key and no folder.
-  if (FLAT_SIGNER_ASSET.test(path)) return true;
+  if (LEGACY_FLAT_SIGNER_ASSET.test(path)) return true;
 
   if (typeof projectId !== "string" || projectId.length === 0) return false;
   for (const folder of SCOPED_FOLDERS) {
