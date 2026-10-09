@@ -126,6 +126,13 @@ lockfile hashes and every other pinned input are unchanged. The expiry date is
 unchanged. Deployment metadata was not read back again for this update. The
 advisory still lists no patched version as of October 9, 2026.
 
+Also on October 9, 2026, `scripts/run-tests.mjs` gained a `--shard` option so
+CI can split the unit tests across runners. The change filters the list of test
+files the script has already discovered; it adds no glob pattern, changes no
+pattern's inputs, and imports no affected glob package. The fingerprint for
+that file now names the reviewed version. The lockfile hashes are unchanged by
+this update.
+
 Remove the exception when upstream publishes a verified fix. Any extension or
 fingerprint update requires a new review of the advisory, source import paths,
 operator inputs, and deployment metadata. Acceptance expires without renewal.

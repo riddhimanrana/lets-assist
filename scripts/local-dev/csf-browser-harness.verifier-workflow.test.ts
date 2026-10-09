@@ -147,21 +147,31 @@ describe("redesign verifier cleanup matrix", () => {
 // Source contracts: CI job slice, verifier, and workflow gate.
 // ---------------------------------------------------------------------------
 
-// Parse only the db-replay-validation job: no assertion here may be satisfied by
-// an unrelated job elsewhere in the workflow.
-function dbReplayJob() {
+// The database validations and the browser shards are separate jobs, each
+// owning one isolated stack. Parse one job at a time: no assertion here may be
+// satisfied by an unrelated job elsewhere in the workflow.
+function workflowJob(name: string) {
   const workflow = readFileSync(
     join(repositoryRoot, ".github/workflows/ci.yml"),
     "utf8",
   );
-  const marker = "\n  db-replay-validation:\n";
+  const marker = `\n  ${name}:\n`;
   const start = workflow.indexOf(marker);
-  if (start === -1)
-    throw new Error("db-replay-validation job is missing from ci.yml");
+  if (start === -1) throw new Error(`${name} job is missing from ci.yml`);
   const body = workflow.slice(start + marker.length);
   const nextJob = /^ {2}[A-Za-z][A-Za-z0-9_-]*:\s*$/mu.exec(body);
   return nextJob ? body.slice(0, nextJob.index) : body;
 }
+const databaseJob = () => workflowJob("database");
+const browserJob = () => workflowJob("browser");
+// Both jobs start a stack, so the stack contract applies to each of them.
+const stackJobs = () =>
+  [
+    ["database", databaseJob()],
+    ["browser", browserJob()],
+  ] as const;
+const FULL_PATH =
+  "github.event_name != 'pull_request' && github.event_name != 'merge_group'";
 
 describe("db-replay-validation CI job contract", () => {
   test("runs for manual candidate rehearsals and reusable release preflight calls", () => {
@@ -169,62 +179,79 @@ describe("db-replay-validation CI job contract", () => {
       join(repositoryRoot, ".github/workflows/ci.yml"),
       "utf8",
     );
-    const job = dbReplayJob();
 
     expect(workflow).toContain("  workflow_call:");
-    expect(job).toContain("if: github.event_name != 'pull_request'");
-    expect(job).not.toContain("github.event.pull_request.draft");
+    for (const [name, job] of stackJobs()) {
+      expect(job, name).toContain(`    if: ${FULL_PATH}\n`);
+      expect(job, name).not.toContain("github.event.pull_request.draft");
+    }
+    // The check release verification reads fails unless both succeeded.
+    const summary = workflowJob("db-replay-validation");
+    expect(summary).toContain("      - database\n      - browser\n");
+    expect(summary).toContain('[[ "${DATABASE_CHECKS_RESULT}" == "success" ]]');
+    expect(summary).toContain('[[ "${BROWSER_RESULT}" == "success" ]]');
+    expect(summary).not.toContain("github.event.pull_request.draft");
   });
 
   test("starts exactly one launcher and never resets or nests a replay", () => {
-    const job = dbReplayJob();
-
-    expect(
-      job.match(/scripts\/local-dev\/start-dvhs-csf-isolated-stack\.sh/gu)
-        ?.length,
-    ).toBe(1);
-    expect(job).not.toContain("supabase db reset");
-    expect(job).not.toContain("csf:test:db:isolated");
-    expect(job.match(/supabase test db --workdir/gu)?.length).toBe(1);
-    expect(job.match(/bun run csf:seed:platform:isolated/gu)?.length).toBe(1);
-    expect(job).not.toContain("bun run supabase:seed:local-dev");
-    expect(job).not.toContain("bun run dv:fixtures");
-    expect(job).not.toContain("bun run dv:test:");
+    for (const [name, job] of stackJobs()) {
+      expect(
+        job.match(/scripts\/local-dev\/start-dvhs-csf-isolated-stack\.sh/gu)
+          ?.length,
+        name,
+      ).toBe(1);
+      expect(job, name).not.toContain("supabase db reset");
+      expect(job, name).not.toContain("csf:test:db:isolated");
+      expect(
+        job.match(/bun run csf:seed:platform:isolated/gu)?.length,
+        name,
+      ).toBe(1);
+      expect(job, name).not.toContain("bun run supabase:seed:local-dev");
+      expect(job, name).not.toContain("bun run dv:fixtures");
+      expect(job, name).not.toContain("bun run dv:test:");
+    }
+    // pgTAP runs once, in the database job.
+    expect(databaseJob().match(/supabase test db --workdir/gu)?.length).toBe(1);
+    expect(browserJob()).not.toContain("supabase test db");
   });
 
   test("loads the app environment through the exact-byte loader, never by sourcing it", () => {
-    const job = dbReplayJob();
-
-    expect(job).toContain(
-      "node scripts/local-dev/dv-local-env.mjs --print-app-env",
-    );
-    expect(job).not.toContain(
-      'source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"',
-    );
-    expect(job).not.toMatch(/source .*lets-assist-browser\.sh/u);
-    expect(job).toContain(
-      "node scripts/local-dev/dv-local-env.mjs --csf-health",
-    );
-    expect(job).not.toContain("dv-local-env.mjs --health");
+    for (const [name, job] of stackJobs()) {
+      expect(job, name).toContain(
+        "node scripts/local-dev/dv-local-env.mjs --print-app-env",
+      );
+      expect(job, name).not.toContain(
+        'source "${CSF_ISOLATED_WORK_DIR}/lets-assist-browser.sh"',
+      );
+      expect(job, name).not.toMatch(/source .*lets-assist-browser\.sh/u);
+      expect(job, name).toContain(
+        "node scripts/local-dev/dv-local-env.mjs --csf-health",
+      );
+      expect(job, name).not.toContain("dv-local-env.mjs --health");
+    }
   });
 
   test("generates one bounded run ID and requires an absent work directory", () => {
-    const job = dbReplayJob();
-
-    expect(job).toContain("- name: Allocate one bounded isolated run identity");
-    expect(job).toContain(
-      'if [[ ! "${run_id}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then',
-    );
-    expect(job).toContain(
-      'if [[ -e "${work_dir}" || -L "${work_dir}" ]]; then',
-    );
-    expect(job).not.toContain(
-      "CSF_ISOLATED_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}",
-    );
+    for (const [name, job] of stackJobs()) {
+      expect(job, name).toContain(
+        "- name: Allocate one bounded isolated run identity",
+      );
+      expect(job, name).toContain(
+        'if [[ ! "${run_id}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then',
+      );
+      expect(job, name).toContain(
+        'if [[ -e "${work_dir}" || -L "${work_dir}" ]]; then',
+      );
+      expect(job, name).not.toContain(
+        "CSF_ISOLATED_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}",
+      );
+      // The identity is random per runner, never derived from the shard.
+      expect(job, name).not.toMatch(/CSF_ISOLATED_RUN_ID:.*matrix/u);
+    }
   });
 
   test("step labels are truthful and one marker-bounded stop always runs", () => {
-    const job = dbReplayJob();
+    const job = databaseJob();
 
     expect(job).toContain("- name: Validate CSF database workflows");
     expect(job).not.toContain(
@@ -233,14 +260,22 @@ describe("db-replay-validation CI job contract", () => {
     expect(job).not.toContain("- name: Validate DB reset replay");
     expect(job).toContain("- name: Validate volunteer-hours lock concurrency");
     expect(job).toContain("run: bun run db:test:hours-concurrency");
-    expect(job).toContain("- name: Seed fictional platform fixtures");
-    expect(job).toContain("- name: Stop isolated Let’s Assist Supabase");
-    expect(job).toContain("if: always()");
-    expect(job.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length).toBe(1);
+    for (const [name, each] of stackJobs()) {
+      expect(each, name).toContain("- name: Seed fictional platform fixtures");
+      const stop = each.indexOf("- name: Stop isolated Let’s Assist Supabase");
+      expect(stop, name).toBeGreaterThan(-1);
+      // The stop is the last step and runs whatever happened before it.
+      expect(each.indexOf("\n      - name:", stop + 1), name).toBe(-1);
+      expect(each.slice(stop), name).toContain("        if: always()\n");
+      expect(
+        each.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length,
+        name,
+      ).toBe(1);
+    }
   });
 
   test("runs the bounded member and import scale checks on the seeded stack", () => {
-    const job = dbReplayJob();
+    const job = databaseJob();
     const workflows = job.indexOf("run: bun run csf:test:workflows");
     const memberScale = job.indexOf("bun run csf:test:scale");
     const importScale = job.indexOf("bun run csf:test:import:scale");
@@ -253,38 +288,43 @@ describe("db-replay-validation CI job contract", () => {
     expect(job.match(/bun run csf:test:import:scale/gu)?.length).toBe(1);
   });
 
-  test("sensitive credential exports are masked before they reach GITHUB_ENV", () => {
-    const job = dbReplayJob();
-    const startStep = job.slice(
-      job.indexOf("- name: Start one isolated Let’s Assist Supabase"),
-      job.indexOf(
-        "- name: Validate database tests on the same running isolated stack",
-      ),
-    );
-    const firstMask = startStep.indexOf("printf '::add-mask::%s");
-    const maskCaseStart = startStep.indexOf('case "${key}" in');
-    const maskCaseEnd = startStep.indexOf("esac", maskCaseStart);
-    const environmentExport = startStep.indexOf(
-      'printf \'%s=%s\\n\' "${key}" "${!key}" >> "${GITHUB_ENV}"',
-    );
-    const maskCase = startStep.slice(maskCaseStart, maskCaseEnd);
+  test.each(["database", "browser"])(
+    "sensitive credential exports are masked before they reach GITHUB_ENV (%s)",
+    (name) => {
+      const job = workflowJob(name);
+      const startIndex = job.indexOf(
+        "- name: Start one isolated Let’s Assist Supabase",
+      );
+      expect(startIndex).toBeGreaterThan(-1);
+      const startStep = job.slice(
+        startIndex,
+        job.indexOf("\n      - name:", startIndex + 1),
+      );
+      const firstMask = startStep.indexOf("printf '::add-mask::%s");
+      const maskCaseStart = startStep.indexOf('case "${key}" in');
+      const maskCaseEnd = startStep.indexOf("esac", maskCaseStart);
+      const environmentExport = startStep.indexOf(
+        'printf \'%s=%s\\n\' "${key}" "${!key}" >> "${GITHUB_ENV}"',
+      );
+      const maskCase = startStep.slice(maskCaseStart, maskCaseEnd);
 
-    expect(firstMask).toBeGreaterThan(-1);
-    expect(maskCaseStart).toBeGreaterThan(firstMask);
-    expect(environmentExport).toBeGreaterThan(maskCaseEnd);
-    for (const sensitiveKey of [
-      "ANON_KEY",
-      "SERVICE_ROLE_KEY",
-      "DB_URL",
-      "SUPABASE_DB_URL",
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      "SUPABASE_SECRET_KEY",
-      "SUPABASE_SERVICE_ROLE_KEY",
-      "CSF_PROFILE_CLAIM_SECRET",
-    ]) {
-      expect(maskCase).toContain(sensitiveKey);
-    }
-  });
+      expect(firstMask).toBeGreaterThan(-1);
+      expect(maskCaseStart).toBeGreaterThan(firstMask);
+      expect(environmentExport).toBeGreaterThan(maskCaseEnd);
+      for (const sensitiveKey of [
+        "ANON_KEY",
+        "SERVICE_ROLE_KEY",
+        "DB_URL",
+        "SUPABASE_DB_URL",
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "CSF_PROFILE_CLAIM_SECRET",
+      ]) {
+        expect(maskCase).toContain(sensitiveKey);
+      }
+    },
+  );
 
   test("retains bounded, run-specific Playwright evidence after browser failures", () => {
     const ciWorkflow = readFileSync(
@@ -295,18 +335,41 @@ describe("db-replay-validation CI job contract", () => {
       join(repositoryRoot, "playwright.csf.config.ts"),
       "utf8",
     );
-    const uploadStep = ciWorkflow.indexOf(
+    // Scoped to the browser job: the database job has its own stop step.
+    const browser = browserJob();
+    const uploadStep = browser.indexOf(
       "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
     );
-    const traceValidationStep = ciWorkflow.indexOf(
+    const traceValidationStep = browser.indexOf(
       "- name: Validate retained CSF browser traces",
     );
-    const teardownStep = ciWorkflow.indexOf(
+    const teardownStep = browser.indexOf(
       "- name: Stop isolated Let’s Assist Supabase",
     );
 
+    expect(uploadStep).toBeGreaterThan(-1);
+    expect(traceValidationStep).toBeGreaterThan(-1);
     expect(ciWorkflow).toContain(
       "CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}",
+    );
+    // Each shard writes and uploads under its own name, so no shard can
+    // overwrite another's evidence or collide on the artifact name.
+    expect(browser).toContain(
+      "CSF_E2E_RUN_ID: ci-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}\n",
+    );
+    expect(browser).toContain(
+      "name: csf-browser-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}\n",
+    );
+    expect(browser).toContain(
+      "path: .artifacts/dvhs-csf-e2e/${{ env.CSF_E2E_RUN_ID }}/playwright/\n",
+    );
+    const upload = browser.slice(
+      browser.indexOf("- name: Upload CSF browser evidence"),
+      teardownStep,
+    );
+    expect(upload).toContain("        if: ${{ always() }}\n");
+    expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
+      1,
     );
     expect(playwrightConfig).toContain(
       'process.env.CSF_E2E_RUN_ID ?? "playwright-local"',

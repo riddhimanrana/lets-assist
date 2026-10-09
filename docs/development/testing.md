@@ -7,7 +7,7 @@ Use the narrowest focused regression first, then expand to the appropriate gate.
 ## Delivery stages
 
 1. While coding, run the focused regression for the behavior you changed. Add the relevant static check when the change affects types, lint rules, formatting, dependencies, migrations, or agent configuration.
-2. Before updating the integration pull request, run all focused checks for that deliverable locally. The hosted pull-request `ci-gate` remains short and deterministic.
+2. Before updating the integration pull request, run all focused checks for that deliverable locally. `bun run ci:preflight` runs the pull request gate's own steps on your machine, and `bun run ci:pins` reports every hand-maintained pin that is out of date. The hosted pull-request `ci-gate` remains short and deterministic. See [CI pipeline](ci-pipeline.md).
 3. After the coherent candidate is integrated, dispatch `Code quality` once. That manual run owns the full tests, production build, isolated database replay, scale checks, and browser suites used by release verification.
 
 Do not use a new pull request as a retry mechanism. Fix a failed local or hosted check on the same branch and update the same pull request.
@@ -28,7 +28,7 @@ Unless the release report says otherwise, no Production database, application, b
 
 - `bun run test:unit` discovers and runs every root `*.test.*` and `*.spec.*` file outside private plugins and browser suites.
 - `bun run test:plugins` runs the private plugin unit and security suite.
-- `bun run test` runs both of the above through the shared process orchestrator used by CI.
+- `bun run test` runs both of the above through the shared process orchestrator used by CI. Add `--shard=<index>/<total>` to run one deterministic share of the same files in the same process groups.
 - `bun run test:db:isolated` replays the isolated CSF database gate.
 - `bun run test:e2e:csf` and `bun run test:e2e:dv` run their respective browser suites against the same compiled runtime used by CI. Interactive `bun run dev:csf` remains a separate development-mode launcher.
 

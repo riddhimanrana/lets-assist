@@ -3,16 +3,21 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
+import { selectShard, shardFromArguments } from "./ci/test-shards.mjs";
 
 const supportedArguments = new Set([
   "--root-only",
   "--plugins-only",
   "--private-only",
   "--application-only",
+  "--list",
 ]);
 const unknownArguments = process.argv
   .slice(2)
-  .filter((argument) => !supportedArguments.has(argument));
+  .filter(
+    (argument) =>
+      !supportedArguments.has(argument) && !argument.startsWith("--shard="),
+  );
 if (unknownArguments.length > 0) {
   throw new Error(
     `Unknown test-runner argument: ${unknownArguments.join(", ")}`,
@@ -23,6 +28,10 @@ const applicationOnly = process.argv.includes("--application-only");
 const rootOnly = process.argv.includes("--root-only");
 const pluginsOnly = process.argv.includes("--plugins-only");
 const privateOnly = process.argv.includes("--private-only");
+// --shard=<index>/<total> runs one deterministic share of the same inventory,
+// in the same process groups. --list prints that share instead of running it.
+const shard = shardFromArguments(process.argv.slice(2));
+const listOnly = process.argv.includes("--list");
 if (
   [rootOnly, pluginsOnly, privateOnly, applicationOnly].filter(Boolean).length >
   1
@@ -177,7 +186,7 @@ function run(name, command, args) {
 }
 
 function runGroup(group) {
-  const files = filesNamedByGroup(group);
+  const files = filesNamedByGroup(group).filter(inShard);
   const commonArgs = group.args.filter(
     (argument) => !isTestFileArgument(argument),
   );
@@ -202,32 +211,73 @@ if (!rootOnly && discoveredPluginFiles.length === 0) {
   throw new Error("No plugin test files were discovered.");
 }
 
-if (!pluginsOnly && !privateOnly) {
+// The inventory is every file this invocation would run. A shard takes its
+// share of that one sorted list, so the shards of a run are disjoint and
+// together cover it. Each file keeps the process it would have had unsharded:
+// a named group, the shared ordinary batch, or its own mock-isolated process.
+const runsRoot = !pluginsOnly && !privateOnly;
+const runsPlugins = !rootOnly;
+const inventory = [
+  ...(runsRoot
+    ? [...groups.flatMap(filesNamedByGroup), ...remainingRootFiles]
+    : []),
+  ...(runsPlugins ? discoveredPluginFiles : []),
+];
+const selectedFiles = selectShard(inventory, shard);
+const selected = new Set(selectedFiles);
+const shardLabel = shard ? ` shard ${shard.index}/${shard.total}` : "";
+
+function inShard(file) {
+  return selected.has(file);
+}
+
+if (listOnly) {
+  for (const file of selectedFiles) console.log(file);
+  process.exit(0);
+}
+
+if (shard) {
+  console.log(
+    `[test]${shardLabel}: ${selectedFiles.length} of ${new Set(inventory).size} test files.`,
+  );
+  if (selectedFiles.length === 0) {
+    // Fewer files than shards. The inventory itself is non-empty (checked
+    // above), so the other shards run it and this one has nothing to do.
+    console.log(`[test]${shardLabel}: no test files in this share; passing.`);
+    process.exit(0);
+  }
+}
+
+if (runsRoot) {
   for (const group of groups) runGroup(group);
 
-  if (ordinaryRootFiles.length > 0) {
+  const shardOrdinaryRootFiles = ordinaryRootFiles.filter(inShard);
+  if (shardOrdinaryRootFiles.length > 0) {
     run("remaining root unit tests", "bun", [
       "test",
       ...preload,
-      ...ordinaryRootFiles,
+      ...shardOrdinaryRootFiles,
     ]);
   }
 
   for (const file of isolatedMockFiles) {
+    if (!inShard(file)) continue;
     run(`mock-isolated root test: ${file}`, "bun", ["test", ...preload, file]);
   }
 }
 
-if (!rootOnly) {
-  if (ordinaryPluginFiles.length > 0) {
+if (runsPlugins) {
+  const shardOrdinaryPluginFiles = ordinaryPluginFiles.filter(inShard);
+  if (shardOrdinaryPluginFiles.length > 0) {
     run("ordinary plugin unit and security", "bun", [
       "test",
       ...preload,
-      ...ordinaryPluginFiles,
+      ...shardOrdinaryPluginFiles,
     ]);
   }
 
   for (const file of isolatedPluginMockFiles) {
+    if (!inShard(file)) continue;
     run(`mock-isolated plugin test: ${file}`, "bun", [
       "test",
       ...preload,
@@ -237,5 +287,5 @@ if (!rootOnly) {
 }
 
 console.log(
-  `\n[test] PASS: ${pluginsOnly || privateOnly ? 0 : discoveredRootFiles.length} root and ${rootOnly ? 0 : discoveredPluginFiles.length} plugin test files were discovered; every mock-sensitive file ran in its own Bun process.`,
+  `\n[test] PASS${shard ? ` (${shardLabel.trim()}, ${selectedFiles.length} files run here)` : ""}: ${pluginsOnly || privateOnly ? 0 : discoveredRootFiles.length} root and ${rootOnly ? 0 : discoveredPluginFiles.length} plugin test files were discovered; every mock-sensitive file ran in its own Bun process.`,
 );

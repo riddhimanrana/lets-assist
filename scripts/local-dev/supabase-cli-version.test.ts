@@ -447,11 +447,26 @@ describe("pinned Supabase CLI helper", () => {
     expect(source).not.toContain("bun run supabase:reset");
     expect(source).not.toContain("bun run supabase:stop");
 
-    const csfBrowserStep = source.slice(
-      source.indexOf("- name: Validate CSF browser workflows"),
-      source.indexOf("- name: Verify isolated Supabase remains healthy"),
+    // Both names also bound other jobs' steps, so the slice is taken inside
+    // the browser job and must be non-empty before it can prove anything.
+    const browserJobStart = source.indexOf("\n  browser:\n");
+    expect(browserJobStart).toBeGreaterThan(-1);
+    const browserStepStart = source.indexOf(
+      "- name: Validate CSF browser workflows",
+      browserJobStart,
     );
+    const browserStepEnd = source.indexOf(
+      "- name: Verify isolated Supabase remains healthy",
+      browserStepStart,
+    );
+    expect(browserStepStart).toBeGreaterThan(browserJobStart);
+    expect(browserStepEnd).toBeGreaterThan(browserStepStart);
+    const csfBrowserStep = source.slice(browserStepStart, browserStepEnd);
+    expect(csfBrowserStep).toContain("run: bun run csf:test:e2e");
     expect(csfBrowserStep).not.toContain("if:");
+    expect(source.split("- name: Validate CSF browser workflows").length).toBe(
+      2,
+    );
   });
 
   test("the hermetic fake CLI cannot collude with the implementation's resource list", async () => {

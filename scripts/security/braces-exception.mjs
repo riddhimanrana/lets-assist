@@ -19,7 +19,7 @@ export const BRACES_EXCEPTION = Object.freeze({
   affectedGraphs: [".", "lib/plugins/private/apps/csf"],
   sourceHashes: {
     "scripts/run-tests.mjs":
-      "647a0ce32e5289ea36cbabf015d3cedb8a33953ed6f567322baa552558ed7a8b",
+      "4f3f949ae7ee2cddf794f9d0bca7f56286d25d2ed646b42975183576cf35950c",
     "scripts/generate-audit-surface-inventory.mjs":
       "83018c843b436145cb11e99ac6ab48de52547854505062da943e7be789b1d36a",
     "next-sitemap.config.js":

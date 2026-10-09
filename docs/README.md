@@ -29,6 +29,7 @@ This directory is the canonical documentation home for humans and coding agents.
 
 - [Environment model](development/environments.md)
 - [Testing and acceptance](development/testing.md)
+- [CI pipeline](development/ci-pipeline.md): jobs, sharding, the local preflight, and pin regeneration.
 - [Account data exports](development/account-exports.md): scope, private downloads, durable processing, and recovery.
 - [Telemetry privacy](development/telemetry-privacy.md)
 - [Source maintenance](development/source-maintenance.md)

@@ -3,6 +3,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { shardFromArguments } from "./test-shards.mjs";
 
 // Filesystem and subprocess contracts are common here. Keep selection at the
 // application/tooling boundary instead of guessing edges from imports alone.
@@ -16,7 +17,7 @@ export function requiresUnitTests(changedFiles) {
   );
 }
 
-export function unitTestArguments(changedFiles) {
+export function unitTestArguments(changedFiles, shard = null) {
   const applicationOnly = changedFiles.every(
     (file) =>
       /^(?:app|components|services|lib)\//u.test(file) &&
@@ -25,12 +26,34 @@ export function unitTestArguments(changedFiles) {
   return [
     "scripts/run-tests.mjs",
     ...(applicationOnly ? ["--application-only"] : []),
+    // The orchestrator owns the partition. Every shard receives the same scope
+    // from the same diff, so the shards of one run cover the same inventory.
+    ...(shard ? [`--shard=${shard.index}/${shard.total}`] : []),
   ];
+}
+
+export function affectedArguments(args) {
+  const positional = args.filter((argument) => !argument.startsWith("--"));
+  const flags = args.filter((argument) => argument.startsWith("--"));
+  if (
+    positional.length !== 1 ||
+    flags.some((flag) => !flag.startsWith("--shard"))
+  ) {
+    throw new Error(
+      "Usage: run-affected-unit-tests.mjs <base-sha> [--shard=<index>/<total>]",
+    );
+  }
+  return { baseSha: positional[0], shard: shardFromArguments(flags) };
 }
 
 export function runAffectedUnitTests(
   baseSha,
-  { exec = execFileSync, spawn = spawnSync, log = console.log } = {},
+  {
+    exec = execFileSync,
+    spawn = spawnSync,
+    log = console.log,
+    shard = null,
+  } = {},
 ) {
   if (!/^[0-9a-f]{40}$/u.test(baseSha ?? "")) {
     throw new Error("An exact 40-character pull request base SHA is required.");
@@ -51,10 +74,14 @@ export function runAffectedUnitTests(
   log(
     `[affected-tests] ${changedFiles.length} changed paths; running affected unit groups with existing mock isolation.`,
   );
-  const result = spawn(process.execPath, unitTestArguments(changedFiles), {
-    stdio: "inherit",
-    env: process.env,
-  });
+  const result = spawn(
+    process.execPath,
+    unitTestArguments(changedFiles, shard),
+    {
+      stdio: "inherit",
+      env: process.env,
+    },
+  );
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(
@@ -66,7 +93,6 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  if (process.argv.length !== 3)
-    throw new Error("Usage: run-affected-unit-tests.mjs <base-sha>");
-  runAffectedUnitTests(process.argv[2]);
+  const { baseSha, shard } = affectedArguments(process.argv.slice(2));
+  runAffectedUnitTests(baseSha, { shard });
 }

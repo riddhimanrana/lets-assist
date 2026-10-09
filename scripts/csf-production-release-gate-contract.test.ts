@@ -111,10 +111,13 @@ describe("CSF Production release preflight", () => {
     const workflows = [
       {
         source: ciWorkflow,
+        // Five jobs check out code (static, unit, build, database, browser),
+        // each with a root and a private checkout. The database and browser
+        // jobs each start their own stack.
         counts: {
-          "actions/checkout": 4,
-          "oven-sh/setup-bun": 2,
-          "supabase/setup-cli": 1,
+          "actions/checkout": 10,
+          "oven-sh/setup-bun": 5,
+          "supabase/setup-cli": 2,
         },
       },
       {
@@ -1013,15 +1016,38 @@ describe("CSF Production release preflight", () => {
   });
 
   test("the reusable preflight includes root, plugin, build, scale, and browser gates", () => {
+    // Each gate runs in its own job. The two checks release verification reads
+    // (full-quality and db-replay-validation) need every one of those jobs and
+    // fail unless each succeeded, so the preflight still requires all of them.
+    const full =
+      "github.event_name != 'pull_request' && github.event_name != 'merge_group'";
     const quality = jobBlock(ciWorkflow, "quality");
     const replay = jobBlock(ciWorkflow, "db-replay-validation");
 
-    expect(quality).toContain("run: bun run test");
-    expect(quality).toContain("run: bun run build");
-    expect(quality).toContain("run: bun run plugin:apps:check");
-    expect(replay).toContain("run: bun run csf:test:workflows");
-    expect(replay).toContain("bun run csf:test:scale");
-    expect(replay).toContain("bun run csf:test:import:scale");
-    expect(replay).toContain("run: bun run csf:test:e2e");
+    expect(jobBlock(ciWorkflow, "unit")).toContain(
+      `- name: Root and plugin tests\n        if: ${full}\n        run: bun run test --shard=`,
+    );
+    expect(jobBlock(ciWorkflow, "build")).toContain("run: bun run build");
+    expect(jobBlock(ciWorkflow, "static")).toContain(
+      `- name: Check independent plugin applications\n        if: ${full}\n        run: bun run plugin:apps:check\n`,
+    );
+    expect(quality).toContain("'pr-quality' || 'full-quality'");
+    expect(quality).toContain("      - static\n      - unit\n      - build\n");
+    for (const result of ["STATIC_RESULT", "UNIT_RESULT", "BUILD_RESULT"]) {
+      expect(quality).toContain(`[[ "\${${result}}" == "success" ]]`);
+    }
+
+    const database = jobBlock(ciWorkflow, "database");
+    expect(database).toContain("run: bun run csf:test:workflows");
+    expect(database).toContain("bun run csf:test:scale");
+    expect(database).toContain("bun run csf:test:import:scale");
+    expect(jobBlock(ciWorkflow, "browser")).toContain(
+      "run: bun run csf:test:e2e",
+    );
+    expect(replay).toContain("    name: db-replay-validation\n");
+    expect(replay).toContain("      - database\n      - browser\n");
+    for (const result of ["DATABASE_CHECKS_RESULT", "BROWSER_RESULT"]) {
+      expect(replay).toContain(`[[ "\${${result}}" == "success" ]]`);
+    }
   });
 });

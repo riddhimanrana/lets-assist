@@ -85,9 +85,11 @@
     "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "clean:artifacts:apply": "node scripts/clean-artifacts.mjs --apply",
     "lint": "bun run source:check:organization && eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental --tsBuildInfoFile .artifacts/typescript/tsconfig.tsbuildinfo",
     "email:dev": "email dev",
     "test:affected": "node scripts/ci/run-affected-unit-tests.mjs",
+    "ci:preflight": "bun scripts/ci/preflight.mjs",
+    "ci:pins": "node scripts/ci/update-generated-pins.mjs",
     "local:env:health": "node scripts/local-dev/dv-local-env.mjs --health"
   },
   "packageManager": "bun@1.4.2",
