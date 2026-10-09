@@ -23,13 +23,15 @@ const STAFF_TAB_URL = `${CSF_ORGANIZATION_PATH}?tab=csf-staff`;
  * The distinct staff-access concepts. Each one is its own desktop column and its
  * own phone label, so a reader can never confuse the CSF officer record with the
  * Let's Assist account, or the public title with the internal responsibility.
+ *
+ * "Effective dates" is not in this list. The roster shows it only when an
+ * assignment has a start or end date, and the seeded officer has neither.
  */
 const staffConcepts = [
   "Officer",
   "Let's Assist account",
   "Public position",
   "Responsibility",
-  "Effective dates",
   "Access status",
   "Action",
 ] as const;
@@ -135,7 +137,9 @@ test.describe("DVHS CSF staff access presentation", () => {
     await expect(
       page.getByRole("heading", { name: "Position seats", exact: true }),
     ).toBeVisible();
-    for (const concept of ["Position", "Seats", "Type", "Access"]) {
+    // No "Type" header: the column shows only when the positions differ in
+    // type, and every seeded position is a chapter position.
+    for (const concept of ["Position", "Seats", "Access"]) {
       await expect(
         page.getByRole("columnheader", { name: concept, exact: true }),
       ).toBeVisible();
@@ -166,7 +170,6 @@ test.describe("DVHS CSF staff access presentation", () => {
       "Let's Assist account",
       "Public position",
       "Responsibility",
-      "Effective dates",
       "Access status",
     ]) {
       await expect(
