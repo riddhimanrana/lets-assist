@@ -80,7 +80,7 @@ interface ComparisonFeature {
 
 const comparisonFeatures: ComparisonFeature[] = [
   {
-    name: "QR Check-in/out",
+    name: "QR check-in and check-out",
     description: "Contactless attendance verification",
     letsAssist: true,
     signupGenius: false,
@@ -88,7 +88,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     icon: QrCode,
   },
   {
-    name: "Auto Certificates",
+    name: "Auto certificates",
     description: "PDF certificates generated automatically",
     letsAssist: true,
     signupGenius: false,
@@ -96,7 +96,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     icon: Award,
   },
   {
-    name: "Verified Hours",
+    name: "Verified hours",
     description: "Supervisor-verified time tracking",
     letsAssist: true,
     signupGenius: false,
@@ -104,49 +104,49 @@ const comparisonFeatures: ComparisonFeature[] = [
     icon: Shield,
   },
   {
-    name: "Organization Roles",
+    name: "Organization roles",
     description: "Admin, staff, and member permissions",
     letsAssist: true,
     signupGenius: false,
     icon: Users,
   },
   {
-    name: "Personal Dashboard",
+    name: "Personal dashboard",
     description: "Track all your volunteer hours",
     letsAssist: true,
     signupGenius: false,
     icon: BarChart3,
   },
   {
-    name: "CSV Exports",
+    name: "CSV exports",
     description: "Export hours for your records",
     letsAssist: true,
     signupGenius: "Premium only",
     icon: FileText,
   },
   {
-    name: "Calendar Sync",
+    name: "Calendar sync",
     description: "Add events to Google Calendar",
     letsAssist: true,
     signupGenius: true,
     icon: Calendar,
   },
   {
-    name: "Email Confirmations",
+    name: "Email confirmations",
     description: "Automated signup confirmations",
     letsAssist: true,
     signupGenius: true,
     icon: Mail,
   },
   {
-    name: "Multiple Event Types",
+    name: "Multiple event types",
     description: "One-time, multi-day, same-day slots",
     letsAssist: true,
     signupGenius: "Limited",
     icon: Clock,
   },
   {
-    name: "COPPA Compliance",
+    name: "COPPA compliance",
     description: "Parental consent for minors",
     letsAssist: true,
     signupGenius: false,
@@ -216,8 +216,9 @@ function ModernDashboardMockup() {
   const cursorVariants = {
     BROWSING: {
       opacity: 1,
-      left: ["90%", "50%", "50%"],
-      top: ["90%", "45%", "65%"], // Adjusted top to 65% for better alignment with "View Details" button
+      // Rests beside the "View details" label, not on it.
+      left: ["90%", "78%", "78%"],
+      top: ["90%", "45%", "65%"],
       scale: [1, 1, 0.9],
       transition: {
         duration: 2,
@@ -228,8 +229,9 @@ function ModernDashboardMockup() {
     },
     DETAILS: {
       opacity: 1,
-      left: ["50%", "25%", "25%", "75%", "75%"],
-      top: ["65%", "85%", "85%", "85%", "85%"],
+      // Rests on the trailing edge of each button, clear of its label.
+      left: ["78%", "43%", "43%", "93%", "93%"],
+      top: ["65%", "89%", "89%", "89%", "89%"],
       scale: [1, 1, 0.9, 1, 0.9],
       transition: {
         duration: 2.5,
@@ -275,11 +277,7 @@ function ModernDashboardMockup() {
       transition={{ duration: 0.6, delay: 0.3 }}
       className="relative w-full h-[320px] sm:h-[400px]"
     >
-      {/* Glow effect */}
-
-      <div className="absolute -inset-2 sm:-inset-4 bg-linear-to-r from-primary/10 via-info/10 to-primary/10 rounded-2xl sm:rounded-3xl blur-xl sm:blur-2xl opacity-60" />
-
-      <div className="relative w-full h-full rounded-xl sm:rounded-2xl border border-primary/20 bg-background/80 backdrop-blur-md overflow-hidden flex flex-col shadow-2xl">
+      <div className="relative w-full h-full rounded-xl sm:rounded-2xl border bg-background overflow-hidden flex flex-col shadow-(--card-shadow)">
         {/* Browser chrome */}
 
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border/40 bg-muted/20 shrink-0 z-20">
@@ -328,7 +326,7 @@ function ModernDashboardMockup() {
               >
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-sm font-semibold">
-                    Explore Opportunities
+                    Explore opportunities
                   </h3>
 
                   <Badge variant="secondary" className="text-[10px]">
@@ -369,7 +367,7 @@ function ModernDashboardMockup() {
                     </div>
 
                     <Button size="sm" className="w-full h-7 text-[10px]">
-                      View Details
+                      View details
                     </Button>
                   </div>
 
@@ -425,7 +423,7 @@ function ModernDashboardMockup() {
                         height={12}
                         alt="GCal"
                       />
-                      Add to Calendar
+                      Add to calendar
                     </Button>
                   </motion.div>
 
@@ -434,7 +432,7 @@ function ModernDashboardMockup() {
                     transition={{ delay: 2.2, duration: 0.3 }}
                     className="w-full"
                   >
-                    <Button className="w-full h-8 text-xs">Sign Up Now</Button>
+                    <Button className="w-full h-8 text-xs">Sign up now</Button>
                   </motion.div>
                 </div>
               </motion.div>
@@ -494,7 +492,7 @@ function ModernDashboardMockup() {
                 >
                   <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-xl flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
-                    <span className="font-bold text-xs">Checked In!</span>
+                    <span className="font-bold text-xs">Checked in</span>
                   </div>
                 </motion.div>
               </motion.div>
@@ -533,7 +531,7 @@ function ModernDashboardMockup() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">Certificate Earned!</p>
+                    <p className="text-sm font-semibold">Certificate earned</p>
 
                     <p className="text-xs text-muted-foreground line-clamp-2">
                       "Community Garden Cleanup" hours verified. Click to view.
@@ -553,7 +551,7 @@ function ModernDashboardMockup() {
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center justify-center h-full p-4"
               >
-                <div className="bg-card text-card-foreground p-1 rounded-lg shadow-2xl w-full max-w-sm relative">
+                <div className="bg-card text-card-foreground p-1 rounded-lg border shadow-(--card-shadow) w-full max-w-sm relative">
                   {/* Decorative Border */}
                   <div className="border-[6px] border-double border-primary/20 rounded-md p-4 sm:p-6 bg-background relative overflow-hidden h-full flex flex-col items-center text-center">
                     {/* Watermark */}
@@ -687,11 +685,11 @@ function ModernDashboardMockup() {
                   ))}
                 </div>
 
-                {/* Recent Activity List */}
+                {/* Recent activity List */}
 
                 <div className="space-y-2 pt-1">
                   <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                    Recent Activity
+                    Recent activity
                   </p>
 
                   <div className="flex items-center gap-2 p-2 rounded bg-primary/5 border border-primary/10">
@@ -987,7 +985,7 @@ export default function ComparisonSection() {
       {/* Background gradient */}
       <div className="absolute inset-0 bg-linear-to-b from-background via-muted/20 to-background" />
 
-      <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         {/* Section header with text flip */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1070,13 +1068,13 @@ export default function ComparisonSection() {
           viewport={{ once: true }}
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
         >
-          <Card className="overflow-hidden border-border/60 shadow-xl py-[-2]">
+          <Card className="overflow-hidden border-border/60 py-[-2]">
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[360px]">
                 <TableHeader>
                   <TableRow className="border-b border-border bg-muted/30">
                     <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground">
-                      Feature Comparison
+                      Feature comparison
                     </TableHead>
                     <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
                       <div className="flex flex-col items-center gap-1 sm:gap-1.5">

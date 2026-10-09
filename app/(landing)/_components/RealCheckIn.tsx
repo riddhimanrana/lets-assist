@@ -5,7 +5,7 @@ import { Scribble, ScribbleArrow } from "./Scribble";
 export function RealCheckIn() {
   return (
     <section id="check-in" className="border-y bg-muted/20 py-16 sm:py-24">
-      <div className="container mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             This is what check-in looks like

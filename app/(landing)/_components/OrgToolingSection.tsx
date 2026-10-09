@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Activity,
   ArrowRight,
@@ -1634,7 +1634,17 @@ function DemoPluginMarketplace() {
   );
 }
 
+// The mock uses the phone section switcher, so the tab strip is never cut off.
+const DEMO_NAVIGATION = { compactHeader: true };
+const ctaClassName = buttonVariants({
+  size: "lg",
+  variant: "outline",
+  className: "gap-2",
+});
+
 export default function OrgToolingSection() {
+  // Below `sm` the mock drops Invite so the header actions stay on one line.
+  const isWide = useMediaQuery("(min-width: 640px)");
   const handleMockOrganizationClick = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const projectLink = target.closest('a[href^="/projects"]');
@@ -1651,7 +1661,7 @@ export default function OrgToolingSection() {
 
   return (
     <section id="org-tooling" className="py-16 sm:py-20">
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1683,7 +1693,7 @@ export default function OrgToolingSection() {
           transition={{ duration: 0.5 }}
           className="relative mx-auto mt-12 w-full max-w-6xl"
         >
-          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
+          <div className="relative rounded-2xl border bg-card shadow-(--card-shadow)">
             <div
               className="p-4 sm:p-6"
               onClickCapture={handleMockOrganizationClick}
@@ -1692,6 +1702,7 @@ export default function OrgToolingSection() {
                 organization={mockOrganization}
                 userRole="admin"
                 memberCount={mockMembers.length}
+                showInviteAction={isWide}
               />
               <div className="mt-6">
                 <OrganizationTabs
@@ -1705,6 +1716,7 @@ export default function OrgToolingSection() {
                   demoReportsContent={<OrganizationAnalyticsDemo />}
                   demoAdminToolsContent={<DemoPluginMarketplace />}
                   pluginTabs={demoPluginTabs}
+                  pluginNavigationOverrides={DEMO_NAVIGATION}
                   demoMemberHours={demoMemberHours}
                   demoMemberDetails={demoMemberDetails}
                 />
@@ -1755,23 +1767,11 @@ export default function OrgToolingSection() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Link
-              href="/contact"
-              className={cn(buttonVariants({ size: "lg", className: "gap-2" }))}
-            >
+            <Link href="/contact" className={ctaClassName}>
               Contact us for integrations
               <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link
-              href="/organization"
-              className={cn(
-                buttonVariants({
-                  size: "lg",
-                  variant: "outline",
-                  className: "gap-2",
-                }),
-              )}
-            >
+            <Link href="/organization" className={ctaClassName}>
               Explore connected organizations
               <ArrowRight className="h-4 w-4" />
             </Link>

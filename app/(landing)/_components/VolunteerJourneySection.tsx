@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useInView } from "motion/react";
+import {
+  AnimatePresence,
+  motion,
+  useInView,
+  useReducedMotion,
+} from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Mail, QrCode, BarChart3, Award } from "lucide-react";
 import { MiniProjectCard } from "./journey/MiniProjectCard";
@@ -46,7 +51,7 @@ const steps = [
 // Mock data for real UI components
 const mockProjectData = {
   title: "Bellingham Square Park Cleanup",
-  location: "Santa Ramon, California",
+  location: "San Ramon, California",
   date: "Nov 23 • 9:00 AM",
   spotsLeft: 3,
   totalSpots: 20,
@@ -75,9 +80,10 @@ export default function VolunteerJourneySection() {
   const [active, setActive] = useState(0);
   const sectionRef = useRef<HTMLDivElement>(null);
   const sectionInView = useInView(sectionRef, { amount: 0.3 });
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    if (!sectionInView) {
+    if (!sectionInView || shouldReduceMotion) {
       return;
     }
 
@@ -86,7 +92,7 @@ export default function VolunteerJourneySection() {
       3000,
     );
     return () => clearInterval(id);
-  }, [sectionInView]);
+  }, [sectionInView, shouldReduceMotion]);
 
   const previews = useMemo(
     () => ({
@@ -110,7 +116,7 @@ export default function VolunteerJourneySection() {
 
   return (
     <section id="journey" ref={sectionRef} className="py-16 sm:py-20">
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -146,12 +152,15 @@ export default function VolunteerJourneySection() {
           </p>
         </motion.div>
 
-        <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-2 items-start">
-          <div className="order-2 lg:order-1">
-            <div className="rounded-2xl border border-border/60 bg-background/80 shadow-md overflow-hidden">
+        {/* The preview comes first so it sits above the steps on a phone. */}
+        <div className="grid grid-cols-1 items-center gap-4 sm:gap-6 md:grid-cols-2">
+          <div>
+            {/* A fixed floor keeps the steps from jumping as previews change. */}
+            <div className="flex min-h-88 items-center justify-center">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={steps[active].key}
+                  className="w-full"
                   initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -12 }}
@@ -173,7 +182,7 @@ export default function VolunteerJourneySection() {
             </div>
           </div>
 
-          <div className="order-1 lg:order-2 grid gap-4">
+          <div className="grid gap-4">
             {steps.map((step, i) => (
               <motion.div
                 key={step.label}

@@ -18,7 +18,7 @@ export const HeroVideo = () => {
       id="product-demo"
       className="relative py-12 sm:py-16 overflow-hidden"
     >
-      <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

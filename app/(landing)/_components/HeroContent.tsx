@@ -45,7 +45,8 @@ const {
   coordinatorImage: COORDINATOR_IMAGE,
 } = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const PROJECT_HREF = `/projects/${PROJECT_ID}`;
-const PROJECT_DISPLAY_URL = `lets-assist.com/projects/${PROJECT_ID}`;
+// Display only. The demo links still point at PROJECT_HREF.
+const PROJECT_DISPLAY_URL = "lets-assist.com/projects/santa-cruz-beach-cleanup";
 
 const attendees = [
   { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
@@ -120,7 +121,7 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 const platformHighlights = [
   {
     icon: QrCode,
-    title: "QR-Code Verification at events",
+    title: "QR code check-in at events",
     desc: "Check volunteers in on-site and keep attendance tied to the project record.",
   },
   {
@@ -130,7 +131,7 @@ const platformHighlights = [
   },
   {
     icon: null,
-    title: "Google Sheets/Calendar Syncing",
+    title: "Google Sheets and Calendar sync",
     desc: "Push project rosters and dates into the tools your organization already uses.",
     logos: [
       {
@@ -183,20 +184,12 @@ function MotionLinkButton({
       initial={false}
       whileHover={shouldReduceMotion ? undefined : "hover"}
       whileTap={shouldReduceMotion ? undefined : "tap"}
-      variants={{
-        hover: { y: -2 },
-        tap: { y: 1, scale: 0.985 },
-      }}
-      transition={{ type: "spring", stiffness: 420, damping: 28 }}
     >
       <Button
         asChild
         variant={tone === "solid" ? "default" : "outline"}
         className={cn(
-          "group relative h-11 w-full overflow-hidden rounded-full px-5 text-sm font-medium shadow-xs sm:w-auto",
-          tone === "solid"
-            ? "bg-foreground text-background hover:bg-foreground/90"
-            : "border-border bg-background/80 text-foreground backdrop-blur hover:bg-accent",
+          "group relative h-11 w-full overflow-hidden rounded-full px-5 sm:w-auto",
           className,
         )}
       >
@@ -334,7 +327,7 @@ export function ProjectDemo() {
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       className="relative mx-auto w-full max-w-6xl"
     >
-      <Card className="relative overflow-hidden border shadow-2xl shadow-primary/5">
+      <Card className="relative overflow-hidden border">
         <CardContent className="p-0">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_390px]">
             <div className="p-4 sm:p-6 lg:p-8">
@@ -585,7 +578,7 @@ function buildDemoProject(): {
     username: "riddhimanrana",
     full_name: "Riddhiman Rana",
     avatar_url: COORDINATOR_IMAGE,
-    email: "riddhiman.rana@gmail.com",
+    email: "volunteer@example.org",
     created_at: "2024-01-01T00:00:00.000Z",
     profile_visibility: "public",
     trusted_member: true,
@@ -820,7 +813,7 @@ function RealProjectDemoWindow() {
     >
       <div
         ref={demoWindowRef}
-        className="relative overflow-hidden rounded-[1.75rem] border border-primary/25 bg-background shadow-2xl shadow-primary/10 ring-1 ring-primary/15"
+        className="relative overflow-hidden rounded-[1.75rem] border bg-background shadow-(--card-shadow)"
         onClickCapture={(event) => {
           const target = event.target as HTMLElement;
           if (target.closest("[data-demo-scroll-toggle]")) {
@@ -933,7 +926,7 @@ export const HeroContent = () => {
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
 
   return (
-    <section className="container relative isolate mx-auto w-full px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
+    <section className="relative isolate mx-auto w-full max-w-6xl px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
         <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
           <DialogTrigger
@@ -983,7 +976,7 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="mt-5 max-w-5xl text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
+        <h1 className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
           The modern way to do{" "}
           <span className="block text-primary">volunteering</span>
         </h1>
@@ -1030,7 +1023,7 @@ export const HeroContent = () => {
         className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
       >
         {platformHighlights.map((item) => (
-          <Card key={item.title} className="bg-card/80 shadow-xs backdrop-blur">
+          <Card key={item.title}>
             <CardContent className="p-4">
               <div className="mb-4 flex h-10 items-center">
                 {item.logos ? (

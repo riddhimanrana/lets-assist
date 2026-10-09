@@ -20,16 +20,16 @@ export const CallToAction = () => {
       {/* <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div> */}
       {/* <div className="absolute -right-20 top-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow"></div> */}
 
-      <div className="container relative mx-auto ">
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center space-y-8 max-w-3xl mx-auto px-4"
+          className="text-center space-y-8 max-w-3xl mx-auto"
         >
           <div className="relative inline-block">
-            <div className="absolute inset-0 bg-linear-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow motion-reduce:animate-none"></div>
             <HeartHandshake className="w-16 h-16 text-primary mx-auto relative z-10" />
           </div>
 
@@ -38,6 +38,10 @@ export const CallToAction = () => {
               <AnimatedText text="Who will you help next?" mode="words" />
             </h2>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+              <Button asChild size="lg" className="rounded-full px-6">
+                <Link href="/signup">Make a difference</Link>
+              </Button>
+
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger
                   render={
@@ -45,9 +49,9 @@ export const CallToAction = () => {
                       type="button"
                       variant="outline"
                       size="lg"
-                      className="rounded-full border-border/70 bg-background/80 px-7 text-base shadow-xs"
+                      className="rounded-full px-6"
                     >
-                      <Play className="mr-2 size-5" />
+                      <Play data-icon="inline-start" aria-hidden="true" />
                       Play demo video
                     </Button>
                   }
@@ -66,12 +70,6 @@ export const CallToAction = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-
-              <Link href="/signup">
-                <Button size="lg" className="rounded-full px-8">
-                  Make a Difference
-                </Button>
-              </Link>
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground">

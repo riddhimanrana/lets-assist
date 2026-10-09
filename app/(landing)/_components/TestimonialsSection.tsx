@@ -109,7 +109,7 @@ export default function TestimonialsSection() {
 
   return (
     <section className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20">
-      <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto mb-9 max-w-3xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             What teachers and advisors told us
@@ -120,9 +120,22 @@ export default function TestimonialsSection() {
           </p>
         </div>
 
-        <div className="relative mx-auto max-w-6xl overflow-hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-linear-to-r from-background to-transparent sm:w-20" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-linear-to-l from-background to-transparent sm:w-20" />
+        {/*
+          The fade is as wide as a card's padding, so the first and last quotes
+          stay readable at rest. Without motion the row scrolls by hand.
+        */}
+        <div
+          className={cn(
+            "relative",
+            shouldReduceMotion ? "overflow-x-auto" : "overflow-hidden",
+          )}
+        >
+          {shouldReduceMotion ? null : (
+            <>
+              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-5 bg-linear-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-linear-to-l from-background to-transparent" />
+            </>
+          )}
 
           <motion.div
             className="flex w-max gap-4 py-1"
