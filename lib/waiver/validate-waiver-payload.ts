@@ -18,6 +18,7 @@ interface WaiverDefinitionForValidation {
     field_type: string;
     label: string;
     required: boolean;
+    signer_role_key?: string | null;
   }>;
 }
 
@@ -69,14 +70,34 @@ export function validateWaiverPayload(
   }
 
   // Check 3: Required non-signature fields (only if strictFieldValidation is true)
-  // Phase 1-3: Skip this check since UI doesn't collect these fields yet
-  // Phase 4: Enable this when UI implements field collection
+  //
+  // A field that belongs to an OPTIONAL signer who did not sign is not asked
+  // for: that signer skipped their whole section, so an adult can finish a
+  // waiver whose optional Parent/Guardian has a required field. Nothing is
+  // relaxed for a required signer, for an optional signer who did sign, for a
+  // field with no signer, or for a field whose signer is not in the definition.
   if (strictFieldValidation) {
+    const signersByRole = new Map(
+      (definition.signers ?? []).map((signer) => [signer.role_key, signer]),
+    );
+    const belongsToSkippedOptionalSigner = (
+      roleKey: string | null | undefined,
+    ) => {
+      if (!roleKey) return false;
+      const signer = signersByRole.get(roleKey);
+      return (
+        signer !== undefined &&
+        signer.required === false &&
+        !providedRoleKeys.has(roleKey)
+      );
+    };
+
     const requiredFields =
       definition.fields?.filter(
         (f) => f.required && f.field_type !== "signature",
       ) || [];
     for (const field of requiredFields) {
+      if (belongsToSkippedOptionalSigner(field.signer_role_key)) continue;
       if (!payload.fields || !payload.fields[field.field_key]) {
         errors.push(`Required field missing: ${field.label}`);
       }

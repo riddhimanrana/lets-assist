@@ -1,7 +1,7 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Project, WaiverDefinitionFull } from "@/types";
 import type { AuthUser } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
@@ -43,6 +43,18 @@ export function useProjectSignupState({
   );
   const [waiverDefinition, setWaiverDefinition] =
     useState<WaiverDefinitionFull | null>(null);
+  // The signing dialog must not start until the project's real waiver form is
+  // known. A waiver project starts as "loading", never as "ready".
+  const [waiverDefinitionStatus, setWaiverDefinitionStatus] = useState<
+    "loading" | "ready" | "error"
+  >(project.waiver_required ? "loading" : "ready");
+  const expectsWaiverDefinition = Boolean(
+    (project as { waiver_definition_id?: string | null }).waiver_definition_id,
+  );
+  const [waiverDefinitionAttempt, setWaiverDefinitionAttempt] = useState(0);
+  const retryWaiverDefinition = useCallback(() => {
+    setWaiverDefinitionAttempt((attempt) => attempt + 1);
+  }, []);
   const [completedSignup, setCompletedSignup] = useState<{
     signupId: string;
     scheduleId: string;
@@ -120,8 +132,12 @@ export function useProjectSignupState({
   }, [user, project.id]);
 
   useEffect(() => {
-    if (!project.waiver_required) return;
+    if (!project.waiver_required) {
+      setWaiverDefinitionStatus("ready");
+      return;
+    }
     let isMounted = true;
+    setWaiverDefinitionStatus("loading");
 
     const fetchWaiverConfig = async () => {
       try {
@@ -130,14 +146,21 @@ export function useProjectSignupState({
 
         if (result.error) {
           safeConsole.error("Error fetching waiver config:", result.error);
+          setWaiverDefinitionStatus("error");
           return;
         }
 
-        if (result.definition) {
-          setWaiverDefinition(result.definition as WaiverDefinitionFull);
-        }
+        const definition =
+          (result.definition as WaiverDefinitionFull | null) ?? null;
+        // A project with no saved definition is a valid, loaded answer. One
+        // that points at a definition and came back without it is not.
+        setWaiverDefinition(definition);
+        setWaiverDefinitionStatus(
+          expectsWaiverDefinition && !definition ? "error" : "ready",
+        );
       } catch (error) {
         safeConsole.error("Error fetching waiver configuration:", error);
+        if (isMounted) setWaiverDefinitionStatus("error");
       }
     };
 
@@ -146,7 +169,12 @@ export function useProjectSignupState({
     return () => {
       isMounted = false;
     };
-  }, [project.id, project.waiver_required]);
+  }, [
+    project.id,
+    project.waiver_required,
+    expectsWaiverDefinition,
+    waiverDefinitionAttempt,
+  ]);
 
   return {
     loadingStates,
@@ -159,6 +187,8 @@ export function useProjectSignupState({
     attendedSlots,
     pendingSlots,
     waiverDefinition,
+    waiverDefinitionStatus,
+    retryWaiverDefinition,
     completedSignup,
   };
 }

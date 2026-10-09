@@ -14,6 +14,7 @@ import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import crypto from "crypto";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { validateWaiverPayload } from "@/lib/waiver/validate-waiver-payload";
+import { waiverSignatureTypeError } from "@/lib/waiver/signature-type-policy";
 import { getPluginRegistry } from "@/lib/plugins/registry";
 import { runPluginOnSignup } from "@/lib/plugins/lifecycle";
 import { resolveOrganizationPlugins } from "@/lib/plugins/resolve-org-plugins";
@@ -179,6 +180,22 @@ export async function signUpForProject(
     }
 
     if (waiverSignature) {
+      // The project row, never the request, decides which signature types are
+      // acceptable. A crafted call cannot satisfy a multi-signer definition
+      // with one typed string or e-sign a project that turned e-signing off.
+      const projectDefinitionId =
+        (project as { waiver_definition_id?: string | null })
+          .waiver_definition_id ?? null;
+      const signatureTypeError = waiverSignatureTypeError({
+        signatureType: waiverSignature.signatureType,
+        hasDefinition: Boolean(projectDefinitionId),
+        disableEsignature: project.waiver_disable_esignature === true,
+      });
+      if (signatureTypeError) {
+        logSignupDebug(traceId, "blocked_waiver_signature_type");
+        return { error: signatureTypeError };
+      }
+
       const hasDefinitionId =
         typeof waiverSignature.definitionId === "string" &&
         waiverSignature.definitionId.trim().length > 0;
@@ -249,6 +266,11 @@ export async function signUpForProject(
         }
 
         const { definition } = waiverInfo;
+
+        // A project that points at a definition is never signed without it.
+        if (projectDefinitionId && !definition) {
+          return { error: "Failed to load waiver configuration" };
+        }
 
         if (definition) {
           // Validate against waiver definition

@@ -6,6 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
+import {
+  WAIVER_SIGNED_URL_TTL_SECONDS,
+  checkWaiverAccess,
+} from "@/lib/waiver/preview-auth-helpers";
 import { WAIVER_SIGNATURE_BUCKET } from "./shared";
 
 export async function getUserProfile() {
@@ -44,18 +48,30 @@ export async function getUserProfile() {
   }
 }
 
+/**
+ * Resolves how the caller may open the signed waiver for one signup.
+ *
+ * Only the project creator, an active organization admin, active staff when
+ * the project allows staff management, or the signer (signed in, or a guest
+ * holding the validated access token) gets an answer. The signup id is only
+ * ever used to look the record up. Every other fact comes from the database.
+ */
 export async function getWaiverDownloadUrl(
   signupId: string,
   anonymousSignupId?: string,
   anonymousSignupToken?: string,
 ) {
   "use server";
-  const supabase = await createClient();
   const serviceSupabase = getAdminClient();
 
   try {
     // Get current user using getClaims() for better performance
     const { user } = await getAuthUser();
+
+    // Nobody without a session or a guest link has any path to a waiver.
+    if (!user && !anonymousSignupId) {
+      return { error: "Unauthorized" };
+    }
 
     type SignupForWaiver = {
       id: string;
@@ -64,13 +80,14 @@ export async function getWaiverDownloadUrl(
       project?: {
         creator_id: string | null;
         organization_id: string | null;
+        can_be_managed_by_staff: boolean | null;
       } | null;
     };
 
     const { data: signup, error: signupError } = (await serviceSupabase
       .from("project_signups")
       .select(
-        "id, user_id, anonymous_id, project:projects!project_signups_project_id_fkey(creator_id, organization_id)",
+        "id, user_id, anonymous_id, project:projects!project_signups_project_id_fkey(creator_id, organization_id, can_be_managed_by_staff)",
       )
       .eq("id", signupId)
       .single()) as {
@@ -78,43 +95,58 @@ export async function getWaiverDownloadUrl(
       error: { message?: string } | null;
     };
 
-    if (signupError || !signup) {
+    if (signupError || !signup || !signup.project) {
       return { error: "Signup not found" };
     }
 
-    let hasPermission = false;
+    // Membership is read with its status. A failed read refuses the request.
+    let orgMember: { role: string | null; status: string | null } | null = null;
+    if (user && signup.project.organization_id) {
+      const { data, error: orgMemberError } = await serviceSupabase
+        .from("organization_members")
+        .select("role, status")
+        .eq("organization_id", signup.project.organization_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (user) {
-      if (signup.user_id === user.id) {
-        hasPermission = true;
-      } else if (signup.project?.creator_id === user.id) {
-        hasPermission = true;
-      } else if (signup.project?.organization_id) {
-        const { data: orgMember } = await supabase
-          .from("organization_members")
-          .select("role")
-          .eq("organization_id", signup.project.organization_id)
-          .eq("user_id", user.id)
-          .single();
-
-        if (orgMember && ["admin", "staff"].includes(orgMember.role)) {
-          hasPermission = true;
-        }
+      if (orgMemberError) {
+        safeConsole.error("Error loading waiver access membership");
+        return { error: "Unauthorized" };
       }
-    } else if (anonymousSignupId && signup.anonymous_id === anonymousSignupId) {
+      orgMember = data;
+    }
+
+    // The guest path is tried whether or not a session exists, so a signed-in
+    // visitor can open their own guest link. The token is only checked for the
+    // guest record that actually owns this signup.
+    let anonymousAccessValidated = false;
+    if (
+      anonymousSignupId &&
+      signup.anonymous_id &&
+      signup.anonymous_id === anonymousSignupId
+    ) {
       const { data: anonSignup, error: anonAccessError } =
         await getAnonymousSignupAccessRecord({
           anonymousSignupId,
           token: anonymousSignupToken,
           columns: "id",
         });
-
-      if (!anonAccessError && anonSignup) {
-        hasPermission = true;
-      }
+      anonymousAccessValidated = !anonAccessError && Boolean(anonSignup);
     }
 
-    if (!hasPermission) {
+    const access = checkWaiverAccess({
+      currentUserId: user?.id ?? null,
+      signature: {
+        user_id: signup.user_id,
+        anonymous_id: signup.anonymous_id,
+      },
+      project: signup.project,
+      orgMember,
+      anonymousSignupIdParam: anonymousSignupId ?? null,
+      anonymousAccessValidated,
+    });
+
+    if (!access.hasPermission) {
       return { error: "Unauthorized" };
     }
 
@@ -134,7 +166,10 @@ export async function getWaiverDownloadUrl(
     if (waiverSignature.upload_storage_path) {
       const { data: signedUrl, error: urlError } = await serviceSupabase.storage
         .from(WAIVER_SIGNATURE_BUCKET)
-        .createSignedUrl(waiverSignature.upload_storage_path, 3600);
+        .createSignedUrl(
+          waiverSignature.upload_storage_path,
+          WAIVER_SIGNED_URL_TTL_SECONDS,
+        );
 
       if (!urlError && signedUrl?.signedUrl) {
         return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };
@@ -145,7 +180,10 @@ export async function getWaiverDownloadUrl(
     if (waiverSignature.signature_storage_path) {
       const { data: signedUrl, error: urlError } = await serviceSupabase.storage
         .from(WAIVER_SIGNATURE_BUCKET)
-        .createSignedUrl(waiverSignature.signature_storage_path, 3600);
+        .createSignedUrl(
+          waiverSignature.signature_storage_path,
+          WAIVER_SIGNED_URL_TTL_SECONDS,
+        );
 
       if (!urlError && signedUrl?.signedUrl) {
         return { url: signedUrl.signedUrl, signatureId: waiverSignature.id };

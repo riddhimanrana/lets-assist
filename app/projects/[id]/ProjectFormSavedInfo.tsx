@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useWaiverDefinitionLoad } from "@/components/waiver/waiver-signing/WaiverDefinitionLoadContext";
 
 /**
  * Offers the name and email a signed-out volunteer used last time on this
@@ -90,6 +91,10 @@ export function ProjectFormWaiverField({
   onOpen: () => void;
   children: ReactNode;
 }) {
+  // Signing waits for the project's waiver form. A failed load still opens the
+  // dialog, which explains the problem and offers a retry.
+  const waiverFormLoading = useWaiverDefinitionLoad().status === "loading";
+
   return (
     <Field>
       <FieldLabel>Waiver agreement</FieldLabel>
@@ -112,6 +117,7 @@ export function ProjectFormWaiverField({
           onClick={onOpen}
           variant="outline"
           className="w-full sm:w-auto sm:self-start"
+          disabled={waiverFormLoading}
         >
           <PenTool data-icon="inline-start" aria-hidden="true" />
           Sign waiver

@@ -6,8 +6,12 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { type WaiverSignatureInput } from "@/types";
 import {
+  SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+  SIGNED_WAIVER_UPLOAD_TYPES,
+  signedWaiverUploadFailureMessage,
+} from "@/lib/waiver/upload-limits";
+import {
   MAX_WAIVER_SIGNATURE_BYTES,
-  MAX_WAIVER_UPLOAD_BYTES,
   WAIVER_SIGNATURE_BUCKET,
   type WaiverSignatureRecord,
   getRequestMetadata,
@@ -24,18 +28,18 @@ export async function uploadWaiverAsset(params: {
 }) {
   const parsed = parseDataUrl(params.dataUrl);
   if (!parsed) {
-    return { error: "Invalid file data." };
+    return { error: "Invalid file data.", reason: "invalid" as const };
   }
 
   if (
     params.allowedTypes &&
     !params.allowedTypes.includes(parsed.contentType)
   ) {
-    return { error: "Unsupported file type." };
+    return { error: "Unsupported file type.", reason: "type" as const };
   }
 
   if (parsed.size > params.maxBytes) {
-    return { error: "File is too large." };
+    return { error: "File is too large.", reason: "size" as const };
   }
 
   const serviceSupabase = getAdminClient();
@@ -49,7 +53,10 @@ export async function uploadWaiverAsset(params: {
 
   if (uploadError) {
     safeConsole.error("Error uploading waiver asset:", uploadError);
-    return { error: "Failed to upload waiver file." };
+    return {
+      error: "Failed to upload waiver file.",
+      reason: "storage" as const,
+    };
   }
 
   return { path: params.fileName, contentType: parsed.contentType };
@@ -332,14 +339,15 @@ export async function prepareWaiverSignatureRecord(params: {
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.uploadFileDataUrl ?? "",
       fileName: `signed-waivers/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
-      maxBytes: MAX_WAIVER_UPLOAD_BYTES,
-      allowedTypes: ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
+      maxBytes: SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+      allowedTypes: [...SIGNED_WAIVER_UPLOAD_TYPES, "image/jpg"],
     });
 
     if (uploadResult.error || !uploadResult.path) {
       await removeUploadedSignatureAssets();
       return {
-        error: "Failed to store the signed waiver upload.",
+        // Say which rule the file broke, so the volunteer can fix it.
+        error: signedWaiverUploadFailureMessage(uploadResult.reason),
         uploadedPaths: uploadedSignaturePaths,
       };
     }

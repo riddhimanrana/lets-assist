@@ -80,6 +80,16 @@ function normalizeWaiverPdfUrl(url: string | null | undefined): string | null {
 
 import { WaiverSigningStepsPanel } from "./waiver-signing/WaiverSigningStepsPanel";
 import { useWaiverSigningDefinition } from "./waiver-signing/useWaiverSigningDefinition";
+import { useOfflineWaiverUpload } from "./waiver-signing/useOfflineWaiverUpload";
+import {
+  WaiverDefinitionPending,
+  useWaiverDefinitionLoad,
+} from "./waiver-signing/WaiverDefinitionLoadContext";
+import {
+  isSkippableStep,
+  stepIndexAfterSkippingSigner,
+  withoutSkippedSignerValues,
+} from "./waiver-signing/skip-optional-signer";
 
 export function WaiverSigningDialog({
   isOpen,
@@ -102,6 +112,7 @@ export function WaiverSigningDialog({
   const [selectedFieldKey, setSelectedFieldKey] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const definitionLoad = useWaiverDefinitionLoad();
   const safeWaiverPdfUrl = useMemo(
     () => normalizeWaiverPdfUrl(waiverPdfUrl),
     [waiverPdfUrl],
@@ -179,17 +190,73 @@ export function WaiverSigningDialog({
     }
   };
 
-  const handleSkipOptionalSigner = () => {
-    if (
-      currentStep?.type === "sign" &&
-      currentStep.signer &&
-      !currentStep.signer.required
-    ) {
-      setSkippedSigners((prev) =>
-        new Set(prev).add(currentStep.signer!.role_key),
-      );
-      handleNext();
+  const submitWaiver = async (
+    signaturesToSend: Record<string, SignerData>,
+    skipped: ReadonlySet<string>,
+  ) => {
+    try {
+      setIsSubmitting(true);
+
+      // A skipped signer contributes neither a signature nor field values.
+      const payload: SignaturePayload = {
+        signers: Object.values(signaturesToSend).filter(
+          (sig) => !skipped.has(sig.role_key),
+        ),
+        fields: withoutSkippedSignerValues(
+          fieldValues,
+          effectiveDefinition.fields,
+          skipped,
+        ) as unknown as Record<string, string | boolean | string[]>,
+      };
+
+      await onComplete({
+        definitionId: waiverDefinition?.id,
+        signatureType: "multi-signer",
+        payload,
+        signerName: defaultSignerName,
+        signerEmail: defaultSignerEmail,
+        waiverPdfUrl: safeWaiverPdfUrl || undefined,
+      });
+      onClose(false);
+      toast.success("Waiver signed successfully!");
+    } catch (error) {
+      safeConsole.error("Submission failed", error);
+      toast.error("Failed to sign waiver", {
+        description:
+          error instanceof Error ? error.message : "Please try again.",
+        action: {
+          label: "Retry",
+          onClick: () => submitWaiver(signaturesToSend, skipped),
+        },
+      });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleSubmit = () => submitWaiver(signatures, skippedSigners);
+
+  // Skipping works from either of an optional signer's steps. It drops any
+  // signature they already gave and moves past all of their remaining steps.
+  const skipTarget = isSkippableStep(currentStep)
+    ? stepIndexAfterSkippingSigner(steps, currentStepIndex)
+    : null;
+  const handleSkipOptionalSigner = () => {
+    if (!isSkippableStep(currentStep)) return;
+
+    const roleKey = currentStep.signer.role_key;
+    const nextSkipped = new Set(skippedSigners).add(roleKey);
+    const nextSignatures = { ...signatures };
+    delete nextSignatures[roleKey];
+    setSkippedSigners(nextSkipped);
+    setSignatures(nextSignatures);
+
+    if (skipTarget === null) {
+      // Their steps were the last ones, so skipping finishes the waiver.
+      void submitWaiver(nextSignatures, nextSkipped);
+      return;
+    }
+    setCurrentStepIndex(skipTarget);
   };
 
   const handleBack = () => {
@@ -208,6 +275,15 @@ export function WaiverSigningDialog({
       }
       return next;
     });
+    if (sig) {
+      // Signing after a skip un-skips the signer, so the signature is sent.
+      setSkippedSigners((prev) => {
+        if (!prev.has(roleKey)) return prev;
+        const next = new Set(prev);
+        next.delete(roleKey);
+        return next;
+      });
+    }
   };
 
   const handleFieldChange = (key: string, value: string | boolean | number) => {
@@ -215,51 +291,6 @@ export function WaiverSigningDialog({
       ...prev,
       [key]: value,
     }));
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setIsSubmitting(true);
-
-      // Filter out skipped signers from payload
-      const activeSigners = Object.values(signatures).filter(
-        (sig) => !skippedSigners.has(sig.role_key),
-      );
-
-      const payload: SignaturePayload = {
-        signers: activeSigners,
-        fields: fieldValues as unknown as Record<
-          string,
-          string | boolean | string[]
-        >,
-      };
-
-      // Convert to WaiverSignatureInput
-      const input: WaiverSignatureInput = {
-        definitionId: waiverDefinition?.id,
-        signatureType: "multi-signer",
-        payload: payload,
-        signerName: defaultSignerName,
-        signerEmail: defaultSignerEmail,
-        waiverPdfUrl: safeWaiverPdfUrl || undefined,
-      };
-
-      await onComplete(input);
-      onClose(false);
-      toast.success("Waiver signed successfully!");
-    } catch (error) {
-      safeConsole.error("Submission failed", error);
-      toast.error("Failed to sign waiver", {
-        description:
-          error instanceof Error ? error.message : "Please try again.",
-        action: {
-          label: "Retry",
-          onClick: () => handleSubmit(),
-        },
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleDownload = async () => {
@@ -291,52 +322,44 @@ export function WaiverSigningDialog({
     window.open(safeWaiverPdfUrl, "_blank", "noopener,noreferrer");
   };
 
-  // Offline Upload Handling (Phase 4 Requirement)
-  // This essentially bypasses the wizard and uploads a file
-  const handleOfflineUpload = () => {
-    // Create a hidden file input and click it
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/pdf,image/*";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+  const handleOfflineUpload = useOfflineWaiverUpload({
+    definitionId: waiverDefinition?.id,
+    waiverPdfUrl: safeWaiverPdfUrl,
+    signerName: defaultSignerName,
+    signerEmail: defaultSignerEmail,
+    onComplete,
+    onUploaded: () => onClose(false),
+    setIsSubmitting,
+  });
 
-      // Convert to base64 data url for submission
-      const reader = new FileReader();
-      reader.onload = async (item) => {
-        const dataUrl = item.target?.result as string;
-
-        setIsSubmitting(true);
-        try {
-          // This is SINGLE-SIGNATURE offline upload mode
-          // Not multi-signer! Use WaiverSignatureInput format
-          const uploadInput: WaiverSignatureInput = {
-            definitionId: waiverDefinition?.id,
-            signatureType: "upload", // Single upload type
-            uploadFileDataUrl: dataUrl,
-            uploadFileName: file.name,
-            uploadFileType: file.type,
-            waiverPdfUrl: safeWaiverPdfUrl || undefined,
-            signerName: defaultSignerName,
-            signerEmail: defaultSignerEmail,
-          };
-
-          await onComplete(uploadInput);
-          onClose(false);
-          toast.success("Waiver uploaded successfully!");
-        } catch (err) {
-          safeConsole.error("Upload failed", err);
-          toast.error("Failed to upload waiver", {
-            description: "Please check your file and try again.",
-          });
-        } finally {
-          setIsSubmitting(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    };
-    input.click();
+  const stepsPanelProps = {
+    currentStepIndex,
+    steps,
+    currentStep,
+    hasPdfDocument,
+    generatedWaiverPreview,
+    safeWaiverPdfUrl,
+    handleDownload,
+    handlePrint,
+    handleOfflineUpload,
+    consented,
+    setConsented,
+    effectiveDefinition,
+    disableEsignature,
+    allowUpload,
+    handleNext,
+    sortedSigners,
+    fieldValues,
+    handleFieldChange,
+    handleSignatureComplete,
+    signatures,
+    defaultSignerName,
+    handleBack,
+    isSubmitting,
+    handleSkipOptionalSigner,
+    skipFinishesWaiver: skipTarget === null,
+    handleSubmit,
+    isStepValid,
   };
 
   return (
@@ -386,7 +409,10 @@ export function WaiverSigningDialog({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-hidden">
-          {isDesktop ? (
+          {definitionLoad.status !== "ready" ? (
+            // Never fall back to a generic signer while the real one is missing.
+            <WaiverDefinitionPending state={definitionLoad} />
+          ) : isDesktop ? (
             <ResizablePanelGroup
               orientation="horizontal"
               className="h-full w-full"
@@ -478,67 +504,13 @@ export function WaiverSigningDialog({
               >
                 <WaiverSigningStepsPanel
                   isDesktop={true}
-                  currentStepIndex={currentStepIndex}
-                  steps={steps}
-                  currentStep={currentStep}
-                  hasPdfDocument={hasPdfDocument}
-                  generatedWaiverPreview={generatedWaiverPreview}
-                  safeWaiverPdfUrl={safeWaiverPdfUrl}
-                  handleDownload={handleDownload}
-                  handlePrint={handlePrint}
-                  handleOfflineUpload={handleOfflineUpload}
-                  consented={consented}
-                  setConsented={setConsented}
-                  effectiveDefinition={effectiveDefinition}
-                  disableEsignature={disableEsignature}
-                  allowUpload={allowUpload}
-                  handleNext={handleNext}
-                  sortedSigners={sortedSigners}
-                  fieldValues={fieldValues}
-                  handleFieldChange={handleFieldChange}
-                  handleSignatureComplete={handleSignatureComplete}
-                  signatures={signatures}
-                  defaultSignerName={defaultSignerName}
-                  handleBack={handleBack}
-                  isSubmitting={isSubmitting}
-                  handleSkipOptionalSigner={handleSkipOptionalSigner}
-                  handleSubmit={handleSubmit}
-                  isStepValid={isStepValid}
+                  {...stepsPanelProps}
                 />
               </ResizablePanel>
             </ResizablePanelGroup>
           ) : (
             <div className="h-full w-full min-h-0 overflow-hidden">
-              {/* Right Panel / Steps Container */}
-              <WaiverSigningStepsPanel
-                isDesktop={false}
-                currentStepIndex={currentStepIndex}
-                steps={steps}
-                currentStep={currentStep}
-                hasPdfDocument={hasPdfDocument}
-                generatedWaiverPreview={generatedWaiverPreview}
-                safeWaiverPdfUrl={safeWaiverPdfUrl}
-                handleDownload={handleDownload}
-                handlePrint={handlePrint}
-                handleOfflineUpload={handleOfflineUpload}
-                consented={consented}
-                setConsented={setConsented}
-                effectiveDefinition={effectiveDefinition}
-                disableEsignature={disableEsignature}
-                allowUpload={allowUpload}
-                handleNext={handleNext}
-                sortedSigners={sortedSigners}
-                fieldValues={fieldValues}
-                handleFieldChange={handleFieldChange}
-                handleSignatureComplete={handleSignatureComplete}
-                signatures={signatures}
-                defaultSignerName={defaultSignerName}
-                handleBack={handleBack}
-                isSubmitting={isSubmitting}
-                handleSkipOptionalSigner={handleSkipOptionalSigner}
-                handleSubmit={handleSubmit}
-                isStepValid={isStepValid}
-              />
+              <WaiverSigningStepsPanel isDesktop={false} {...stepsPanelProps} />
             </div>
           )}
         </div>

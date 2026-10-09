@@ -7,7 +7,7 @@ import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils";
 import { isOneTimeSlotPast, formatDateDisplay } from "@/utils/project";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSignupConfirmationAction } from "@/app/projects/_components/useSignupConfirmationAction";
 import FilePreview from "@/app/projects/_components/FilePreview";
@@ -44,6 +44,7 @@ import {
 } from "./ProjectSignupDialogs";
 import { logSignupClientDebug } from "./signup-client-debug";
 import { useAnonymousSlotOptions } from "./useAnonymousSlotOptions";
+import { WaiverDefinitionLoadProvider } from "@/components/waiver/waiver-signing/WaiverDefinitionLoadContext";
 import { useProjectSignupState } from "./useProjectSignupState";
 import { useProjectSignupSubmit } from "./useProjectSignupSubmit";
 import {
@@ -113,8 +114,14 @@ export default function ProjectDetails({
     attendedSlots,
     pendingSlots,
     waiverDefinition,
+    waiverDefinitionStatus,
+    retryWaiverDefinition,
     completedSignup,
   } = useProjectSignupState({ project, user, initialSlotData });
+  const waiverDefinitionLoad = useMemo(
+    () => ({ status: waiverDefinitionStatus, retry: retryWaiverDefinition }),
+    [waiverDefinitionStatus, retryWaiverDefinition],
+  );
   const resend = useResendConfirmation();
   const anonymousSlotOptions = useAnonymousSlotOptions({
     project,
@@ -327,7 +334,7 @@ export default function ProjectDetails({
   };
 
   return (
-    <>
+    <WaiverDefinitionLoadProvider value={waiverDefinitionLoad}>
       <div className="container mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <ProjectEmailConfirmationDialog
           open={showConfirmationAlert}
@@ -577,6 +584,6 @@ export default function ProjectDetails({
           mode="volunteer"
         />
       )}
-    </>
+    </WaiverDefinitionLoadProvider>
   );
 }

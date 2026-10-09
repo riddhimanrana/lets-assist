@@ -24,6 +24,7 @@ import type {
 import { SignatureCapture } from "../SignatureCapture";
 import { WaiverConsentStep } from "../WaiverConsentStep";
 import { WaiverFieldForm } from "../WaiverFieldForm";
+import { isSkippableStep } from "./skip-optional-signer";
 import type { WaiverSigningStep } from "./types";
 
 type Props = {
@@ -55,6 +56,8 @@ type Props = {
   handleBack: () => void;
   isSubmitting: boolean;
   handleSkipOptionalSigner: () => void;
+  /** Skipping from here finishes the waiver, because no other step follows. */
+  skipFinishesWaiver: boolean;
   handleSubmit: () => Promise<void>;
   isStepValid: boolean;
 };
@@ -86,6 +89,7 @@ export function WaiverSigningStepsPanel(props: Props) {
     handleBack,
     isSubmitting,
     handleSkipOptionalSigner,
+    skipFinishesWaiver,
     handleSubmit,
     isStepValid,
   } = props;
@@ -370,20 +374,17 @@ export function WaiverSigningStepsPanel(props: Props) {
             </Button>
 
             <div className="flex gap-2">
-              {/* Skip button for optional signers */}
-              {(currentStep?.type === "sign" ||
-                currentStep?.type === "fields") &&
-                currentStep.signer &&
-                !currentStep.signer.required && (
-                  <Button
-                    variant="outline"
-                    onClick={handleSkipOptionalSigner}
-                    disabled={isSubmitting}
-                    data-testid="waiver-signer-skip-optional"
-                  >
-                    Skip (Optional)
-                  </Button>
-                )}
+              {/* An optional signer can be skipped from either of their steps. */}
+              {isSkippableStep(currentStep) && (
+                <Button
+                  variant="outline"
+                  onClick={handleSkipOptionalSigner}
+                  disabled={isSubmitting}
+                  data-testid="waiver-signer-skip-optional"
+                >
+                  {skipFinishesWaiver ? "Skip and finish" : "Skip this signer"}
+                </Button>
+              )}
 
               {currentStep?.isLast ? (
                 <Button

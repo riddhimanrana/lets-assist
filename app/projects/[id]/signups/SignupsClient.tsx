@@ -6,6 +6,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Pause, RefreshCw, Search, UserRoundSearch } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { downloadSignedWaiver } from "@/lib/waiver/download-signed-waiver";
 import { Project } from "@/types";
 import {
   getWaiverDownloadUrl,
@@ -332,26 +333,14 @@ export function SignupsClient({ projectId }: Props): React.JSX.Element {
     try {
       setWaiverDownloads((prev) => ({ ...prev, [signatureId]: true }));
 
-      const response = await fetch(`/api/waivers/${signatureId}/download`);
-
-      if (!response.ok) {
-        throw new Error("Download failed");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `waiver-${signatureId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      // The route names the file, so a photo upload keeps its real extension.
+      await downloadSignedWaiver(signatureId);
 
       toast.success("Waiver downloaded successfully");
     } catch (error) {
-      safeConsole.error("Error downloading waiver:", error);
-      toast.error("Failed to download waiver");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to download waiver",
+      );
     } finally {
       setWaiverDownloads((prev) => ({ ...prev, [signatureId]: false }));
     }

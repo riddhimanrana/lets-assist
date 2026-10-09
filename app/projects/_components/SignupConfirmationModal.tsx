@@ -23,6 +23,7 @@ import { getUserProfile } from "@/app/projects/[id]/actions";
 import { toast } from "sonner";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { WaiverSigningDialog } from "@/components/waiver/WaiverSigningDialog";
+import { useWaiverDefinitionLoad } from "@/components/waiver/waiver-signing/WaiverDefinitionLoadContext";
 import { Check, PenTool, ArrowLeft } from "lucide-react";
 import type {
   Project,
@@ -102,6 +103,8 @@ export function SignupConfirmationModal({
   const [waiverSignature, setWaiverSignature] =
     useState<WaiverSignatureInput | null>(null);
   const [isWaiverDialogOpen, setIsWaiverDialogOpen] = useState(false);
+  // Signing waits for the project's waiver form to load.
+  const waiverFormLoading = useWaiverDefinitionLoad().status === "loading";
 
   // Calendar connection state
   const [calendarConnected, setCalendarConnected] = useState(false);
@@ -460,7 +463,7 @@ export function SignupConfirmationModal({
                     <Button
                       onClick={() => setIsWaiverDialogOpen(true)}
                       className="w-full sm:w-auto"
-                      disabled={isLoading}
+                      disabled={isLoading || waiverFormLoading}
                     >
                       <PenTool className="size-4 mr-2" />
                       Sign Waiver

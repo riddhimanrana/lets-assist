@@ -26,6 +26,7 @@ import { CheckCircle, Clock, Download, Eye, Info } from "lucide-react";
 import { QRCodeScannerModal } from "@/app/projects/_components/QRCodeScannerModal";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { downloadSignedWaiver } from "@/lib/waiver/download-signed-waiver";
 import { getMyProjectFeedback, getMyWaiverSignatures } from "./actions";
 import { ProjectFeedbackDialog } from "@/components/projects/ProjectFeedbackDialog";
 import {
@@ -91,25 +92,15 @@ export default function UserDashboard({
 
   const downloadWaiver = async (signatureId: string) => {
     try {
-      // Direct download using the actual route
-      const response = await fetch(`/api/waivers/${signatureId}/download`);
-
-      if (!response.ok) {
-        throw new Error("Download failed");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `signed-waiver-${signatureId}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-
+      // The route names the file, so a photo upload keeps its real extension.
+      await downloadSignedWaiver(signatureId);
       toast.success("Waiver downloaded successfully!");
     } catch (error) {
-      safeConsole.error("Failed to download waiver:", error);
-      toast.error("Failed to download waiver. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to download waiver. Please try again.",
+      );
     }
   };
 

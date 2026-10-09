@@ -96,7 +96,7 @@ export function FieldListPanel({
   };
 
   const getSignerLabel = (roleKey: string | undefined) => {
-    if (!roleKey || roleKey === "unassigned") return "Unassigned (Optional)";
+    if (!roleKey || roleKey === "unassigned") return "Unassigned";
     const signer = signers.find((s) => s.roleKey === roleKey);
     return signer?.label || roleKey;
   };
@@ -173,7 +173,7 @@ export function FieldListPanel({
                     value="unassigned"
                     className="text-muted-foreground"
                   >
-                    Unassigned (Optional)
+                    Unassigned
                   </SelectItem>
                   {signers.map((signer) => (
                     <SelectItem key={signer.roleKey} value={signer.roleKey}>

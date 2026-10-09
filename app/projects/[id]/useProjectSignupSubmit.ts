@@ -10,6 +10,7 @@ import type {
   WaiverSignatureInput,
 } from "@/types";
 import type { SignupAttemptResult } from "@/app/projects/_components/useSignupConfirmationAction";
+import { shouldSendWaiverWithSlot } from "@/lib/waiver/upload-limits";
 import { signUpForProject } from "./actions";
 import { logSignupClientDebug } from "./signup-client-debug";
 
@@ -310,13 +311,16 @@ export function useProjectSignupSubmit({
       try {
         for (let index = 0; index < scheduleIds.length; index += 1) {
           const scheduleId = scheduleIds[index];
+          // The waiver travels with every slot until one sign-up has returned
+          // a continuation token, so a full or past first slot cannot lose it.
+          const sendWaiver = shouldSendWaiverWithSlot(continuationToken);
           logSignupClientDebug({
             step: "anonymous_multi_slot_submit",
             projectId: project.id,
             scheduleId,
             slotIndex: index,
             totalSlots: scheduleIds.length,
-            reuseWaiver: index === 0,
+            reuseWaiver: sendWaiver,
           });
           const payload: AnonymousSignupData = {
             ...values,
@@ -330,7 +334,7 @@ export function useProjectSignupSubmit({
             scheduleId,
             payload,
             values.comment,
-            index === 0 ? waiverSignature : null,
+            sendWaiver ? waiverSignature : null,
             formData,
           );
 
