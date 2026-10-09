@@ -199,28 +199,13 @@ export function isLegacyDefaultReportRange(
  *
  * It applies only to that exact string. `A1:H21`, `B2:H20` and every other
  * range with an end stay strict. Use the result for the fit check and the
- * write range, and `legacyDefaultStaleClearRange` for clearing stale cells.
+ * write range. Keep the stored value for clearing stale cells, so the sync
+ * never clears cells outside the box it has always cleared.
  */
 export function openLegacyDefaultReportRange<
   Range extends string | null | undefined,
 >(rangeA1: Range): Range | "A1" {
   return isLegacyDefaultReportRange(rangeA1) ? "A1" : rangeA1;
-}
-
-/**
- * The cells a legacy-default sync clears after writing.
- *
- * The clear has to reach as far as the write can. A report that grew past row
- * 20 and later shrank would otherwise leave its old rows, with member names
- * and hours, in the sheet for good. It stays inside the columns the report
- * uses (at least the old box's A to H), so it never widens sideways into
- * columns the report was never written to.
- */
-export function legacyDefaultStaleClearRange(rows: ReportRows): string {
-  const widest = rows.reduce((max, row) => Math.max(max, row.length), 0);
-  const endColumn = indexToColumn(Math.max(widest, columnToIndex("H")));
-  const endRow = Math.max(rows.length + 50, 1000);
-  return `A1:${endColumn}${endRow}`;
 }
 
 const measureReport = (rows: ReportRows) => ({

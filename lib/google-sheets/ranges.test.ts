@@ -179,12 +179,3 @@ describe("the legacy default range", () => {
     expect(describeReportRangeOverflow("A1:H20", rows)).toContain("holds 20");
   });
 });
-
-test("the legacy default clears down the report's own columns, never sideways", async () => {
-  const { legacyDefaultStaleClearRange } = await import("./ranges");
-  expect(legacyDefaultStaleClearRange([["a", "b", "c"]])).toBe("A1:H1000");
-  const wide = [Array.from({ length: 12 }, () => "x")];
-  expect(legacyDefaultStaleClearRange(wide)).toBe("A1:L1000");
-  const tall = Array.from({ length: 1200 }, () => ["x"]);
-  expect(legacyDefaultStaleClearRange(tall)).toBe("A1:H1250");
-});

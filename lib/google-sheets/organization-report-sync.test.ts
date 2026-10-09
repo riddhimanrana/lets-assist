@@ -293,9 +293,9 @@ describe("the shared organization sheet sync", () => {
     expect(decodeURIComponent(write.url)).toContain("'Member Hours'!A1:");
     expect(decodeURIComponent(write.url)).toMatch(/!A1:[A-Z]+101(\?|$)/u);
 
-    // A later, shorter report clears as far down as the earlier one was
-    // written, so its old rows do not stay in the sheet. The clear stays in
-    // the report's own columns and never widens sideways.
+    // A later, shorter report clears stale cells only inside the saved range.
+    // The sync cannot know how far an earlier report reached, so it never
+    // clears cells below or beside the box, which may not be its own.
     volunteerCount = 2;
     calls = [];
     expect(await run({ range_a1: "A1:H20" })).toEqual({ success: true });
@@ -303,7 +303,7 @@ describe("the shared organization sheet sync", () => {
       calls
         .filter((call) => call.url.includes(":clear"))
         .map((call) => decodeURIComponent(call.url).split("/values/")[1]),
-    ).toEqual(["'Member Hours'!A4:H1000:clear"]);
+    ).toEqual(["'Member Hours'!A4:H20:clear"]);
 
     // The stored value is not rewritten by a sync.
     expect(updates.some((update) => "range_a1" in update)).toBe(false);

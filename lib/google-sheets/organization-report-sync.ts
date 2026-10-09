@@ -19,8 +19,6 @@ import {
 
 import {
   describeReportRangeOverflow,
-  isLegacyDefaultReportRange,
-  legacyDefaultStaleClearRange,
   openLegacyDefaultReportRange,
 } from "./ranges";
 
@@ -369,11 +367,12 @@ async function writeOrganizationReport(
     writeRangeA1,
     rows,
     sheets,
-    // The clear reaches as far as the write can, so a report that shrinks
-    // never leaves old rows behind.
-    isLegacyDefaultReportRange(config.range_a1)
-      ? legacyDefaultStaleClearRange(rows)
-      : config.range_a1,
+    // Stale cells are cleared only inside the saved range. The sync has no
+    // record of how far an earlier report reached, so clearing further down
+    // could erase cells it never wrote. A legacy-range report that shrinks
+    // can therefore leave its old rows below row 20, as it always could;
+    // recording the written extent on the sync row is what closes that.
+    config.range_a1,
   );
   if (!replacement.success && replacement.stage === "write") {
     // The spreadsheet opened a moment ago, so a refusal here is about editing.
