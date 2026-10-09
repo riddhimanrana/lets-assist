@@ -30,6 +30,7 @@ import { LeaveEventConfirmationDialog } from "./_components/LeaveEventConfirmati
 import { SessionEndedCard } from "./_components/SessionEndedCard";
 import { SignedOutCheckIn } from "./_components/SignedOutCheckIn";
 import { useSessionProgress } from "./_components/use-session-progress";
+import { cn } from "@/lib/utils";
 
 interface AttendanceClientProps {
   project: Project;
@@ -317,7 +318,7 @@ export default function AttendanceClient({
         actions={
           <Link
             href={`/projects/${project.id}`}
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             View project details
           </Link>

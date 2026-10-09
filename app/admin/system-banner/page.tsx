@@ -8,7 +8,7 @@ import { getSystemBannersForAdmin } from "./actions";
 import { SystemBannerAdminClient } from "./SystemBannerAdminClient";
 
 export const metadata = {
-  title: "System Banner | Admin Dashboard",
+  title: "Admin system banner",
   description:
     "Create and manage sticky system banners for sitewide and landing page notifications.",
 };

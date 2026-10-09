@@ -11,12 +11,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { createClient } from "@/lib/supabase/server";
 import { canViewOrgModeration } from "@/utils/admin-helpers";
 import { getOrgModerationStats, getOrgFlaggedContent } from "./actions";
 import OrgModerationDashboard from "./OrgModerationDashboard";
 
 export const metadata = {
-  title: "Content Moderation | Organization",
+  title: "Organization moderation",
   description: "Organization content moderation dashboard",
 };
 
@@ -35,11 +36,20 @@ export default async function OrgModerationPage({
     redirect(`/organization/${organizationId}`);
   }
 
-  // Fetch initial data
-  const [stats, flaggedContent] = await Promise.all([
+  // Fetch initial data. The name is only for the breadcrumb, so a failed
+  // lookup falls back to the generic word.
+  const supabase = await createClient();
+  const [stats, flaggedContent, { data: organization }] = await Promise.all([
     getOrgModerationStats(organizationId),
     getOrgFlaggedContent(organizationId, "pending_review"),
+    supabase
+      .from("organizations")
+      .select("name, username")
+      .eq("id", organizationId)
+      .maybeSingle(),
   ]);
+  const organizationName = organization?.name?.trim() || "Organization";
+  const organizationHref = `/organization/${organization?.username || organizationId}`;
 
   const header = (
     <PageHeader
@@ -53,10 +63,8 @@ export default async function OrgModerationPage({
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbLink
-                render={<Link href={`/organization/${organizationId}`} />}
-              >
-                Organization
+              <BreadcrumbLink render={<Link href={organizationHref} />}>
+                {organizationName}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />

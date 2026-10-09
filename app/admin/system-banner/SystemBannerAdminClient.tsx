@@ -176,9 +176,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
             banner?.is_active ? (
               <Badge variant="success">Active</Badge>
             ) : (
-              <Badge variant="outline" className="text-muted-foreground">
-                Inactive
-              </Badge>
+              <Badge variant="neutral">Inactive</Badge>
             )
           }
           footerHint={`Saving this banner as active replaces any other active ${scopeName} banner.`}

@@ -4,6 +4,7 @@ import { HomeIcon } from "@/components/icons/animated";
 import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
 import { NoticePage } from "@/components/projects/NoticePage";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 export default function NotFound() {
   return (
@@ -17,7 +18,7 @@ export default function NotFound() {
           </AnimatedLinkButton>
           <Link
             href="/projects"
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Browse projects
           </Link>

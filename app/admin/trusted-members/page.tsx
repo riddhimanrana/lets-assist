@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { AdminLoadError, AdminPage } from "../components/AdminPage";
 
 export const metadata = {
-  title: "Trusted Members | Admin",
+  title: "Admin trusted members",
   description: "Manage trusted member applications",
 };
 

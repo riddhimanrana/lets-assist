@@ -3,13 +3,6 @@ import { Calendar, Folders, Globe, Mail, ShieldCheck } from "lucide-react";
 import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Item,
-  ItemContent,
-  ItemDescription,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
 
 const SUPPORT_EMAIL = "support@lets-assist.com";
 
@@ -62,7 +55,7 @@ export default function OrganizationVerificationSection({
     <SettingsSection
       title="Verification"
       description="Get verified to build trust with volunteers and partners."
-      status={<Badge variant="outline">Not verified</Badge>}
+      status={<Badge variant="neutral">Not verified</Badge>}
       contentClassName="gap-6"
       footerHint={`Send your materials to ${SUPPORT_EMAIL}.`}
       footer={
@@ -70,24 +63,27 @@ export default function OrganizationVerificationSection({
           variant="outline"
           render={<a href={`mailto:${SUPPORT_EMAIL}`} />}
         >
-          <Mail />
+          <Mail data-icon="inline-start" aria-hidden="true" />
           Apply for verification
         </Button>
       }
     >
       <div className="grid gap-2">
         <h3 className="text-sm font-medium">What you can send</h3>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           {EVIDENCE.map((entry) => (
-            <Item key={entry.title} variant="outline" size="sm" render={<li />}>
-              <ItemMedia variant="icon">
-                <entry.icon />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>{entry.title}</ItemTitle>
-                <ItemDescription>{entry.description}</ItemDescription>
-              </ItemContent>
-            </Item>
+            <li key={entry.title} className="flex items-start gap-2.5">
+              <entry.icon
+                aria-hidden="true"
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+              />
+              <div className="grid gap-0.5">
+                <p className="text-sm leading-5 font-medium">{entry.title}</p>
+                <p className="text-muted-foreground text-sm">
+                  {entry.description}
+                </p>
+              </div>
+            </li>
           ))}
         </ul>
       </div>

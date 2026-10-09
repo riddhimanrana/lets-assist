@@ -136,7 +136,7 @@ export function TwoFactorSection() {
         description="Use an authenticator app for a second sign-in step on your account."
         status={
           isMfaLoading ? null : (
-            <Badge variant={mfaEnabled ? "success" : "outline"}>
+            <Badge variant={mfaEnabled ? "success" : "neutral"}>
               {mfaEnabled ? "Enabled" : "Not enabled"}
             </Badge>
           )

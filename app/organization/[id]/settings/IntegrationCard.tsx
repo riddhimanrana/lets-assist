@@ -16,11 +16,11 @@ export type IntegrationDetail = {
 
 const stateBadges: Record<
   Exclude<IntegrationState, "loading">,
-  { label: string; variant: "success" | "warning" | "outline" }
+  { label: string; variant: "success" | "warning" | "neutral" }
 > = {
   connected: { label: "Connected", variant: "success" },
   "needs-reconnect": { label: "Needs reconnect", variant: "warning" },
-  "not-connected": { label: "Not connected", variant: "outline" },
+  "not-connected": { label: "Not connected", variant: "neutral" },
 };
 
 /**

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 interface CertificateCardButtonProps {
   projectId?: string | null;
@@ -22,7 +23,7 @@ export function CertificateCardButton({
   return (
     <Link
       href={`/projects/${projectId}`}
-      className={buttonVariants({ variant: "outline" })}
+      className={cn(buttonVariants({ variant: "outline" }))}
     >
       View project details
       <ExternalLink data-icon="inline-end" aria-hidden="true" />

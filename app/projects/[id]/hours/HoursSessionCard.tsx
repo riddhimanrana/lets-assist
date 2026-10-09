@@ -34,7 +34,7 @@ function SessionStatusBadge({ session }: { session: HoursSession }) {
     return <Badge variant="warning">In progress</Badge>;
   if (session.status === "invalid")
     return <Badge variant="warning">Schedule needs review</Badge>;
-  return <Badge variant="secondary">Not published</Badge>;
+  return <Badge variant="neutral">Not published</Badge>;
 }
 
 function visitTime(value: string | null, timezone: string, missing: string) {

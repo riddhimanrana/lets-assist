@@ -35,14 +35,14 @@ const STATUS_BADGE: Record<
   OrganizerSignup["status"],
   {
     label: string;
-    variant: "success" | "warning" | "destructive" | "info" | "secondary";
+    variant: "success" | "warning" | "destructive" | "info" | "neutral";
   }
 > = {
   approved: { label: "Approved", variant: "success" },
   pending: { label: "Pending", variant: "warning" },
   rejected: { label: "Rejected", variant: "destructive" },
   attended: { label: "Attended", variant: "info" },
-  cancelled: { label: "Cancelled", variant: "secondary" },
+  cancelled: { label: "Cancelled", variant: "neutral" },
 };
 
 /** One slot's signups. Row actions sit on the right edge, always in one place. */

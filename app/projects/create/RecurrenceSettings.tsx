@@ -281,7 +281,10 @@ export default function RecurrenceSettings({
                         aria-hidden="true"
                       />
                       {recurrence.endDate
-                        ? format(parseStringToDate(recurrence.endDate)!, "PPP")
+                        ? format(
+                            parseStringToDate(recurrence.endDate)!,
+                            "MMM d, yyyy",
+                          )
                         : "Pick an end date"}
                     </Button>
                   }

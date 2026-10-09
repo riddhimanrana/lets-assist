@@ -99,7 +99,7 @@ export function ReportsSheetsStatus({
                 <Badge variant="success">Connected</Badge>
               )
             ) : (
-              <Badge variant="outline">Not set up</Badge>
+              <Badge variant="neutral">Not set up</Badge>
             )}
           </ItemTitle>
           <ItemDescription className="line-clamp-none">

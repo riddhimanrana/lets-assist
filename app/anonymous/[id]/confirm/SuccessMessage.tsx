@@ -5,6 +5,7 @@ import { ArrowRightIcon } from "@/components/icons/animated";
 import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
 import { NoticePage } from "@/components/projects/NoticePage";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 interface SuccessMessageProps {
   anonymousSignupId: string;
@@ -32,7 +33,7 @@ export function SuccessMessage({
           </AnimatedLinkButton>
           <Link
             href="/projects"
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Find another project
           </Link>

@@ -10,11 +10,9 @@ import {
   type FieldValues,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SettingsSection } from "@/components/layout/SettingsSection";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -83,21 +81,6 @@ function PasswordField<Values extends FieldValues>({
         </Field>
       )}
     />
-  );
-}
-
-function PasswordRequirements() {
-  return (
-    <Alert>
-      <Info />
-      <AlertTitle>Password requirements</AlertTitle>
-      <AlertDescription>
-        <ul className="list-disc pl-4">
-          <li>At least 8 characters long</li>
-          <li>Cannot be a commonly used or compromised password</li>
-        </ul>
-      </AlertDescription>
-    </Alert>
   );
 }
 
@@ -287,6 +270,7 @@ export function PasswordSection() {
           ? `You signed in with ${formatProviderName(oauthProvider)}. Set a password to enable email/password login.`
           : "Change your current password."
       }
+      footerHint="At least 8 characters. Commonly used or compromised passwords are not accepted."
       footer={
         <Button
           type="submit"
@@ -340,7 +324,6 @@ export function PasswordSection() {
               autoComplete="new-password"
             />
           </div>
-          <PasswordRequirements />
         </form>
       ) : (
         <form
@@ -366,7 +349,6 @@ export function PasswordSection() {
               autoComplete="new-password"
             />
           </div>
-          <PasswordRequirements />
         </form>
       )}
     </SettingsSection>

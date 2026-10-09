@@ -53,7 +53,7 @@ function InvitationStatusBadge({ status }: { status: EffectiveStatus }) {
     return <Badge variant="success">Accepted</Badge>;
   }
   if (status === "cancelled") {
-    return <Badge variant="outline">Cancelled</Badge>;
+    return <Badge variant="neutral">Cancelled</Badge>;
   }
   if (status === "expired") {
     return <Badge variant="warning">Expired</Badge>;
@@ -71,7 +71,7 @@ function DeliveryBadge({ status }: { status: string }) {
     return <Badge variant="destructive">Failed</Badge>;
   }
   if (status === "skipped") {
-    return <Badge variant="outline">Skipped</Badge>;
+    return <Badge variant="neutral">Skipped</Badge>;
   }
   return <Badge variant="secondary">Pending</Badge>;
 }

@@ -278,7 +278,7 @@ export default function StaffLinkDisplay({
     <SettingsSection
       title={title}
       description={description}
-      status={<Badge variant="outline">Not generated</Badge>}
+      status={<Badge variant="neutral">Not generated</Badge>}
       footerHint="The link stops working after the expiration you choose."
       footer={
         <Button variant="outline" onClick={handleGenerate} disabled={isLoading}>

@@ -6,6 +6,7 @@ import { NoticePage } from "@/components/projects/NoticePage";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface SessionEndedCardProps {
   projectId: string;
@@ -33,7 +34,7 @@ export function SessionEndedCard({
           </Link>
           <Link
             href="/dashboard"
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Back to dashboard
           </Link>

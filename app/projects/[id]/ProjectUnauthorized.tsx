@@ -8,6 +8,7 @@ import { Lock } from "lucide-react";
 import { NoticePage } from "@/components/projects/NoticePage";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface ProjectUnauthorizedProps {
   projectId: string;
@@ -46,9 +47,11 @@ export default function ProjectUnauthorized({
           )}
           <Link
             href="/organization/join"
-            className={buttonVariants({
-              variant: needsLogin ? "outline" : "default",
-            })}
+            className={cn(
+              buttonVariants({
+                variant: needsLogin ? "outline" : "default",
+              }),
+            )}
           >
             Join organization
           </Link>

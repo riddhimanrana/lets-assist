@@ -8,7 +8,8 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -77,11 +78,11 @@ export function AttendanceExport({
       </div>
       <div className="flex flex-wrap items-end gap-3">
         {scope === "organization" && projects && (
-          <div className="space-y-1">
-            <Label htmlFor={`${id}-project`}>Project</Label>
+          <Field className="w-auto max-w-full gap-2">
+            <FieldLabel htmlFor={`${id}-project`}>Project</FieldLabel>
             <NativeSelect
               id={`${id}-project`}
-              className="max-w-full"
+              className="max-w-full [&_select]:h-9"
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
             >
@@ -94,26 +95,28 @@ export function AttendanceExport({
                 </NativeSelectOption>
               ))}
             </NativeSelect>
-          </div>
+          </Field>
         )}
-        <div className="space-y-1">
-          <Label htmlFor={`${id}-from`}>From</Label>
-          <Input
+        <Field className="w-40 gap-2">
+          <FieldLabel htmlFor={`${id}-from`}>From</FieldLabel>
+          <DatePicker
             id={`${id}-from`}
-            type="date"
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={setFrom}
+            maxDate={to || undefined}
+            placeholder="Any date"
           />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor={`${id}-to`}>Through</Label>
-          <Input
+        </Field>
+        <Field className="w-40 gap-2">
+          <FieldLabel htmlFor={`${id}-to`}>Through</FieldLabel>
+          <DatePicker
             id={`${id}-to`}
-            type="date"
             value={to}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={setTo}
+            minDate={from || undefined}
+            placeholder="Any date"
           />
-        </div>
+        </Field>
         <Button
           variant="outline"
           disabled={busy}
@@ -130,6 +133,18 @@ export function AttendanceExport({
           <Download data-icon="inline-start" />
           Export JSON
         </Button>
+        {from || to ? (
+          <Button
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setFrom("");
+              setTo("");
+            }}
+          >
+            Clear dates
+          </Button>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         <Checkbox

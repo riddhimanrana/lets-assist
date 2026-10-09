@@ -110,9 +110,7 @@ export function ProjectSlotsCard({
                   <h3 className="text-sm font-medium">
                     {formatScheduleDay(day.date)}
                   </h3>
-                  {allSlotsInDayPast && (
-                    <Badge variant="secondary">Passed</Badge>
-                  )}
+                  {allSlotsInDayPast && <Badge variant="neutral">Passed</Badge>}
                 </div>
                 <ul
                   className={cn("divide-y", allSlotsInDayPast && "opacity-50")}

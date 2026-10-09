@@ -56,10 +56,16 @@ function SettingsSection({
         </CardContent>
       ) : null}
       {footer || footerHint ? (
-        <CardFooter className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-muted-foreground text-sm">{footerHint}</p>
+        // The hint takes the width the actions leave. Once that would fall
+        // under about 16rem the actions wrap to their own row, right-aligned.
+        <CardFooter className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          {footerHint ? (
+            <p className="text-muted-foreground min-w-0 grow basis-64 text-sm">
+              {footerHint}
+            </p>
+          ) : null}
           {footer ? (
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2">
               {footer}
             </div>
           ) : null}
@@ -69,7 +75,12 @@ function SettingsSection({
   );
 }
 
-/** A flat strip of headline numbers: one card, divided cells. */
+/**
+ * A flat strip of headline numbers: one card, divided cells. Two columns on a
+ * phone (an odd last cell spans both), one row from `sm` up. Borders are set
+ * per cell so a row's last cell never carries one and wrapped rows get a top
+ * rule. Cells align to the top, so a helper line never shifts the number.
+ */
 function StatStrip({
   items,
   className,
@@ -83,9 +94,12 @@ function StatStrip({
 }) {
   return (
     <Card data-slot="stat-strip" className={cn("py-0", className)}>
-      <dl className="divide-border grid grid-cols-2 divide-x divide-y sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none sm:divide-y-0">
+      <dl className="grid grid-cols-2 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none">
         {items.map((item, index) => (
-          <div key={index} className="grid gap-1 px-4 py-3">
+          <div
+            key={index}
+            className="border-border grid content-start gap-1 px-4 py-3 max-sm:last:odd:col-span-2 max-sm:even:border-l max-sm:[&:nth-child(n+3)]:border-t sm:[&:not(:first-child)]:border-l"
+          >
             <dt className="text-muted-foreground text-xs">{item.label}</dt>
             <dd className="text-xl font-semibold tabular-nums">{item.value}</dd>
             {item.helper ? (

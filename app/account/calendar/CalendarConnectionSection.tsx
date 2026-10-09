@@ -47,7 +47,7 @@ export function CalendarConnectionSection({
   ) : legacyReconnectRequired ? (
     <Badge variant="warning">Reconnect required</Badge>
   ) : (
-    <Badge variant="outline">Not connected</Badge>
+    <Badge variant="neutral">Not connected</Badge>
   );
 
   return (

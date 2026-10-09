@@ -164,7 +164,7 @@ export function DateField({
             >
               <CalendarIcon data-icon="inline-start" aria-hidden="true" />
               {value
-                ? format(parseStringToDate(value) as Date, "PPP")
+                ? format(parseStringToDate(value) as Date, "MMM d, yyyy")
                 : "Pick a date"}
             </Button>
           }

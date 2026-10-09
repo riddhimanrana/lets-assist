@@ -32,10 +32,13 @@ export function TimePicker({
           value={value}
           onChange={(e) => onChangeAction(e.target.value)}
           disabled={disabled}
+          aria-invalid={error || undefined}
+          // The shared field classes come from `Input`. These only tame the
+          // native control: no browser chrome, no clock glyph, and the value
+          // left-aligned and vertically centred on iOS like a text field.
           className={cn(
-            "w-full bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none",
+            "block appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0",
             !value && "text-muted-foreground",
-            error && "border-destructive focus-visible:ring-destructive/20",
           )}
         />
       </div>

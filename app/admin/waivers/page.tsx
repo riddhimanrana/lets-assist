@@ -6,7 +6,7 @@ import { WaiverDefinitionTable } from "./WaiverDefinitionTable";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Project Waiver Definitions | Admin Console",
+  title: "Admin waivers",
   description: "Review project-scoped waiver definitions.",
 };
 

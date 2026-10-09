@@ -37,7 +37,10 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  SegmentedControl,
+  SegmentedItem,
+} from "@/components/ui/segmented-control";
 import { stripHtml } from "@/lib/utils";
 import type { Project, ProjectStatus } from "@/types";
 import { getProjectEventDate, getProjectStatus } from "@/utils/project";
@@ -201,29 +204,25 @@ export default function ProjectsTab({
           ))}
         </NativeSelect>
 
-        <ToggleGroup
+        <SegmentedControl
+          role="group"
           aria-label="Filter projects by status"
-          variant="outline"
-          className="hidden sm:flex"
-          value={[statusFilter]}
-          onValueChange={(value) => {
-            const nextValue = value[0];
-            if (isStatusFilter(nextValue)) setStatusFilter(nextValue);
-          }}
+          className="hidden sm:inline-flex"
         >
           {STATUS_FILTERS.map((filter) => (
-            <ToggleGroupItem
+            <SegmentedItem
               key={filter.value}
-              value={filter.value}
-              className="gap-1.5 px-3"
+              active={statusFilter === filter.value}
+              aria-pressed={statusFilter === filter.value}
+              onClick={() => setStatusFilter(filter.value)}
             >
               {filter.label}
               <span className="text-muted-foreground tabular-nums">
                 {statusCounts[filter.value] ?? 0}
               </span>
-            </ToggleGroupItem>
+            </SegmentedItem>
           ))}
-        </ToggleGroup>
+        </SegmentedControl>
       </div>
 
       {userRole === "admin" && (
@@ -247,7 +246,10 @@ export default function ProjectsTab({
                   canBeManagedByStaff: project.can_be_managed_by_staff,
                 }) && (
                   <Button
-                    variant="outline"
+                    variant="ghost"
+                    size="sm"
+                    className="justify-self-end"
+                    nativeButton={false}
                     render={<Link href={`/projects/${project.id}/hours`} />}
                   >
                     Volunteer hours

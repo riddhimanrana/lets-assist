@@ -2,6 +2,7 @@
 import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useMemo } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -154,10 +155,7 @@ export function CancelSignupModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            Cancel Event Signup
-          </DialogTitle>
+          <DialogTitle>Cancel your signup?</DialogTitle>
           <DialogDescription>
             Are you sure you want to cancel your signup for this event? This
             action cannot be undone.
@@ -167,7 +165,7 @@ export function CancelSignupModal({
         <div className="space-y-4">
           <div className="rounded-lg border p-4 space-y-3">
             <h4 className="font-semibold text-sm">
-              Event You&apos;re Cancelling
+              Event you&apos;re cancelling
             </h4>
             <div className="space-y-2">
               <div className="flex items-start gap-3">
@@ -197,20 +195,21 @@ export function CancelSignupModal({
           </div>
 
           {isLateCancellation && (
-            <div className="bg-warning/20 border border-warning rounded-lg p-3">
-              <p className="text-sm text-warning">
-                <span className="font-bold">Warning:</span> You are cancelling
-                within 24 hours of the event start time. This may affect your
-                reliability score and future signup opportunities. , consider
-                contacting the organizers directly.
-              </p>
-            </div>
+            <Alert variant="warning">
+              <AlertTriangle aria-hidden="true" />
+              <AlertTitle>The event starts within 24 hours</AlertTitle>
+              <AlertDescription>
+                Cancelling this late may affect your reliability score and
+                future signup opportunities. Consider contacting the organizers
+                directly.
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Keep Signup
+            Keep signup
           </Button>
           <Button
             variant="destructive"
@@ -219,11 +218,15 @@ export function CancelSignupModal({
           >
             {isLoading ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-2" />
+                <Loader2
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
                 Cancelling...
               </>
             ) : (
-              "Cancel Signup"
+              "Cancel signup"
             )}
           </Button>
         </DialogFooter>

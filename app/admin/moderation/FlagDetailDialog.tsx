@@ -155,7 +155,7 @@ export function FlagDetailDialog({
                 <Link
                   href={contentUrl}
                   target="_blank"
-                  className={buttonVariants({ variant: "outline" })}
+                  className={cn(buttonVariants({ variant: "outline" }))}
                 >
                   <ExternalLink data-icon="inline-start" />
                   View content

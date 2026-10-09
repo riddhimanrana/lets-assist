@@ -419,7 +419,7 @@ export default async function UserProjects() {
                               Hours published
                             </Badge>
                           ) : (
-                            <Badge variant="secondary">
+                            <Badge variant="neutral">
                               {project.status === "cancelled"
                                 ? "Cancelled"
                                 : "Past event"}

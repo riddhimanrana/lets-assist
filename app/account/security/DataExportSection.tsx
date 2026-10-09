@@ -169,6 +169,32 @@ export default function DataExportSection() {
     <SettingsSection
       title="Export your data"
       description="Request a ZIP archive of your account records. Download it here when it is ready."
+      footerHint="Requests are limited to one every 24 hours. Archive readiness and email notification status are shown separately."
+      footer={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              void poller.current?.refresh();
+            }}
+          >
+            Refresh status
+          </Button>
+          <Button
+            type="button"
+            onClick={requestExport}
+            disabled={loading || requesting || active}
+          >
+            {requesting
+              ? "Requesting export..."
+              : active
+                ? "Export already queued"
+                : "Request data archive"}
+          </Button>
+        </>
+      }
     >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
@@ -218,34 +244,6 @@ export default function DataExportSection() {
             </ul>
           </div>
         )}
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={requestExport}
-            disabled={loading || requesting || active}
-          >
-            {requesting
-              ? "Requesting export..."
-              : active
-                ? "Export already queued"
-                : "Request data archive"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setError(null);
-              void poller.current?.refresh();
-            }}
-          >
-            Refresh status
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Requests are limited to one every 24 hours. Archive readiness and
-          email notification status are shown separately.
-        </p>
       </div>
     </SettingsSection>
   );

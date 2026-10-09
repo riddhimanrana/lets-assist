@@ -11,6 +11,7 @@ import {
 import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { createClient } from "@/lib/supabase/server";
 import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
+import { cn } from "@/lib/utils";
 
 const CSF_PLUGIN_KEY = "dvhs-csf";
 
@@ -21,7 +22,7 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
       <nav aria-label="Organizations">
         <Link
           href="/organization"
-          className={buttonVariants({ variant: "outline" })}
+          className={cn(buttonVariants({ variant: "outline" }))}
         >
           Open organizations
           <ArrowRight data-icon="inline-end" aria-hidden="true" />
@@ -106,11 +107,13 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
             </div>
             <Link
               href={`/organization/${encodeURIComponent(organization.username || organization.id)}`}
-              className={buttonVariants({
-                variant: "outline",
-                className:
-                  "h-auto min-h-9 max-w-full shrink-0 py-2 text-left whitespace-normal",
-              })}
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className:
+                    "h-auto min-h-9 max-w-full shrink-0 py-2 text-left whitespace-normal",
+                }),
+              )}
             >
               Open {organization.name}
               <ArrowRight data-icon="inline-end" aria-hidden="true" />

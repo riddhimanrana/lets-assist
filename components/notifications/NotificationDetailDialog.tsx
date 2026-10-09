@@ -44,15 +44,16 @@ export function NotificationDetailDialog({
           <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-start gap-4">
-          {statusLabel ? (
-            <Badge variant="secondary">{statusLabel}</Badge>
-          ) : null}
+          {statusLabel ? <Badge variant="neutral">{statusLabel}</Badge> : null}
           <p className="text-sm leading-relaxed whitespace-pre-line">
             {notification?.body}
           </p>
-          {notification?.action_url ? (
+          {/* An in-app path is only ids; the action button already goes there.
+              An outside address stays visible so people see where it leads. */}
+          {notification?.action_url &&
+          !notification.action_url.startsWith("/") ? (
             <div className="flex w-full flex-col gap-1 border-t pt-4">
-              <p className="text-sm text-muted-foreground">Related URL</p>
+              <p className="text-sm text-muted-foreground">Link</p>
               <p className="font-mono text-xs break-all">
                 {notification.action_url}
               </p>

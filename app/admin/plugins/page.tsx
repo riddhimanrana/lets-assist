@@ -8,7 +8,7 @@ import PluginControlPlane from "./PluginControlPlane";
 import { getPluginControlPlaneData } from "./actions";
 
 export const metadata = {
-  title: "Plugins | Let's Assist Admin",
+  title: "Admin plugins",
   description: "Install, update, and monitor organization plugins.",
 };
 

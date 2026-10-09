@@ -251,7 +251,7 @@ export function ProjectQRCodeModal({
       if (days === 0 && hours === 0) visibleIn = "Visible soon";
       return <Badge variant="secondary">{visibleIn.trim()}</Badge>;
     } else {
-      return <Badge variant="secondary">Session ended</Badge>;
+      return <Badge variant="neutral">Session ended</Badge>;
     }
   };
 

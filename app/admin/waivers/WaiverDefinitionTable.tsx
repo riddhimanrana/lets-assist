@@ -104,7 +104,7 @@ export function WaiverDefinitionTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={definition.active ? "success" : "secondary"}>
+                  <Badge variant={definition.active ? "success" : "neutral"}>
                     {definition.active ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>

@@ -5,7 +5,7 @@ import { AdminLoadError, AdminPage } from "../components/AdminPage";
 import { OrganizationsTab } from "../components/OrganizationsTab";
 
 export const metadata = {
-  title: "Organizations | Admin",
+  title: "Admin organizations",
   description: "Manage organization verification status",
 };
 

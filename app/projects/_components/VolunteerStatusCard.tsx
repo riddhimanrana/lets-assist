@@ -12,6 +12,7 @@ import {
   getMultiDaySlotDisplayName,
 } from "@/utils/project";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface VolunteerStatusCardProps {
   project: Project;
@@ -100,7 +101,7 @@ export default function VolunteerStatusCard({
           </div>
           <Link
             href="/profile"
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             View my contributions
           </Link>

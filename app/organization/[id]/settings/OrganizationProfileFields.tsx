@@ -216,9 +216,10 @@ export default function OrganizationProfileFields({
               )}
             </InputGroup>
             <FieldDescription>
-              Used in your organization&apos;s URL:
-              lets-assist.com/organization/
-              <span className="font-mono">{field.value || "username"}</span>
+              Used in your organization&apos;s URL.
+              <span className="mt-1 block font-mono text-xs break-all">
+                lets-assist.com/organization/{field.value || "username"}
+              </span>
             </FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>

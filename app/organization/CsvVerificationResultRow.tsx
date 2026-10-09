@@ -14,6 +14,7 @@ import {
 } from "./CsvVerificationBadges";
 import { formatHours } from "./csv-verification-logic";
 import type { CertificateRow } from "./csv-verification-types";
+import { cn } from "@/lib/utils";
 
 const MATCH_LABELS: Record<string, string> = {
   certificateId: "Certificate ID",
@@ -175,10 +176,12 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
               href={certificateHref}
               target="_blank"
               rel="noreferrer"
-              className={buttonVariants({
-                variant: "outline",
-                className: "w-full sm:hidden",
-              })}
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className: "w-full sm:hidden",
+                }),
+              )}
             >
               View certificate
             </a>

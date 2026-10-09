@@ -7,7 +7,7 @@ import { AdminPage } from "../components/AdminPage";
 import UserAccessClient from "./UserAccessClient";
 
 export const metadata = {
-  title: "User Access Control | Admin",
+  title: "Admin user access",
   description: "Restrict, ban, or restore user access to the platform",
 };
 

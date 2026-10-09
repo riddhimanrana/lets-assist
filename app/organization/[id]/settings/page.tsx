@@ -173,7 +173,7 @@ export default async function OrganizationSettingsPage({ params }: Props) {
                   autoJoinDomain ? (
                     <Badge variant="success">Enabled</Badge>
                   ) : (
-                    <Badge variant="outline">Not set up</Badge>
+                    <Badge variant="neutral">Not set up</Badge>
                   )
                 }
                 footerHint={

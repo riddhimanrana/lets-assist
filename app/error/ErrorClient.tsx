@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 
 import { NoticePage } from "@/components/projects/NoticePage";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 
 export default function ErrorClient() {
   const searchParams = useSearchParams();
@@ -40,7 +41,7 @@ export default function ErrorClient() {
           <Link href="/login" className={buttonVariants()}>
             Back to login
           </Link>
-          <Link href="/" className={buttonVariants({ variant: "outline" })}>
+          <Link href="/" className={cn(buttonVariants({ variant: "outline" }))}>
             Go to home
           </Link>
         </>

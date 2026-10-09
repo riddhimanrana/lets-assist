@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { AdminLoadError, AdminPage } from "../components/AdminPage";
 
 export const metadata = {
-  title: "Feedback | Admin",
+  title: "Admin feedback",
   description: "User feedback and suggestions",
 };
 

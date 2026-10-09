@@ -217,9 +217,7 @@ export default function DraftsClient({
                     <h2 className="truncate text-base font-semibold">
                       {draft.title || "Untitled draft"}
                     </h2>
-                    <Badge variant="outline" className="text-muted-foreground">
-                      Draft
-                    </Badge>
+                    <Badge variant="neutral">Draft</Badge>
                   </div>
 
                   {draft.organization?.name ? (

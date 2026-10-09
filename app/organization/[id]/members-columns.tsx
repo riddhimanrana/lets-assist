@@ -216,12 +216,7 @@ export function buildMemberColumns(ctx: MembersColumnContext): MemberColumn[] {
     cell: ({ row }) =>
       directoryCell(row.original, (entry) =>
         entry.status ? (
-          <Badge
-            variant={entry.status === "active" ? "success" : "outline"}
-            className={
-              entry.status === "active" ? undefined : "text-muted-foreground"
-            }
-          >
+          <Badge variant={entry.status === "active" ? "success" : "neutral"}>
             {statusLabel(entry.status)}
           </Badge>
         ) : null,

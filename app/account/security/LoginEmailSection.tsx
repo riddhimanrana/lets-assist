@@ -88,7 +88,7 @@ export function LoginEmailSection() {
 
   return (
     <SettingsSection
-      title="Login email"
+      title="Sign-in email"
       description="The email address you use to sign in."
       footerHint="We will send a confirmation link to the new address."
       footer={

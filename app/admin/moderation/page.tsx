@@ -11,7 +11,7 @@ import {
 } from "./actions";
 
 export const metadata = {
-  title: "Content Moderation | Admin",
+  title: "Admin moderation",
   description: "Platform-wide content moderation dashboard",
 };
 

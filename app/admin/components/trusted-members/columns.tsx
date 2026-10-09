@@ -11,6 +11,17 @@ import { format } from "date-fns";
 import { updateTrustedMemberStatus } from "../../actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -138,6 +149,7 @@ export const columns: ColumnDef<TrustedMember>[] = [
 
 function ActionsCell({ member }: { member: TrustedMember }) {
   const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleApprove = async () => {
     const targetId = member.user_id || member.id;
@@ -164,7 +176,8 @@ function ActionsCell({ member }: { member: TrustedMember }) {
   };
 
   const name = member.profiles?.full_name || member.name;
-  const denyLabel = member.status === true ? "Revoke access" : "Deny";
+  const isRevoke = member.status === true;
+  const denyLabel = isRevoke ? "Revoke access" : "Deny";
 
   return (
     <div className="flex justify-end gap-1">
@@ -195,11 +208,9 @@ function ActionsCell({ member }: { member: TrustedMember }) {
               <Button
                 size="icon"
                 variant="destructive-ghost"
-                onClick={handleDeny}
+                onClick={() => setConfirmOpen(true)}
                 aria-label={
-                  member.status === true
-                    ? `Revoke access for ${name}`
-                    : `Deny ${name}`
+                  isRevoke ? `Revoke access for ${name}` : `Deny ${name}`
                 }
               />
             }
@@ -209,6 +220,35 @@ function ActionsCell({ member }: { member: TrustedMember }) {
           <TooltipContent>{denyLabel}</TooltipContent>
         </Tooltip>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isRevoke
+                ? `Revoke trusted access for ${name}?`
+                : `Deny ${name}'s application?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isRevoke
+                ? "They lose trusted member status right away. You can approve them again later."
+                : "Their application is marked as denied. You can approve them later."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setConfirmOpen(false);
+                void handleDeny();
+              }}
+            >
+              {denyLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

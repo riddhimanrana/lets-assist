@@ -17,7 +17,7 @@ import { ProjectScheduleHealth } from "./components/ProjectScheduleHealth";
 import { getProjectScheduleHealth } from "./server/project-schedule-health";
 
 export const metadata = {
-  title: "Admin Dashboard | Let's Assist",
+  title: "Admin overview",
   description:
     "Unified admin dashboard for managing feedback, trusted members, and content moderation",
 };

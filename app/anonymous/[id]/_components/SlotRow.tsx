@@ -22,6 +22,7 @@ import {
   getSlotTiming,
   type SlotData,
 } from "./signup-schedule";
+import { cn } from "@/lib/utils";
 
 export type WaiverSignatureMeta = {
   signature_type: string;
@@ -40,7 +41,7 @@ function SignupStatusBadge({ status }: { status: string }) {
       return <Badge variant="destructive">Rejected</Badge>;
     default:
       return (
-        <Badge variant="secondary" className="capitalize">
+        <Badge variant="neutral" className="capitalize">
           {status}
         </Badge>
       );
@@ -157,7 +158,7 @@ export function SlotRow({
           {certificateId && (
             <Link
               href={`/certificates/${certificateId}`}
-              className={buttonVariants({ variant: "outline" })}
+              className={cn(buttonVariants({ variant: "outline" }))}
             >
               Certificate
             </Link>

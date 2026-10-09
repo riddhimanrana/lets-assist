@@ -24,8 +24,9 @@ import {
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-  InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
@@ -324,28 +325,26 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             name="name"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>
-                  Organization name *
-                </FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    id={field.name}
-                    {...field}
-                    placeholder="Enter organization name"
-                    maxLength={CONSTANTS.NAME.MAX}
-                    aria-invalid={
-                      fieldState.invalid ||
-                      Boolean(
-                        field.value && field.value.length < CONSTANTS.NAME.MIN,
-                      )
-                    }
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupText className="text-xs tabular-nums">
-                      {nameLength}/{CONSTANTS.NAME.MAX}
-                    </InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel htmlFor={field.name}>
+                    Organization name *
+                  </FieldLabel>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {nameLength}/{CONSTANTS.NAME.MAX}
+                  </span>
+                </div>
+                <Input
+                  id={field.name}
+                  {...field}
+                  placeholder="Enter organization name"
+                  maxLength={CONSTANTS.NAME.MAX}
+                  aria-invalid={
+                    fieldState.invalid ||
+                    Boolean(
+                      field.value && field.value.length < CONSTANTS.NAME.MIN,
+                    )
+                  }
+                />
                 <FieldDescription>
                   This will be your organization&apos;s display name (minimum{" "}
                   {CONSTANTS.NAME.MIN} characters)
@@ -427,9 +426,10 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
                   ) : null}
                 </InputGroup>
                 <FieldDescription>
-                  Used in your organization&apos;s URL (minimum 3 characters):
-                  lets-assist.com/organization/
-                  <span className="font-mono">{field.value || "username"}</span>
+                  Used in your organization&apos;s URL (minimum 3 characters).
+                  <span className="mt-1 block font-mono text-xs break-all">
+                    lets-assist.com/organization/{field.value || "username"}
+                  </span>
                 </FieldDescription>
                 {fieldState.invalid && (
                   <FormMessage errors={[fieldState.error]} />
@@ -509,28 +509,27 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             name="description"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Description *</FieldLabel>
-                <InputGroup>
-                  <InputGroupTextarea
-                    id={field.name}
-                    {...field}
-                    placeholder="Describe your organization"
-                    rows={4}
-                    maxLength={CONSTANTS.DESCRIPTION.MAX}
-                    aria-invalid={
-                      fieldState.invalid ||
-                      Boolean(
-                        field.value &&
-                        field.value.length < CONSTANTS.DESCRIPTION.MIN,
-                      )
-                    }
-                  />
-                  <InputGroupAddon align="block-end" className="justify-end">
-                    <InputGroupText className="text-xs tabular-nums">
-                      {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
-                    </InputGroupText>
-                  </InputGroupAddon>
-                </InputGroup>
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel htmlFor={field.name}>Description *</FieldLabel>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {descriptionLength}/{CONSTANTS.DESCRIPTION.MAX}
+                  </span>
+                </div>
+                <Textarea
+                  id={field.name}
+                  {...field}
+                  placeholder="Describe your organization"
+                  className="resize-none"
+                  rows={4}
+                  maxLength={CONSTANTS.DESCRIPTION.MAX}
+                  aria-invalid={
+                    fieldState.invalid ||
+                    Boolean(
+                      field.value &&
+                      field.value.length < CONSTANTS.DESCRIPTION.MIN,
+                    )
+                  }
+                />
                 <FieldDescription>
                   Provide a short description of your organization (minimum{" "}
                   {CONSTANTS.DESCRIPTION.MIN} characters)
@@ -542,7 +541,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             )}
           />
 
-          <Alert>
+          <Alert variant="info">
             <Info />
             <AlertTitle>Automatic domain membership</AlertTitle>
             <AlertDescription>

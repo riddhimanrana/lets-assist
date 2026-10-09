@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 
 import { AnonymousLinkingDialog } from "../AnonymousLinkingDialog";
+import { cn } from "@/lib/utils";
 
 export type LinkStatus = "unlinked" | "linked" | "verification-pending";
 
@@ -84,10 +85,12 @@ export function LinkAccountSection({
             </p>
             <Link
               href={`/signup/success?email=${encodeURIComponent(pendingEmail)}`}
-              className={buttonVariants({
-                variant: "outline",
-                className: "justify-self-start no-underline!",
-              })}
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className: "justify-self-start no-underline!",
+                }),
+              )}
             >
               Manage verification email
             </Link>
