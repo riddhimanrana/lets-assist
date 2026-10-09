@@ -86,6 +86,23 @@ function toLines(value: unknown): string[] {
  * are placed at the positions it reports, which pdf-lib's own `drawText`
  * ignores. Fonts are embedded as subsets, and only when a piece uses them.
  */
+/**
+ * Shaping costs far more per character than drawing with the standard font,
+ * and the text comes from whoever signs the waiver. One value is cut to the
+ * first limit, and once a document has shaped the second, the rest of its
+ * values take the standard-font path instead.
+ */
+export const UNICODE_TEXT_MAX_VALUE_LENGTH = 500;
+export const UNICODE_TEXT_MAX_DOCUMENT_LENGTH = 5_000;
+
+/** Thrown when a document has used up its shaping allowance. */
+export class UnicodeTextBudgetError extends Error {
+  constructor() {
+    super("Unicode text budget spent");
+    this.name = "UnicodeTextBudgetError";
+  }
+}
+
 export function createUnicodeTextRenderer(
   pdfDoc: PDFDocument,
   standardFont: PDFFont,
@@ -93,7 +110,7 @@ export function createUnicodeTextRenderer(
 ) {
   const embedded = new Map<string, Promise<PDFFont>>();
   const fontKeys = new Map<PDFPage, Map<PDFFont, PDFName>>();
-  const state = { embeddedFonts: 0, fontUnavailable: false };
+  const state = { embeddedFonts: 0, fontUnavailable: false, shapedLength: 0 };
   let fontkitRegistered = false;
 
   const isEncodable = (text: string) =>
@@ -228,7 +245,18 @@ export function createUnicodeTextRenderer(
     let substituted = false;
     const lines: ShapedPiece[][] = [];
 
-    for (const source of toLines(value)) {
+    const bounded = Array.from(String(value ?? ""))
+      .slice(0, UNICODE_TEXT_MAX_VALUE_LENGTH)
+      .join("");
+    if (
+      state.shapedLength + bounded.length >
+      UNICODE_TEXT_MAX_DOCUMENT_LENGTH
+    ) {
+      throw new UnicodeTextBudgetError();
+    }
+    state.shapedLength += bounded.length;
+
+    for (const source of toLines(bounded)) {
       // Words and the spaces between them, each a wrap opportunity.
       const tokens: Cell[][] = [];
       for (const word of source.split(/( +)/u)) {
