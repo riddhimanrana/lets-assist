@@ -88,9 +88,9 @@ function toLines(value: unknown): string[] {
  */
 /**
  * Shaping costs far more per character than drawing with the standard font,
- * and the text comes from whoever signs the waiver. One value is cut to the
- * first limit, and once a document has shaped the second, the rest of its
- * values take the standard-font path instead.
+ * and the text comes from whoever signs the waiver. A value longer than the
+ * first limit, and every value after a document has shaped the second, takes
+ * the standard-font path instead. Nothing is ever truncated.
  */
 export const UNICODE_TEXT_MAX_VALUE_LENGTH = 500;
 export const UNICODE_TEXT_MAX_DOCUMENT_LENGTH = 5_000;
@@ -245,18 +245,20 @@ export function createUnicodeTextRenderer(
     let substituted = false;
     const lines: ShapedPiece[][] = [];
 
-    const bounded = Array.from(String(value ?? ""))
-      .slice(0, UNICODE_TEXT_MAX_VALUE_LENGTH)
-      .join("");
+    // A value past either limit is never cut short: this is a signed
+    // document, and dropping part of what the signer entered would change it.
+    // The caller draws the whole value with the standard font instead, and
+    // marks the page so the reader knows some characters were replaced.
+    const length = Array.from(String(value ?? "")).length;
     if (
-      state.shapedLength + bounded.length >
-      UNICODE_TEXT_MAX_DOCUMENT_LENGTH
+      length > UNICODE_TEXT_MAX_VALUE_LENGTH ||
+      state.shapedLength + length > UNICODE_TEXT_MAX_DOCUMENT_LENGTH
     ) {
       throw new UnicodeTextBudgetError();
     }
-    state.shapedLength += bounded.length;
+    state.shapedLength += length;
 
-    for (const source of toLines(bounded)) {
+    for (const source of toLines(value)) {
       // Words and the spaces between them, each a wrap opportunity.
       const tokens: Cell[][] = [];
       for (const word of source.split(/( +)/u)) {

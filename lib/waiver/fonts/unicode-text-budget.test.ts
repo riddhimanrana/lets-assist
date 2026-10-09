@@ -18,10 +18,12 @@ async function renderer() {
 
 const options = { x: 20, y: 700, size: 10, maxWidth: 400 };
 
-test("one value is shaped only up to the per-value limit", async () => {
+test("a value past the per-value limit is refused whole, never cut short", async () => {
   const { page, unicode } = await renderer();
-  await unicode.draw(page, "名".repeat(5_000), options);
-  expect(unicode.state.shapedLength).toBe(UNICODE_TEXT_MAX_VALUE_LENGTH);
+  await expect(
+    unicode.draw(page, "名".repeat(UNICODE_TEXT_MAX_VALUE_LENGTH + 1), options),
+  ).rejects.toBeInstanceOf(UnicodeTextBudgetError);
+  expect(unicode.state.shapedLength).toBe(0);
 });
 
 test("a document stops shaping once its allowance is spent", async () => {
