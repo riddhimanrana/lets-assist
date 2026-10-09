@@ -42,12 +42,36 @@ export type SheetCellValue = string | number;
 /** Bulk reads feed imports of large sheets, so they get a longer bound. */
 const GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS = 60_000;
 
+/**
+ * `signal` lets a caller end a request early, for example at a per-tenant
+ * deadline. `budget` caps how many Sheets requests one piece of work may
+ * make: each request spends one, and a request past the cap is refused.
+ */
+export type SheetsRequestOptions = {
+  signal?: AbortSignal;
+  budget?: { remaining: number };
+};
+
 function sheetsFetch(
   url: string,
   init: RequestInit = {},
+  options: SheetsRequestOptions = {},
   timeoutMs = GOOGLE_SHEETS_REQUEST_TIMEOUT_MS,
 ) {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  options.signal?.throwIfAborted();
+  if (options.budget) {
+    if (options.budget.remaining <= 0) {
+      throw new Error("Sheets request budget spent");
+    }
+    options.budget.remaining -= 1;
+  }
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return fetch(url, {
+    ...init,
+    signal: options.signal
+      ? AbortSignal.any([timeout, options.signal])
+      : timeout,
+  });
 }
 
 function failureReasonForError(error: unknown): SheetsFailureReason {
@@ -80,6 +104,7 @@ async function clearSpreadsheetValuesResult(
   accessToken: string,
   sheetId: string,
   range: string,
+  options: SheetsRequestOptions = {},
 ): Promise<SheetsWriteResult> {
   try {
     const response = await sheetsFetch(
@@ -94,6 +119,7 @@ async function clearSpreadsheetValuesResult(
         },
         body: JSON.stringify({}),
       },
+      options,
     );
 
     if (!response.ok) {
@@ -216,6 +242,7 @@ export type SpreadsheetInspection =
 export async function inspectSpreadsheet(
   accessToken: string,
   sheetId: string,
+  options: SheetsRequestOptions = {},
 ): Promise<SpreadsheetInspection> {
   try {
     const response = await sheetsFetch(
@@ -227,6 +254,7 @@ export async function inspectSpreadsheet(
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      options,
     );
 
     if (!response.ok) {
@@ -372,6 +400,7 @@ async function updateSpreadsheetValuesResult(
   range: string,
   rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
   valueInputOption: SpreadsheetValueInputOption,
+  options: SheetsRequestOptions = {},
 ): Promise<SheetsWriteResult> {
   const resolvedRange = range || "A1";
   try {
@@ -391,6 +420,7 @@ async function updateSpreadsheetValuesResult(
           values: rows,
         }),
       },
+      options,
     );
 
     if (!response.ok) {
@@ -435,6 +465,9 @@ export async function updateSpreadsheetValues(
   return result.ok;
 }
 
+/** Cells right of the report, and rows below it. */
+export const MAX_REPORT_STALE_CLEAR_REQUESTS = 2;
+
 export type SpreadsheetReportReplaceResult =
   | { success: true }
   | {
@@ -454,9 +487,15 @@ export async function replaceSpreadsheetReportValues(
   tabName: string,
   rangeA1: string | null | undefined,
   rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  options: SheetsRequestOptions = {},
 ): Promise<SpreadsheetReportReplaceResult> {
   const writeRange = buildWriteRange(tabName, rangeA1, rows);
   const staleRanges = buildStaleClearRanges(tabName, rangeA1, rows);
+  // One write and a fixed number of clears: a report can never fan out into
+  // an unbounded number of Sheets requests.
+  if (staleRanges.length > MAX_REPORT_STALE_CLEAR_REQUESTS) {
+    throw new RangeError("Report replacement exceeds its Sheets request cap.");
+  }
   let failure: SheetsFailureReason = "unavailable";
   const remember = (result: SheetsWriteResult) => {
     if (!result.ok) failure = result.reason;
@@ -475,10 +514,18 @@ export async function replaceSpreadsheetReportValues(
           writeRange,
           rows,
           "RAW",
+          options,
         ),
       ),
     clear: async (range) =>
-      remember(await clearSpreadsheetValuesResult(accessToken, sheetId, range)),
+      remember(
+        await clearSpreadsheetValuesResult(
+          accessToken,
+          sheetId,
+          range,
+          options,
+        ),
+      ),
   });
 
   return replacement.success
@@ -508,6 +555,7 @@ export async function batchGetSpreadsheetValues(
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      {},
       GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS,
     );
 

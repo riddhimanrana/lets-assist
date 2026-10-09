@@ -337,6 +337,7 @@ export async function updateSheetOwner(
     supabase: serviceSupabase,
     organizationId,
     sheetId: syncConfig.sheet_id,
+    ownerId,
     accessToken: ownerToken,
   });
   return { success: true, needsReselect };

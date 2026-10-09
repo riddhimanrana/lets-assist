@@ -311,6 +311,11 @@ test("inventories every root project_signups to projects embed and its DTO shape
       inner: false,
     },
     {
+      file: "lib/google-sheets/organization-report-sync.ts",
+      outputAlias: "projects",
+      inner: true,
+    },
+    {
       file: "services/auto-publish-hours-worker.ts",
       outputAlias: "projects",
       inner: true,

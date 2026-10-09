@@ -12,6 +12,7 @@ type Row = Record<string, unknown>;
 
 let targetMembership: Row | null = { role: "admin", status: "active" };
 let syncUpdates: Row[] = [];
+let updateFilters: Row[] = [];
 let tokenRequests: string[] = [];
 
 /** The viewer is always an active admin. Only the target varies. */
@@ -36,12 +37,21 @@ const adminClient = {
         maybeSingle: async () => ({
           data: { organization_id: "org-1", sheet_id: "sheet-1" },
         }),
-        update: (payload: Row) => ({
-          eq: async () => {
-            syncUpdates.push(payload);
-            return { error: null };
-          },
-        }),
+        update: (payload: Row) => {
+          const filters: Row = {};
+          const pending = {
+            eq: (column: string, value: unknown) => {
+              filters[column] = value;
+              return pending;
+            },
+            then: (resolve: (value: { error: null }) => void) => {
+              syncUpdates.push(payload);
+              updateFilters.push(filters);
+              resolve({ error: null });
+            },
+          };
+          return pending;
+        },
       };
       return query;
     }
@@ -88,6 +98,7 @@ let probeResponse: () => Response;
 beforeEach(() => {
   targetMembership = { role: "admin", status: "active" };
   syncUpdates = [];
+  updateFilters = [];
   tokenRequests = [];
   probes = [];
   probeResponse = () =>
@@ -155,6 +166,12 @@ describe("changing the sheet sync owner", () => {
         ["auto_sync", "updated_at"],
       ]);
       expect(syncUpdates[1].auto_sync).toBe(false);
+      // Only the owner and spreadsheet that were probed are flagged.
+      expect(updateFilters.at(-1)).toEqual({
+        organization_id: "org-1",
+        sheet_id: "sheet-1",
+        created_by: "target-1",
+      });
     }
   });
 

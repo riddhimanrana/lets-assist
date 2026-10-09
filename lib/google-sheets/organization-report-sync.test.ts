@@ -44,17 +44,21 @@ const reportData = (): OrganizationReportData => ({
 
 // The real report service reads the database. Here it hands the fixture to
 // whichever row builder the sync chose, which is the part under test.
+let reportBuilds = 0;
 mock.module("@/lib/organization/report-service", () => ({
   buildOrganizationReportRowsForSync: async (
     _organizationId: string,
     reportType: ReportType,
     _dateRange?: unknown,
     buildRows?: (report: OrganizationReportData) => unknown[][],
-  ) => ({
-    rows: buildRows
-      ? buildRows(reportData())
-      : buildReportSheetRows(reportData(), reportType),
-  }),
+  ) => {
+    reportBuilds += 1;
+    return {
+      rows: buildRows
+        ? buildRows(reportData())
+        : buildReportSheetRows(reportData(), reportType),
+    };
+  },
 }));
 
 const { runOrganizationSheetSync } = await import("./organization-report-sync");
@@ -67,15 +71,44 @@ let tabs = ["Member Hours"];
 let metadataResponse: () => Response | Promise<Response>;
 let updates: Array<Record<string, unknown>> = [];
 let recordError: { message: string } | null = null;
+// The row as the database holds it now, which may differ from the config a
+// sync started with.
+let savedRow: Record<string, unknown> = {};
+let sourceCounts: Record<string, number | null> = {};
+
+/** Applies an update only to a row that matches every filter, like Postgres. */
+function updateQuery(payload: Record<string, unknown>) {
+  const filters: Array<[string, unknown]> = [];
+  const query = {
+    eq: (column: string, value: unknown) => {
+      filters.push([column, value]);
+      return query;
+    },
+    then: (resolve: (value: { error: unknown }) => void) => {
+      if (filters.every(([column, value]) => savedRow[column] === value)) {
+        updates.push(payload);
+        Object.assign(savedRow, payload);
+      }
+      resolve({ error: "last_synced_at" in payload ? recordError : null });
+    },
+  };
+  return query;
+}
+
+function countQuery(table: string) {
+  const query = {
+    eq: () => query,
+    not: () => query,
+    then: (resolve: (value: { count: number | null; error: null }) => void) =>
+      resolve({ count: sourceCounts[table] ?? null, error: null }),
+  };
+  return query;
+}
 
 const supabase = {
-  from: () => ({
-    update: (payload: Record<string, unknown>) => ({
-      eq: async () => {
-        updates.push(payload);
-        return { error: "last_synced_at" in payload ? recordError : null };
-      },
-    }),
+  from: (table: string) => ({
+    select: () => countQuery(table),
+    update: updateQuery,
   }),
 } as unknown as Parameters<typeof runOrganizationSheetSync>[0]["supabase"];
 
@@ -86,6 +119,7 @@ const config = (overrides: Record<string, unknown> = {}) => ({
   range_a1: "A1",
   report_type: "member-hours",
   layout_config: null as unknown,
+  created_by: "owner-1",
   ...overrides,
 });
 
@@ -103,6 +137,14 @@ const writtenValues = () =>
 beforeEach(() => {
   calls = [];
   updates = [];
+  reportBuilds = 0;
+  savedRow = {
+    organization_id: "org-1",
+    sheet_id: "sheet-1",
+    created_by: "owner-1",
+    auto_sync: true,
+  };
+  sourceCounts = { projects: 3, certificates: 40, project_signups: 12 };
   tabs = ["Member Hours"];
   volunteerCount = 2;
   recordError = null;
@@ -288,5 +330,127 @@ describe("the shared organization sheet sync", () => {
         : new Response(null, { status: 200 })) as typeof fetch;
     recordError = { message: "fixture" };
     expect(await run()).toMatchObject({ code: "record_failed" });
+  });
+});
+
+describe("per-organization work bounds", () => {
+  test("refuses an oversized organization before the report is built", async () => {
+    for (const counts of [
+      { projects: 10_001, certificates: 0, project_signups: 0 },
+      { projects: 3, certificates: 60_000, project_signups: 40_001 },
+    ]) {
+      sourceCounts = counts;
+
+      expect(await run()).toMatchObject({
+        success: false,
+        code: "report_too_large",
+      });
+    }
+    expect(reportBuilds).toBe(0);
+    expect(writes()).toHaveLength(0);
+  });
+
+  test("fails closed when the report size cannot be counted", async () => {
+    sourceCounts = { projects: 3, certificates: null, project_signups: 1 };
+
+    expect(await run()).toMatchObject({ code: "report_unavailable" });
+    expect(reportBuilds).toBe(0);
+  });
+
+  test("still refuses a built report past the row cap", async () => {
+    volunteerCount = 10_000;
+
+    const result = await run();
+    expect(result).toMatchObject({ success: false, code: "report_too_large" });
+    expect(reportBuilds).toBe(1);
+    expect(writes()).toHaveLength(0);
+  });
+
+  test("makes at most four Sheets requests for one sync", async () => {
+    await run({ range_a1: "A1:Z500" });
+
+    expect(calls.map((call) => call.method)).toEqual([
+      "GET",
+      "PUT",
+      "POST",
+      "POST",
+    ]);
+  });
+
+  test("stops at the caller's deadline and passes it to every request", async () => {
+    const controller = new AbortController();
+    const seen: boolean[] = [];
+    globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+      seen.push(init?.signal instanceof AbortSignal);
+      controller.abort();
+      init?.signal?.throwIfAborted();
+      return metadataResponse();
+    }) as typeof fetch;
+
+    const result = await runOrganizationSheetSync({
+      supabase,
+      config: config(),
+      accessToken: "fixture-token",
+      signal: controller.signal,
+    });
+
+    expect(result).toMatchObject({ success: false, code: "sheets_timeout" });
+    expect(seen).toEqual([true]);
+    expect(updates).toHaveLength(0);
+  });
+
+  test("a sync stopped at its deadline after writing does not stamp the sync time", async () => {
+    const controller = new AbortController();
+    globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
+      if ((init?.method ?? "GET") === "GET") return metadataResponse();
+      // The deadline fires while the write is in flight.
+      controller.abort();
+      return new Response(null, { status: 200 });
+    }) as typeof fetch;
+
+    const result = await runOrganizationSheetSync({
+      supabase,
+      config: config(),
+      accessToken: "fixture-token",
+      signal: controller.signal,
+    });
+
+    expect(result).toMatchObject({ success: false, code: "sheets_timeout" });
+    expect(updates).toHaveLength(0);
+    expect(savedRow.last_synced_at).toBeUndefined();
+  });
+
+  test("refuses a Sheets request past the per-sync budget", async () => {
+    const { inspectSpreadsheet } =
+      await import("@/services/google-sheets-report");
+    const budget = { remaining: 1 };
+
+    expect((await inspectSpreadsheet("token", "sheet-1", { budget })).ok).toBe(
+      true,
+    );
+    expect(await inspectSpreadsheet("token", "sheet-1", { budget })).toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+    expect(calls).toHaveLength(1);
+  });
+});
+
+describe("write-backs are scoped to the configuration that was synced", () => {
+  test("a stale failure does not turn automatic sync off on a re-selected spreadsheet", async () => {
+    // An admin picked another file while this sync was in flight.
+    savedRow.sheet_id = "sheet-2";
+    tabs = ["Renamed"];
+
+    expect(await run()).toMatchObject({ code: "tab_missing" });
+    expect(updates).toHaveLength(0);
+    expect(savedRow.auto_sync).toBe(true);
+  });
+
+  test("a stale success does not stamp the sync time for a new owner", async () => {
+    savedRow.created_by = "owner-2";
+
+    await run();
+    expect(savedRow.last_synced_at).toBeUndefined();
   });
 });

@@ -46,11 +46,14 @@ export async function flagSheetSyncAfterOwnerChange({
   supabase,
   organizationId,
   sheetId,
+  ownerId,
   accessToken,
 }: {
   supabase: ReturnType<typeof getAdminClient>;
   organizationId: string;
   sheetId: string;
+  /** The owner whose token was probed. Only their configuration is flagged. */
+  ownerId: string;
   accessToken: string;
 }): Promise<{ needsReselect: boolean }> {
   const inspection = await inspectSpreadsheet(accessToken, sheetId);
@@ -62,7 +65,9 @@ export async function flagSheetSyncAfterOwnerChange({
     await supabase
       .from("organization_sheet_syncs")
       .update({ auto_sync: false, updated_at: new Date().toISOString() })
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("sheet_id", sheetId)
+      .eq("created_by", ownerId);
   }
   return { needsReselect };
 }

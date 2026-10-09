@@ -155,7 +155,7 @@ export async function syncSheetNow(organizationId: string): Promise<{
   const serviceSupabase = getAdminClient();
   const { data: syncConfig, error: syncError } = await serviceSupabase
     .from("organization_sheet_syncs")
-    .select(`${ORGANIZATION_SHEET_SYNC_COLUMNS}, sheet_url, created_by`)
+    .select(`${ORGANIZATION_SHEET_SYNC_COLUMNS}, sheet_url`)
     .eq("organization_id", organizationId)
     .maybeSingle();
 
@@ -185,7 +185,9 @@ export async function syncSheetNow(organizationId: string): Promise<{
     await serviceSupabase
       .from("organization_sheet_syncs")
       .update({ auto_sync: false, updated_at: new Date().toISOString() })
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("created_by", syncConfig.created_by)
+      .eq("sheet_id", syncConfig.sheet_id);
     return {
       success: false,
       error: "Sheet sync owner no longer has active organization admin access",

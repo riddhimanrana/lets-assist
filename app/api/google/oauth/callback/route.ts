@@ -552,6 +552,7 @@ export async function GET(request: NextRequest) {
               supabase: serviceSupabase,
               organizationId: attemptBinding.organizationId,
               sheetId: existingSync.sheet_id,
+              ownerId: userId,
               accessToken: tokens.access_token,
             });
           }
