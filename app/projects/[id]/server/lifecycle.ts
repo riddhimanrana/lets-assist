@@ -19,7 +19,6 @@ import {
   getWaiverSettingsErrorMessage,
   type WaiverSettingUpdates,
 } from "@/lib/projects/waiver-settings";
-import { getRecurrenceWaiverEditError } from "@/lib/projects/recurrence";
 import { canUserManageProject } from "./access-helpers";
 import {
   getExactCancellationReceipt,
@@ -528,7 +527,7 @@ export async function updateProject(
     const { data: project } = await supabase
       .from("projects")
       .select(
-        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility, waiver_required",
+        "creator_id, organization_id, can_be_managed_by_staff, recurrence_parent_id, recurrence_rule, recurrence_generation_id, visibility",
       )
       .eq("id", projectId)
       .single();
@@ -619,17 +618,6 @@ export async function updateProject(
       }
       sanitizedUpdates.recurrence_rule = ruleResult.rule;
     }
-
-    // A repeating project cannot require a waiver: its occurrences are new
-    // projects that cannot carry the waiver PDF.
-    const recurrenceWaiverError = getRecurrenceWaiverEditError({
-      isOccurrence: project.recurrence_parent_id != null,
-      currentRule: project.recurrence_rule,
-      nextRule: sanitizedUpdates.recurrence_rule,
-      currentWaiverRequired: project.waiver_required,
-      nextWaiverRequired: requestedWaiverSettings?.waiver_required,
-    });
-    if (recurrenceWaiverError) return { error: recurrenceWaiverError };
 
     const requestsPublicVisibility =
       Object.prototype.hasOwnProperty.call(sanitizedUpdates, "visibility") &&

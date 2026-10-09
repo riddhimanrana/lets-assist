@@ -25,7 +25,10 @@ import {
   RecurrenceWeekday,
 } from "@/types";
 import { RECURRENCE_OCCURRENCE_MAX } from "@/lib/projects/schedule-validation";
-import type { RecurrenceFieldErrors } from "@/lib/projects/recurrence";
+import {
+  RECURRENCE_WAIVER_COPY_NOTICE,
+  type RecurrenceFieldErrors,
+} from "@/lib/projects/recurrence";
 import { FieldError } from "@/components/ui/field";
 import { FormField, FormGroup, ToggleRow } from "./form-parts";
 
@@ -46,8 +49,8 @@ interface RecurrenceSettingsProps {
   eventType: string;
   /** Field-level problems found when the step was validated. */
   errors?: RecurrenceFieldErrors;
-  /** Why the repeat schedule cannot be turned on, when it cannot. */
-  blockedReason?: string;
+  /** True when the project requires a waiver, which each new event copies. */
+  waiverRequired?: boolean;
 }
 
 const WEEKDAYS: { value: RecurrenceWeekday; label: string; short: string }[] = [
@@ -65,7 +68,7 @@ export default function RecurrenceSettings({
   updateRecurrence,
   eventType,
   errors = {},
-  blockedReason,
+  waiverRequired = false,
 }: RecurrenceSettingsProps) {
   // Helper to parse date string to Date object without timezone shifting
   const parseStringToDate = (dateString: string): Date | undefined => {
@@ -162,15 +165,17 @@ export default function RecurrenceSettings({
         description={
           recurrence.enabled
             ? getRecurrenceSummary()
-            : (blockedReason ??
-              "Set up this event to repeat automatically. New events will be created based on your schedule.")
+            : "Set up this event to repeat automatically. New events will be created based on your schedule."
         }
         checked={recurrence.enabled}
         onCheckedChange={(checked) => updateRecurrence("enabled", checked)}
-        // Turning it off always stays possible.
-        disabled={Boolean(blockedReason) && !recurrence.enabled}
       />
       {errors.enabled ? <FieldError>{errors.enabled}</FieldError> : null}
+      {recurrence.enabled && waiverRequired ? (
+        <p className="text-muted-foreground text-sm">
+          {RECURRENCE_WAIVER_COPY_NOTICE}
+        </p>
+      ) : null}
 
       {recurrence.enabled && (
         <>
@@ -358,7 +363,7 @@ export default function RecurrenceSettings({
 
           {/* Info banner */}
           <Alert variant="info">
-            <AlertTitle>How resizing works</AlertTitle>
+            <AlertTitle>How repeating works</AlertTitle>
             <AlertDescription>
               <ul className="list-inside list-disc">
                 <li>

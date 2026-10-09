@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
 import { createInitialEventFormState } from "@/hooks/use-event-form";
-import { RECURRENCE_WAIVER_CONFLICT_MESSAGE } from "@/lib/projects/recurrence";
 
 import {
   WAIVER_DEFINITION_REQUIRED_MESSAGE,
@@ -66,14 +65,32 @@ describe("what blocks a waiver project on the settings step", () => {
     ).toBeNull();
   });
 
-  test("a repeat schedule and a required waiver cannot be combined", () => {
+  test("a repeat schedule and a required waiver can be combined", () => {
     const state = waiverState();
+    state.recurrence = {
+      ...state.recurrence,
+      enabled: true,
+      weekdays: ["monday"],
+    };
+
+    expect(getWaiverStepError(state)).toBeNull();
+    expect(getRecurrenceStepErrors(state)).toEqual({});
+  });
+
+  test("a repeating waiver project still needs its PDF and placements", () => {
+    const state = waiverState({ waiverPdfFile: null });
     state.recurrence = { ...state.recurrence, enabled: true };
 
-    expect(getWaiverStepError(state)).toBe(RECURRENCE_WAIVER_CONFLICT_MESSAGE);
-    expect(getRecurrenceStepErrors(state).enabled).toBe(
-      RECURRENCE_WAIVER_CONFLICT_MESSAGE,
+    expect(getWaiverStepError(state)).toBe(
+      "A waiver PDF is required before you can continue.",
     );
+    expect(
+      getWaiverStepError({
+        ...state,
+        waiverPdfFile: pdf,
+        waiverDefinition: null,
+      }),
+    ).toBe(WAIVER_DEFINITION_REQUIRED_MESSAGE);
   });
 });
 

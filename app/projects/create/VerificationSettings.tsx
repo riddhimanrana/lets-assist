@@ -56,8 +56,6 @@ interface VerificationSettingsProps {
     visibility?: string;
     waiver?: string;
   };
-  /** Why a waiver cannot be required, when it cannot. */
-  waiverBlockedReason?: string;
 }
 
 export default function VerificationSettings({
@@ -93,7 +91,6 @@ export default function VerificationSettings({
   updateRestrictToOrgDomainsAction,
   allowedEmailDomains,
   errors = {},
-  waiverBlockedReason,
 }: VerificationSettingsProps) {
   const isSignupOnly = verificationMethod === "signup-only";
 
@@ -139,7 +136,6 @@ export default function VerificationSettings({
         updateDetectedFieldsAction={updateDetectedFieldsAction}
         clearWaiverPdfAction={clearWaiverPdfAction}
         error={errors.waiver}
-        blockedReason={waiverBlockedReason}
       />
 
       {/* Project Visibility - available to everyone */}

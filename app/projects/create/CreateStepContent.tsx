@@ -3,7 +3,6 @@
 import React from "react";
 
 import type { useEventForm } from "@/hooks/use-event-form";
-import { RECURRENCE_WAIVER_CONFLICT_MESSAGE } from "@/lib/projects/recurrence";
 
 import BasicInfo from "./BasicInfo";
 import EventTypeStep from "./EventType";
@@ -173,11 +172,7 @@ export function CreateStepContent({
           errors={validationAttempted ? scheduleErrors : []}
           projectTimezone={state.basicInfo.projectTimezone}
           recurrenceErrors={recurrenceErrors}
-          recurrenceBlockedReason={
-            state.waiverRequired
-              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
-              : undefined
-          }
+          recurrenceWaiverRequired={state.waiverRequired}
         />
       );
     case 4:
@@ -251,11 +246,6 @@ export function CreateStepContent({
             ),
             waiver: waiverError,
           }}
-          waiverBlockedReason={
-            state.recurrence.enabled
-              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
-              : undefined
-          }
         />
       );
     default:

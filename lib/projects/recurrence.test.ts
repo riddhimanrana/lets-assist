@@ -2,10 +2,9 @@ import { describe, expect, test } from "bun:test";
 
 import {
   RECURRENCE_MULTI_DAY_MESSAGE,
-  RECURRENCE_WAIVER_CONFLICT_MESSAGE,
+  RECURRENCE_WAIVER_COPY_NOTICE,
   buildRecurrenceRuleFromState,
   firstRecurrenceError,
-  getRecurrenceWaiverEditError,
   validateRecurrenceFormState,
   type RecurrenceFormState,
 } from "./recurrence";
@@ -192,119 +191,10 @@ describe("validateRecurrenceFormState", () => {
     ).toEqual({ enabled: RECURRENCE_MULTI_DAY_MESSAGE });
   });
 
-  test("a repeating project cannot require a waiver", () => {
-    expect(
-      validateRecurrenceFormState(weekly, {
-        ...context,
-        waiverRequired: true,
-      }),
-    ).toEqual({ enabled: RECURRENCE_WAIVER_CONFLICT_MESSAGE });
-    expect(RECURRENCE_WAIVER_CONFLICT_MESSAGE).toBe(
-      "Repeating projects cannot require a waiver yet. Turn off the waiver or the repeat schedule.",
+  test("the waiver notice says which events get which waiver, in one sentence", () => {
+    expect(RECURRENCE_WAIVER_COPY_NOTICE).toBe(
+      "Each new event copies the waiver as it is when that event is created, so events that already exist keep the waiver they have.",
     );
-  });
-});
-
-describe("getRecurrenceWaiverEditError", () => {
-  const rule = { frequency: "weekly", interval: 1, end_type: "never" };
-  const base = {
-    isOccurrence: false,
-    currentRule: null,
-    nextRule: undefined,
-    currentWaiverRequired: false,
-    nextWaiverRequired: undefined,
-  };
-
-  test("turning on a repeat schedule for a waiver project is refused", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentWaiverRequired: true,
-        nextRule: rule,
-      }),
-    ).toBe(RECURRENCE_WAIVER_CONFLICT_MESSAGE);
-  });
-
-  test("requiring a waiver on a repeating project is refused", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: rule,
-        nextWaiverRequired: true,
-      }),
-    ).toBe(RECURRENCE_WAIVER_CONFLICT_MESSAGE);
-  });
-
-  test("turning both on in one edit is refused", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        nextRule: rule,
-        nextWaiverRequired: true,
-      }),
-    ).toBe(RECURRENCE_WAIVER_CONFLICT_MESSAGE);
-  });
-
-  test("an edit that turns one of them off is allowed", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: rule,
-        currentWaiverRequired: true,
-        nextRule: null,
-        nextWaiverRequired: true,
-      }),
-    ).toBeNull();
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: rule,
-        currentWaiverRequired: true,
-        nextRule: rule,
-        nextWaiverRequired: false,
-      }),
-    ).toBeNull();
-  });
-
-  test("a project already in this state can still be edited", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: rule,
-        currentWaiverRequired: true,
-      }),
-    ).toBeNull();
-    // The edit form resends both settings unchanged on every save.
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: rule,
-        currentWaiverRequired: true,
-        nextRule: { ...rule, interval: 2 },
-        nextWaiverRequired: true,
-      }),
-    ).toBeNull();
-  });
-
-  test("an occurrence of a series is not a series", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        isOccurrence: true,
-        nextRule: rule,
-        nextWaiverRequired: true,
-      }),
-    ).toBeNull();
-  });
-
-  test("a project with no stored rule or waiver flag is treated as off", () => {
-    expect(
-      getRecurrenceWaiverEditError({
-        ...base,
-        currentRule: undefined,
-        currentWaiverRequired: undefined,
-        nextWaiverRequired: true,
-      }),
-    ).toBeNull();
+    expect(RECURRENCE_WAIVER_COPY_NOTICE.match(/[.!?]/gu)).toHaveLength(1);
   });
 });

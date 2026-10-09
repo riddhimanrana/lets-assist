@@ -38,10 +38,7 @@ import { updateCalendarEventForProject } from "@/utils/calendar-helpers";
 import Schedule from "@/app/projects/create/Schedule";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import { WaiverBuilderDialog } from "@/components/waiver/WaiverBuilderDialog";
-import {
-  RECURRENCE_WAIVER_CONFLICT_MESSAGE,
-  buildRecurrenceRuleFromState,
-} from "@/lib/projects/recurrence";
+import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
 import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import {
   formSchema,
@@ -379,11 +376,6 @@ export default function EditProjectClient({ project }: Props) {
           form={form}
           media={media}
           projectWaiverPdfUrl={project.waiver_pdf_url}
-          blockedReason={
-            recurrenceState.enabled && !project.recurrence_parent_id
-              ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
-              : undefined
-          }
         />
 
         <div className="grid gap-4">
@@ -405,11 +397,7 @@ export default function EditProjectClient({ project }: Props) {
             updateRecurrenceAction={schedule.updateRecurrence}
             errors={scheduleErrors}
             projectTimezone={project.project_timezone}
-            recurrenceBlockedReason={
-              form.watch("waiver_required")
-                ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
-                : undefined
-            }
+            recurrenceWaiverRequired={form.watch("waiver_required")}
           />
           <Alert variant="warning">
             <AlertTriangle aria-hidden="true" />

@@ -42,8 +42,8 @@ interface ScheduleProps {
   /** The project's timezone, which decides whether a time has passed. */
   projectTimezone?: string;
   recurrenceErrors?: RecurrenceFieldErrors;
-  /** Set when the repeat schedule cannot be turned on, with the reason. */
-  recurrenceBlockedReason?: string;
+  /** True when the project requires a waiver, which each new event copies. */
+  recurrenceWaiverRequired?: boolean;
 }
 
 export default function Schedule({
@@ -61,7 +61,7 @@ export default function Schedule({
   errors = [],
   projectTimezone,
   recurrenceErrors,
-  recurrenceBlockedReason,
+  recurrenceWaiverRequired,
 }: ScheduleProps) {
   if (state.eventType === "oneTime") {
     return (
@@ -82,7 +82,7 @@ export default function Schedule({
             updateRecurrence={updateRecurrenceAction}
             eventType={state.eventType}
             errors={recurrenceErrors}
-            blockedReason={recurrenceBlockedReason}
+            waiverRequired={recurrenceWaiverRequired}
           />
         )}
       </StepSection>
@@ -130,7 +130,7 @@ export default function Schedule({
             updateRecurrence={updateRecurrenceAction}
             eventType={state.eventType}
             errors={recurrenceErrors}
-            blockedReason={recurrenceBlockedReason}
+            waiverRequired={recurrenceWaiverRequired}
           />
         )}
       </StepSection>

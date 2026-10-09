@@ -1,27 +1,35 @@
 import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@supabase/supabase-js";
+import { addWeeks, format, isAfter, isBefore, parseISO } from "date-fns";
 import {
-  addDays,
-  addWeeks,
-  addMonths,
-  addYears,
-  format,
-  isAfter,
-  isBefore,
-  parseISO,
-} from "date-fns";
+  firstOccurrenceIndexAfter,
+  getOccurrenceDate,
+  type RecurrenceRule,
+} from "@/lib/projects/recurrence-occurrence-dates";
 import {
   isStrictCalendarDate,
   validateProjectTimezone,
   validateRecurrenceRule,
 } from "@/lib/projects/schedule-validation";
+import {
+  createWaiverOccurrence,
+  readParentWaiverSource,
+  resumeWaiverOccurrenceDrafts,
+  type OccurrenceWaiverFailureCode,
+  type OccurrenceWaiverOutcome,
+  type ParentWaiverSource,
+} from "@/lib/waiver/occurrence-waiver";
+
+export {
+  firstOccurrenceIndexAfter,
+  getOccurrenceDate,
+  type RecurrenceRule,
+} from "@/lib/projects/recurrence-occurrence-dates";
 
 /** Hard ceiling on while-loop iterations per parent to protect against corrupt legacy rows. */
 export const MAX_ITERATIONS_PER_PARENT = 500;
 /** Page size, not a per-run prefix: every stable page is visited. */
 export const RECURRING_PARENT_PAGE_SIZE = 20;
-/** Upper bound on the occurrence index a search may reach for one parent. */
-const MAX_OCCURRENCE_INDEX = 1_000_000;
 
 function createServiceClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,15 +41,6 @@ function createServiceClient() {
   }
 
   return createClient(supabaseUrl, supabaseKey);
-}
-
-export interface RecurrenceRule {
-  frequency: "daily" | "weekly" | "monthly" | "yearly";
-  interval: number;
-  end_type: "never" | "on_date" | "after_occurrences";
-  end_date?: string | null;
-  end_occurrences?: number | null;
-  weekdays?: string[];
 }
 
 interface Project {
@@ -72,7 +71,19 @@ interface Project {
   waiver_required?: boolean | null;
   waiver_allow_upload?: boolean | null;
   waiver_disable_esignature?: boolean | null;
+  waiver_pdf_storage_path?: string | null;
+  waiver_definition_id?: string | null;
 }
+
+/** One occurrence of a waiver-required series that could not be published. */
+export type WaiverOccurrenceFailure = {
+  parentId: string;
+  /** YYYY-MM-DD, or null when the series itself could not be read. */
+  occurrenceDate: string | null;
+  code: OccurrenceWaiverFailureCode;
+  /** The database's reason, when it refused to publish. */
+  blocker?: string;
+};
 
 type RecurringProjectsClient = ReturnType<typeof createServiceClient>;
 
@@ -120,120 +131,6 @@ function isMissingRecurrenceOccurrenceDateColumnError(error: unknown): boolean {
     combined.includes("could not find");
 
   return referencesColumn && missingColumn;
-}
-
-const WEEKDAY_INDEX: Record<string, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-};
-
-/**
- * The date of an occurrence, counted from the series' first date.
- *
- * Index 0 is the first date itself and index N is N steps after it. Every
- * occurrence is computed from the first date, never from the one before it, so
- * a short month only affects its own occurrence: a series that starts on
- * January 31 lands on February 28, March 31, April 30, and a series that
- * starts on February 29 returns to February 29 in the next leap year.
- *
- * A weekly rule with weekdays visits each chosen weekday left in the first
- * date's week (Sunday to Saturday), then every chosen weekday of each
- * `interval`-th week after it.
- */
-export function getOccurrenceDate(
-  firstDate: Date,
-  rule: RecurrenceRule,
-  occurrenceIndex: number,
-): Date | null {
-  if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0) return null;
-  if (occurrenceIndex === 0) return firstDate;
-
-  // Validation ensures the interval is a positive integer before this is
-  // reached; anything else is treated as 1.
-  const interval =
-    typeof rule.interval === "number" && rule.interval >= 1 ? rule.interval : 1;
-
-  switch (rule.frequency) {
-    case "daily":
-      return addDays(firstDate, occurrenceIndex * interval);
-    case "weekly": {
-      const targetDays = [
-        ...new Set(
-          (rule.weekdays ?? [])
-            .map((day) => WEEKDAY_INDEX[day.toLowerCase()])
-            .filter((day) => day !== undefined),
-        ),
-      ].sort((left, right) => left - right);
-      if (targetDays.length === 0) {
-        return addWeeks(firstDate, occurrenceIndex * interval);
-      }
-
-      const firstDay = firstDate.getDay();
-      const weekStart = addDays(firstDate, -firstDay);
-      const laterThisWeek = targetDays.filter((day) => day > firstDay);
-      if (occurrenceIndex <= laterThisWeek.length) {
-        return addDays(weekStart, laterThisWeek[occurrenceIndex - 1]);
-      }
-
-      const offset = occurrenceIndex - laterThisWeek.length - 1;
-      const week = 1 + Math.floor(offset / targetDays.length);
-      return addDays(
-        weekStart,
-        7 * interval * week + targetDays[offset % targetDays.length],
-      );
-    }
-    case "monthly":
-      return addMonths(firstDate, occurrenceIndex * interval);
-    case "yearly":
-      return addYears(firstDate, occurrenceIndex * interval);
-    default:
-      return null;
-  }
-}
-
-/**
- * The first occurrence index, at or above `minimumIndex`, whose date is after
- * `boundary`. Occurrence dates only move forward, so a doubling search finds
- * it without walking years of history one occurrence at a time.
- */
-export function firstOccurrenceIndexAfter(
-  firstDate: Date,
-  rule: RecurrenceRule,
-  boundary: Date,
-  minimumIndex = 1,
-): number | null {
-  const isPastBoundary = (index: number): boolean | null => {
-    const date = getOccurrenceDate(firstDate, rule, index);
-    return date ? isAfter(date, boundary) : null;
-  };
-
-  const atMinimum = isPastBoundary(minimumIndex);
-  if (atMinimum === null) return null;
-  if (atMinimum) return minimumIndex;
-
-  let low = minimumIndex;
-  let high = minimumIndex + 1;
-  for (let step = 1; ; step *= 2) {
-    if (high > MAX_OCCURRENCE_INDEX) return null;
-    const past = isPastBoundary(high);
-    if (past === null) return null;
-    if (past) break;
-    low = high;
-    high += step * 2;
-  }
-
-  while (high - low > 1) {
-    const middle = Math.floor((low + high) / 2);
-    if (isPastBoundary(middle)) high = middle;
-    else low = middle;
-  }
-
-  return high;
 }
 
 function shouldGenerateOccurrence(
@@ -412,9 +309,11 @@ export async function processRecurringProjects(
   checkedProjects: number;
   successfulProjects: number;
   failedParents: number;
-  /** Series left alone because a repeating project cannot require a waiver. */
-  skippedWaiverParents: number;
   createdOccurrences: number;
+  /** Draft occurrences from an earlier run that this run published. */
+  resumedWaiverOccurrences: number;
+  /** Occurrences left unpublished because their waiver could not be proven. */
+  waiverFailures: WaiverOccurrenceFailure[];
   errors: string[];
 }> {
   const supabase = options.client ?? createServiceClient();
@@ -428,12 +327,47 @@ export async function processRecurringProjects(
   let checkedProjects = 0;
   let successfulProjects = 0;
   let failedParents = 0;
-  let skippedWaiverParents = 0;
+  let resumedWaiverOccurrences = 0;
+  const waiverFailures: WaiverOccurrenceFailure[] = [];
   let parentCursor: string | null = null;
   const parentPageSize = Math.max(
     1,
     Math.min(options.parentPageSize ?? RECURRING_PARENT_PAGE_SIZE, 100),
   );
+
+  /**
+   * Counts a published occurrence, or records why one stayed unpublished.
+   * Returns false on a failure. Only ids, dates and codes are reported.
+   */
+  const settleWaiverOccurrence = (
+    parentId: string,
+    occurrenceDate: string | null,
+    outcome: OccurrenceWaiverOutcome,
+    resumed: boolean,
+  ): boolean => {
+    if (outcome.status === "skipped") return true;
+    if (outcome.status === "published") {
+      if (resumed) resumedWaiverOccurrences++;
+      else createdOccurrences++;
+      return true;
+    }
+
+    waiverFailures.push({
+      parentId,
+      occurrenceDate,
+      code: outcome.code,
+      ...(outcome.blocker ? { blocker: outcome.blocker } : {}),
+    });
+    errors.push(
+      `Waiver occurrence left unpublished for parent ${parentId}` +
+        `${occurrenceDate ? ` on ${occurrenceDate}` : ""}: ${outcome.code}` +
+        `${outcome.blocker ? ` (${outcome.blocker})` : ""}`,
+    );
+    safeConsole.warn(
+      "Application diagnostic from services/recurring-project-worker",
+    );
+    return false;
+  };
 
   while (true) {
     let parentQuery = supabase
@@ -502,22 +436,48 @@ export async function processRecurringProjects(
           );
           continue;
         }
-        // A generated occurrence is a new project, and a waiver PDF has to
-        // live under its own project's prefix. Until occurrences can carry
-        // their own copy, generating them would publish events that require
-        // no waiver at all, so the series is left alone and reported.
-        if (parent.waiver_required === true) {
-          skippedWaiverParents++;
-          safeConsole.warn(
-            "Application diagnostic from services/recurring-project-worker",
-            `[recurring-cron] Skipping parent ${parent.id}: a repeating project cannot require a waiver.`,
-          );
-          errors.push(
-            `Skipping parent ${parent.title} (a repeating project cannot require a waiver)`,
-          );
-          continue;
-        }
         parentsProcessed++;
+
+        // An occurrence of a waiver-required series is a new project that
+        // needs its own copy of the waiver. It is staged as a draft and only
+        // the database publishes it, once the copy is proven. The waiver is
+        // read once per run, so every occurrence made now carries the series'
+        // waiver as it is now.
+        let waiverSource: ParentWaiverSource | null = null;
+        if (parent.waiver_required === true) {
+          const sourceResult = await readParentWaiverSource(supabase, parent);
+          if (!sourceResult.ok) {
+            settleWaiverOccurrence(
+              parent.id,
+              null,
+              { status: "failed", code: sourceResult.code },
+              false,
+            );
+            continue;
+          }
+          waiverSource = sourceResult.source;
+
+          // Drafts an earlier run could not finish come first. The search
+          // below starts after the latest occurrence, so it never returns to
+          // them.
+          const resumeResult = await resumeWaiverOccurrenceDrafts(
+            supabase,
+            waiverSource,
+            format(today, "yyyy-MM-dd"),
+          );
+          if (!resumeResult.ok) {
+            settleWaiverOccurrence(
+              parent.id,
+              null,
+              { status: "failed", code: resumeResult.code },
+              false,
+            );
+            continue;
+          }
+          for (const { occurrenceDate, outcome } of resumeResult.resumed) {
+            settleWaiverOccurrence(parent.id, occurrenceDate, outcome, true);
+          }
+        }
 
         // The series is anchored to the parent's own date. Every occurrence
         // is that date plus a whole number of steps.
@@ -682,6 +642,23 @@ export async function processRecurringProjects(
             recurrence_occurrence_date: formattedOccurrenceDate,
           };
 
+          if (waiverSource) {
+            const published = settleWaiverOccurrence(
+              parent.id,
+              formattedOccurrenceDate,
+              await createWaiverOccurrence(
+                supabase,
+                waiverSource,
+                insertPayload,
+              ),
+              false,
+            );
+            // One failure is likely to repeat for the rest of the window.
+            // The next run resumes this draft and carries on from it.
+            if (!published) break;
+            continue;
+          }
+
           let insertResult = await supabase
             .from("projects")
             .insert(insertPayload);
@@ -731,8 +708,9 @@ export async function processRecurringProjects(
     checkedProjects,
     successfulProjects,
     failedParents,
-    skippedWaiverParents,
     createdOccurrences,
+    resumedWaiverOccurrences,
+    waiverFailures,
     errors,
   };
 }

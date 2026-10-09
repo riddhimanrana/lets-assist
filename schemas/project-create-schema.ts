@@ -293,7 +293,6 @@ export function parseCreateProjectPayload(
       validateRecurrenceFormState(recurrence, {
         eventType: data.eventType,
         startDate: getScheduleStartDate(scheduleResult.data),
-        waiverRequired,
       }),
     );
     if (recurrenceError) return { ok: false, error: recurrenceError };

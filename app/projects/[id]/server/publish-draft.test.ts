@@ -317,19 +317,6 @@ describe("publishProjectDraft state and validation", () => {
       overrides: { project_timezone: "Not/A/Zone" },
       error: "Choose a time zone for this project before publishing.",
     },
-    {
-      name: "a repeat schedule on a waiver project",
-      overrides: {
-        waiver_required: true,
-        recurrence_rule: {
-          frequency: "weekly",
-          interval: 1,
-          end_type: "never",
-        },
-      },
-      error:
-        "Repeating projects cannot require a waiver yet. Turn off the waiver or the repeat schedule.",
-    },
   ];
 
   for (const { name, overrides, error } of invalidRows) {
@@ -373,6 +360,21 @@ describe("publishProjectDraft publication", () => {
     });
 
     // The action itself never writes workflow_status for a waiver project.
+    expect(updatePayloads).toEqual([{ status: "upcoming" }]);
+    expect(waiverPublicationCalls).toEqual([PROJECT_ID]);
+  });
+
+  test("a repeating waiver draft is published by the same waiver proof", async () => {
+    project = draftProject({
+      waiver_required: true,
+      recurrence_rule: { frequency: "weekly", interval: 1, end_type: "never" },
+    });
+
+    expect(await publishProjectDraft(PROJECT_ID)).toEqual({
+      success: true,
+      projectId: PROJECT_ID,
+    });
+
     expect(updatePayloads).toEqual([{ status: "upcoming" }]);
     expect(waiverPublicationCalls).toEqual([PROJECT_ID]);
   });

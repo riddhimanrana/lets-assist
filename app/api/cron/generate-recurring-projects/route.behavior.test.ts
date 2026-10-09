@@ -445,7 +445,9 @@ describe("recurring occurrences keep the series' settings", () => {
       workflow_status: "published",
       status: "upcoming",
     });
-    // The waiver itself is never copied: its PDF belongs to the parent.
+    // A series without a waiver adds no waiver document to its occurrences.
+    // Waiver-required series are covered in
+    // services/recurring-project-worker.waiver.test.ts.
     for (const column of [
       "waiver_required",
       "waiver_pdf_storage_path",
@@ -453,41 +455,6 @@ describe("recurring occurrences keep the series' settings", () => {
       "waiver_definition_id",
     ]) {
       expect(column in database.inserted[0]).toBe(false);
-    }
-  });
-
-  test("a series that requires a waiver is skipped and reported, never generated unprotected", async () => {
-    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
-    const database = new InMemoryRecurringDatabase([
-      {
-        ...parentProject("a-waiver-parent", TWO_OCCURRENCES),
-        waiver_required: true,
-      },
-      parentProject("b-healthy-parent", TWO_OCCURRENCES),
-    ]);
-
-    try {
-      const result = await processRecurringProjects({
-        client: database as never,
-        now: new Date("2026-08-11T12:00:00Z"),
-      });
-
-      expect(result).toMatchObject({
-        checkedProjects: 2,
-        processedProjects: 1,
-        successfulProjects: 1,
-        failedParents: 1,
-        skippedWaiverParents: 1,
-        createdOccurrences: 1,
-      });
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain("cannot require a waiver");
-      expect(database.inserted.map((row) => row.recurrence_parent_id)).toEqual([
-        "b-healthy-parent",
-      ]);
-      expect(warn).toHaveBeenCalledTimes(1);
-    } finally {
-      warn.mockRestore();
     }
   });
 });

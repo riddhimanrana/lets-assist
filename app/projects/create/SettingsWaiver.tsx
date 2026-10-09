@@ -20,6 +20,7 @@ import {
   WaiverDefinitionInput,
 } from "@/components/waiver/WaiverBuilderDialog";
 import { cn } from "@/lib/utils";
+import { SIGNED_WAIVER_RETENTION_NOTICE } from "@/lib/waiver/retention";
 
 import { FormField, FormGroup, ToggleRow } from "./form-parts";
 
@@ -49,8 +50,6 @@ export interface WaiverSettingsProps {
   clearWaiverPdfAction?: () => void;
   /** What still blocks this step, shown once Continue was pressed. */
   error?: string;
-  /** Why a waiver cannot be required, when it cannot. */
-  blockedReason?: string;
 }
 
 export function WaiverSettings({
@@ -71,7 +70,6 @@ export function WaiverSettings({
   updateDetectedFieldsAction,
   clearWaiverPdfAction,
   error,
-  blockedReason,
 }: WaiverSettingsProps) {
   const [isValidatingPdf, setIsValidatingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -200,15 +198,9 @@ export function WaiverSettings({
       <ToggleRow
         id="waiver-required"
         label="Require waiver signature"
-        description={
-          blockedReason && !waiverRequired
-            ? blockedReason
-            : "Volunteers must sign your waiver before completing signup."
-        }
+        description="Volunteers must sign your waiver before completing signup."
         checked={waiverRequired}
         onCheckedChange={updateWaiverRequiredAction}
-        // Turning it off always stays possible.
-        disabled={Boolean(blockedReason) && !waiverRequired}
       />
 
       {waiverRequired && (
@@ -426,6 +418,10 @@ export function WaiverSettings({
             onCheckedChange={() => updateWaiverAllowUploadAction(true)}
             disabled
           />
+
+          <p className="text-muted-foreground text-sm">
+            {SIGNED_WAIVER_RETENTION_NOTICE}
+          </p>
         </>
       )}
 

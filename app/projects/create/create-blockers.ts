@@ -1,6 +1,5 @@
 import type { EventFormState } from "@/hooks/use-event-form";
 import {
-  RECURRENCE_WAIVER_CONFLICT_MESSAGE,
   validateRecurrenceFormState,
   type RecurrenceFieldErrors,
 } from "@/lib/projects/recurrence";
@@ -17,7 +16,6 @@ type WaiverStepState = Pick<
   | "waiverPdfFile"
   | "waiverPdfUrl"
   | "waiverDefinition"
-  | "recurrence"
 >;
 
 /**
@@ -26,8 +24,6 @@ type WaiverStepState = Pick<
  */
 export function getWaiverStepError(state: WaiverStepState): string | null {
   if (!state.waiverRequired) return null;
-  if (state.recurrence.enabled) return RECURRENCE_WAIVER_CONFLICT_MESSAGE;
-
   const configurationError = getWaiverConfigurationError(state);
   if (configurationError) return configurationError;
 
@@ -53,14 +49,10 @@ function getSeriesStartDate(
 
 /** Field-level problems with the repeat settings, as the server judges them. */
 export function getRecurrenceStepErrors(
-  state: Pick<
-    EventFormState,
-    "eventType" | "schedule" | "recurrence" | "waiverRequired"
-  >,
+  state: Pick<EventFormState, "eventType" | "schedule" | "recurrence">,
 ): RecurrenceFieldErrors {
   return validateRecurrenceFormState(state.recurrence, {
     eventType: state.eventType,
     startDate: getSeriesStartDate(state),
-    waiverRequired: state.waiverRequired,
   });
 }

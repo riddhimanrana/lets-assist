@@ -23,12 +23,11 @@ export type RecurrenceFormState = {
 };
 
 /**
- * A generated occurrence gets a new project id, and a waiver PDF is stored
- * under its own project's prefix. Until occurrences can carry their own copy,
- * a series cannot require a waiver.
+ * Shown beside the repeat settings of a project that requires a waiver. The
+ * recurring worker copies the series' waiver into each event it creates.
  */
-export const RECURRENCE_WAIVER_CONFLICT_MESSAGE =
-  "Repeating projects cannot require a waiver yet. Turn off the waiver or the repeat schedule.";
+export const RECURRENCE_WAIVER_COPY_NOTICE =
+  "Each new event copies the waiver as it is when that event is created, so events that already exist keep the waiver they have.";
 
 export const RECURRENCE_MULTI_DAY_MESSAGE =
   "Multi-day projects cannot repeat. Turn off the repeat schedule or choose a different event type.";
@@ -76,7 +75,6 @@ export function validateRecurrenceFormState(
     eventType: EventType;
     /** First event date, YYYY-MM-DD. The series cannot end before it. */
     startDate?: string | null;
-    waiverRequired?: boolean | null;
   },
 ): RecurrenceFieldErrors {
   const errors: RecurrenceFieldErrors = {};
@@ -85,10 +83,6 @@ export function validateRecurrenceFormState(
   if (context.eventType === "multiDay") {
     errors.enabled = RECURRENCE_MULTI_DAY_MESSAGE;
     return errors;
-  }
-
-  if (context.waiverRequired) {
-    errors.enabled = RECURRENCE_WAIVER_CONFLICT_MESSAGE;
   }
 
   if (
@@ -146,38 +140,4 @@ export function firstRecurrenceError(
     if (message) return message;
   }
   return null;
-}
-
-/**
- * The reason an edit is refused because it would leave a series parent both
- * repeating and requiring a waiver, or null. `undefined` means the edit does
- * not touch that setting. An edit that turns neither on is never refused, so a
- * project already in this state can still have its other details corrected.
- */
-export function getRecurrenceWaiverEditError(edit: {
-  isOccurrence: boolean;
-  currentRule: unknown;
-  nextRule: unknown;
-  currentWaiverRequired: boolean | null | undefined;
-  nextWaiverRequired: boolean | null | undefined;
-}): string | null {
-  if (edit.isOccurrence) return null;
-
-  const willRepeat =
-    edit.nextRule === undefined
-      ? edit.currentRule != null
-      : edit.nextRule !== null;
-  const willRequireWaiver =
-    (edit.nextWaiverRequired ?? edit.currentWaiverRequired) === true;
-
-  // The edit form resends both settings on every save. Only a save that
-  // turns one of them on is a new conflict.
-  const turnsOnRepeat = willRepeat && edit.currentRule == null;
-  const turnsOnWaiver =
-    willRequireWaiver && edit.currentWaiverRequired !== true;
-  if (!turnsOnRepeat && !turnsOnWaiver) return null;
-
-  return willRepeat && willRequireWaiver
-    ? RECURRENCE_WAIVER_CONFLICT_MESSAGE
-    : null;
 }

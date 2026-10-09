@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { formatBytes } from "@/lib/utils";
+import { SIGNED_WAIVER_RETENTION_NOTICE } from "@/lib/waiver/retention";
 import { MAX_WAIVER_PDF_SIZE, type FormValues } from "./edit-project-form";
 import type { EditProjectMedia } from "./useEditProjectMedia";
 
@@ -20,13 +21,10 @@ export function EditProjectWaiver({
   form,
   media,
   projectWaiverPdfUrl,
-  blockedReason,
 }: {
   form: UseFormReturn<FormValues>;
   media: EditProjectMedia;
   projectWaiverPdfUrl?: string | null;
-  /** Why a waiver cannot be required, when it cannot. */
-  blockedReason?: string;
 }) {
   const waiverRequired = form.watch("waiver_required");
   const esignatureDisabled = form.watch("waiver_disable_esignature");
@@ -43,15 +41,9 @@ export function EditProjectWaiver({
             <ToggleRow
               id={field.name}
               label="Require waiver signature"
-              description={
-                blockedReason && !field.value
-                  ? blockedReason
-                  : "Volunteers must sign your waiver PDF or the active global waiver definition before signing up."
-              }
+              description="Volunteers must sign your waiver PDF before signing up."
               checked={field.value}
               onCheckedChange={field.onChange}
-              // Turning it off always stays possible.
-              disabled={Boolean(blockedReason) && !field.value}
             />
           )}
         />
@@ -184,12 +176,15 @@ export function EditProjectWaiver({
           {!pdfUrl && (
             <Alert variant="info">
               <AlertDescription>
-                If you don&apos;t upload a custom waiver, we&apos;ll use the
-                active global waiver definition (or the default Let&apos;s
-                Assist waiver text if none is configured yet).
+                This project has no waiver PDF yet. Upload one so volunteers
+                have a waiver to sign.
               </AlertDescription>
             </Alert>
           )}
+
+          <p className="text-muted-foreground text-sm">
+            {SIGNED_WAIVER_RETENTION_NOTICE}
+          </p>
         </FormGroup>
       )}
     </StepSection>

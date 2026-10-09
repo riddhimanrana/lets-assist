@@ -9,10 +9,7 @@ import {
   describeProjectWriteError,
   logProjectWriteError,
 } from "@/app/projects/create/server/create-support";
-import {
-  RECURRENCE_MULTI_DAY_MESSAGE,
-  RECURRENCE_WAIVER_CONFLICT_MESSAGE,
-} from "@/lib/projects/recurrence";
+import { RECURRENCE_MULTI_DAY_MESSAGE } from "@/lib/projects/recurrence";
 import {
   validateProjectTimezone,
   validateRecurrenceRule,
@@ -164,9 +161,6 @@ export async function publishProjectDraft(
       }
       if (project.event_type === "multiDay") {
         return refuse("invalid_project", RECURRENCE_MULTI_DAY_MESSAGE);
-      }
-      if (waiverRequired) {
-        return refuse("invalid_project", RECURRENCE_WAIVER_CONFLICT_MESSAGE);
       }
     }
 

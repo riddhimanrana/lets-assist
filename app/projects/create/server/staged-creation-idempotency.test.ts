@@ -602,16 +602,6 @@ describe("the create action validates what it stores", () => {
       error: /Multi-day projects cannot repeat/u,
     },
     {
-      name: "a repeat schedule together with a required waiver",
-      overrides: {
-        waiverRequired: true,
-        waiverPdfFile: {},
-        recurrence: RECURRING,
-      },
-      error:
-        "Repeating projects cannot require a waiver yet. Turn off the waiver or the repeat schedule.",
-    },
-    {
       name: "an end date that was never chosen",
       overrides: { recurrence: { ...RECURRING, endType: "on_date" } },
       error: "Choose the date the series ends.",
@@ -650,6 +640,32 @@ describe("the create action validates what it stores", () => {
       expect(projectInsertPayloads()).toHaveLength(0);
     });
   }
+
+  test("a repeating project that requires a waiver is staged unpublished with its repeat schedule", async () => {
+    const result = await createBasicProject(
+      plainProject({
+        waiverRequired: true,
+        waiverPdfFile: {},
+        recurrence: RECURRING,
+      }),
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      id: NEW_PROJECT_ID,
+      requiresWaiverPublication: true,
+    });
+    expect(projectInsertPayloads()[0]).toMatchObject({
+      waiver_required: true,
+      workflow_status: "draft",
+      recurrence_rule: {
+        frequency: "weekly",
+        interval: 1,
+        end_type: "never",
+        weekdays: ["monday"],
+      },
+    });
+  });
 
   test("a hidden occurrence count left over from another end type is not sent", async () => {
     const result = await createBasicProject(

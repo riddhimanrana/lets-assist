@@ -442,7 +442,6 @@ export async function updateDraft(
     const recurrenceError = firstRecurrenceError(
       validateRecurrenceFormState(projectData.recurrence, {
         eventType: projectData.eventType,
-        waiverRequired: projectData.waiverRequired,
       }),
     );
     if (recurrenceError) {

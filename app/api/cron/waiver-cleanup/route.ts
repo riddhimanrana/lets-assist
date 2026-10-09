@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
+import { SIGNED_WAIVER_RETENTION_DAYS } from "@/lib/waiver/retention";
 import {
   getProjectRetentionFinishedAt,
   type RetentionProject,
@@ -38,7 +39,7 @@ function authorizeCronRequest(request: NextRequest) {
 async function cleanupExpiredWaivers() {
   const supabase = getAdminClient();
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - 30);
+  cutoffDate.setDate(cutoffDate.getDate() - SIGNED_WAIVER_RETENTION_DAYS);
 
   // Always retry previously committed outbox work, including when there are no
   // newly expired rows in this run.
