@@ -112,6 +112,20 @@ also requires that variable to be absent from its own environment before
 accepting the exception. Adding it to a hosted environment requires another
 reachability review; local CI cannot attest to future provider changes.
 
+On October 9, 2026, signed waiver PDFs gained Unicode font rendering. The root
+lockfile adds `@pdf-lib/fontkit`, `regenerator-runtime` and six
+`@expo-google-fonts/noto-sans*` packages; none of them depends on `braces`,
+`micromatch`, `fast-glob` or `globby`, and the resolved `braces` version is
+unchanged at 3.0.3. `next.config.ts` adds `outputFileTracingIncludes` for the
+two waiver routes, with file patterns that are constants in
+`lib/waiver/fonts/font-files.ts`. No request, environment or stored value
+becomes a glob pattern. Review of the candidate's tracked imports found no new
+affected glob importer. The root lockfile hash and the application
+configuration fingerprint now name that reviewed candidate; the other two
+lockfile hashes and every other pinned input are unchanged. The expiry date is
+unchanged. Deployment metadata was not read back again for this update. The
+advisory still lists no patched version as of October 9, 2026.
+
 Remove the exception when upstream publishes a verified fix. Any extension or
 fingerprint update requires a new review of the advisory, source import paths,
 operator inputs, and deployment metadata. Acceptance expires without renewal.

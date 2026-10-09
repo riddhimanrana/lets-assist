@@ -10,7 +10,7 @@ export const BRACES_EXCEPTION = Object.freeze({
   expiresAt: "2026-10-21T00:00:00.000Z",
   owner: "repository owner",
   graphHashes: {
-    ".": "afdf179e3d1938c4ef3ec455b8225fcfc1688f0d7e4f7a2db5e9b26838fa87df",
+    ".": "194d316a7a36f4865f6131de17adc273aa854c6d4a8c154364f65a9ce1377001",
     "packages/plugin-sdk":
       "34f55231c04ea7e1af41fccf7e25b1b46cd454b24cb14c63adc5e3dda944e99b",
     "lib/plugins/private/apps/csf":
@@ -25,7 +25,7 @@ export const BRACES_EXCEPTION = Object.freeze({
     "next-sitemap.config.js":
       "aeb6892c0a0fac0f98b751a8b4d61ba9f53fdc07eb14363463d37c63c31dc5cf",
     "next.config.ts":
-      "e70883c6d0946a1d737f040521ac8786ff69900a7df2741af66f7a83fb99144f",
+      "06655de34d471fc217811c8b6e0a657794fba920e4c22f7c5d804fe2307f541a",
     "eslint.config.mjs":
       "e5ade98b8209ba9527503ae4621130620bcad47816c5e54580dfbb87de62db3d",
     "proxy.ts":
