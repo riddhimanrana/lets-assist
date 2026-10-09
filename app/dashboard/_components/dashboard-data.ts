@@ -15,6 +15,7 @@ import { TZDate, tz } from "@date-fns/tz";
 import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
+import { formatHoursDuration } from "@/lib/format/hours";
 
 interface BackendCertificate {
   id: string;
@@ -176,33 +177,8 @@ function getSessionDisplayName(
   return details.schedule_id || "Session";
 }
 
-// Helper function to format total duration from hours (decimal) to Xh Ym
-export function formatTotalDuration(totalHours: number): string {
-  if (totalHours <= 0) return "0m"; // Handle zero or negative hours
-
-  // Convert decimal hours to total minutes, rounding to nearest minute
-  const totalMinutes = Math.round(totalHours * 60);
-
-  if (totalMinutes === 0) return "0m"; // Handle cases that round down to 0
-
-  const hours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h`;
-  }
-  if (remainingMinutes > 0) {
-    // Add space if hours were also added
-    if (hours > 0) {
-      result += " ";
-    }
-    result += `${remainingMinutes}m`;
-  }
-
-  // Fallback in case result is somehow empty (e.g., very small positive number rounds to 0 minutes)
-  return result || (totalMinutes > 0 ? "1m" : "0m");
-}
+/** Total hours for display. One formatter serves the whole dashboard. */
+export const formatTotalDuration = formatHoursDuration;
 
 export async function loadVolunteerDashboardData() {
   const supabase = await createClient();

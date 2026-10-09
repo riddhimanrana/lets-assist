@@ -78,6 +78,7 @@ export function ProjectSlotsCard({
                   schedule.oneTime.endTime,
                 )}
                 timezone={project.project_timezone}
+                date={schedule.oneTime.date}
                 remaining={
                   remainingSlots["oneTime"] ??
                   formatSlotCapacity(schedule.oneTime.volunteers)
@@ -127,6 +128,7 @@ export function ProjectSlotsCard({
                           slot.endTime,
                         )}
                         timezone={project.project_timezone}
+                        date={day.date}
                         remaining={
                           remainingSlots[scheduleId] ??
                           formatSlotCapacity(slot.volunteers)
@@ -161,6 +163,7 @@ export function ProjectSlotsCard({
                       role.endTime,
                     )}
                     timezone={project.project_timezone}
+                    date={schedule.sameDayMultiArea?.date}
                     remaining={
                       remainingSlots[role.name] ??
                       formatSlotCapacity(role.volunteers)

@@ -500,7 +500,7 @@ test.describe("signup email PKCE round trip", () => {
       await expect(fullName).toHaveValue(signupFullName);
       await expect(email).toHaveValue(signupEmail);
       await expect(password).toHaveValue(signupPassword);
-      const submit = page.getByRole("button", { name: "Create Account" });
+      const submit = page.getByRole("button", { name: "Create account" });
       await expect(submit).toBeEnabled();
       await submit.click();
       await page.waitForURL(/\/signup\/success/, {

@@ -4,6 +4,7 @@ import { safeConsole } from "@/lib/safe-console";
 import { differenceInMinutes, isBefore, parseISO } from "date-fns";
 import type { Metadata } from "next";
 
+import { formatHoursDuration } from "@/lib/format/hours";
 import { getPublicProfileByUsername } from "@/lib/profile/public";
 
 export interface Profile {
@@ -117,10 +118,5 @@ export function calculateHours(startTimeStr: string, endTimeStr: string) {
   }
 }
 
-export function formatHours(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
-}
+/** Same wording as the dashboard, so 0 reads "0h" in both places. */
+export const formatHours = formatHoursDuration;

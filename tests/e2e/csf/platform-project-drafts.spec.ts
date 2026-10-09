@@ -100,7 +100,7 @@ test("new personal creation leaves the latest organization draft untouched throu
   const title = page.getByLabel("Project title", { exact: true });
   await expect(title).toHaveValue("");
   await expect(
-    page.getByRole("combobox").filter({ hasText: "Personal Project" }),
+    page.getByRole("combobox").filter({ hasText: "Personal project" }),
   ).toBeVisible();
   await expect
     .poll(() => new URL(page.url()).searchParams.get("creation"))

@@ -426,7 +426,8 @@ export const ProjectsInfiniteScroll: React.FC = () => {
       )}
 
       {/* Show end of results message when we've reached the end */}
-      {!hasMore && sortedProjects.length > 0 && view !== "map" && (
+      {/* Only after a full page of results: a short list never scrolled. */}
+      {!hasMore && sortedProjects.length >= limit && view !== "map" && (
         <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-8 text-sm">
           <p>You&apos;ve seen all available projects</p>
           <Button

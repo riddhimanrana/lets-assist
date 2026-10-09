@@ -22,12 +22,14 @@ export function formatSlotTimeRange(startTime?: string, endTime?: string) {
 
 /**
  * One schedule slot: what it is, when, how many spots are left, and its one
- * action on the right. The action label carries the slot's state.
+ * action on the right. The action label carries the slot's state. Pass the
+ * slot's day as `date` so the timezone badge shows that season's abbreviation.
  */
 export function ProjectSlotRow({
   title,
   timeLabel,
   timezone,
+  date,
   remaining,
   capacity,
   action,
@@ -36,6 +38,8 @@ export function ProjectSlotRow({
   title?: ReactNode;
   timeLabel: string;
   timezone?: string | null;
+  /** The slot's day, yyyy-MM-dd. */
+  date?: string | null;
   remaining: ReactNode;
   capacity: ReactNode;
   action: ReactNode;
@@ -56,13 +60,15 @@ export function ProjectSlotRow({
             }
           >
             {timeLabel}
-            {timezone ? <TimezoneBadge timezone={timezone} /> : null}
+            {timezone ? (
+              <TimezoneBadge timezone={timezone} date={date} />
+            ) : null}
           </p>
           <p className="text-muted-foreground text-sm">
             <span className="text-foreground font-medium tabular-nums">
               {remaining}
             </span>{" "}
-            of {capacity} spots
+            of {capacity} {capacity === 1 ? "spot" : "spots"} left
           </p>
         </div>
         <div className="shrink-0">{action}</div>

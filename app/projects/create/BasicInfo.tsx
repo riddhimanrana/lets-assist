@@ -39,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const PERSONAL_PROJECT_LABEL = "Personal project";
+
 interface OrganizationOption {
   id: string;
   name: string;
@@ -76,11 +78,16 @@ export default function BasicInfo({
     OrganizationOption[]
   >(
     initialOrganizations.length > 0
-      ? initialOrganizations
+      ? // The route still sends its own label for the personal option.
+        initialOrganizations.map((org) =>
+          org.id === "personal"
+            ? { ...org, name: PERSONAL_PROJECT_LABEL }
+            : org,
+        )
       : [
           {
             id: "personal",
-            name: "Personal Project",
+            name: PERSONAL_PROJECT_LABEL,
             logo_url: null,
             role: "creator",
           },

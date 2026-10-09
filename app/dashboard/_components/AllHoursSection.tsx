@@ -33,6 +33,7 @@ import {
 import { format, parseISO } from "date-fns";
 import Link from "next/link";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
+import { formatHoursDuration } from "@/lib/format/hours";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -80,16 +81,6 @@ function calculateDecimalHours(
   const end = new Date(endTimeISO);
   const diffMs = end.getTime() - start.getTime();
   return diffMs / (1000 * 60 * 60); // Convert milliseconds to hours
-}
-
-function formatTotalDuration(totalHours: number): string {
-  const hours = Math.floor(totalHours);
-  const minutes = Math.round((totalHours - hours) * 60);
-
-  if (hours === 0 && minutes === 0) return "0m";
-  if (hours === 0) return `${minutes}m`;
-  if (minutes === 0) return `${hours}h`;
-  return `${hours}h ${minutes}m`;
 }
 
 export function AllHoursSection({ certificates }: AllHoursSectionProps) {
@@ -151,7 +142,7 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
     const durationHours = certificateHours(cert, () =>
       calculateDecimalHours(cert.event_start, cert.event_end),
     );
-    const formattedDuration = formatTotalDuration(durationHours);
+    const formattedDuration = formatHoursDuration(durationHours);
 
     return (
       <>
@@ -183,9 +174,10 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                   timezone={
                     cert.projects?.project_timezone || "America/Los_Angeles"
                   }
+                  date={cert.event_start}
                 />
               </div>
-              {formattedDuration !== "0m" && (
+              {formattedDuration !== "0h" && (
                 <span className="flex items-center gap-1">
                   <Clock className="size-3" aria-hidden="true" />{" "}
                   {formattedDuration}

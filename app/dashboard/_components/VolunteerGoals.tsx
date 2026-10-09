@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatHoursDuration } from "@/lib/format/hours";
 import { ProgressCircle } from "./ProgressCircle";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -24,34 +25,6 @@ import {
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
-
-// Copy the formatting function from page.tsx
-function formatTotalDuration(totalHours: number): string {
-  if (totalHours <= 0) return "0m"; // Handle zero or negative hours
-
-  // Convert decimal hours to total minutes, rounding to nearest minute
-  const totalMinutes = Math.round(totalHours * 60);
-
-  if (totalMinutes === 0) return "0m"; // Handle cases that round down to 0
-
-  const hours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h`;
-  }
-  if (remainingMinutes > 0) {
-    // Add space if hours were also added
-    if (hours > 0) {
-      result += " ";
-    }
-    result += `${remainingMinutes}m`;
-  }
-
-  // Fallback in case result is somehow empty (e.g., very small positive number rounds to 0 minutes)
-  return result || (totalMinutes > 0 ? "1m" : "0m");
-}
 
 interface GoalsProps {
   userId: string;
@@ -443,8 +416,8 @@ export function VolunteerGoals({
           title="Hours goal"
           summary={
             goals.hours_goal > 0
-              ? // Use formatTotalDuration for both current and goal hours
-                `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
+              ? // Use formatHoursDuration for both current and goal hours
+                `${formatHoursDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatHoursDuration(goals.hours_goal)} completed`
               : "Set a target for volunteer hours"
           }
           hasGoal={goals.hours_goal > 0}
@@ -559,6 +532,7 @@ function GoalRow({
         size={64}
         strokeWidth={5}
         showLabel={hasGoal}
+        emptyLabel={hasGoal ? undefined : "Not set"}
       />
     </div>
   );

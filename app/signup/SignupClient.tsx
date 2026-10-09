@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertCircle, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -31,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { isSecureCheckBlockingSubmit } from "@/lib/auth/secure-check";
 import { passwordSchema } from "@/lib/auth/password-policy";
+import { PasswordRules } from "./PasswordRules";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -179,7 +179,7 @@ export default function SignupClient({
       <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
           <CardTitle className="text-left text-2xl font-semibold tracking-tight">
-            {isStaffInvite ? "Staff Invite" : "Create an account"}
+            {isStaffInvite ? "Staff invite" : "Create an account"}
           </CardTitle>
           <CardDescription className="text-left text-sm leading-5">
             {isStaffInvite
@@ -231,7 +231,7 @@ export default function SignupClient({
                     htmlFor={field.name}
                     className="text-[13px] font-semibold"
                   >
-                    Full Name
+                    Full name
                     {normalizedPrefilledName && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
                         (auto-filled by org admin)
@@ -289,7 +289,7 @@ export default function SignupClient({
                     htmlFor={field.name}
                     className="text-[13px] font-semibold"
                   >
-                    Phone Number (Optional)
+                    Phone number (optional)
                     {normalizedPrefilledPhone && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
                         (auto-filled by org admin)
@@ -325,31 +325,17 @@ export default function SignupClient({
                     type="password"
                     {...field}
                     aria-invalid={fieldState.invalid}
+                    aria-describedby="signup-password-rules"
                     className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
                   )}
-                  <div className="mt-2.5">
-                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-3">
-                      <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-warning">
-                        <AlertCircle className="h-4 w-4" />
-                        Password Requirements
-                      </p>
-                      <ul className="space-y-1.5 text-xs text-warning/90">
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>At least 8 characters long</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>
-                            Cannot be a commonly used or compromised password
-                          </span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+                  <PasswordRules
+                    id="signup-password-rules"
+                    value={field.value}
+                    showUnmet={fieldState.isTouched || fieldState.invalid}
+                  />
                 </Field>
               )}
             />
@@ -394,7 +380,7 @@ export default function SignupClient({
                 )
               }
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? "Creating account..." : "Create account"}
             </Button>
             <div className="pt-1 text-center text-sm text-muted-foreground">
               Already have an account?{" "}

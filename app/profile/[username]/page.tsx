@@ -48,7 +48,7 @@ type Props = {
   params: Promise<{ username: string }>;
 };
 
-const PAGE_CONTAINER = "mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10";
+const PAGE_CONTAINER = "mx-auto w-full max-w-6xl px-4 py-8 sm:px-6";
 const CARD_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
 
 function ProfileNotice({
@@ -332,41 +332,46 @@ export default async function ProfilePage(
   return (
     <div className={`${PAGE_CONTAINER} grid gap-8`}>
       <div className="grid gap-4">
-        <PageHeader
-          media={
-            <Avatar className="size-16">
-              <AvatarImage
-                src={profile.avatar_url || undefined}
-                alt={profile.full_name}
-              />
-              <AvatarFallback className="text-lg">
-                <NoAvatar fullName={profile.full_name} />
-              </AvatarFallback>
-            </Avatar>
-          }
-          title={
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate">{profile.full_name}</span>
-              {isTrusted && (
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<span className="inline-flex shrink-0" />}
-                  >
-                    <BadgeCheck
-                      className="text-primary size-5"
-                      aria-label="Trusted member"
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Trusted member</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </span>
-          }
-          description={`@${profile.username} · Joined ${format(new Date(profile.created_at), "MMMM yyyy")}`}
-          actions={
-            isOwner ? (
+        {/* The action sits beside the header, not in its `actions` slot, so it
+            stays on the title row on phones instead of dropping below. */}
+        <div className="flex items-start justify-between gap-3">
+          <PageHeader
+            className="min-w-0 flex-1"
+            media={
+              <Avatar className="size-16">
+                <AvatarImage
+                  src={profile.avatar_url || undefined}
+                  alt={profile.full_name}
+                />
+                <AvatarFallback className="text-lg">
+                  <NoAvatar fullName={profile.full_name} />
+                </AvatarFallback>
+              </Avatar>
+            }
+            title={
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate">{profile.full_name}</span>
+                {isTrusted && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={<span className="inline-flex shrink-0" />}
+                    >
+                      <BadgeCheck
+                        className="text-primary size-5"
+                        aria-label="Trusted member"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p>Trusted member</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </span>
+            }
+            description={`@${profile.username} · Joined ${format(new Date(profile.created_at), "MMMM yyyy")}`}
+          />
+          <div className="shrink-0">
+            {isOwner ? (
               <ProfileEditButton />
             ) : (
               <ProfileActions
@@ -374,9 +379,9 @@ export default async function ProfilePage(
                 profileName={profile.full_name}
                 profileUsername={profile.username}
               />
-            )
-          }
-        />
+            )}
+          </div>
+        </div>
         <StatStrip
           items={[
             { label: "Hours volunteered", value: formatHours(totalHours) },

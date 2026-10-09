@@ -96,7 +96,9 @@ export default function OrganizationCard({
           </Avatar>
           <div className="grid min-w-0 flex-1 gap-0.5">
             <div className="flex min-w-0 items-center gap-1.5">
-              <CardTitle className="truncate">{org.name}</CardTitle>
+              <CardTitle className="line-clamp-2 break-words">
+                {org.name}
+              </CardTitle>
               {org.verified && (
                 <BadgeCheck
                   role="img"

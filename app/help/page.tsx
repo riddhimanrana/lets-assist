@@ -302,7 +302,7 @@ export default function HelpPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
       <PageHeader
         title="Help center"
         description="Everything you need to know about using Let's Assist for volunteer hour tracking, project management, and certificate generation."

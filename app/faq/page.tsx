@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { MessageCircleIcon } from "@/components/icons/animated";
 import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import {
   Accordion,
   AccordionContent,
@@ -51,19 +53,13 @@ const faqs = [
 
 export default function FAQPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:px-6">
-      <header className="grid gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Frequently asked questions
-        </h1>
-        <p className="text-muted-foreground max-w-prose text-sm text-pretty">
-          Read through the most common questions about how we support
-          volunteers, why organizations switch from SignupGenius, and what’s
-          next after you sign up.
-        </p>
-      </header>
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader
+        title="Frequently asked questions"
+        description="Read through the most common questions about how we support volunteers, why organizations switch from SignupGenius, and what’s next after you sign up."
+      />
 
-      <Accordion className="mt-8 w-full" defaultValue={["item-1"]}>
+      <Accordion className="mt-6 w-full" defaultValue={["item-1"]}>
         {faqs.map((faq, index) => (
           <AccordionItem key={faq.question} value={`item-${index + 1}`}>
             <AccordionTrigger className="py-4 text-base">
@@ -78,7 +74,7 @@ export default function FAQPage() {
         ))}
       </Accordion>
 
-      <section className="mt-10 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <section className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid gap-1">
           <h2 className="font-medium">Still need a demo?</h2>
           <p className="text-muted-foreground text-sm">
@@ -89,7 +85,7 @@ export default function FAQPage() {
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
           <Link
             href="/trusted-member"
-            className={buttonVariants({ variant: "outline" })}
+            className={cn(buttonVariants({ variant: "outline" }))}
           >
             Request trusted access
           </Link>

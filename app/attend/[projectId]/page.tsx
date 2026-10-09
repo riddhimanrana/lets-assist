@@ -1,11 +1,22 @@
 import { safeConsole } from "@/lib/safe-console";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/app/projects/[id]/actions";
 import { headers } from "next/headers";
 import AttendanceClient from "./AttendanceClient";
 import { NoticePage } from "@/components/projects/NoticePage";
+import { buttonVariants } from "@/components/ui/button-variants";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { CircleAlert, QrCode } from "lucide-react";
 import { cookies } from "next/headers";
 import {
@@ -22,6 +33,43 @@ function validateScanContext(userAgent: string) {
     scanId: Math.random().toString(36).substring(2, 15),
     timestamp: new Date().toISOString(),
   };
+}
+
+/** A check-in dead end: what went wrong, what to do, and one way out. */
+function AttendNotice({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>
+            <h1>{title}</h1>
+          </EmptyTitle>
+          <EmptyDescription>{description}</EmptyDescription>
+        </EmptyHeader>
+        {action ? (
+          <EmptyContent>
+            <Link
+              href={action.href}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              {action.label}
+            </Link>
+          </EmptyContent>
+        ) : null}
+      </Empty>
+    </div>
+  );
 }
 
 type Props = {
@@ -46,11 +94,15 @@ async function AttendanceContent({
   // require session and event
   if (!projectId || !sessionUuid || !scheduleId) {
     return (
-      <NoticePage
+      <AttendNotice
         icon={<CircleAlert aria-hidden="true" />}
-        tone="destructive"
-        title="Invalid attendance link"
-        description="This attendance link is missing required parameters. Please scan the QR code provided by the project organizer."
+        title="This check-in link is not valid"
+        description="Scan the QR code at the event again, or ask the organizer for a new one."
+        action={
+          projectId
+            ? { href: `/projects/${projectId}`, label: "Back to project" }
+            : { href: "/", label: "Go to home" }
+        }
       />
     );
   }
@@ -59,10 +111,11 @@ async function AttendanceContent({
   const { project, error } = await getProject(projectId);
   if (error || !project || project.session_id !== sessionUuid) {
     return (
-      <NoticePage
+      <AttendNotice
         icon={<CircleAlert aria-hidden="true" />}
         title="Project not found"
-        description="The project associated with this QR code could not be found. It may have been deleted."
+        description="This QR code does not match a project. The project may have been deleted, or the code may be out of date."
+        action={{ href: "/", label: "Go to home" }}
       />
     );
   }
@@ -84,17 +137,11 @@ async function AttendanceContent({
   if (!presence.ok) {
     safeConsole.log("AttendPage: cookie verification failed");
     return (
-      <NoticePage
+      <AttendNotice
         icon={<QrCode aria-hidden="true" />}
-        tone="warning"
-        title="Please scan QR code again"
-        description="If you just logged in or signed up, you'll need to scan the QR code again to continue with attendance. This is a security measure to ensure you're accessing the correct session."
-      >
-        <p className="text-muted-foreground text-sm">
-          Simply scan the QR code again using your device&apos;s camera to
-          proceed with checking in.
-        </p>
-      </NoticePage>
+        title="Scan the QR code again"
+        description="If you just logged in or signed up, scan the event's QR code with your camera again to check in. This confirms you are at the right session."
+      />
     );
   }
 

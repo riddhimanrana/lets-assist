@@ -163,7 +163,7 @@ export function SubmitTrustedMemberForm({
           : Clock; // pending
     const title =
       appStatus === "accepted"
-        ? "You’re a Trusted Member"
+        ? "You’re a trusted member"
         : appStatus === "rejected"
           ? "Application not approved"
           : "Application pending review";
@@ -194,7 +194,7 @@ export function SubmitTrustedMemberForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Apply to be a Trusted Member</CardTitle>
+        <CardTitle>Apply to be a trusted member</CardTitle>
         <CardDescription>
           We review applications to keep the platform safe. Please use your real
           name and a brief description of why you need Trusted access.
@@ -282,7 +282,7 @@ export function SubmitTrustedMemberForm({
                   {...field}
                   maxLength={MAX.reason}
                   rows={5}
-                  placeholder="Tell us briefly why you need Trusted Member access"
+                  placeholder="Tell us briefly why you need trusted member access"
                   className="w-full"
                   aria-invalid={fieldState.invalid}
                 />

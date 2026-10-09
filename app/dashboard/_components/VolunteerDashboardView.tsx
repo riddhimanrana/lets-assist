@@ -33,6 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { PlatformDashboardCard } from "@/types";
 import { ActivityChart } from "./ActivityChart";
 import { AddVolunteerHoursModal } from "./AddVolunteerHoursModal";
@@ -69,7 +70,7 @@ export function VolunteerDashboardView({
     },
     {
       label: "Self-reported",
-      value: `${selfReportedHours}h`,
+      value: formatTotalDuration(selfReportedHours),
       helper: "Unverified hours",
     },
     {
@@ -159,7 +160,7 @@ export function VolunteerDashboardView({
                             <p className="text-muted-foreground text-sm">
                               {org.projects}{" "}
                               {org.projects === 1 ? "project" : "projects"} •{" "}
-                              {org.hours.toFixed(1)} hours
+                              {formatTotalDuration(org.hours)}
                             </p>
                           </div>
                           <ProgressCircle
@@ -242,11 +243,10 @@ export function VolunteerDashboardView({
                               </Badge>
                             </div>
                             <p className="text-muted-foreground text-sm">
-                              Session: {session.sessionDisplayName}
+                              {session.sessionDisplayName}
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-muted-foreground text-sm">
-                                Starts:{" "}
                                 {format(
                                   session.sessionStartTime,
                                   "MMM d, yyyy 'at' h:mm a",
@@ -257,6 +257,7 @@ export function VolunteerDashboardView({
                                 <TooltipTrigger className="cursor-default">
                                   <TimezoneBadge
                                     timezone={session.project_timezone}
+                                    date={session.sessionStartTime}
                                   />
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -284,7 +285,7 @@ export function VolunteerDashboardView({
                       <EmptyContent>
                         <Link
                           href="/home"
-                          className={buttonVariants({ variant: "outline" })}
+                          className={cn(buttonVariants({ variant: "outline" }))}
                         >
                           Browse opportunities
                         </Link>

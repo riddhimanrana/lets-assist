@@ -284,10 +284,9 @@ export const ProjectViewToggle: React.FC<ProjectViewToggleProps> = ({
                   <TableCell className="text-right">
                     <Link
                       href={`/projects/${project.id}`}
-                      className={buttonVariants({
-                        variant: "outline",
-                        size: "sm",
-                      })}
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "sm" }),
+                      )}
                     >
                       View
                       <span className="sr-only">: {project.title}</span>

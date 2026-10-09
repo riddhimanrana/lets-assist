@@ -9,9 +9,9 @@ import { ShieldCheck, XCircle, Clock } from "lucide-react";
 // export const dynamic = "force-dynamic"; - incompatible with cacheComponents
 
 export const metadata: Metadata = {
-  title: "Trusted Member",
+  title: "Trusted member",
   description:
-    "Apply to become a Trusted Member to create projects and organizations.",
+    "Apply to become a trusted member to create projects and organizations.",
 };
 
 export default async function TrustedMemberPage() {
@@ -51,13 +51,13 @@ export default async function TrustedMemberPage() {
     <div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-8 sm:px-6">
       <PageHeader
         title="Trusted member"
-        description="Trusted Members can create projects and organizations on Let's Assist."
+        description="Trusted members can create projects and organizations on Let's Assist."
       />
 
       {isTrusted || status === true ? (
         <Alert variant="success">
           <ShieldCheck aria-hidden="true" />
-          <AlertTitle>You&apos;re a Trusted Member</AlertTitle>
+          <AlertTitle>You&apos;re a trusted member</AlertTitle>
           <AlertDescription>
             You already have access to create projects and organizations.
           </AlertDescription>
@@ -67,7 +67,7 @@ export default async function TrustedMemberPage() {
           <XCircle aria-hidden="true" />
           <AlertTitle>Application not approved</AlertTitle>
           <AlertDescription>
-            It looks like your Trusted Member application was not approved. If
+            It looks like your trusted member application was not approved. If
             you have questions or need help, please email
             support@lets-assist.com.
           </AlertDescription>

@@ -9,6 +9,12 @@ interface ProgressCircleProps {
   showLabel?: boolean; // Whether to show the percentage label
   color?: string; // Optional color override
   trackColor?: string; // Optional track color override
+  /**
+   * Shown in the middle when there is nothing to measure yet, such as a goal
+   * that has not been set. The ring is drawn dashed so it reads as "empty on
+   * purpose" and not as a ring that failed to load.
+   */
+  emptyLabel?: string;
 }
 
 export const ProgressCircle: React.FC<ProgressCircleProps> = ({
@@ -18,6 +24,7 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
   showLabel = true,
   color,
   trackColor,
+  emptyLabel,
 }) => {
   // Ensure value is between 0 and 100
   const normalizedValue = Math.min(100, Math.max(0, value));
@@ -46,6 +53,7 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
       aria-valuenow={normalizedValue}
       aria-valuemin={0}
       aria-valuemax={100}
+      aria-valuetext={emptyLabel}
     >
       <svg
         width={size}
@@ -60,27 +68,39 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
           r={radius}
           fill="none"
           stroke={trackColor || defaultTrackColor}
-          strokeWidth={strokeWidth}
-          className="opacity-30"
+          strokeWidth={
+            emptyLabel ? Math.max(1.5, strokeWidth / 2.5) : strokeWidth
+          }
+          strokeDasharray={emptyLabel ? "3 5" : undefined}
+          strokeLinecap={emptyLabel ? "round" : undefined}
+          className={emptyLabel ? "opacity-60" : "opacity-30"}
         />
 
         {/* Foreground progress circle */}
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="none"
-          stroke={color || defaultColor}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-in-out"
-        />
+        {emptyLabel ? null : (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke={color || defaultColor}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-500 ease-in-out"
+          />
+        )}
       </svg>
 
+      {emptyLabel ? (
+        <div className="text-muted-foreground absolute text-center text-xs">
+          {emptyLabel}
+        </div>
+      ) : null}
+
       {/* Percentage label */}
-      {showLabel && (
+      {showLabel && !emptyLabel && (
         <div
           className="absolute text-center font-medium"
           style={{ fontSize: `${fontSize}px` }}

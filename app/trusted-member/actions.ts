@@ -47,7 +47,7 @@ export async function submitTrustedMember(input: {
 
   // If already accepted, block
   if (existing?.status === true) {
-    return { error: "You are already a Trusted Member" };
+    return { error: "You are already a trusted member" };
   }
 
   // If denied, keep the record but reset status to null if you want to allow re-apply; for now, keep as guidance
