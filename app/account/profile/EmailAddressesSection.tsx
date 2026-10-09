@@ -45,6 +45,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { resolveAddEmailOutcome } from "./email-add-outcome";
 import {
   addEmail,
   getLinkedIdentities,
@@ -76,6 +77,7 @@ export function EmailAddressesSection({
   const [verificationStep, setVerificationStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
+  const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [emailToRemove, setEmailToRemove] = useState<UserEmail | null>(null);
 
@@ -105,32 +107,51 @@ export function EmailAddressesSection({
     fetchEmails();
   }, [fetchEmails]);
 
+  // Shared by the add form and the "Send a new code" action. Returns to the
+  // caller without changing the step when the request definitely failed.
+  const requestCode = async (email: string) => {
+    try {
+      const outcome = resolveAddEmailOutcome(await addEmail(email));
+      if (outcome.step === "error") {
+        if (outcome.tone === "warning") toast.warning(outcome.message);
+        else toast.error(outcome.message);
+        return;
+      }
+
+      setPendingEmail(email);
+      setVerificationStep(true);
+      if (outcome.delivery === "unconfirmed") {
+        setDeliveryNotice(outcome.notice);
+        toast.warning(outcome.notice);
+      } else {
+        setDeliveryNotice(null);
+        toast.success("Verification code sent to " + email);
+      }
+    } catch (error: unknown) {
+      const err = error as Error;
+      safeConsole.error("Error adding email:", error);
+      toast.error(err.message || "Failed to add email");
+    }
+  };
+
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmail) return;
 
     setAdding(true);
     try {
-      const result = await addEmail(newEmail);
-      if (result.error && (result as { warning?: boolean }).warning) {
-        toast.warning(result.error);
-        setAdding(false);
-        return;
-      }
+      await requestCode(newEmail);
+    } finally {
+      setAdding(false);
+    }
+  };
 
-      if (result.error) {
-        toast.error(result.error);
-        setAdding(false);
-        return;
-      }
-
-      setPendingEmail(newEmail);
-      setVerificationStep(true);
-      toast.success("Verification code sent to " + newEmail);
-    } catch (error: unknown) {
-      const err = error as Error;
-      safeConsole.error("Error adding email:", error);
-      toast.error(err.message || "Failed to add email");
+  const handleResendCode = async () => {
+    if (!pendingEmail) return;
+    setAdding(true);
+    try {
+      setVerificationCode("");
+      await requestCode(pendingEmail);
     } finally {
       setAdding(false);
     }
@@ -148,6 +169,7 @@ export function EmailAddressesSection({
       setNewEmail("");
       setVerificationCode("");
       setPendingEmail("");
+      setDeliveryNotice(null);
       fetchEmails();
     } catch (error: unknown) {
       const err = error as Error;
@@ -199,6 +221,7 @@ export function EmailAddressesSection({
     setVerificationStep(false);
     setVerificationCode("");
     setPendingEmail("");
+    setDeliveryNotice(null);
   };
 
   return (
@@ -333,13 +356,23 @@ export function EmailAddressesSection({
             <form onSubmit={handleVerifyEmail}>
               <Field>
                 <FieldLabel htmlFor="code">Enter the 6-digit code</FieldLabel>
-                <FieldDescription>
-                  Sent to{" "}
-                  <span className="text-foreground font-medium break-all">
-                    {pendingEmail}
-                  </span>
-                  .
-                </FieldDescription>
+                {deliveryNotice ? (
+                  <FieldDescription role="status">
+                    {deliveryNotice} The address is{" "}
+                    <span className="text-foreground font-medium break-all">
+                      {pendingEmail}
+                    </span>
+                    .
+                  </FieldDescription>
+                ) : (
+                  <FieldDescription>
+                    Sent to{" "}
+                    <span className="text-foreground font-medium break-all">
+                      {pendingEmail}
+                    </span>
+                    .
+                  </FieldDescription>
+                )}
                 <InputOTP
                   id="code"
                   value={verificationCode}
@@ -370,6 +403,17 @@ export function EmailAddressesSection({
                     {verifying && <Spinner data-icon="inline-start" />}
                     Verify
                   </Button>
+                  {deliveryNotice ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={adding}
+                      onClick={handleResendCode}
+                    >
+                      {adding && <Spinner data-icon="inline-start" />}
+                      Send a new code
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"

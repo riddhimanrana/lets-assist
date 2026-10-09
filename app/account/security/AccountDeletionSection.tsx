@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "@/components/layout/SettingsSection";
@@ -19,68 +19,82 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { createDeletionCountdown } from "./account-deletion-countdown";
 import { deleteAccount } from "./actions";
+
+const COUNTDOWN_SECONDS = 5;
 
 export default function AccountDeletionSection() {
   const [isDeleting, setIsDeleting] = useState(false);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [countdownInterval, setCountdownInterval] =
-    useState<NodeJS.Timeout | null>(null);
 
-  const handleDeleteAccount = async () => {
-    if (deleteConfirmation !== "delete my account") {
-      toast.error("Please type the confirmation phrase correctly");
-      return;
-    }
+  // True only while the server request is running, after the countdown ended.
+  const requestInFlightRef = useRef(false);
 
+  const runDeletion = useCallback(async () => {
+    requestInFlightRef.current = true;
     try {
-      setIsDeleting(true);
-      let count = 5;
-      setCountdown(count);
-      const interval = setInterval(() => {
-        count--;
-        setCountdown(count);
-        if (count === 0) {
-          clearInterval(interval);
-          setCountdownInterval(null);
-        }
-      }, 1000);
-      setCountdownInterval(interval);
-
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-
-      if (count === 0) {
-        const result = await deleteAccount();
-        if (result.success) {
-          localStorage.clear();
-          sessionStorage.clear();
-          // Account deletion must reload the document so no authenticated client state survives.
-          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-          window.location.href = "/?deleted=true&noRedirect=1";
-        } else {
-          toast.error(result.error);
-          setIsDeleting(false);
-        }
+      const result = await deleteAccount();
+      if (result.success) {
+        localStorage.clear();
+        sessionStorage.clear();
+        // Account deletion must reload the document so no authenticated client state survives.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.href = "/?deleted=true&noRedirect=1";
+        return;
       }
+      toast.error(result.error);
     } catch {
       toast.error(
         "Account cleanup could not be confirmed. Retry deletion or contact support.",
       );
-      setIsDeleting(false);
     }
+    requestInFlightRef.current = false;
+    setIsDeleting(false);
+    setCountdown(COUNTDOWN_SECONDS);
+    setDeleteConfirmation("");
     setShowDeleteDialog(false);
+  }, []);
+
+  // One controller for the component's lifetime. It only closes over stable
+  // setters, and it is the single path to the delete server action.
+  const [deletionCountdown] = useState(() =>
+    createDeletionCountdown({
+      seconds: COUNTDOWN_SECONDS,
+      schedule: (callback, milliseconds) => setTimeout(callback, milliseconds),
+      cancel: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+      onTick: setCountdown,
+      commit: () => void runDeletion(),
+    }),
+  );
+
+  // Leaving the page is also backing out.
+  useEffect(() => () => deletionCountdown.cancel(), [deletionCountdown]);
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirmation !== "delete my account") {
+      toast.error("Please type the confirmation phrase correctly");
+      return;
+    }
+    if (deletionCountdown.start()) setIsDeleting(true);
   };
 
-  const handleCancelDelete = () => {
-    if (countdownInterval) {
-      clearInterval(countdownInterval);
-      setCountdownInterval(null);
+  // Escape, an outside press, and Cancel all arrive here as a close request.
+  // Each one cancels the countdown and clears the form, so reopening the
+  // dialog starts over instead of resuming.
+  const handleOpenChange = (nextOpen: boolean) => {
+    // The request has already been sent and cannot be recalled, so the dialog
+    // stays up until the server answers rather than implying a cancel.
+    if (!nextOpen && requestInFlightRef.current) return;
+    if (!nextOpen) {
+      deletionCountdown.cancel();
+      setIsDeleting(false);
+      setCountdown(COUNTDOWN_SECONDS);
+      setDeleteConfirmation("");
     }
-    setIsDeleting(false);
-    setCountdown(5);
-    setShowDeleteDialog(false);
+    setShowDeleteDialog(nextOpen);
   };
 
   return (
@@ -90,7 +104,7 @@ export default function AccountDeletionSection() {
       description="Remove your account and personal platform data"
       footerHint="This cannot be undone."
       footer={
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialog open={showDeleteDialog} onOpenChange={handleOpenChange}>
           <AlertDialogTrigger
             render={<Button variant="destructive">Delete account</Button>}
           />
@@ -120,9 +134,7 @@ export default function AccountDeletionSection() {
               </div>
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={handleCancelDelete}>
-                Cancel
-              </AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
                 onClick={(e) => {

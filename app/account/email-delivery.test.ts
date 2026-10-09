@@ -108,6 +108,13 @@ describe("mail callers require provider acceptance", () => {
       sendEmail.mockImplementation(async () => outcome);
       const result = await sendVerificationEmail("synthetic@example.test");
       expect(result.success === true).toBe(outcome.outcome === "accepted");
+      // Only an ambiguous send is flagged for code entry, and it carries no
+      // error so the caller does not treat it as a failure.
+      const ambiguous = outcome.outcome === "unknown_outcome";
+      expect(result.deliveryUnconfirmed === true).toBe(ambiguous);
+      expect(typeof result.error === "string").toBe(
+        !ambiguous && outcome.outcome !== "accepted",
+      );
       const discardCalls = rpc.mock.calls.filter(
         ([name]) => name === "discard_user_email_alias_verification",
       );
@@ -149,11 +156,52 @@ describe("mail callers require provider acceptance", () => {
     });
     const result = await sendVerificationEmail("synthetic@example.test");
     expect(result.success).not.toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.deliveryUnconfirmed).toBe(true);
+    expect(result.notice).toBe(
+      "We could not confirm the email was sent. If a code arrives, enter it here, or send a new one.",
+    );
     expect(
       rpc.mock.calls.filter(
         ([name]) => name === "discard_user_email_alias_verification",
       ),
     ).toHaveLength(0);
     expect(JSON.stringify(result)).not.toContain("private-provider-payload");
+  });
+  test("an ambiguous send keeps the challenge, the retry window, and the honest notice", async () => {
+    sendEmail.mockImplementation(async () => outcomes[4]);
+    const result = await sendVerificationEmail("synthetic@example.test");
+    expect(result).toEqual({
+      deliveryUnconfirmed: true,
+      notice:
+        "We could not confirm the email was sent. If a code arrives, enter it here, or send a new one.",
+      retryAfterSeconds: 60,
+    });
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+      "issue_user_email_alias_verification",
+    ]);
+  });
+  test("a definite failure discards the challenge and offers no code entry", async () => {
+    sendEmail.mockImplementation(async () => outcomes[2]);
+    const result = await sendVerificationEmail("synthetic@example.test");
+    expect(result).toEqual({ error: "Unable to send a verification code." });
+  });
+  test("a cooldown is still an error, not an ambiguous delivery", async () => {
+    rpc.mockImplementationOnce(async () => ({
+      data: [
+        {
+          status: "cooldown",
+          challenge_id: "unused",
+          retry_after_seconds: 42,
+        },
+      ] as unknown as { status: string; challenge_id: string }[],
+      error: null,
+    }));
+    const result = await sendVerificationEmail("synthetic@example.test");
+    expect(result).toEqual({
+      error: "Please wait before requesting another verification code.",
+      retryAfterSeconds: 42,
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

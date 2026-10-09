@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "./use-animated-icon";
 
 export interface MoonIconHandle {
   startAnimation: () => void;
@@ -48,7 +49,7 @@ const MoonIcon = forwardRef<MoonIconHandle, MoonIconProps>(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (isControlledRef.current) {
           onMouseEnter?.(e);
-        } else {
+        } else if (!prefersReducedMotion()) {
           controls.start("animate");
         }
       },

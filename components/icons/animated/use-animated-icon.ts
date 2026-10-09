@@ -7,9 +7,15 @@ export interface AnimatedIconHandle {
   stopAnimation: () => void;
 }
 
-function prefersReducedMotion() {
+/**
+ * The one reduced-motion check for this directory. The hook below uses it for
+ * icons driven by a parent control, and every icon uses it in its own hover
+ * handler so an icon rendered without a controlling ref stays static too.
+ */
+export function prefersReducedMotion() {
   return (
     typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
 }

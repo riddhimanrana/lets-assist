@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "./use-animated-icon";
 
 export interface ArrowUpIconHandle {
   startAnimation: () => void;
@@ -55,7 +56,7 @@ const ArrowUpIcon = forwardRef<ArrowUpIconHandle, ArrowUpIconProps>(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (isControlledRef.current) {
           onMouseEnter?.(e);
-        } else {
+        } else if (!prefersReducedMotion()) {
           controls.start("animate");
         }
       },

@@ -34,6 +34,7 @@ import { NotificationDetailDialog } from "./NotificationDetailDialog";
 import { NotificationInbox } from "./NotificationInbox";
 import type { Notification } from "./notification-format";
 import { resolveNotificationAction } from "./notification-action-url";
+import { writeReadStateOptimistically } from "./notification-read-write";
 
 /** Drawer below this width, Popover above it. */
 export const NOTIFICATION_MOBILE_MEDIA_QUERY = "(max-width: 768px)";
@@ -180,34 +181,54 @@ export function NotificationPopover({
 
   // Reading is explicit: a row is marked when it is opened, and the header
   // action clears the rest. Opening the inbox alone leaves unread rows unread.
+  // After a failed write the server still holds the unread rows, so read the
+  // true count back instead of trusting the local arithmetic.
+  const reconcileUnreadCount = async () => {
+    if (!user?.id) return;
+    const { count, error } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
+    if (error) throw error;
+    if (count !== null) setUnreadCount(count);
+  };
+
   const markAllAsRead = async () => {
     if (!user?.id) return;
-    try {
-      // Optimistic update for UI via Context
-      setUnreadCount(0);
-
-      await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("user_id", user.id)
-        .eq("read", false);
-
-      refresh();
-    } catch (error) {
-      safeConsole.error("Error marking all notifications as read:", error);
-    }
+    const userId = user.id;
+    const previousCount = unreadCount;
+    await writeReadStateOptimistically({
+      apply: () => setUnreadCount(0),
+      write: () =>
+        supabase
+          .from("notifications")
+          .update({ read: true })
+          .eq("user_id", userId)
+          .eq("read", false),
+      rollback: () => setUnreadCount(previousCount),
+      reconcile: reconcileUnreadCount,
+      onError: (error) =>
+        safeConsole.error("Error marking all notifications as read:", error),
+    });
+    // Rows keep their unread dot until the server says otherwise, so the
+    // refetch shows them read on success and still unread on failure.
+    refresh();
   };
 
   async function markAsRead(id: string) {
-    try {
+    await writeReadStateOptimistically({
       // The realtime UPDATE re-reads the true count; this keeps the bell honest
       // in the meantime.
-      setUnreadCount((count) => Math.max(0, count - 1));
-      await supabase.from("notifications").update({ read: true }).eq("id", id);
-      refresh();
-    } catch (error) {
-      safeConsole.error("Error marking notification as read:", error);
-    }
+      apply: () => setUnreadCount((count) => Math.max(0, count - 1)),
+      write: () =>
+        supabase.from("notifications").update({ read: true }).eq("id", id),
+      rollback: () => setUnreadCount((count) => count + 1),
+      reconcile: reconcileUnreadCount,
+      onError: (error) =>
+        safeConsole.error("Error marking notification as read:", error),
+    });
+    refresh();
   }
 
   async function handleNotificationClick(notification: Notification) {

@@ -16,6 +16,7 @@ import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
 import { z } from "zod";
+import { UNCONFIRMED_DELIVERY_NOTICE } from "./profile/email-add-outcome";
 
 const emailAliasSchema = z.string().trim().email().max(320);
 const emailAliasCodeSchema = z
@@ -122,10 +123,11 @@ export async function sendVerificationEmail(email: string) {
     });
 
     if (delivery.outcome === "unknown_outcome") {
-      // The code may already be in the recipient's inbox. Keep it usable.
+      // The code may already be in the recipient's inbox. Keep it usable and
+      // send the caller to code entry. This is not reported as a success.
       return {
-        error:
-          "Email delivery could not be confirmed. Check your inbox before trying again.",
+        deliveryUnconfirmed: true,
+        notice: UNCONFIRMED_DELIVERY_NOTICE,
         retryAfterSeconds: 60,
       };
     }
@@ -141,8 +143,8 @@ export async function sendVerificationEmail(email: string) {
   } catch {
     // An unexpected exception does not prove the provider rejected the send.
     return {
-      error:
-        "Email delivery could not be confirmed. Check your inbox before trying again.",
+      deliveryUnconfirmed: true,
+      notice: UNCONFIRMED_DELIVERY_NOTICE,
       retryAfterSeconds: 60,
     };
   }

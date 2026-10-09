@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "./use-animated-icon";
 
 export interface ExternalLinkIconHandle {
   startAnimation: () => void;
@@ -52,7 +53,8 @@ const ExternalLinkIcon = forwardRef<
 
   const handleMouseEnter = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!isControlledRef.current) controls.start("animate");
+      if (!isControlledRef.current && !prefersReducedMotion())
+        controls.start("animate");
       onMouseEnter?.(e);
     },
     [controls, onMouseEnter],

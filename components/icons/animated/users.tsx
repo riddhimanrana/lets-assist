@@ -6,6 +6,7 @@ import type { HTMLAttributes } from "react";
 import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "./use-animated-icon";
 
 export interface UsersIconHandle {
   startAnimation: () => void;
@@ -54,7 +55,7 @@ const UsersIcon = forwardRef<UsersIconHandle, UsersIconProps>(
       (e: React.MouseEvent<HTMLDivElement>) => {
         if (isControlledRef.current) {
           onMouseEnter?.(e);
-        } else {
+        } else if (!prefersReducedMotion()) {
           controls.start("animate");
         }
       },
