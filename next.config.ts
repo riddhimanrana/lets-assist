@@ -2,6 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 import { withMicrofrontends } from "@vercel/microfrontends/next/config";
 import { securityResponseHeaders } from "./lib/security/response-headers";
+import { UNICODE_FONT_TRACE_GLOBS } from "./lib/waiver/fonts/font-files";
 
 const requestedDistDir = process.env.NEXT_DIST_DIR?.trim();
 const requestedBuildSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim() ?? "";
@@ -73,6 +74,14 @@ const nextConfig: NextConfig = {
   // in the serverless bundle. Marking it external makes Next.js load it at runtime via
   // require() instead of bundling it, so instrumentation.ts polyfills apply first.
   serverExternalPackages: ["pdfjs-dist"],
+
+  // Signed waiver PDFs read their Unicode fonts from node_modules at runtime
+  // through a path the bundler cannot follow, so the two routes that render
+  // them list the font files explicitly.
+  outputFileTracingIncludes: {
+    "/api/waivers/*/preview": UNICODE_FONT_TRACE_GLOBS,
+    "/api/waivers/*/download": UNICODE_FONT_TRACE_GLOBS,
+  },
 
   webpack(config) {
     config.resolve.alias = {

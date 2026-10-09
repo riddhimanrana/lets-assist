@@ -1,6 +1,10 @@
 import { safeConsole } from "@/lib/safe-console";
 import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
 import type { SignaturePayload } from "@/types/waiver-definitions";
+import { toRenderableText } from "./fonts/renderable-text";
+import { createUnicodeTextRenderer } from "./fonts/unicode-text";
+
+export { toRenderableText };
 
 export interface PdfGenerationOptions {
   sourcePdfBytes: Uint8Array | ArrayBuffer;
@@ -38,6 +42,7 @@ export class SignedWaiverPdfError extends Error {
   }
 }
 
+/** Printed on a page where a character had no glyph in any bundled font. */
 export const UNRENDERABLE_TEXT_NOTE =
   "Some characters could not be shown in this PDF. The signed record keeps the original text.";
 
@@ -71,75 +76,6 @@ async function loadSourceDocument(
       (await isEncryptedPdf(bytes)) ? "encrypted_source" : "unreadable_source",
     );
   }
-}
-
-// Letters the standard PDF font cannot encode and Unicode cannot decompose.
-const LATIN_FALLBACKS: Record<string, string> = {
-  ł: "l",
-  Ł: "L",
-  đ: "d",
-  Đ: "D",
-  ħ: "h",
-  Ħ: "H",
-  ı: "i",
-  ŧ: "t",
-  Ŧ: "T",
-};
-
-/**
- * Rewrites text so the embedded standard font can always encode it.
- *
- * The standard PDF fonts only cover WinAnsi, and pdf-lib throws on anything
- * else. A character it cannot encode is reduced to its base letter where one
- * exists (Polish, Vietnamese) and replaced with "?" otherwise (Chinese, Hindi).
- * `substituted` reports that the output no longer matches the input, so the
- * caller can say so on the page.
- */
-export function toRenderableText(
-  input: unknown,
-  encodable: ReadonlySet<number>,
-): { text: string; substituted: boolean } {
-  const source = (typeof input === "string" ? input : String(input ?? ""))
-    .normalize("NFC")
-    .replace(/\r\n?/g, "\n");
-  let text = "";
-  let substituted = false;
-
-  for (const character of source) {
-    if (character === "\n") {
-      text += character;
-      continue;
-    }
-
-    const codePoint = character.codePointAt(0) ?? 0;
-    if (encodable.has(codePoint)) {
-      text += character;
-      continue;
-    }
-
-    // Tabs, no-break spaces, and other spacing or control characters.
-    if (/[\p{Zs}\p{Cc}]/u.test(character)) {
-      text += " ";
-      continue;
-    }
-
-    // Joiners and variation selectors carry no glyph of their own.
-    if (/\p{Cf}/u.test(character)) continue;
-
-    substituted = true;
-    if (/\p{M}/u.test(character)) continue;
-
-    const base =
-      LATIN_FALLBACKS[character] ??
-      character.normalize("NFD").replace(/\p{M}/gu, "");
-    const baseIsEncodable =
-      base.length > 0 &&
-      base !== character &&
-      Array.from(base).every((part) => encodable.has(part.codePointAt(0) ?? 0));
-    text += baseIsEncodable ? base : "?";
-  }
-
-  return { text, substituted };
 }
 
 /**
@@ -213,13 +149,37 @@ const TEXT_FIELD_TYPES = new Set([
  * - pdf-lib drawing APIs use the same bottom-left origin
  * - Therefore coordinates are used directly without y-axis flipping
  *
- * Text is drawn with the standard Helvetica font. A Unicode font needs
- * `@pdf-lib/fontkit` and a bundled font file, neither of which this repository
- * has, so text outside WinAnsi goes through `toRenderableText` and the page
- * carries a note. Generation never throws on a character.
+ * Text the standard Helvetica font can encode is drawn with it, so an ordinary
+ * waiver loads no font file. Anything else is drawn with a bundled Noto font
+ * (see `lib/waiver/fonts`), embedded as a subset. A character no bundled font
+ * holds is reduced by `toRenderableText` and the page carries a note.
+ * Generation never throws on a character: if the Unicode path fails, the same
+ * waiver is rendered again with the standard font and the note.
  */
 export async function generateSignedWaiverPdf(
   options: PdfGenerationOptions,
+): Promise<Buffer> {
+  try {
+    return await renderSignedWaiverPdf(options, true);
+  } catch (error) {
+    if (!(error instanceof UnicodeFontFailure)) throw error;
+    return renderSignedWaiverPdf(options, false);
+  }
+}
+
+/** The embedded Unicode fonts could not be written into the document. */
+class UnicodeFontFailure extends Error {}
+
+function reportDiagnostic() {
+  // Names and field values are never logged, only that something failed.
+  safeConsole.error(
+    "Application diagnostic from lib/waiver/generate-signed-waiver-pdf",
+  );
+}
+
+async function renderSignedWaiverPdf(
+  options: PdfGenerationOptions,
+  allowUnicodeFonts: boolean,
 ): Promise<Buffer> {
   const {
     sourcePdfBytes,
@@ -237,6 +197,7 @@ export async function generateSignedWaiverPdf(
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const encodable = new Set(font.getCharacterSet());
   const pagesWithSubstitutions = new Set<PDFPage>();
+  const unicode = createUnicodeTextRenderer(pdfDoc, font, encodable);
 
   // A field that names a page the document does not have is skipped.
   const pageFor = (pageIndex: number | null | undefined): PDFPage | null => {
@@ -245,7 +206,7 @@ export async function generateSignedWaiverPdf(
     return pages[index] ?? null;
   };
 
-  const drawText = (
+  const drawText = async (
     page: PDFPage,
     value: unknown,
     drawOptions: {
@@ -257,6 +218,16 @@ export async function generateSignedWaiverPdf(
     },
   ) => {
     const { text, substituted } = toRenderableText(value, encodable);
+    if (substituted && allowUnicodeFonts) {
+      try {
+        const drawn = await unicode.draw(page, value, drawOptions);
+        if (drawn.substituted) pagesWithSubstitutions.add(page);
+        return;
+      } catch {
+        // Nothing was painted. Fall through to the standard font and the note.
+        reportDiagnostic();
+      }
+    }
     if (substituted) pagesWithSubstitutions.add(page);
     if (text.trim().length === 0) return;
 
@@ -272,10 +243,14 @@ export async function generateSignedWaiverPdf(
     });
   };
 
-  const drawSignedStamp = (page: PDFPage, rect: FieldRect, at: unknown) => {
+  const drawSignedStamp = async (
+    page: PDFPage,
+    rect: FieldRect,
+    at: unknown,
+  ) => {
     const signedAt = formatSignedAt(at, timeZone);
     if (!signedAt) return;
-    drawText(page, `Signed: ${signedAt}`, {
+    await drawText(page, `Signed: ${signedAt}`, {
       x: rect.x,
       y: rect.y - 12,
       size: 8,
@@ -308,12 +283,12 @@ export async function generateSignedWaiverPdf(
       // Handle typed signatures (draw text instead of image)
       if (signerSignature.method === "typed") {
         const fontSize = Math.max(6, Math.min(rect.height * 0.6, 24)); // Scale font to fit
-        drawText(page, signatureData, {
+        await drawText(page, signatureData, {
           x: rect.x + 5,
           y: rect.y + rect.height / 2 - fontSize / 3,
           size: fontSize,
         });
-        drawSignedStamp(page, rect, signerSignature.timestamp);
+        await drawSignedStamp(page, rect, signerSignature.timestamp);
         continue;
       }
 
@@ -360,9 +335,7 @@ export async function generateSignedWaiverPdf(
           }
         }
       } catch {
-        safeConsole.error(
-          "Application diagnostic from lib/waiver/generate-signed-waiver-pdf",
-        );
+        reportDiagnostic();
         continue;
       }
 
@@ -396,7 +369,7 @@ export async function generateSignedWaiverPdf(
         height: finalHeight,
       });
 
-      drawSignedStamp(page, rect, signerSignature.timestamp);
+      await drawSignedStamp(page, rect, signerSignature.timestamp);
     }
   }
 
@@ -436,7 +409,7 @@ export async function generateSignedWaiverPdf(
           Math.max(0, (rect.height - textFontSize) / 2) +
           verticalPadding;
 
-      drawText(page, Array.isArray(value) ? value.join(", ") : value, {
+      await drawText(page, Array.isArray(value) ? value.join(", ") : value, {
         x: textX,
         y: textY,
         size: textFontSize,
@@ -453,7 +426,7 @@ export async function generateSignedWaiverPdf(
           8,
           Math.min(16, Math.min(rect.width, rect.height) * 0.85),
         );
-        drawText(page, "X", {
+        await drawText(page, "X", {
           x: rect.x + Math.max(0, (rect.width - checkboxFontSize * 0.55) / 2),
           y:
             rect.y +
@@ -464,6 +437,8 @@ export async function generateSignedWaiverPdf(
       }
     }
   }
+
+  if (unicode.state.fontUnavailable) reportDiagnostic();
 
   // Say so on every page where the printed text differs from what was entered.
   for (const page of pagesWithSubstitutions) {
@@ -486,8 +461,13 @@ export async function generateSignedWaiverPdf(
   }
 
   // 5. Save and return the PDF bytes
-  const modifiedPdfBytes = await pdfDoc.save();
-  return Buffer.from(modifiedPdfBytes);
+  try {
+    return Buffer.from(await pdfDoc.save());
+  } catch (error) {
+    if (unicode.state.embeddedFonts === 0) throw error;
+    reportDiagnostic();
+    throw new UnicodeFontFailure();
+  }
 }
 
 /**
