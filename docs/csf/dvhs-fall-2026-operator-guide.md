@@ -37,9 +37,9 @@ procedure; this is the DVHS path through them.
    route states that only Trusted Members can create organizations. Open
    **Organizations**, select **Create organization**, and confirm the form route
    is `/organization/create`. Under **Basic Information**, enter
-   **Organization Name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
+   **Organization name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
    **Description** using only reviewed public chapter wording, **Website** =
-   `https://www.dvhighcsf.org`, and the required **Organization Type** selected
+   `https://www.dvhighcsf.org`, and the required **Organization type** selected
    from the reviewed chapter classification. **Upload Logo** is optional; do not
    invent a description, type, or private contact value. After the username
    availability check succeeds, select **Create organization**. The creator is

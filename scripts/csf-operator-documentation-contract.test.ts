@@ -575,11 +575,11 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(organizations).toContain('href="/organization/create"');
     expect(organizations).toContain("Create organization");
     for (const label of [
-      "Organization Name *",
+      "Organization name *",
       "Username *",
       "Description *",
       "Website",
-      "Organization Type *",
+      "Organization type *",
       "Create organization",
     ]) {
       expect(form).toContain(label);
@@ -596,11 +596,11 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Organizations**",
       "**Create organization**",
       "`/organization/create`",
-      "**Organization Name** = `DVHigh CSF`",
+      "**Organization name** = `DVHigh CSF`",
       "**Username** = `dvhighcsf`",
       "**Description**",
       "**Website** = `https://www.dvhighcsf.org`",
-      "**Organization Type**",
+      "**Organization type**",
       "**Create organization**",
       "`admin`",
       "`/organization/dvhighcsf`",
