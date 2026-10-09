@@ -12,8 +12,15 @@ export const DESCRIPTION_TEXT_MAX = 2000;
  * entities are decoded, so typed text such as "&lt;b&gt;" stays text.
  */
 export function richTextToPlainText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, "")
+  // Removing a tag can leave a new one behind ("<scr<b>ipt>"), so tags are
+  // removed until none remain.
+  let withoutTags = html;
+  let previous: string;
+  do {
+    previous = withoutTags;
+    withoutTags = withoutTags.replace(/<[^>]*>/g, "");
+  } while (withoutTags !== previous);
+  return withoutTags
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")

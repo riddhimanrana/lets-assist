@@ -94,8 +94,10 @@ export function formatSignedAt(
   );
   if (Number.isNaN(date.getTime())) return null;
 
-  const format = (zone: string) =>
-    new Intl.DateTimeFormat("en-US", {
+  // Built from parts so the wording does not depend on the runtime's locale
+  // data, which joins the date and time differently between versions.
+  const format = (zone: string) => {
+    const parts = new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -103,9 +105,13 @@ export function formatSignedAt(
       minute: "2-digit",
       timeZone: zone,
       timeZoneName: "short",
-    })
-      .format(date)
-      .replace(/\s+/gu, " ");
+    }).formatToParts(date);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((one) => one.type === type)?.value ?? "";
+    return `${part("month")} ${part("day")}, ${part("year")} at ${part("hour")}:${part("minute")} ${part("dayPeriod")} ${part("timeZoneName")}`
+      .replace(/\s+/gu, " ")
+      .trim();
+  };
 
   if (timeZone) {
     try {
