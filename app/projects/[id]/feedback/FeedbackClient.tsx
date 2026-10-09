@@ -89,7 +89,7 @@ export function FeedbackClient({
             value: responseRate !== null ? `${responseRate}%` : "—",
             helper:
               responseRate !== null
-                ? `of ${summary.attendeeCount} attendees`
+                ? `of ${summary.attendeeCount} ${summary.attendeeCount === 1 ? "attendee" : "attendees"}`
                 : undefined,
           },
         ]}

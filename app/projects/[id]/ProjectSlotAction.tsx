@@ -159,6 +159,15 @@ export function ProjectSlotAction({
   onClick,
   ...state
 }: ProjectSlotActionProps) {
+  // An organizer cannot sign up for their own slot, so this is a note, not a
+  // control that looks pressable and is not.
+  if (state.isCreator) {
+    return (
+      <span className="text-muted-foreground text-sm">
+        You are the organizer
+      </span>
+    );
+  }
   return (
     <Button
       variant={

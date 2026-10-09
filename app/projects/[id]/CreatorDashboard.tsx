@@ -168,7 +168,7 @@ export default function CreatorDashboard({
         ? "info"
         : isCompleted
           ? "success"
-          : "secondary";
+          : "info";
 
   const verificationLabel =
     project.verification_method === "qr-code"

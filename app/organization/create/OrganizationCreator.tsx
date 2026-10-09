@@ -325,7 +325,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor={field.name}>
-                  Organization Name *
+                  Organization name *
                 </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
@@ -444,7 +444,7 @@ export default function OrganizationCreator({ userId }: { userId: string }) {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor={field.name}>
-                  Organization Type *
+                  Organization type *
                 </FieldLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger

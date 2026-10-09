@@ -90,7 +90,7 @@ export default function OrganizationSetupChecklist({
               <Button
                 variant="ghost"
                 size="sm"
-                className="hidden max-w-64 sm:inline-flex"
+                className="hidden max-w-64 sm:inline-flex lg:max-w-md"
                 nativeButton={false}
                 render={<Link href={nextItem.href} />}
               >

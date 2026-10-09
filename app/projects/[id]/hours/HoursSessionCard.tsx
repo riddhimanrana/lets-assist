@@ -39,7 +39,11 @@ function SessionStatusBadge({ session }: { session: HoursSession }) {
 
 function visitTime(value: string | null, timezone: string, missing: string) {
   return value && Number.isFinite(Date.parse(value))
-    ? new Date(value).toLocaleString("en-US", { timeZone: timezone })
+    ? new Date(value).toLocaleString("en-US", {
+        timeZone: timezone,
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
     : missing;
 }
 

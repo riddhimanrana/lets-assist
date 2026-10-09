@@ -369,7 +369,7 @@ export default function EditProjectClient({ project }: Props) {
 
         {/* The form's one Save action. It stays in reach while the form
             scrolls and lets go before the danger section. */}
-        <div className="bg-background sticky bottom-0 z-40 -mx-4 flex flex-col gap-3 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-md sm:-mx-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="bg-card sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex flex-col gap-3 rounded-xl border p-3 shadow-md sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {hasChanges ? "You have unsaved changes." : "No changes to save."}
           </p>

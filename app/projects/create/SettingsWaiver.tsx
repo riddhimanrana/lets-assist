@@ -390,7 +390,7 @@ export function WaiverSettings({
           <ToggleRow
             id="waiver-enable-esign"
             label="Enable e-signatures"
-            description="Let volunteers draw or type signatures. Print & upload remains available as backup."
+            description="Let volunteers draw or type signatures. Print and upload remains available as backup."
             checked={!waiverDisableEsignature}
             onCheckedChange={(checked) =>
               updateWaiverDisableEsignatureAction(!checked)
@@ -401,7 +401,7 @@ export function WaiverSettings({
           {/* Print & Upload Backup */}
           <ToggleRow
             id="waiver-allow-upload"
-            label="Print & upload (backup)"
+            label="Print and upload (backup)"
             description="Always available as a backup option for volunteers."
             checked={true}
             onCheckedChange={() => updateWaiverAllowUploadAction(true)}

@@ -53,7 +53,7 @@ export function EditProjectWaiver({
             <ToggleRow
               id={field.name}
               label="Enable e-signatures"
-              description="Let volunteers draw or type signatures. Print & upload remains available as a backup."
+              description="Let volunteers draw or type signatures. Print and upload remains available as a backup."
               checked={!field.value}
               onCheckedChange={(checked) => field.onChange(!checked)}
               disabled={!waiverRequired}
@@ -66,8 +66,8 @@ export function EditProjectWaiver({
           render={({ field }) => (
             <ToggleRow
               id={field.name}
-              label="Print & upload (backup)"
-              description="Print & upload is always available as a backup option for volunteers."
+              label="Print and upload (backup)"
+              description="Print and upload is always available as a backup option for volunteers."
               checked={true}
               onCheckedChange={() => field.onChange(true)}
               disabled

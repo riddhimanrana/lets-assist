@@ -373,12 +373,12 @@ export default function OrganizationSheetsSettings({
   ) : null;
 
   const footer = !status?.connected ? (
-    <Button onClick={startGoogleConnection}>
+    <Button variant="outline" onClick={startGoogleConnection}>
       {syncConfig
         ? status?.viewerIsOwner
           ? "Reconnect Google Sheets"
           : "Connect and take over sync"
-        : "Connect Google account"}
+        : "Connect Google Sheets"}
     </Button>
   ) : syncConfig ? (
     <>

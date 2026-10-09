@@ -48,7 +48,7 @@ export function EditProjectMediaSection({
 
   return (
     <StepSection
-      title="Media & documents"
+      title="Media and documents"
       description="Uploads and removals here are saved right away."
     >
       <FormGroup
