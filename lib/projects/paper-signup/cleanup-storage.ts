@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type PaperScanDeletionQueueRow = {
@@ -152,7 +153,10 @@ export async function drainPaperScanStorageDeletionQueue(
       { p_lock_token: lockToken },
     );
     if (releaseError) {
-      console.error("Failed to release paper-scan cleanup lease", releaseError);
+      safeConsole.error(
+        "Failed to release paper-scan cleanup lease",
+        releaseError,
+      );
     }
   }
 }

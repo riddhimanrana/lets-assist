@@ -3,10 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
+import { format, isValid, parse } from "date-fns";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { cn, stripHtml } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -27,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertTriangle,
   Calendar,
   MapPin,
   Building2,
@@ -60,6 +70,31 @@ interface Draft {
   } | null;
 }
 
+/** One date format for every date on a draft row: "Oct 7, 2026". */
+const DRAFT_DATE_FORMAT = "MMM d, yyyy";
+
+/** A yyyy-MM-dd schedule day, read as a local day so it does not shift. */
+function formatScheduleDay(day: string) {
+  const date = parse(day, "yyyy-MM-dd", new Date());
+  return isValid(date)
+    ? format(date, DRAFT_DATE_FORMAT)
+    : "Schedule incomplete";
+}
+
+/** The rich-text description as one run of plain text. */
+function descriptionPreview(description: string) {
+  return stripHtml(
+    description.replace(/<\/(p|div|li|h[1-6])>|<br\s*\/?>/gi, "$& "),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** A saved draft reopens in the create flow. Its id is not a project id. */
+function draftEditorHref(draftId: string) {
+  return `/projects/create?draft=${encodeURIComponent(draftId)}`;
+}
+
 interface DraftsClientProps {
   drafts: Draft[];
 }
@@ -71,6 +106,11 @@ export default function DraftsClient({
   const [drafts, setDrafts] = useState(initialDrafts);
   const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [draftToDelete, setDraftToDelete] = useState<string | null>(null);
+  // Why a draft could not be published, by draft id. It stays on the draft
+  // until the next attempt so the reason is still there after a toast would be.
+  const [publishErrors, setPublishErrors] = useState<Record<string, string>>(
+    {},
+  );
 
   const handleDelete = async (draftId: string) => {
     try {
@@ -88,16 +128,21 @@ export default function DraftsClient({
 
   const handlePublish = async (draftId: string) => {
     setIsPublishing(draftId);
+    setPublishErrors(({ [draftId]: _cleared, ...rest }) => rest);
     try {
       const result = await publishDraft(draftId);
       if ("error" in result && result.error) {
-        toast.error(result.error);
+        const message = result.error;
+        setPublishErrors((current) => ({ ...current, [draftId]: message }));
       } else if ("success" in result && result.success && result.id) {
         toast.success("Project published successfully!");
         router.push(`/projects/${result.id}`);
       }
     } catch {
-      toast.error("Failed to publish project");
+      setPublishErrors((current) => ({
+        ...current,
+        [draftId]: "This draft could not be published. Please try again.",
+      }));
     } finally {
       setIsPublishing(null);
     }
@@ -108,196 +153,201 @@ export default function DraftsClient({
     if (!schedule) return "No schedule set";
 
     if (draft.event_type === "oneTime" && schedule.oneTime?.date) {
-      return format(new Date(schedule.oneTime.date), "MMMM d, yyyy");
+      return formatScheduleDay(schedule.oneTime.date);
     }
     if (draft.event_type === "multiDay") {
       const days = schedule.multiDay?.length ?? 0;
-      return days > 0 ? `${days} day(s)` : "Schedule incomplete";
+      if (days === 0) return "Schedule incomplete";
+      return `${days} ${days === 1 ? "day" : "days"}`;
     }
     if (
       draft.event_type === "sameDayMultiArea" &&
       schedule.sameDayMultiArea?.date
     ) {
-      return format(new Date(schedule.sameDayMultiArea.date), "MMMM d, yyyy");
+      return formatScheduleDay(schedule.sameDayMultiArea.date);
     }
     return "Schedule incomplete";
   };
 
+  const header = (
+    <PageHeader
+      title="My drafts"
+      description={
+        drafts.length === 0
+          ? "Projects you've started but haven't published yet"
+          : `${drafts.length} ${drafts.length === 1 ? "draft" : "drafts"} saved`
+      }
+      actions={
+        <Link href="/projects/create" className={cn(buttonVariants())}>
+          <Plus data-icon="inline-start" aria-hidden="true" />
+          New project
+        </Link>
+      }
+    />
+  );
+
   if (drafts.length === 0) {
     return (
-      <div className="container max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">My Drafts</h1>
-            <p className="text-muted-foreground mt-1">
-              Projects you&apos;ve started but haven&apos;t published yet
-            </p>
-          </div>
-          <Link href="/projects/create" className={cn(buttonVariants())}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Link>
-        </div>
-
-        <Card className="text-center py-12">
-          <CardContent>
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No drafts yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Start creating a project and save it as a draft to continue later.
-            </p>
-            <Link href="/projects/create" className={cn(buttonVariants())}>
-              Create Your First Project
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8 sm:px-6">
+        {header}
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileText aria-hidden="true" />
+            </EmptyMedia>
+            <EmptyTitle>No drafts yet</EmptyTitle>
+            <EmptyDescription>
+              Save a project as a draft while you create it, and it will wait
+              for you here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">My Drafts</h1>
-          <p className="text-muted-foreground mt-1">
-            {drafts.length} draft{drafts.length !== 1 ? "s" : ""} saved
-          </p>
-        </div>
-        <Link href="/projects/create" className={cn(buttonVariants())}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Project
-        </Link>
-      </div>
+    <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8 sm:px-6">
+      {header}
 
-      <div className="space-y-4">
-        {drafts.map((draft) => (
-          <Card key={draft.id} className="overflow-hidden">
-            <div className="flex flex-col sm:flex-row">
-              {/* Cover image or placeholder */}
-              <div className="sm:w-48 h-32 sm:h-auto bg-muted shrink-0">
+      <div className="grid gap-4">
+        {drafts.map((draft) => {
+          const description = descriptionPreview(draft.description);
+
+          return (
+            <Card key={draft.id} className="gap-3 px-4">
+              <div className="flex items-start gap-4">
                 {draft.cover_image_url ? (
-                  <Image
-                    src={draft.cover_image_url}
-                    alt={draft.title}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 100vw, 192px"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <FileText className="h-8 w-8 text-muted-foreground" />
+                  <div className="bg-muted relative hidden h-24 w-36 shrink-0 overflow-hidden rounded-lg sm:block">
+                    <Image
+                      src={draft.cover_image_url}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="144px"
+                    />
                   </div>
-                )}
-              </div>
+                ) : null}
 
-              {/* Content */}
-              <div className="flex-1 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h3 className="font-semibold text-lg truncate">
-                        {draft.title || "Untitled Draft"}
-                      </h3>
-                      <Badge variant="secondary" className="shrink-0">
-                        Draft
-                      </Badge>
+                <div className="grid min-w-0 flex-1 gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="truncate text-base font-semibold">
+                      {draft.title || "Untitled draft"}
+                    </h2>
+                    <Badge variant="neutral">Draft</Badge>
+                  </div>
+
+                  {draft.organization?.name ? (
+                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                      {draft.organization.logo_url ? (
+                        <Avatar className="size-4">
+                          <AvatarImage src={draft.organization.logo_url} />
+                          <AvatarFallback>
+                            <Building2 className="size-3" aria-hidden="true" />
+                          </AvatarFallback>
+                        </Avatar>
+                      ) : (
+                        <Building2 className="size-4" aria-hidden="true" />
+                      )}
+                      {draft.organization.name}
                     </div>
+                  ) : null}
 
-                    {draft.organization && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                        {draft.organization.logo_url ? (
-                          <Avatar className="h-4 w-4">
-                            <AvatarImage src={draft.organization.logo_url} />
-                            <AvatarFallback>
-                              <Building2 className="h-3 w-3" />
-                            </AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <Building2 className="h-4 w-4" />
-                        )}
-                        {draft.organization.name}
+                  <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="size-4" aria-hidden="true" />
+                      {getSchedulePreview(draft)}
+                    </div>
+                    {draft.location && (
+                      <div className="flex min-w-0 items-center gap-1">
+                        <MapPin
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span className="max-w-50 truncate">
+                          {draft.location}
+                        </span>
                       </div>
                     )}
-
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {getSchedulePreview(draft)}
-                      </div>
-                      {draft.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4" />
-                          <span className="truncate max-w-[200px]">
-                            {draft.location}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
-                        Saved{" "}
-                        {format(new Date(draft.created_at), "MMM d, yyyy")}
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="size-4" aria-hidden="true" />
+                      Saved{" "}
+                      {format(new Date(draft.created_at), DRAFT_DATE_FORMAT)}
                     </div>
-
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-                      {draft.description || "No description yet"}
-                    </p>
                   </div>
 
-                  {/* Actions */}
-                  {/* Actions */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      className={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "shrink-0",
-                      )}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Link
-                          href={`/projects/${draft.id}/edit`}
-                          className="flex w-full items-center"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Continue Editing
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handlePublish(draft.id)}
-                        disabled={isPublishing === draft.id}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        {isPublishing === draft.id
-                          ? "Publishing..."
-                          : "Publish Now"}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setDraftToDelete(draft.id)}
-                        className="text-destructive focus:text-destructive text-destructive-foreground focus:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Draft
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <p className="text-muted-foreground line-clamp-2 text-sm">
+                    {description || "No description yet"}
+                  </p>
                 </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label={`Actions for ${draft.title || "untitled draft"}`}
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "icon" }),
+                      "shrink-0",
+                    )}
+                  >
+                    <MoreVertical aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>
+                      <Link
+                        href={draftEditorHref(draft.id)}
+                        className="flex w-full items-center gap-2"
+                      >
+                        <Edit aria-hidden="true" />
+                        Continue editing
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handlePublish(draft.id)}
+                      disabled={isPublishing === draft.id}
+                    >
+                      <Send aria-hidden="true" />
+                      {isPublishing === draft.id
+                        ? "Publishing..."
+                        : "Publish now"}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setDraftToDelete(draft.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      Delete draft
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
-              {/* Quick action buttons for mobile */}
-              <div className="flex gap-2 mt-4 sm:hidden">
+              {publishErrors[draft.id] ? (
+                <Alert variant="destructive" role="alert">
+                  <AlertTriangle aria-hidden="true" />
+                  <AlertTitle>This draft is not ready to publish</AlertTitle>
+                  <AlertDescription>
+                    {publishErrors[draft.id]}{" "}
+                    <Link
+                      href={draftEditorHref(draft.id)}
+                      className="font-medium underline underline-offset-4"
+                    >
+                      Continue editing
+                    </Link>
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
+              {/* Quick actions on phones, where the menu is easy to miss. */}
+              <div className="flex gap-2 sm:hidden">
                 <Link
-                  href={`/projects/${draft.id}/edit`}
+                  href={draftEditorHref(draft.id)}
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" }),
                     "flex-1",
                   )}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Edit data-icon="inline-start" aria-hidden="true" />
                   Edit
                 </Link>
                 <Button
@@ -306,13 +356,13 @@ export default function DraftsClient({
                   onClick={() => handlePublish(draft.id)}
                   disabled={isPublishing === draft.id}
                 >
-                  <Send className="h-4 w-4 mr-2" />
+                  <Send data-icon="inline-start" aria-hidden="true" />
                   Publish
                 </Button>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
 
       <AlertDialog
@@ -336,7 +386,7 @@ export default function DraftsClient({
                   setDraftToDelete(null);
                 }
               }}
-              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+              variant="destructive"
             >
               Delete
             </AlertDialogAction>

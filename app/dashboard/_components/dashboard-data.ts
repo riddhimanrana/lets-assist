@@ -1,3 +1,5 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
@@ -13,6 +15,7 @@ import { TZDate, tz } from "@date-fns/tz";
 import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
+import { formatHoursDuration } from "@/lib/format/hours";
 
 interface BackendCertificate {
   id: string;
@@ -22,6 +25,7 @@ interface BackendCertificate {
   type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -48,6 +52,7 @@ interface UICertificate {
     project_timezone?: string;
   };
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -96,7 +101,7 @@ function calculateHours(startTime: string, endTime: string): number {
     if (isBefore(end, start)) return 0;
     return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10; // Round to 1 decimal place
   } catch (e) {
-    console.error("Error calculating hours:", e);
+    safeConsole.error("Error calculating hours:", e);
     return 0;
   }
 }
@@ -119,7 +124,7 @@ function getCombinedDateTime(
     const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
-    console.error("Error parsing date/time:", e);
+    safeConsole.error("Error parsing date/time:", e);
     return null;
   }
 }
@@ -172,33 +177,8 @@ function getSessionDisplayName(
   return details.schedule_id || "Session";
 }
 
-// Helper function to format total duration from hours (decimal) to Xh Ym
-export function formatTotalDuration(totalHours: number): string {
-  if (totalHours <= 0) return "0m"; // Handle zero or negative hours
-
-  // Convert decimal hours to total minutes, rounding to nearest minute
-  const totalMinutes = Math.round(totalHours * 60);
-
-  if (totalMinutes === 0) return "0m"; // Handle cases that round down to 0
-
-  const hours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h`;
-  }
-  if (remainingMinutes > 0) {
-    // Add space if hours were also added
-    if (hours > 0) {
-      result += " ";
-    }
-    result += `${remainingMinutes}m`;
-  }
-
-  // Fallback in case result is somehow empty (e.g., very small positive number rounds to 0 minutes)
-  return result || (totalMinutes > 0 ? "1m" : "0m");
-}
+/** Total hours for display. One formatter serves the whole dashboard. */
+export const formatTotalDuration = formatHoursDuration;
 
 export async function loadVolunteerDashboardData() {
   const supabase = await createClient();
@@ -219,7 +199,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (profileError) {
-    console.error("Error fetching profile:", profileError);
+    safeConsole.error("Error fetching profile:", profileError);
   }
 
   // Fetch certificates for this user
@@ -230,6 +210,7 @@ export async function loadVolunteerDashboardData() {
     is_certified: boolean;
     event_start: string;
     event_end: string;
+    credited_minutes?: number | null;
     volunteer_email: string | null;
     organization_name: string | null;
     project_id: string | null;
@@ -259,7 +240,7 @@ export async function loadVolunteerDashboardData() {
     };
 
   if (certificatesError) {
-    console.error("Error fetching certificates:", certificatesError);
+    safeConsole.error("Error fetching certificates:", certificatesError);
   }
 
   // Fetch upcoming signups
@@ -301,7 +282,7 @@ export async function loadVolunteerDashboardData() {
   }; // Fetch approved and pending
 
   if (signupsError) {
-    console.error("Error fetching upcoming signups:", signupsError);
+    safeConsole.error("Error fetching upcoming signups:", signupsError);
     // Handle error appropriately, maybe show a message
   }
 
@@ -326,7 +307,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (certificatesErrorFetch) {
-    console.error("Error fetching certificates:", certificatesErrorFetch);
+    safeConsole.error("Error fetching certificates:", certificatesErrorFetch);
     // Handle error appropriately
   }
 
@@ -344,7 +325,9 @@ export async function loadVolunteerDashboardData() {
   const processedCertificates = (certificates || []).map(
     (cert: BackendCertificate) => {
       // Calculate hours for this certificate
-      const hours = calculateHours(cert.event_start, cert.event_end);
+      const hours = certificateHours(cert, () =>
+        calculateHours(cert.event_start, cert.event_end),
+      );
 
       // Default to 'verified' for existing certificates that don't have the type field
       const certType = cert.type || "verified";

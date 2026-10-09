@@ -57,7 +57,7 @@ export function DatePicker({
 
   // Format date for display (stable formatting)
   const displayValue = selectedDate
-    ? format(selectedDate, "MMMM d, yyyy")
+    ? format(selectedDate, "MMM d, yyyy")
     : placeholder;
 
   const handleSelect = (date: Date | undefined) => {

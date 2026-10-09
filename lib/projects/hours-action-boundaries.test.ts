@@ -19,7 +19,7 @@ const publicationEmailServiceSource = readFileSync(
   "utf8",
 );
 const autoPublishSource = readFileSync(
-  `${process.cwd()}/app/api/cron/auto-publish-hours/route.ts`,
+  `${process.cwd()}/services/auto-publish-hours-worker.ts`,
   "utf8",
 );
 
@@ -86,7 +86,7 @@ test("certificate resend is permission checked and scoped to one project session
   assert.match(resendSource, /drainPublicationEmails/u);
   assert.match(
     resendSource,
-    /publishKey === sessionId \? \[sessionId\] : \[sessionId, publishKey\]/u,
+    /getScheduleIdAliases\(typedProject, sessionId\)/u,
   );
   assert.match(resendSource, /\.eq\("project_id", projectId\)/u);
   assert.match(resendSource, /\.in\("schedule_id", legacyScheduleIds\)/u);

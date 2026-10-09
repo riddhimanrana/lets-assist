@@ -1,11 +1,13 @@
 # Testing and acceptance
 
+Speech and Debate is archived reference code. Its explicit legacy commands remain for historical reproduction, but normal setup, unit discovery, database workflow fixtures and browser gates do not run it. Historical SQL regression tests still protect retained data.
+
 Use the narrowest focused regression first, then expand to the appropriate gate. Mock-sensitive Bun suites run in separate processes because `mock.module` state is global to a process.
 
 ## Delivery stages
 
 1. While coding, run the focused regression for the behavior you changed. Add the relevant static check when the change affects types, lint rules, formatting, dependencies, migrations, or agent configuration.
-2. Before updating the integration pull request, run all focused checks for that deliverable locally. The hosted pull-request `ci-gate` remains short and deterministic.
+2. Before updating the integration pull request, run all focused checks for that deliverable locally. `bun run ci:preflight` runs the pull request gate's own steps on your machine, and `bun run ci:pins` reports every hand-maintained pin that is out of date. The hosted pull-request `ci-gate` remains short and deterministic. See [CI pipeline](ci-pipeline.md).
 3. After the coherent candidate is integrated, dispatch `Code quality` once. That manual run owns the full tests, production build, isolated database replay, scale checks, and browser suites used by release verification.
 
 Do not use a new pull request as a retry mechanism. Fix a failed local or hosted check on the same branch and update the same pull request.
@@ -26,7 +28,7 @@ Unless the release report says otherwise, no Production database, application, b
 
 - `bun run test:unit` discovers and runs every root `*.test.*` and `*.spec.*` file outside private plugins and browser suites.
 - `bun run test:plugins` runs the private plugin unit and security suite.
-- `bun run test` runs both of the above through the shared process orchestrator used by CI.
+- `bun run test` runs both of the above through the shared process orchestrator used by CI. Add `--shard=<index>/<total>` to run one deterministic share of the same files in the same process groups.
 - `bun run test:db:isolated` replays the isolated CSF database gate.
 - `bun run test:e2e:csf` and `bun run test:e2e:dv` run their respective browser suites against the same compiled runtime used by CI. Interactive `bun run dev:csf` remains a separate development-mode launcher.
 
@@ -41,7 +43,11 @@ The orchestrator keeps safety-sensitive groups explicit, discovers all remaining
 - `bun run source:check:organization`
 - `bun run agent:check`
 
-The pull-request gate runs these static checks, seed safety, dependency audit, plugin contract validation, and the CI tooling tests. Full root/plugin tests and the production build run in the manual or reusable release gate.
+The pull-request gate runs these static checks, seed safety, dependency audits for every independent lockfile, plugin contract validation, and CI tooling tests. Application changes run root application and embedded plugin unit tests through `bun run test:affected <base-sha>`. Tooling, configuration, dependency, or gitlink changes run every unit group, including harness contracts. Documentation-only changes skip that unit pass. Selection is conservative because filesystem and subprocess contracts are not visible in an import graph. The existing runner still isolates global module mocks.
+
+`bun run security:audit` audits all dependencies in the root, standalone SDK, and every private package without installing or running package scripts. It requires the exact initialized private checkout. The daily `Dependency security` workflow scans both protected branches even when no pull requests are open. An advisory or registry failure blocks the audit; there are no ignored advisories. See [dependency security](dependency-security.md) for the patch rationale and open upstream blocker.
+
+The production build and database/browser suites remain in the manual or reusable release gate.
 
 ## Database and plugin gates
 
@@ -62,6 +68,7 @@ never reset a developer's shared-local database.
 - `bun run dv:test:e2e`
 - `bun run csf:test:e2e`
 - `bun run dev:test:cron`
+- `bun --no-env-file scripts/local-dev/test-select-scroll.ts` checks the shared Select with compiled app CSS at desktop and phone widths. It covers both alignment modes, pointer scrolling and keyboard selection without a database.
 
 Generated Playwright HTML, traces, screenshots, video, storage state, payloads, and logs belong under ignored `.artifacts/`. Promote only a sanitized, fictional, reviewed gallery to `docs/csf/evidence/`, replacing the previous gallery rather than accumulating copies.
 

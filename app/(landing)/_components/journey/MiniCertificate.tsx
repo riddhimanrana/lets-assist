@@ -27,7 +27,7 @@ export function MiniCertificate({
       transition={{ duration: 0.5 }}
       className="p-4"
     >
-      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6 shadow-lg">
+      <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-linear-to-br from-primary/10 via-background to-primary/5 p-6 shadow-(--card-shadow)">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div

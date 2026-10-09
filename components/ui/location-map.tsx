@@ -102,11 +102,11 @@ export function LocationMap({
   location,
   height = "h-[300px]",
 }: Omit<LocationMapProps, "readOnly" | "showAttribution">) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  if (!apiKey) return null;
+
   return (
-    <APIProvider
-      apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-      libraries={["places"]}
-    >
+    <APIProvider apiKey={apiKey} libraries={["places"]}>
       <LocationMapContent location={location} height={height} />
     </APIProvider>
   );

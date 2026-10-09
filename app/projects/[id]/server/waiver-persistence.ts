@@ -1,18 +1,23 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
-import crypto from "crypto";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { type WaiverSignatureInput } from "@/types";
 import {
+  SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+  SIGNED_WAIVER_UPLOAD_TYPES,
+  signedWaiverUploadFailureMessage,
+} from "@/lib/waiver/upload-limits";
+import {
   MAX_WAIVER_SIGNATURE_BYTES,
-  MAX_WAIVER_UPLOAD_BYTES,
   WAIVER_SIGNATURE_BUCKET,
   type WaiverSignatureRecord,
   getRequestMetadata,
   isMissingWaiverDisableEsignatureColumnError,
   parseDataUrl,
 } from "./shared";
+import { buildWaiverEvidencePath } from "@/lib/waiver/evidence-path";
 
 export async function uploadWaiverAsset(params: {
   bucket: string;
@@ -23,18 +28,18 @@ export async function uploadWaiverAsset(params: {
 }) {
   const parsed = parseDataUrl(params.dataUrl);
   if (!parsed) {
-    return { error: "Invalid file data." };
+    return { error: "Invalid file data.", reason: "invalid" as const };
   }
 
   if (
     params.allowedTypes &&
     !params.allowedTypes.includes(parsed.contentType)
   ) {
-    return { error: "Unsupported file type." };
+    return { error: "Unsupported file type.", reason: "type" as const };
   }
 
   if (parsed.size > params.maxBytes) {
-    return { error: "File is too large." };
+    return { error: "File is too large.", reason: "size" as const };
   }
 
   const serviceSupabase = getAdminClient();
@@ -47,8 +52,11 @@ export async function uploadWaiverAsset(params: {
     });
 
   if (uploadError) {
-    console.error("Error uploading waiver asset:", uploadError);
-    return { error: "Failed to upload waiver file." };
+    safeConsole.error("Error uploading waiver asset:", uploadError);
+    return {
+      error: "Failed to upload waiver file.",
+      reason: "storage" as const,
+    };
   }
 
   return { path: params.fileName, contentType: parsed.contentType };
@@ -112,7 +120,10 @@ export async function prepareWaiverSignatureRecord(params: {
       fallbackError &&
       !isMissingWaiverDisableEsignatureColumnError(fallbackError)
     ) {
-      console.error("Error fetching project waiver settings:", fallbackError);
+      safeConsole.error(
+        "Error fetching project waiver settings:",
+        fallbackError,
+      );
     }
 
     if (fallbackProject) {
@@ -158,7 +169,7 @@ export async function prepareWaiverSignatureRecord(params: {
       .maybeSingle();
 
     if (defError || !definition) {
-      console.error("Invalid waiver definition in signature payload", {
+      safeConsole.error("Invalid waiver definition in signature payload", {
         projectId: params.projectId,
         evidenceKey: params.evidenceKey,
         waiverDefinitionId,
@@ -188,7 +199,7 @@ export async function prepareWaiverSignatureRecord(params: {
       .remove(uploadedSignaturePaths);
 
     if (error) {
-      console.error("Failed to roll back uploaded waiver assets:", error);
+      safeConsole.error("Failed to roll back uploaded waiver assets:", error);
     }
   };
 
@@ -212,6 +223,20 @@ export async function prepareWaiverSignatureRecord(params: {
 
     // Process each signer (upload assets)
     for (const signer of rawPayload.signers) {
+      // Checked here for every project, with or without a waiver definition.
+      // A signer whose method is not one of these would keep its `data` as
+      // sent, and that value is later read as a storage path.
+      if (
+        signer.method !== "draw" &&
+        signer.method !== "typed" &&
+        signer.method !== "upload"
+      ) {
+        await removeUploadedSignatureAssets();
+        return {
+          error: "One of the waiver signatures is not in a supported format.",
+          uploadedPaths: uploadedSignaturePaths,
+        };
+      }
       const processedSigner = { ...signer };
 
       if (
@@ -234,7 +259,12 @@ export async function prepareWaiverSignatureRecord(params: {
           fileExt = "jpg";
         }
 
-        const fileName = `waiver_${params.evidenceKey}_${signer.role_key}_${Date.now()}.${fileExt}`;
+        const fileName = buildWaiverEvidencePath({
+          folder: "signatures",
+          projectId: params.projectId,
+          evidenceKey: params.evidenceKey,
+          extension: fileExt,
+        });
 
         // Upload asset
         const uploadResult = await uploadWaiverAsset({
@@ -247,7 +277,7 @@ export async function prepareWaiverSignatureRecord(params: {
 
         if (uploadResult.error) {
           await removeUploadedSignatureAssets();
-          console.error("Error uploading signer asset", {
+          safeConsole.error("Error uploading signer asset", {
             signerRoleKey: signer.role_key,
             uploadError: uploadResult.error,
           });
@@ -281,7 +311,12 @@ export async function prepareWaiverSignatureRecord(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.signatureImageDataUrl ?? "",
-      fileName: `signatures/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
+      fileName: buildWaiverEvidencePath({
+        folder: "signatures",
+        projectId: params.projectId,
+        evidenceKey: params.evidenceKey,
+        extension,
+      }),
       maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
       allowedTypes: ["image/png", "image/jpeg", "image/jpg"],
     });
@@ -327,15 +362,21 @@ export async function prepareWaiverSignatureRecord(params: {
     const uploadResult = await uploadWaiverAsset({
       bucket: WAIVER_SIGNATURE_BUCKET,
       dataUrl: params.waiverSignature.uploadFileDataUrl ?? "",
-      fileName: `signed-waivers/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`,
-      maxBytes: MAX_WAIVER_UPLOAD_BYTES,
-      allowedTypes: ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
+      fileName: buildWaiverEvidencePath({
+        folder: "signed-waivers",
+        projectId: params.projectId,
+        evidenceKey: params.evidenceKey,
+        extension,
+      }),
+      maxBytes: SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+      allowedTypes: [...SIGNED_WAIVER_UPLOAD_TYPES, "image/jpg"],
     });
 
     if (uploadResult.error || !uploadResult.path) {
       await removeUploadedSignatureAssets();
       return {
-        error: "Failed to store the signed waiver upload.",
+        // Say which rule the file broke, so the volunteer can fix it.
+        error: signedWaiverUploadFailureMessage(uploadResult.reason),
         uploadedPaths: uploadedSignaturePaths,
       };
     }
@@ -403,7 +444,7 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
     .maybeSingle();
 
   if (fetchError) {
-    console.error(
+    safeConsole.error(
       "Error fetching reusable anonymous waiver signature:",
       fetchError,
     );
@@ -429,7 +470,7 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
       .from(WAIVER_SIGNATURE_BUCKET)
       .remove(copiedPaths);
     if (error) {
-      console.error("Failed to roll back cloned waiver evidence:", error);
+      safeConsole.error("Failed to roll back cloned waiver evidence:", error);
     }
   };
 
@@ -451,7 +492,12 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
 
     const extensionMatch = sourcePath.match(/\.([a-z0-9]{1,5})$/iu);
     const extension = extensionMatch?.[1]?.toLowerCase() ?? "bin";
-    const destinationPath = `cloned-waiver-evidence/${params.projectId}/${params.evidenceKey}/${crypto.randomUUID()}.${extension}`;
+    const destinationPath = buildWaiverEvidencePath({
+      folder: "cloned-waiver-evidence",
+      projectId: params.projectId,
+      evidenceKey: params.evidenceKey,
+      extension,
+    });
     const { error } = await serviceSupabase.storage
       .from(WAIVER_SIGNATURE_BUCKET)
       .copy(sourcePath, destinationPath);
@@ -519,7 +565,10 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
     }
   } catch (error) {
     await removeCopiedEvidence();
-    console.error("Error copying reusable anonymous waiver evidence:", error);
+    safeConsole.error(
+      "Error copying reusable anonymous waiver evidence:",
+      error,
+    );
     return {
       error: "Failed to attach existing waiver evidence to this signup.",
       uploadedPaths: copiedPaths,

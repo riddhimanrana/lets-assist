@@ -32,7 +32,6 @@ const MUTATION =
 const ALLOWED_WRITERS: Record<string, "service" | "session"> = {
   "app/api/self-reported-hours/route.ts": "session",
   "app/api/self-reported-hours/[id]/route.ts": "session",
-  "app/anonymous/[id]/actions.ts": "service",
 };
 
 function sourceFiles(): string[] {
@@ -89,10 +88,18 @@ test("browser-reachable certificate writes never declare a verified type", () =>
 
 test("verified certificate issuance stays on privileged, re-authorizing code", () => {
   const cron = readFileSync("app/api/cron/auto-publish-hours/route.ts", "utf8");
-  assert.match(cron, /publishVolunteerHoursTransaction/u);
-  assert.match(cron, /actorId: project\.creator_id/u);
+  const worker = readFileSync("services/auto-publish-hours-worker.ts", "utf8");
+  assert.match(
+    cron,
+    /import\s*\{\s*processExpiredSessions\s*\}\s*from\s*"@\/services\/auto-publish-hours-worker"/u,
+  );
+  assert.match(cron, /await processExpiredSessions\(\)/u);
+  assert.match(worker, /publishVolunteerHoursTransaction/u);
+  assert.match(worker, /actorId: project\.creator_id/u);
   assert.doesNotMatch(cron, /\.from\("certificates"\)\s*\.insert/u);
   assert.doesNotMatch(cron, /\.from\("projects"\)\s*\.update/u);
+  assert.doesNotMatch(worker, /\.from\("certificates"\)\s*\.insert/u);
+  assert.doesNotMatch(worker, /\.from\("projects"\)\s*\.update/u);
 
   const publish = readFileSync("app/projects/[id]/hours/actions.ts", "utf8");
   assert.match(publish, /publishVolunteerHoursTransaction/u);
@@ -106,7 +113,7 @@ test("verified certificate issuance stays on privileged, re-authorizing code", (
   assert.match(service, /publish_volunteer_hours_transactional/u);
 });
 
-test("anonymous account-link certificate transfer runs on the canonical admin client", () => {
+test("anonymous account linking uses the service-only atomic transfer", () => {
   const source = readFileSync("app/anonymous/[id]/actions.ts", "utf8");
 
   assert.match(
@@ -116,8 +123,23 @@ test("anonymous account-link certificate transfer runs on the canonical admin cl
   );
   assert.match(
     source,
-    /const adminClient = getAdminClient\(\);[\s\S]*?await adminClient\s*\n\s*\.from\("certificates"\)\s*\n\s*\.update\(\{ user_id: userId \}\)/u,
-    "the certificates UPDATE during account linking must run on getAdminClient(), not the caller's session",
+    /await getAdminClient\(\)\.rpc\(\s*"link_guest_attendance_account"/u,
+    "guest ownership must transfer in one service-role transaction",
+  );
+  assert.match(source, /p_token: token/u);
+  assert.match(source, /const user = await requireAuth\(\)/u);
+  assert.doesNotMatch(source, /\.from\("certificates"\)/u);
+  const migration = readFileSync(
+    "supabase/migrations/20261009010003_atomic_guest_account_link.sql",
+    "utf8",
+  );
+  assert.match(
+    migration,
+    /REVOKE ALL ON FUNCTION public\.link_guest_attendance_account\(uuid,uuid,text\) FROM PUBLIC,\s*anon,\s*authenticated/u,
+  );
+  assert.match(
+    migration,
+    /GRANT EXECUTE ON FUNCTION public\.link_guest_attendance_account\(uuid,uuid,text\) TO service_role/u,
   );
 });
 

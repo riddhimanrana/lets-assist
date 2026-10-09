@@ -1,3 +1,4 @@
+import { isArchivedPlugin } from "@/lib/plugins/archived-plugins";
 import { isEntitlementActive } from "@/lib/plugins/resolve-org-plugins";
 import {
   coalescePluginVersion,
@@ -90,7 +91,7 @@ export function buildOrganizationPluginAdminSettings(input: {
   );
 
   return input.catalog
-    .filter((plugin) => plugin.is_active)
+    .filter((plugin) => plugin.is_active && !isArchivedPlugin(plugin.key))
     .map((plugin) => {
       const runtimePlugin = runtimeByKey.get(plugin.key);
       const install = installByKey.get(plugin.key);

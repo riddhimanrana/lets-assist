@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -159,15 +160,19 @@ function createStore<
       error,
     } = await query.range(skip, skip + state.pageSize - 1);
 
-    console.log(`[useInfiniteQuery] Fetched ${state.tableName}:`, {
-      skip,
-      count,
-      dataLength: newData?.length,
-      error,
-    });
+    safeConsole.log(
+      "Application diagnostic from hooks/use-infinite-query",
+      `[useInfiniteQuery] Fetched ${state.tableName}:`,
+      {
+        skip,
+        count,
+        dataLength: newData?.length,
+        error,
+      },
+    );
 
     if (error) {
-      console.error("An unexpected error occurred:", error);
+      safeConsole.error("An unexpected error occurred:", error);
       setState({ error: new Error(error.message, { cause: error }) });
     } else {
       setState({
@@ -210,7 +215,7 @@ function createStore<
       columns !== state.columns ||
       trailingQuery !== state.trailingQuery;
 
-    console.log("[useInfiniteQuery] updateProps:", {
+    safeConsole.log("[useInfiniteQuery] updateProps:", {
       shouldReset,
       newEnabled: enabled,
       currentEnabled: state.enabled,
@@ -296,14 +301,17 @@ function useInfiniteQuery<
 
   // Update store props when they change
   useEffect(() => {
-    console.log("[useInfiniteQuery] useEffect dependency change detected:", {
-      tableName: props.tableName,
-      columns: props.columns,
-      pageSize: props.pageSize,
-      trailingQueryChanged:
-        props.trailingQuery !== storeRef.current?.getState().trailingQuery,
-      enabled: props.enabled,
-    });
+    safeConsole.log(
+      "[useInfiniteQuery] useEffect dependency change detected:",
+      {
+        tableName: props.tableName,
+        columns: props.columns,
+        pageSize: props.pageSize,
+        trailingQueryChanged:
+          props.trailingQuery !== storeRef.current?.getState().trailingQuery,
+        enabled: props.enabled,
+      },
+    );
     storeRef.current?.updateProps(props);
   }, [
     props.tableName,

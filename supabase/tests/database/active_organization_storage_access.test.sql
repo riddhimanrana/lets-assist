@@ -88,9 +88,9 @@ VALUES (
   'Active membership Storage contract',
   'Local',
   'Synthetic Storage authority fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true,
   'ae100000-0000-4000-8000-000000000001',
   true
@@ -160,7 +160,7 @@ SELECT extensions.is(
   1::bigint,
   'active organization staff can read paper-scan rows'
 );
-SELECT extensions.lives_ok(
+SELECT extensions.throws_ok(
   $$
     INSERT INTO storage.objects (id, bucket_id, name, owner, metadata)
     VALUES (
@@ -171,7 +171,9 @@ SELECT extensions.lives_ok(
       '{"mimetype":"image/png"}'::jsonb
     )
   $$,
-  'active organization staff can create the organization logo object'
+  '42501',
+  'new row violates row-level security policy for table "objects"',
+  'active organization staff cannot bypass server logo validation'
 );
 SELECT extensions.lives_ok(
   $$
@@ -397,7 +399,7 @@ SELECT extensions.ok(
   has_table_privilege(
     'authenticated', 'public.account_data_export_jobs', 'SELECT'
   )
-  AND has_table_privilege(
+  AND NOT has_table_privilege(
     'authenticated', 'public.account_data_export_jobs', 'INSERT'
   )
   AND NOT has_table_privilege(
@@ -441,7 +443,7 @@ SELECT extensions.results_eq(
       AND role_name = 'authenticated'
     ORDER BY privilege
   $$,
-  $$ VALUES ('INSERT'::text), ('SELECT'::text) $$,
+  $$ VALUES ('SELECT'::text) $$,
   'the effective ACL catalog retains exact browser export-job capabilities'
 );
 

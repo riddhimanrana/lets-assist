@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationData } from "@/types";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MapPin } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { LocationMap } from "@/components/ui/location-map";
 
 interface LocationMapCardProps {
@@ -22,11 +22,8 @@ export function LocationMapCard({
 
   return (
     <Card>
-      <CardHeader className="">
-        <CardTitle className="flex items-center">
-          <MapPin className="h-5 w-5 mr-2" aria-hidden="true" />
-          <span>Location</span>
-        </CardTitle>
+      <CardHeader>
+        <CardTitle>Location</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
@@ -35,17 +32,16 @@ export function LocationMapCard({
 
         <LocationMap
           location={locationData ?? { text: location }}
-          height="h-[200px]"
+          height="h-50"
         />
 
         <Button
           variant="outline"
-          size="sm"
           className="w-full"
           onClick={() => window.open(createGoogleMapsUrl(), "_blank")}
           aria-label={`Open ${locationData?.display_name || location} in Google Maps`}
         >
-          <ExternalLink className="h-4 w-4 mr-2" aria-hidden="true" />
+          <ExternalLink data-icon="inline-start" aria-hidden="true" />
           Open in Google Maps
         </Button>
       </CardContent>

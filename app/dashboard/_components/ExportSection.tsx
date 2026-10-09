@@ -1,20 +1,25 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
+import { certificateHours } from "@/lib/projects/certificate-duration";
 
 import React, { useState, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { DownloadIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DateRange } from "@daypicker/react";
-import { Download, Calendar, CircleCheck, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -36,6 +41,7 @@ type CertificateRecord = {
   volunteer_email?: string | null;
   event_start?: string | null;
   event_end?: string | null;
+  credited_minutes?: number | null;
   hours?: number | string | null;
   project_location?: string | null;
   is_certified?: boolean | null;
@@ -76,6 +82,7 @@ export function ExportSection({
   const [includeVerified, setIncludeVerified] = useState(true);
   const [includeUnverified, setIncludeUnverified] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const exportIcon = useAnimatedIcon();
 
   // Convert certificates data to export format
   const convertCertificateToExportData = (
@@ -128,7 +135,9 @@ export function ExportSection({
             }
           })()
         : "Unknown",
-      duration: cert.hours ? cert.hours.toString() : "0",
+      duration: certificateHours(cert, () =>
+        Number(cert.hours || 0),
+      ).toString(),
       location: cert.project_location || "Unknown Location",
       supervisorContact: cert.creator_name || "Unknown Supervisor",
       isVerified: isVerified,
@@ -251,7 +260,7 @@ export function ExportSection({
 
       toast.success(`Successfully exported ${filteredData.length} entries`);
     } catch (error) {
-      console.error("Export failed:", error);
+      safeConsole.error("Export failed:", error);
       toast.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
@@ -259,152 +268,117 @@ export function ExportSection({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Date Range Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Date Range
-          </CardTitle>
-          <CardDescription>
-            Select a time period for your export, or leave blank for all-time
-            data
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-            className="w-full"
-            showQuickSelect={true}
+    <div className="grid gap-6">
+      <SettingsSection
+        title="Date range"
+        description="Select a time period for your export, or leave blank for all-time data"
+      >
+        <DateRangePicker
+          value={dateRange}
+          onChange={setDateRange}
+          className="w-full"
+          showQuickSelect={true}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="Data types"
+        description="Choose which types of volunteer hours to include"
+      >
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="verified"
+            checked={includeVerified}
+            onCheckedChange={(checked) => setIncludeVerified(!!checked)}
           />
-        </CardContent>
-      </Card>
+          <Label htmlFor="verified" className="flex items-center gap-2">
+            Verified hours
+            <Badge variant="secondary">{actualVerifiedCount}</Badge>
+          </Label>
+        </div>
 
-      {/* Data Types */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Types</CardTitle>
-          <CardDescription>
-            Choose which types of volunteer hours to include
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="verified"
-              checked={includeVerified}
-              onCheckedChange={(checked) => setIncludeVerified(!!checked)}
-            />
-            <Label htmlFor="verified" className="flex items-center gap-2">
-              <CircleCheck className="h-4 w-4 text-success" />
-              Verified Hours
-              <Badge variant="secondary">{actualVerifiedCount}</Badge>
-            </Label>
-          </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="unverified"
+            checked={includeUnverified}
+            onCheckedChange={(checked) => setIncludeUnverified(!!checked)}
+          />
+          <Label htmlFor="unverified" className="flex items-center gap-2">
+            Self-reported hours
+            <Badge variant="secondary">{actualUnverifiedCount}</Badge>
+          </Label>
+        </div>
+      </SettingsSection>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="unverified"
-              checked={includeUnverified}
-              onCheckedChange={(checked) => setIncludeUnverified(!!checked)}
-            />
-            <Label htmlFor="unverified" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-warning" />
-              Self-Reported Hours
-              <Badge variant="secondary">{actualUnverifiedCount}</Badge>
-            </Label>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Preview Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Export Preview</CardTitle>
-          <CardDescription>
+      <SettingsSection
+        title="Export preview"
+        description={
+          <>
             Preview of data that will be exported ({filteredData.length}{" "}
             entries)
             {!dateRange?.from || !dateRange?.to
               ? " - All time data"
               : ` - ${dateRange.from ? format(dateRange.from, "MMM d") : ""} to ${dateRange.to ? format(new Date(dateRange.to.getTime() - 24 * 60 * 60 * 1000), "MMM d") : ""}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {filteredData.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="max-h-96 overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr className="border-b">
-                      <th className="text-left p-3 font-medium">
-                        Certificate ID
-                      </th>
-                      <th className="text-left p-3 font-medium">Project</th>
-                      <th className="text-left p-3 font-medium">
-                        Organization
-                      </th>
-                      <th className="text-left p-3 font-medium">Date</th>
-                      <th className="text-left p-3 font-medium">Duration</th>
-                      <th className="text-left p-3 font-medium">Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredData.map((item, index) => (
-                      <tr
-                        key={item.id}
-                        className={
-                          index % 2 === 0 ? "bg-background" : "bg-muted/25"
-                        }
+          </>
+        }
+        footerHint={`${filteredData.length} entries selected for CSV export`}
+        footer={
+          <Button
+            onClick={handleExport}
+            disabled={isExporting || filteredData.length === 0}
+            {...exportIcon.triggerProps}
+          >
+            <DownloadIcon
+              ref={exportIcon.ref}
+              size={16}
+              data-icon="inline-start"
+              aria-hidden="true"
+            />
+            {isExporting ? "Exporting..." : "Export CSV"}
+          </Button>
+        }
+      >
+        {filteredData.length > 0 ? (
+          <div className="max-h-96 overflow-auto rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Certificate ID</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Organization</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Duration</TableHead>
+                  <TableHead>Type</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-mono text-xs">
+                      {item.id}
+                    </TableCell>
+                    <TableCell>{item.projectTitle}</TableCell>
+                    <TableCell>{item.organizationName}</TableCell>
+                    <TableCell>{item.date}</TableCell>
+                    <TableCell>{item.duration}h</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={item.isVerified ? "secondary" : "outline"}
                       >
-                        <td className="p-3 font-mono text-xs">{item.id}</td>
-                        <td className="p-3">{item.projectTitle}</td>
-                        <td className="p-3">{item.organizationName}</td>
-                        <td className="p-3">{item.date}</td>
-                        <td className="p-3">{item.duration}h</td>
-                        <td className="p-3">
-                          <Badge
-                            variant={item.isVerified ? "default" : "secondary"}
-                          >
-                            {item.isVerified ? "Verified" : "Self-Reported"}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No data found for the selected date range and filters
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Export Button */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <p className="font-medium">Ready to Export</p>
-              <p className="text-sm text-muted-foreground">
-                {filteredData.length} entries selected for CSV export
-              </p>
-            </div>
-            <Button
-              onClick={handleExport}
-              disabled={isExporting || filteredData.length === 0}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {isExporting ? "Exporting..." : "Export CSV"}
-            </Button>
+                        {item.isVerified ? "Verified" : "Self-reported"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="text-muted-foreground py-8 text-center">
+            No data found for the selected date range and filters
+          </p>
+        )}
+      </SettingsSection>
     </div>
   );
 }

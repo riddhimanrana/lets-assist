@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -42,12 +43,12 @@ export async function checkInUser(signupId: string) {
       .maybeSingle(); // Use maybeSingle as it might not exist
 
     if (fetchError) {
-      console.error("Error fetching signup record:", fetchError);
+      safeConsole.error("Error fetching signup record:", fetchError);
       return { success: false, error: "Database error fetching signup." };
     }
 
     if (!signup) {
-      console.warn("Signup record not found for check-in:", signupId);
+      safeConsole.warn("Signup record not found for check-in:", signupId);
       return { success: false, error: "Signup record not found." };
     }
 
@@ -71,7 +72,7 @@ export async function checkInUser(signupId: string) {
 
     // 2. Check if already checked in (idempotency)
     if (signup.check_in_time) {
-      console.log(
+      safeConsole.log(
         "User already checked in for signup:",
         signupId,
         "at",
@@ -105,7 +106,10 @@ export async function checkInUser(signupId: string) {
       .select("id");
 
     if (updateError || !updatedRows || updatedRows.length !== 1) {
-      console.error("Error updating check-in time and status:", updateError);
+      safeConsole.error(
+        "Error updating check-in time and status:",
+        updateError,
+      );
       return {
         success: false,
         error: "Database error during check-in update.",
@@ -126,7 +130,7 @@ export async function checkInUser(signupId: string) {
     }
     // Consider revalidating organizer views if applicable
 
-    console.log(
+    safeConsole.log(
       "Check-in successful for signup:",
       signupId,
       "at",
@@ -138,7 +142,7 @@ export async function checkInUser(signupId: string) {
       checkOutTime: null,
     };
   } catch (error) {
-    console.error("Unexpected error during check-in:", error);
+    safeConsole.error("Unexpected error during check-in:", error);
     return { success: false, error: "An unexpected error occurred." };
   }
 }
@@ -227,7 +231,7 @@ export async function lookupEmailStatus(
       .maybeSingle();
 
     if (profileError) {
-      console.error("Error checking profiles:", profileError);
+      safeConsole.error("Error checking profiles:", profileError);
       return {
         success: false,
         found: false,
@@ -250,7 +254,7 @@ export async function lookupEmailStatus(
           .maybeSingle();
 
       if (userEmailError) {
-        console.error("Error checking user_emails:", userEmailError);
+        safeConsole.error("Error checking user_emails:", userEmailError);
       } else if (userEmailData) {
         userId = userEmailData.user_id;
       }
@@ -267,7 +271,10 @@ export async function lookupEmailStatus(
         .maybeSingle();
 
       if (regSignupError) {
-        console.error("Error checking registered user signup:", regSignupError);
+        safeConsole.error(
+          "Error checking registered user signup:",
+          regSignupError,
+        );
         return {
           success: false,
           found: true,
@@ -279,7 +286,7 @@ export async function lookupEmailStatus(
 
       if (signupData) {
         // Registered user has signed up for this specific session
-        console.log("Found registered signup:", signupData);
+        safeConsole.log("Found registered signup:", signupData);
         return {
           success: true,
           found: true,
@@ -290,7 +297,9 @@ export async function lookupEmailStatus(
         // Registered user exists but is NOT signed up for this specific session
         // Note: We do NOT block on domain here, because the user might have ANOTHER email linked that IS allowed.
         // We let signUpForProject handle the strict check.
-        console.log("Registered user found, but no signup for this session.");
+        safeConsole.log(
+          "Registered user found, but no signup for this session.",
+        );
         return {
           success: true,
           found: true, // Found the user account
@@ -320,7 +329,7 @@ export async function lookupEmailStatus(
         .maybeSingle();
 
       if (anonError) {
-        console.error("Error checking anonymous signups:", anonError);
+        safeConsole.error("Error checking anonymous signups:", anonError);
         return {
           success: false,
           found: false,
@@ -340,7 +349,7 @@ export async function lookupEmailStatus(
             .maybeSingle();
 
         if (anonSignupError) {
-          console.error(
+          safeConsole.error(
             "Error fetching linked signup for anonymous user:",
             anonSignupError,
           );
@@ -356,7 +365,10 @@ export async function lookupEmailStatus(
         if (signupData) {
           if (signupData.schedule_id === scheduleId) {
             // Anonymous signup found for this specific session
-            console.log("Found anonymous signup for this session:", signupData);
+            safeConsole.log(
+              "Found anonymous signup for this session:",
+              signupData,
+            );
             const isApproved = signupData.status === "approved";
             return {
               success: true,
@@ -368,7 +380,7 @@ export async function lookupEmailStatus(
             };
           } else {
             // Anonymous signup found, but for a different session in this project
-            console.log(
+            safeConsole.log(
               "Found anonymous signup, but for different schedule:",
               signupData.schedule_id,
             );
@@ -382,7 +394,7 @@ export async function lookupEmailStatus(
           }
         } else {
           // Data inconsistency: anonymous_signup exists but linked project_signup doesn't
-          console.error(
+          safeConsole.error(
             "Data inconsistency: Anonymous signup found, but linked project signup missing. Anon ID:",
             anonData.id,
             "Signup ID:",
@@ -398,7 +410,7 @@ export async function lookupEmailStatus(
         }
       } else {
         // 3. No registered user and no anonymous signup found for this project/email
-        console.log("No matching signup found for email:", email);
+        safeConsole.log("No matching signup found for email:", email);
         return {
           success: true,
           found: false,
@@ -408,7 +420,7 @@ export async function lookupEmailStatus(
       }
     }
   } catch (error) {
-    console.error("Unexpected error during email lookup:", error);
+    safeConsole.error("Unexpected error during email lookup:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred.";
     return {

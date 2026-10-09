@@ -1,3 +1,5 @@
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 import { getPublicOrganizationForRender } from "./server/public-organization-read";
 import { loadVisibleOrganizationReport } from "./server/overview-report-read";
 import { notFound, redirect } from "next/navigation";
@@ -6,6 +8,7 @@ import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { formatUtcCalendarDateLabel } from "@/lib/date-format";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationSetupChecklist from "@/components/organization/OrganizationSetupChecklist";
 import { loadOrganizationSetupChecklist } from "./server/setup-checklist-query";
@@ -257,7 +260,7 @@ export default async function OrganizationPage({
     };
 
     if (membersError) {
-      console.error("Error fetching organization members:", membersError);
+      safeConsole.error("Error fetching organization members:", membersError);
     }
 
     memberCount = membersData?.length ?? memberCount;
@@ -275,7 +278,7 @@ export default async function OrganizationPage({
         };
 
       if (profilesError) {
-        console.error("Error fetching member profiles:", profilesError);
+        safeConsole.error("Error fetching member profiles:", profilesError);
       } else {
         profilesData = profiles || [];
       }
@@ -299,12 +302,6 @@ export default async function OrganizationPage({
           profiles: profile,
         };
       }) || [];
-
-    console.log(
-      "Members query result:",
-      formattedMembers.length,
-      "members found",
-    );
   }
 
   // Get organization projects
@@ -313,7 +310,7 @@ export default async function OrganizationPage({
       ? { data: [] }
       : await readClient
           .from("projects")
-          .select("*")
+          .select(PROJECT_CLIENT_SELECT)
           .eq("organization_id", organization.id)
           .order("created_at", { ascending: false });
 
@@ -478,27 +475,36 @@ export default async function OrganizationPage({
   }
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="relative flex w-full flex-col">
+      {/*
+        Decorative wash behind the organization identity. It carries the brand
+        green rather than the AA-tuned --primary, and fades into the page.
+      */}
       <div
+        aria-hidden="true"
         className={cn(
-          // Purely decorative header wash behind the organization identity, so
-          // it carries the brand green rather than the AA-tuned --primary.
-          "w-full absolute bg-linear-to-br from-brand/15 via-brand/5 to-background/0 before:content-[''] before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:to-background",
+          "from-brand/15 via-brand/5 to-background/0 before:to-background pointer-events-none absolute inset-x-0 top-0 bg-linear-to-br before:absolute before:inset-0 before:bg-linear-to-b before:from-transparent before:content-['']",
           navOverrides.compactHeader ? "min-h-40" : "min-h-72",
         )}
       />
-
       <div
         className={cn(
-          "relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6",
-          navOverrides.compactHeader ? "pt-4 sm:pt-5" : "pt-6 sm:pt-10",
+          "relative z-10 mx-auto flex w-full flex-col px-4 pb-8 sm:px-6",
+          // A plugin workspace keeps its wider canvas so its dense tables do not
+          // re-wrap; every other organization uses the shared profile width.
+          navOverrides.compactHeader
+            ? "max-w-7xl gap-4 pt-4 sm:pt-5"
+            : "max-w-6xl gap-6 pt-6 sm:pt-8",
         )}
       >
         {previewSource === "remote" && (
-          <div className="mb-4 rounded-md border border-warning bg-warning/15 px-4 py-3 text-sm text-warning">
-            Remote preview mode is active (read-only). Member and org data shown
-            here comes from remote, but all edits still apply to local data.
-          </div>
+          <Alert variant="warning">
+            <AlertDescription>
+              Remote preview mode is active (read-only). Member and org data
+              shown here comes from remote, but all edits still apply to local
+              data.
+            </AlertDescription>
+          </Alert>
         )}
         <OrganizationHeader
           organization={organizationForDisplay}
@@ -507,6 +513,10 @@ export default async function OrganizationPage({
           showMemberCount={!navOverrides.hideMemberCount}
           showInviteAction={!navOverrides.hideInviteAction}
           showProjectAction={!navOverrides.hideProjectAction}
+          showMembersLink={
+            availableEmbeddedTabs.includes("members") &&
+            !navOverrides.coreTabReplacements?.members
+          }
           compact={navOverrides.compactHeader}
         />
 
@@ -517,12 +527,16 @@ export default async function OrganizationPage({
           />
         )}
 
+        {/*
+        The workspace sheet: the tab bar and the active tab share one surface,
+        so switching tabs reads as changing panes of the same organization.
+      */}
         <div
           className={cn(
-            "bg-card rounded-xl border border-border/60 shadow-xs mb-8",
-            navOverrides.compactHeader
-              ? "mt-4 p-3 sm:mt-5 sm:p-4"
-              : "mt-8 p-4 sm:mt-12 sm:p-6",
+            // The sheet starts at tablet width. On a phone the tabs and panes
+            // sit on the page, so cards are not nested inside a card.
+            "sm:bg-card sm:rounded-xl sm:border sm:shadow-(--card-shadow)",
+            navOverrides.compactHeader ? "sm:p-4" : "sm:p-6",
           )}
         >
           <OrganizationTabs

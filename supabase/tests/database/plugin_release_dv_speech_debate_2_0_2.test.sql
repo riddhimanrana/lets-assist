@@ -41,13 +41,13 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (SELECT latest_version FROM public.plugins WHERE key = 'dv-speech-debate'),
-  '2.0.2',
+  '2.0.3',
   'plugin catalog keeps the serving embedded release truthful'
 );
 
 SELECT extensions.is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dv-speech-debate'),
-  '99c3df1a7e9f39523c7a615017461c14ed88c7fc',
+  'd100831bd2fe3374715de20510d9ae2a77dcfba8',
   'plugin catalog keeps the serving embedded source truthful'
 );
 

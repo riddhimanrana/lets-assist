@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -15,6 +16,7 @@ import { sendEmail } from "@/services/email";
 import EmailVerificationCode from "@/emails/email-verification-code";
 import * as React from "react";
 import { z } from "zod";
+import { UNCONFIRMED_DELIVERY_NOTICE } from "./profile/email-add-outcome";
 
 const emailAliasSchema = z.string().trim().email().max(320);
 const emailAliasCodeSchema = z
@@ -37,7 +39,7 @@ async function discardUndeliveredAliasChallenge(input: {
   });
 
   if (error) {
-    console.error(
+    safeConsole.error(
       "Failed to discard undelivered email-alias challenge:",
       error,
     );
@@ -85,7 +87,7 @@ export async function sendVerificationEmail(email: string) {
   const issue = Array.isArray(issueRows) ? issueRows[0] : issueRows;
 
   if (issueError || !issue) {
-    console.error("Error preparing email verification:", issueError);
+    safeConsole.error("Error preparing email verification:", issueError);
     return { error: "Unable to send a verification code." };
   }
 
@@ -109,7 +111,7 @@ export async function sendVerificationEmail(email: string) {
   }
 
   try {
-    const { error } = await sendEmail({
+    const delivery = await sendEmail({
       to: normalizedEmail,
       subject: "Verify your email address",
       react: React.createElement(EmailVerificationCode, {
@@ -117,10 +119,20 @@ export async function sendVerificationEmail(email: string) {
         expiresInHours: 0.5,
       }),
       type: "transactional",
+      idempotencyKey: `email-alias-verification/${issue.challenge_id}`,
     });
 
-    if (error) {
-      console.error("Email service error:", error);
+    if (delivery.outcome === "unknown_outcome") {
+      // The code may already be in the recipient's inbox. Keep it usable and
+      // send the caller to code entry. This is not reported as a success.
+      return {
+        deliveryUnconfirmed: true,
+        notice: UNCONFIRMED_DELIVERY_NOTICE,
+        retryAfterSeconds: 60,
+      };
+    }
+    if (delivery.outcome !== "accepted") {
+      safeConsole.error("Email verification was not sent:", delivery.code);
       await discardUndeliveredAliasChallenge({
         challengeId: issue.challenge_id,
         userId: user.id,
@@ -128,14 +140,13 @@ export async function sendVerificationEmail(email: string) {
       });
       return { error: "Unable to send a verification code." };
     }
-  } catch (error: unknown) {
-    console.error("Email sending exception:", error);
-    await discardUndeliveredAliasChallenge({
-      challengeId: issue.challenge_id,
-      userId: user.id,
-      tokenHash,
-    });
-    return { error: "Unable to send a verification code." };
+  } catch {
+    // An unexpected exception does not prove the provider rejected the send.
+    return {
+      deliveryUnconfirmed: true,
+      notice: UNCONFIRMED_DELIVERY_NOTICE,
+      retryAfterSeconds: 60,
+    };
   }
 
   return { success: true };
@@ -169,7 +180,7 @@ export async function verifyEmailToken(email: string, token: string) {
   });
 
   if (error || data !== "verified") {
-    if (error) console.error("Email alias verification failed:", error);
+    if (error) safeConsole.error("Email alias verification failed:", error);
     return { success: false, error: GENERIC_ALIAS_ERROR };
   }
 
@@ -220,7 +231,7 @@ export async function setPrimaryEmailAction(
     .maybeSingle();
 
   if (aliasError && aliasError.code !== "PGRST116") {
-    console.error("Error fetching alias:", aliasError);
+    safeConsole.error("Error fetching alias:", aliasError);
     return { success: false, error: "Unable to look up email" };
   }
 
@@ -248,7 +259,7 @@ export async function setPrimaryEmailAction(
       );
 
     if (updateError) {
-      console.error("auth.updateUser failed:", updateError);
+      safeConsole.error("auth.updateUser failed:", updateError);
       return {
         success: false,
         error: updateError.message || "Failed to update primary email",

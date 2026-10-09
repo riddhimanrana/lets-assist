@@ -106,7 +106,7 @@ export default async function HomePage(props: {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />
-              Email Verification Error
+              Email verification error
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center text-muted-foreground">
@@ -118,10 +118,10 @@ export default async function HomePage(props: {
               href="/login"
               className={cn(buttonVariants({ variant: "outline" }))}
             >
-              Back to Login
+              Back to login
             </Link>
             <Link href="/" className={cn(buttonVariants())}>
-              Go to Home
+              Go to home
             </Link>
           </CardFooter>
         </Card>

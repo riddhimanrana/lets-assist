@@ -32,20 +32,13 @@ test("every supported signature mode persists its real evidence", () => {
 });
 
 test("signed uploads are read from the private evidence bucket", () => {
-  for (const route of [
-    "app/api/waivers/[signatureId]/preview/route.ts",
-    "app/api/waivers/[signatureId]/download/route.ts",
-  ]) {
-    const source = read(route);
-    assert.doesNotMatch(
-      source,
-      /\.from\(["']waiver-uploads["']\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
-    );
-    assert.match(
-      source,
-      /\.from\(["']waiver-signatures["']\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
-    );
-  }
+  // The preview and download routes both delegate to this one module.
+  const source = read("lib/waiver/serve-signed-waiver.ts");
+  assert.doesNotMatch(source, /\.from\(["']waiver-uploads["']\)/u);
+  assert.match(
+    source,
+    /\.from\(["']waiver-signatures["']\)\s*\n\s*\.download\(typedSignature\.upload_storage_path\)/u,
+  );
 });
 
 test("public waiver lookup resolves project visibility before service-role definition access", () => {

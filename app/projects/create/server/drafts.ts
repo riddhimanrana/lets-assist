@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -19,7 +20,14 @@ import {
 import {
   validateProjectTimezone,
   validateRecurrenceRule,
+  type ValidatedRecurrenceRule,
 } from "@/lib/projects/schedule-validation";
+import {
+  buildRecurrenceRuleFromState,
+  firstRecurrenceError,
+  validateRecurrenceFormState,
+} from "@/lib/projects/recurrence";
+import { parseCreateProjectPayload } from "@/schemas/project-create-schema";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -28,7 +36,7 @@ export async function finalizeProject(projectId: string) {
     revalidatePath("/projects");
     return { success: true, id: projectId };
   } catch (error) {
-    console.error("Error in finalize project action:", error);
+    safeConsole.error("Error in finalize project action:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -46,10 +54,25 @@ export async function createProject(formData: FormData) {
       return { error: "You must be logged in to create a project" };
     }
 
-    // Parse project data
-    const projectDataStr = formData.get("projectData") as string;
-    if (!projectDataStr) return { error: "Missing project data" };
-    const projectData = JSON.parse(projectDataStr);
+    // The form posts its state as JSON. It stays untyped until
+    // createBasicProject parses it against the form's own schemas.
+    const projectDataStr = formData.get("projectData");
+    if (typeof projectDataStr !== "string" || !projectDataStr) {
+      return { error: "Missing project data" };
+    }
+    let projectData: unknown;
+    try {
+      projectData = JSON.parse(projectDataStr);
+    } catch {
+      return { error: "The project details could not be read. Try again." };
+    }
+    if (
+      !projectData ||
+      typeof projectData !== "object" ||
+      Array.isArray(projectData)
+    ) {
+      return { error: "The project details could not be read. Try again." };
+    }
     const creationIdempotencyKey = formData.get("creationIdempotencyKey");
 
     // Create basic project record. The key makes a replayed create resolve to
@@ -72,7 +95,7 @@ export async function createProject(formData: FormData) {
       reusedExistingAttempt: basicResult.reusedExistingAttempt ?? false,
     };
   } catch (error) {
-    console.error("Error in create project wrapper:", error);
+    safeConsole.error("Error in create project wrapper:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -126,7 +149,7 @@ export async function autoSaveDraft(
         .single();
 
       if (updateError) {
-        console.error("Error updating autosave draft:", updateError);
+        safeConsole.error("Error updating autosave draft:", updateError);
         return {
           error: "Failed to autosave draft",
           autosaved: false,
@@ -148,14 +171,14 @@ export async function autoSaveDraft(
         .single();
 
       if (draftError) {
-        console.error("Error creating autosave draft:", draftError);
+        safeConsole.error("Error creating autosave draft:", draftError);
         return { error: "Failed to autosave draft", autosaved: false };
       }
 
       return { success: true, id: draft.id, autosaved: true };
     }
   } catch (error) {
-    console.error("Error autosaving draft:", error);
+    safeConsole.error("Error autosaving draft:", error);
     return { error: "Failed to autosave draft", autosaved: false };
   }
 }
@@ -200,7 +223,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
       .single();
 
     if (draftError) {
-      console.error("Error saving new draft:", draftError);
+      safeConsole.error("Error saving new draft:", draftError);
       return { error: "Failed to save draft" };
     }
 
@@ -208,7 +231,7 @@ export async function saveProjectAsNewDraft(formData: FormData) {
     revalidatePath("/projects/create");
     return { success: true, id: draft.id, isDraft: true };
   } catch (error) {
-    console.error("Error saving project as new draft:", error);
+    safeConsole.error("Error saving project as new draft:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -252,7 +275,7 @@ export async function saveProjectAsDraft(formData: FormData) {
       .single();
 
     if (draftError) {
-      console.error("Error saving draft:", draftError);
+      safeConsole.error("Error saving draft:", draftError);
       return { error: "Failed to save draft" };
     }
 
@@ -260,7 +283,7 @@ export async function saveProjectAsDraft(formData: FormData) {
     revalidatePath("/projects/create");
     return { success: true, id: draft.id, isDraft: true };
   } catch (error) {
-    console.error("Error saving project as draft:", error);
+    safeConsole.error("Error saving project as draft:", error);
     return { error: "An unexpected error occurred. Please try again." };
   }
 }
@@ -290,8 +313,15 @@ export async function publishDraft(draftId: string) {
     return { error: "Draft not found" };
   }
 
-  // Create the project from draft data
-  const projectData = draft.draft_data;
+  // A draft is saved with relaxed rules, so it can be missing anything. It is
+  // checked against the create form's rules here, and the first thing that
+  // still needs attention is named instead of a generic failure.
+  const draftValidation = parseCreateProjectPayload(draft.draft_data);
+  if (!draftValidation.ok) {
+    return { error: draftValidation.error };
+  }
+  const projectData = draftValidation.data;
+
   const waiverConfigurationError = getWaiverConfigurationError(projectData);
   if (waiverConfigurationError) {
     return { error: waiverConfigurationError };
@@ -307,7 +337,7 @@ export async function publishDraft(draftId: string) {
     };
   }
 
-  const basicResult = await createBasicProject(projectData, false);
+  const basicResult = await createBasicProject(draft.draft_data, false);
 
   if (basicResult.error) {
     return basicResult;
@@ -405,20 +435,21 @@ export async function updateDraft(
     return { error: `Invalid project timezone: ${timezoneResult.error}` };
   }
 
-  // Build and validate recurrence rule if enabled.
-  let recurrenceRule:
-    | import("@/lib/projects/schedule-validation").ValidatedRecurrenceRule
-    | null = null;
+  // Build and validate recurrence rule if enabled. Only the fields that apply
+  // to the chosen frequency and end type are sent.
+  let recurrenceRule: ValidatedRecurrenceRule | null = null;
   if (projectData.recurrence?.enabled) {
-    const rawRule = {
-      frequency: projectData.recurrence.frequency,
-      interval: projectData.recurrence.interval,
-      end_type: projectData.recurrence.endType,
-      end_date: projectData.recurrence.endDate || null,
-      end_occurrences: projectData.recurrence.endOccurrences || null,
-      weekdays: projectData.recurrence.weekdays || [],
-    };
-    const ruleResult = validateRecurrenceRule(rawRule);
+    const recurrenceError = firstRecurrenceError(
+      validateRecurrenceFormState(projectData.recurrence, {
+        eventType: projectData.eventType,
+      }),
+    );
+    if (recurrenceError) {
+      return { error: recurrenceError };
+    }
+    const ruleResult = validateRecurrenceRule(
+      buildRecurrenceRuleFromState(projectData.recurrence),
+    );
     if (!ruleResult.ok) {
       return { error: `Invalid recurrence rule: ${ruleResult.error}` };
     }
@@ -464,7 +495,7 @@ export async function updateDraft(
   }
 
   if (updateError) {
-    console.error("Error updating draft:", updateError);
+    safeConsole.error("Error updating draft:", updateError);
     return { error: "Failed to update draft" };
   }
 
@@ -511,7 +542,7 @@ export async function deleteDraft(draftId: string) {
     .eq("user_id", user.id);
 
   if (deleteError) {
-    console.error("Error deleting draft:", deleteError);
+    safeConsole.error("Error deleting draft:", deleteError);
     return { error: "Failed to delete draft" };
   }
 

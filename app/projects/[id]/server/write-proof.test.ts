@@ -54,7 +54,7 @@ mock.module("@/lib/logger", () => ({
   logWarn: () => {},
 }));
 mock.module("@/lib/turnstile", () => ({
-  isTurnstileEnabled: () => false,
+  isTurnstileTokenRequired: () => false,
   verifyTurnstileToken: async () => false,
 }));
 mock.module("@/lib/plugins/registry", () => ({

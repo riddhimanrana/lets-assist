@@ -31,7 +31,7 @@ export function EmailNotification() {
         transition={{ duration: 0.4, delay: 0.4 }}
         className="text-center"
       >
-        <p className="text-sm font-semibold mb-1">Signup Confirmed!</p>
+        <p className="text-sm font-semibold mb-1">Signup confirmed</p>
         <p className="text-xs text-muted-foreground">
           Email notification from Let&apos;s Assist
         </p>

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Timezone utility functions for handling project times across different timezones
  */
@@ -25,7 +26,7 @@ export function getUserTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch (error) {
-    console.error("Error getting user timezone:", error);
+    safeConsole.error("Error getting user timezone:", error);
     return "UTC"; // Fallback to UTC
   }
 }
@@ -82,29 +83,45 @@ export function formatDateForDisplay(dateString: string): string {
     const date = parse(dateString, "yyyy-MM-dd", new Date());
     return format(date, "EEEE, MMMM d, yyyy");
   } catch (error) {
-    console.error("Error formatting date:", error);
+    safeConsole.error("Error formatting date:", error);
     return dateString;
   }
 }
 
 /**
- * Get timezone abbreviation (e.g., EST, PST)
+ * Get timezone abbreviation (e.g., EST, PST).
+ *
+ * Daylight saving changes the abbreviation, so pass the date the time falls
+ * on. Without one the abbreviation is today's, which is wrong for an event in
+ * another season. A yyyy-MM-dd string is read as noon UTC on that day so the
+ * calendar day decides, not the viewer's clock.
  */
-export function getTimezoneAbbreviation(timezone: string): string {
+export function getTimezoneAbbreviation(
+  timezone: string,
+  date?: Date | string | null,
+): string {
   try {
-    const now = new Date();
     const formatter = new Intl.DateTimeFormat("en", {
       timeZone: timezone,
       timeZoneName: "short",
     });
 
-    const parts = formatter.formatToParts(now);
+    const parts = formatter.formatToParts(resolveAbbreviationDate(date));
     const timeZoneName = parts.find((part) => part.type === "timeZoneName");
     return timeZoneName?.value || timezone;
   } catch (error) {
-    console.error("Error getting timezone abbreviation:", error);
+    safeConsole.error("Error getting timezone abbreviation:", error);
     return timezone;
   }
+}
+
+function resolveAbbreviationDate(date?: Date | string | null): Date {
+  if (!date) return new Date();
+  const resolved =
+    typeof date === "string"
+      ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? `${date}T12:00:00Z` : date)
+      : date;
+  return Number.isNaN(resolved.getTime()) ? new Date() : resolved;
 }
 
 /**
@@ -128,7 +145,10 @@ export function formatScheduleDisplay(
     userTimezone,
   );
 
-  const userTzAbbr = getTimezoneAbbreviation(displayTime.timezone);
+  const userTzAbbr = getTimezoneAbbreviation(
+    displayTime.timezone,
+    displayTime.date,
+  );
   const startTime12 = formatTime12Hour(displayTime.startTime);
   const endTime12 = formatTime12Hour(displayTime.endTime);
 
@@ -141,7 +161,10 @@ export function formatScheduleDisplay(
 
   // Add original time if requested and different timezone
   if (showOriginal && projectTimezone !== displayTime.timezone) {
-    const projectTzAbbr = getTimezoneAbbreviation(projectTimezone);
+    const projectTzAbbr = getTimezoneAbbreviation(
+      projectTimezone,
+      scheduleTime.date,
+    );
     const originalStart = formatTime12Hour(scheduleTime.startTime);
     const originalEnd = formatTime12Hour(scheduleTime.endTime);
     result += ` (${originalStart} - ${originalEnd} ${projectTzAbbr} local)`;

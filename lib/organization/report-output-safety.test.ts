@@ -13,6 +13,10 @@ test("neutralizes every spreadsheet formula-leading prefix", () => {
     "-2+3",
     "@SUM(1,1)",
     "  =1+1",
+    "\n=1+1",
+    "\r\n\t@SUM(1,1)",
+    "\u0000+1",
+    "\uFEFF=1+1",
     '\t@IMPORTXML("https://example.test")',
   ]) {
     assert.equal(neutralizeSpreadsheetFormula(malicious), `'${malicious}`);

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createHash } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -989,7 +990,10 @@ function mapSelectionsToFields(
     const selected = candidateById.get(selection.candidateId);
     if (!selected) {
       if (shouldLogWarnings) {
-        console.warn(`Candidate ID not found: ${selection.candidateId}`);
+        safeConsole.warn(
+          "Application diagnostic from app/api/ai/analyze-waiver/route",
+          `Candidate ID not found: ${selection.candidateId}`,
+        );
       }
       return null;
     }
@@ -1004,7 +1008,8 @@ function mapSelectionsToFields(
 
     if (!hasValidCoordinates) {
       if (shouldLogWarnings) {
-        console.warn(
+        safeConsole.warn(
+          "Application diagnostic from app/api/ai/analyze-waiver/route",
           `Candidate has invalid coordinates: ${selection.candidateId}`,
           selected.rect,
         );
@@ -1339,7 +1344,7 @@ export async function POST(request: NextRequest) {
           requestFingerprint: quotaIdentity.requestFingerprint,
         });
       } catch (rateLimitError) {
-        console.error("Waiver analysis rate-limit check failed", {
+        safeConsole.error("Waiver analysis rate-limit check failed", {
           errorClass:
             rateLimitError instanceof Error
               ? rateLimitError.name
@@ -1910,7 +1915,7 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
         }
       } catch (fallbackError) {
         if (process.env.NODE_ENV !== "test") {
-          console.warn("Waiver analysis vision fallback failed", {
+          safeConsole.warn("Waiver analysis vision fallback failed", {
             errorClass:
               fallbackError instanceof Error
                 ? fallbackError.name
@@ -1957,7 +1962,7 @@ Return only high-confidence fields that you can clearly see in the PDF.`,
       },
     });
   } catch (error) {
-    console.error("AI waiver analysis failed", {
+    safeConsole.error("AI waiver analysis failed", {
       errorClass: error instanceof Error ? error.name : "unknown_error",
     });
     return NextResponse.json(

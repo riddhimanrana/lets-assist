@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
@@ -77,7 +78,7 @@ export function PdfViewerWithOverlay({
         setLoading(false);
       } catch (err) {
         if (isStale) return;
-        console.error("Error loading PDF:", err);
+        safeConsole.error("Error loading PDF:", err);
         setError("Failed to load PDF document.");
         setLoading(false);
       }
@@ -119,7 +120,7 @@ export function PdfViewerWithOverlay({
   return (
     <div className="flex flex-col h-full bg-muted overflow-hidden">
       {/* Toolbar */}
-      <div className="flex-none px-4 border-b bg-background/95 backdrop-blur flex items-center justify-between sticky top-0 z-30 h-10 shrink-0">
+      <div className="flex-none px-4 border-b bg-background flex items-center justify-between sticky top-0 z-30 h-10 shrink-0">
         <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"

@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 
 import { processRecurringProjects } from "@/services/recurring-project-worker";
+import { classifyWorkerResponse } from "@/lib/cron/worker-outcome";
 
 type StoredProject = Record<string, unknown> & {
   id: string;
@@ -75,6 +76,10 @@ class ProjectsQuery {
   }
 
   insert(payload: Record<string, unknown>): Promise<QueryResult> {
+    const failure = this.database.insertErrors.get(
+      String(payload.recurrence_parent_id),
+    );
+    if (failure) return Promise.resolve({ data: null, error: failure });
     const row = {
       id: `occurrence-${String(this.database.inserted.length).padStart(5, "0")}`,
       recurrence_rule: null,
@@ -159,6 +164,10 @@ class ProjectsQuery {
   }
 
   maybeSingle() {
+    const failure = this.database.latestErrors.get(
+      String(this.equals.get("recurrence_parent_id")),
+    );
+    if (failure) return Promise.resolve({ data: null, error: failure });
     return Promise.resolve(this.execute(true, true));
   }
 
@@ -180,6 +189,8 @@ class ProjectsQuery {
 
 class InMemoryRecurringDatabase {
   readonly inserted: StoredProject[] = [];
+  readonly latestErrors = new Map<string, QueryError>();
+  readonly insertErrors = new Map<string, QueryError>();
 
   constructor(readonly projects: StoredProject[]) {}
 
@@ -234,6 +245,63 @@ const TWO_OCCURRENCES = {
 };
 
 describe("recurring project worker pagination and catch-up", () => {
+  test("a failed latest-occurrence lookup cannot count as a completed parent", async () => {
+    const database = new InMemoryRecurringDatabase([
+      parentProject("failed-parent", TWO_OCCURRENCES),
+    ]);
+    database.latestErrors.set("failed-parent", {
+      code: "42501",
+      message: "synthetic lookup denied",
+    });
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+    expect(result).toMatchObject({
+      processedProjects: 1,
+      checkedProjects: 1,
+      successfulProjects: 0,
+      failedParents: 1,
+      createdOccurrences: 0,
+    });
+    expect(result.errors).toHaveLength(1);
+    expect(database.inserted).toHaveLength(0);
+    expect(
+      classifyWorkerResponse("generate-recurring-projects", 200, {
+        ...result,
+        failedProjects: result.errors.length,
+      }),
+    ).toMatchObject({ outcome: "failed", completed: 0, failed: 1 });
+  });
+  test("multiple occurrence errors count one failed parent while healthy parents still settle", async () => {
+    const rule = { ...TWO_OCCURRENCES, end_occurrences: 4 };
+    const database = new InMemoryRecurringDatabase([
+      parentProject("failed-parent", rule),
+      parentProject("healthy-parent", TWO_OCCURRENCES),
+    ]);
+    database.insertErrors.set("failed-parent", {
+      code: "42501",
+      message: "synthetic insert denied",
+    });
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+    expect(result).toMatchObject({
+      processedProjects: 2,
+      checkedProjects: 2,
+      successfulProjects: 1,
+      failedParents: 1,
+      createdOccurrences: 1,
+    });
+    expect(result.errors.length).toBeGreaterThan(1);
+    expect(
+      classifyWorkerResponse("generate-recurring-projects", 200, {
+        ...result,
+        failedProjects: result.errors.length,
+      }),
+    ).toMatchObject({ outcome: "partial", completed: 1, failed: 1 });
+  });
   test("processes stable pages beyond the former 20-parent prefix", async () => {
     const database = new InMemoryRecurringDatabase(
       Array.from({ length: 25 }, (_, index) =>
@@ -251,6 +319,11 @@ describe("recurring project worker pagination and catch-up", () => {
     });
 
     expect(result.processedProjects).toBe(25);
+    expect(result).toMatchObject({
+      checkedProjects: 25,
+      successfulProjects: 25,
+      failedParents: 0,
+    });
     expect(result.createdOccurrences).toBe(25);
     expect(
       new Set(database.inserted.map((row) => row.recurrence_parent_id)).size,
@@ -279,6 +352,11 @@ describe("recurring project worker pagination and catch-up", () => {
       });
 
       expect(result.processedProjects).toBe(1);
+      expect(result).toMatchObject({
+        checkedProjects: 206,
+        successfulProjects: 1,
+        failedParents: 205,
+      });
       expect(result.createdOccurrences).toBe(1);
       expect(database.inserted[0]?.recurrence_parent_id).toBe("healthy-999");
       expect(result.errors).toHaveLength(205);
@@ -314,5 +392,199 @@ describe("recurring project worker pagination and catch-up", () => {
         (row) => String(row.recurrence_occurrence_date) > "2026-08-11",
       ),
     ).toBe(true);
+  });
+});
+
+function occurrenceRows(database: InMemoryRecurringDatabase) {
+  return database.inserted.map((row) => ({
+    sequence: row.recurrence_sequence,
+    occurrenceDate: row.recurrence_occurrence_date,
+    scheduleDate: (row.schedule.oneTime as { date?: string }).date,
+  }));
+}
+
+describe("recurring occurrences keep the series' settings", () => {
+  test("copies sign-up questions, cover image, documents and management settings", async () => {
+    const signupFormSchema = {
+      version: 1,
+      sections: [
+        { fields: [{ key: "shirt_size", label: "Shirt size", type: "text" }] },
+      ],
+    };
+    const documents = [{ name: "synthetic-guide.pdf", url: "local://guide" }];
+    const database = new InMemoryRecurringDatabase([
+      {
+        ...parentProject("settings-parent", TWO_OCCURRENCES),
+        signup_form_schema: signupFormSchema,
+        cover_image_url: "local://cover.png",
+        documents,
+        can_be_managed_by_staff: false,
+        pause_signups: true,
+        waiver_required: false,
+        waiver_allow_upload: false,
+        waiver_disable_esignature: true,
+      },
+    ]);
+
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(database.inserted).toHaveLength(1);
+    expect(database.inserted[0]).toMatchObject({
+      recurrence_parent_id: "settings-parent",
+      signup_form_schema: signupFormSchema,
+      cover_image_url: "local://cover.png",
+      documents,
+      can_be_managed_by_staff: false,
+      pause_signups: true,
+      waiver_allow_upload: false,
+      waiver_disable_esignature: true,
+      workflow_status: "published",
+      status: "upcoming",
+    });
+    // A series without a waiver adds no waiver document to its occurrences.
+    // Waiver-required series are covered in
+    // services/recurring-project-worker.waiver.test.ts.
+    for (const column of [
+      "waiver_required",
+      "waiver_pdf_storage_path",
+      "waiver_pdf_url",
+      "waiver_definition_id",
+    ]) {
+      expect(column in database.inserted[0]).toBe(false);
+    }
+  });
+});
+
+describe("recurring occurrence dates do not drift", () => {
+  test("a monthly series from the 31st uses each month's own last day across runs", async () => {
+    const database = new InMemoryRecurringDatabase([
+      parentProject(
+        "month-end-parent",
+        { frequency: "monthly", interval: 1, end_type: "never" },
+        "2027-01-31",
+      ),
+    ]);
+
+    for (const now of [
+      "2027-02-10T12:00:00Z",
+      "2027-03-05T12:00:00Z",
+      "2027-04-05T12:00:00Z",
+    ]) {
+      const result = await processRecurringProjects({
+        client: database as never,
+        now: new Date(now),
+      });
+      expect(result.errors).toEqual([]);
+    }
+
+    expect(occurrenceRows(database)).toEqual([
+      { sequence: 1, occurrenceDate: "2027-02-28", scheduleDate: "2027-02-28" },
+      { sequence: 2, occurrenceDate: "2027-03-31", scheduleDate: "2027-03-31" },
+      { sequence: 3, occurrenceDate: "2027-04-30", scheduleDate: "2027-04-30" },
+    ]);
+  });
+
+  test("a yearly series from February 29 returns to the 29th in the next leap year", async () => {
+    const database = new InMemoryRecurringDatabase([
+      parentProject(
+        "leap-day-parent",
+        { frequency: "yearly", interval: 1, end_type: "never" },
+        "2028-02-29",
+      ),
+    ]);
+
+    for (const year of [2029, 2030, 2031, 2032]) {
+      await processRecurringProjects({
+        client: database as never,
+        now: new Date(`${year}-02-10T12:00:00Z`),
+      });
+    }
+
+    expect(
+      database.inserted.map((row) => row.recurrence_occurrence_date),
+    ).toEqual(["2029-02-28", "2030-02-28", "2031-02-28", "2032-02-29"]);
+  });
+
+  test("an edited child does not shift the series", async () => {
+    // 2026-08-03 is a Monday.
+    const database = new InMemoryRecurringDatabase([
+      parentProject(
+        "weekly-parent",
+        { frequency: "weekly", interval: 1, end_type: "never" },
+        "2026-08-03",
+      ),
+    ]);
+
+    await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-04T12:00:00Z"),
+    });
+    expect(
+      database.inserted.map((row) => row.recurrence_occurrence_date),
+    ).toEqual(["2026-08-10", "2026-08-17", "2026-08-24", "2026-08-31"]);
+
+    // An organizer moves two occurrences: one onto the date of a later
+    // occurrence, and the newest one to a different day of its week.
+    const moved = database.inserted[2].schedule.oneTime as { date: string };
+    moved.date = "2026-09-07";
+    const newest = database.inserted[3].schedule.oneTime as { date: string };
+    newest.date = "2026-09-03";
+
+    const result = await processRecurringProjects({
+      client: database as never,
+      now: new Date("2026-08-11T12:00:00Z"),
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.createdOccurrences).toBe(1);
+    expect(occurrenceRows(database).at(-1)).toEqual({
+      sequence: 5,
+      occurrenceDate: "2026-09-07",
+      scheduleDate: "2026-09-07",
+    });
+  });
+
+  test("a second run in the same window creates nothing new", async () => {
+    const database = new InMemoryRecurringDatabase([
+      parentProject(
+        "idempotent-parent",
+        {
+          frequency: "weekly",
+          interval: 1,
+          end_type: "never",
+          weekdays: ["monday", "thursday"],
+        },
+        "2026-08-03",
+      ),
+    ]);
+    const now = new Date("2026-08-04T12:00:00Z");
+
+    const first = await processRecurringProjects({
+      client: database as never,
+      now,
+    });
+    const second = await processRecurringProjects({
+      client: database as never,
+      now,
+    });
+
+    expect(first.createdOccurrences).toBe(8);
+    expect(second.createdOccurrences).toBe(0);
+    expect(
+      database.inserted.map((row) => row.recurrence_occurrence_date),
+    ).toEqual([
+      "2026-08-06",
+      "2026-08-10",
+      "2026-08-13",
+      "2026-08-17",
+      "2026-08-20",
+      "2026-08-24",
+      "2026-08-27",
+      "2026-08-31",
+    ]);
   });
 });

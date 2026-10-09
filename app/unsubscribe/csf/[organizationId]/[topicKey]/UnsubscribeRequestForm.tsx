@@ -2,9 +2,12 @@
 
 import { useActionState } from "react";
 
+import { MailCheck } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 import {
   requestCsfUnsubscribeAction,
@@ -27,20 +30,24 @@ export function UnsubscribeRequestForm({
 
   if (state.submitted) {
     return (
-      <div className="border-border bg-muted/40 mt-6 rounded-lg border p-4 text-sm leading-6">
-        If that address receives our announcements, a confirmation email is on
-        its way. Open it and click the confirmation link — it expires in 30
-        minutes.
-      </div>
+      <Alert variant="success">
+        <MailCheck aria-hidden="true" />
+        <AlertTitle>Check your inbox</AlertTitle>
+        <AlertDescription>
+          If that address receives our announcements, a confirmation email is on
+          its way. Open it and click the confirmation link — it expires in 30
+          minutes.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <form action={formAction} className="mt-6 space-y-4">
+    <form action={formAction} className="grid gap-4">
       <input type="hidden" name="organizationId" value={organizationId} />
       <input type="hidden" name="topicKey" value={topicKey} />
-      <div className="space-y-2">
-        <Label htmlFor="unsubscribe-email">Email address</Label>
+      <Field data-invalid={Boolean(state.error)}>
+        <FieldLabel htmlFor="unsubscribe-email">Email address</FieldLabel>
         <Input
           id="unsubscribe-email"
           name="email"
@@ -49,11 +56,10 @@ export function UnsubscribeRequestForm({
           maxLength={320}
           autoComplete="email"
           placeholder="you@example.com"
+          aria-invalid={Boolean(state.error)}
         />
-      </div>
-      {state.error ? (
-        <p className="text-destructive text-sm">{state.error}</p>
-      ) : null}
+        {state.error ? <FieldError>{state.error}</FieldError> : null}
+      </Field>
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Sending…" : "Send confirmation email"}
       </Button>

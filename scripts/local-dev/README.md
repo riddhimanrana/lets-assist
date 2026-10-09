@@ -4,12 +4,15 @@ This folder contains the deterministic fixtures and health checks for the local 
 
 ## What to run
 
-From the repository root:
+Choose a workflow from the repository root. See [development environments](../../docs/development/environments.md) for the environment boundaries.
+
+For isolated CSF development, run `bun run dev`. It owns a separate database and seeds fictional CSF records.
+
+For shared platform development:
 
 1. Create a run-scoped fixture password: `export CSF_LOCAL_TEST_PASSWORD="$(openssl rand -base64 24)"`
-2. Reuse it for the optional DV fixtures: `export DV_LOCAL_TEST_PASSWORD="$CSF_LOCAL_TEST_PASSWORD"`
-3. `bun run supabase`
-4. `bun run dev`
+2. Run `bun run supabase` to prepare the shared local backend.
+3. Run `bun run dev:next` against that backend.
 
 `bun run supabase` does the full **shared local, non-CSF only** backend bootstrap:
 
@@ -35,7 +38,7 @@ and restarting the local stack.
 
 Gateway recovery is implemented by
 `scripts/local-dev/ensure-supabase-gateway.mjs`. It requires the pinned Supabase
-CLI `2.111.0`, accepts no hosted URL, logs no local key, and identifies the
+CLI `2.120.0`, accepts no hosted URL, logs no local key, and identifies the
 gateway by its exact project label plus published API port rather than a Kong or
 Envoy service name. `bun run supabase:refresh:kong` remains a compatibility
 alias for the same health-first check; it no longer performs or suppresses an
@@ -126,8 +129,8 @@ app runner; those remain the only permitted live stack and app launchers.
    keys it may emit. `supabase-browser.env` is only the raw `supabase status`
    snapshot; it is not sufficient for app or seed validation.
 
-4. Run `bun run csf:seed:platform:isolated` and, if needed, `bun run dv:fixtures`
-   to create the fictional JavaScript-managed platform and DV records. The
+4. Run `bun run csf:seed:platform:isolated`
+   to create the fictional JavaScript-managed platform records. The
    isolated seed script carries `PLATFORM_SEED_MODE=csf-isolated-v1` and refuses
    to run without a validated `CSF_ISOLATED_WORK_DIR`, so it can never
    reset-upsert the shared local stack's CSF tables.
@@ -166,9 +169,9 @@ What each command actually bootstraps:
   current timestamped migrations and then the configured `db.seed.sql_paths`.
   Starting an existing volume replays neither, so a stopped-and-restarted stack
   is never clean-replay evidence.
-- `bun run supabase:seed:local-dev` and `bun run dv:fixtures` create fictional
-  **shared local, non-CSF only** platform/DV records through JavaScript; they do
-  not replay migrations and they seed no DVHS CSF data.
+- `bun run supabase:seed:local-dev` creates fictional
+  **shared local, non-CSF only** platform records through JavaScript. It does
+  not replay migrations and seeds no DVHS CSF data.
 - `bun run csf:test:workflows` asserts against a prepared seeded stack. It
   replays no migrations, creates no fixtures, and only checks the public route
   when an explicit `CSF_APP_URL` is supplied.
@@ -185,9 +188,9 @@ case, so a proven-clean failure never leaves a stale claim behind.
 
 ## Useful follow-up checks
 
+- `bun run local:doctor` to list only Let's Assist Supabase stacks and flag
+  restart loops or excess concurrent stacks. It never stops or deletes anything.
 - `bun run db:test:redesign` to run the full sequential Supabase/plugin redesign merge gate
-- `bun run dv:test:db` to verify local RLS and schema behavior
-- `bun run dv:test:e2e` to run the Playwright DV browser checks
 - `bun run dev:test:cron` to prove the twelve selected worker routes:
   auto-publish-hours, project-cancellations, organization-calendar-sync,
   organization-sheet-sync, data-exports, csf-communications-dispatch,
@@ -209,9 +212,10 @@ case, so a proven-clean failure never leaves a stale claim behind.
 - `bun run db:audit:architecture` to verify tenant indexes/FKs, RLS policy hygiene, and read-model view safety
   - Also hard-fails unexpected client-executable public `SECURITY DEFINER` functions while printing the reviewed allowlist.
   - Also verifies expected Storage buckets, public/private bucket posture, and absence of public/anon object-listing policies.
-- `bun run db:audit:remote-readiness` to check the stricter final production posture where `plugin_data` is removed from exposed Data API schemas and authenticated direct grants are gone
-  - This is a **separate, currently blocked release gate**. It is deterministically red while `plugin_data` remains in `supabase/config.toml` `api.schemas`, and removing that schema now would break the server-side service-role PostgREST reads the app still depends on.
-  - `bun run db:test:redesign` therefore does **not** run it by default; it prints `Remote readiness: NOT EVALUATED — separate blocked release gate.` instead. Set `CSF_REQUIRE_REMOTE_READINESS=1` to opt in and let its failure propagate. Any other nonempty value is refused before anything starts.
+- `bun run db:audit:remote-readiness` checks the approved service-only Data API contract on the configured database. The compatibility command name does not imply hosted deployment readiness.
+  - `plugin_data` must remain exposed for the reviewed server-side PostgREST helper. The audit rejects effective browser schema, relation, column, or sequence access, requires service-role schema access, and checks runtime contracts and source boundaries.
+  - Run it with `db:audit:architecture`, which checks public RPC execution and Storage policy boundaries. Neither audit proves hosted configuration, application behavior, or a release.
+  - `bun run db:test:redesign` does **not** run the access audit by default. Set `CSF_REQUIRE_REMOTE_READINESS=1` to opt in and let its failure propagate. Any other nonempty value is refused before anything starts.
 - `bun run plugin:audit:data-access` to verify browser/client code cannot directly construct `plugin_data` queries
 - `bun run plugin:test:registry` to verify every private plugin registry gate, including the server-only DV workspace
 - `bun run plugin:test:contracts` to sync registered plugin runtime contracts and verify no plugin declares raw `plugin_data` client access
@@ -245,7 +249,7 @@ local, non-CSF bootstrap, and it neither replays the isolated stack nor covers
 DVHS CSF.
 
 Remote readiness is **not** part of this gate. By default it prints
-`Remote readiness: NOT EVALUATED — separate blocked release gate.` Opt in with
+`Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence.` Opt in with
 exactly `CSF_REQUIRE_REMOTE_READINESS=1` to run
 `bun run db:audit:remote-readiness` and let its failure propagate; any other
 nonempty value is refused before anything starts.
@@ -258,7 +262,7 @@ Remote Supabase writes should wait until the local gate passes and the generated
 names itself and its final result that way on purpose: it replays migrations and
 SQL seeds on one local isolated stack and checks the local surfaces listed above.
 It is not a Supabase, Production, or preview readiness result, and it never
-prints a global PASS. Remote readiness is a separate, currently blocked gate (see
+prints a global PASS. Hosted readiness requires separate provider and runtime evidence (see
 above). DV Speech & Debate is registered again after its browser-facing data
 access was replaced with authenticated Server Actions and service-role-only
 backend reads.
@@ -298,3 +302,7 @@ Production, the preview project, and any provider.
 `/api/cron/csf-publication-notifications` uses the same authenticated, non-dispatching local probe. Production bell delivery uses the release-bound `publication_notifications` control, which defaults to false. Local runners use `CSF_PUBLICATION_NOTIFICATIONS_ENABLED` and always force it false. The existing Vercel configuration schedules an authenticated check each minute. Delivery stays off until the gate is explicitly enabled after release acceptance. This changes no provider settings. Minute scheduling requires the same Pro or Enterprise plan as the other configured workers ([Vercel cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing)). The worker calls the host notification service with generic text and a permission-checked organization link. It does not send email.
 
 Class-post notices stay scoped to verified members of that class. An officer's ability to inspect other classes does not subscribe them to those class posts. Officers-only post notices include authorized staff who have no student profile. Email keeps the existing publication option, chapter topic consent, and current account email and organization-update preferences.
+
+## Archived Speech and Debate tools
+
+`bun run dv:fixtures`, `bun run dv:test:db` and `bun run dv:test:e2e` remain for historical reference. They are outside normal setup and CI. The plugin is no longer registered, so its browser suite requires a separately reviewed restoration before it can run as a product workflow. Do not seed it to repair an active CSF environment.

@@ -3,6 +3,10 @@
 import { readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { supabaseCliEnvironment } from "./supabase-cli-environment.mjs";
+import { localSupabaseProjectId } from "./supabase-project-id.mjs";
+
+const projectId = localSupabaseProjectId();
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -10,6 +14,7 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
     ...options,
+    env: supabaseCliEnvironment(options.env, projectId),
   });
 
   if (result.stdout) process.stdout.write(result.stdout);
@@ -54,7 +59,7 @@ console.warn(
 const stop = run("supabase", ["stop"]);
 if (stop.status !== 0) process.exit(stop.status ?? 1);
 
-const start = run("supabase", ["start"]);
+const start = run("supabase", ["start", "--network-id="]);
 if (start.status !== 0) process.exit(start.status ?? 1);
 
 const expectedVersion = latestMigrationVersion();

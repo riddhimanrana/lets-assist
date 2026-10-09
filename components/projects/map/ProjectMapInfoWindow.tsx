@@ -6,7 +6,10 @@ import { Calendar, Users, MapPin } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import type { Project } from "@/types";
-import { getProjectRemainingSpots } from "@/lib/projects/availability";
+import {
+  formatSpotsLeft,
+  getProjectRemainingSpots,
+} from "@/lib/projects/availability";
 import type { ProjectWithAvailability } from "./types";
 
 export function ProjectMapInfoWindow({
@@ -76,20 +79,17 @@ export function ProjectMapInfoWindow({
     }
   };
 
-  // Format volunteer spots
-  const formatSpots = (count: number) => {
-    return `${count} ${count === 1 ? "spot" : "spots"} left`;
-  };
-
   return (
     <div className="custom-info-window bg-white dark:bg-black p-3 rounded-lg shadow-lg max-w-75 border">
-      <button
-        className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-800"
+      <Button
+        variant="secondary"
+        size="icon-xs"
+        className="absolute top-1 right-1 rounded-full"
         onClick={onClose}
         aria-label="Close info window"
       >
         &times;
-      </button>
+      </Button>
       <div className="text-black dark:text-white">
         <h4 className="font-semibold mb-1 text-lg">{project.title}</h4>
         <div className="flex items-center gap-1 mb-2">
@@ -97,26 +97,17 @@ export function ProjectMapInfoWindow({
           <span className="text-xs">{project.location}</span>
         </div>
         <div className="flex flex-wrap gap-1 mb-3">
-          <Badge
-            variant="outline"
-            className="gap-1 text-xs text-black dark:text-white"
-          >
+          <Badge variant="outline">
             <Calendar className="h-3 w-3" />
             {formatDateDisplay(project)}
           </Badge>
-          <Badge
-            variant="outline"
-            className="gap-1 text-xs text-black dark:text-white"
-          >
+          <Badge variant="outline">
             <Users className="h-3 w-3" />
-            {formatSpots(getProjectRemainingSpots(project))}
+            {formatSpotsLeft(getProjectRemainingSpots(project))}
           </Badge>
         </div>
         <Link href={`/projects/${project.id}`}>
-          <Button
-            size="sm"
-            className="w-full bg-green-600 hover:bg-green-600/90 text-white"
-          >
+          <Button size="sm" className="w-full">
             View Details
           </Button>
         </Link>

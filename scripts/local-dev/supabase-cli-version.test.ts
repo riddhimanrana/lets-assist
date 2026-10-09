@@ -41,17 +41,17 @@ async function runHelperWithVersion(version: string) {
 }
 
 describe("pinned Supabase CLI helper", () => {
-  test("accepts exactly 2.111.0", async () => {
-    const result = await runHelperWithVersion("2.111.0");
+  test("accepts exactly 2.120.0", async () => {
+    const result = await runHelperWithVersion("2.120.0");
     expect(result.exitCode).toBe(0);
-    expect(result.stdout.toString()).toContain("2.111.0 verified");
+    expect(result.stdout.toString()).toContain("2.120.0 verified");
   });
 
   test("rejects any other Supabase CLI version", async () => {
     const result = await runHelperWithVersion("2.110.0");
     expect(result.exitCode).toBe(1);
     expect(result.stderr.toString()).toContain(
-      "2.111.0 is required; found 2.110.0",
+      "2.120.0 is required; found 2.110.0",
     );
   });
 
@@ -84,7 +84,7 @@ describe("pinned Supabase CLI helper", () => {
     await Bun.write(path.join(directory, "sentinel.txt"), "keep");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.120.0'\n");
     await chmod(fakeCli, 0o700);
 
     const result = Bun.spawnSync(
@@ -124,7 +124,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.120.0'\n");
     await chmod(fakeCli, 0o700);
     const target = path.join(directory, "must-not-exist");
 
@@ -163,7 +163,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.120.0'\n");
     await chmod(fakeCli, 0o700);
 
     for (const [script, key] of [
@@ -196,7 +196,7 @@ describe("pinned Supabase CLI helper", () => {
     const fakeBin = path.join(directory, "bin");
     await mkdir(fakeBin);
     const fakeCli = path.join(fakeBin, "supabase");
-    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.111.0'\n");
+    await writeFile(fakeCli, "#!/bin/sh\nprintf '%s\\n' '2.120.0'\n");
     await chmod(fakeCli, 0o700);
     const rootLink = path.join(directory, "repo-link");
     await symlink(repositoryRoot, rootLink);
@@ -377,15 +377,14 @@ describe("pinned Supabase CLI helper", () => {
     // shared 54321 stack and then reset-upsert its CSF tables.
     expect(source).not.toContain("bun run supabase:seed:local-dev");
     const platformSeed = source.indexOf("bun run csf:seed:platform:isolated");
-    const dvSeed = source.indexOf("bun run dv:fixtures");
+    expect(source).not.toContain("bun run dv:fixtures");
     const workflows = source.indexOf('run_step "${WORKFLOW_STEP_LABEL}"');
 
     expect(load).toBeGreaterThan(-1);
     expect(liveIdentity).toBeGreaterThan(load);
     expect(pgTap).toBeGreaterThan(liveIdentity);
     expect(platformSeed).toBeGreaterThan(pgTap);
-    expect(dvSeed).toBeGreaterThan(platformSeed);
-    expect(workflows).toBeGreaterThan(dvSeed);
+    expect(workflows).toBeGreaterThan(platformSeed);
   });
 
   test("verifier teardown failure is never swallowed", async () => {
@@ -448,11 +447,26 @@ describe("pinned Supabase CLI helper", () => {
     expect(source).not.toContain("bun run supabase:reset");
     expect(source).not.toContain("bun run supabase:stop");
 
-    const csfBrowserStep = source.slice(
-      source.indexOf("- name: Validate CSF browser workflows"),
-      source.indexOf("- name: Verify isolated Supabase remains healthy"),
+    // Both names also bound other jobs' steps, so the slice is taken inside
+    // the browser job and must be non-empty before it can prove anything.
+    const browserJobStart = source.indexOf("\n  browser:\n");
+    expect(browserJobStart).toBeGreaterThan(-1);
+    const browserStepStart = source.indexOf(
+      "- name: Validate CSF browser workflows",
+      browserJobStart,
     );
+    const browserStepEnd = source.indexOf(
+      "- name: Verify isolated Supabase remains healthy",
+      browserStepStart,
+    );
+    expect(browserStepStart).toBeGreaterThan(browserJobStart);
+    expect(browserStepEnd).toBeGreaterThan(browserStepStart);
+    const csfBrowserStep = source.slice(browserStepStart, browserStepEnd);
+    expect(csfBrowserStep).toContain("run: bun run csf:test:e2e");
     expect(csfBrowserStep).not.toContain("if:");
+    expect(source.split("- name: Validate CSF browser workflows").length).toBe(
+      2,
+    );
   });
 
   test("the hermetic fake CLI cannot collude with the implementation's resource list", async () => {
@@ -508,9 +522,9 @@ describe("pinned Supabase CLI helper", () => {
     expect(fixtureCode).not.toContain("import ");
     expect(fixtureCode).not.toContain("require(");
     // It must name the tag and the files the list was transcribed from.
-    expect(fixture).toContain("v2.111.0");
-    expect(fixture).toContain("apps/cli-go/internal/utils/config.go");
-    expect(fixture).toContain("apps/cli-go/internal/start/start.go");
+    expect(fixture).toContain("v2.120.0");
+    expect(fixture).toContain("753520fa7202ed5f8b25883a4c0aa7e5e9ad1fc4");
+    expect(fixture).toContain("apps/cli/src/command-internal/docker-ids.ts");
     // And it must record the names that must never come back.
     for (const unsupported of [
       "supabase_differ_",

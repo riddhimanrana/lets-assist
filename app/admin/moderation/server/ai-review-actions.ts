@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -37,7 +38,7 @@ export async function runAiReviewForReport(reportId: string) {
     .maybeSingle();
 
   if (reportError) {
-    console.error("Error fetching report for AI review:", reportError);
+    safeConsole.error("Error fetching report for AI review:", reportError);
     return { error: reportError.message };
   }
 
@@ -97,7 +98,7 @@ export async function runAiReviewForReport(reportId: string) {
     .eq("id", report.id);
 
   if (updateError) {
-    console.error("Error updating report after AI review:", updateError);
+    safeConsole.error("Error updating report after AI review:", updateError);
     return { error: updateError.message };
   }
 
@@ -131,7 +132,7 @@ export async function runAiReviewForProject(projectId: string) {
     .maybeSingle();
 
   if (projectError) {
-    console.error("Error fetching project for AI review:", projectError);
+    safeConsole.error("Error fetching project for AI review:", projectError);
     return { error: projectError.message };
   }
 
@@ -158,7 +159,7 @@ export async function runAiReviewForProject(projectId: string) {
     .limit(1);
 
   if (existingError) {
-    console.error("Error checking existing flags:", existingError);
+    safeConsole.error("Error checking existing flags:", existingError);
     return { error: existingError.message };
   }
 
@@ -177,7 +178,7 @@ export async function runAiReviewForProject(projectId: string) {
       .eq("id", existingFlags[0].id);
 
     if (updateError) {
-      console.error(
+      safeConsole.error(
         "Error updating existing flag after AI review:",
         updateError,
       );
@@ -196,7 +197,7 @@ export async function runAiReviewForProject(projectId: string) {
   });
 
   if (insertError) {
-    console.error("Error inserting new flag after AI review:", insertError);
+    safeConsole.error("Error inserting new flag after AI review:", insertError);
     return { error: insertError.message };
   }
 
@@ -229,7 +230,7 @@ export async function applyAiRecommendationForReport(reportId: string) {
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching report for AI action:", error);
+    safeConsole.error("Error fetching report for AI action:", error);
     return { error: error.message };
   }
 
@@ -281,7 +282,7 @@ export async function runAiScan() {
     }
     return { success: true, data: result };
   } catch (e) {
-    console.error("AI scan exception:", e);
+    safeConsole.error("AI scan exception:", e);
     return {
       error: `Scan failed: ${e instanceof Error ? e.message : "Unknown error"}`,
     };

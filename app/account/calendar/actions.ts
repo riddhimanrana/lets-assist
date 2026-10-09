@@ -1,12 +1,10 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getCalendarConnection } from "@/services/calendar";
 
-/**
- * Refreshes the calendar connection by checking if it's still valid
- * and refreshing the access token if needed
- */
+/** Reads the current calendar connection for the signed-in account. */
 export async function refreshCalendarConnection() {
   const supabase = await createClient();
 
@@ -19,20 +17,24 @@ export async function refreshCalendarConnection() {
   }
 
   try {
-    // getCalendarConnection will automatically refresh if token is expired
     const connection = await getCalendarConnection(user.id);
 
     if (!connection) {
       return { success: false, error: "No calendar connection found" };
     }
 
-    return { success: true, connection };
+    return {
+      success: true,
+      connection: {
+        calendar_email: connection.calendar_email,
+        created_at: connection.created_at,
+      },
+    };
   } catch (error) {
-    console.error("Failed to refresh calendar connection:", error);
+    safeConsole.error("Failed to refresh calendar connection:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to refresh connection",
+      error: "Failed to refresh connection",
     };
   }
 }
@@ -55,7 +57,7 @@ export async function getSyncedEventsCount() {
     // Count creator projects with synced events
     const { count: creatorCount } = (await supabase
       .from("projects")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: true })
       .eq("creator_id", user.id)
       .not("creator_calendar_event_id", "is", null)) as {
       count: number | null;
@@ -79,7 +81,7 @@ export async function getSyncedEventsCount() {
       },
     };
   } catch (error) {
-    console.error("Failed to get synced events count:", error);
+    safeConsole.error("Failed to get synced events count:", error);
     return {
       success: false,
       error:

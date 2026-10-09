@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { deleteGoogleCalendarEvent } from "@/services/calendar";
@@ -47,7 +48,7 @@ export async function updateCalendarEventForProject(projectId: string) {
 
     if (!response.ok) {
       const data = await response.json();
-      console.error("Failed to update calendar event:", data.error);
+      safeConsole.error("Failed to update calendar event:", data.error);
       return {
         success: false,
         error: "Failed to update calendar event",
@@ -59,7 +60,7 @@ export async function updateCalendarEventForProject(projectId: string) {
       message: "Calendar event updated successfully",
     };
   } catch (error) {
-    console.error("Error updating calendar event:", error);
+    safeConsole.error("Error updating calendar event:", error);
     return {
       success: false,
       error:
@@ -108,7 +109,7 @@ export async function removeCalendarEventForProject(
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error("Error getting user:", userError);
+      safeConsole.error("Error getting user:", userError);
       return { success: false, error: "User not authenticated" };
     }
 
@@ -131,7 +132,7 @@ export async function removeCalendarEventForProject(
     );
 
     if (!deleted) {
-      console.error("Failed to delete calendar event from Google");
+      safeConsole.error("Failed to delete calendar event from Google");
       return {
         success: false,
         error: "Failed to remove calendar event",
@@ -152,7 +153,7 @@ export async function removeCalendarEventForProject(
       message: "Calendar event removed successfully",
     };
   } catch (error) {
-    console.error("Error removing calendar event:", error);
+    safeConsole.error("Error removing calendar event:", error);
     return {
       success: false,
       error:
@@ -188,7 +189,7 @@ export async function removeCalendarEventForSignup(signupId: string) {
     } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error("Error getting user:", userError);
+      safeConsole.error("Error getting user:", userError);
       return { success: false, error: "User not authenticated" };
     }
 
@@ -211,7 +212,7 @@ export async function removeCalendarEventForSignup(signupId: string) {
     );
 
     if (!deleted) {
-      console.error("Failed to delete calendar event from Google");
+      safeConsole.error("Failed to delete calendar event from Google");
       return {
         success: false,
         error: "Failed to remove calendar event",
@@ -232,7 +233,7 @@ export async function removeCalendarEventForSignup(signupId: string) {
       message: "Calendar event removed successfully",
     };
   } catch (error) {
-    console.error("Error removing calendar event:", error);
+    safeConsole.error("Error removing calendar event:", error);
     return {
       success: false,
       error:
@@ -262,7 +263,7 @@ export async function removeAllVolunteerCalendarEvents(projectId: string) {
       .not("volunteer_calendar_event_id", "is", null);
 
     if (error) {
-      console.error("Error fetching signups:", error);
+      safeConsole.error("Error fetching signups:", error);
       return {
         success: false,
         error: "Failed to fetch volunteer signups",
@@ -297,7 +298,7 @@ export async function removeAllVolunteerCalendarEvents(projectId: string) {
       failedCount,
     };
   } catch (error) {
-    console.error("Error removing volunteer calendar events:", error);
+    safeConsole.error("Error removing volunteer calendar events:", error);
     return {
       success: false,
       error: "Failed to remove volunteer calendar events",

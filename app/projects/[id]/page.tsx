@@ -1,3 +1,9 @@
+import { PlatformRatingPrompt } from "@/components/feedback/PlatformRatingPrompt";
+import {
+  getPlatformRatingPromptState,
+  type PlatformRatingContext,
+} from "@/lib/feedback/platform-prompt";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -10,6 +16,7 @@ import {
 } from "@/lib/projects/volunteer-dashboard-state";
 import ProjectUnauthorized from "./ProjectUnauthorized";
 import { Signup } from "@/types";
+import { loadVolunteerAttendanceIntervals } from "@/lib/projects/volunteer-attendance-intervals";
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
 import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
@@ -129,7 +136,7 @@ export default async function ProjectPage({
     project.creator_id,
   );
   if (profileError) {
-    console.error("Error fetching creator profile:", profileError);
+    safeConsole.error("Error fetching creator profile:", profileError);
   }
   if (!creator) {
     notFound();
@@ -247,12 +254,29 @@ export default async function ProjectPage({
       };
 
     if (relevantSignupsError) {
-      console.error(
+      safeConsole.error(
         "Error fetching user dashboard signups:",
         relevantSignupsError,
       );
     } else if (relevantSignups) {
       userSignupsData = relevantSignups as Signup[];
+      try {
+        const intervals = await loadVolunteerAttendanceIntervals(
+          getAdminClient(),
+          project.id,
+          relevantSignups.map((signup) => signup.id),
+        );
+        userSignupsData = userSignupsData.map((signup) => ({
+          ...signup,
+          attendance_intervals: intervals[signup.id] ?? [],
+        }));
+      } catch {
+        safeConsole.error("Could not load volunteer attendance intervals.");
+        userSignupsData = userSignupsData.map((signup) => ({
+          ...signup,
+          attendance_intervals: null,
+        }));
+      }
 
       const dashboardState = buildVolunteerDashboardSlotState(userSignupsData);
 
@@ -308,19 +332,44 @@ export default async function ProjectPage({
     pendingSlots: pendingSlots,
   };
 
+  const signupForRating = userSignupsData.find((signup) =>
+    ["pending", "approved", "attended"].includes(signup.status),
+  );
+  const ratingContext: PlatformRatingContext | null =
+    canManageProject && project.status === "completed"
+      ? { contextKind: "organizer_project", contextId: project.id }
+      : signupForRating
+        ? { contextKind: "volunteer_signup", contextId: signupForRating.id }
+        : null;
+  const showRatingPrompt = ratingContext
+    ? await getPlatformRatingPromptState(user?.id, ratingContext)
+    : false;
+
   // Render the Client Component, passing all necessary data as props
   return (
-    <ProjectClient
-      project={project}
-      creator={creator}
-      organization={organization}
-      initialSlotData={initialSlotData}
-      initialIsCreator={isCreator}
-      initialCanManageProject={canManageProject}
-      initialUser={user}
-      // Pass the full signup data
-      userSignupsData={userSignupsData}
-      allSignups={allSignups}
-    />
+    <>
+      <ProjectClient
+        project={project}
+        creator={creator}
+        organization={organization}
+        initialSlotData={initialSlotData}
+        initialIsCreator={isCreator}
+        initialCanManageProject={canManageProject}
+        initialUser={user}
+        // Pass the full signup data
+        userSignupsData={userSignupsData}
+        allSignups={allSignups}
+      />
+      {user && ratingContext && showRatingPrompt ? (
+        <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6">
+          <PlatformRatingPrompt
+            key={`${user.id}:${ratingContext.contextKind}:${ratingContext.contextId}`}
+            show
+            userId={user.id}
+            {...ratingContext}
+          />
+        </div>
+      ) : null}
+    </>
   );
 }

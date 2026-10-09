@@ -277,13 +277,16 @@ const SERVICE_AND_POINTS: LabelContract[] = [
   {
     component: "CsfSubmissionReviewDialog.tsx",
     labels: [
-      "Review",
+      "Review & proof",
       "Awarded points",
       "Review notes",
-      "Request changes",
       "Reject",
       "Approve award",
     ],
+  },
+  {
+    component: "CsfReviewRequestChanges.tsx",
+    labels: ["Request changes"],
   },
   {
     component: "CsfPointCorrectionDialog.tsx",
@@ -439,6 +442,11 @@ describe("CSF operator documentation label contract", () => {
 
   test("activities and point reviews preserve their decision labels", () => {
     assertContract(SERVICE_AND_POINTS);
+    for (const doc of OPERATOR_DOCUMENTS) {
+      expect(doc).toContain(
+        "Organizer attendance claims cannot return to the member for editing",
+      );
+    }
   });
 
   test("post persistence and email queue outcomes remain separate", () => {
@@ -565,14 +573,14 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(page).toContain('redirect("/login?redirect=/organization/create")');
     expect(page).toContain("Only Trusted Members can create organizations.");
     expect(organizations).toContain('href="/organization/create"');
-    expect(organizations).toContain("Create Organization");
+    expect(organizations).toContain("Create organization");
     for (const label of [
-      "Organization Name *",
+      "Organization name *",
       "Username *",
       "Description *",
       "Website",
-      "Organization Type *",
-      "Create Organization",
+      "Organization type *",
+      "Create organization",
     ]) {
       expect(form).toContain(label);
     }
@@ -586,14 +594,14 @@ describe("CSF operator documentation truthfulness guards", () => {
     );
     expectInOrder(createPath, [
       "**Organizations**",
-      "**Create Organization**",
+      "**Create organization**",
       "`/organization/create`",
-      "**Organization Name** = `DVHigh CSF`",
+      "**Organization name** = `DVHigh CSF`",
       "**Username** = `dvhighcsf`",
       "**Description**",
       "**Website** = `https://www.dvhighcsf.org`",
-      "**Organization Type**",
-      "**Create Organization**",
+      "**Organization type**",
+      "**Create organization**",
       "`admin`",
       "`/organization/dvhighcsf`",
     ]);
@@ -611,9 +619,17 @@ describe("CSF operator documentation truthfulness guards", () => {
     ]
       .map((file) => readRepositoryFile(file))
       .join("\n");
-    const organizationPlugins = readRepositoryFile(
+    // The organization plugin surface is split by section; the labels the
+    // guide quotes live across the section, the marketplace dialog, its rows
+    // and the install confirmation.
+    const organizationPlugins = [
       "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
-    );
+      "app/organization/[id]/settings/OrganizationPluginMarketplaceDialog.tsx",
+      "app/organization/[id]/settings/OrganizationPluginRows.tsx",
+      "app/organization/[id]/settings/OrganizationPluginActionDialog.tsx",
+    ]
+      .map((file) => readRepositoryFile(file))
+      .join("\n");
     const pluginManifest = readComponent("../plugin-manifest.ts");
     for (const label of [
       "Organization access",
@@ -632,13 +648,13 @@ describe("CSF operator documentation truthfulness guards", () => {
     expect(pluginManifest).toContain("key: DVHS_CSF_PLUGIN_KEY");
     const organizationPluginLabels = flow(organizationPlugins);
     for (const label of [
-      "Organization Plugins",
+      "Organization plugins",
       "Open plugin marketplace",
       "Available to install",
       "Install",
       "This plugin requests access to:",
       "I approve installing this plugin and grant the requested access.",
-      "Install Plugin",
+      "Install plugin",
     ]) {
       expect(organizationPluginLabels).toContain(label);
     }
@@ -669,15 +685,15 @@ describe("CSF operator documentation truthfulness guards", () => {
       "**Create the graduating classes",
     );
     expectInOrder(installPath, [
-      "`/organization/dvhighcsf/settings#organization-plugins`",
-      "**Organization Plugins**",
+      "`/organization/dvhighcsf/settings?section=plugins`",
+      "**Organization plugins**",
       "**Open plugin marketplace**",
       "**Available to install**",
       "**DVHS CSF**",
       "**Install**",
       "**This plugin requests access to:**",
       "**I approve installing this plugin and grant the requested access.**",
-      "**Install Plugin**",
+      "**Install plugin**",
     ]);
   });
 

@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { TZDate } from "@date-fns/tz";
 
 import type { Project } from "@/types";
+import { getScheduleIdAliases } from "@/lib/projects/hours-publish-key";
 import {
   isStrictCalendarDate,
   isStrictClockTime,
@@ -301,10 +302,12 @@ export function listAttendanceScheduleIds(project: Project): string[] {
 }
 
 export function getAttendanceScheduleWindow(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule" | "project_timezone">,
   incomingScheduleId: string,
 ): AttendanceScheduleWindow | null {
-  const scheduleId = resolveScheduleId(project, incomingScheduleId);
+  const [knownId] = getScheduleIdAliases(project, incomingScheduleId);
+  if (!knownId) return null;
+  const scheduleId = resolveScheduleId(project, knownId);
   const timezone = project.project_timezone || DEFAULT_PROJECT_TIMEZONE;
   let date: string | null = null;
   let startTime: string | null = null;

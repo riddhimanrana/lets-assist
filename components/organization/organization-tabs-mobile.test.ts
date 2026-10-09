@@ -108,6 +108,19 @@ describe("compact organization navigation on phones", () => {
     expect(source).not.toContain("csf-");
   });
 
+  test("renders the tab strip from the same destinations as the switcher", () => {
+    expect(navigationSource).toContain(
+      "{workspaceDestinations.map((destination) => {",
+    );
+    expect(navigationSource).toContain("value={destination.value}");
+    // No core tab is hand-written beside the destination list any more.
+    for (const coreTab of ["overview", "members", "projects", "reports"]) {
+      expect(navigationSource).not.toContain(`value="${coreTab}"`);
+    }
+    // The organization workspace uses the segmented switch, not line tabs.
+    expect(navigationSource).not.toContain('variant="line"');
+  });
+
   test("retires the competing mobile overflow strip", () => {
     expect(source).not.toContain("compactMobileOverflowTabs");
     expect(source).not.toContain(

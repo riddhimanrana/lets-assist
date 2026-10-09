@@ -1,54 +1,12 @@
 "use client";
 
-import { formatDistanceToNowStrict } from "date-fns";
-import {
-  AlertTriangle,
-  Check,
-  Columns3Cog,
-  Info,
-  Loader2,
-  Puzzle,
-  Search,
-  Settings2,
-  ShieldAlert,
-  Store,
-  Trash2,
-  Wrench,
-} from "lucide-react";
+import { Puzzle, Store } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { describePluginUninstallImpact } from "@/lib/plugins/plugin-uninstall-impact";
-
-import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
-
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Empty,
   EmptyDescription,
@@ -56,182 +14,34 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type {
-  OrganizationPluginAdminSetting,
-  OrganizationPluginScope,
-} from "@/types";
+import { ItemGroup } from "@/components/ui/item";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { OrganizationPluginAdminSetting } from "@/types";
+
 import {
   getOrganizationPluginSettings,
   setOrganizationPluginApplicationRuntime,
   setOrganizationPluginInstallState,
   uninstallOrganizationPlugin,
-  updateOrganizationPluginConfiguration,
   updateOrganizationPluginToLatest,
   type OrganizationPluginSettingsResult,
 } from "./actions";
+import {
+  type PluginActionConfirmation,
+  type PluginActionIntent,
+  type PluginRowActions,
+} from "./organization-plugin-helpers";
+import { OrganizationPluginActionDialog } from "./OrganizationPluginActionDialog";
+import { OrganizationPluginConfigDialog } from "./OrganizationPluginConfigDialog";
+import { OrganizationPluginMarketplaceDialog } from "./OrganizationPluginMarketplaceDialog";
+import { InstalledPluginRow } from "./OrganizationPluginRows";
+import { PluginPermanentDeletionDialog } from "./PluginPermanentDeletionDialog";
+import { usePluginSettingsEditor } from "./usePluginSettingsEditor";
 
 type OrganizationPluginSettingsProps = {
   organizationId: string;
   organizationName: string;
 };
-
-type MarketplaceFilter = "all" | "installed" | "available" | "updates";
-type SettingsEditorMode = "guided" | "json";
-type PluginActionIntent = "install" | "uninstall";
-
-type PluginActionConfirmation = {
-  plugin: OrganizationPluginAdminSetting;
-  intent: PluginActionIntent;
-} | null;
-
-type ConfigSchemaProperty = NonNullable<
-  OrganizationPluginAdminSetting["configSchema"]
->["properties"][string];
-
-type ConfigFieldKind =
-  "text" | "textarea" | "number" | "boolean" | "enum" | "unsupported";
-
-type ConfigFieldDescriptor = {
-  key: string;
-  label: string;
-  required: boolean;
-  kind: ConfigFieldKind;
-  property: ConfigSchemaProperty;
-};
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatFieldLabel(key: string): string {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[_-]/g, " ")
-    .replace(/^\w/, (char) => char.toUpperCase())
-    .trim();
-}
-
-function stringifyConfig(config: Record<string, unknown>): string {
-  return JSON.stringify(config, null, 2);
-}
-
-function encodeEnumValue(value: unknown): string {
-  return JSON.stringify(value);
-}
-
-function decodeEnumValue(value: string): unknown {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return value;
-  }
-}
-
-function resolveConfigFieldKind(
-  property: ConfigSchemaProperty,
-): ConfigFieldKind {
-  if (Array.isArray(property.enum) && property.enum.length > 0) {
-    return "enum";
-  }
-
-  if (property.type === "boolean") {
-    return "boolean";
-  }
-
-  if (property.type === "number" || property.type === "integer") {
-    return "number";
-  }
-
-  if (property.type === "string") {
-    if (property.format === "textarea" || (property.maxLength ?? 0) > 180) {
-      return "textarea";
-    }
-
-    return "text";
-  }
-
-  return "unsupported";
-}
-
-function formatOwnerTypeLabel(
-  ownerType: OrganizationPluginAdminSetting["ownerType"],
-): string {
-  switch (ownerType) {
-    case "partner":
-      return "Partner";
-    case "community":
-      return "Community";
-    case "platform-official":
-    default:
-      return "Platform official";
-  }
-}
-
-function formatScopeLabel(scope: OrganizationPluginScope): string {
-  switch (scope) {
-    case "org:read":
-      return "Read organization data";
-    case "org:write":
-      return "Modify organization settings";
-    case "members:read":
-      return "Read member list";
-    case "members:write":
-      return "Manage members and roles";
-    case "projects:read":
-      return "Read projects";
-    case "projects:write":
-      return "Create or modify projects";
-    case "signups:read":
-      return "Read anonymous signups";
-    case "signups:write":
-      return "Modify anonymous signups";
-    case "notifications:send":
-      return "Send notifications";
-    case "storage:read":
-      return "Read storage files";
-    case "storage:write":
-      return "Upload and modify storage files";
-    case "api:expose":
-      return "Expose custom API endpoints";
-    default:
-      return scope;
-  }
-}
-
-function formatLastUpdated(lastUpdatedAt: string | null | undefined): string {
-  if (!lastUpdatedAt) {
-    return "Unknown";
-  }
-
-  const parsedDate = new Date(lastUpdatedAt);
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "Unknown";
-  }
-
-  return formatDistanceToNowStrict(parsedDate, { addSuffix: true });
-}
 
 export default function OrganizationPluginSettings({
   organizationId,
@@ -244,24 +54,11 @@ export default function OrganizationPluginSettings({
   const [loading, setLoading] = useState(true);
   const [updatingActionId, setUpdatingActionId] = useState<string | null>(null);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
-  const [marketplaceSearch, setMarketplaceSearch] = useState("");
-  const [marketplaceFilter, setMarketplaceFilter] =
-    useState<MarketplaceFilter>("all");
   const [pluginActionConfirmation, setPluginActionConfirmation] =
     useState<PluginActionConfirmation>(null);
   const [installConsentChecked, setInstallConsentChecked] = useState(false);
   const [pluginPendingDataDeletion, setPluginPendingDataDeletion] =
     useState<OrganizationPluginAdminSetting | null>(null);
-  const [settingsPluginKey, setSettingsPluginKey] = useState<string | null>(
-    null,
-  );
-  const [settingsEditorMode, setSettingsEditorMode] =
-    useState<SettingsEditorMode>("json");
-  const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>(
-    {},
-  );
-  const [settingsJson, setSettingsJson] = useState("{}");
-  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -302,113 +99,21 @@ export default function OrganizationPluginSettings({
     [plugins],
   );
 
-  const activeSettingsPlugin = useMemo(
-    () => plugins.find((plugin) => plugin.key === settingsPluginKey) ?? null,
-    [plugins, settingsPluginKey],
+  const settingsEditor = usePluginSettingsEditor({
+    organizationId,
+    plugins,
+    loadSettings,
+  });
+  const installedPluginList = useMemo(
+    () => plugins.filter((plugin) => plugin.installed),
+    [plugins],
   );
 
   const activePluginActionId = pluginActionConfirmation
     ? `${pluginActionConfirmation.plugin.key}:${pluginActionConfirmation.intent}`
     : null;
-  const activePluginAction = pluginActionConfirmation?.plugin ?? null;
-  const isInstallAction = pluginActionConfirmation?.intent === "install";
   const isPluginActionSubmitting =
     Boolean(activePluginActionId) && updatingActionId === activePluginActionId;
-
-  const uninstallImpact = useMemo(() => {
-    if (!activePluginAction || isInstallAction) {
-      return null;
-    }
-    return describePluginUninstallImpact({
-      pluginName: activePluginAction.name,
-      dataAccessPurposes: activePluginAction.dataAccessPurposes,
-      permanentDeletionAvailable: activePluginAction.dataDeletionAvailable,
-    });
-  }, [activePluginAction, isInstallAction]);
-
-  const configFields = useMemo<ConfigFieldDescriptor[]>(() => {
-    if (!activeSettingsPlugin?.configSchema) {
-      return [];
-    }
-
-    const schema = activeSettingsPlugin.configSchema;
-    const required = new Set(schema.required ?? []);
-
-    return Object.entries(schema.properties).map(([key, property]) => ({
-      key,
-      label: property.title ?? formatFieldLabel(key),
-      required: required.has(key),
-      kind: resolveConfigFieldKind(property),
-      property,
-    }));
-  }, [activeSettingsPlugin]);
-
-  const guidedFields = useMemo(
-    () => configFields.filter((field) => field.kind !== "unsupported"),
-    [configFields],
-  );
-  const unsupportedFieldCount = useMemo(
-    () => configFields.filter((field) => field.kind === "unsupported").length,
-    [configFields],
-  );
-
-  const searchedPlugins = useMemo(() => {
-    const term = marketplaceSearch.trim().toLowerCase();
-
-    return plugins.filter((plugin) => {
-      if (!term) {
-        return true;
-      }
-
-      const searchableText = [
-        plugin.name,
-        plugin.key,
-        plugin.navLabel,
-        plugin.description ?? "",
-        plugin.detailedDescription,
-        plugin.ownerName,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return searchableText.includes(term);
-    });
-  }, [marketplaceSearch, plugins]);
-
-  const availablePlugins = useMemo(
-    () => searchedPlugins.filter((plugin) => !plugin.installed),
-    [searchedPlugins],
-  );
-
-  const installedPlugins = useMemo(() => {
-    const base = searchedPlugins.filter((plugin) => plugin.installed);
-
-    if (marketplaceFilter === "updates") {
-      return base.filter(
-        (plugin) => plugin.updateAvailable || plugin.forceUpdateRequired,
-      );
-    }
-
-    return base;
-  }, [marketplaceFilter, searchedPlugins]);
-
-  const showAvailableSection =
-    marketplaceFilter === "all" || marketplaceFilter === "available";
-  const showInstalledSection =
-    marketplaceFilter === "all" ||
-    marketplaceFilter === "installed" ||
-    marketplaceFilter === "updates";
-
-  const visiblePluginCount =
-    (showAvailableSection ? availablePlugins.length : 0) +
-    (showInstalledSection ? installedPlugins.length : 0);
-  const useMarketplaceScroll = visiblePluginCount > 1;
-
-  useEffect(() => {
-    if (settingsPluginKey && settingsEditorMode === "guided") {
-      setSettingsJson(stringifyConfig(settingsValues));
-    }
-  }, [settingsEditorMode, settingsPluginKey, settingsValues]);
 
   const handleTogglePlugin = async (
     plugin: OrganizationPluginAdminSetting,
@@ -591,1342 +296,148 @@ export default function OrganizationPluginSettings({
     }
   };
 
-  const handleOpenSettingsEditor = (plugin: OrganizationPluginAdminSetting) => {
-    if (!plugin.installed) {
-      toast.error("Install the plugin before editing its settings");
-      return;
-    }
-
-    const initialValues = isPlainRecord(plugin.configuration)
-      ? plugin.configuration
-      : {};
-
-    setSettingsPluginKey(plugin.key);
-    setSettingsValues(initialValues);
-    setSettingsJson(stringifyConfig(initialValues));
-    setSettingsEditorMode(plugin.configSchema ? "guided" : "json");
+  const rowActions: PluginRowActions = {
+    updatingActionId,
+    onToggle: (plugin, enabled) => {
+      void handleTogglePlugin(plugin, enabled);
+    },
+    onRequestAction: handleRequestPluginAction,
+    onRequestDataDeletion: handleRequestDataDeletion,
+    onUpdate: (pluginKey) => {
+      void handleUpdatePlugin(pluginKey);
+    },
+    handleApplicationRuntime: (plugin, enabled) => {
+      void handleApplicationRuntime(plugin, enabled);
+    },
+    onConfigure: settingsEditor.handleOpenSettingsEditor,
   };
 
-  const handleCloseSettingsEditor = () => {
-    setSettingsPluginKey(null);
-    setSettingsValues({});
-    setSettingsJson("{}");
-    setSettingsEditorMode("json");
-    setSettingsSaving(false);
-  };
-
-  const handleSettingsValueChange = (key: string, value: unknown) => {
-    setSettingsValues((previous) => {
-      const next = { ...previous };
-
-      if (value === undefined || value === "") {
-        delete next[key];
-      } else {
-        next[key] = value;
-      }
-
-      return next;
-    });
-  };
-
-  const handleSaveSettings = async () => {
-    if (!activeSettingsPlugin) {
-      return;
-    }
-
-    let nextConfiguration: Record<string, unknown>;
-
-    if (settingsEditorMode === "json") {
-      const trimmed = settingsJson.trim();
-
-      if (!trimmed) {
-        nextConfiguration = {};
-      } else {
-        try {
-          const parsed = JSON.parse(trimmed) as unknown;
-
-          if (!isPlainRecord(parsed)) {
-            toast.error("Plugin settings must be a JSON object");
-            return;
-          }
-
-          nextConfiguration = parsed;
-        } catch {
-          toast.error("Plugin settings JSON is invalid");
-          return;
-        }
-      }
-    } else {
-      nextConfiguration = settingsValues;
-    }
-
-    setSettingsSaving(true);
-
-    const response = await updateOrganizationPluginConfiguration({
-      organizationId,
-      pluginKey: activeSettingsPlugin.key,
-      configurationJson: JSON.stringify(nextConfiguration),
-    });
-
-    if (!response.success) {
-      toast.error(response.error || "Failed to save plugin settings");
-      setSettingsSaving(false);
-      return;
-    }
-
-    toast.success(response.message || "Plugin settings saved");
-    handleCloseSettingsEditor();
-    await loadSettings();
-  };
-
-  const renderAvailablePluginCard = (
-    plugin: OrganizationPluginAdminSetting,
-  ) => {
-    const isInstallUpdating = updatingActionId === `${plugin.key}:install`;
-    const isPrivatePlugin =
-      plugin.visibility === "private" || plugin.privateCodebase;
-    const canInstall = plugin.entitled && plugin.availableInRuntime;
-
-    return (
-      <div
-        key={plugin.key}
-        className="rounded-lg border border-border/70 bg-background px-3 py-3"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold">{plugin.name}</p>
-              <Badge variant="outline">{plugin.navLabel}</Badge>
-              {isPrivatePlugin && <Badge variant="destructive">Private</Badge>}
-              {plugin.isForced && (
-                <Badge
-                  variant="default"
-                  className="bg-amber-600 hover:bg-amber-600"
-                >
-                  Forced
-                </Badge>
-              )}
-              {!isPrivatePlugin && <Badge variant="secondary">Available</Badge>}
-            </div>
-
-            <p className="line-clamp-2 text-xs text-muted-foreground">
-              {plugin.detailedDescription ||
-                plugin.description ||
-                "No description available."}
-            </p>
-
-            <p className="text-xs text-muted-foreground">
-              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} · v
-              {plugin.latestVersion}
-              {plugin.requiredScopes.length > 0
-                ? ` · ${plugin.requiredScopes.length} permission${plugin.requiredScopes.length === 1 ? "" : "s"}`
-                : ""}
-            </p>
-
-            {!plugin.entitled && plugin.blockedReason ? (
-              <p className="text-xs text-destructive">{plugin.blockedReason}</p>
-            ) : null}
-
-            {!plugin.availableInRuntime ? (
-              <p className="text-xs text-amber-700">
-                Package is still syncing with this deployment.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col items-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleRequestPluginAction(plugin, "install")}
-              disabled={isInstallUpdating || !canInstall}
-            >
-              {isInstallUpdating ? (
-                <>
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                  Installing…
-                </>
-              ) : (
-                <>
-                  <Store data-icon="inline-start" />
-                  Install
-                </>
-              )}
-            </Button>
-
-            {plugin.dataDeletionAvailable ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-destructive hover:text-destructive"
-                onClick={() => handleRequestDataDeletion(plugin)}
-              >
-                <ShieldAlert data-icon="inline-start" />
-                Delete retained data
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderInstalledPluginCard = (
-    plugin: OrganizationPluginAdminSetting,
-  ) => {
-    const isToggleUpdating = updatingActionId === `${plugin.key}:toggle`;
-    const isVersionUpdating = updatingActionId === `${plugin.key}:update`;
-    const isRuntimeUpdating =
-      updatingActionId === `${plugin.key}:application-runtime`;
-    const isUninstalling = updatingActionId === `${plugin.key}:uninstall`;
-    const isPrivatePlugin =
-      plugin.visibility === "private" || plugin.privateCodebase;
-    const canToggle =
-      plugin.entitled && plugin.availableInRuntime && !plugin.isForced;
-    const canUninstall = plugin.installed && !plugin.isForced;
-    const canUpdate =
-      plugin.availableInRuntime &&
-      plugin.updateDeployedInRuntime &&
-      plugin.entitled &&
-      (plugin.updateAvailable || plugin.forceUpdateRequired);
-    const applicationUpdateAvailable =
-      plugin.applicationRuntime?.enabled === true &&
-      plugin.applicationRuntime.selectedVersion !== null &&
-      plugin.applicationRuntime.selectedVersion !==
-        plugin.applicationRuntime.availableVersion;
-
-    return (
-      <div
-        key={plugin.key}
-        className="rounded-lg border border-border/70 bg-background px-3 py-3"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex flex-1 flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold">{plugin.name}</p>
-              <Badge variant={plugin.enabled ? "default" : "secondary"}>
-                {plugin.enabled ? "Enabled" : "Disabled"}
-              </Badge>
-              {plugin.isForced && (
-                <Badge
-                  variant="default"
-                  className="bg-amber-600 hover:bg-amber-600"
-                >
-                  Forced
-                </Badge>
-              )}
-              {plugin.updateAvailable ? (
-                <Badge variant="outline">Update</Badge>
-              ) : null}
-              {plugin.forceUpdateRequired ? (
-                <Badge variant="destructive">Required</Badge>
-              ) : null}
-            </div>
-
-            <p className="line-clamp-2 text-xs text-muted-foreground">
-              {plugin.detailedDescription ||
-                plugin.description ||
-                "No description available."}
-            </p>
-
-            <p className="text-xs text-muted-foreground">
-              {plugin.ownerName} · {formatOwnerTypeLabel(plugin.ownerType)} ·
-              Installed {plugin.installedVersion || plugin.latestVersion} ·
-              Updated {formatLastUpdated(plugin.lastUpdatedAt)}
-            </p>
-
-            {!plugin.availableInRuntime ? (
-              <p className="text-xs text-amber-700">
-                Package is not loaded in this deployment yet.
-              </p>
-            ) : null}
-
-            {(plugin.updateAvailable || plugin.forceUpdateRequired) &&
-            !plugin.updateDeployedInRuntime ? (
-              <p className="text-xs text-amber-700">
-                Update pending deployment. This version becomes installable
-                after the platform deployment includes its code.
-              </p>
-            ) : null}
-
-            {plugin.applicationRuntime ? (
-              <div className="mt-1 rounded-md border border-border/70 bg-muted/30 px-2.5 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant={
-                      plugin.applicationRuntime.enabled
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    {plugin.applicationRuntime.enabled
-                      ? "Application active"
-                      : "Embedded active"}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Application {plugin.applicationRuntime.version}
-                  </span>
-                  {applicationUpdateAvailable ? (
-                    <Badge variant="outline">
-                      {plugin.applicationRuntime.availableVersion} available
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {plugin.applicationRuntime.deploymentHealthy
-                    ? `Healthy on ${plugin.applicationRuntime.environment}`
-                    : `Waiting for a healthy ${plugin.applicationRuntime.environment} deployment`}
-                </p>
-              </div>
-            ) : null}
-
-            {plugin.blockedReason &&
-            !plugin.availableInRuntime ? null : plugin.blockedReason ? (
-              <p className="text-xs text-destructive">{plugin.blockedReason}</p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {plugin.applicationRuntime && applicationUpdateAvailable ? (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  void handleApplicationRuntime(plugin, true);
-                }}
-                disabled={
-                  isRuntimeUpdating || !plugin.applicationRuntime.canEnable
-                }
-              >
-                {isRuntimeUpdating ? (
-                  <>
-                    <Loader2
-                      data-icon="inline-start"
-                      className="animate-spin"
-                    />
-                    Updating application…
-                  </>
-                ) : (
-                  `Update application ${plugin.applicationRuntime.availableVersion}`
-                )}
-              </Button>
-            ) : null}
-
-            {plugin.applicationRuntime ? (
-              <Button
-                type="button"
-                size="sm"
-                variant={
-                  plugin.applicationRuntime.enabled ? "outline" : "default"
-                }
-                onClick={() => {
-                  void handleApplicationRuntime(
-                    plugin,
-                    !plugin.applicationRuntime?.enabled,
-                  );
-                }}
-                disabled={
-                  isRuntimeUpdating ||
-                  (!plugin.applicationRuntime.enabled &&
-                    !plugin.applicationRuntime.canEnable)
-                }
-              >
-                {isRuntimeUpdating ? (
-                  <>
-                    <Loader2
-                      data-icon="inline-start"
-                      className="animate-spin"
-                    />
-                    Switching…
-                  </>
-                ) : plugin.applicationRuntime.enabled ? (
-                  `Use embedded ${plugin.installedVersion || plugin.latestVersion}`
-                ) : (
-                  `Use application ${plugin.applicationRuntime.availableVersion}`
-                )}
-              </Button>
-            ) : null}
-
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => handleOpenSettingsEditor(plugin)}
-              disabled={!plugin.availableInRuntime || isPrivatePlugin}
-            >
-              <Settings2 data-icon="inline-start" />
-              Settings
-            </Button>
-
-            {plugin.updateAvailable || plugin.forceUpdateRequired ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  void handleUpdatePlugin(plugin.key);
-                }}
-                disabled={isVersionUpdating || !canUpdate}
-              >
-                {isVersionUpdating ? (
-                  <>
-                    <Loader2
-                      data-icon="inline-start"
-                      className="animate-spin"
-                    />
-                    Updating…
-                  </>
-                ) : (
-                  <>
-                    <Wrench data-icon="inline-start" />
-                    {plugin.updateDeployedInRuntime
-                      ? "Update"
-                      : "Update pending deployment"}
-                  </>
-                )}
-              </Button>
-            ) : null}
-
-            <Button
-              type="button"
-              size="sm"
-              variant={plugin.enabled ? "outline" : "default"}
-              onClick={() => {
-                void handleTogglePlugin(plugin, !plugin.enabled);
-              }}
-              disabled={isToggleUpdating || !canToggle}
-            >
-              {isToggleUpdating ? (
-                <>
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                  Saving…
-                </>
-              ) : plugin.enabled ? (
-                "Disable"
-              ) : (
-                "Enable"
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => handleRequestPluginAction(plugin, "uninstall")}
-              disabled={isUninstalling || !canUninstall}
-            >
-              {isUninstalling ? (
-                <>
-                  <Loader2 data-icon="inline-start" className="animate-spin" />
-                  Uninstalling…
-                </>
-              ) : (
-                <>
-                  <Trash2 data-icon="inline-start" />
-                  Uninstall
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const marketplaceSections = (
+  return (
     <>
-      {showAvailableSection ? (
-        <section className="flex flex-col gap-3 pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">Available to install</p>
-              <p className="text-xs text-muted-foreground">
-                New plugins your organization can activate.
-              </p>
-            </div>
-            <Badge variant="secondary">{availablePlugins.length}</Badge>
+      <SettingsSection
+        id="organization-plugins"
+        title="Organization plugins"
+        description="Installed plugins and their settings. Embedded plugin code ships through a platform deployment before an update can be installed."
+        footerHint={
+          <>
+            Want something custom? Email{" "}
+            <a
+              href="mailto:contact@lets-assist.com"
+              className="hover:text-foreground underline underline-offset-4"
+            >
+              contact@lets-assist.com
+            </a>{" "}
+            and we can build a plugin for your organization.
+          </>
+        }
+        footer={
+          result && !result.error ? (
+            <Button
+              type="button"
+              onClick={() => setMarketplaceOpen(true)}
+              disabled={plugins.length === 0}
+            >
+              <Store data-icon="inline-start" />
+              Open plugin marketplace
+            </Button>
+          ) : null
+        }
+      >
+        {loading && !result ? (
+          <div
+            className="grid gap-2"
+            role="status"
+            aria-label="Loading plugin settings"
+          >
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
+        ) : null}
 
-          {availablePlugins.length === 0 ? (
-            <Empty className="rounded-xl border bg-muted/20 py-8">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Store />
-                </EmptyMedia>
-                <EmptyTitle>No available plugins in this view</EmptyTitle>
-                <EmptyDescription>
-                  Try switching filters or clearing the search query.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="grid gap-3">
-              {availablePlugins.map(renderAvailablePluginCard)}
-            </div>
-          )}
-        </section>
-      ) : null}
+        {result?.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Unable to load plugins</AlertTitle>
+            <AlertDescription>{result.error}</AlertDescription>
+          </Alert>
+        ) : null}
 
-      {showInstalledSection ? (
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold">Installed plugins</p>
-              <p className="text-xs text-muted-foreground">
-                Manage active plugins and update settings.
-              </p>
-            </div>
-            <Badge variant="secondary">{installedPlugins.length}</Badge>
-          </div>
+        {result?.warning ? (
+          <Alert variant="warning">
+            <AlertTitle>Plugin platform notice</AlertTitle>
+            <AlertDescription>{result.warning}</AlertDescription>
+          </Alert>
+        ) : null}
 
-          {installedPlugins.length === 0 ? (
-            <Empty className="rounded-xl border bg-muted/20 py-8">
+        {result && !result.error ? (
+          plugins.length === 0 ? (
+            <Empty>
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <Puzzle />
                 </EmptyMedia>
-                <EmptyTitle>No installed plugins in this view</EmptyTitle>
+                <EmptyTitle>No plugins yet</EmptyTitle>
                 <EmptyDescription>
-                  Install a plugin to configure and manage it here.
+                  As new plugins are released, they&apos;ll appear here
+                  automatically.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : installedPluginList.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Puzzle />
+                </EmptyMedia>
+                <EmptyTitle>No plugins installed</EmptyTitle>
+                <EmptyDescription>
+                  {plugins.length} plugin{plugins.length === 1 ? "" : "s"}{" "}
+                  available. Open the marketplace to install one.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="grid gap-3">
-              {installedPlugins.map(renderInstalledPluginCard)}
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {!showAvailableSection && !showInstalledSection ? (
-        <Empty className="py-8">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Search />
-            </EmptyMedia>
-            <EmptyTitle>No matching plugins</EmptyTitle>
-            <EmptyDescription>
-              Try a different search term or filter.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : null}
-    </>
-  );
-
-  return (
-    <>
-      <Card id="organization-plugins">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Puzzle className="size-5" />
-            Organization Plugins
-          </CardTitle>
-          <CardDescription>
-            Browse available plugins, install what you need, and manage
-            per-plugin settings. Embedded plugin code ships through a platform
-            deployment before an update can be installed.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="flex flex-col gap-4">
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Loading plugin settings…
-            </div>
-          ) : null}
-
-          {!loading && result?.error ? (
-            <Alert variant="destructive">
-              <AlertTitle>Unable to load plugins</AlertTitle>
-              <AlertDescription>{result.error}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {!loading && result?.warning ? (
-            <Alert>
-              <AlertTitle>Plugin platform notice</AlertTitle>
-              <AlertDescription>{result.warning}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {!loading && !result?.error ? (
             <>
-              <div className="flex flex-col gap-3 rounded-xl border bg-muted/25 p-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-medium">Plugin marketplace</p>
-                  <p className="text-sm text-muted-foreground">
-                    Discover public plugins and configure each one for your
-                    organization.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">
-                      {plugins.length} available
-                    </Badge>
-                    <Badge variant="secondary">
-                      {installedCount} installed
-                    </Badge>
-                    <Badge variant="secondary">{enabledCount} enabled</Badge>
-                    <Badge variant="secondary">
-                      {updateCount} updates pending
-                    </Badge>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  onClick={() => setMarketplaceOpen(true)}
-                  disabled={plugins.length === 0}
-                >
-                  <Store data-icon="inline-start" />
-                  Open plugin marketplace
-                </Button>
-              </div>
-
-              {plugins.length === 0 ? (
-                <Empty className="py-10">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Puzzle />
-                    </EmptyMedia>
-                    <EmptyTitle>No plugins yet</EmptyTitle>
-                    <EmptyDescription>
-                      As new plugins are released, they&apos;ll appear here
-                      automatically.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : null}
-
-              <div className="rounded-xl border bg-card p-4">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 rounded-md border bg-muted p-1.5">
-                    <Columns3Cog className="size-4 text-muted-foreground" />
-                  </span>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-semibold">
-                      Want something custom?
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Email{" "}
-                      <a href="mailto:contact@lets-assist.com">
-                        contact@lets-assist.com
-                      </a>{" "}
-                      and we can build a custom plugin for your organization.
-                    </p>
-                    <div className="ml-5 flex list-disc flex-col gap-1 text-sm text-muted-foreground">
-                      <li>Describe the workflow you want to automate.</li>
-                      <li>Share required integrations and data sources.</li>
-                      <li>
-                        Include your timeline, team size, and desired outcomes.
-                      </li>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <p className="text-muted-foreground text-sm">
+                {installedCount} installed · {enabledCount} enabled ·{" "}
+                {updateCount} update{updateCount === 1 ? "" : "s"} pending ·{" "}
+                {plugins.length} in the marketplace
+              </p>
+              <ItemGroup className="gap-3">
+                {installedPluginList.map((plugin) => (
+                  <InstalledPluginRow
+                    key={plugin.key}
+                    plugin={plugin}
+                    actions={rowActions}
+                  />
+                ))}
+              </ItemGroup>
             </>
-          ) : null}
-        </CardContent>
-      </Card>
+          )
+        ) : null}
+      </SettingsSection>
 
-      <Dialog open={marketplaceOpen} onOpenChange={setMarketplaceOpen}>
-        <DialogContent className="sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl">
-              <Store className="size-5" />
-              Plugin marketplace
-            </DialogTitle>
-            <DialogDescription>
-              Search and manage plugins for this organization.
-            </DialogDescription>
-          </DialogHeader>
+      <OrganizationPluginMarketplaceDialog
+        open={marketplaceOpen}
+        onOpenChange={setMarketplaceOpen}
+        plugins={plugins}
+        actions={rowActions}
+      />
 
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-              <Field className="w-full lg:flex-1">
-                <FieldLabel htmlFor="organization-plugin-search">
-                  Search plugins
-                </FieldLabel>
-                <FieldContent>
-                  <InputGroup>
-                    <InputGroupAddon>
-                      <Search />
-                    </InputGroupAddon>
-                    <InputGroupInput
-                      id="organization-plugin-search"
-                      placeholder="Search by name, key, owner, or description"
-                      value={marketplaceSearch}
-                      onChange={(event) =>
-                        setMarketplaceSearch(event.target.value)
-                      }
-                    />
-                  </InputGroup>
-                </FieldContent>
-              </Field>
-
-              <div className="flex flex-col gap-2 lg:min-w-80">
-                <FieldTitle>Filter</FieldTitle>
-                <ToggleGroup
-                  value={[marketplaceFilter]}
-                  onValueChange={(value) => {
-                    const nextValue = value[0];
-                    if (
-                      nextValue === "all" ||
-                      nextValue === "installed" ||
-                      nextValue === "available" ||
-                      nextValue === "updates"
-                    ) {
-                      setMarketplaceFilter(nextValue);
-                    }
-                  }}
-                  spacing={2}
-                >
-                  <ToggleGroupItem value="all">All</ToggleGroupItem>
-                  <ToggleGroupItem value="installed">Installed</ToggleGroupItem>
-                  <ToggleGroupItem value="available">Available</ToggleGroupItem>
-                  <ToggleGroupItem value="updates">
-                    Needs update
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-
-            {useMarketplaceScroll ? (
-              <ScrollArea className="max-h-120 rounded-2xl border">
-                <div className="flex flex-col gap-6 p-4">
-                  {marketplaceSections}
-                </div>
-              </ScrollArea>
-            ) : (
-              <div className="rounded-2xl border p-4">
-                <div className="flex flex-col gap-6">{marketplaceSections}</div>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={Boolean(pluginActionConfirmation)}
-        onOpenChange={(open: boolean) => {
-          if (!open && !isPluginActionSubmitting) {
-            setPluginActionConfirmation(null);
-            setInstallConsentChecked(false);
-          }
+      <OrganizationPluginActionDialog
+        confirmation={pluginActionConfirmation}
+        installConsentChecked={installConsentChecked}
+        onInstallConsentChange={setInstallConsentChecked}
+        submitting={isPluginActionSubmitting}
+        onClose={() => {
+          setPluginActionConfirmation(null);
+          setInstallConsentChecked(false);
         }}
-      >
-        <AlertDialogContent
-          className="max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto p-0 sm:max-w-md"
-          aria-describedby={
-            !isInstallAction
-              ? "plugin-action-desc plugin-uninstall-retention-clause"
-              : "plugin-action-desc"
-          }
-        >
-          {activePluginAction ? (
-            <>
-              <div className="flex flex-col items-center text-center px-6 pt-8 pb-6">
-                <div className="relative mb-5 flex size-14 items-center justify-center rounded-2xl border bg-secondary/30 shadow-sm">
-                  {isInstallAction ? (
-                    <Store className="size-6 text-primary" />
-                  ) : (
-                    <Trash2 className="size-6 text-destructive" />
-                  )}
-                  {isInstallAction && (
-                    <div className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary ring-2 ring-background">
-                      <Check className="size-3 text-primary-foreground" />
-                    </div>
-                  )}
-                </div>
-
-                <AlertDialogTitle className="text-xl font-semibold">
-                  {isInstallAction
-                    ? `Install ${activePluginAction.name}?`
-                    : `Uninstall ${activePluginAction.name}?`}
-                </AlertDialogTitle>
-
-                <AlertDialogDescription
-                  id="plugin-action-desc"
-                  className="mt-2 text-center text-sm text-muted-foreground w-[90%]"
-                >
-                  {isInstallAction
-                    ? `Are you sure you want to add this plugin to your organization?`
-                    : "This removes the install record and saved settings immediately. Uninstall runs no plugin code and deletes no plugin data — see the retention note below."}
-                </AlertDialogDescription>
-              </div>
-
-              <div className="flex flex-col gap-4 border-y bg-muted/20 px-6 py-5">
-                {isInstallAction ? (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground">
-                          {activePluginAction.name}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className="px-1.5 py-0 text-[10px] uppercase tracking-wide"
-                        >
-                          {formatOwnerTypeLabel(activePluginAction.ownerType)}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        by {activePluginAction.ownerName} &middot; v
-                        {activePluginAction.version}
-                      </span>
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                        {activePluginAction.detailedDescription}
-                      </p>
-                    </div>
-
-                    <div className="mt-2 flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border bg-background/50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        This plugin requests access to:
-                      </p>
-                      <ul className="flex flex-col gap-2.5">
-                        {activePluginAction.requiredScopes.length > 0 ||
-                        activePluginAction.dataAccess.length > 0 ? (
-                          <>
-                            {activePluginAction.requiredScopes.map((scope) => (
-                              <li
-                                key={`${activePluginAction.key}-scope-${scope}`}
-                                className="flex items-start gap-2.5 text-sm text-foreground"
-                              >
-                                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                                <span>{formatScopeLabel(scope)}</span>
-                              </li>
-                            ))}
-                            {activePluginAction.dataAccess.map((entry) => (
-                              <li
-                                key={`${activePluginAction.key}-data-${entry}`}
-                                className="flex items-start gap-2.5 text-sm text-foreground"
-                              >
-                                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                                <span>{entry}</span>
-                              </li>
-                            ))}
-                          </>
-                        ) : (
-                          <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                            <Info className="size-4 shrink-0" />
-                            <span>No additional data access required.</span>
-                          </li>
-                        )}
-                      </ul>
-                    </div>
-                  </>
-                ) : (
-                  <div
-                    role="group"
-                    aria-label="Data handling information"
-                    className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex items-start gap-3"
-                  >
-                    <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                    <div className="flex flex-col gap-2 text-sm leading-relaxed">
-                      <p className="text-destructive font-medium">
-                        {
-                          "Plugin surfaces are disabled immediately and saved settings permanently removed. This cannot be undone; already-queued work may still complete."
-                        }
-                      </p>
-                      {uninstallImpact ? (
-                        <>
-                          <p
-                            id="plugin-uninstall-retention-clause"
-                            className="text-muted-foreground"
-                          >
-                            {uninstallImpact.retentionClause}
-                          </p>
-                          {uninstallImpact.dataCategories.length > 0 ? (
-                            <div
-                              tabIndex={0}
-                              role="group"
-                              aria-label="Declared data categories"
-                              className="mt-1 flex max-h-32 flex-col gap-1.5 overflow-y-auto rounded-md border bg-background/50 p-3"
-                            >
-                              <p
-                                aria-hidden="true"
-                                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                              >
-                                Declared data categories
-                              </p>
-                              <ul className="flex flex-col gap-1">
-                                {uninstallImpact.dataCategories.map(
-                                  (category) => (
-                                    <li
-                                      key={category}
-                                      className="text-xs text-foreground"
-                                    >
-                                      {category}
-                                    </li>
-                                  ),
-                                )}
-                              </ul>
-                              {uninstallImpact.additionalDataCategoryCount >
-                              0 ? (
-                                <p className="text-xs text-muted-foreground">
-                                  +{uninstallImpact.additionalDataCategoryCount}{" "}
-                                  more categor
-                                  {uninstallImpact.additionalDataCategoryCount ===
-                                  1
-                                    ? "y"
-                                    : "ies"}
-                                </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-4 bg-background p-6">
-                {isInstallAction && (
-                  <label className="flex cursor-pointer items-center gap-3 rounded-md px-1 py-1 hover:bg-muted/50 group transition-colors">
-                    <Checkbox
-                      checked={installConsentChecked}
-                      onCheckedChange={(checked) =>
-                        setInstallConsentChecked(checked === true)
-                      }
-                    />
-                    <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
-                      I approve installing this plugin and grant the requested
-                      access.
-                    </span>
-                  </label>
-                )}
-
-                <AlertDialogFooter className="sm:justify-between w-full">
-                  <AlertDialogCancel
-                    disabled={isPluginActionSubmitting}
-                    className="w-full m-0 sm:w-auto sm:flex-1"
-                  >
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    variant={isInstallAction ? "default" : "destructive"}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      void handleConfirmPluginAction();
-                    }}
-                    disabled={
-                      isPluginActionSubmitting ||
-                      (isInstallAction && !installConsentChecked) ||
-                      (!isInstallAction && activePluginAction?.isForced)
-                    }
-                    className="w-full sm:w-auto sm:flex-1 mt-2 sm:mt-0 sm:ml-2"
-                  >
-                    {isPluginActionSubmitting ? (
-                      <>
-                        <Loader2
-                          data-icon="inline-start"
-                          className="animate-spin"
-                        />
-                        {isInstallAction ? "Installing…" : "Removing…"}
-                      </>
-                    ) : isInstallAction ? (
-                      "Install Plugin"
-                    ) : activePluginAction?.isForced ? (
-                      "Cannot Uninstall Forced Plugin"
-                    ) : (
-                      "Yes, Uninstall"
-                    )}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </div>
-            </>
-          ) : null}
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog
-        open={Boolean(activeSettingsPlugin)}
-        onOpenChange={(open) => {
-          if (!open) {
-            handleCloseSettingsEditor();
-          }
+        onConfirm={() => {
+          void handleConfirmPluginAction();
         }}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {activeSettingsPlugin
-                ? `${activeSettingsPlugin.name} settings`
-                : "Plugin settings"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure this plugin for your organization. Changes apply only to
-              your organization.
-            </DialogDescription>
-          </DialogHeader>
+      />
 
-          {activeSettingsPlugin ? (
-            <div className="flex flex-col gap-4">
-              <div className="rounded-lg border bg-muted/25 p-3 text-xs text-muted-foreground">
-                <p>
-                  Plugin key{" "}
-                  <span className="font-mono">{activeSettingsPlugin.key}</span>
-                </p>
-                <p className="mt-1">
-                  Owner: {activeSettingsPlugin.ownerName} ·{" "}
-                  {formatOwnerTypeLabel(activeSettingsPlugin.ownerType)}
-                </p>
-                <p className="mt-1">
-                  Last updated{" "}
-                  {formatLastUpdated(activeSettingsPlugin.lastUpdatedAt)}
-                </p>
-              </div>
-
-              {activeSettingsPlugin.configSchema ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-2">
-                    <FieldTitle>Editor mode</FieldTitle>
-                    <ToggleGroup
-                      value={[settingsEditorMode]}
-                      onValueChange={(value) => {
-                        const nextValue = value[0];
-                        if (nextValue === "guided" || nextValue === "json") {
-                          setSettingsEditorMode(nextValue);
-                        }
-                      }}
-                      spacing={2}
-                    >
-                      <ToggleGroupItem value="guided">Guided</ToggleGroupItem>
-                      <ToggleGroupItem value="json">JSON</ToggleGroupItem>
-                    </ToggleGroup>
-                  </div>
-
-                  {settingsEditorMode === "guided" ? (
-                    <>
-                      <FieldGroup>
-                        {guidedFields.map((field) => {
-                          const rawValue =
-                            settingsValues[field.key] ?? field.property.default;
-
-                          if (field.kind === "boolean") {
-                            return (
-                              <Field key={field.key} orientation="horizontal">
-                                <Switch
-                                  id={`plugin-setting-${field.key}`}
-                                  checked={Boolean(rawValue)}
-                                  onCheckedChange={(checked) =>
-                                    handleSettingsValueChange(
-                                      field.key,
-                                      checked,
-                                    )
-                                  }
-                                />
-                                <FieldContent>
-                                  <FieldLabel
-                                    htmlFor={`plugin-setting-${field.key}`}
-                                  >
-                                    {field.label}
-                                  </FieldLabel>
-                                  {field.property.description ? (
-                                    <FieldDescription>
-                                      {field.property.description}
-                                    </FieldDescription>
-                                  ) : null}
-                                </FieldContent>
-                              </Field>
-                            );
-                          }
-
-                          if (field.kind === "enum") {
-                            const enumValues = field.property.enum ?? [];
-                            const encodedValues = enumValues.map((value) =>
-                              encodeEnumValue(value),
-                            );
-                            const encodedCurrent =
-                              rawValue === undefined
-                                ? "__default__"
-                                : encodeEnumValue(rawValue);
-                            const selectedValue = encodedValues.includes(
-                              encodedCurrent,
-                            )
-                              ? encodedCurrent
-                              : "__default__";
-
-                            return (
-                              <Field key={field.key}>
-                                <FieldLabel
-                                  htmlFor={`plugin-setting-${field.key}`}
-                                >
-                                  {field.label}
-                                  {field.required ? " *" : ""}
-                                </FieldLabel>
-                                <FieldContent>
-                                  <NativeSelect
-                                    id={`plugin-setting-${field.key}`}
-                                    value={selectedValue}
-                                    onChange={(event) => {
-                                      const selected = event.target.value;
-                                      if (selected === "__default__") {
-                                        handleSettingsValueChange(
-                                          field.key,
-                                          undefined,
-                                        );
-                                        return;
-                                      }
-
-                                      handleSettingsValueChange(
-                                        field.key,
-                                        decodeEnumValue(selected),
-                                      );
-                                    }}
-                                  >
-                                    <NativeSelectOption value="__default__">
-                                      Use plugin default
-                                    </NativeSelectOption>
-                                    {enumValues.map((option, index) => {
-                                      const encoded = encodeEnumValue(option);
-                                      return (
-                                        <NativeSelectOption
-                                          key={`${field.key}-${index}`}
-                                          value={encoded}
-                                        >
-                                          {String(option)}
-                                        </NativeSelectOption>
-                                      );
-                                    })}
-                                  </NativeSelect>
-                                  {field.property.description ? (
-                                    <FieldDescription>
-                                      {field.property.description}
-                                    </FieldDescription>
-                                  ) : null}
-                                </FieldContent>
-                              </Field>
-                            );
-                          }
-
-                          if (field.kind === "number") {
-                            return (
-                              <Field key={field.key}>
-                                <FieldLabel
-                                  htmlFor={`plugin-setting-${field.key}`}
-                                >
-                                  {field.label}
-                                  {field.required ? " *" : ""}
-                                </FieldLabel>
-                                <FieldContent>
-                                  <Input
-                                    id={`plugin-setting-${field.key}`}
-                                    type="number"
-                                    value={
-                                      rawValue === undefined ||
-                                      rawValue === null
-                                        ? ""
-                                        : String(rawValue)
-                                    }
-                                    onChange={(event) => {
-                                      const nextValue =
-                                        event.target.value.trim();
-                                      if (!nextValue) {
-                                        handleSettingsValueChange(
-                                          field.key,
-                                          undefined,
-                                        );
-                                        return;
-                                      }
-
-                                      const parsedNumber =
-                                        field.property.type === "integer"
-                                          ? Number.parseInt(nextValue, 10)
-                                          : Number.parseFloat(nextValue);
-
-                                      if (!Number.isNaN(parsedNumber)) {
-                                        handleSettingsValueChange(
-                                          field.key,
-                                          parsedNumber,
-                                        );
-                                      }
-                                    }}
-                                  />
-                                  {field.property.description ? (
-                                    <FieldDescription>
-                                      {field.property.description}
-                                    </FieldDescription>
-                                  ) : null}
-                                </FieldContent>
-                              </Field>
-                            );
-                          }
-
-                          if (field.kind === "textarea") {
-                            return (
-                              <Field key={field.key}>
-                                <FieldLabel
-                                  htmlFor={`plugin-setting-${field.key}`}
-                                >
-                                  {field.label}
-                                  {field.required ? " *" : ""}
-                                </FieldLabel>
-                                <FieldContent>
-                                  <Textarea
-                                    id={`plugin-setting-${field.key}`}
-                                    value={
-                                      typeof rawValue === "string"
-                                        ? rawValue
-                                        : ""
-                                    }
-                                    onChange={(event) =>
-                                      handleSettingsValueChange(
-                                        field.key,
-                                        event.target.value,
-                                      )
-                                    }
-                                    className="min-h-28"
-                                  />
-                                  {field.property.description ? (
-                                    <FieldDescription>
-                                      {field.property.description}
-                                    </FieldDescription>
-                                  ) : null}
-                                </FieldContent>
-                              </Field>
-                            );
-                          }
-
-                          return (
-                            <Field key={field.key}>
-                              <FieldLabel
-                                htmlFor={`plugin-setting-${field.key}`}
-                              >
-                                {field.label}
-                                {field.required ? " *" : ""}
-                              </FieldLabel>
-                              <FieldContent>
-                                <Input
-                                  id={`plugin-setting-${field.key}`}
-                                  value={
-                                    typeof rawValue === "string" ? rawValue : ""
-                                  }
-                                  onChange={(event) =>
-                                    handleSettingsValueChange(
-                                      field.key,
-                                      event.target.value,
-                                    )
-                                  }
-                                />
-                                {field.property.description ? (
-                                  <FieldDescription>
-                                    {field.property.description}
-                                  </FieldDescription>
-                                ) : null}
-                              </FieldContent>
-                            </Field>
-                          );
-                        })}
-                      </FieldGroup>
-
-                      {guidedFields.length === 0 ? (
-                        <Alert>
-                          <AlertTitle>No guided fields detected</AlertTitle>
-                          <AlertDescription>
-                            This plugin currently needs JSON mode for
-                            configuration.
-                          </AlertDescription>
-                        </Alert>
-                      ) : null}
-
-                      {unsupportedFieldCount > 0 ? (
-                        <Alert>
-                          <AlertTitle>Some fields require JSON mode</AlertTitle>
-                          <AlertDescription>
-                            {unsupportedFieldCount} advanced field
-                            {unsupportedFieldCount === 1 ? "" : "s"} can only be
-                            edited in JSON mode.
-                          </AlertDescription>
-                        </Alert>
-                      ) : null}
-                    </>
-                  ) : (
-                    <FieldGroup>
-                      <Field>
-                        <FieldLabel htmlFor="plugin-settings-json">
-                          Settings JSON
-                        </FieldLabel>
-                        <FieldContent>
-                          <Textarea
-                            id="plugin-settings-json"
-                            className="min-h-56 font-mono text-xs"
-                            value={settingsJson}
-                            onChange={(event) =>
-                              setSettingsJson(event.target.value)
-                            }
-                          />
-                          <FieldDescription>
-                            Use JSON mode for advanced fields and nested
-                            objects.
-                          </FieldDescription>
-                        </FieldContent>
-                      </Field>
-                    </FieldGroup>
-                  )}
-                </div>
-              ) : (
-                <FieldGroup>
-                  <Field>
-                    <FieldLabel htmlFor="plugin-settings-json">
-                      Settings JSON
-                    </FieldLabel>
-                    <FieldContent>
-                      <Textarea
-                        id="plugin-settings-json"
-                        className="min-h-56 font-mono text-xs"
-                        value={settingsJson}
-                        onChange={(event) =>
-                          setSettingsJson(event.target.value)
-                        }
-                      />
-                      <FieldDescription>
-                        This plugin does not expose a guided schema yet, so JSON
-                        mode is used.
-                      </FieldDescription>
-                    </FieldContent>
-                  </Field>
-                </FieldGroup>
-              )}
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseSettingsEditor}
-                  disabled={settingsSaving}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSaveSettings}
-                  disabled={settingsSaving}
-                >
-                  {settingsSaving ? (
-                    <>
-                      <Loader2
-                        data-icon="inline-start"
-                        className="animate-spin"
-                      />
-                      Saving…
-                    </>
-                  ) : (
-                    <>
-                      <Settings2 data-icon="inline-start" />
-                      Save settings
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+      <OrganizationPluginConfigDialog editor={settingsEditor} />
 
       <PluginPermanentDeletionDialog
         organizationId={organizationId}

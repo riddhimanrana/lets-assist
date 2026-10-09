@@ -11,39 +11,13 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const features = [
-  {
-    title: "Volunteer Journey",
-    href: "/#journey",
-    description:
-      "Browse opportunities, confirm attendance, and earn certificates.",
-  },
-  {
-    title: "Platform Features",
-    href: "/#features",
-    description:
-      "Calendar sync, dashboards, QR check-ins, and trusted event types.",
-  },
-  {
-    title: "Organization Tooling",
-    href: "/#org-tooling",
-    description:
-      "Role-based member management, certified reports, and QR verification.",
-  },
-] as const;
-
-const primaryLinks = [
-  ["Home", "/home"],
-  ["Volunteer Dashboard", "/dashboard"],
-  ["My Projects", "/projects"],
-  ["Organizations", "/organization"],
-] as const;
-
-const publicLinks = [
-  ["Volunteering Near Me", "/projects"],
-  ["Connected Organizations", "/organization"],
-  ["FAQ", "/faq"],
-] as const;
+import {
+  featureLinks,
+  isActiveDestination,
+  memberLinks,
+  publicLinks,
+  type NavDestination,
+} from "./destinations";
 
 type Props = {
   isLoading: boolean;
@@ -51,49 +25,40 @@ type Props = {
   pathname: string;
 };
 
+const destinationClass = cn(
+  buttonVariants({ variant: "ghost", size: "sm" }),
+  "px-3 text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
+);
+
 export function DesktopPrimaryNavigation({
   isLoading,
   isAuthenticated,
   pathname,
 }: Props) {
-  if (isLoading) return <div className="hidden lg:flex ml-auto" />;
+  if (isLoading) return <div className="hidden lg:flex" />;
 
   return (
-    <div className="hidden lg:flex items-center space-x-4 ml-auto">
+    <div className="hidden lg:flex items-center gap-1">
       {isAuthenticated ? (
-        <>
-          {primaryLinks.map(([label, href]) => (
-            <Link
-              key={href}
-              className={cn(
-                buttonVariants({ variant: "ghost" }),
-                pathname === href
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground",
-              )}
-              href={href}
-              prefetch={false}
-            >
-              {label}
-            </Link>
-          ))}
-        </>
+        memberLinks.map((destination) => (
+          <DestinationLink
+            key={destination[1]}
+            destination={destination}
+            pathname={pathname}
+            prefetch={false}
+          />
+        ))
       ) : (
         <>
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuTrigger
-                  className={cn(
-                    buttonVariants({ variant: "ghost" }),
-                    "text-muted-foreground",
-                  )}
-                >
+                <NavigationMenuTrigger className={destinationClass}>
                   Features
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="w-130">
-                    {features.map((feature) => (
+                    {featureLinks.map((feature) => (
                       <FeatureItem key={feature.title} {...feature} />
                     ))}
                   </ul>
@@ -101,19 +66,12 @@ export function DesktopPrimaryNavigation({
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-          {publicLinks.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                buttonVariants({ variant: "ghost" }),
-                pathname === href
-                  ? "text-primary font-semibold"
-                  : "text-muted-foreground",
-              )}
-            >
-              {label}
-            </Link>
+          {publicLinks.map((destination) => (
+            <DestinationLink
+              key={destination[1]}
+              destination={destination}
+              pathname={pathname}
+            />
           ))}
         </>
       )}
@@ -121,7 +79,32 @@ export function DesktopPrimaryNavigation({
   );
 }
 
-function FeatureItem({ title, description, href }: (typeof features)[number]) {
+function DestinationLink({
+  destination: [label, href],
+  pathname,
+  prefetch,
+}: {
+  destination: NavDestination;
+  pathname: string;
+  prefetch?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      prefetch={prefetch}
+      aria-current={isActiveDestination(pathname, href) ? "page" : undefined}
+      className={destinationClass}
+    >
+      {label}
+    </Link>
+  );
+}
+
+function FeatureItem({
+  title,
+  description,
+  href,
+}: (typeof featureLinks)[number]) {
   return (
     <li>
       <NavigationMenuLink

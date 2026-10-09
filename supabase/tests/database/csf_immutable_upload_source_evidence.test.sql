@@ -740,7 +740,7 @@ SELECT extensions.throws_ok(
     $$,
     (SELECT token FROM immutable_receipts WHERE label = 'second')
   ),
-  '40001',
+  'PT409',
   'This CSF source changed after it was checked; preview it again before importing.',
   'and the superseded receipt can no longer be spent'
 );
@@ -763,7 +763,7 @@ SELECT extensions.throws_ok(
     $$,
     (SELECT token FROM immutable_receipts WHERE label = 'third')
   ),
-  '40001',
+  'PT409',
   'A different workbook is attached to this CSF source than the one this import checked; preview it again.',
   'a source re-pointed at another workbook invalidates a receipt already in hand'
 );
@@ -786,7 +786,7 @@ SELECT extensions.throws_ok(
     $$,
     (SELECT token FROM immutable_receipts WHERE label = 'third')
   ),
-  '40001',
+  'PT409',
   'A different workbook is attached to this CSF source than the one this import checked; preview it again.',
   'and so does changing either of the source''s two records of the digest'
 );

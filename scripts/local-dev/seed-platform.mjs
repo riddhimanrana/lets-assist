@@ -342,8 +342,12 @@ if (process.argv.slice(2).includes("--print-resolved-target")) {
 }
 
 const fixturePassword = resolveFixturePassword();
-const { seededAccounts, seededPluginKeys, seededPluginCatalogRows } =
-  buildSeedFixtureSets(SEEDS_DVHS_CSF);
+const {
+  seededAccounts,
+  seededPluginKeys,
+  seededPluginCatalogRows,
+  seededActivePluginKeys,
+} = buildSeedFixtureSets(SEEDS_DVHS_CSF);
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -618,7 +622,7 @@ async function main() {
     }),
   );
 
-  for (const pluginKey of seededPluginKeys) {
+  for (const pluginKey of seededActivePluginKeys) {
     const installedVersion = seededPluginCatalogRows.find(
       (plugin) => plugin.key === pluginKey,
     )?.latest_version;
@@ -751,7 +755,7 @@ async function main() {
   console.log({
     email: "platform.admin@local.test",
     role: "admin (all 3 platform orgs)",
-    dvPlugin: "catalog enabled; run bun run dv:fixtures for the full workspace",
+    dvPlugin: "archived reference only; no fixture installs",
     dvhsCsf: SEEDS_DVHS_CSF
       ? `${PLATFORM_SEED_MODE}: deterministic synthetic DVHS CSF fixtures seeded`
       : "shared local, non-CSF only: no DVHS CSF record was created, replaced, or deleted",

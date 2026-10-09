@@ -1,6 +1,8 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useMemo } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,16 +57,16 @@ export function CancelSignupModal({
         (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
       return diffInHours < 24 && diffInHours > 0;
     } catch (e) {
-      console.error("Error checking cancellation time", e);
+      safeConsole.error("Error checking cancellation time", e);
       return false;
     }
   }, [project.date, project.start_time]);
 
   const handleConfirmCancel = async () => {
-    console.log("CancelSignupModal: Starting cancellation process");
-    console.log("Project ID:", projectId);
-    console.log("Schedule ID:", scheduleId);
-    console.log("User ID:", userId);
+    safeConsole.log("CancelSignupModal: Starting cancellation process");
+    safeConsole.log("Project ID:", projectId);
+    safeConsole.log("Schedule ID:", scheduleId);
+    safeConsole.log("User ID:", userId);
 
     setIsLoading(true);
 
@@ -79,11 +81,11 @@ export function CancelSignupModal({
         .eq("schedule_id", scheduleId)
         .eq("user_id", userId);
 
-      console.log("Found signups:", allSignups);
-      console.log("Query error:", queryError);
+      safeConsole.log("Found signups:", allSignups);
+      safeConsole.log("Query error:", queryError);
 
       if (queryError) {
-        console.error("Error querying signups:", queryError);
+        safeConsole.error("Error querying signups:", queryError);
         toast.error("Failed to find signup record");
         return;
       }
@@ -102,16 +104,16 @@ export function CancelSignupModal({
       }
 
       if (!targetSignup) {
-        console.error("No signup found to cancel");
+        safeConsole.error("No signup found to cancel");
         toast.error("No signup found to cancel");
         return;
       }
 
-      console.log("Attempting to cancel signup:", targetSignup);
+      safeConsole.log("Attempting to cancel signup:", targetSignup);
 
       // Call the server action to cancel the signup
       const result = await cancelSignup(targetSignup.id);
-      console.log("Cancel result:", result);
+      safeConsole.log("Cancel result:", result);
 
       if (result.error) {
         toast.error(result.error);
@@ -121,7 +123,7 @@ export function CancelSignupModal({
         onClose(); // Close the modal
       }
     } catch (error) {
-      console.error("Error cancelling signup:", error);
+      safeConsole.error("Error cancelling signup:", error);
       toast.error("Failed to cancel signup");
     } finally {
       setIsLoading(false);
@@ -153,10 +155,7 @@ export function CancelSignupModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            Cancel Event Signup
-          </DialogTitle>
+          <DialogTitle>Cancel your signup?</DialogTitle>
           <DialogDescription>
             Are you sure you want to cancel your signup for this event? This
             action cannot be undone.
@@ -166,11 +165,11 @@ export function CancelSignupModal({
         <div className="space-y-4">
           <div className="rounded-lg border p-4 space-y-3">
             <h4 className="font-semibold text-sm">
-              Event You&apos;re Cancelling
+              Event you&apos;re cancelling
             </h4>
             <div className="space-y-2">
               <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <Calendar className="size-4 text-muted-foreground mt-0.5" />
                 <div>
                   <div className="text-sm font-medium">{project.title}</div>
                   <div className="text-sm text-muted-foreground">
@@ -180,7 +179,7 @@ export function CancelSignupModal({
               </div>
               {(project.start_time || project.end_time) && (
                 <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <Clock className="size-4 text-muted-foreground" />
                   <span className="text-sm">
                     {project.start_time && formatTime(project.start_time)}
                     {project.start_time && project.end_time && " - "}
@@ -189,27 +188,28 @@ export function CancelSignupModal({
                 </div>
               )}
               <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <MapPin className="size-4 text-muted-foreground" />
                 <span className="text-sm">{project.location}</span>
               </div>
             </div>
           </div>
 
           {isLateCancellation && (
-            <div className="bg-warning/20 border border-warning rounded-lg p-3">
-              <p className="text-sm text-warning">
-                <span className="font-bold">Warning:</span> You are cancelling
-                within 24 hours of the event start time. This may affect your
-                reliability score and future signup opportunities. , consider
-                contacting the organizers directly.
-              </p>
-            </div>
+            <Alert variant="warning">
+              <AlertTriangle aria-hidden="true" />
+              <AlertTitle>The event starts within 24 hours</AlertTitle>
+              <AlertDescription>
+                Cancelling this late may affect your reliability score and
+                future signup opportunities. Consider contacting the organizers
+                directly.
+              </AlertDescription>
+            </Alert>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Keep Signup
+            Keep signup
           </Button>
           <Button
             variant="destructive"
@@ -218,11 +218,15 @@ export function CancelSignupModal({
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
                 Cancelling...
               </>
             ) : (
-              "Cancel Signup"
+              "Cancel signup"
             )}
           </Button>
         </DialogFooter>

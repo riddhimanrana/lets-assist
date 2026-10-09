@@ -1,9 +1,17 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { isEncryptedPdf } from "@/lib/waiver/generate-signed-waiver-pdf";
+import {
+  ENCRYPTED_WAIVER_PDF_MESSAGE,
+  WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE,
+  WAIVER_SOURCE_REPLACE_LOCKED_MESSAGE,
+  isWaiverSourceLocked,
+} from "@/lib/waiver/source-replacement-policy";
 import { canCurrentUserManageProject } from "./access";
 import {
   MAX_WAIVER_UPLOAD_BYTES,
@@ -27,6 +35,22 @@ export async function uploadProjectWaiverPdf(
       return { error: "You don't have permission to modify this project" };
     }
 
+    // The database refuses this write on a published, waiver-required project.
+    // Say so before any file is stored, instead of failing after the upload.
+    const { data: currentProject, error: currentProjectError } = await supabase
+      .from("projects")
+      .select("workflow_status, waiver_required")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (currentProjectError || !currentProject) {
+      return { error: "Project not found" };
+    }
+
+    if (isWaiverSourceLocked(currentProject)) {
+      return { error: WAIVER_SOURCE_REPLACE_LOCKED_MESSAGE };
+    }
+
     const serviceSupabase = getAdminClient();
 
     // Parse and validate the PDF data URL
@@ -43,6 +67,11 @@ export async function uploadProjectWaiverPdf(
       return { error: "File size must be less than 10MB" };
     }
 
+    // A protected source can never be stamped with signatures later.
+    if (await isEncryptedPdf(parsed.buffer)) {
+      return { error: ENCRYPTED_WAIVER_PDF_MESSAGE };
+    }
+
     // Generate storage path
     const storagePath = `project_waivers/${projectId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
@@ -56,7 +85,7 @@ export async function uploadProjectWaiverPdf(
       });
 
     if (uploadError) {
-      console.error("Error uploading waiver PDF:", uploadError);
+      safeConsole.error("Error uploading waiver PDF:", uploadError);
       return { error: "Failed to upload waiver PDF" };
     }
 
@@ -75,7 +104,7 @@ export async function uploadProjectWaiverPdf(
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error updating project with waiver PDF:", updateError);
+      safeConsole.error("Error updating project with waiver PDF:", updateError);
       // Clean up uploaded file
       await serviceSupabase.storage
         .from(WAIVER_UPLOAD_BUCKET)
@@ -92,7 +121,7 @@ export async function uploadProjectWaiverPdf(
       waiverPdfStoragePath: storagePath,
     };
   } catch (error) {
-    console.error("Error uploading project waiver:", error);
+    safeConsole.error("Error uploading project waiver:", error);
     return { error: "An unexpected error occurred" };
   }
 }
@@ -112,12 +141,19 @@ export async function removeProjectWaiverPdf(projectId: string) {
     // Get current waiver PDF path
     const { data: project, error: fetchError } = await supabase
       .from("projects")
-      .select("waiver_pdf_storage_path")
+      .select("waiver_pdf_storage_path, workflow_status, waiver_required")
       .eq("id", projectId)
       .maybeSingle();
 
     if (fetchError || !project) {
       return { error: "Project not found" };
+    }
+
+    // The database refuses this write on a published, waiver-required project.
+    // Refuse here first, so the stored PDF is never deleted out from under a
+    // project row that still points at it.
+    if (isWaiverSourceLocked(project)) {
+      return { error: WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE };
     }
 
     const serviceSupabase = getAdminClient();
@@ -146,10 +182,13 @@ export async function removeProjectWaiverPdf(projectId: string) {
       ]);
 
       if (signatureReferenceError || definitionReferenceError) {
-        console.error("Failed to verify waiver source retention references", {
-          signatureReferenceError,
-          definitionReferenceError,
-        });
+        safeConsole.error(
+          "Failed to verify waiver source retention references",
+          {
+            signatureReferenceError,
+            definitionReferenceError,
+          },
+        );
         return {
           error: "Failed to verify whether the waiver PDF can be removed",
         };
@@ -161,7 +200,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
           .remove([project.waiver_pdf_storage_path]);
 
         if (removeError) {
-          console.error(
+          safeConsole.error(
             "Failed to remove unreferenced waiver PDF:",
             removeError,
           );
@@ -182,7 +221,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
       .eq("id", projectId);
 
     if (updateError) {
-      console.error("Error removing waiver PDF from project:", updateError);
+      safeConsole.error("Error removing waiver PDF from project:", updateError);
       return { error: "Failed to remove waiver PDF" };
     }
 
@@ -191,7 +230,7 @@ export async function removeProjectWaiverPdf(projectId: string) {
 
     return { success: true };
   } catch (error) {
-    console.error("Error removing project waiver:", error);
+    safeConsole.error("Error removing project waiver:", error);
     return { error: "An unexpected error occurred" };
   }
 }

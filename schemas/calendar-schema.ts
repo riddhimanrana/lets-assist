@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GOOGLE_EVENT_ID_PATTERN } from "@/lib/google-calendar-identifiers";
 
 // Calendar Provider Schema
 export const calendarProviderSchema = z.enum(["google"]);
@@ -38,19 +39,21 @@ export const oauthCallbackSchema = z.object({
 // Sync Project to Calendar Schema
 export const syncProjectSchema = z.object({
   project_id: z.string().uuid("Invalid project ID"),
-  schedule_id: z.string().optional(), // Optional: specific slot/role to sync
+  schedule_id: z.string().min(1).max(300).optional(), // Optional: specific slot/role to sync
 });
 
 // Sync Signup to Calendar Schema
 export const syncSignupSchema = z.object({
   signup_id: z.string().uuid("Invalid signup ID"),
   project_id: z.string().uuid("Invalid project ID"),
-  schedule_id: z.string().min(1, "Schedule ID is required"),
+  schedule_id: z.string().min(1, "Schedule ID is required").max(300),
 });
 
 // Remove Event from Calendar Schema
 export const removeCalendarEventSchema = z.object({
-  event_id: z.string().min(1, "Calendar event ID is required"),
+  event_id: z
+    .string()
+    .regex(GOOGLE_EVENT_ID_PATTERN, "Invalid calendar event ID"),
   event_type: z.enum(["creator", "volunteer"]),
 });
 

@@ -1,10 +1,12 @@
 import "server-only";
+import { getPersonalCalendarCleanup } from "./personal-calendar/cleanup";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarConnection, EventType, ProjectSchedule } from "@/types";
 import {
   getCalendarConnection,
   hasLegacyGoogleOAuthReconnectRequired,
 } from "@/services/calendar";
+import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
 import { getCalendarProjectDates } from "@/lib/calendar-project-dates";
 
 export async function getCalendarData(userId: string) {
@@ -25,8 +27,7 @@ export async function getCalendarData(userId: string) {
     id: string;
     volunteer_calendar_event_id: string | null;
     volunteer_synced_at: string | null;
-    scheduled_start: string | null;
-    scheduled_end: string | null;
+    schedule_id: string;
     project:
       | {
           id: string;
@@ -34,6 +35,8 @@ export async function getCalendarData(userId: string) {
           description: string | null;
           location: string | null;
           event_type: EventType;
+          schedule: ProjectSchedule | null;
+          project_timezone: string | null;
         }
       | {
           id: string;
@@ -41,6 +44,8 @@ export async function getCalendarData(userId: string) {
           description: string | null;
           location: string | null;
           event_type: EventType;
+          schedule: ProjectSchedule | null;
+          project_timezone: string | null;
         }[]
       | null;
   };
@@ -81,14 +86,15 @@ export async function getCalendarData(userId: string) {
       id,
       volunteer_calendar_event_id,
       volunteer_synced_at,
-      scheduled_start,
-      scheduled_end,
+      schedule_id,
       project:project_id (
         id,
         title,
         description,
         location,
-        event_type
+        event_type,
+        schedule,
+        project_timezone
       )
     `,
     )
@@ -116,7 +122,7 @@ export async function getCalendarData(userId: string) {
           ...dates,
           location: project.location ?? null,
           creator_calendar_event_id: project.creator_calendar_event_id,
-          creator_synced_at: project.creator_synced_at ?? dates.start_date,
+          creator_synced_at: project.creator_synced_at,
           schedule_type: project.event_type,
         },
       ];
@@ -131,19 +137,26 @@ export async function getCalendarData(userId: string) {
       if (
         !project ||
         !signup.volunteer_calendar_event_id ||
-        !signup.scheduled_start ||
-        !signup.scheduled_end ||
+        !project.schedule ||
         !project.event_type
       ) {
         return null;
       }
+      const window = getAttendanceScheduleWindow(
+        {
+          ...project,
+          schedule: project.schedule,
+          project_timezone: project.project_timezone ?? undefined,
+        },
+        signup.schedule_id,
+      );
+      if (!window) return null;
       return {
         id: signup.id,
         volunteer_calendar_event_id: signup.volunteer_calendar_event_id,
-        volunteer_synced_at:
-          signup.volunteer_synced_at ?? signup.scheduled_start,
-        scheduled_start: signup.scheduled_start,
-        scheduled_end: signup.scheduled_end,
+        volunteer_synced_at: signup.volunteer_synced_at,
+        scheduled_start: new Date(window.startsAt).toISOString(),
+        scheduled_end: new Date(window.endsAt).toISOString(),
         projects: {
           id: project.id,
           title: project.title,
@@ -155,8 +168,15 @@ export async function getCalendarData(userId: string) {
     })
     .filter((signup): signup is NonNullable<typeof signup> => signup !== null);
 
+  const cleanupEvents = await getPersonalCalendarCleanup(userId);
   return {
-    connection,
+    cleanupEvents,
+    connection: connection
+      ? {
+          calendar_email: connection.calendar_email,
+          created_at: connection.created_at,
+        }
+      : null,
     legacyReconnectRequired,
     creatorProjects: normalizedCreatorProjects,
     volunteerSignups: normalizedVolunteerSignups,

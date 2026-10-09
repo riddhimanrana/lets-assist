@@ -18,6 +18,9 @@ export async function createFakeRepository(sandbox: Sandbox) {
     "start-dvhs-csf-isolated-stack.sh",
     "stop-dvhs-csf-isolated-stack.sh",
     "require-supabase-cli-version.sh",
+    "supabase-cli-environment.mjs",
+    "supabase-project-id.mjs",
+    "supabase-gateway-health-core.mjs",
   ]) {
     const target = join(root, "scripts/local-dev", script);
     await cp(join(repositoryRoot, "scripts/local-dev", script), target);
@@ -60,7 +63,7 @@ export function runVerifier(
           PINNED_SUPABASE_CLI_RESOURCE_PREFIXES.network.join(" "),
         CSF_ISOLATED_CLAIM_ROOT: sandbox.claimRoot,
         CSF_ISOLATED_TEST_CLAIM_ROOT: "hermetic-test",
-        DV_LOCAL_TEST_PASSWORD: "fake-run-scoped-password",
+        CSF_LOCAL_TEST_PASSWORD: "fake-run-scoped-password",
         ...overrides,
       },
       stdout: "pipe",

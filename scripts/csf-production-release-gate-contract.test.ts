@@ -111,10 +111,13 @@ describe("CSF Production release preflight", () => {
     const workflows = [
       {
         source: ciWorkflow,
+        // Five jobs check out code (static, unit, build, database, browser),
+        // each with a root and a private checkout. The database and browser
+        // jobs each start their own stack.
         counts: {
-          "actions/checkout": 4,
-          "oven-sh/setup-bun": 2,
-          "supabase/setup-cli": 1,
+          "actions/checkout": 10,
+          "oven-sh/setup-bun": 5,
+          "supabase/setup-cli": 2,
         },
       },
       {
@@ -128,7 +131,7 @@ describe("CSF Production release preflight", () => {
       {
         source: hostedDevelopmentWorkflow,
         counts: {
-          "actions/checkout": 3,
+          "actions/checkout": 4,
           "oven-sh/setup-bun": 1,
           "supabase/setup-cli": 0,
         },
@@ -247,13 +250,8 @@ describe("CSF Production release preflight", () => {
     const schemaParity = deployment.indexOf(
       "verify-supabase-migration-parity.mjs",
     );
-    const schemaCompatibility = deployment.indexOf(
-      "scripts/production/verify-csf-target-schema.sql",
-    );
-    const postPushFullPreflight = occurrenceIndex(
-      deployment,
-      "scripts/production-cutover-preflight.sql",
-      2,
+    const postPushFullPreflight = deployment.indexOf(
+      "scripts/production/maintenance-preflight.mjs target",
     );
     const stagedDeploy = occurrenceIndex(
       deployment,
@@ -291,7 +289,6 @@ describe("CSF Production release preflight", () => {
       maintenanceAliasVerification,
       schemaPush,
       schemaParity,
-      schemaCompatibility,
       postPushFullPreflight,
       stagedDeploy,
       stagedIdentity,
@@ -314,8 +311,7 @@ describe("CSF Production release preflight", () => {
     expect(maintenancePromote).toBeLessThan(maintenanceAliasVerification);
     expect(maintenanceAliasVerification).toBeLessThan(schemaPush);
     expect(schemaPush).toBeLessThan(schemaParity);
-    expect(schemaParity).toBeLessThan(schemaCompatibility);
-    expect(schemaCompatibility).toBeLessThan(postPushFullPreflight);
+    expect(schemaParity).toBeLessThan(postPushFullPreflight);
     expect(postPushFullPreflight).toBeLessThan(smoke);
     expect(smoke).toBeLessThan(promote);
     expect(promote).toBeLessThan(promotionFence);
@@ -568,52 +564,54 @@ describe("CSF Production release preflight", () => {
     ).toBe(31);
   });
 
-  test("runs the private preflight before maintenance or Production writes", () => {
+  test("runs the accepted-catalog preflight before staging and again after maintenance alias proof", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
     const preflight = deployment.indexOf(
-      "scripts/production-cutover-preflight.sql",
+      "scripts/production/maintenance-preflight.mjs before",
     );
-    const readonlyUrlBinding = deployment.indexOf("new URL(rawDatabaseUrl)");
     const dryRun = deployment.indexOf("supabase db push --linked --dry-run");
-    const maintenanceDeploy = occurrenceIndex(
-      deployment,
-      "vercel@59.3.0 deploy \\",
-      1,
+    const maintenanceDeploy = deployment.indexOf(
+      "Stage static Production maintenance page",
     );
     const writeBlock = deployment.indexOf(
       "set-application-write-block.sh enable",
     );
-
-    expect(preflight).toBeGreaterThanOrEqual(0);
-    expect(readonlyUrlBinding).toBeGreaterThanOrEqual(0);
-    expect(dryRun).toBeGreaterThanOrEqual(0);
-    expect(maintenanceDeploy).toBeGreaterThanOrEqual(0);
-    expect(writeBlock).toBeGreaterThanOrEqual(0);
-    expect(readonlyUrlBinding).toBeLessThan(preflight);
+    const maintenanceAlias = deployment.indexOf(
+      "Verify Production maintenance alias",
+    );
+    const finalPreflight = occurrenceIndex(
+      deployment,
+      "scripts/production/maintenance-preflight.mjs before",
+      2,
+    );
+    const push = deployment.indexOf("supabase db push --linked --yes");
+    for (const index of [
+      preflight,
+      dryRun,
+      maintenanceDeploy,
+      writeBlock,
+      maintenanceAlias,
+      finalPreflight,
+      push,
+    ])
+      expect(index).toBeGreaterThanOrEqual(0);
     expect(preflight).toBeLessThan(dryRun);
     expect(dryRun).toBeLessThan(maintenanceDeploy);
     expect(maintenanceDeploy).toBeLessThan(writeBlock);
+    expect(writeBlock).toBeLessThan(maintenanceAlias);
+    expect(maintenanceAlias).toBeLessThan(finalPreflight);
+    expect(finalPreflight).toBeLessThan(push);
     expect(deployment).toContain(
       "PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}",
     );
     expect(deployment).toContain(
       "EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}",
     );
-    expect(deployment).toContain(
-      "hostname === `db.${expectedRef}.supabase.co`",
+    expect(deployment).not.toContain(
+      "scripts/production-cutover-preflight.sql",
     );
-    expect(deployment).toContain('hostname.endsWith(".pooler.supabase.com")');
-    expect(deployment).toContain(
-      "databaseUsername === `postgres.${expectedRef}`",
-    );
-    expect(deployment).toContain("decodeURIComponent(databaseUrl.username)");
-    expect(deployment).toContain('databaseUrl.protocol === "postgres:"');
-    expect(deployment).toContain('databaseUrl.protocol === "postgresql:"');
-    expect(deployment).toContain('psql -X "${PRODUCTION_READONLY_URL}"');
-    expect(deployment).toContain("-v ON_ERROR_STOP=1");
-    expect(deployment).toContain('>"${preflight_log}" 2>&1');
-    expect(deployment).toContain(
-      "Production cutover preflight failed. Raw output was suppressed.",
+    expect(deployment).not.toContain(
+      "--file scripts/production/verify-csf-target-schema.sql",
     );
   });
 
@@ -702,13 +700,8 @@ describe("CSF Production release preflight", () => {
   test("rechecks the full target and disabled CSF worker posture before promotion", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
     const schemaPush = deployment.indexOf("supabase db push --linked --yes");
-    const narrowVerifier = deployment.indexOf(
-      "scripts/production/verify-csf-target-schema.sql",
-    );
-    const fullPreflight = occurrenceIndex(
-      deployment,
-      "scripts/production-cutover-preflight.sql",
-      2,
+    const fullPreflight = deployment.indexOf(
+      "scripts/production/maintenance-preflight.mjs target",
     );
     const smoke = deployment.indexOf("Smoke the staged Production application");
     const workerGate = occurrenceIndex(
@@ -722,11 +715,10 @@ describe("CSF Production release preflight", () => {
     );
 
     expect(
-      deployment.match(/scripts\/production-cutover-preflight\.sql/gu) ?? [],
+      deployment.match(/maintenance-preflight\.mjs before/gu) ?? [],
     ).toHaveLength(2);
     expect(schemaPush).toBeGreaterThanOrEqual(0);
-    expect(narrowVerifier).toBeGreaterThan(schemaPush);
-    expect(fullPreflight).toBeGreaterThan(narrowVerifier);
+    expect(fullPreflight).toBeGreaterThan(schemaPush);
     expect(smoke).toBeGreaterThan(fullPreflight);
     expect(workerGate).toBeGreaterThan(smoke);
     expect(workerGate).toBeLessThan(promotion);
@@ -734,6 +726,13 @@ describe("CSF Production release preflight", () => {
     expect(
       deployment.match(/\.details\.csfWorkbookRefresh == false/gu) ?? [],
     ).toHaveLength(2);
+    expect(
+      deployment.match(/\.details\.csfPublicationNotifications == false/gu) ??
+        [],
+    ).toHaveLength(2);
+    expect(deployment).toContain(
+      'EXPECTED_CSF_PUBLICATION_NOTIFICATIONS_ENABLED: "false"',
+    );
     const normalizedStatusRoute = statusRoute.replace(/\s+/gu, " ");
     expect(normalizedStatusRoute).toContain(
       "csfWorkbookRefresh: csf.workers.workbook_refresh",
@@ -852,7 +851,7 @@ describe("CSF Production release preflight", () => {
     expect(productionQuiescenceVerifier).toContain("FROM cron.job");
     expect(productionQuiescenceVerifier).toContain("FROM cron.job_run_details");
     expect(productionQuiescenceVerifier).toContain(
-      "'default_transaction_read_only=on' = ANY",
+      "'pgrst.app_settings.maintenance_write_block=on' = ANY",
     );
     expect(productionQuiescenceVerifier).toContain(
       "SELECT 1 / 0 AS quiescence_check_failed;",
@@ -906,24 +905,28 @@ describe("CSF Production release preflight", () => {
       },
     });
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator SET default_transaction_read_only TO 'on'",
+      'request-write-fence.mjs" "${mode}"',
     );
     expect(applicationWriteBlock).toContain(
-      "ALTER ROLE authenticator RESET default_transaction_read_only",
+      'run_linked_query "${request_guard_sql}"',
     );
-    expect(applicationWriteBlock).toContain("array_agg(pid)");
-    expect(applicationWriteBlock).toContain(
-      "pg_terminate_backend(target.target_pid, 0)",
-    );
-    expect(applicationWriteBlock).toContain("pid = ANY (captured_pids)");
-    expect(applicationWriteBlock).toContain("remaining_pids = 0");
-    expect(applicationWriteBlock).toContain("interval '20 seconds'");
-    expect(applicationWriteBlock).toContain("pg_sleep(0.1)");
-    expect(applicationWriteBlock).not.toContain(", 5000)");
+    expect(applicationWriteBlock).not.toContain("pg_terminate_backend");
     expect(applicationWriteBlock.match(/timeout 60s/gu) ?? []).toHaveLength(1);
+    expect(applicationWriteBlock).toContain(
+      "Fresh API verification is required.",
+    );
+    expect(deploymentWorkflow).toContain(
+      "set-application-write-block.sh barrier",
+    );
     expect(
-      applicationWriteBlock.match(/run_linked_query "/gu) ?? [],
-    ).toHaveLength(4);
+      deploymentWorkflow.indexOf(
+        "run: bash scripts/production/verify-postgrest-write-block.sh",
+      ),
+    ).toBeLessThan(
+      deploymentWorkflow.indexOf(
+        "run: bash scripts/production/set-application-write-block.sh barrier",
+      ),
+    );
     expect(postgrestWriteBlockVerifier).toContain(
       "id.eq.00000000-0000-0000-0000-000000000000,id.neq.00000000-0000-0000-0000-000000000000",
     );
@@ -1013,15 +1016,38 @@ describe("CSF Production release preflight", () => {
   });
 
   test("the reusable preflight includes root, plugin, build, scale, and browser gates", () => {
+    // Each gate runs in its own job. The two checks release verification reads
+    // (full-quality and db-replay-validation) need every one of those jobs and
+    // fail unless each succeeded, so the preflight still requires all of them.
+    const full =
+      "github.event_name != 'pull_request' && github.event_name != 'merge_group'";
     const quality = jobBlock(ciWorkflow, "quality");
     const replay = jobBlock(ciWorkflow, "db-replay-validation");
 
-    expect(quality).toContain("run: bun run test");
-    expect(quality).toContain("run: bun run build");
-    expect(quality).toContain("run: bun run plugin:apps:check");
-    expect(replay).toContain("run: bun run csf:test:workflows");
-    expect(replay).toContain("bun run csf:test:scale");
-    expect(replay).toContain("bun run csf:test:import:scale");
-    expect(replay).toContain("run: bun run csf:test:e2e");
+    expect(jobBlock(ciWorkflow, "unit")).toContain(
+      `- name: Root and plugin tests\n        if: ${full}\n        run: bun run test --shard=`,
+    );
+    expect(jobBlock(ciWorkflow, "build")).toContain("run: bun run build");
+    expect(jobBlock(ciWorkflow, "static")).toContain(
+      `- name: Check independent plugin applications\n        if: ${full}\n        run: bun run plugin:apps:check\n`,
+    );
+    expect(quality).toContain("'pr-quality' || 'full-quality'");
+    expect(quality).toContain("      - static\n      - unit\n      - build\n");
+    for (const result of ["STATIC_RESULT", "UNIT_RESULT", "BUILD_RESULT"]) {
+      expect(quality).toContain(`[[ "\${${result}}" == "success" ]]`);
+    }
+
+    const database = jobBlock(ciWorkflow, "database");
+    expect(database).toContain("run: bun run csf:test:workflows");
+    expect(database).toContain("bun run csf:test:scale");
+    expect(database).toContain("bun run csf:test:import:scale");
+    expect(jobBlock(ciWorkflow, "browser")).toContain(
+      "run: bun run csf:test:e2e",
+    );
+    expect(replay).toContain("    name: db-replay-validation\n");
+    expect(replay).toContain("      - database\n      - browser\n");
+    for (const result of ["DATABASE_CHECKS_RESULT", "BROWSER_RESULT"]) {
+      expect(replay).toContain(`[[ "\${${result}}" == "success" ]]`);
+    }
   });
 });

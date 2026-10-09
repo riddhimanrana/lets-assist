@@ -26,7 +26,7 @@ export function MiniProjectCard({
   creatorAvatar,
 }: MiniProjectCardProps) {
   return (
-    <Card className="p-4 hover:shadow-lg transition-all cursor-pointer h-full flex flex-col">
+    <Card className="p-4 h-full flex flex-col">
       <h3 className="text-base font-semibold mb-2 line-clamp-2 pr-4">
         {title}
       </h3>

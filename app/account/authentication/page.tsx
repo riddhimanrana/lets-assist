@@ -1,22 +1,33 @@
-import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import AuthenticationClient from "./AuthenticationClient";
 
-export const metadata: Metadata = {
-  title: "Authentication Settings",
-  description: "Manage your Let's Assist authentication settings",
-};
+type SearchParams = Record<string, string | string[] | undefined>;
 
-export default async function AuthenticationPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/**
+ * Google sign-in and two-factor settings now live on /account/security. This
+ * route stays alive for old links and for the Google link callback, which
+ * still returns here with ?success=linked or ?error=linking_failed, so the
+ * query string is carried over.
+ */
+export default async function AuthenticationPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const query = new URLSearchParams();
 
-  if (!user) {
-    redirect("/login?redirect=/account/authentication");
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") {
+      query.set(key, value);
+    } else if (Array.isArray(value)) {
+      for (const entry of value) {
+        query.append(key, entry);
+      }
+    }
   }
 
-  return <AuthenticationClient />;
+  const queryString = query.toString();
+  redirect(
+    queryString ? `/account/security?${queryString}` : "/account/security",
+  );
 }

@@ -57,6 +57,8 @@ The review page scrolls continuously through the application and evidence. Use L
 
 Application decision, membership creation, decision event, and audit/request receipt are one transaction. If the response is lost or the action fails, reload the application before retrying; an exact stable-request replay succeeds only while the same decision and evidence remain current. Do not create a membership manually to compensate.
 
+For an individual officer decision, use the member Actions menu and choose **Approve semester application**. Select the semester, load its pending application, review identity and evidence, and enter an approval reason. This explicit decision grants membership without marking service requirements complete. It leaves the semester review source unchanged and prevents later Sheet releases from replacing this application's approval. Officers with `decide_applications` permission can use it. Closed semesters, duplicate applications, changed records, and finalized outcomes block the action.
+
 Application imports are chapter-wide. In **Applications**, choose the response spreadsheet once. Do not assign a graduating class to the source. The preview derives the class and semester for each row from retained source fields, splits multiline course entries into separate course records, and blocks any unconfigured or changed target. Reusing a source follows its immutable Drive file id even if its title changes.
 
 ## 4. Student joining and account connection
@@ -191,8 +193,8 @@ Notes are officer-only and redactable, never deletable. Every correction writes 
 
 ### Point submissions
 
-1. Open the submission and inspect the selected activity or club, member description, claimed points, configured point rule, proof, and any existing appeal. A partner-club claim also shows the club's review state and saved spreadsheet reference.
-2. Request correction, reject, adjust, or approve with the required reason.
+1. Select **Review & proof** and inspect the selected activity or club, member description, claimed points, configured point rule, proof, and any existing appeal. A partner-club claim also shows the club's review state and saved spreadsheet reference.
+2. Reject, adjust, or approve with the required reason. Use **Request changes** for a member-submitted claim that needs correction. Organizer attendance claims cannot return to the member for editing; staff approve, reject, or retry attendance sync.
 3. An Activity Coordinator may verify participation but cannot perform final point processing unless separately granted.
 4. Verify the awarded quantity in the member's My CSF view. Multiple points are one numeric award, not repeated one-point rows.
 5. Process an open appeal from the same evidence panel as a separate reasoned decision; do not edit the original decision out of history.

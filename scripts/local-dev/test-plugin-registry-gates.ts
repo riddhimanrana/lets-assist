@@ -40,16 +40,12 @@ const pluginKeys = (privatePlugins as PluginDefinition[])
 
 const hasDvPlugin = pluginKeys.includes("dv-speech-debate");
 
-if (!hasDvPlugin) {
-  throw new Error(
-    "Expected the server-only dv-speech-debate plugin to be registered.",
-  );
+if (hasDvPlugin) {
+  throw new Error("Archived Speech and Debate must not be registered.");
 }
 
-// The two real products. calendar-tools, community-impact-radar and
-// family-liaison-workbench were example plugins seeded for visibility-tier
-// testing and have been removed.
-const requiredDefaultPlugins = ["dv-speech-debate", "dvhs-csf"];
+// Only active products belong in the runtime registry.
+const requiredDefaultPlugins = ["dvhs-csf"];
 
 for (const requiredPlugin of requiredDefaultPlugins) {
   if (!pluginKeys.includes(requiredPlugin)) {
@@ -134,7 +130,7 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      dvEnabled: true,
+      dvEnabled: false,
       pluginKeys,
       publishedReleases: publishedPluginReleases.length,
     },

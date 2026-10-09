@@ -1,15 +1,11 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
-import Image from "next/image";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,23 +16,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Calendar,
-  CheckCircle,
-  XCircle,
-  Trash2,
-  AlertCircle,
-  Info,
-  CalendarPlus,
-  CalendarCheck,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import type { CalendarConnection } from "@/types";
 import { removeSyncedCalendarEvent } from "@/lib/calendar-remove-event";
+import { SettingsSection } from "@/components/layout/SettingsSection";
+import { Button } from "@/components/ui/button";
+import type { CalendarCleanupEvent } from "@/services/personal-calendar/cleanup";
+import type { CalendarConnection } from "@/types";
+
+import { CalendarConnectionSection } from "./CalendarConnectionSection";
+import { SyncedEventsSection, type SyncedEvent } from "./SyncedEventsSection";
 
 interface CalendarClientProps {
-  connection: CalendarConnection | null;
+  cleanupEvents?: CalendarCleanupEvent[];
+  connection: Pick<CalendarConnection, "calendar_email" | "created_at"> | null;
   legacyReconnectRequired: boolean;
   creatorProjects: Array<{
     id: string;
@@ -46,13 +37,13 @@ interface CalendarClientProps {
     end_date: string | null;
     location: string | null;
     creator_calendar_event_id: string;
-    creator_synced_at: string;
+    creator_synced_at: string | null;
     schedule_type: string;
   }>;
   volunteerSignups: Array<{
     id: string;
     volunteer_calendar_event_id: string;
-    volunteer_synced_at: string;
+    volunteer_synced_at: string | null;
     scheduled_start: string;
     scheduled_end: string;
     projects: {
@@ -65,7 +56,15 @@ interface CalendarClientProps {
   }>;
 }
 
+type RemovableEvent =
+  | { id: string; creator_calendar_event_id: string }
+  | { id: string; volunteer_calendar_event_id: string };
+
+/** A row for the list, plus the original record the remove call needs. */
+type SyncedEventEntry = SyncedEvent & { source: RemovableEvent };
+
 export default function CalendarClient({
+  cleanupEvents = [],
   connection,
   legacyReconnectRequired,
   creatorProjects,
@@ -75,6 +74,33 @@ export default function CalendarClient({
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [removingEventId, setRemovingEventId] = useState<string | null>(null);
+  const [eventToRemove, setEventToRemove] = useState<{
+    title: string;
+    source: RemovableEvent;
+  } | null>(null);
+
+  const creatorEvents: SyncedEventEntry[] = creatorProjects.map((project) => ({
+    key: project.id,
+    projectId: project.id,
+    title: project.title,
+    start: project.start_date,
+    end: project.end_date,
+    location: project.location,
+    syncedAt: project.creator_synced_at,
+    source: project,
+  }));
+  const volunteerEvents: SyncedEventEntry[] = volunteerSignups.map(
+    (signup) => ({
+      key: signup.id,
+      projectId: signup.projects.id,
+      title: signup.projects.title,
+      start: signup.scheduled_start,
+      end: signup.scheduled_end,
+      location: signup.projects.location,
+      syncedAt: signup.volunteer_synced_at,
+      source: signup,
+    }),
+  );
 
   const handleConnect = async () => {
     // OAuth begins with a redirect response, so this must be a document navigation.
@@ -95,15 +121,15 @@ export default function CalendarClient({
         throw new Error(data.error || "Failed to disconnect calendar");
       }
 
-      toast.success("Calendar Disconnected", {
+      toast.success("Calendar disconnected", {
         description:
-          "Your Google Calendar has been disconnected. Existing synced events will remain in your calendar.",
+          "Your Google Calendar has been disconnected. Existing events remain. Reconnect the same Google account to remove them through Let's Assist.",
       });
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to disconnect calendar:", error);
-      toast.error("Disconnection Failed", {
+      safeConsole.error("Failed to disconnect calendar:", error);
+      toast.error("Could not disconnect", {
         description:
           error instanceof Error
             ? error.message
@@ -115,23 +141,19 @@ export default function CalendarClient({
     }
   };
 
-  const handleRemoveEvent = async (
-    event:
-      | CalendarClientProps["creatorProjects"][number]
-      | CalendarClientProps["volunteerSignups"][number],
-  ) => {
+  const handleRemoveEvent = async (event: RemovableEvent) => {
     setRemovingEventId(event.id);
     try {
       await removeSyncedCalendarEvent(event);
 
-      toast.success("Event Removed", {
+      toast.success("Event removed", {
         description: "The event has been removed from your calendar.",
       });
 
       router.refresh();
     } catch (error) {
-      console.error("Failed to remove event:", error);
-      toast.error("Removal Failed", {
+      safeConsole.error("Failed to remove event:", error);
+      toast.error("Could not remove event", {
         description:
           error instanceof Error
             ? error.message
@@ -139,290 +161,88 @@ export default function CalendarClient({
       });
     } finally {
       setRemovingEventId(null);
+      setEventToRemove(null);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
-    return new Date(
-      dateOnly ? `${dateString}T12:00:00` : dateString,
-    ).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      ...(dateOnly
-        ? {}
-        : { hour: "2-digit" as const, minute: "2-digit" as const }),
-    });
-  };
-
   return (
-    <div className="p-4 lg:p-6 space-y-6 max-w-5xl">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Calendar Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your calendar integrations and synced events
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Calendar"
+        description="Sync your projects and signups to Google Calendar."
+      />
 
-      {/* Connection Status Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center text-xl gap-2">
-            <Image
-              src="/resources/google-calendar-logo-2026.png"
-              alt="Google Calendar"
-              width={20}
-              height={20}
-              className="h-5 w-5 mr-1"
-            />
-            Google Calendar Connection
-          </CardTitle>
-          <CardDescription>
-            Connect your Google Calendar to automatically sync your projects and
-            volunteer signups
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {connection ? (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-success mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="font-medium">Connected</p>
-                    <p className="text-sm text-muted-foreground break-all">
-                      {connection.calendar_email}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Connected on{" "}
-                      {new Date(connection.created_at).toLocaleDateString(
-                        "en-US",
-                        {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        },
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowDisconnectDialog(true)}
-                  disabled={isDisconnecting}
-                  className="w-full sm:w-auto"
+      <CalendarConnectionSection
+        connection={connection}
+        legacyReconnectRequired={legacyReconnectRequired}
+        isDisconnecting={isDisconnecting}
+        onConnect={handleConnect}
+        onDisconnect={() => setShowDisconnectDialog(true)}
+      />
+
+      {connection && (
+        <SyncedEventsSection
+          creatorEvents={creatorEvents}
+          volunteerEvents={volunteerEvents}
+          removing={removingEventId !== null}
+          onRemove={setEventToRemove}
+        />
+      )}
+
+      {cleanupEvents.length > 0 && (
+        <SettingsSection
+          title="Calendar entries awaiting removal"
+          description={
+            connection
+              ? "These entries remain in Google Calendar after their project or signup was removed. Removal clears every occurrence in the saved plan."
+              : "Reconnect the same Google account to remove these entries from your calendar."
+          }
+        >
+          <div className="flex flex-col gap-3">
+            {cleanupEvents.map((event) => {
+              const title =
+                event.source_kind === "project"
+                  ? "Removed project"
+                  : "Removed volunteer signup";
+              return (
+                <div
+                  key={`${event.source_kind}:${event.source_id}`}
+                  className="flex flex-wrap items-center justify-between gap-3"
                 >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Disconnect
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="font-medium">
-                    {legacyReconnectRequired
-                      ? "Reconnect required"
-                      : "Not connected"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {legacyReconnectRequired
-                      ? "This older Google connection has no verified purpose. Reconnect it to sync events."
-                      : "Connect your Google Calendar to sync events automatically"}
-                  </p>
+                  <span>{title}</span>
+                  <Button
+                    variant="outline"
+                    disabled={!connection || removingEventId !== null}
+                    onClick={() =>
+                      setEventToRemove({
+                        title,
+                        source:
+                          event.source_kind === "project"
+                            ? {
+                                id: event.source_id,
+                                creator_calendar_event_id: event.event_id,
+                              }
+                            : {
+                                id: event.source_id,
+                                volunteer_calendar_event_id: event.event_id,
+                              },
+                      })
+                    }
+                  >
+                    Remove from calendar
+                  </Button>
                 </div>
-              </div>
-              <Button onClick={handleConnect}>
-                <Calendar className="h-4 w-4 mr-1" />
-                {legacyReconnectRequired
-                  ? "Reconnect Google Calendar"
-                  : "Connect Google Calendar"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Synced Events */}
-      {connection &&
-        (creatorProjects.length > 0 || volunteerSignups.length > 0) && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarCheck className="h-5 w-5" />
-                Synced Events
-              </CardTitle>
-              <CardDescription>
-                Events that have been synced to your Google Calendar
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Creator Projects */}
-              {creatorProjects.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <CalendarPlus className="h-4 w-4" />
-                    Projects You Created ({creatorProjects.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {creatorProjects.map((project) => (
-                      <div
-                        key={project.id}
-                        className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {project.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(project.start_date)}
-                            {project.end_date &&
-                              project.end_date !== project.start_date &&
-                              ` - ${formatDate(project.end_date)}`}
-                          </p>
-                          {project.location && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              📍 {project.location}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Synced {formatDate(project.creator_synced_at)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveEvent(project)}
-                          disabled={removingEventId !== null}
-                          aria-label={`Remove ${project.title} from calendar`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Volunteer Signups */}
-              {volunteerSignups.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Your Volunteer Signups ({volunteerSignups.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {volunteerSignups.map((signup) => (
-                      <div
-                        key={signup.id}
-                        className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {signup.projects.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(signup.scheduled_start)}
-                            {signup.scheduled_end &&
-                              signup.scheduled_end !== signup.scheduled_start &&
-                              ` - ${formatDate(signup.scheduled_end)}`}
-                          </p>
-                          {signup.projects.location && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              📍 {signup.projects.location}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Synced {formatDate(signup.volunteer_synced_at)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveEvent(signup)}
-                          disabled={removingEventId !== null}
-                          aria-label={`Remove ${signup.projects.title} from calendar`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-      {/* How It Works */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center text-xl gap-2">
-            <Info className="h-5 w-5" />
-            How It Works
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3 text-sm">
-            <div className="flex gap-3">
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                1
-              </div>
-              <div>
-                <p className="font-medium">Connect Your Calendar</p>
-                <p className="text-muted-foreground">
-                  Authorize Let&apos;s Assist to access your Google Calendar. We
-                  only request permissions to create and manage events.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                2
-              </div>
-              <div>
-                <p className="font-medium">Sync Events</p>
-                <p className="text-muted-foreground">
-                  When you create a project or sign up for volunteering,
-                  you&apos;ll have the option to add it to your calendar. Events
-                  are automatically synced.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                3
-              </div>
-              <div>
-                <p className="font-medium">Stay Updated</p>
-                <p className="text-muted-foreground">
-                  If a project is updated or cancelled, the calendar event will
-                  be automatically updated or removed.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
-                4
-              </div>
-              <div>
-                <p className="font-medium">iCal Alternative</p>
-                <p className="text-muted-foreground">
-                  Don&apos;t use Google Calendar? You can download .ics files
-                  for Apple Calendar, Outlook, and other calendar apps.
-                </p>
-              </div>
-            </div>
+              );
+            })}
+            {cleanupEvents.length === 100 && (
+              <p className="text-sm text-muted-foreground">
+                More entries may remain. This list refreshes as you remove them.
+              </p>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </SettingsSection>
+      )}
 
-      {/* Disconnect Dialog */}
       <AlertDialog
         open={showDisconnectDialog}
         onOpenChange={setShowDisconnectDialog}
@@ -433,21 +253,57 @@ export default function CalendarClient({
             <AlertDialogDescription>
               This will disconnect your Google Calendar from Let&apos;s Assist.
               Your existing synced events will remain in your calendar, but new
-              events won&apos;t be automatically synced.
+              events won&apos;t be automatically synced. Reconnect the same
+              Google account to remove those events through Let&apos;s Assist
+              later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={handleDisconnect}
               disabled={isDisconnecting}
-              className="bg-destructive/10 hover:bg-destructive/20 text-destructive"
             >
               {isDisconnecting ? "Disconnecting..." : "Disconnect"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      <AlertDialog
+        open={eventToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open && removingEventId === null) setEventToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {eventToRemove
+                ? `"${eventToRemove.title}" will be removed from your Google Calendar.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={!connection || removingEventId !== null}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (eventToRemove) void handleRemoveEvent(eventToRemove.source);
+              }}
+              disabled={!connection || removingEventId !== null}
+            >
+              {removingEventId !== null ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

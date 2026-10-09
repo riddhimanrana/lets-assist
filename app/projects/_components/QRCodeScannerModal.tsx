@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -69,7 +70,7 @@ export function QRCodeScannerModal({
       playTone(880, audioCtx.currentTime, 0.1, 0.1); // A5
       playTone(1318.51, audioCtx.currentTime + 0.07, 0.15, 0.1); // E6
     } catch (err) {
-      console.warn("Audio feedback failed:", err);
+      safeConsole.warn("Audio feedback failed:", err);
     }
   }, []);
 
@@ -77,7 +78,7 @@ export function QRCodeScannerModal({
   const handleScan = (detectedCodes: IDetectedBarcode[]) => {
     if (detectedCodes && detectedCodes.length > 0 && !isPaused) {
       const result = detectedCodes[0].rawValue;
-      console.log("QR Scanned:", result);
+      safeConsole.log("QR Scanned:", result);
       setScanError(null);
 
       if (result.includes(projectId)) {
@@ -95,7 +96,7 @@ export function QRCodeScannerModal({
   };
 
   const handleError = (error: unknown) => {
-    console.error("QR Scanner Error:", error);
+    safeConsole.error("QR Scanner Error:", error);
     let friendlyMessage = "Could not start camera. ";
 
     // Check if the error is an instance of Error to safely access properties
@@ -113,7 +114,7 @@ export function QRCodeScannerModal({
       // Handle cases where the error might not be an Error object
       friendlyMessage +=
         "An unknown error occurred. Please ensure your browser supports camera access and permissions are granted.";
-      console.error("Received non-Error object:", error);
+      safeConsole.error("Received non-Error object:", error);
     }
 
     setScanError(friendlyMessage);
@@ -131,7 +132,7 @@ export function QRCodeScannerModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[450px] w-[92vw] md:w-full p-0 overflow-hidden rounded-4xl sm:rounded-3xl border-none shadow-2xl">
+      <DialogContent className="sm:max-w-112.5 w-[92vw] md:w-full p-0 overflow-hidden rounded-4xl sm:rounded-3xl">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <ScanLine className="h-6 w-6 text-primary" /> Scan Check-in QR Code
@@ -153,7 +154,7 @@ export function QRCodeScannerModal({
           )}
 
           {/* Scanner Component with corrected props */}
-          <div className="overflow-hidden rounded-4xl border-4 border-muted/50 relative aspect-square max-h-[340px] mx-auto w-full group shadow-inner bg-black/5">
+          <div className="overflow-hidden rounded-4xl border-4 border-muted/50 relative aspect-square max-h-85 mx-auto w-full group bg-black/5">
             {isOpen && (
               <Scanner
                 onScan={handleScan}
@@ -177,12 +178,12 @@ export function QRCodeScannerModal({
             {/* Scanner Frame/Overlay */}
             <div className="absolute inset-0 pointer-events-none border-[3px] border-primary/30 rounded-[1.8rem]" />
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-48 h-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
+              <div className="size-48 border-2 border-dashed border-primary/40 rounded-3xl animate-pulse" />
             </div>
           </div>
 
           <p className="text-xs font-medium text-muted-foreground text-center mt-6 flex items-center justify-center gap-2">
-            <span className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-ping" />
+            <span className="size-1.5 bg-primary/60 rounded-full animate-ping" />
             Ensure the QR code is well-lit and centered.
           </p>
         </div>

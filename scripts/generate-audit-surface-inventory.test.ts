@@ -149,7 +149,7 @@ describe("audit surface inventory parser", () => {
           !entry.file.startsWith(".artifacts/"),
       ),
     ).toBe(true);
-  });
+  }, 30_000); // Scans both repositories and the migration ledger under CI load.
 
   test("classifies SQL function security and policy identities", () => {
     const sql = `

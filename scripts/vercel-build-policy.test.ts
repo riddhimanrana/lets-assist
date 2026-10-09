@@ -175,13 +175,13 @@ describe("Vercel build policy", () => {
     expect(deploymentGuide).toMatch(/one\s+Production pull\s+request/u);
   });
 
-  test("keeps the root runtime on the Node 22 line used by Vercel", () => {
+  test("keeps the root runtime on the Node 24 LTS line supported by Vercel", () => {
     const packageJson = JSON.parse(readRepositoryFile("package.json")) as {
       engines?: { node?: string };
     };
     const pinnedVersion = readRepositoryFile(".node-version").trim();
 
-    expect(pinnedVersion).toMatch(/^22\.[0-9]+\.[0-9]+$/u);
-    expect(packageJson.engines?.node).toBe(">=22.22.0 <23");
+    expect(pinnedVersion).toMatch(/^24\.[0-9]+\.[0-9]+$/u);
+    expect(packageJson.engines?.node).toBe(">=24.21.0 <25");
   });
 });

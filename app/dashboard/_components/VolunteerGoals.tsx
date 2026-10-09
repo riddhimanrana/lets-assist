@@ -1,18 +1,18 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
+import { certificateHours } from "@/lib/projects/certificate-duration";
 
 import { useState, useEffect } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatHoursDuration } from "@/lib/format/hours";
 import { ProgressCircle } from "./ProgressCircle";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import {
-  PencilIcon,
-  SaveIcon,
-  CheckCircle,
-  Target,
-  Calendar,
-} from "lucide-react";
+import { Check, CheckCircle, Pencil, X } from "lucide-react";
 import { DateRange } from "@daypicker/react";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
@@ -25,34 +25,6 @@ import {
 // Import the type for the goals data
 import { VolunteerGoalsData } from "@/types";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
-
-// Copy the formatting function from page.tsx
-function formatTotalDuration(totalHours: number): string {
-  if (totalHours <= 0) return "0m"; // Handle zero or negative hours
-
-  // Convert decimal hours to total minutes, rounding to nearest minute
-  const totalMinutes = Math.round(totalHours * 60);
-
-  if (totalMinutes === 0) return "0m"; // Handle cases that round down to 0
-
-  const hours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h`;
-  }
-  if (remainingMinutes > 0) {
-    // Add space if hours were also added
-    if (hours > 0) {
-      result += " ";
-    }
-    result += `${remainingMinutes}m`;
-  }
-
-  // Fallback in case result is somehow empty (e.g., very small positive number rounds to 0 minutes)
-  return result || (totalMinutes > 0 ? "1m" : "0m");
-}
 
 interface GoalsProps {
   userId: string;
@@ -195,7 +167,7 @@ export function VolunteerGoals({
       // Fetch filtered certificates based on date range
       let query = supabase
         .from("certificates")
-        .select("event_start, event_end")
+        .select("event_start, event_end, credited_minutes")
         .eq("user_id", userId);
 
       if (startDate) {
@@ -207,12 +179,18 @@ export function VolunteerGoals({
 
       const certificatesResult = await withRetryableSupabaseQuery(() => query);
       const { data: certificates, error } = certificatesResult as {
-        data: { event_start: string; event_end: string }[] | null;
+        data:
+          | {
+              event_start: string;
+              event_end: string;
+              credited_minutes?: number | null;
+            }[]
+          | null;
         error: { message?: string } | null;
       };
 
       if (error) {
-        console.error("Error filtering certificates:", error);
+        safeConsole.error("Error filtering certificates:", error);
         return;
       }
 
@@ -223,14 +201,14 @@ export function VolunteerGoals({
           const start = new Date(cert.event_start);
           const end = new Date(cert.event_end);
           const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60); // Convert to hours
-          totalFilteredHours += duration;
+          totalFilteredHours += certificateHours(cert, () => duration);
         });
       }
 
       setFilteredHours(totalFilteredHours);
       setFilteredEvents(certificates?.length || 0);
     } catch (error) {
-      console.error("Error filtering data:", error);
+      safeConsole.error("Error filtering data:", error);
       toast.error("Failed to filter data by date range");
     }
   };
@@ -273,7 +251,7 @@ export function VolunteerGoals({
         };
 
         if (error) {
-          console.error("Error fetching profile goals:", error);
+          safeConsole.error("Error fetching profile goals:", error);
           toast.error("Failed to load your volunteering goals");
         }
 
@@ -290,7 +268,7 @@ export function VolunteerGoals({
           setGoals({ hours_goal: 0, events_goal: 0 });
         }
       } catch (error) {
-        console.error("Error in fetchGoals:", error);
+        safeConsole.error("Error in fetchGoals:", error);
       } finally {
         setLoading(false);
       }
@@ -350,7 +328,11 @@ export function VolunteerGoals({
         `${type.charAt(0).toUpperCase() + type.slice(1)} goal updated`,
       );
     } catch (error) {
-      console.error(`Error saving ${type} goal:`, error);
+      safeConsole.error(
+        "Application diagnostic from app/dashboard/_components/VolunteerGoals",
+        `Error saving ${type} goal:`,
+        error,
+      );
       toast.error(`Failed to update your ${type} goal`);
     }
   };
@@ -377,201 +359,181 @@ export function VolunteerGoals({
 
   if (loading) {
     return (
-      <div className="py-8 text-center">
-        <div className="animate-pulse">Loading your goals...</div>
+      <div className="grid gap-4" aria-busy="true">
+        <span className="sr-only">Loading your goals...</span>
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Date Range Selector */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Calendar className="h-4 w-4" />
-          Goal Period
-        </div>
+    <div className="grid gap-4">
+      <div className="grid gap-2">
+        <p className="text-sm font-medium">Goal period</p>
 
-        <div className="space-y-3">
-          <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select time period">
-                {selectedPeriod === "custom"
-                  ? "Custom Date Range"
-                  : getSemesterPeriods()[
-                      selectedPeriod as keyof ReturnType<
-                        typeof getSemesterPeriods
-                      >
-                    ]?.label || "Select time period"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(getSemesterPeriods()).map(([key, period]) => (
-                <SelectItem key={key} value={key}>
-                  {period.label}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">Custom Date Range</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+          <SelectTrigger className="w-full" aria-label="Goal period">
+            <SelectValue placeholder="Select time period">
+              {selectedPeriod === "custom"
+                ? "Custom date range"
+                : getSemesterPeriods()[
+                    selectedPeriod as keyof ReturnType<
+                      typeof getSemesterPeriods
+                    >
+                  ]?.label || "Select time period"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(getSemesterPeriods()).map(([key, period]) => (
+              <SelectItem key={key} value={key}>
+                {period.label}
+              </SelectItem>
+            ))}
+            <SelectItem value="custom">Custom date range</SelectItem>
+          </SelectContent>
+        </Select>
 
-          {selectedPeriod === "custom" && (
-            <DateRangePicker
-              value={customDateRange}
-              onChange={handleDateRangeChange}
-              placeholder="Select custom date range"
-              showQuickSelect={true}
-            />
-          )}
-        </div>
+        {selectedPeriod === "custom" && (
+          <DateRangePicker
+            value={customDateRange}
+            onChange={handleDateRangeChange}
+            placeholder="Select custom date range"
+            showQuickSelect={true}
+          />
+        )}
 
         {selectedPeriod !== "lifetime" && (
-          <div className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Showing progress for selected period only
-          </div>
+          </p>
         )}
       </div>
 
-      {/* Hours Goal */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="font-medium">Hours Goal</div>
-          <div className="text-sm text-muted-foreground">
-            {goals.hours_goal > 0
-              ? // Use formatTotalDuration for both current and goal hours
-                `${formatTotalDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatTotalDuration(goals.hours_goal)} completed`
-              : "Set a target for volunteer hours"}
-          </div>
-
-          {/* Edit interface for hours */}
-          {editingHours ? (
-            <div className="mt-2 flex items-center gap-2">
-              <Input
-                type="number"
-                min="0"
-                value={tempHoursGoal}
-                onChange={(e) => setTempHoursGoal(e.target.value)}
-                className="w-20 h-8"
-                autoFocus
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => saveGoal("hours")}
-                className="h-8 w-8"
-              >
-                <SaveIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => cancelEditing("hours")}
-                className="h-8 w-8"
-              >
-                <Target className="h-4 w-4" />{" "}
-                {/* Changed X to Target for consistency */}
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => startEditing("hours")}
-              className="mt-1 h-8 px-2 text-xs"
-            >
-              <PencilIcon className="h-3 w-3 mr-1" />
-              {goals.hours_goal > 0 ? "Edit Goal" : "Set Goal"}
-            </Button>
-          )}
-        </div>
-
-        {/* Progress circle for hours */}
-        <div className="w-16 h-16">
-          <ProgressCircle
-            value={hoursPercentage}
-            size={64}
-            strokeWidth={5}
-            showLabel={goals.hours_goal > 0}
-          />
-        </div>
-      </div>
-
-      {/* Events Goal */}
-      <div className="flex items-center justify-between pt-2 border-t">
-        <div className="space-y-1">
-          <div className="font-medium">Projects Goal</div>
-          <div className="text-sm text-muted-foreground">
-            {goals.events_goal > 0
+      <div className="divide-y border-t">
+        <GoalRow
+          title="Hours goal"
+          summary={
+            goals.hours_goal > 0
+              ? // Use formatHoursDuration for both current and goal hours
+                `${formatHoursDuration(Math.min(filteredHours, goals.hours_goal))} / ${formatHoursDuration(goals.hours_goal)} completed`
+              : "Set a target for volunteer hours"
+          }
+          hasGoal={goals.hours_goal > 0}
+          percentage={hoursPercentage}
+          editing={editingHours}
+          value={tempHoursGoal}
+          onValueChange={setTempHoursGoal}
+          onEdit={() => startEditing("hours")}
+          onSave={() => saveGoal("hours")}
+          onCancel={() => cancelEditing("hours")}
+        />
+        <GoalRow
+          title="Projects goal"
+          summary={
+            goals.events_goal > 0
               ? `${Math.min(filteredEvents, goals.events_goal)}/${goals.events_goal} projects completed`
-              : "Set a target for volunteer projects"}
-          </div>
-
-          {/* Edit interface for events */}
-          {editingEvents ? (
-            <div className="mt-2 flex items-center gap-2">
-              <Input
-                type="number"
-                min="0"
-                value={tempEventsGoal}
-                onChange={(e) => setTempEventsGoal(e.target.value)}
-                className="w-20 h-8"
-                autoFocus
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => saveGoal("events")}
-                className="h-8 w-8"
-              >
-                <SaveIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => cancelEditing("events")}
-                className="h-8 w-8"
-              >
-                <Target className="h-4 w-4" />{" "}
-                {/* Changed X to Target for consistency */}
-              </Button>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => startEditing("events")}
-              className="mt-1 h-8 px-2 text-xs"
-            >
-              <PencilIcon className="h-3 w-3 mr-1" />
-              {goals.events_goal > 0 ? "Edit Goal" : "Set Goal"}
-            </Button>
-          )}
-        </div>
-
-        {/* Progress circle for events */}
-        <div className="w-16 h-16">
-          <ProgressCircle
-            value={eventsPercentage}
-            size={64}
-            strokeWidth={5}
-            showLabel={goals.events_goal > 0}
-          />
-        </div>
+              : "Set a target for volunteer projects"
+          }
+          hasGoal={goals.events_goal > 0}
+          percentage={eventsPercentage}
+          editing={editingEvents}
+          value={tempEventsGoal}
+          onValueChange={setTempEventsGoal}
+          onEdit={() => startEditing("events")}
+          onSave={() => saveGoal("events")}
+          onCancel={() => cancelEditing("events")}
+        />
       </div>
 
-      {/* Achievement indicators */}
       {(hoursPercentage >= 100 || eventsPercentage >= 100) && (
-        <div className="rounded-md bg-primary/10 p-3 mt-4 flex items-start gap-3">
-          <CheckCircle className="h-5 w-5 text-primary mt-0.5" />
-          <div>
-            <p className="font-medium text-sm">Goal achieved!</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Congratulations on reaching your volunteering goal! Consider
-              setting a new target to continue your impact.
-            </p>
-          </div>
-        </div>
+        <Alert variant="success">
+          <CheckCircle aria-hidden="true" />
+          <AlertTitle>Goal achieved!</AlertTitle>
+          <AlertDescription>
+            Congratulations on reaching your volunteering goal! Consider setting
+            a new target to continue your impact.
+          </AlertDescription>
+        </Alert>
       )}
+    </div>
+  );
+}
+
+/** One goal: its progress on the left edge, the ring on the right, edited in place. */
+function GoalRow({
+  title,
+  summary,
+  hasGoal,
+  percentage,
+  editing,
+  value,
+  onValueChange,
+  onEdit,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  summary: string;
+  hasGoal: boolean;
+  percentage: number;
+  editing: boolean;
+  value: string;
+  onValueChange: (value: string) => void;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
+      <div className="grid min-w-0 gap-1">
+        <p className="font-medium">{title}</p>
+        <p className="text-muted-foreground text-sm">{summary}</p>
+
+        {editing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              min="0"
+              aria-label={title}
+              value={value}
+              onChange={(e) => onValueChange(e.target.value)}
+              className="mr-1 w-20"
+              autoFocus
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Save goal"
+              onClick={onSave}
+            >
+              <Check aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Cancel"
+              onClick={onCancel}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" className="-ml-2 w-fit" onClick={onEdit}>
+            <Pencil data-icon="inline-start" aria-hidden="true" />
+            {hasGoal ? "Edit goal" : "Set goal"}
+          </Button>
+        )}
+      </div>
+
+      <ProgressCircle
+        value={percentage}
+        size={64}
+        strokeWidth={5}
+        showLabel={hasGoal}
+        emptyLabel={hasGoal ? undefined : "Not set"}
+      />
     </div>
   );
 }

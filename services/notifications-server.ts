@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAdminClient } from "@/lib/supabase/admin";
+import { log } from "@/lib/logger";
 import { isNotificationDedupeConflict } from "@/services/notification-dedupe";
 import type { NotificationData } from "@/services/notification-types";
 
@@ -62,10 +63,9 @@ export async function createNotificationForUser(
       // PGRST116 is "no rows returned": a user with no settings row has opted
       // out of nothing, so ordinary delivery continues.
       if (preferencesError && preferencesError.code !== "PGRST116") {
-        console.error(
-          "Error fetching notification settings:",
-          preferencesError.message,
-        );
+        log("error", "Notification preferences lookup failed", {
+          outcome: "failed",
+        });
         return { error: preferencesError };
       }
 
@@ -92,17 +92,13 @@ export async function createNotificationForUser(
         return { success: true, replayed: true };
       }
 
-      console.error(
-        "Notification insert failed:",
-        insertError.message,
-        insertError.code,
-      );
+      log("error", "Notification insert failed", { outcome: "failed" });
       return { error: insertError };
     }
 
     return { success: true };
   } catch (error) {
-    console.error("Error creating notification:", error);
+    log("error", "Notification creation failed", { outcome: "failed" });
     return { error };
   }
 }

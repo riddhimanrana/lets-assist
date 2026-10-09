@@ -201,82 +201,98 @@ export function extractColumnValue(
   return "";
 }
 
+/** A cell bound for a spreadsheet: numbers for hours and counts, text otherwise. */
+export type LayoutSheetCell = string | number;
+
+/**
+ * The columns that hold a quantity. The column decides the cell type, never
+ * the value, so a name or email that looks like a number stays text.
+ */
+const NUMERIC_COLUMN_KEYS: ReadonlySet<ColumnKey> = new Set<ColumnKey>([
+  "total_hours",
+  "verified_hours",
+  "pending_hours",
+  "attendance_hours",
+  "events_attended",
+  "project_verified_hours",
+  "project_pending_hours",
+  "project_attendance_hours",
+  "project_total_hours",
+  "volunteer_count",
+  "monthly_verified_hours",
+  "monthly_pending_hours",
+  "monthly_attendance_hours",
+  "monthly_total_hours",
+]);
+
+/** The same value `extractColumnValue` shows, typed for a spreadsheet. */
+export function extractSheetCell(
+  item: VolunteerItem | ProjectItem | MonthlyItem,
+  columnKey: ColumnKey,
+): LayoutSheetCell {
+  const text = extractColumnValue(item, columnKey);
+  if (!NUMERIC_COLUMN_KEYS.has(columnKey) || text === "") return text;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : text;
+}
+
+type LayoutReportData = {
+  volunteers?: VolunteerItem[];
+  projects?: ProjectItem[];
+  monthlyHours?: MonthlyItem[];
+};
+
+type CellReader<Cell> = (
+  item: VolunteerItem | ProjectItem | MonthlyItem,
+  columnKey: ColumnKey,
+) => Cell;
+
 /**
  * Build rows based on layout configuration
  * Supports both horizontal (traditional) and vertical (custom) layouts
  */
 export function buildRowsWithLayout(
-  reportData: {
-    volunteers?: VolunteerItem[];
-    projects?: ProjectItem[];
-    monthlyHours?: MonthlyItem[];
-  },
+  reportData: LayoutReportData,
   layout: ReportLayoutConfig,
 ): string[][] {
+  return buildLayout(reportData, layout, extractColumnValue);
+}
+
+/** The same layout as `buildRowsWithLayout`, typed for a spreadsheet. */
+export function buildSheetRowsWithLayout(
+  reportData: LayoutReportData,
+  layout: ReportLayoutConfig,
+): LayoutSheetCell[][] {
+  return buildLayout(reportData, layout, extractSheetCell);
+}
+
+function layoutItems(
+  reportData: LayoutReportData,
+  layout: ReportLayoutConfig,
+): Array<VolunteerItem | ProjectItem | MonthlyItem> {
+  if (layout.reportType === "member-hours") return reportData.volunteers || [];
+  if (layout.reportType === "project-summary") return reportData.projects || [];
+  return reportData.monthlyHours || [];
+}
+
+function buildLayout<Cell>(
+  reportData: LayoutReportData,
+  layout: ReportLayoutConfig,
+  readCell: CellReader<Cell>,
+): Array<Array<Cell | string>> {
+  const items = layoutItems(reportData, layout);
+
   if (layout.orientation === "horizontal") {
-    return buildHorizontalLayout(reportData, layout);
-  } else {
-    return buildVerticalLayout(reportData, layout);
-  }
-}
-
-function buildHorizontalLayout(
-  reportData: {
-    volunteers?: VolunteerItem[];
-    projects?: ProjectItem[];
-    monthlyHours?: MonthlyItem[];
-  },
-  layout: ReportLayoutConfig,
-): string[][] {
-  const rows: string[][] = [];
-
-  // Header row
-  rows.push(layout.columns.map((col) => col.label));
-
-  // Data rows
-  if (layout.reportType === "member-hours" && reportData.volunteers) {
-    rows.push(
-      ...reportData.volunteers.map((volunteer) =>
-        layout.columns.map((col) => extractColumnValue(volunteer, col.key)),
+    return [
+      layout.columns.map((col) => col.label),
+      ...items.map((item) =>
+        layout.columns.map((col) => readCell(item, col.key)),
       ),
-    );
-  } else if (layout.reportType === "project-summary" && reportData.projects) {
-    rows.push(
-      ...reportData.projects.map((project) =>
-        layout.columns.map((col) => extractColumnValue(project, col.key)),
-      ),
-    );
-  } else if (
-    layout.reportType === "monthly-summary" &&
-    reportData.monthlyHours
-  ) {
-    rows.push(
-      ...reportData.monthlyHours.map((month) =>
-        layout.columns.map((col) => extractColumnValue(month, col.key)),
-      ),
-    );
+    ];
   }
 
-  return rows;
-}
-
-function buildVerticalLayout(
-  reportData: {
-    volunteers?: VolunteerItem[];
-    projects?: ProjectItem[];
-    monthlyHours?: MonthlyItem[];
-  },
-  layout: ReportLayoutConfig,
-): string[][] {
-  const rows: string[][] = [];
-  const dataItems =
-    layout.reportType === "member-hours"
-      ? reportData.volunteers || []
-      : layout.reportType === "project-summary"
-        ? reportData.projects || []
-        : reportData.monthlyHours || [];
-
-  dataItems.forEach((item, index) => {
+  const rows: Array<Array<Cell | string>> = [];
+  items.forEach((item, index) => {
     // Add separator between items
     if (index > 0) {
       rows.push([]);
@@ -284,12 +300,13 @@ function buildVerticalLayout(
 
     // Add label-value pairs vertically
     layout.columns.forEach((col) => {
-      rows.push([col.label, extractColumnValue(item, col.key)]);
+      rows.push([col.label, readCell(item, col.key)]);
     });
   });
 
   return rows;
 }
+
 /**
  * Validate that a layout configuration is valid for the given report type
  */

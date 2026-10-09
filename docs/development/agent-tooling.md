@@ -39,10 +39,35 @@ The tracked configuration and this guide define the reviewable contract. Local c
 
 ## CI cost boundary
 
-Every non-draft pull request runs one short `ci-gate`. It covers repository policy, dependency audit, formatting, seed safety, lint, plugin contracts, type checking, and focused CI tooling tests. It skips full root/plugin tests, the production build, isolated database replay, scale checks, and browser suites.
+Every non-draft pull request runs one short `ci-gate`. It covers repository policy, dependency audit, formatting, seed safety, lint, plugin contracts, type checking, focused CI tooling tests, and the affected unit tests. The static checks run in one job and the unit tests in two shards beside it, so the gate costs more runner minutes than a single job and finishes sooner. It skips full root/plugin tests, the production build, isolated database replay, scale checks, and browser suites. A queued merge runs the same short gate. [CI pipeline](ci-pipeline.md) has the job graph.
 
-Manual dispatch and reusable Production preflight calls run the full quality and database/browser jobs. Release verification still requires those successful check runs for the accepted SHA. GitHub Actions uses read-only default permissions and cannot approve pull requests. Every workflow declares its own narrower permissions. Active rulesets protect `main` and `development` from deletion and force pushes, require pull requests with resolved review threads, and require `ci-gate`.
+Manual dispatch and reusable Production preflight calls run the full quality and database/browser jobs. The browser suite runs on four runners, each with its own isolated stack, so a full run finishes in well under half the time and uses an estimated 1.6 to 1.8 times the runner minutes it used as two jobs. Release verification still requires those successful check runs for the accepted SHA. GitHub Actions uses read-only default permissions and cannot approve pull requests. Every workflow declares its own narrower permissions. Active rulesets protect `main` and `development` from deletion and force pushes, require pull requests with resolved review threads, and require `ci-gate`.
 
 The Codex worktree cache currently contains 60 unregistered directories using about 332 MB. Twenty-six contain `.git` files that point into retired nested worktrees. They are excluded from active Git worktrees, but have not been deleted because unique-file recovery has not been proven. Inventory and preserve any unique content before removing them.
 
 The `Production` environment still requires a human review. Scheduled workflows that target it therefore wait for approval. A separate scheduled environment needs its own scoped secrets before those workflows can move; GitHub does not expose existing secret values for copying. Do not remove the Production review or redirect jobs before that environment is provisioned.
+
+## Codex pull request review
+
+Use the repository's connected Codex GitHub integration for automatic review.
+Enable automatic review and review-on-push for both the platform and private
+plugin repositories in Codex code review settings. `AGENTS.md` supplies the
+repository review guidelines. Keep branch protection and `ci-gate` independent
+of the AI review; resolved review threads and successful tests remain required.
+
+Private PR 643 received an automatic Codex review against bde1aef on October 7.
+It identified narrow-screen DV navigation, and the fix is ece31d6. Later automatic
+reviews identified the runtime checklist and three partner attendance defects;
+those fixes are 5a76115 and 6c271f0. This proves that the integration reviewed
+updates to this private PR. Direct settings readback and review of the final head
+remain separate checks. Root PR 867 automatically started a Codex review for
+`d6abe1d` when the draft became ready on October 7. The completed review found
+two account export omissions. Forward migration `20261009060000` includes rating
+context and canonical attendance, with 35 database assertions and 11 archive
+unit tests passing. Review of subsequent candidate updates remains pending.
+Do not add a privileged `pull_request_target` job that executes candidate code
+or a second API-key workflow to claim the native integration is configured.
+
+After settings are confirmed, verify a Codex review against the candidate's
+current head SHA and address its findings in the same PR. A queued request,
+comment or older review is not an exact-commit review receipt.

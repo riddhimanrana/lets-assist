@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { MessageCircleIcon } from "@/components/icons/animated";
+import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { cn } from "@/lib/utils";
 import {
   Accordion,
   AccordionContent,
@@ -49,53 +53,47 @@ const faqs = [
 
 export default function FAQPage() {
   return (
-    <main className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <div className="space-y-3 text-center">
-          <p className="text-xs uppercase tracking-[0.5em] text-muted-foreground">
-            Frequently asked questions
-          </p>
-          <h1 className="text-3xl font-bold sm:text-4xl">
-            Everything you want to know about Let’s Assist
-          </h1>
-          <p className="mx-auto max-w-3xl text-sm sm:text-base text-muted-foreground">
-            Read through the most common questions about how we support
-            volunteers, why organizations switch from SignupGenius, and what’s
-            next after you sign up.
-          </p>
-        </div>
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader
+        title="Frequently asked questions"
+        description="Read through the most common questions about how we support volunteers, why organizations switch from SignupGenius, and what’s next after you sign up."
+      />
 
-        <section className="rounded-3xl border border-border/60 bg-card/80 p-6 shadow-lg shadow-foreground/5">
-          <Accordion className="w-full" defaultValue={["item-1"]}>
-            {faqs.map((faq, index) => (
-              <AccordionItem key={faq.question} value={`item-${index + 1}`}>
-                <AccordionTrigger>{faq.question}</AccordionTrigger>
-                <AccordionContent className="flex flex-col gap-4 text-sm text-muted-foreground">
-                  {faq.answer.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </section>
+      <Accordion className="mt-6 w-full" defaultValue={["item-1"]}>
+        {faqs.map((faq, index) => (
+          <AccordionItem key={faq.question} value={`item-${index + 1}`}>
+            <AccordionTrigger className="py-4 text-base">
+              {faq.question}
+            </AccordionTrigger>
+            <AccordionContent className="text-muted-foreground flex max-w-prose flex-col gap-3 text-sm leading-6">
+              {faq.answer.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
 
-        <div className="rounded-2xl border border-border/60 bg-primary/10 p-6 text-center">
-          <p className="text-sm font-medium text-primary">Still need a demo?</p>
-          <p className="text-sm text-muted-foreground">
+      <section className="mt-12 flex flex-col gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="grid gap-1">
+          <h2 className="font-medium">Still need a demo?</h2>
+          <p className="text-muted-foreground text-sm">
             Chat with us or request trusted member access to pilot Let’s Assist
             with your team.
           </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-3">
-            <Link href="/trusted-member">
-              <Button variant="ghost">Request trusted access</Button>
-            </Link>
-            <Link href="/contact">
-              <Button>Contact support</Button>
-            </Link>
-          </div>
         </div>
-      </div>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <Link
+            href="/trusted-member"
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Request trusted access
+          </Link>
+          <AnimatedLinkButton href="/contact" icon={MessageCircleIcon}>
+            Contact support
+          </AnimatedLinkButton>
+        </div>
+      </section>
     </main>
   );
 }

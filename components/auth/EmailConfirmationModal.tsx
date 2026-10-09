@@ -30,16 +30,16 @@ export function EmailConfirmationModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Email Verified!</DialogTitle>
+          <DialogTitle>Email verified</DialogTitle>
           <DialogDescription>
             Welcome to Let&apos;s Assist! Your email has been successfully
             verified.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button onClick={handleClose}>Get Started</Button>
+          <Button onClick={handleClose}>Get started</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

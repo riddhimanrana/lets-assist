@@ -1,10 +1,14 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import { hasGoogleSheetsScopes } from "@/services/calendar";
 import type { ReportType } from "../actions";
+import { probeSheetDestination } from "./destination-probe";
 import {
   assertOrgAccess,
+  DEFAULT_TAB_NAME,
+  getOrganizationSheetsAccessToken,
   getOrganizationSheetsConnection,
   hasConfiguredSheetDestination,
   type SheetSyncStatus,
@@ -72,8 +76,43 @@ export async function getSheetSyncStatus(
     };
   }
 
+  // A token row alone does not mean the sync works: the owner's Google account
+  // may not be able to open the file, or the tab may be gone.
+  let destinationProblem: SheetSyncStatus["destinationProblem"] = null;
+  if (
+    syncConfig?.created_by &&
+    destinationConfigured &&
+    connected &&
+    scopesOk
+  ) {
+    const ownerToken = await getOrganizationSheetsAccessToken(
+      syncConfig.created_by,
+      organizationId,
+      true,
+    );
+    if (ownerToken) {
+      destinationProblem = await probeSheetDestination(
+        ownerToken,
+        syncConfig.sheet_id,
+        syncConfig.tab_name?.trim() || DEFAULT_TAB_NAME,
+      );
+    }
+  }
+
+  // Staff can see that a sync exists and when it last ran. The connected
+  // Google account and its owner's email are admin-only, and hiding them in
+  // the client would still ship them in this response.
+  if (access.role !== "admin") {
+    connectedEmail = null;
+    connectedBy = connectedBy ? { ...connectedBy, email: null } : null;
+    // Staff learn that something is wrong, not the spreadsheet's tab names.
+    if (destinationProblem?.kind === "tab_missing") {
+      destinationProblem = { ...destinationProblem, tabs: [] };
+    }
+  }
+
   if (syncError) {
-    console.error("Failed to load sheet sync config:", syncError);
+    safeConsole.error("Failed to load sheet sync config:", syncError);
     return {
       connected,
       connectedEmail,
@@ -94,6 +133,7 @@ export async function getSheetSyncStatus(
     viewerScopesOk,
     connectedBy,
     viewerIsOwner,
+    destinationProblem,
     syncConfig: syncConfig
       ? destinationConfigured
         ? {

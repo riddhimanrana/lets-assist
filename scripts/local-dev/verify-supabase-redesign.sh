@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
+# shellcheck source=require-supabase-cli-version.sh
+source "${ROOT_DIR}/scripts/local-dev/require-supabase-cli-version.sh"
 
 run_step() {
   local label="$1"
@@ -15,21 +17,13 @@ run_step() {
   "$@"
 }
 
-: "${DV_LOCAL_TEST_PASSWORD:?Set DV_LOCAL_TEST_PASSWORD to a run-scoped fixture password}"
-export DV_LOCAL_TEST_PASSWORD
-: "${CSF_LOCAL_TEST_PASSWORD:=${DV_LOCAL_TEST_PASSWORD}}"
+: "${CSF_LOCAL_TEST_PASSWORD:?Set CSF_LOCAL_TEST_PASSWORD to a run-scoped fixture password}"
 export CSF_LOCAL_TEST_PASSWORD
 
 # ---------------------------------------------------------------------------
-# Remote readiness is a separate release gate, and it is currently blocked.
-#
-# scripts/audit-supabase-remote-readiness.sh is deterministically red while
-# `plugin_data` remains in supabase/config.toml api.schemas, and removing that
-# schema now would break the server-side service-role PostgREST reads this app
-# still depends on. Running it here unconditionally made a truthful local replay
-# look like a failing global readiness gate; skipping it silently would have been
-# worse. So it is opt-in, validated here before a single container starts, and a
-# typo is refused rather than quietly treated as "not requested".
+# The optional access audit checks the service-only Data API contract on this
+# configured database. A local result does not establish hosted readiness.
+# Keep the existing opt-in interface, and reject typos before creating resources.
 # ---------------------------------------------------------------------------
 REQUIRE_REMOTE_READINESS="${CSF_REQUIRE_REMOTE_READINESS:-}"
 case "${REQUIRE_REMOTE_READINESS}" in
@@ -207,6 +201,9 @@ EOF
 }
 
 run_step "${APP_ENV_STEP_LABEL}" load_validated_app_environment
+SUPABASE_PROJECT_ID="$(node scripts/local-dev/supabase-project-id.mjs --workdir "${CSF_ISOLATED_WORK_DIR}")"
+export SUPABASE_PROJECT_ID
+export SUPABASE_NETWORK_ID=""
 run_step "${TARGET_STEP_LABEL}" node scripts/local-dev/dv-local-env.mjs --csf-health
 run_step "${PGTAP_STEP_LABEL}" supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 # The isolated seed script only. It carries PLATFORM_SEED_MODE=csf-isolated-v1,
@@ -215,7 +212,6 @@ run_step "${PGTAP_STEP_LABEL}" supabase test db --workdir "${CSF_ISOLATED_WORK_D
 # local, non-CSF only, so neither script can touch the shared 54321 stack's CSF
 # tables from here.
 run_step "Seed Fictional Platform Fixtures (isolated mode, deterministic synthetic DVHS CSF records)" bun run csf:seed:platform:isolated
-run_step "Seed Fictional DV Fixtures (JavaScript-managed records)" bun run dv:fixtures
 run_step "${WORKFLOW_STEP_LABEL}" bun run csf:test:workflows
 run_step \
   "Supabase Advisors" \
@@ -237,13 +233,13 @@ run_step \
   bun run dev:test:cron
 
 if [[ "${REQUIRE_REMOTE_READINESS}" == "1" ]]; then
-  # Unchanged audit, explicitly requested. Its failure propagates.
+  # Explicitly requested access audit. Its failure propagates.
   run_step \
-    "Supabase Remote Server-Only Readiness Audit (explicitly required)" \
+    "Supabase Service-Only Access Audit (explicitly required)" \
     bun run db:audit:remote-readiness
 else
   echo
-  echo "Remote readiness: NOT EVALUATED — separate blocked release gate."
+  echo "Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence."
 fi
 
 GATE_STEPS_PASSED=true

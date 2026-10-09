@@ -60,7 +60,7 @@ export function SlotAttendeesDropdown({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs gap-1.5 hover:bg-muted/50 w-full justify-start"
+            className="h-7 px-2 text-xs gap-1.5 w-full justify-start"
           >
             <Users className="h-3 w-3" />
             <span>{attendees.length} signed up</span>
@@ -98,7 +98,7 @@ export function SlotAttendeesDropdown({
                         "cursor-pointer hover:text-foreground",
                     )}
                   >
-                    <Avatar className="h-6 w-6">
+                    <Avatar className="size-6">
                       <AvatarImage
                         src={
                           attendee.is_anonymous

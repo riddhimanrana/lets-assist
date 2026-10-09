@@ -156,3 +156,111 @@ for this comparison.
 
 Release 686 adds the signed CSF 1.2.85 publication without changing schema objects.
 It reuses the reviewed 685 inventory with the exact 686 ledger binding.
+
+Release 700 removes browser table and column privileges on Google OAuth
+credentials and keeps only service-role CRUD. Its clean replay preserves all
+1,350 object identities and changes exactly two fingerprints: the credential
+relation and the explicit client-grant catalog. The full 455-file SQL suite
+passed 11,374 assertions. The accepted catalog query returned one on that
+replay, with local fixture helpers removed only inside a rolled-back transaction.
+The previous 699 catalog remains accepted for its exact historical ledger.
+Unknown future migrations and changed migration bytes still refuse release.
+
+Release 701 adds the service-only personal-calendar disconnect preparation
+function. The clean replay adds exactly one object and preserves all 1,350
+schema 700 object fingerprints. The new function retains cleanup coordinates
+without changing provider events, receipt phases or confirmations. It checks the
+exact credential revision, locks source rows before reading their markers and
+bounds both the scan and prepared metadata. The 700 catalog still requires its
+original exact ledger. All historical migration bytes remain unchanged.
+The fresh 456-file SQL suite passed 11,416 assertions at source `a6257a20`.
+The exact accepted catalog query returned one after transactional local-helper
+teardown; that transaction rolled back. Controller coverage passed 467 tests.
+
+Release 702 makes the three project review fields service-owned. Browser roles
+receive explicit access to the other 43 columns, and the legacy creator view
+loses browser access. The clean replay retains all 1,351 object identities and
+changes exactly the project relation, legacy view and client-grant catalog
+fingerprints. Existing row policies, authenticated deletion and service CRUD
+remain in place. Every prior migration file retains its original bytes.
+
+The fresh 457-file SQL suite passed 11,501 assertions on runtime source
+`09f6dc0a` with the test-only fixture correction integrated at `072dedf4`.
+All 15 following database, seed, contract and scale gates passed. The exact
+accepted catalog query returned one after transactional fixture-helper teardown;
+the transaction rolled back. Controller coverage passed 471 tests. Historical
+700 and 701 manifests remain accepted only for their exact ledgers. Hosted
+Development comparison and browser acceptance are separate release checks.
+
+The request-fence bootstrap has its own exact 688 ledger, ending at
+`20260929051600`. It follows the unchanged 687 published migrations. Its clean
+catalog has 1,299 objects: the new request hook is the only added object, and
+all prior object digests remain unchanged. Historical 699–702 manifests still
+refer to their original ledgers without this newly reviewed bootstrap.
+
+The fixed-prefix bootstrap plan checks every filename and byte digest in the
+first 688 migrations, plus the accepted 687 and 688 catalogs. It never applies
+or approves later migrations. The owned replay executed the generated atomic
+687-to-688 transaction, waited for an already admitted authenticator request,
+and verified the exact installed catalog. Separate HTTP checks proved that
+reads and writes stay available while the flag is off, activation refuses
+writes with SQLSTATE `25006`, and releasing the gate restores writes. A
+read-only retry barrier covers an already-applied migration after a lost
+response. These local proofs do not authorize a hosted bootstrap.
+
+The hook holds a shared advisory lock until each request transaction ends.
+Operator flag changes acquire the exclusive lock in read-committed isolation.
+Writable repeatable-read and serializable requests fail closed even when
+maintenance is off because their snapshot can predate the lock wait. Read-only
+RPCs can retain those isolation levels. The exact verifier also rejects
+incompatible served-role or writable RPC defaults, changed hook bodies or
+privileges, and conflicting configuration. The maintenance signal lives in
+fixed authenticator role-catalog metadata; it is not a client-controlled GUC.
+
+Release 708 combines the accepted bootstrap with the reviewed remediation
+suffix. A fresh replay of `6af61c9e` produced 1,364 objects. Relative to the
+historical 702 catalog, 13 objects were added, 43 changed and none were removed.
+The additions are the request guard, eight image functions, two private image
+tables and two organization authorization functions. The changes are the 39
+reviewed business-conflict functions, the worker receipt reader and table, and
+the profile and organization relations carrying the new indexes, triggers and
+organization policies. All 687 published migration files remain unchanged.
+
+The full 464-file SQL run completed 11,737 assertions with one stale test
+expectation: an inactive administrator's update now returns zero rows through
+RLS before reaching the trigger. The corrected 93-assertion file passed and
+still proves that the issuer stays unchanged. The other full-suite assertions
+passed. Database, seed, workflow and scale checks are recorded separately from
+the candidate private-plugin runtime contract, which refuses unpublished
+version metadata until signed release integration.
+
+The 708 acceptance query also pins the exact enabled Auth image-reference and
+Storage upload triggers, preserving the existing account-deletion and CSF
+Storage checks. It requires Storage RLS, the fixed 21-row policy contract digest
+and no difference between that contract and live policies. Ten actual local
+rollback cases verified the accepted catalog and refusal of missing or disabled
+hooks, changed RPC grants, weakened organization policy, disabled Storage RLS,
+an extra browser policy, and coordinated live-policy and contract changes.
+Historical 688 and 699–702 manifests retain their original acceptance branches.
+No later publication ledger is accepted by this record.
+
+The paper-attendance repair keeps four unpublished forward migrations:
+`20261009010000_reviewed_attendance_intervals`,
+`20261009010001_attendance_print_manifests`,
+`20261009010002_corrected_certificate_delivery`, and
+`20261009010003_atomic_guest_account_link`. They cover reviewed intervals,
+print manifests, corrected-certificate delivery and atomic guest account linking.
+The repaired drafts also change combine, review, commit and conflict behavior.
+Appending them to the accepted 708 ledger produces a provisional 712-entry
+union. That count records the proposed ordering, not a replay or release approval.
+Other feature migrations will change the final combined count.
+
+The published `final-schema-687.json` keeps its exact bytes and ledger identity.
+The paper branch previously used that filename for a different, derived
+683-plus-four attendance catalog. That file does not describe the published 687
+schema and must not replace it. Its old ledger and the repaired forward ledger
+both remain unaccepted. The attendance catalog tests verify this refusal through
+the existing catalog APIs. Replay the final combined candidate, review its
+account-deletion and other security boundaries, then capture and approve its own
+exact catalog before Development cutover. Existing historical acceptance branches
+and migration approvals remain unchanged.

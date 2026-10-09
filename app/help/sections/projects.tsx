@@ -16,7 +16,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, FileSpreadsheet, Timer } from "lucide-react";
+import { Timer } from "lucide-react";
 import Link from "next/link";
 
 export function ProjectsSection() {
@@ -25,19 +25,16 @@ export function ProjectsSection() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card id="projects-creating">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Creating Projects
-            </CardTitle>
+            <CardTitle>Creating projects</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Accordion>
               <AccordionItem value="new-project">
-                <AccordionTrigger>How to Create a New Project</AccordionTrigger>
+                <AccordionTrigger>How to create a new project</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
-                  <ol className="list-decimal list-inside space-y-1">
+                  <ol className="list-decimal pl-5 space-y-1">
                     <li>
-                      Click the &quot;Create Project&quot; button from dashboard
+                      Click the &quot;Create project&quot; button from dashboard
                       or projects page
                     </li>
                     <li>Fill in project name and detailed description</li>
@@ -56,16 +53,16 @@ export function ProjectsSection() {
                   <div className="mt-3">
                     <Link
                       href="/projects/create"
-                      className={cn(buttonVariants({ size: "sm" }))}
+                      className={cn(buttonVariants({ variant: "outline" }))}
                     >
-                      Create Your First Project
+                      Create your first project
                     </Link>
                   </div>
                 </AccordionContent>
               </AccordionItem>
 
               {/* <AccordionItem value="project-types">
-                <AccordionTrigger>Project Types</AccordionTrigger>
+                <AccordionTrigger>Project types</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <ul className="space-y-2">
                     <li><strong>Individual:</strong> Personal volunteer work you track independently</li>
@@ -78,18 +75,18 @@ export function ProjectsSection() {
               </AccordionItem>
 
               <AccordionItem value="project-categories">
-                <AccordionTrigger>Project Categories</AccordionTrigger>
+                <AccordionTrigger>Project categories</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <div className="grid grid-cols-2 gap-2">
-                    <Badge variant="outline">Community Service</Badge>
+                    <Badge variant="outline">Community service</Badge>
                     <Badge variant="outline">Education</Badge>
                     <Badge variant="outline">Environment</Badge>
                     <Badge variant="outline">Healthcare</Badge>
-                    <Badge variant="outline">Animal Welfare</Badge>
-                    <Badge variant="outline">Senior Care</Badge>
-                    <Badge variant="outline">Youth Development</Badge>
-                    <Badge variant="outline">Arts & Culture</Badge>
-                    <Badge variant="outline">Disaster Relief</Badge>
+                    <Badge variant="outline">Animal welfare</Badge>
+                    <Badge variant="outline">Senior care</Badge>
+                    <Badge variant="outline">Youth development</Badge>
+                    <Badge variant="outline">Arts & culture</Badge>
+                    <Badge variant="outline">Disaster relief</Badge>
                     <Badge variant="outline">Other</Badge>
                   </div>
                 </AccordionContent>
@@ -100,21 +97,21 @@ export function ProjectsSection() {
 
         <Card id="projects-tracking">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Hour Tracking
-            </CardTitle>
+            <CardTitle>Hour tracking</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Accordion>
               <AccordionItem value="track-hours">
-                <AccordionTrigger>Ways to Track Your Hours</AccordionTrigger>
+                <AccordionTrigger>Ways to track your hours</AccordionTrigger>
                 <AccordionContent className="space-y-3 text-sm">
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
-                      <Timer className="h-4 w-4 mt-1 text-primary" />
+                      <Timer
+                        aria-hidden="true"
+                        className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                      />
                       <div>
-                        <h6 className="font-medium">Live Timer</h6>
+                        <h6 className="font-medium">Live timer</h6>
                         <p className="text-muted-foreground">
                           Start/stop timer while volunteering for accurate
                           tracking
@@ -122,16 +119,16 @@ export function ProjectsSection() {
                       </div>
                     </div>
                     {/* <div className="flex items-start gap-3">
-                      <Clock className="h-4 w-4 mt-1 text-primary" />
+                      <Clock aria-hidden="true" className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                       <div>
-                        <h6 className="font-medium">Manual Entry</h6>
+                        <h6 className="font-medium">Manual entry</h6>
                         <p className="text-muted-foreground">Add hours after completing work with date and description</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <Upload className="h-4 w-4 mt-1 text-primary" />
+                      <Upload aria-hidden="true" className="text-muted-foreground mt-0.5 size-4 shrink-0" />
                       <div>
-                        <h6 className="font-medium">Bulk Import</h6>
+                        <h6 className="font-medium">Bulk import</h6>
                         <p className="text-muted-foreground">Upload hours from spreadsheet for multiple entries</p>
                       </div>
                     </div> */}
@@ -140,10 +137,10 @@ export function ProjectsSection() {
               </AccordionItem>
 
               <AccordionItem value="verification">
-                <AccordionTrigger>Hour Verification Process</AccordionTrigger>
+                <AccordionTrigger>Hour verification process</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <p>Your volunteer hours can be verified through:</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
+                  <ul className="list-disc pl-5 space-y-1 ml-2">
                     {/* <li><strong>Project supervisors:</strong> People you designate as supervisors</li> */}
                     <li>
                       <strong>Organization coordinators:</strong> Official
@@ -158,7 +155,7 @@ export function ProjectsSection() {
                       projects (noted in certificates)
                     </li>
                   </ul>
-                  <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                  <div className="mt-2 p-2 bg-muted/50 rounded-md text-sm">
                     <strong>Tip:</strong> Verified hours from organizations
                     carry more weight for school requirements
                   </div>
@@ -166,12 +163,12 @@ export function ProjectsSection() {
               </AccordionItem>
 
               <AccordionItem value="certificates">
-                <AccordionTrigger>Earning Certificates</AccordionTrigger>
+                <AccordionTrigger>Earning certificates</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <p>
                     After completing volunteer work, you automatically receive:
                   </p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
+                  <ul className="list-disc pl-5 space-y-1 ml-2">
                     <li>Digital certificate with project details</li>
                     <li>Hour totals and verification status</li>
                     <li>Downloadable PDF for records</li>
@@ -181,13 +178,12 @@ export function ProjectsSection() {
                     href="/certificates"
                     className={cn(
                       buttonVariants({
-                        size: "sm",
                         variant: "outline",
                         className: "mt-2",
                       }),
                     )}
                   >
-                    View My Certificates
+                    View my certificates
                   </Link>
                 </AccordionContent>
               </AccordionItem>
@@ -198,10 +194,7 @@ export function ProjectsSection() {
 
       <Card id="projects-csv">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            Data Export & Import
-          </CardTitle>
+          <CardTitle>Data export & import</CardTitle>
           <CardDescription>
             Export your data or import existing volunteer records
           </CardDescription>
@@ -209,7 +202,7 @@ export function ProjectsSection() {
         <CardContent>
           <Accordion>
             <AccordionItem value="csv-export">
-              <AccordionTrigger>Exporting Your Data</AccordionTrigger>
+              <AccordionTrigger>Exporting your data</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
                 <p>
                   Export your volunteer hours for reports or school
@@ -218,18 +211,18 @@ export function ProjectsSection() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <h6 className="font-medium mb-2">From Dashboard:</h6>
-                    <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <ol className="list-decimal pl-5 space-y-1 text-sm">
                       <li>Go to your Dashboard</li>
-                      <li>Click &quot;Export Certificates&quot; button</li>
+                      <li>Click &quot;Export certificates&quot; button</li>
                       <li>Select date range (optional)</li>
                       <li>Download CSV file</li>
                     </ol>
                   </div>
                   <div>
                     <h6 className="font-medium mb-2">
-                      From Certificates Page:
+                      From Certificates page:
                     </h6>
-                    <ol className="list-decimal list-inside space-y-1 text-xs">
+                    <ol className="list-decimal pl-5 space-y-1 text-sm">
                       <li>Visit your Certificates page</li>
                       <li>Use export options</li>
                       <li>Print or save individual certificates</li>
@@ -237,8 +230,8 @@ export function ProjectsSection() {
                     </ol>
                   </div>
                 </div>
-                <div className="bg-info/20 p-3 rounded-lg">
-                  <p className="text-xs">
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-sm">
                     <strong>Tip:</strong> CSV files can be opened in Excel or
                     Google Sheets for further analysis and school submissions.
                   </p>
@@ -247,10 +240,10 @@ export function ProjectsSection() {
             </AccordionItem>
 
             <AccordionItem value="csv-import">
-              <AccordionTrigger>Importing Existing Records</AccordionTrigger>
+              <AccordionTrigger>Importing existing records</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
                 <p>Upload your existing volunteer hour records:</p>
-                <ol className="list-decimal list-inside space-y-1">
+                <ol className="list-decimal pl-5 space-y-1">
                   <li>
                     Prepare your CSV with columns: Date, Hours, Description,
                     Organization
@@ -261,14 +254,14 @@ export function ProjectsSection() {
                   <li>Confirm import</li>
                 </ol>
                 <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                  <h6 className="font-medium text-xs mb-1">
-                    Required CSV Format:
+                  <h6 className="font-medium text-sm mb-1">
+                    Required CSV format:
                   </h6>
-                  <code className="text-xs bg-background p-1 rounded">
+                  <code className="text-sm bg-background p-1 rounded-md">
                     Date,Hours,Description,Organization
                   </code>
                   <br />
-                  <code className="text-xs bg-background p-1 rounded">
+                  <code className="text-sm bg-background p-1 rounded-md">
                     2024-01-15,2.5,&quot;Food bank sorting&quot;,Local Food Bank
                   </code>
                 </div>
@@ -276,13 +269,13 @@ export function ProjectsSection() {
             </AccordionItem>
 
             <AccordionItem value="project-management">
-              <AccordionTrigger>Managing Your Projects</AccordionTrigger>
+              <AccordionTrigger>Managing your projects</AccordionTrigger>
               <AccordionContent className="space-y-3 text-sm">
                 <p>Keep your projects organized and up-to-date:</p>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <h6 className="font-medium mb-2">Project Status:</h6>
-                    <ul className="space-y-1 text-xs">
+                    <h6 className="font-medium mb-2">Project status:</h6>
+                    <ul className="space-y-1 text-sm">
                       <li>
                         <Badge variant="outline" className="mr-1">
                           Planning
@@ -310,8 +303,8 @@ export function ProjectsSection() {
                     </ul>
                   </div>
                   <div>
-                    <h6 className="font-medium mb-2">Project Actions:</h6>
-                    <ul className="space-y-1 text-xs">
+                    <h6 className="font-medium mb-2">Project actions:</h6>
+                    <ul className="space-y-1 text-sm">
                       <li>Edit project details anytime</li>
                       <li>Add or remove team members</li>
                       <li>Update project status</li>

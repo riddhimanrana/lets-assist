@@ -18,6 +18,10 @@ const navbarSource = readFileSync(
   new URL("../layout/Navbar.tsx", import.meta.url),
   "utf8",
 );
+const inboxSource = readFileSync(
+  new URL("./NotificationInbox.tsx", import.meta.url),
+  "utf8",
+);
 const normalizedSource = source.replace(/\s+/gu, " ");
 const normalizedNavbarSource = navbarSource.replace(/\s+/gu, " ");
 
@@ -114,14 +118,15 @@ describe("notification trigger accessibility", () => {
   test("names every real and fallback trigger without adding visible text", () => {
     // Real trigger, hydration fallback: both labelled, both icon-only.
     expect(source.match(/aria-label="Notifications"/g)).toHaveLength(2);
-    expect(normalizedSource).toMatch(
-      /<Button className=\{triggerClasses\} variant="ghost" aria-label="Notifications"\s*>/u,
+    expect(normalizedSource).toContain(
+      '<Button variant="ghost" size="icon" aria-label="Notifications" className="relative" {...bellIcon.triggerProps} >',
     );
-    // The bell is decorative once the button itself carries the name.
-    expect(normalizedSource).toContain('<Bell aria-hidden="true"');
+    // The bell is decorative once the button itself carries the name. The real
+    // trigger drives the hover animation; the inert fallback stays still.
     expect(source).toContain(
-      '<Bell aria-hidden="true" className="h-5 w-5 text-muted-foreground" />',
+      '<BellIcon ref={bellIcon.ref} size={16} aria-hidden="true" />',
     );
+    expect(source).toContain('<BellIcon size={16} aria-hidden="true" />');
     // No unlabelled trigger button may linger.
     expect(source).not.toContain(
       '<Button variant="ghost" size="icon" className="relative h-9 w-9 p-0 rounded-full border">',
@@ -170,10 +175,10 @@ describe("single-instance mounting", () => {
 
   test("keeps both responsive containers in the existing breakpoint vocabulary", () => {
     expect(navbarSource).toContain(
-      '<div className="hidden lg:flex items-center space-x-4 ml-auto">',
+      '<div className="hidden lg:flex items-center gap-2 ml-auto">',
     );
     expect(navbarSource).toContain(
-      '<div className="lg:hidden flex items-center ml-auto">',
+      '<div className="lg:hidden flex items-center gap-1 ml-auto">',
     );
   });
 });
@@ -186,5 +191,35 @@ describe("preserved notification behavior", () => {
     expect(source).toContain("<DrawerTitle>Notifications</DrawerTitle>");
     expect(source).toContain("{detailDialog}");
     expect(source).toContain("const markAllAsRead = async () => {");
+  });
+
+  test("marks everything read from the inbox header instead of on open", () => {
+    expect(source).toContain("onMarkAllRead={markAllAsRead}");
+    expect(inboxSource).toContain("onClick={onMarkAllRead}");
+    expect(inboxSource).toContain("disabled={unreadCount === 0}");
+    expect(inboxSource).toContain("Mark all as read");
+    // Opening the inbox must not start a timer that clears unread rows.
+    expect(source).not.toContain("setTimeout(markAllAsRead");
+  });
+
+  test("keeps row, action, settings and pagination wiring", () => {
+    expect(source).toContain("onSelect={handleNotificationClick}");
+    expect(source).toContain("onAction={handleNotificationAction}");
+    expect(source).toContain('router.push("/account/notifications");');
+    expect(source).toContain("loadMoreRef={loadMoreRef}");
+    expect(inboxSource).toContain(
+      "{hasMore ? <SkeletonRow ref={loadMoreRef} /> : null}",
+    );
+    expect(inboxSource).toContain("onClick={() => onSelect(notification)}");
+    expect(inboxSource).toContain("onClick={() => onAction(notification)}");
+  });
+
+  test("shows one unread signal per row and real loading, empty and error states", () => {
+    expect(inboxSource.match(/bg-primary/g)).toHaveLength(1);
+    expect(inboxSource).not.toContain("animate-pulse");
+    expect(inboxSource).toContain("<SkeletonRow key={index} />");
+    expect(inboxSource).toContain("No notifications yet");
+    expect(inboxSource).toContain("Couldn't load notifications");
+    expect(inboxSource).toContain("onClick={onRetry}");
   });
 });

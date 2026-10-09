@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import {
   DEFAULT_SCRIPT_ID,
@@ -54,6 +55,7 @@ interface TurnstileComponentProps {
   onLoad?: () => void;
   className?: string;
   theme?: "light" | "dark" | "auto";
+  action?: string;
 }
 
 export interface TurnstileRef {
@@ -64,124 +66,132 @@ export interface TurnstileRef {
 export const TurnstileComponent = forwardRef<
   TurnstileRef,
   TurnstileComponentProps
->(({ onVerify, onError, onExpire, onLoad, className, theme = "auto" }, ref) => {
-  const turnstileRef = useRef<TurnstileInstance>(null);
-  const bypassEnabled = isSecureCheckBypassed({
-    nodeEnv: process.env.NODE_ENV,
-    bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
-    siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
-    siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
-  });
+>(
+  (
+    { onVerify, onError, onExpire, onLoad, className, theme = "auto", action },
+    ref,
+  ) => {
+    const turnstileRef = useRef<TurnstileInstance>(null);
+    const bypassEnabled = isSecureCheckBypassed({
+      nodeEnv: process.env.NODE_ENV,
+      bypass: process.env.NEXT_PUBLIC_TURNSTILE_BYPASS,
+      siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      remoteSupabaseUrl: process.env.NEXT_PUBLIC_REMOTE_SUPABASE_URL,
+    });
 
-  useImperativeHandle(ref, () => ({
-    reset: () => {
-      if (!bypassEnabled) {
-        turnstileRef.current?.reset();
-      }
-    },
-    getResponse: () => {
+    useImperativeHandle(ref, () => ({
+      reset: () => {
+        if (!bypassEnabled) {
+          turnstileRef.current?.reset();
+        }
+      },
+      getResponse: () => {
+        if (bypassEnabled) {
+          return "turnstile-bypass";
+        }
+        return turnstileRef.current?.getResponse();
+      },
+    }));
+
+    useEffect(() => {
       if (bypassEnabled) {
-        return "turnstile-bypass";
-      }
-      return turnstileRef.current?.getResponse();
-    },
-  }));
-
-  useEffect(() => {
-    if (bypassEnabled) {
-      onLoad?.();
-      onVerify?.("turnstile-bypass");
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const checkReady = () => {
-      if ((window as WindowWithTurnstile).turnstile) {
         onLoad?.();
-        return true;
+        onVerify?.("turnstile-bypass");
+        return;
       }
-      return false;
-    };
 
-    if (checkReady()) {
-      return;
-    }
+      if (typeof window === "undefined") {
+        return;
+      }
 
-    const interval = window.setInterval(() => {
+      const checkReady = () => {
+        if ((window as WindowWithTurnstile).turnstile) {
+          onLoad?.();
+          return true;
+        }
+        return false;
+      };
+
       if (checkReady()) {
-        window.clearInterval(interval);
+        return;
       }
-    }, 300);
 
-    return () => window.clearInterval(interval);
-  }, [onLoad]);
+      const interval = window.setInterval(() => {
+        if (checkReady()) {
+          window.clearInterval(interval);
+        }
+      }, 300);
 
-  if (bypassEnabled) {
-    return (
-      <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
-        <span className="flex size-8 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-          <ShieldCheck className="size-4" />
-        </span>
-        <span className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground">
-            Secure check ready
+      return () => window.clearInterval(interval);
+    }, [onLoad]);
+
+    if (bypassEnabled) {
+      return (
+        <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="flex size-8 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+            <ShieldCheck className="size-4" />
           </span>
-          <span className="text-[0.7rem]">
-            Local development bypass is active
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">
+              Secure check ready
+            </span>
+            <span className="text-[0.7rem]">
+              Local development bypass is active
+            </span>
           </span>
-        </span>
-      </div>
-    );
-  }
-
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-
-  if (!siteKey) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error(
-        "Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)",
+        </div>
       );
     }
-    return (
-      <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
-        <span className="flex size-8 items-center justify-center rounded-full border border-border bg-muted/50">
-          <ShieldCheck className="size-4" />
-        </span>
-        <span className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground">
-            Secure check unavailable
+
+    const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+    if (!siteKey) {
+      if (process.env.NODE_ENV !== "production") {
+        safeConsole.error(
+          "Turnstile site key is not configured (NEXT_PUBLIC_TURNSTILE_SITE_KEY)",
+        );
+      }
+      return (
+        <div className="flex h-full w-full items-center justify-center gap-3 text-sm text-muted-foreground">
+          <span className="flex size-8 items-center justify-center rounded-full border border-border bg-muted/50">
+            <ShieldCheck className="size-4" />
           </span>
-          <span className="text-[0.7rem]">Turnstile is not configured</span>
-        </span>
-      </div>
-    );
-  }
-
-  const handleError = (errorCode?: string) => {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[Turnstile] Error", errorCode);
+          <span className="flex flex-col">
+            <span className="text-xs font-semibold text-foreground">
+              Secure check unavailable
+            </span>
+            <span className="text-[0.7rem]">Turnstile is not configured</span>
+          </span>
+        </div>
+      );
     }
-    onError?.(errorCode);
-  };
 
-  return (
-    <Turnstile
-      ref={turnstileRef}
-      siteKey={siteKey}
-      onSuccess={onVerify}
-      onError={handleError}
-      onExpire={onExpire}
-      options={{
-        theme,
-        size: "normal",
-        execution: "render",
-      }}
-      className={className}
-    />
-  );
-});
+    const handleError = (errorCode?: string) => {
+      if (process.env.NODE_ENV !== "production") {
+        safeConsole.warn("[Turnstile] Error", errorCode);
+      }
+      onError?.(errorCode);
+    };
+
+    return (
+      <Turnstile
+        ref={turnstileRef}
+        siteKey={siteKey}
+        onSuccess={onVerify}
+        onError={handleError}
+        onExpire={onExpire}
+        options={{
+          theme,
+          size: "normal",
+          execution: "render",
+          action,
+        }}
+        className={className}
+      />
+    );
+  },
+);
 
 TurnstileComponent.displayName = "TurnstileComponent";

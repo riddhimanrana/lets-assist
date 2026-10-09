@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useEffect, useState } from "react";
 import { format as formatDate, parseISO } from "date-fns";
@@ -50,13 +51,13 @@ export function TimezoneDateDisplay({
             finalFormatted = `${formatted} ${tzAbbr}`;
           }
         } catch (tzError) {
-          console.warn("Error adding timezone abbreviation:", tzError);
+          safeConsole.warn("Error adding timezone abbreviation:", tzError);
         }
       }
 
       setFormattedDate(finalFormatted);
     } catch (error) {
-      console.error("Error formatting date:", error);
+      safeConsole.error("Error formatting date:", error);
       // Fallback to UTC if timezone conversion fails
       setFormattedDate(fallbackText);
     }
@@ -108,7 +109,7 @@ export function TimezoneEventDateRange({
               .find((part) => part.type === "timeZoneName")?.value || ""
           );
         } catch (tzError) {
-          console.warn("Error getting timezone abbreviation:", tzError);
+          safeConsole.warn("Error getting timezone abbreviation:", tzError);
           return "";
         }
       };
@@ -133,7 +134,7 @@ export function TimezoneEventDateRange({
         end: tzAbbr ? `${formattedEnd} ${tzAbbr}` : formattedEnd,
       });
     } catch (error) {
-      console.error("Error formatting dates:", error);
+      safeConsole.error("Error formatting dates:", error);
       setFormattedDates({
         start: "Error loading date",
         end: "Error loading date",
@@ -144,16 +145,18 @@ export function TimezoneEventDateRange({
   if (!isClient) {
     return (
       <div className={className}>
-        <p className="text-base font-semibold mt-0.5">Loading...</p>
-        <p className="text-xs text-muted-foreground">to Loading...</p>
+        <p className="font-medium">Loading...</p>
+        <p className="text-muted-foreground text-sm">to Loading...</p>
       </div>
     );
   }
 
   return (
     <div className={className}>
-      <p className="text-base font-semibold mt-0.5">{formattedDates.start}</p>
-      <p className="text-xs text-muted-foreground">to {formattedDates.end}</p>
+      <p className="font-medium tabular-nums">{formattedDates.start}</p>
+      <p className="text-muted-foreground text-sm tabular-nums">
+        to {formattedDates.end}
+      </p>
     </div>
   );
 }
@@ -184,7 +187,7 @@ export function TimezonePrintEventDate({
 
       setFormattedDate(formatted);
     } catch (error) {
-      console.error("Error formatting date:", error);
+      safeConsole.error("Error formatting date:", error);
       setFormattedDate("Error loading date");
     }
   }, [startDate]);

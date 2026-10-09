@@ -35,14 +35,14 @@ procedure; this is the DVHS path through them.
    `/organization/dvhighcsf` on the environment you are working in. If it does
    not exist, sign in as the accepted trusted member who will own setup; the
    route states that only Trusted Members can create organizations. Open
-   **Organizations**, select **Create Organization**, and confirm the form route
+   **Organizations**, select **Create organization**, and confirm the form route
    is `/organization/create`. Under **Basic Information**, enter
-   **Organization Name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
+   **Organization name** = `DVHigh CSF`, **Username** = `dvhighcsf`, the required
    **Description** using only reviewed public chapter wording, **Website** =
-   `https://www.dvhighcsf.org`, and the required **Organization Type** selected
+   `https://www.dvhighcsf.org`, and the required **Organization type** selected
    from the reviewed chapter classification. **Upload Logo** is optional; do not
    invent a description, type, or private contact value. After the username
-   availability check succeeds, select **Create Organization**. The creator is
+   availability check succeeds, select **Create organization**. The creator is
    inserted as the organization `admin`, and the successful form opens
    `/organization/dvhighcsf`.
 2. **Entitle the plugin** (platform super admin — onboarding Stage 1). Open
@@ -55,11 +55,11 @@ procedure; this is the DVHS path through them.
    behavior was authorized, and select **Save access**. **Force install** is a
    different operation and lives on **Advanced**; entitling never needs it.
 3. **Install the plugin** (organization admin — onboarding Stage 2). Open
-   `/organization/dvhighcsf/settings#organization-plugins`, find **Organization
-   Plugins**, and select **Open plugin marketplace**. Under **Available to
+   `/organization/dvhighcsf/settings?section=plugins`, find **Organization
+   plugins**, and select **Open plugin marketplace**. Under **Available to
    install**, find **DVHS CSF** and select **Install**. In **Install DVHS CSF?**,
    review **This plugin requests access to:**, check **I approve installing this
-   plugin and grant the requested access.**, and select **Install Plugin**.
+   plugin and grant the requested access.**, and select **Install plugin**.
    After installing, verify that the seeded roles list and point categories are
    populated. If either is empty the install hook failed and was compensated:
    check `plugin_audit_logs` instead of continuing, and never hand-seed the
@@ -561,15 +561,17 @@ it into a Fall 2026 rule.
 2. Review the saved details and member-facing signup/proof consequence. Select
    **Publish** only when the record is complete. A row reading
    **Published** is publication evidence; a saved draft is not.
-3. Open **Point submissions**. Select **Review**, inspect the activity or club,
-   claimed number, source relationship, and proof, then enter **Awarded points**
-   and **Review notes**. Use **Request changes**, **Reject**, or **Approve
-   award** according to the evidence. Review notes are required for rejection,
-   requested changes, and an adjusted award.
-4. Confirm the result in **CSF point awards** and in the student's **My CSF**
-   view. After **Request changes**, the member uses **Update and resubmit**; an
-   appeal is a separate decision. Neither rewrites the original submission or
-   award history.
+3. Open **Point submissions** and select **Review & proof**. Inspect the activity
+   or club, claimed number, source relationship, and proof, then enter **Awarded
+   points** and **Review notes**. Use **Reject** or **Approve award** according
+   to the evidence. Member-submitted claims also offer **Request changes**.
+   Organizer attendance claims cannot return to the member for editing; staff
+   approve, reject, or retry attendance sync. Review notes are required for
+   rejection, requested changes, and an adjusted award.
+4. Confirm approved points in **CSF point awards** and the student's **My CSF**
+   view. After **Request changes** on a member-submitted claim, the member uses
+   **Update and resubmit**. Appeals remain separate decisions, and prior history
+   remains intact.
 
 Every mutation rechecks the acting account, active membership, current open
 term, published policy, source relationship, cap, class, and finalized proof.
@@ -804,11 +806,11 @@ Complete these gates before using real chapter credentials or rows:
       Production databases, links, tokens, previews, and decisions isolated.
 - [ ] Verify the root tree is the approved exact commit and the private plugin
       remains a clean gitlink at its approved SHA.
-- [ ] Run the read-only
-      `scripts/production-cutover-preflight.sql` with the reviewed Production
-      read-only URL. It must select the live Production baseline, pass every
-      shared blocker, and name any cancellation-job transitions for explicit
-      review. Rehearse the complete pending transition on a Production-shaped
+- [ ] Run `node scripts/production/maintenance-preflight.mjs before` with the
+      reviewed Production read-only URL and `EXPECTED_SUPABASE_PROJECT_REF`.
+      It must verify the live Production baseline against an accepted catalog
+      and pass every current blocker. Review data transitions separately.
+      Rehearse the complete pending transition on a Production-shaped
       clone and verify the backup restore before scheduling the window.
 - [ ] At T-0 stop writers and scheduled workers, take the final snapshots, then
       merge the exact accepted Production pull request with a merge commit. The

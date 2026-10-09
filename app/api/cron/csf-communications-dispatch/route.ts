@@ -1,12 +1,13 @@
 import "server-only";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { isCsfWorkerEnabled } from "@/lib/cron/csf-worker-controls";
 
 import { NextRequest, NextResponse } from "next/server";
-import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { logWarn } from "@/lib/logger";
 import {
   createCsfProviderStartLimiter,
@@ -160,67 +161,14 @@ async function beforeDeadline<T>(
 }
 
 /**
- * `Authorization: Bearer <secret>`, and nothing else.
- *
- * The previous reader was `authHeader.replace("Bearer ", "")`, which is not a
- * grammar at all -- `replace` with a string pattern removes the FIRST occurrence
- * if present and otherwise returns the input untouched. So a header consisting of
- * the bare secret with no scheme authenticated, and so did `"xBearer <secret>"`,
- * `"Bearer Bearer <secret>"` (one prefix consumed, the other left as part of the
- * token only if it happened to match), and any variant whose stray prefix
- * survived into a value that still compared equal.
- *
- * One anchored pattern instead. `[\x21-\x7E]+` is one run of printable ASCII with
- * no space, so the token cannot carry padding, an embedded space, a newline, a
- * tab, a NUL, or any control byte; `^`/`$` without the `m` flag anchor to the
- * whole string in JavaScript, so a trailing newline is rejected rather than
- * tolerated. `Bearer` is matched case-sensitively and followed by exactly one
- * ASCII space.
+ * The shared helper anchors the bearer grammar, compares in constant time and
+ * reads the environment per request. No configured secret means no access, so
+ * a forgotten environment variable cannot make this a public send endpoint.
  */
-const BEARER_GRAMMAR = /^Bearer ([\x21-\x7E]+)$/;
-
-function extractBearerSecret(header: string | null): string | null {
-  if (typeof header !== "string") return null;
-  const match = BEARER_GRAMMAR.exec(header);
-  return match ? match[1] : null;
-}
-
-/**
- * Compare two secrets without leaking WHERE they diverge.
- *
- * Length is compared first and in the clear: `timingSafeEqual` throws on unequal
- * lengths, and the length of a configured secret is not the part worth hiding.
- * What matters is that two same-length candidates take the same time, so an
- * attacker cannot recover the secret byte by byte.
- */
-function secretsMatch(expected: string, presented: string): boolean {
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(presented, "utf8");
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 function isAuthorized(request: NextRequest): boolean {
-  const presented = extractBearerSecret(request.headers.get("authorization"));
-  if (presented === null) return false;
-
-  // Read at request time, not at module load. A secret rotated or injected after
-  // the module was first evaluated must take effect, and a module-level capture
-  // silently keeps serving the stale value.
-  const allowedTokens = [
-    process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN,
-    process.env.CRON_TOKEN ?? process.env.CRON_SECRET,
-  ].filter((value): value is string => Boolean(value));
-
-  // NO SECRET CONFIGURED MEANS NO ACCESS. Falling open here would make a
-  // forgotten environment variable a public send endpoint.
-  if (allowedTokens.length === 0) return false;
-
-  // reduce, not some: `some` short-circuits, so the number of comparisons would
-  // depend on which secret matched.
-  return allowedTokens.reduce(
-    (matched, candidate) => secretsMatch(candidate, presented) || matched,
-    false,
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.CSF_COMMUNICATIONS_WORKER_SECRET_TOKEN),
   );
 }
 
@@ -374,6 +322,10 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  return observeWorkerRun("csf-communications-dispatch", runEnabledWorker);
+}
+
+async function runEnabledWorker() {
   const startedAt = Date.now();
   const runDeadlineMs = configuredRunDeadlineMs();
   const deadlineAt = startedAt + runDeadlineMs;

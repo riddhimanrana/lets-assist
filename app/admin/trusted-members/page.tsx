@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { checkSuperAdmin, getTrustedMemberApplications } from "../actions";
 import { TrustedMembersTab } from "../components/TrustedMembersTab";
-import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminLoadError, AdminPage } from "../components/AdminPage";
 
 export const metadata = {
-  title: "Trusted Members | Admin",
+  title: "Admin trusted members",
   description: "Manage trusted member applications",
 };
 
@@ -19,28 +20,16 @@ export default async function TrustedMembersPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto max-w-7xl py-8 px-4">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          Error loading applications: {error}
-        </div>
-      </div>
+      <AdminPage>
+        <PageHeader title="Trusted members" />
+        <AdminLoadError title="Error loading applications" message={error} />
+      </AdminPage>
     );
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 py-8 px-4 md:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Trusted Members</h1>
-        <p className="text-muted-foreground">
-          Review applications and manage trusted member status for users.
-        </p>
-      </div>
-
-      <Card className="border-border bg-card text-card-foreground shadow-xs">
-        <CardContent>
-          <TrustedMembersTab trustedMembers={applications || []} />
-        </CardContent>
-      </Card>
-    </div>
+    <AdminPage>
+      <TrustedMembersTab trustedMembers={applications || []} />
+    </AdminPage>
   );
 }

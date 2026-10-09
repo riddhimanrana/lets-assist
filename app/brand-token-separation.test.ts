@@ -139,11 +139,6 @@ describe("the brand token carries identity, the primary token carries meaning", 
 describe("decorative brand surfaces", () => {
   const decorative: Array<{ file: string; label: string; match: RegExp }> = [
     {
-      file: "app/organization/[id]/page.tsx",
-      label: "organization header backdrop wash",
-      match: /from-brand\/15 via-brand\/5 to-background\/0/u,
-    },
-    {
       file: "components/organization/OrganizationHeader.tsx",
       label: "organization avatar monogram tint",
       match: /bg-brand\/10/u,
@@ -156,6 +151,17 @@ describe("decorative brand surfaces", () => {
       expect(source).toMatch(surface.match);
     });
   }
+
+  test("the organization backdrop wash is decorative and uses --brand, never --primary", () => {
+    const source = readFileSync(
+      join(repoRoot, "app/organization/[id]/page.tsx"),
+      "utf8",
+    );
+    expect(source).toMatch(/bg-linear-to-br/u);
+    expect(source).toMatch(/from-brand\/15/u);
+    expect(source).toContain('aria-hidden="true"');
+    expect(source).not.toMatch(/from-primary|via-primary/u);
+  });
 
   test("the verified badge stays on --primary because it reports state", () => {
     const source = readFileSync(

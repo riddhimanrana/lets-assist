@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import type { DateRange } from "@daypicker/react";
 import { parseISO } from "date-fns";
 
@@ -40,7 +41,7 @@ const getProjectDate = (project: ProjectWithSignups): Date | null => {
       return parseISO(project.schedule.sameDayMultiArea.date);
     }
   } catch (error) {
-    console.error("Date parsing error:", error);
+    safeConsole.error("Date parsing error:", error);
   }
   return null;
 };

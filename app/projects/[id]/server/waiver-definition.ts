@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -49,7 +50,7 @@ export async function getWaiverDefinition(projectId: string): Promise<{
       .single();
 
     if (error) {
-      console.error("Error fetching waiver definition:", error);
+      safeConsole.error("Error fetching waiver definition:", error);
       return { success: false, error: "Failed to fetch waiver definition" };
     }
 
@@ -58,7 +59,7 @@ export async function getWaiverDefinition(projectId: string): Promise<{
       definition: definition as WaiverDefinitionFull,
     };
   } catch (error) {
-    console.error("Error in getWaiverDefinition:", error);
+    safeConsole.error("Error in getWaiverDefinition:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -189,7 +190,7 @@ export async function saveWaiverDefinition(
     );
 
     if (saveError || !definitionId) {
-      console.error("Error versioning waiver definition:", saveError);
+      safeConsole.error("Error versioning waiver definition:", saveError);
       return { success: false, error: "Failed to save waiver definition" };
     }
 
@@ -198,7 +199,7 @@ export async function saveWaiverDefinition(
 
     return { success: true, definitionId: String(definitionId) };
   } catch (error) {
-    console.error("Error in saveWaiverDefinition:", error);
+    safeConsole.error("Error in saveWaiverDefinition:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

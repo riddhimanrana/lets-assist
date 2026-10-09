@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 import { type NextRequest, NextResponse } from "next/server";
@@ -88,8 +89,13 @@ const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = [
   "/faq",
 ];
 
+// Certificate detail pages expose only the narrow public verification view.
+const PUBLIC_CERTIFICATE_PATH =
+  /^\/certificates\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // Function to check if a path requires authentication
 export function isProtectedPath(path: string) {
+  if (PUBLIC_CERTIFICATE_PATH.test(path)) return false;
   return (
     isCsfApplicationPath(path) ||
     PROTECTED_PATHS.some(
@@ -147,6 +153,7 @@ export function hasSensitiveAuthQuery(
 export function isAuthSensitiveProxyPath(path: string): boolean {
   if (
     isProtectedPath(path) ||
+    PUBLIC_CERTIFICATE_PATH.test(path) ||
     path === "/auth" ||
     path.startsWith("/auth/") ||
     path === "/reset-password" ||
@@ -313,7 +320,7 @@ export async function updateSession(
     await supabase.auth.getClaims();
 
   if (claimsError && process.env.NODE_ENV === "development") {
-    console.log(
+    safeConsole.log(
       "[Proxy] getClaims error (request will be treated as unauthenticated):",
       claimsError.message,
     );
@@ -338,7 +345,7 @@ export async function updateSession(
 
     if (validationDisposition === "retry") {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] Fresh auth-user validation temporarily failed:",
           freshUserError?.message,
         );
@@ -483,7 +490,7 @@ export async function updateSession(
 
     if (mfaState.invalidUser) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] Detected stale/deleted auth user during MFA validation. Signing out.",
         );
       }
@@ -493,7 +500,7 @@ export async function updateSession(
       user = null;
     } else if (mfaState.lookupError) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
+        safeConsole.warn(
           "[Proxy] MFA validation temporarily failed:",
           mfaState.lookupError.message,
         );
@@ -592,7 +599,7 @@ export async function updateSession(
         .single();
 
       if (error) {
-        console.error(
+        safeConsole.error(
           "Error fetching project for management-route check:",
           error,
         );
@@ -626,7 +633,7 @@ export async function updateSession(
         );
       }
     } catch (e) {
-      console.error("Exception during project management-route check:", e);
+      safeConsole.error("Exception during project management-route check:", e);
       return finalizeResponse(
         NextResponse.redirect(new URL("/home", request.url)),
       );

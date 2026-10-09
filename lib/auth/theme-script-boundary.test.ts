@@ -1,16 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import ts from "typescript";
+import * as privacy from "../analytics-privacy";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-
-const posthogInitCalls: unknown[][] = [];
-
-mock.module("posthog-js", () => ({
-  default: {
-    init: (...args: unknown[]) => {
-      posthogInitCalls.push(args);
-    },
-  },
-}));
 
 describe("root theme bootstrap", () => {
   test("applies the theme in the head without waiting for analytics or hydration", () => {
@@ -32,26 +24,94 @@ describe("root theme bootstrap", () => {
     expect(head).toContain('id="initial-theme"');
     expect(head).toContain("__html: INITIAL_THEME_SCRIPT");
     expect(instrumentation).not.toContain("applyInitialTheme");
-    const analyticsGuardIndex = instrumentation.indexOf("if (posthogToken)");
-    const analyticsIndex = instrumentation.indexOf("posthog.init(");
-    expect(analyticsGuardIndex).toBeGreaterThan(-1);
-    expect(analyticsIndex).toBeGreaterThan(analyticsGuardIndex);
   });
 
-  test("skips PostHog when the public token is absent", async () => {
-    const previousToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
-    delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
-
-    try {
-      await import("../../instrumentation-client");
-    } finally {
-      if (previousToken === undefined) {
-        delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
-      } else {
-        process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = previousToken;
-      }
+  test("actual initialization respects token, Production, browser and host gates", () => {
+    const source = readFileSync(
+      join(process.cwd(), "instrumentation-client.ts"),
+      "utf8",
+    );
+    const output = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText;
+    for (const scenario of [
+      {
+        token: undefined,
+        node: "production",
+        hosted: "production",
+        hostname: "lets-assist.com",
+        expected: 0,
+      },
+      {
+        token: "synthetic",
+        node: "development",
+        hosted: "production",
+        hostname: "lets-assist.com",
+        expected: 0,
+      },
+      {
+        token: "synthetic",
+        node: "production",
+        hosted: "preview",
+        hostname: "lets-assist.com",
+        expected: 0,
+      },
+      {
+        token: "synthetic",
+        node: "production",
+        hosted: "production",
+        hostname: "localhost",
+        expected: 0,
+      },
+      {
+        token: "synthetic",
+        node: "production",
+        hosted: "production",
+        hostname: undefined,
+        expected: 0,
+      },
+      {
+        token: "synthetic",
+        node: "production",
+        hosted: "production",
+        hostname: "lets-assist.com",
+        expected: 1,
+      },
+    ]) {
+      const calls: unknown[][] = [];
+      const require = (name: string) => {
+        if (name === "posthog-js")
+          return {
+            __esModule: true,
+            default: { init: (...args: unknown[]) => calls.push(args) },
+          };
+        if (name === "./lib/analytics-privacy") return privacy;
+        throw new Error("Unreviewed client bootstrap dependency");
+      };
+      new Function("require", "exports", "process", "window", output)(
+        require,
+        {},
+        {
+          env: {
+            NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: scenario.token,
+            NODE_ENV: scenario.node,
+            NEXT_PUBLIC_VERCEL_ENV: scenario.hosted,
+          },
+        },
+        scenario.hostname
+          ? { location: { hostname: scenario.hostname, protocol: "https:" } }
+          : undefined,
+      );
+      expect(calls).toHaveLength(scenario.expected);
+      if (scenario.expected)
+        expect(calls[0][1]).toMatchObject({
+          autocapture: false,
+          capture_exceptions: false,
+          disable_session_recording: true,
+        });
     }
-
-    expect(posthogInitCalls).toHaveLength(0);
   });
 });

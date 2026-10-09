@@ -48,7 +48,18 @@ export function formatDateRangeLabel(
   const startLabel = format(value.from, "MMM d");
 
   if (value.to && value.to.getTime() !== value.from.getTime()) {
-    return `${startLabel} - ${format(value.to, "MMM d")}`;
+    // A range that crosses a year reads as reversed without the years, and a
+    // range in another year needs one to be placed at all.
+    const fromYear = value.from.getFullYear();
+    const toYear = value.to.getFullYear();
+    if (fromYear !== toYear) {
+      return `${format(value.from, "MMM d, yyyy")} – ${format(value.to, "MMM d, yyyy")}`;
+    }
+    const endLabel = format(
+      value.to,
+      toYear === new Date().getFullYear() ? "MMM d" : "MMM d, yyyy",
+    );
+    return `${startLabel} – ${endLabel}`;
   }
 
   return options.singleDatePrefix

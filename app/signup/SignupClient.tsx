@@ -1,6 +1,5 @@
 "use client";
 
-import { AlertCircle, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -31,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { isSecureCheckBlockingSubmit } from "@/lib/auth/secure-check";
 import { passwordSchema } from "@/lib/auth/password-policy";
+import { PasswordRules } from "./PasswordRules";
 
 interface SignupClientProps {
   redirectPath?: string;
@@ -175,11 +175,11 @@ export default function SignupClient({
   };
 
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 shadow-[inset_0_1px_0_hsl(var(--border))] sm:px-6 lg:px-8">
-      <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl border border-border/70 bg-card/95 py-0 shadow-[0_16px_44px_rgba(0,0,0,0.12),0_1px_6px_rgba(0,0,0,0.04)] ring-0 backdrop-blur-xl">
+    <section className="relative isolate flex min-h-[calc(100svh-4.5rem)] items-center justify-center overflow-hidden bg-background px-4 py-10 sm:px-6 lg:px-8">
+      <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
           <CardTitle className="text-left text-2xl font-semibold tracking-tight">
-            {isStaffInvite ? "Staff Invite" : "Create an account"}
+            {isStaffInvite ? "Staff invite" : "Create an account"}
           </CardTitle>
           <CardDescription className="text-left text-sm leading-5">
             {isStaffInvite
@@ -196,7 +196,7 @@ export default function SignupClient({
             <Button
               type="button"
               variant="outline"
-              className="h-10 w-full rounded-full border-border/80 bg-background/80 font-semibold shadow-xs hover:border-primary/30 hover:bg-primary/5"
+              className="h-10 w-full rounded-full font-semibold"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading}
             >
@@ -215,15 +215,12 @@ export default function SignupClient({
                 </>
               )}
             </Button>
-            <div className="relative py-1">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/80" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-3 font-semibold tracking-wide text-muted-foreground/80">
-                  Or continue with
-                </span>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-border h-px flex-1" aria-hidden="true" />
+              <span className="text-muted-foreground text-xs font-medium">
+                Or continue with
+              </span>
+              <span className="bg-border h-px flex-1" aria-hidden="true" />
             </div>
             <Controller
               control={form.control}
@@ -234,7 +231,7 @@ export default function SignupClient({
                     htmlFor={field.name}
                     className="text-[13px] font-semibold"
                   >
-                    Full Name
+                    Full name
                     {normalizedPrefilledName && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
                         (auto-filled by org admin)
@@ -246,7 +243,7 @@ export default function SignupClient({
                     placeholder="John Doe"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -275,7 +272,7 @@ export default function SignupClient({
                     placeholder="m@example.com"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -292,7 +289,7 @@ export default function SignupClient({
                     htmlFor={field.name}
                     className="text-[13px] font-semibold"
                   >
-                    Phone Number (Optional)
+                    Phone number (optional)
                     {normalizedPrefilledPhone && (
                       <span className="ml-2 text-xs text-muted-foreground font-normal italic">
                         (auto-filled by org admin)
@@ -304,7 +301,7 @@ export default function SignupClient({
                     placeholder="+1 555-1234"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
@@ -328,31 +325,17 @@ export default function SignupClient({
                     type="password"
                     {...field}
                     aria-invalid={fieldState.invalid}
-                    className="h-10 rounded-xl border-border/80 bg-muted/35 px-4 shadow-none focus-visible:bg-background"
+                    aria-describedby="signup-password-rules"
+                    className="h-10 rounded-xl px-4"
                   />
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
                   )}
-                  <div className="mt-2.5">
-                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-3 shadow-xs">
-                      <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-warning">
-                        <AlertCircle className="h-4 w-4" />
-                        Password Requirements
-                      </p>
-                      <ul className="space-y-1.5 text-xs text-warning/90">
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>At least 8 characters long</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>
-                            Cannot be a commonly used or compromised password
-                          </span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+                  <PasswordRules
+                    id="signup-password-rules"
+                    value={field.value}
+                    showUnmet={fieldState.isTouched || fieldState.invalid}
+                  />
                 </Field>
               )}
             />
@@ -388,7 +371,7 @@ export default function SignupClient({
             </p>
             <Button
               type="submit"
-              className="h-10 w-full rounded-full bg-primary font-semibold text-primary-foreground shadow-none hover:bg-primary/90"
+              className="h-10 w-full rounded-full font-semibold"
               disabled={
                 isLoading ||
                 isSecureCheckBlockingSubmit(
@@ -397,7 +380,7 @@ export default function SignupClient({
                 )
               }
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? "Creating account..." : "Create account"}
             </Button>
             <div className="pt-1 text-center text-sm text-muted-foreground">
               Already have an account?{" "}

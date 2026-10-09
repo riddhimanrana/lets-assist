@@ -31,12 +31,10 @@ The shared platform seed includes:
 The shared seed does not create DVHS CSF records. Use the isolated CSF setup for
 that plugin.
 
-## Optional Speech and Debate accounts
+## Archived Speech and Debate fixtures
 
-After the shared seed, run `bun run dv:fixtures` with the same exported
-password. This adds `dv.admin@local.test`, `dv.staff@local.test`, three student
-accounts, an outsider, and the numbered member fixtures documented in
-[the fixture catalog](../../scripts/local-dev/README-fixtures.md).
+Speech and Debate is no longer offered or registered. Its old fixture tooling
+is retained for reference and is not part of normal local setup.
 
 ## Isolated CSF accounts
 

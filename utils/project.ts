@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { Project, ProjectStatus } from "@/types";
 import {
   format,
@@ -10,6 +11,10 @@ import {
   isWithinInterval,
 } from "date-fns";
 import { TZDate } from "@date-fns/tz";
+import {
+  ACTIVE_PROJECT_SIGNUP_STATUSES,
+  summarizeProjectOccupancy,
+} from "@/lib/projects/availability";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -178,7 +183,7 @@ export function getMultiDaySlotDisplayName(
 }
 
 export function getMultiDaySlotByScheduleId(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule">,
   scheduleId: string,
 ): {
   day: NonNullable<Project["schedule"]["multiDay"]>[number];
@@ -238,7 +243,7 @@ export function getMultiDaySlotByScheduleId(
  * If it's a legacy ID (YYYY-MM-DD-slotIndex), it tries to find the best match.
  */
 export function resolveScheduleId(
-  project: Project,
+  project: Pick<Project, "event_type" | "schedule">,
   scheduleId: string,
 ): string {
   if (project.event_type !== "multiDay" || !project.schedule.multiDay) {
@@ -359,7 +364,8 @@ export const getProjectStatus = (
   // Guard against unknown event_type (e.g. legacy/malformed DB rows like event_type='event')
   const knownEventTypes = ["oneTime", "multiDay", "sameDayMultiArea"];
   if (!knownEventTypes.includes(project.event_type)) {
-    console.warn(
+    safeConsole.warn(
+      "Application diagnostic from utils/project",
       `[getProjectStatus] Unknown event_type: "${(project as { event_type: string }).event_type}" on project ${project.id} — treating as upcoming`,
     );
     return "upcoming";
@@ -523,32 +529,31 @@ export async function getSlotCapacities(
     return {}; // No schedules found
   }
 
-  // Fetch counts of approved AND attended signups for these schedule IDs
+  // Count the sign-ups that hold a spot. The status list is shared with the
+  // project cards so the two can never disagree about what "taken" means.
   const { data: signups, error } = (await supabase
     .from("project_signups")
-    .select("schedule_id, status") // Select status to potentially group by later if needed, though count works directly
+    .select("schedule_id, status")
     .eq("project_id", projectId)
     .in("schedule_id", scheduleIds)
-    // Use .in() or .or() to filter for multiple statuses
-    .in("status", ["approved", "attended"])) as {
+    .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])) as {
     data: { schedule_id: string; status: string }[] | null;
     error: { message: string } | null;
-  }; // <-- Updated filter
+  };
 
   if (error) {
-    console.error("Error fetching signup counts:", error);
+    safeConsole.error("Error fetching signup counts:", error);
     // Return initial capacities as a fallback, maybe log the error
     return capacities;
   }
 
-  // Count signups per schedule ID
-  const signupCounts: Record<string, number> = {};
-  if (signups) {
-    signups.forEach((signup) => {
-      signupCounts[signup.schedule_id] =
-        (signupCounts[signup.schedule_id] || 0) + 1;
-    });
-  }
+  const signupCounts = summarizeProjectOccupancy(
+    (signups ?? []).map((signup) => ({
+      project_id: projectId,
+      schedule_id: signup.schedule_id,
+      status: signup.status,
+    })),
+  ).slotsFilledBySchedule;
 
   // Calculate remaining slots
   const remainingSlots: Record<string, number> = {};
@@ -564,7 +569,7 @@ export async function getSlotCapacities(
 export function getSlotDetails(project: Project, scheduleId: string) {
   if (!project || !scheduleId) {
     if (shouldLogProjectDebug) {
-      console.log("Invalid project or scheduleId:", {
+      safeConsole.log("Invalid project or scheduleId:", {
         project: !!project,
         scheduleId,
       });
@@ -583,7 +588,7 @@ export function getSlotDetails(project: Project, scheduleId: string) {
     }
 
     if (shouldLogProjectDebug) {
-      console.log("Invalid multiDay scheduleId format:", scheduleId);
+      safeConsole.log("Invalid multiDay scheduleId format:", scheduleId);
     }
   } else if (
     project.event_type === "sameDayMultiArea" &&
@@ -598,7 +603,7 @@ export function getSlotDetails(project: Project, scheduleId: string) {
   }
 
   if (shouldLogProjectDebug) {
-    console.log("No slot found for scheduleId:", scheduleId);
+    safeConsole.log("No slot found for scheduleId:", scheduleId);
   }
   return null;
 }
@@ -611,7 +616,7 @@ export function isSlotAvailable(
 ): boolean {
   // Debug logging to help identify issues
   if (shouldLogProjectDebug) {
-    console.log("isSlotAvailable check:", {
+    safeConsole.log("isSlotAvailable check:", {
       projectId: project.id,
       scheduleId,
       remainingSlots,
@@ -626,7 +631,7 @@ export function isSlotAvailable(
   // Check if the project is cancelled or completed
   if (effectiveStatus === "cancelled" || effectiveStatus === "completed") {
     if (shouldLogProjectDebug) {
-      console.log("Project is cancelled or completed, slot not available");
+      safeConsole.log("Project is cancelled or completed, slot not available");
     }
     return false;
   }
@@ -635,7 +640,7 @@ export function isSlotAvailable(
   const slotDetails = getSlotDetails(project, scheduleId);
   if (!slotDetails) {
     if (shouldLogProjectDebug) {
-      console.log("Invalid slot details for", scheduleId);
+      safeConsole.log("Invalid slot details for", scheduleId);
     }
     return false;
   }
@@ -644,7 +649,7 @@ export function isSlotAvailable(
   const slotsRemaining = remainingSlots[scheduleId];
 
   if (shouldLogProjectDebug) {
-    console.log(
+    safeConsole.log(
       "Slots remaining:",
       slotsRemaining,
       "for scheduleId:",

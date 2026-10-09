@@ -224,7 +224,10 @@ describe("resolvePlatformFeedItems", () => {
       const items = await resolvePlatformFeedItems(USER, { timeoutMs: 25 });
       expect(items.map((item) => item.id)).toEqual(["healthy"]);
       expect(warn).toHaveBeenCalledTimes(1);
-      expect(String(warn.mock.calls[0][0])).toInclude("hangs");
+      expect(warn.mock.calls[0][0]).toBe(
+        "Application diagnostic from lib/plugins/resolve-platform-surfaces",
+      );
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(ORG_A);
     } finally {
       warn.mockRestore();
     }

@@ -1,22 +1,11 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  CheckCircle2,
-  Link2,
-  LogIn,
-  Loader2,
-  Mail,
-  Shield,
-  UserPlus,
-} from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { z } from "zod";
-import { passwordSchema } from "@/lib/auth/password-policy";
+import { useForm } from "react-hook-form";
 
 import {
   linkAnonymousToAuthenticatedAccount,
@@ -24,18 +13,19 @@ import {
   linkAnonymousToNewAccount,
   startAnonymousGoogleLink,
 } from "./actions";
+import { LinkIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldError } from "@/components/ui/field";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TurnstileComponent } from "@/components/ui/turnstile";
 import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
@@ -43,20 +33,17 @@ import { useBotVerification } from "@/hooks/useBotVerification";
 import { shouldRenderTurnstileWidget } from "@/lib/anonymous-signup-security";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-
-const existingAccountSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-const createAccountSchema = z.object({
-  fullName: z.string().min(3, "Full name must be at least 3 characters"),
-  email: z.string().email("Enter a valid email address"),
-  password: passwordSchema,
-});
-
-type ExistingAccountValues = z.infer<typeof existingAccountSchema>;
-type CreateAccountValues = z.infer<typeof createAccountSchema>;
+import {
+  CreateAccountForm,
+  ExistingAccountForm,
+} from "./_components/LinkingForms";
+import {
+  createAccountSchema,
+  existingAccountSchema,
+  type CreateAccountValues,
+  type ExistingAccountValues,
+} from "./_components/linking-schemas";
+import { VerificationSentDialog } from "./_components/VerificationSentDialog";
 
 type CurrentUserState = {
   id: string;
@@ -80,7 +67,6 @@ export function AnonymousLinkingDialog({
   defaultEmail,
   isLinked,
   onLinked,
-  onLinkedPendingVerification,
 }: AnonymousLinkingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -92,6 +78,8 @@ export function AnonymousLinkingDialog({
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [verificationDialogOpen, setVerificationDialogOpen] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState(defaultEmail);
+
+  const linkIcon = useAnimatedIcon();
 
   const verification = useBotVerification({
     onError: () => {
@@ -200,7 +188,7 @@ export function AnonymousLinkingDialog({
         "Account linked successfully! Your volunteer dashboard is ready.",
       );
     } catch (error) {
-      console.error("Error linking current account:", error);
+      safeConsole.error("Error linking current account:", error);
       toast.error("Failed to link your current account. Please try again.");
     } finally {
       setIsLinkingCurrent(false);
@@ -238,7 +226,7 @@ export function AnonymousLinkingDialog({
           "Account linked successfully! Redirecting to your dashboard...",
         );
       } catch (error) {
-        console.error("Error linking existing account:", error);
+        safeConsole.error("Error linking existing account:", error);
         toast.error("Failed to link your account. Please try again.");
         verification.reset();
       } finally {
@@ -281,11 +269,10 @@ export function AnonymousLinkingDialog({
         setOpen(false);
 
         if (result.requiresEmailVerification) {
-          onLinkedPendingVerification(values.email);
           setVerificationEmail(values.email);
           setVerificationDialogOpen(true);
           toast.success(
-            "Account created! Check your email to finish accessing your dashboard.",
+            "Account created. Verify your email, then return here to link your saved attendance.",
           );
           return;
         }
@@ -294,7 +281,7 @@ export function AnonymousLinkingDialog({
           "Account created and linked successfully! Redirecting to your dashboard...",
         );
       } catch (error) {
-        console.error("Error creating linked account:", error);
+        safeConsole.error("Error creating linked account:", error);
         toast.error("Failed to create your account. Please try again.");
         verification.reset();
       } finally {
@@ -321,7 +308,7 @@ export function AnonymousLinkingDialog({
 
       window.location.assign(result.url);
     } catch (error) {
-      console.error("Error starting Google linking:", error);
+      safeConsole.error("Error starting Google linking:", error);
       toast.error("Failed to start Google linking. Please try again.");
     } finally {
       setIsGoogleLoading(false);
@@ -349,24 +336,30 @@ export function AnonymousLinkingDialog({
     isCreatingAccount ||
     isGoogleLoading;
 
+  const formsBlocked = isBusy || (showTurnstileWidget && !verification.token);
+
   return (
     <>
-      <div className="space-y-2">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            onClick={() => setOpen(true)}
-            className="flex items-center gap-2"
-            disabled={isBusy}
-          >
-            <Link2 className="h-4 w-4" />
-            Link or Create Account
-          </Button>
-        </div>
+      <div className="grid gap-2">
+        <Button
+          onClick={() => setOpen(true)}
+          className="w-full sm:w-auto sm:justify-self-start"
+          disabled={isBusy}
+          {...linkIcon.triggerProps}
+        >
+          <LinkIcon
+            ref={linkIcon.ref}
+            size={16}
+            data-icon="inline-start"
+            aria-hidden="true"
+          />
+          Link or create account
+        </Button>
 
         {currentUser?.email && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             You&apos;re already signed in as{" "}
-            <span className="font-medium text-foreground">
+            <span className="text-foreground font-medium wrap-break-word">
               {currentUser.email}
             </span>
             . Open the linker to attach this volunteer profile directly.
@@ -385,311 +378,134 @@ export function AnonymousLinkingDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5">
-            {currentUser?.email && (
-              <Alert className="border-primary/30 bg-primary/5">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Already signed in</AlertTitle>
-                <AlertDescription className="space-y-3">
-                  <p>
-                    You&apos;re currently signed in as{" "}
-                    <span className="font-medium text-foreground">
-                      {currentUser.email}
-                    </span>
-                    . You can attach this volunteer profile to that account
-                    immediately.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleLinkCurrentAccount}
-                    disabled={isBusy}
-                    className="w-full sm:w-auto"
-                  >
-                    {isLinkingCurrent ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogIn className="mr-2 h-4 w-4" />
-                    )}
-                    Link to Current Account
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) =>
-                setActiveTab(value as "existing" | "create")
-              }
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="existing">Existing account</TabsTrigger>
-                <TabsTrigger value="create">Create account</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="existing" className="pt-4">
-                <form
-                  onSubmit={handleExistingAccountLink}
-                  className="space-y-4"
+          {currentUser?.email && (
+            <Alert variant="info">
+              <AlertTitle>Already signed in</AlertTitle>
+              <AlertDescription className="grid gap-3 [&_p:not(:last-child)]:mb-0">
+                <p>
+                  You&apos;re currently signed in as{" "}
+                  <span className="text-foreground font-medium wrap-break-word">
+                    {currentUser.email}
+                  </span>
+                  . You can attach this volunteer profile to that account
+                  immediately.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLinkCurrentAccount}
+                  disabled={isBusy}
+                  className="w-full sm:w-auto sm:justify-self-start"
                 >
-                  <Controller
-                    control={existingAccountForm.control}
-                    name="email"
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                        <Input
-                          id={field.name}
-                          type="email"
-                          placeholder="you@example.com"
-                          {...field}
-                          aria-invalid={fieldState.invalid}
-                        />
-                        <FieldError errors={[fieldState.error]} />
-                      </Field>
-                    )}
-                  />
+                  {isLinkingCurrent && (
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                  )}
+                  Link to current account
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
-                  <Controller
-                    control={existingAccountForm.control}
-                    name="password"
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                        <Input
-                          id={field.name}
-                          type="password"
-                          placeholder="Enter your password"
-                          {...field}
-                          aria-invalid={fieldState.invalid}
-                        />
-                        <FieldError errors={[fieldState.error]} />
-                      </Field>
-                    )}
-                  />
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "existing" | "create")
+            }
+            className="gap-4"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="existing">Existing account</TabsTrigger>
+              <TabsTrigger value="create">Create account</TabsTrigger>
+            </TabsList>
 
-                  <Button
-                    type="submit"
-                    className="w-full sm:w-auto"
-                    disabled={
-                      isBusy || (showTurnstileWidget && !verification.token)
-                    }
-                  >
-                    {isLinkingExisting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <LogIn className="mr-2 h-4 w-4" />
-                    )}
-                    Sign In & Link
-                  </Button>
-                </form>
-              </TabsContent>
+            <TabsContent value="existing">
+              <ExistingAccountForm
+                form={existingAccountForm}
+                onSubmit={handleExistingAccountLink}
+                disabled={formsBlocked}
+                isSubmitting={isLinkingExisting}
+              />
+            </TabsContent>
 
-              <TabsContent value="create" className="pt-4">
-                <form onSubmit={handleCreateAccountLink} className="space-y-4">
-                  <Controller
-                    control={createAccountForm.control}
-                    name="fullName"
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={field.name}>Full name</FieldLabel>
-                        <Input
-                          id={field.name}
-                          placeholder="Your full name"
-                          {...field}
-                          aria-invalid={fieldState.invalid}
-                        />
-                        <FieldError errors={[fieldState.error]} />
-                      </Field>
-                    )}
-                  />
+            <TabsContent value="create">
+              <CreateAccountForm
+                form={createAccountForm}
+                onSubmit={handleCreateAccountLink}
+                disabled={formsBlocked}
+                isSubmitting={isCreatingAccount}
+              />
+            </TabsContent>
+          </Tabs>
 
-                  <Controller
-                    control={createAccountForm.control}
-                    name="email"
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                        <Input
-                          id={field.name}
-                          type="email"
-                          placeholder="you@example.com"
-                          {...field}
-                          aria-invalid={fieldState.invalid}
-                        />
-                        <FieldError errors={[fieldState.error]} />
-                      </Field>
-                    )}
-                  />
-
-                  <Controller
-                    control={createAccountForm.control}
-                    name="password"
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                        <Input
-                          id={field.name}
-                          type="password"
-                          placeholder="Create a password"
-                          {...field}
-                          aria-invalid={fieldState.invalid}
-                        />
-                        <FieldError errors={[fieldState.error]} />
-                      </Field>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    className="w-full sm:w-auto"
-                    disabled={
-                      isBusy || (showTurnstileWidget && !verification.token)
-                    }
-                  >
-                    {isCreatingAccount ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <UserPlus className="mr-2 h-4 w-4" />
-                    )}
-                    Create & Link
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            {showTurnstileWidget && (
-              <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-4">
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Shield className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-medium text-foreground">
-                      Security check
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Complete bot verification before using email/password
-                      linking.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <SecureCheckPanel
-                    phase={verification.phase}
-                    onRetry={verification.retry}
-                    className="w-75 rounded-lg border-border/50 bg-background/80"
-                    fallbackClassName="w-75 rounded-lg border-border/50 bg-background/80"
-                  >
-                    <TurnstileComponent
-                      key={verification.widgetKey}
-                      ref={verification.ref}
-                      onLoad={verification.onLoad}
-                      onVerify={verification.onVerify}
-                      onError={verification.onError}
-                      onExpire={() => verification.reset()}
-                    />
-                  </SecureCheckPanel>
-                </div>
-
-                {verification.error && (
-                  <FieldError>{verification.error}</FieldError>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-3 rounded-lg border border-border/60 p-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">
-                  Prefer Google?
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Supabase recommends redirect-based OAuth linking for Google.
-                  We&apos;ll bring you back here and finish attaching this
-                  profile automatically.
+          {showTurnstileWidget && (
+            <div className="grid gap-3">
+              <div className="grid gap-1">
+                <h3 className="text-sm font-medium">Security check</h3>
+                <p className="text-muted-foreground text-sm">
+                  Complete bot verification before using email/password linking.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGoogleLink}
-                disabled={isBusy}
-                className="w-full sm:w-auto"
+              <SecureCheckPanel
+                phase={verification.phase}
+                onRetry={verification.retry}
+                className="rounded-lg"
+                fallbackClassName="rounded-lg"
               >
-                {isGoogleLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Image
-                    src="/resources/google-logo-2026.png"
-                    alt=""
-                    width={18}
-                    height={18}
-                    className="mr-2 h-4.5 w-4.5 object-contain"
-                  />
-                )}
-                Continue with Google
-              </Button>
+                <TurnstileComponent
+                  key={verification.widgetKey}
+                  ref={verification.ref}
+                  onLoad={verification.onLoad}
+                  onVerify={verification.onVerify}
+                  onError={verification.onError}
+                  onExpire={() => verification.reset()}
+                />
+              </SecureCheckPanel>
+              {verification.error && (
+                <FieldError>{verification.error}</FieldError>
+              )}
             </div>
-          </div>
+          )}
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              disabled={isBusy}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Separator />
 
-      <Dialog
-        open={verificationDialogOpen}
-        onOpenChange={setVerificationDialogOpen}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Check your email to finish account access</DialogTitle>
-            <DialogDescription>
-              We created your account and linked this volunteer profile. Verify{" "}
-              <span className="font-medium text-foreground">
-                {verificationEmail}
-              </span>
-              , then sign in to access your dashboard.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Alert className="border-primary/30 bg-primary/5">
-            <Mail className="h-4 w-4" />
-            <AlertTitle>What happens next</AlertTitle>
-            <AlertDescription className="space-y-1 text-sm">
-              <p>
-                Your volunteer signups are already attached to the new account.
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <h3 className="text-sm font-medium">Prefer Google?</h3>
+              <p className="text-muted-foreground text-sm">
+                Continue with your Google account. We&apos;ll bring you back
+                here to finish linking your volunteer profile.
               </p>
-              <p>
-                Once you verify the email address, you&apos;ll be able to sign
-                in and manage hours, attendance, and certificates from your
-                dashboard.
-              </p>
-            </AlertDescription>
-          </Alert>
-
-          <DialogFooter className="gap-2 sm:flex-row">
+            </div>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setVerificationDialogOpen(false)}
+              onClick={handleGoogleLink}
+              disabled={isBusy}
+              className="w-full sm:w-auto sm:justify-self-start"
             >
-              Close
+              {isGoogleLoading ? (
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+              ) : (
+                <Image
+                  src="/resources/google-logo-2026.png"
+                  alt=""
+                  width={18}
+                  height={18}
+                  className="size-4 object-contain"
+                />
+              )}
+              Continue with Google
             </Button>
-            <Button asChild>
-              <Link href="/login">Go to Login</Link>
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
+
+      <VerificationSentDialog
+        open={verificationDialogOpen}
+        onOpenChange={setVerificationDialogOpen}
+        email={verificationEmail}
+        loginHref={`/login?redirect=${encodeURIComponent(`/anonymous/${anonymousId}?token=${encodeURIComponent(anonymousToken)}&link=1`)}`}
+      />
     </>
   );
 }

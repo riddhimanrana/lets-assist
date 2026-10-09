@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -101,7 +102,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     }
     return false;
   } catch (error) {
-    console.error("Copy failed:", error);
+    safeConsole.error("Copy failed:", error);
     return false;
   }
 }

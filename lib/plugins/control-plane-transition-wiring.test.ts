@@ -24,6 +24,9 @@ describe("plugin control-plane action wiring", () => {
   const organizationPluginSettings = read(
     "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
   );
+  const pluginActionDialog = read(
+    "app/organization/[id]/settings/OrganizationPluginActionDialog.tsx",
+  );
   const adminActions = readAdminPluginActionSource();
   const transitionAdapter = read("lib/plugins/control-plane-transition.ts");
   const transitionLockMigration = read(
@@ -102,12 +105,15 @@ describe("plugin control-plane action wiring", () => {
 
   test("plugin permission confirmation remains reachable within the viewport", () => {
     expect(organizationPluginSettings).toContain(
-      "max-h-[calc(100dvh-2rem)] gap-0 overflow-x-hidden overflow-y-auto",
+      "<OrganizationPluginActionDialog",
     );
-    expect(organizationPluginSettings).toContain(
-      "max-h-64 flex-col gap-3 overflow-y-auto",
+    expect(pluginActionDialog).toMatch(
+      /<AlertDialogContent[\s\S]*?className="[^"]*max-h-\[calc\(100dvh-2rem\)\][^"]*overflow-y-auto/u,
     );
-    expect(organizationPluginSettings).not.toContain(
+    expect(pluginActionDialog).toMatch(
+      /className="[^"]*max-h-64[^"]*overflow-y-auto/u,
+    );
+    expect(pluginActionDialog).not.toContain(
       'className="sm:max-w-md gap-0 p-0 overflow-hidden"',
     );
   });
@@ -179,11 +185,10 @@ describe("plugin control-plane action wiring", () => {
   });
 
   test("uninstall dialog copy does not claim all workflows stop", () => {
-    expect(organizationPluginSettings).not.toMatch(
-      /all plugin workflows will stop/i,
-    );
-    expect(organizationPluginSettings).not.toMatch(/stops its workflows/i);
-    expect(organizationPluginSettings).toContain(
+    expect(pluginActionDialog).not.toMatch(/all plugin workflows will stop/i);
+    expect(pluginActionDialog).not.toMatch(/stops its workflows/i);
+    expect(pluginActionDialog).toContain("describePluginUninstallImpact({");
+    expect(pluginActionDialog).toContain(
       "already-queued work may still complete",
     );
   });

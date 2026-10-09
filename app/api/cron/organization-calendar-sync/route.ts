@@ -1,3 +1,6 @@
+import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import {
   mapWithConcurrency,
@@ -6,10 +9,9 @@ import {
 import { getAdminClient } from "@/lib/supabase/admin";
 import { syncOrganizationCalendarInternal } from "@/lib/organization/calendar-sync";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
-const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
   process.env.ORG_CALENDAR_SYNC_CONCURRENCY,
   3,
@@ -17,22 +19,10 @@ const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
 );
 
 function isAuthorized(request: NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
-
-  const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value),
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN),
   );
-
-  if (allowedTokens.length === 0) {
-    return false;
-  }
-
-  if (!token || !allowedTokens.includes(token)) {
-    return false;
-  }
-
-  return true;
 }
 
 function isDue(lastSyncedAt: string | null, intervalMinutes: number) {
@@ -58,69 +48,78 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = getAdminClient();
-  const { data: syncRows, error } = await supabase
-    .from("organization_calendar_syncs")
-    .select(
-      "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
-    )
-    .eq("auto_sync", true);
+  const summary = workerResponseSummary("organization-calendar-sync");
+  return observeWorkerRun(
+    "organization-calendar-sync",
+    async () => {
+      const supabase = getAdminClient();
+      const { data: syncRows, error } = await supabase
+        .from("organization_calendar_syncs")
+        .select(
+          "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
+        )
+        .eq("auto_sync", true);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Default sync interval for calendar is 1 hour (60 minutes)
-  const intervalMinutes = 60;
-
-  const dueRows = (syncRows || []).filter((row) =>
-    isDue(row.last_synced_at, intervalMinutes),
-  );
-  const results = await mapWithConcurrency(
-    dueRows,
-    CALENDAR_SYNC_CONCURRENCY,
-    async (row) => {
-      try {
-        const result = await syncOrganizationCalendarInternal(
-          row.organization_id,
-        );
-
-        if (result.success) {
-          return {
-            organizationId: row.organization_id,
-            success: true,
-            createdCount: result.createdCount,
-            updatedCount: result.updatedCount,
-            removedCount: result.removedCount,
-          };
-        } else {
-          return {
-            organizationId: row.organization_id,
-            success: false,
-            error: result.error || "Unknown error",
-          };
-        }
-      } catch (error) {
-        console.error(
-          `Failed to sync calendar for org ${row.organization_id}:`,
-          error,
-        );
-        return {
-          organizationId: row.organization_id,
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
       }
-    },
-  );
 
-  return NextResponse.json(
-    {
-      processed: results.length,
-      results,
-      timestamp: new Date().toISOString(),
+      // Default sync interval for calendar is 1 hour (60 minutes)
+      const intervalMinutes = 60;
+
+      const dueRows = (syncRows || []).filter((row) =>
+        isDue(row.last_synced_at, intervalMinutes),
+      );
+      const results = await mapWithConcurrency(
+        dueRows,
+        CALENDAR_SYNC_CONCURRENCY,
+        async (row) => {
+          try {
+            const result = await syncOrganizationCalendarInternal(
+              row.organization_id,
+            );
+
+            if (result.success) {
+              return {
+                organizationId: row.organization_id,
+                success: true,
+                createdCount: result.createdCount,
+                updatedCount: result.updatedCount,
+                removedCount: result.removedCount,
+              };
+            } else {
+              return {
+                organizationId: row.organization_id,
+                success: false,
+                error: result.error || "Unknown error",
+              };
+            }
+          } catch (error) {
+            safeConsole.error(
+              "Application diagnostic from app/api/cron/organization-calendar-sync/route",
+              `Failed to sync calendar for org ${row.organization_id}:`,
+              error,
+            );
+            return {
+              organizationId: row.organization_id,
+              success: false,
+              error: error instanceof Error ? error.message : "Unknown error",
+            };
+          }
+        },
+      );
+
+      summary.capture({ processed: results.length, results });
+      return NextResponse.json(
+        {
+          processed: results.length,
+          results,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 200 },
+      );
     },
-    { status: 200 },
+    summary,
   );
 }
 

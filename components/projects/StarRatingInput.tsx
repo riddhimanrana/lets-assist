@@ -79,7 +79,7 @@ export function StarRatingInput({
             className={cn(
               size === "lg" ? "size-8" : "size-7 sm:size-6",
               option <= shown
-                ? "fill-amber-400 text-amber-400"
+                ? "fill-warning text-warning"
                 : "text-muted-foreground/40",
             )}
           />
@@ -111,7 +111,7 @@ export function StarRatingDisplay({
           className={cn(
             size === "md" ? "size-5" : "size-4",
             option <= rating
-              ? "fill-amber-400 text-amber-400"
+              ? "fill-warning text-warning"
               : "text-muted-foreground/30",
           )}
         />

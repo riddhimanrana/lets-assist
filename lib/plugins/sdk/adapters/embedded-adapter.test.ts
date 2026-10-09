@@ -28,9 +28,10 @@ const { listRegisteredPlugins } = await import("@/lib/plugins/registry");
 const privatePlugins = listRegisteredPlugins();
 
 describe("embedded adapter over the real private plugins", () => {
-  test("both private plugins are registered", () => {
-    // Guards against the suite passing vacuously if the submodule is empty.
-    expect(privatePlugins.length).toBe(2);
+  test("only the active CSF plugin is registered", () => {
+    expect(privatePlugins.map((plugin) => plugin.manifest.key)).toEqual([
+      "dvhs-csf",
+    ]);
   });
 
   for (const definition of privatePlugins) {

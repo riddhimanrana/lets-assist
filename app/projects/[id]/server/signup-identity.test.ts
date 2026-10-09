@@ -17,6 +17,8 @@ let sessionUser: {
   user_metadata?: { full_name?: string };
 } | null = null;
 let projectRecord: Record<string, unknown> = {};
+let emailOutcome = "accepted";
+let waiverDefinitionRecord: Record<string, unknown> | null = null;
 
 const CHAINABLE = [
   "select",
@@ -93,7 +95,9 @@ mock.module("next/cache", () => ({ revalidatePath: () => {} }));
 mock.module("next/headers", () => ({
   headers: async () => new Map<string, string>(),
 }));
-mock.module("@/services/email", () => ({ sendEmail: async () => ({}) }));
+mock.module("@/services/email", () => ({
+  sendEmail: async () => ({ outcome: emailOutcome }),
+}));
 mock.module("@/lib/plugins/registry", () => ({
   getPluginRegistry: () => new Map(),
   getRegisteredPlugin: () => null,
@@ -105,12 +109,12 @@ mock.module("@/lib/plugins/resolve-org-plugins", () => ({
   resolveOrganizationPlugins: async () => [],
 }));
 mock.module("@/lib/turnstile", () => ({
-  isTurnstileEnabled: () => false,
+  isTurnstileTokenRequired: () => false,
   verifyTurnstileToken: async () => true,
 }));
 mock.module("@/app/projects/[id]/server/access", () => ({
   getProject: async () => ({ project: projectRecord, error: null }),
-  getProjectWaiver: async () => ({ definition: null }),
+  getProjectWaiver: async () => ({ definition: waiverDefinitionRecord }),
   canCurrentUserManageProject: async () => false,
 }));
 
@@ -194,6 +198,8 @@ beforeEach(() => {
   rpcCalls.length = 0;
   sessionUser = null;
   projectRecord = baseProject();
+  emailOutcome = "accepted";
+  waiverDefinitionRecord = null;
   tableHandlers = {
     projects: () => ({ data: projectRecord, error: null }),
     project_signups: () => ({ data: null, error: null, count: 0 }),
@@ -404,6 +410,126 @@ describe("signUpForProject waiver boundary", () => {
   });
 });
 
+describe("signUpForProject waiver signature type policy", () => {
+  const DEFINITION_ID = "66666666-6666-4666-8666-666666666666";
+  const definition = () => ({
+    id: DEFINITION_ID,
+    signers: [
+      { role_key: "volunteer", label: "Volunteer", required: true },
+      { role_key: "guardian", label: "Parent/Guardian", required: true },
+    ],
+    fields: [],
+  });
+  const multiSigner = (roles: string[]) => ({
+    signatureType: "multi-signer" as const,
+    definitionId: DEFINITION_ID,
+    payload: {
+      signers: roles.map((role_key) => ({
+        role_key,
+        method: "typed" as const,
+        data: "Verified Member",
+        timestamp: "2026-03-01T20:15:00.000Z",
+      })),
+      fields: {},
+    },
+  });
+  const attempt = (waiver: Parameters<typeof signUpForProject>[4]) =>
+    signUpForProject(
+      projectRecord.id as string,
+      "oneTime",
+      undefined,
+      undefined,
+      waiver,
+    );
+
+  test.each(["typed", "draw"] as const)(
+    "a %s signature cannot satisfy a project that has a waiver definition",
+    async (signatureType) => {
+      sessionUser = SESSION;
+      projectRecord = baseProject({
+        waiver_required: true,
+        waiver_definition_id: DEFINITION_ID,
+      });
+      waiverDefinitionRecord = definition();
+
+      const result = await attempt({
+        signatureType,
+        signatureText: "Verified Member",
+        signatureImageDataUrl: "data:image/png;base64,AAAA",
+      });
+
+      expect(result.error).toMatch(/signed in the signing form/iu);
+      expect(signupInserts()).toEqual([]);
+    },
+  );
+
+  test.each(["typed", "draw", "multi-signer"] as const)(
+    "a %s signature is refused when e-signatures are disabled",
+    async (signatureType) => {
+      sessionUser = SESSION;
+      projectRecord = baseProject({
+        waiver_required: true,
+        waiver_disable_esignature: true,
+      });
+
+      const result = await attempt(
+        signatureType === "multi-signer"
+          ? multiSigner(["volunteer"])
+          : {
+              signatureType,
+              signatureText: "Verified Member",
+              signatureImageDataUrl: "data:image/png;base64,AAAA",
+            },
+      );
+
+      expect(result.error).toMatch(/printed and signed waiver/iu);
+      expect(signupInserts()).toEqual([]);
+    },
+  );
+
+  test("an unknown signature type is refused", async () => {
+    sessionUser = SESSION;
+    projectRecord = baseProject({ waiver_required: true });
+
+    const result = await attempt({
+      signatureType: "stamp",
+    } as unknown as Parameters<typeof signUpForProject>[4]);
+
+    expect(result.error).toMatch(/not supported/iu);
+    expect(signupInserts()).toEqual([]);
+  });
+
+  test("a multi-signer payload missing a required signer is refused", async () => {
+    sessionUser = SESSION;
+    projectRecord = baseProject({
+      waiver_required: true,
+      waiver_definition_id: DEFINITION_ID,
+    });
+    waiverDefinitionRecord = definition();
+
+    const result = await attempt(multiSigner(["volunteer"]));
+
+    expect(result.error).toMatch(
+      /Required signature missing for: Parent\/Guardian/u,
+    );
+    expect(signupInserts()).toEqual([]);
+  });
+
+  test("a project that points at a definition is never signed without it", async () => {
+    sessionUser = SESSION;
+    projectRecord = baseProject({
+      waiver_required: true,
+      waiver_definition_id: DEFINITION_ID,
+    });
+    waiverDefinitionRecord = null;
+
+    const result = await attempt(multiSigner(["volunteer", "guardian"]));
+
+    expect(result.error).toBe("Failed to load waiver configuration");
+    expect(signupInserts()).toEqual([]);
+  });
+});
+
 describe("signUpForProject guest flow", () => {
   test("a guest signup creates its identity inside the same transaction", async () => {
     sessionUser = null;
@@ -528,4 +654,40 @@ describe("signUpForProject guest flow", () => {
       ),
     ).toEqual([]);
   });
+});
+
+describe("guest confirmation delivery status", () => {
+  for (const outcome of [
+    "accepted",
+    "skipped",
+    "definitive_failure",
+    "retryable_pre_send",
+    "unknown_outcome",
+  ] as const) {
+    test(`saved signup reports ${outcome} without discarding the signup`, async () => {
+      emailOutcome = outcome;
+      rpcHandlers.insert_project_signup_with_waiver = () => ({
+        data: [
+          {
+            signup_id: "22222222-2222-4222-8222-222222222222",
+            anonymous_signup_id: "55555555-5555-4555-8555-555555555555",
+            waiver_signature_id: null,
+            outcome: "inserted",
+            slot_capacity: 5,
+            active_count: 0,
+          },
+        ],
+        error: null,
+      });
+      const result = await signUpForProject(
+        projectRecord.id as string,
+        "oneTime",
+        GUEST_PAYLOAD,
+      );
+      expect(result.success).toBe(true);
+      expect(result.needsConfirmation).toBe(true);
+      expect(result.confirmationDelivery).toBe(outcome);
+      expect(signupInserts()).toHaveLength(1);
+    });
+  }
 });

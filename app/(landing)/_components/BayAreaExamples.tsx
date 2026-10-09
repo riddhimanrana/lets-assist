@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "motion/react";
 import {
   Tooltip,
   TooltipContent,
@@ -32,56 +29,38 @@ const partners = [
   },
 ];
 
-const cloudItems = [...partners, ...partners];
-
 export default function BayAreaExamples() {
   return (
     <section id="partners" className="border-y bg-muted/20 py-12 sm:py-16">
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
           <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             Built for clubs, schools, and community teams
           </h3>
           <p className="max-w-xl font-sans text-sm leading-6 text-muted-foreground">
-            These schools and organizations are exploring proof-backed
-            attendance, certificate automation, and volunteer ops built for
-            districts, clubs, and nonprofits.
+            Schools and groups running pilots with Let&apos;s Assist.
           </p>
         </div>
+        {/* Four partners fit on the page, so they sit in a grid and nothing is clipped. */}
         <TooltipProvider>
-          <div className="relative mx-auto mt-8 max-w-4xl overflow-hidden">
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-linear-to-r from-muted/20 to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-linear-to-l from-muted/20 to-transparent" />
-            <motion.div
-              className="flex w-max items-center gap-4"
-              animate={{ x: ["0%", "-50%"] }}
-              transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
-            >
-              {cloudItems.map((partner, index) => (
-                <Tooltip key={`${partner.name}-${index}`}>
-                  <TooltipTrigger>
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.4 }}
-                      transition={{ duration: 0.35 }}
-                      className="group relative flex h-16 w-44 shrink-0 items-center justify-center rounded-2xl border bg-background/75 px-5 shadow-xs backdrop-blur transition-colors hover:border-primary/30"
-                    >
-                      {partner.logo ? (
-                        <Image
-                          src={partner.logo}
-                          alt={`${partner.name} logo`}
-                          fill
-                          sizes="128px"
-                          className="object-contain p-3 opacity-65 grayscale transition duration-200 group-hover:opacity-100 group-hover:grayscale-0"
-                        />
-                      ) : (
-                        <span className="text-[0.65rem] font-semibold text-muted-foreground">
-                          {partner.name}
-                        </span>
-                      )}
-                      <span className="sr-only">{partner.name}</span>
-                    </motion.div>
+          <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
+            {partners.map((partner) => (
+              <li key={partner.name}>
+                <Tooltip>
+                  <TooltipTrigger className="flex h-full w-full items-center gap-3 rounded-xl border bg-background p-3 text-left transition-colors hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    {/* Logos are drawn for a light page, so the plate stays white in both themes. */}
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-md bg-white">
+                      <Image
+                        src={partner.logo}
+                        alt=""
+                        fill
+                        sizes="40px"
+                        className="object-contain p-0.5"
+                      />
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {partner.name}
+                    </span>
                   </TooltipTrigger>
                   <TooltipContent
                     className="max-w-72 text-xs"
@@ -92,9 +71,9 @@ export default function BayAreaExamples() {
                     <p className="opacity-80">{partner.note}</p>
                   </TooltipContent>
                 </Tooltip>
-              ))}
-            </motion.div>
-          </div>
+              </li>
+            ))}
+          </ul>
         </TooltipProvider>
       </div>
     </section>

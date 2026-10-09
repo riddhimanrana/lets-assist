@@ -1,45 +1,39 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { escapeHtml } from "@/lib/security/html";
+import { mountCertificatePrintFrame } from "./print-frame";
 import { format, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
 import { useEffect, useState, useRef } from "react";
 
-interface CertificateData {
+export interface PrintCertificateData {
   id: string;
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
   event_start: string;
-  event_end: string;
-  volunteer_email: string | null;
-  user_id: string | null;
-  check_in_method: string;
-  created_at: string | null;
   organization_name: string | null;
-  project_id: string | null;
-  schedule_id: string | null;
   issued_at: string;
-  signup_id: string | null;
   volunteer_name: string | null;
   project_location: string | null;
   durationText: string;
 }
 
-export function PrintCertificate({ data }: { data: CertificateData }) {
+export function PrintCertificate({ data }: { data: PrintCertificateData }) {
   const [mounted, setMounted] = useState(false);
-  const printCanceledRef = useRef(false);
+  const cleanupPrintRef = useRef<(() => void) | null>(null);
 
   // Ensure component is mounted before rendering to avoid hydration issues
   useEffect(() => {
     setMounted(true);
+    return () => cleanupPrintRef.current?.();
   }, []);
 
   const handlePrint = () => {
-    // Reset the flags at the start of each print attempt
-    printCanceledRef.current = false;
+    cleanupPrintRef.current?.();
 
     // Collect current stylesheets
     const links = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
@@ -135,7 +129,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
               </h3>
               <div style="display:flex;gap:2rem;margin-top:1rem">
               <div style="text-align:center">
-                <span class="print-accent" aria-hidden="true">📅</span>
                 <p class="print-text" style="margin:.5rem 0">${safeEventDate}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Event Date</p>
               </div>
@@ -143,7 +136,6 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                   data.organization_name
                     ? `
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">🏢</span>
                   <p class="print-text" style="margin:.5rem 0">${safeOrganizationName}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Organization</p>
                 </div>`
@@ -153,14 +145,12 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                   data.project_location
                     ? `
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">📍</span>
                   <p class="print-text" style="margin:.5rem 0">${safeProjectLocation}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Location</p>
                 </div>`
                     : ""
                 }
                 <div style="text-align:center">
-                  <span class="print-accent" aria-hidden="true">⏰</span>
                   <p class="print-text" style="margin:.5rem 0">${safeDurationText}</p>
                   <p class="print-text" style="margin:0;font-size:0.9rem;">Duration</p>
                 </div>
@@ -177,8 +167,7 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
                 data.is_certified
                   ? `
               <div style="display:flex;align-items:center">
-                <span class="print-accent" aria-hidden="true" style="font-size:2rem;">🏅</span>
-                <span class="print-text print-accent" style="font-weight:bold;margin-left:.5rem">OFFICIALLY VERIFIED</span>
+                <span class="print-text print-accent" style="font-weight:bold">OFFICIALLY VERIFIED</span>
               </div>`
                   : ""
               }
@@ -192,100 +181,26 @@ export function PrintCertificate({ data }: { data: CertificateData }) {
       </html>
     `;
 
-    // Create an iframe
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "absolute";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.style.visibility = "hidden"; // Hide the iframe
-    iframe.src = "about:blank"; // Set src to avoid potential browser issues
-
-    document.body.appendChild(iframe);
-
-    // Cleanup function
-    const cleanup = () => {
-      if (iframe.parentNode === document.body) {
-        document.body.removeChild(iframe);
-      }
-    };
-
-    // Write the HTML content to the iframe
-    iframe.contentDocument?.open();
-    iframe.contentDocument?.write(certificateHtml);
-    iframe.contentDocument?.close();
-
-    // Handle print attempt
-    const attemptPrint = () => {
-      if (printCanceledRef.current) {
-        cleanup();
-        return;
-      }
-
-      try {
-        if (iframe.contentWindow) {
-          iframe.contentWindow.focus();
-
-          // Set up after-print handler to cleanup
-          iframe.contentWindow.onafterprint = () => {
-            cleanup();
-          };
-
-          iframe.contentWindow.print();
-
-          // Set up cancel detection
-          const checkPrintDialog = setInterval(() => {
-            if (document.hasFocus()) {
-              clearInterval(checkPrintDialog);
-              printCanceledRef.current = true;
-              cleanup();
-            }
-          }, 50);
-
-          // Clear interval after 5s maximum
-          setTimeout(() => {
-            clearInterval(checkPrintDialog);
-            cleanup();
-          }, 50);
-        }
-      } catch (error) {
-        console.error("Printing failed:", error);
+    cleanupPrintRef.current = mountCertificatePrintFrame(
+      certificateHtml,
+      (error) => {
+        safeConsole.error("Printing failed:", error);
         alert(
           "Could not open print dialog. Please try again or check browser settings.",
         );
-        cleanup();
-      }
-    };
-
-    // Wait for iframe to load before printing
-    iframe.onload = attemptPrint;
-
-    // Cleanup if something goes wrong
-    setTimeout(cleanup, 10000); // Failsafe cleanup after 10 seconds
+      },
+    );
   };
 
-  if (!mounted) return null;
-
   return (
-    <>
-      {/* Print Button */}
-      <Button
-        onClick={handlePrint}
-        variant="outline"
-        size="sm"
-        className="flex items-center gap-2 mt-6 mx-auto print:hidden hover:bg-primary/10 transition-colors"
-        aria-label="Print certificate"
-      >
-        <Printer className="h-4 w-4" />
-        Print Certificate
-      </Button>
-
-      {/* Printable Certificate structure (can be kept for reference or removed if not needed elsewhere) */}
-      {/* This div is NOT used by the iframe print method */}
-      <div className="printable-certificate hidden" aria-hidden="true">
-        {/* ... existing certificate structure ... */}
-        {/* This content is now generated dynamically in the handlePrint function */}
-      </div>
-    </>
+    <Button
+      onClick={handlePrint}
+      disabled={!mounted}
+      className="print:hidden"
+      aria-label="Print certificate"
+    >
+      <Printer data-icon="inline-start" aria-hidden="true" />
+      Print certificate
+    </Button>
   );
 }
