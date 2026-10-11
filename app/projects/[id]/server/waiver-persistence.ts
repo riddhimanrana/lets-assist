@@ -18,6 +18,7 @@ import {
   parseDataUrl,
 } from "./shared";
 import { buildWaiverEvidencePath } from "@/lib/waiver/evidence-path";
+import { waiverFileProblem } from "@/lib/waiver/file-validation";
 
 export async function uploadWaiverAsset(params: {
   bucket: string;
@@ -40,6 +41,13 @@ export async function uploadWaiverAsset(params: {
 
   if (parsed.size > params.maxBytes) {
     return { error: "File is too large.", reason: "size" as const };
+  }
+
+  if (await waiverFileProblem(parsed.buffer, parsed.contentType)) {
+    return {
+      error: "The waiver file could not be read.",
+      reason: "invalid" as const,
+    };
   }
 
   const serviceSupabase = getAdminClient();

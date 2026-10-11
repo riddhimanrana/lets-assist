@@ -5,7 +5,7 @@ import "server-only";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { isEncryptedPdf } from "@/lib/waiver/generate-signed-waiver-pdf";
+import { waiverFileProblem } from "@/lib/waiver/file-validation";
 import {
   ENCRYPTED_WAIVER_PDF_MESSAGE,
   WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE,
@@ -68,9 +68,18 @@ export async function uploadProjectWaiverPdf(
     }
 
     // A protected source can never be stamped with signatures later.
-    if (await isEncryptedPdf(parsed.buffer)) {
+    const pdfProblem = await waiverFileProblem(
+      parsed.buffer,
+      parsed.contentType,
+    );
+    if (pdfProblem === "encrypted") {
       return { error: ENCRYPTED_WAIVER_PDF_MESSAGE };
     }
+    if (pdfProblem)
+      return {
+        error:
+          "The waiver PDF could not be read. Choose a valid PDF and try again.",
+      };
 
     // Generate storage path
     const storagePath = `project_waivers/${projectId}/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9.-]/g, "_")}`;

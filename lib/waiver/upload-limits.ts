@@ -6,6 +6,20 @@
  */
 
 export const SIGNED_WAIVER_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+export const WAIVER_SIGNATURE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const WAIVER_SIGNATURE_IMAGE_SIZE_MESSAGE =
+  "File is too large. Maximum signature image size is 2 MB.";
+
+export function signatureImageUploadProblem(file: {
+  type: string;
+  size: number;
+}): string | null {
+  if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type))
+    return "Please upload an image (PNG, JPG) for your signature.";
+  return file.size > WAIVER_SIGNATURE_IMAGE_MAX_BYTES
+    ? WAIVER_SIGNATURE_IMAGE_SIZE_MESSAGE
+    : null;
+}
 
 export const SIGNED_WAIVER_UPLOAD_TYPES = [
   "application/pdf",

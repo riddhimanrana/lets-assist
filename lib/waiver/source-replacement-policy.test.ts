@@ -81,7 +81,7 @@ describe("waiver source actions", () => {
   });
 
   test("a password protected PDF is refused before it is stored", () => {
-    const encrypted = upload.indexOf("isEncryptedPdf(");
+    const encrypted = upload.indexOf("waiverFileProblem(");
     expect(encrypted).toBeGreaterThan(0);
     expect(upload.indexOf(".upload(")).toBeGreaterThan(encrypted);
     expect(upload).toContain("ENCRYPTED_WAIVER_PDF_MESSAGE");

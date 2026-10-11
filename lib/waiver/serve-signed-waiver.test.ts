@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { PDFDocument } from "pdf-lib";
+import {
+  PDFArray,
+  PDFDocument,
+  PDFRawStream,
+  StandardFonts,
+  decodePDFRawStream,
+} from "pdf-lib";
 
 type Op = { method: string; args: unknown[] };
 type Result = { data: unknown; error: unknown };
@@ -75,10 +81,11 @@ mock.module("@/lib/anonymous-signup-access", () => ({
       ? { data: { id: params.anonymousSignupId }, error: null }
       : { data: null, error: "invalid" },
 }));
+let sourcePageSize: [number, number] = [612, 792];
 mock.module("@/lib/waiver/source-pdf-loader", () => ({
   loadWaiverSourcePdf: async () => {
     const document = await PDFDocument.create();
-    document.addPage([612, 792]);
+    document.addPage(sourcePageSize);
     return document.save();
   },
 }));
@@ -108,12 +115,70 @@ const member = (role: string, status: string | null): Result => ({
   error: null,
 });
 
+/**
+ * The first page of a served PDF: its size, and each standard-font string with
+ * the left, right, bottom, and top edges it was drawn within.
+ */
+async function servedPage(response: Response) {
+  const document = await PDFDocument.load(await response.arrayBuffer());
+  const page = document.getPages()[0];
+  const contents = page.node.Contents();
+  const streams =
+    contents instanceof PDFArray
+      ? contents.asArray().map((ref) => document.context.lookup(ref))
+      : [contents];
+  const source = streams
+    .filter((stream) => stream instanceof PDFRawStream)
+    .map((stream) =>
+      Buffer.from(decodePDFRawStream(stream).decode()).toString("latin1"),
+    )
+    .join("\n");
+
+  const font = await (
+    await PDFDocument.create()
+  ).embedFont(StandardFonts.Helvetica);
+  const drawn = Array.from(source.matchAll(/BT([\s\S]*?)ET/g), ([, body]) => {
+    const size = /\s(-?[\d.]+) Tf/.exec(body);
+    const origin = /1 0 0 1 (-?[\d.]+) (-?[\d.]+) Tm/.exec(body);
+    const hex = /<([0-9A-Fa-f]+)>\s*Tj/.exec(body);
+    if (!size || !origin || !hex) throw new Error("Unreadable text block");
+    const text = Buffer.from(hex[1], "hex").toString("latin1");
+    const [x, y, points] = [origin[1], origin[2], size[1]].map(Number);
+    return {
+      text,
+      x,
+      y,
+      right: x + font.widthOfTextAtSize(text, points),
+      bottom: y - points * 0.25,
+      top: y + points,
+    };
+  });
+
+  return { size: page.getSize(), drawn };
+}
+
+const typedVolunteerPayload = {
+  signers: [
+    {
+      role_key: "volunteer",
+      method: "typed",
+      data: "Alex Johnson",
+      timestamp: "2026-03-01T20:15:00.000Z",
+    },
+  ],
+  fields: {},
+};
+
+const UNPLACEABLE_MESSAGE =
+  "A signature on this waiver has no valid position on the waiver document, so a complete signed copy cannot be created. Contact the organizer for help.";
+
 beforeEach(() => {
   tableCalls.length = 0;
   downloads.length = 0;
   sessionUser = null;
   guestTokenValid = false;
   membership = { data: null, error: null };
+  sourcePageSize = [612, 792];
   storedObject = new Blob(["%PDF-1.4"], { type: "application/pdf" });
   signatureRow = {
     id: SIGNATURE_ID,
@@ -333,6 +398,258 @@ describe("serveSignedWaiver responses", () => {
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     const pdf = await PDFDocument.load(await response.arrayBuffer());
     expect(pdf.getPageCount()).toBe(1);
+  });
+
+  test("a corrupt signature returns a private readable refusal, never a completed PDF", async () => {
+    signatureRow = {
+      ...signatureRow,
+      upload_storage_path: null,
+      signature_payload: {
+        signers: [
+          {
+            role_key: "volunteer",
+            method: "draw",
+            data: "data:image/png;base64,AAAA",
+            timestamp: "2026-03-01T20:15:00.000Z",
+          },
+        ],
+        fields: {},
+      },
+    };
+    const response = await serve({ inline: true, accept: "text/html" });
+    expect(response.status).toBe(422);
+    expect(response.headers.get("Content-Type")).toContain("text/html");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(await response.text()).toContain("signature");
+  });
+
+  test.each([
+    ["on a page the document does not have", "volunteer", 3],
+    ["only for another role", "guardian", 0],
+  ])(
+    "a valid typed signature whose placement is %s returns a private readable refusal, never a PDF",
+    async (_label, fieldRole, pageIndex) => {
+      signatureRow = {
+        ...signatureRow,
+        upload_storage_path: null,
+        signature_payload: {
+          signers: [
+            {
+              role_key: "volunteer",
+              method: "typed",
+              data: "Alex Johnson",
+              timestamp: "2026-03-01T20:15:00.000Z",
+            },
+          ],
+          fields: {},
+        },
+        waiver_definition: {
+          id: "55555555-5555-4555-8555-555555555555",
+          pdf_storage_path: `project_waivers/${PROJECT_ID}/source.pdf`,
+          pdf_public_url: null,
+          signers: [],
+          fields: [
+            {
+              field_key: "volunteer_signature",
+              field_type: "signature",
+              page_index: pageIndex,
+              rect: { x: 72, y: 500, width: 240, height: 48 },
+              signer_role_key: fieldRole,
+            },
+          ],
+        },
+      };
+      const message =
+        "A signature on this waiver has no valid position on the waiver document, so a complete signed copy cannot be created. Contact the organizer for help.";
+
+      const download = await serve();
+
+      expect(download.status).toBe(422);
+      expect(download.headers.get("Content-Type")).toContain(
+        "application/json",
+      );
+      expect(download.headers.get("Content-Disposition")).toBeNull();
+      expect(download.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(download.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(await download.json()).toEqual({ error: message });
+
+      const preview = await serve({ inline: true, accept: "text/html" });
+      const body = await preview.text();
+
+      expect(preview.status).toBe(422);
+      expect(preview.headers.get("Content-Type")).toContain("text/html");
+      expect(preview.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(preview.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(body).toContain(message);
+      expect(body).not.toContain("%PDF");
+      expect(body).not.toContain("Alex Johnson");
+      // No signature evidence was read from storage for the refused copy.
+      expect(downloads).toEqual([]);
+    },
+  );
+
+  test("the same typed signature with a placement on the page still renders", async () => {
+    signatureRow = {
+      ...signatureRow,
+      upload_storage_path: null,
+      signature_payload: {
+        signers: [
+          {
+            role_key: "volunteer",
+            method: "typed",
+            data: "Alex Johnson",
+            timestamp: "2026-03-01T20:15:00.000Z",
+          },
+        ],
+        fields: {},
+      },
+      waiver_definition: {
+        id: "55555555-5555-4555-8555-555555555555",
+        pdf_storage_path: `project_waivers/${PROJECT_ID}/source.pdf`,
+        pdf_public_url: null,
+        signers: [],
+        fields: [
+          {
+            field_key: "volunteer_signature",
+            field_type: "signature",
+            page_index: 0,
+            rect: { x: 72, y: 500, width: 240, height: 48 },
+            signer_role_key: "volunteer",
+          },
+        ],
+      },
+    };
+
+    const response = await serve();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/pdf");
+  });
+
+  test("a Letter source with no stored definition is stamped where it always was", async () => {
+    signatureRow = {
+      ...signatureRow,
+      upload_storage_path: null,
+      signature_payload: typedVolunteerPayload,
+    };
+
+    const response = await serve();
+
+    expect(response.status).toBe(200);
+    const { drawn } = await servedPage(response);
+    expect(drawn.map(({ text, x, y }) => ({ text, x, y }))).toEqual([
+      { text: "Alex Johnson", x: 105, y: 672 },
+      { text: "Signed: Mar 1, 2026 at 12:15 PM PST", x: 100, y: 638 },
+    ]);
+  });
+
+  test.each<[string, [number, number], number]>([
+    ["a landscape Letter", [792, 612], 470],
+    ["a short portrait A5", [420, 595], 453],
+  ])(
+    "%s source with no stored definition returns a complete signed copy",
+    async (_label, size, boxBottom) => {
+      sourcePageSize = size;
+      signatureRow = {
+        ...signatureRow,
+        upload_storage_path: null,
+        signature_payload: typedVolunteerPayload,
+      };
+
+      const response = await serve({ inline: true });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Content-Type")).toBe("application/pdf");
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+      const page = await servedPage(response);
+      expect(page.size).toEqual({ width: size[0], height: size[1] });
+      expect(page.drawn.map(({ text, x, y }) => ({ text, x, y }))).toEqual([
+        { text: "Alex Johnson", x: 105, y: boxBottom + 22 },
+        {
+          text: "Signed: Mar 1, 2026 at 12:15 PM PST",
+          x: 100,
+          y: boxBottom - 12,
+        },
+      ]);
+      for (const text of page.drawn) {
+        expect(text.x).toBeGreaterThanOrEqual(0);
+        expect(text.bottom).toBeGreaterThanOrEqual(0);
+        expect(text.right).toBeLessThanOrEqual(size[0]);
+        expect(text.top).toBeLessThanOrEqual(size[1]);
+      }
+    },
+  );
+
+  test("a legacy typed signature with no payload also fits a short source", async () => {
+    sourcePageSize = [420, 595];
+    signatureRow = {
+      ...signatureRow,
+      upload_storage_path: null,
+      signature_text: "Alex Johnson",
+    };
+
+    const response = await serve();
+
+    expect(response.status).toBe(200);
+    const page = await servedPage(response);
+    expect(page.drawn.map(({ text }) => text)).toEqual([
+      "Alex Johnson",
+      "Signed: Mar 1, 2026 at 12:15 PM PST",
+    ]);
+    for (const text of page.drawn) {
+      expect(text.bottom).toBeGreaterThanOrEqual(0);
+      expect(text.right).toBeLessThanOrEqual(420);
+      expect(text.top).toBeLessThanOrEqual(595);
+    }
+  });
+
+  test.each([
+    ["a stored definition", "55555555-5555-4555-8555-555555555555"],
+    [
+      "a stored definition that carries the fallback's id",
+      "synthetic-single-signer",
+    ],
+  ])(
+    "%s with a placement off a landscape source is refused, never moved",
+    async (_label, definitionId) => {
+      sourcePageSize = [792, 612];
+      signatureRow = {
+        ...signatureRow,
+        upload_storage_path: null,
+        signature_payload: typedVolunteerPayload,
+        waiver_definition: {
+          id: definitionId,
+          pdf_storage_path: `project_waivers/${PROJECT_ID}/source.pdf`,
+          pdf_public_url: null,
+          signers: [],
+          // The same box the fallback uses, which this source could hold if moved.
+          fields: singleSignerDefinition("volunteer").fields,
+        },
+      };
+
+      const response = await serve();
+
+      expect(response.status).toBe(422);
+      expect(response.headers.get("Content-Disposition")).toBeNull();
+      expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+      expect(await response.json()).toEqual({ error: UNPLACEABLE_MESSAGE });
+    },
+  );
+
+  test("a source too small for the fallback box is refused", async () => {
+    sourcePageSize = [100, 100];
+    signatureRow = {
+      ...signatureRow,
+      upload_storage_path: null,
+      signature_payload: typedVolunteerPayload,
+    };
+
+    const response = await serve();
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ error: UNPLACEABLE_MESSAGE });
+    expect(downloads).toEqual([]);
   });
 
   test("the synthetic definition is keyed on the role the payload used", () => {

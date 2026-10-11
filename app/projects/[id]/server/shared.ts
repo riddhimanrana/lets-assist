@@ -24,6 +24,8 @@ import {
   removeWaiverStorageObjects,
 } from "@/lib/waiver/cleanup-storage";
 import { resolveWaiverSignerIdentity } from "@/lib/waiver/signer-identity";
+import { WAIVER_SIGNATURE_IMAGE_MAX_BYTES } from "@/lib/waiver/upload-limits";
+import { parseWaiverDataUrl } from "@/lib/waiver/file-validation";
 
 // Define your site URL (replace with environment variable ideally)
 export { resolveWaiverSignerIdentity };
@@ -74,7 +76,7 @@ export const WAIVER_SIGNATURE_BUCKET = "waiver-signatures";
 
 export const WAIVER_UPLOAD_BUCKET = "waiver-uploads";
 
-export const MAX_WAIVER_SIGNATURE_BYTES = 2 * 1024 * 1024;
+export const MAX_WAIVER_SIGNATURE_BYTES = WAIVER_SIGNATURE_IMAGE_MAX_BYTES;
 
 // 2MB
 export const MAX_WAIVER_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -280,12 +282,7 @@ export type ParsedDataUrl = {
 };
 
 export function parseDataUrl(dataUrl: string): ParsedDataUrl | null {
-  const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-  if (!matches) return null;
-  const contentType = matches[1];
-  const base64 = matches[2];
-  const buffer = Buffer.from(base64, "base64");
-  return { contentType, buffer, size: buffer.length };
+  return parseWaiverDataUrl(dataUrl);
 }
 
 export async function getRequestMetadata() {

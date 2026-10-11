@@ -23,20 +23,40 @@ export interface PdfGenerationOptions {
   storageResolver?: (path: string) => Promise<ArrayBuffer>;
   /** IANA zone of the project. The "Signed:" stamp is rendered in it. */
   timeZone?: string | null;
+  /**
+   * Set by the server only when `definition` is its own fixed fallback for a
+   * record with no stored definition. The fallback box was chosen for a Letter
+   * page, so on a source page it does not fit it is moved, and shrunk if
+   * needed, to stay on the visible page. A stored definition never sets this:
+   * its placements are either usable as saved or refused.
+   */
+  fitFallbackSignatureToPage?: boolean;
 }
 
-export type SignedWaiverPdfErrorCode = "encrypted_source" | "unreadable_source";
+export type SignedWaiverPdfErrorCode =
+  | "encrypted_source"
+  | "unreadable_source"
+  | "unreadable_signature"
+  | "unplaceable_signature";
 
-/** A source document the renderer cannot stamp, with a reason a caller can show. */
+// Fixed sentences. None of them quotes the document, a name, or a field value.
+const SIGNED_WAIVER_PDF_ERROR_MESSAGES: Record<
+  SignedWaiverPdfErrorCode,
+  string
+> = {
+  encrypted_source: "The waiver PDF is password protected",
+  unreadable_source: "The waiver PDF could not be read",
+  unreadable_signature: "A waiver signature image could not be read",
+  unplaceable_signature:
+    "A waiver signature has no usable placement on the waiver PDF",
+};
+
+/** A signed copy the renderer cannot produce, with a reason a caller can show. */
 export class SignedWaiverPdfError extends Error {
   readonly code: SignedWaiverPdfErrorCode;
 
   constructor(code: SignedWaiverPdfErrorCode) {
-    super(
-      code === "encrypted_source"
-        ? "The waiver PDF is password protected"
-        : "The waiver PDF could not be read",
-    );
+    super(SIGNED_WAIVER_PDF_ERROR_MESSAGES[code]);
     this.name = "SignedWaiverPdfError";
     this.code = code;
   }
@@ -131,6 +151,112 @@ function usableRect(rect: FieldRect | null | undefined): FieldRect | null {
   return values.every((value) => Number.isFinite(value)) ? rect : null;
 }
 
+/** The part of a page a viewer shows: where its media and crop boxes overlap. */
+function visibleEdges(page: PDFPage) {
+  const media = page.getMediaBox();
+  const crop = page.getCropBox();
+  const edges = (box: FieldRect) => ({
+    left: Math.min(box.x, box.x + box.width),
+    right: Math.max(box.x, box.x + box.width),
+    bottom: Math.min(box.y, box.y + box.height),
+    top: Math.max(box.y, box.y + box.height),
+  });
+  const [mediaEdges, cropEdges] = [edges(media), edges(crop)];
+
+  return {
+    left: Math.max(mediaEdges.left, cropEdges.left),
+    right: Math.min(mediaEdges.right, cropEdges.right),
+    bottom: Math.max(mediaEdges.bottom, cropEdges.bottom),
+    top: Math.min(mediaEdges.top, cropEdges.top),
+  };
+}
+
+/** Slack, in PDF points, for rounding in placements clamped to the page edge. */
+const PLACEMENT_TOLERANCE = 1;
+
+/**
+ * Whether a signature box lies on the part of the page a viewer shows. The
+ * waiver builder places boxes in the same space: raw PDF points inside the
+ * crop box, which is not always anchored at the origin. A box smaller than a
+ * signature is accepted, because the drawing code enlarges it. A box with no
+ * area is not: it pins nothing to the page, and saving never allowed one.
+ */
+function fitsOnPage(rect: FieldRect, page: PDFPage): boolean {
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const visible = visibleEdges(page);
+
+  return (
+    rect.x >= visible.left - PLACEMENT_TOLERANCE &&
+    rect.y >= visible.bottom - PLACEMENT_TOLERANCE &&
+    rect.x + rect.width <= visible.right + PLACEMENT_TOLERANCE &&
+    rect.y + rect.height <= visible.top + PLACEMENT_TOLERANCE
+  );
+}
+
+/** The "Signed:" stamp: its font size and how far its baseline sits under a box. */
+const SIGNED_STAMP_SIZE = 8;
+const SIGNED_STAMP_DROP = 12;
+/** Room kept under a fallback box for the stamp, descenders included. */
+const SIGNED_STAMP_RESERVE = SIGNED_STAMP_DROP + 4;
+
+/** The page height the server's fallback box was positioned for. */
+const LETTER_HEIGHT = 792;
+/** A fallback box smaller than this cannot hold a legible signature. */
+const MIN_FALLBACK_WIDTH = 120;
+const MIN_FALLBACK_HEIGHT = 24;
+
+/**
+ * Where the server's fallback signature box goes on a real page. The box is
+ * returned untouched when it and its stamp already sit on the visible page, so
+ * a Letter source is stamped exactly where it always was. Otherwise the box
+ * keeps its Letter distance from the top-left corner of the visible page as
+ * far as the page allows, and shrinks only when the page is smaller than the
+ * box. Returns null when the page cannot hold a legible box and the stamp.
+ */
+function fallbackPlacement(
+  rect: FieldRect,
+  page: PDFPage,
+  stampWidth: number,
+): FieldRect | null {
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const visible = visibleEdges(page);
+  const fitsWithStamp =
+    rect.x >= visible.left &&
+    rect.x + Math.max(rect.width, stampWidth) <= visible.right &&
+    rect.y - SIGNED_STAMP_RESERVE >= visible.bottom &&
+    rect.y + rect.height <= visible.top;
+  if (fitsWithStamp) return rect;
+
+  const availableWidth = visible.right - visible.left;
+  const availableHeight = visible.top - visible.bottom - SIGNED_STAMP_RESERVE;
+  const width = Math.min(rect.width, availableWidth);
+  const height = Math.min(rect.height, availableHeight);
+  // The stamp starts at the box's left edge and can be wider than the box.
+  const span = Math.max(width, stampWidth);
+  if (
+    width < MIN_FALLBACK_WIDTH ||
+    height < MIN_FALLBACK_HEIGHT ||
+    span > availableWidth
+  ) {
+    return null;
+  }
+
+  const leftInset = Math.min(Math.max(rect.x, 0), availableWidth - span);
+  const topInset = Math.min(
+    Math.max(LETTER_HEIGHT - (rect.y + rect.height), 0),
+    availableHeight - height,
+  );
+
+  return {
+    x: visible.left + leftInset,
+    y: visible.top - topInset - height,
+    width,
+    height,
+  };
+}
+
 const TEXT_FIELD_TYPES = new Set([
   "text",
   "name",
@@ -193,6 +319,7 @@ async function renderSignedWaiverPdf(
     signaturePayload,
     storageResolver,
     timeZone,
+    fitFallbackSignatureToPage = false,
   } = options;
 
   // The source is loaded through the bounded, Storage-aware server loader.
@@ -205,7 +332,8 @@ async function renderSignedWaiverPdf(
   const pagesWithSubstitutions = new Set<PDFPage>();
   const unicode = createUnicodeTextRenderer(pdfDoc, font, encodable);
 
-  // A field that names a page the document does not have is skipped.
+  // An optional field that names a page the document does not have is skipped.
+  // A signed signer's placement is held to a stricter rule further down.
   const pageFor = (pageIndex: number | null | undefined): PDFPage | null => {
     const index = pageIndex ?? 0;
     if (!Number.isInteger(index) || index < 0) return null;
@@ -258,15 +386,83 @@ async function renderSignedWaiverPdf(
     if (!signedAt) return;
     await drawText(page, `Signed: ${signedAt}`, {
       x: rect.x,
-      y: rect.y - 12,
-      size: 8,
+      y: rect.y - SIGNED_STAMP_DROP,
+      size: SIGNED_STAMP_SIZE,
       gray: true,
     });
+  };
+
+  // An upper estimate of how wide text draws on one line. Text that needs a
+  // Unicode font is measured through its standard-font stand-in, so each of
+  // its characters is also allowed a full em.
+  const drawnWidth = (value: unknown, size: number): number => {
+    const { text, substituted } = toRenderableText(value, encodable);
+    return Math.max(
+      0,
+      ...text.split("\n").map((line) => {
+        const fullEms = substituted ? Array.from(line).length * size : 0;
+        try {
+          return Math.max(font.widthOfTextAtSize(line, size), fullEms);
+        } catch {
+          return Math.max(Array.from(line).length * size, fullEms);
+        }
+      }),
+    );
   };
 
   // 2. Get signature placements from definition
   const signatureFields =
     definition.fields?.filter((f) => f.field_type === "signature") || [];
+
+  // Only the server's fallback box is ever moved, and only into this map. The
+  // definition and its fields are never written to.
+  const relocatedFallbackRects = new Map<
+    (typeof signatureFields)[number],
+    FieldRect
+  >();
+  const widestStamp = fitFallbackSignatureToPage
+    ? Math.max(
+        0,
+        ...(signaturePayload.signers ?? []).map((signer) => {
+          const signedAt = formatSignedAt(signer.timestamp, timeZone);
+          return signedAt
+            ? drawnWidth(`Signed: ${signedAt}`, SIGNED_STAMP_SIZE)
+            : 0;
+        }),
+      )
+    : 0;
+
+  // A signer who actually signed must land on the document. A role with no
+  // signature placement, or a placement on a missing page or outside the page,
+  // would otherwise produce a PDF that looks signed and is not. This runs
+  // before anything is drawn or read from storage. A signer with no signature
+  // data is optional and keeps the lenient skipping below.
+  for (const signerSignature of signaturePayload.signers ?? []) {
+    const isSigned =
+      (signerSignature.method === "typed" ||
+        signerSignature.method === "draw" ||
+        signerSignature.method === "upload") &&
+      typeof signerSignature.data === "string" &&
+      signerSignature.data.trim().length > 0;
+    if (!isSigned) continue;
+
+    const signerFields = signatureFields.filter(
+      (f) => f.signer_role_key === signerSignature.role_key,
+    );
+    const everyFieldFits = signerFields.every((field) => {
+      const page = pageFor(field.page_index);
+      const rect = usableRect(field.rect);
+      if (page === null || rect === null) return false;
+      if (!fitFallbackSignatureToPage) return fitsOnPage(rect, page);
+
+      const placed = fallbackPlacement(rect, page, widestStamp);
+      if (placed && placed !== rect) relocatedFallbackRects.set(field, placed);
+      return placed !== null;
+    });
+    if (signerFields.length === 0 || !everyFieldFits) {
+      throw new SignedWaiverPdfError("unplaceable_signature");
+    }
+  }
 
   // 3. For each signature in payload, find corresponding placement and stamp
   for (const signerSignature of signaturePayload.signers ?? []) {
@@ -283,12 +479,22 @@ async function renderSignedWaiverPdf(
 
     for (const field of signerFields) {
       const page = pageFor(field.page_index);
-      const rect = usableRect(field.rect);
+      const relocated = relocatedFallbackRects.get(field);
+      const rect = relocated ?? usableRect(field.rect);
       if (!page || !rect) continue;
 
       // Handle typed signatures (draw text instead of image)
       if (signerSignature.method === "typed") {
-        const fontSize = Math.max(6, Math.min(rect.height * 0.6, 24)); // Scale font to fit
+        let fontSize = Math.max(6, Math.min(rect.height * 0.6, 24)); // Scale font to fit
+        if (relocated) {
+          // A moved fallback box sits on a page narrower or shorter than
+          // Letter, so a long name is scaled down to end before the page does.
+          const room = visibleEdges(page).right - (rect.x + 5);
+          const width = drawnWidth(signatureData, fontSize);
+          if (width > room) {
+            fontSize = Math.max(6, (fontSize * room) / width);
+          }
+        }
         await drawText(page, signatureData, {
           x: rect.x + 5,
           y: rect.y + rect.height / 2 - fontSize / 3,
@@ -351,10 +557,11 @@ async function renderSignedWaiverPdf(
         }
       } catch {
         reportDiagnostic();
-        continue;
+        throw new SignedWaiverPdfError("unreadable_signature");
       }
 
-      if (!signatureImage) continue;
+      if (!signatureImage)
+        throw new SignedWaiverPdfError("unreadable_signature");
 
       // Signature boxes detected from text baselines can be too small.
       // Enforce a sane minimum for image signatures while clamping to page bounds.
@@ -367,14 +574,14 @@ async function renderSignedWaiverPdf(
       const desiredWidth = Math.max(rect.width, minSigWidth);
       const desiredHeight = Math.max(rect.height, minSigHeight);
 
-      const finalWidth = Math.min(
-        desiredWidth,
-        Math.max(1, pageWidth - rect.x),
-      );
-      const finalHeight = Math.min(
-        desiredHeight,
-        Math.max(1, pageHeight - rect.y),
-      );
+      // A moved fallback box was already sized to the visible page, so the
+      // image fills it exactly instead of growing back to the minimum.
+      const finalWidth = relocated
+        ? rect.width
+        : Math.min(desiredWidth, Math.max(1, pageWidth - rect.x));
+      const finalHeight = relocated
+        ? rect.height
+        : Math.min(desiredHeight, Math.max(1, pageHeight - rect.y));
 
       // Draw the signature
       page.drawImage(signatureImage, {

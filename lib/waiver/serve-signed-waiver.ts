@@ -114,6 +114,10 @@ const MESSAGES = {
     "The waiver document for this project is password protected, so the signed copy cannot be created. Ask the organizer to upload a copy without a password.",
   unreadableSource:
     "The waiver document for this project could not be read, so the signed copy cannot be created.",
+  unreadableSignature:
+    "A stored signature image could not be read, so a complete signed copy cannot be created. Contact the organizer for help.",
+  unplaceableSignature:
+    "A signature on this waiver has no valid position on the waiver document, so a complete signed copy cannot be created. Contact the organizer for help.",
   renderFailed: "The signed waiver could not be created. Please try again.",
   needsMigration:
     "This signed waiver is stored in an older format and cannot be opened here.",
@@ -400,13 +404,19 @@ export async function serveSignedWaiver(
       },
     });
 
+  // A stored definition is rendered exactly as saved. Only when the record has
+  // none does the server supply its own fallback box, and only that box may be
+  // fitted to the source page. The decision rests on the stored row being
+  // absent, never on anything inside a definition.
   const renderStamped = async (
-    definition: WaiverDefinitionForRender,
     signaturePayload: SignaturePayload,
+    fallbackRoleKey: string,
   ): Promise<Response> => {
     if (!hasSourcePdf) {
       return fail(404, MESSAGES.sourceMissing);
     }
+
+    const storedDefinition = typedSignature.waiver_definition ?? null;
 
     try {
       const sourcePdfBytes = await loadWaiverSourcePdf(sourcePdfReference, {
@@ -414,10 +424,11 @@ export async function serveSignedWaiver(
       });
       const pdfBuffer = await generateSignedWaiverPdf({
         sourcePdfBytes,
-        definition,
+        definition: storedDefinition ?? singleSignerDefinition(fallbackRoleKey),
         signaturePayload,
         storageResolver,
         timeZone: typedProject.project_timezone,
+        fitFallbackSignatureToPage: storedDefinition === null,
       });
 
       return fileResponse(new Uint8Array(pdfBuffer), "application/pdf");
@@ -427,7 +438,11 @@ export async function serveSignedWaiver(
           422,
           error.code === "encrypted_source"
             ? MESSAGES.encryptedSource
-            : MESSAGES.unreadableSource,
+            : error.code === "unreadable_signature"
+              ? MESSAGES.unreadableSignature
+              : error.code === "unplaceable_signature"
+                ? MESSAGES.unplaceableSignature
+                : MESSAGES.unreadableSource,
         );
       }
 
@@ -483,17 +498,12 @@ export async function serveSignedWaiver(
   if (payload && payloadSigners.length > 0) {
     // A project signed without a saved definition stored a single signer under
     // whatever role the signing form used. Render that one signature.
-    const definition =
-      typedSignature.waiver_definition ??
-      singleSignerDefinition(payloadSigners[0].role_key);
-
-    return renderStamped(definition, payload);
+    return renderStamped(payload, payloadSigners[0].role_key);
   }
 
   // Priority 3: Legacy signature_storage_path (pre-migration format)
   if (typedSignature.signature_storage_path) {
     return renderStamped(
-      typedSignature.waiver_definition ?? singleSignerDefinition("participant"),
       {
         signers: [
           {
@@ -505,6 +515,7 @@ export async function serveSignedWaiver(
         ],
         fields: {},
       },
+      "participant",
     );
   }
 
@@ -518,7 +529,6 @@ export async function serveSignedWaiver(
   // Priority 5: Legacy signature_text format
   if (typedSignature.signature_text) {
     return renderStamped(
-      typedSignature.waiver_definition ?? singleSignerDefinition("participant"),
       {
         signers: [
           {
@@ -530,6 +540,7 @@ export async function serveSignedWaiver(
         ],
         fields: {},
       },
+      "participant",
     );
   }
 
