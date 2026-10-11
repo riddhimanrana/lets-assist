@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let isAdmin = true;
@@ -96,5 +97,27 @@ describe("admin statistics page error boundaries", () => {
       await expect(page()).rejects.toThrow("REDIRECT:/not-found");
       expect(reads).toBe(0);
     });
+  }
+});
+
+function landingControlKeys(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(landingControlKeys);
+  if (!React.isValidElement<{ children?: unknown }>(value)) return [];
+  const keys =
+    typeof value.type === "function" && value.type.name === "LandingDemoControl"
+      ? [String(value.key)]
+      : [];
+  return [...keys, ...landingControlKeys(value.props.children)];
+}
+
+test("every authoritative overview read remounts the control even when the mode repeats", async () => {
+  for (const failed of [false, true]) {
+    reportResult = failed ? { error: "Unavailable" } : { data: {} };
+    const first = landingControlKeys(await overview());
+    const refreshed = landingControlKeys(await overview());
+    expect(first).toHaveLength(1);
+    expect(refreshed).toHaveLength(1);
+    expect(first[0]).toMatch(/^[a-f0-9-]{36}$/);
+    expect(refreshed[0]).not.toBe(first[0]);
   }
 });

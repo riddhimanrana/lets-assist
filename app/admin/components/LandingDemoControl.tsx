@@ -57,15 +57,8 @@ export function LandingDemoControl({
   // toggle that arrives before it.
   const inFlight = useRef(false);
 
-  // A refreshed page can pass a new `enabled`. Adopt it during render rather
-  // than in an effect, so the stale mode and its error never paint.
-  const [lastEnabled, setLastEnabled] = useState(enabled);
-  if (enabled !== lastEnabled) {
-    setLastEnabled(enabled);
-    setConfirmedEnabled(enabled);
-    setFailed(false);
-    setRefreshFailed(false);
-  }
+  // The server page gives each authoritative read a fresh React key, so a
+  // repeated Boolean snapshot remounts this local state as well.
 
   const mode = confirmedEnabled;
   const busy = saving || reloading;
