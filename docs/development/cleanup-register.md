@@ -26,6 +26,14 @@ the enabled check, actual submission, PKCE verifier and email/account round-trip
 assertions. This repairs selector ambiguity observed in full CI; it does not
 change signup or navigation behavior. Fresh isolated browser proof is pending.
 
+P2 LANDING-DEMO-COMMIT-RESULT-20261011, corrected locally: a cache invalidation
+exception after the service RPC confirmed persistence could falsely report that
+the mode was not saved. Persistence failures and independent refresh attempts
+now have separate outcomes. A confirmed save retains success with a fixed
+refresh notice; a failed client refresh shows an unknown disabled mode with
+Saved/Reload guidance instead of announcing a failed write. Three post-commit
+cache failure cases retain success and prove all refreshes were attempted.
+
 ## Public landing demo switch — prepared locally
 
 The owner corrected the demo scope to the public landing page for everyone.

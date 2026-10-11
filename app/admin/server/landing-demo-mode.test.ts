@@ -9,6 +9,7 @@ let tags: string[] = [];
 let data: unknown = true;
 let error: unknown = null;
 let rejected = false;
+let refreshFailure: string | null = null;
 
 mock.module("server-only", () => ({}));
 mock.module("@/lib/supabase/auth-helpers", () => ({
@@ -27,8 +28,14 @@ mock.module("@/lib/supabase/admin", () => ({
   }),
 }));
 mock.module("next/cache", () => ({
-  revalidatePath: (path: string) => revalidated.push(path),
-  updateTag: (tag: string) => tags.push(tag),
+  revalidatePath: (path: string) => {
+    revalidated.push(path);
+    if (refreshFailure === path) throw new Error("private cache context");
+  },
+  updateTag: (tag: string) => {
+    tags.push(tag);
+    if (refreshFailure === "tag") throw new Error("private cache context");
+  },
   unstable_cache: (fn: unknown) => fn,
 }));
 
@@ -43,6 +50,7 @@ beforeEach(() => {
   data = true;
   error = null;
   rejected = false;
+  refreshFailure = null;
 });
 
 for (const [name, actor] of [
@@ -116,3 +124,15 @@ test("both mode arguments require actual booleans", async () => {
   }
   expect(calls).toHaveLength(0);
 });
+
+for (const failure of ["tag", "/", "/admin"]) {
+  test(`a confirmed save survives ${failure} refresh failure and attempts every refresh`, async () => {
+    refreshFailure = failure;
+    expect(await setLandingDemoMode(true, false)).toEqual({
+      refreshPending: true,
+    });
+    expect(calls).toHaveLength(1);
+    expect(tags).toEqual(["landing-demo-mode"]);
+    expect(revalidated).toEqual(["/", "/admin"]);
+  });
+}

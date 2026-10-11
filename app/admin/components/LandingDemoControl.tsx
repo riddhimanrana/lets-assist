@@ -17,6 +17,11 @@ const LOAD_ERROR = "Unable to load landing page mode. Reload to try again.";
 const SAVE_ERROR =
   "The landing page mode was not saved. Reload to check the current mode, then try again.";
 
+const REFRESH_WARNING =
+  "Saved. Landing pages may take longer to update. Reload to check the current mode.";
+const REFRESH_ERROR =
+  "Saved. This view could not refresh. Reload to read the current mode.";
+
 /**
  * Switches the public landing page between real content and the fictional
  * demo preview for every visitor. Nothing else changes: home dashboards and
@@ -42,6 +47,8 @@ export function LandingDemoControl({
   const errorId = `${id}-error`;
 
   const [failed, setFailed] = useState(false);
+  const [refreshPending, setRefreshPending] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [saving, startSave] = useTransition();
   const [reloading, startReload] = useTransition();
   // The pending flags update on the next render. The ref also stops a second
@@ -54,17 +61,25 @@ export function LandingDemoControl({
   if (enabled !== lastEnabled) {
     setLastEnabled(enabled);
     setFailed(false);
+    setRefreshFailed(false);
   }
 
-  const mode = enabled;
+  const mode = refreshFailed ? null : enabled;
   const busy = saving || reloading;
-  const error = mode === null ? LOAD_ERROR : failed ? SAVE_ERROR : null;
+  const error = refreshFailed
+    ? REFRESH_ERROR
+    : mode === null
+      ? LOAD_ERROR
+      : failed
+        ? SAVE_ERROR
+        : null;
 
   const save = (next: boolean) => {
     if (mode === null || inFlight.current) return;
     inFlight.current = true;
     setFailed(false);
     startSave(async () => {
+      let saved = false;
       try {
         // The server rejects the save when the mode is no longer `mode`.
         const result = await setLandingDemoMode(next, mode);
@@ -72,13 +87,20 @@ export function LandingDemoControl({
           setFailed(true);
           return;
         }
+        saved = true;
+        setRefreshPending(result.refreshPending === true);
         // Back inside a transition after the await, so the switch stays
         // disabled until the refreshed page is ready.
         startSave(() => {
-          router.refresh();
+          try {
+            router.refresh();
+          } catch {
+            setRefreshFailed(true);
+          }
         });
       } catch {
-        setFailed(true);
+        if (saved) setRefreshFailed(true);
+        else setFailed(true);
       } finally {
         inFlight.current = false;
       }
@@ -90,7 +112,13 @@ export function LandingDemoControl({
     if (inFlight.current) return;
     startReload(() => {
       setFailed(false);
-      router.refresh();
+      try {
+        router.refresh();
+        setRefreshFailed(false);
+        setRefreshPending(false);
+      } catch {
+        setRefreshFailed(true);
+      }
     });
   };
 
@@ -164,6 +192,12 @@ export function LandingDemoControl({
           Open landing page
         </Link>
       </div>
+
+      {refreshPending && !error ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {REFRESH_WARNING}
+        </p>
+      ) : null}
 
       {error ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
