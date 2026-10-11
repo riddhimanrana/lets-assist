@@ -10,6 +10,8 @@ const acceptanceOnlyPaths = new Set([
   "scripts/run-tests.mjs",
   "scripts/ci/test-shards.test.mjs",
   "docs/development/cleanup-register.md",
+  "tests/e2e/csf/signup-email-pkce-roundtrip.spec.ts",
+  "tests/e2e/csf/cohort-signup-onboarding.spec.ts",
 ]);
 
 export function assertAcceptanceOnlyChanges(paths) {

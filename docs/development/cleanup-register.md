@@ -14,10 +14,17 @@ The list command called `process.exit` before a long piped stdout write drained.
 A slow-reader regression reproduces the loss with a synthetic 5,000-file
 inventory; the command now waits for the write callback. Partitioning and test
 coverage are unchanged. The Development build-reuse guard accepts only the
-three reviewed runner/test/register paths added here and still rejects mixed
+five reviewed runner/test/register/browser-test paths added here and still rejects mixed
 application, migration, dependency and deployment-input changes. The existing
 Development app and schema are unchanged; fresh CI and hosted checks remain
 required after integration.
+
+P2 SIGNUP-E2E-SCOPE-20261011, corrected locally: the new global Create account
+navigation and the signup form submit legitimately share a label. Two signup
+browser journeys now scope their submit locator to the main landmark, retaining
+the enabled check, actual submission, PKCE verifier and email/account round-trip
+assertions. This repairs selector ambiguity observed in full CI; it does not
+change signup or navigation behavior. Fresh isolated browser proof is pending.
 
 ## Public landing demo switch — prepared locally
 
