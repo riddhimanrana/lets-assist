@@ -11,3 +11,35 @@ export function applicationsRosterSubjects(search) {
     .locator("xpath=ancestor::div[.//ul][1]")
     .locator("ul > li button");
 }
+
+// The SSR roster can be visible before its client click handler is attached.
+// Retry only this read-only entry while the roster remains visible; once the
+// queue opens, never click another subject during its pending transition.
+// Keep the original overall deadline and surface genuine loading failures.
+export async function openApplicationsReviewQueue(search, queue) {
+  const deadline = performance.now() + 60_000;
+  while (true) {
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) {
+      throw new Error(
+        "The fictional application review queue did not become ready within 60 seconds.",
+      );
+    }
+    if (await search.isVisible()) {
+      await applicationsRosterSubjects(search)
+        .first()
+        .click({
+          timeout: Math.min(1000, remaining),
+        });
+    }
+    try {
+      await queue.waitFor({
+        state: "visible",
+        timeout: Math.min(1000, remaining),
+      });
+      return;
+    } catch (error) {
+      if (error?.name !== "TimeoutError") throw error;
+    }
+  }
+}

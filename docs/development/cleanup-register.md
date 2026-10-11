@@ -37,6 +37,17 @@ The control awaits uncached Server Action reads after save and reload; an
 asynchronous rejection/deferred retry test proves unknown state remains until
 a fresh result arrives, rather than trusting router.refresh returning void.
 
+P2 HOSTED-REVIEW-ENTRY-20261011, correction awaiting hosted proof: acceptance
+on Development 1aedb7e7 timed out entering the synthetic application queue.
+The read-only SSR roster entry can be clicked before its handler is hydrated.
+The harness now retries that entry only while the roster remains visible,
+within the original 60-second bound, and never clicks again during a pending
+queue transition. Real browser errors remain errors and the selected-subject
+digest, at least two subjects, 25 navigation steps and all performance budgets
+are unchanged. Focused regressions cover an ignored pre-hydration click,
+pending queue and browser failure. The timing hypothesis requires fresh hosted
+acceptance; this is not a claim that the earlier failed run passed.
+
 ## Public landing demo switch — prepared locally
 
 The owner corrected the demo scope to the public landing page for everyone.

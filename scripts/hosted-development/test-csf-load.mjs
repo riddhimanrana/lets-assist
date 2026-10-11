@@ -25,6 +25,7 @@ import {
 import {
   applicationsRosterSearch,
   applicationsRosterSubjects,
+  openApplicationsReviewQueue,
 } from "./csf-load-applications-roster.mjs";
 import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
 
@@ -737,13 +738,11 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
   const firstSubject = applicationsRosterSubjects(rosterSearch).first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
-  await firstSubject.click({ timeout: 60_000 });
-  assertFixtureLocation(officerPage.url(), appUrl);
-
   const reviewQueue = officerPage.locator('[aria-busy="false"]').filter({
     has: officerPage.getByRole("button", { name: "Next subject" }),
   });
-  await reviewQueue.waitFor({ state: "visible", timeout: 60_000 });
+  await openApplicationsReviewQueue(rosterSearch, reviewQueue);
+  assertFixtureLocation(officerPage.url(), appUrl);
   const nextSubject = reviewQueue.getByRole("button", {
     name: "Next subject",
   });
