@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { mock } from "bun:test";
 import * as React from "react";
 import { HOME_DEMO_MAX_TICK } from "./home-demo-data";
 
-const scenario = process.argv[2];
+const scenario = process.env.LETS_ASSIST_COUNTER_SCENARIO;
 let effect: (() => (() => void) | void) | undefined;
 let tick = 0;
-mock.module("react", () => ({
+export const counterReact = {
   ...React,
   useState: () => [
     0,
@@ -17,7 +16,7 @@ mock.module("react", () => ({
   useEffect: (fn: typeof effect) => {
     effect = fn;
   },
-}));
+};
 let hidden = false;
 let reducedMotion = scenario === "reduced";
 const listeners = new Map<string, () => void>();
@@ -54,55 +53,58 @@ Object.defineProperty(globalThis, "document", {
     removeEventListener: (name: string) => listeners.delete(name),
   },
 });
-const { HomeDemoExperience } = await import("./HomeDemoExperience");
-function findCounters(node: unknown): (() => unknown) | undefined {
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      const found = findCounters(child);
-      if (found) return found;
+export async function runCounterScenario() {
+  const { HomeDemoExperience } = await import("./HomeDemoExperience");
+  function findCounters(node: unknown): (() => unknown) | undefined {
+    if (Array.isArray(node)) {
+      for (const child of node) {
+        const found = findCounters(child);
+        if (found) return found;
+      }
+    } else if (React.isValidElement<{ children?: unknown }>(node)) {
+      if (
+        typeof node.type === "function" &&
+        node.type.name === "HomeDemoCounters"
+      )
+        return node.type as () => unknown;
+      return findCounters(node.props.children);
     }
-  } else if (React.isValidElement<{ children?: unknown }>(node)) {
-    if (
-      typeof node.type === "function" &&
-      node.type.name === "HomeDemoCounters"
-    )
-      return node.type as () => unknown;
-    return findCounters(node.props.children);
   }
+  const counters = findCounters(HomeDemoExperience({ showGreeting: false }));
+  assert.ok(counters);
+  counters();
+  const cleanup = effect?.();
+  assert.equal(active.size, reducedMotion ? 0 : 1);
+  if (scenario === "reduced") {
+    assert.equal(tick, 0);
+    reducedMotion = false;
+    listeners.get("media-change")?.();
+    assert.equal(active.size, 1);
+    active.values().next().value?.();
+    assert.equal(tick, 1);
+    reducedMotion = true;
+    listeners.get("media-change")?.();
+    assert.equal(active.size, 0);
+  } else if (scenario === "hidden") {
+    active.values().next().value?.();
+    assert.equal(tick, 1);
+    hidden = true;
+    listeners.get("visibilitychange")?.();
+    assert.equal(active.size, 0);
+    hidden = false;
+    listeners.get("visibilitychange")?.();
+    assert.equal(active.size, 1);
+    active.values().next().value?.();
+    assert.equal(tick, 2);
+  } else if (scenario === "cap") {
+    for (let i = 0; i < HOME_DEMO_MAX_TICK; i++)
+      active.values().next().value?.();
+    assert.equal(tick, HOME_DEMO_MAX_TICK);
+    assert.equal(active.size, 0);
+    listeners.get("visibilitychange")?.();
+    assert.equal(active.size, 0);
+  }
+  cleanup?.();
+  assert.equal(active.size, 0);
+  assert.equal(listeners.size, 0);
 }
-const counters = findCounters(HomeDemoExperience({ showGreeting: false }));
-assert.ok(counters);
-counters();
-const cleanup = effect?.();
-assert.equal(active.size, reducedMotion ? 0 : 1);
-if (scenario === "reduced") {
-  assert.equal(tick, 0);
-  reducedMotion = false;
-  listeners.get("media-change")?.();
-  assert.equal(active.size, 1);
-  active.values().next().value?.();
-  assert.equal(tick, 1);
-  reducedMotion = true;
-  listeners.get("media-change")?.();
-  assert.equal(active.size, 0);
-} else if (scenario === "hidden") {
-  active.values().next().value?.();
-  assert.equal(tick, 1);
-  hidden = true;
-  listeners.get("visibilitychange")?.();
-  assert.equal(active.size, 0);
-  hidden = false;
-  listeners.get("visibilitychange")?.();
-  assert.equal(active.size, 1);
-  active.values().next().value?.();
-  assert.equal(tick, 2);
-} else if (scenario === "cap") {
-  for (let i = 0; i < HOME_DEMO_MAX_TICK; i++) active.values().next().value?.();
-  assert.equal(tick, HOME_DEMO_MAX_TICK);
-  assert.equal(active.size, 0);
-  listeners.get("visibilitychange")?.();
-  assert.equal(active.size, 0);
-}
-cleanup?.();
-assert.equal(active.size, 0);
-assert.equal(listeners.size, 0);

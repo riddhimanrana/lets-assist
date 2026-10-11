@@ -1,5 +1,13 @@
 # Repository cleanup register
 
+P2 TEST-MOCK-DISCOVERY-20261011, corrected: PR 869 exposed three inherited
+fixtures that registered global module mocks outside discoverable test files.
+Each scenario now runs its discoverable Bun test in a separate child process;
+the test registers the mocks explicitly before invoking its fixture. Fixture
+helpers only export stand-ins and assertions. The discovery guard and all
+existing lifecycle, authorization, retry and cleanup assertions remain intact.
+The focused scenarios and unchanged harness contract must pass before integration.
+
 ## Public landing demo switch — prepared locally
 
 The owner corrected the demo scope to the public landing page for everyone.

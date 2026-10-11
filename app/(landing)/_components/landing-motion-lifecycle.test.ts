@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -23,18 +23,27 @@ const scenarios = [
   ],
 ] as const;
 
-for (const [scenario, behaviour] of scenarios) {
-  test(`landing motion lifecycle: ${behaviour}`, () => {
-    const result = spawnSync(
-      process.execPath,
-      [
-        fileURLToPath(
-          new URL("./landing-motion-lifecycle.fixture.tsx", import.meta.url),
-        ),
-        scenario,
-      ],
-      { encoding: "utf8", timeout: 20000 },
-    );
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
-  }, 25000);
+const childScenario = process.env.LETS_ASSIST_MOTION_SCENARIO;
+if (childScenario) {
+  const runtime = await import("./landing-motion-runtime.fixture");
+  mock.module("react", () => runtime.motionReact);
+  test(`isolated motion scenario: ${childScenario}`, async () => {
+    const fixture = await import("./landing-motion-lifecycle.fixture");
+    await fixture.runMotionScenario();
+  });
+} else {
+  for (const [scenario, behaviour] of scenarios) {
+    test(`landing motion lifecycle: ${behaviour}`, () => {
+      const result = spawnSync(
+        process.execPath,
+        ["test", fileURLToPath(import.meta.url)],
+        {
+          encoding: "utf8",
+          timeout: 20000,
+          env: { ...process.env, LETS_ASSIST_MOTION_SCENARIO: scenario },
+        },
+      );
+      expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    }, 25000);
+  }
 }

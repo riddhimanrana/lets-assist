@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
-import { mock } from "bun:test";
 import { hasReducedMotionListener, prefersReducedMotion } from "motion-dom";
 import * as React from "react";
 
 // The runtime behind landing-motion-lifecycle.fixture.tsx: a small hook
 // runtime, a manual clock, stand-ins for `document` and `matchMedia`, and
-// readers for the element tree a component returns. Importing this module
-// puts the hook runtime behind `react` for the whole process, so it has to
-// load before the components do and it imports none of them.
+// readers for the element tree a component returns. The discoverable test registers
+// these hooks behind `react` before loading any components. This fixture
+// itself registers no module mocks and imports no components.
 
 type Cleanup = () => void;
 type Root = {
@@ -142,7 +141,7 @@ export function mount<P>(component: (props: P) => unknown, initialProps: P) {
 
 const hooks = { useState, useEffect, useRef, useMemo };
 const react = { ...React, ...hooks };
-mock.module("react", () => ({ ...react, default: react }));
+export const motionReact = { ...react, default: react };
 
 // A manual clock behind the global timer functions the components call.
 type Timer = { at: number; every: number | null; run: () => void };
