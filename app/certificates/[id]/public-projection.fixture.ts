@@ -50,6 +50,7 @@ mock.module("@/lib/supabase/admin", () => ({
         },
         // Extra fields model a future read-model expansion. The page must still
         // pass only explicit display fields to every client component.
+        maybeSingle: async () => ({ data: record, error: null }),
         single: async () => ({ data: record, error: null }),
       };
       return query;

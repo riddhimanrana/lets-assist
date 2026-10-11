@@ -145,7 +145,7 @@ describe("files shared with a clone outlive either project", () => {
     const source = seedProjectWithFiles();
     // The same objects, stored with one layer of percent-encoding.
     const encoded = (name: string) =>
-      name.replace("project_", "%70roject%5F").replace(".", "%2e");
+      name.replace("project_", "%70roject%5F").replaceAll(".", "%2e");
     expect(
       writeProjectAssets(source.id, {
         cover_image_url: urlOf("project-images", encoded(source.cover)),

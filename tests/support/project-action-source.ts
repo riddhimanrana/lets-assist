@@ -13,6 +13,7 @@ const PROJECT_ACTION_FILES = [
   "app/projects/[id]/server/signup-anonymous.ts",
   "app/projects/[id]/server/cancellation.ts",
   "app/projects/[id]/server/lifecycle.ts",
+  "app/projects/[id]/server/lifecycle-assets.ts",
   "app/projects/[id]/server/attendance.ts",
   "app/projects/[id]/server/waiver-queries.ts",
   "app/projects/[id]/server/confirmation.ts",
