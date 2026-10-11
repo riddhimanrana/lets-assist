@@ -51,7 +51,13 @@ mock.module("@/lib/supabase/server", () => ({
     auth: {
       getUser: async () => ({ data: { user: { id: OWNER_ID } }, error: null }),
     },
-    from: (table: string) => sdk.from(table),
+    // Only the relation the fetch double serves. Any other name is refused
+    // here, before the real builder exists for it.
+    from: (table: string) => {
+      if (table !== "projects")
+        throw new Error(`Relation prohibited: ${table}`);
+      return sdk.from("projects");
+    },
   }),
 }));
 const { linkProjectUploadedAssets } = await import("./assets");
