@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { QrCode, Scan, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useLandingForegroundMotion } from "../landing-foreground-motion";
 
 interface QRScannerPreviewProps {
   shouldAnimate?: boolean;
@@ -11,16 +12,15 @@ interface QRScannerPreviewProps {
 export function QRScannerPreview({
   shouldAnimate = true,
 }: QRScannerPreviewProps) {
-  const prefersReduced = useReducedMotion();
+  const { reduceMotion: prefersReduced, running } =
+    useLandingForegroundMotion(shouldAnimate);
   const isAnimating = shouldAnimate;
   const [detected, setDetected] = useState(false);
   const [detectedAt, setDetectedAt] = useState<string>("");
 
+  // The detection cycle runs only in a visible tab with ordinary motion.
   useEffect(() => {
-    if (!isAnimating) {
-      setDetected(false);
-      return;
-    }
+    if (!running) return;
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     const interval = setInterval(() => {
@@ -42,8 +42,11 @@ export function QRScannerPreview({
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+      // Whatever stopped the cycle, the scanner goes back to idle, so a
+      // returning tab never shows a check-in left over from before.
+      setDetected(false);
     };
-  }, [isAnimating]);
+  }, [running]);
 
   const scanLineAnim = useMemo(
     () => (prefersReduced || !isAnimating ? {} : { y: [0, 144, 0] }),
@@ -136,7 +139,10 @@ export function QRScannerPreview({
             y: detected ? 0 : 6,
             scale: detected ? 1 : 0.98,
           }}
-          transition={{ duration: prefersReduced ? 0 : 0.2 }}
+          transition={{
+            duration: prefersReduced ? 0 : 0.2,
+            ease: [0.23, 1, 0.32, 1],
+          }}
           aria-hidden={!detected}
           className="absolute bottom-16 right-6 flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-green-500/90 text-white shadow-md"
         >

@@ -12,6 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { AnimatedText } from "./AnimatedText";
 import ComparisonSection from "./ComparisonSection";
+import { ComparisonTextFlip } from "./ComparisonTextFlip";
 import { MotionLinkButton } from "./MotionLinkButton";
 import { RealCheckIn } from "./RealCheckIn";
 import TestimonialsSection from "./TestimonialsSection";
@@ -422,6 +423,7 @@ describe("comparison mock labels", () => {
   const reported: Array<[label: string, count: number]> = [
     ["signupgenius.com", 1],
     ["AD", 1],
+    ["Start Your Free Trial Today! >>", 1],
     ["Volunteer Signup Sheet", 1],
     ["3/5", 3],
     ["2010 design", 1],
@@ -476,6 +478,28 @@ describe("comparison mock labels", () => {
     }
   });
 
+  test("the advert line is steady foreground text at a readable size", () => {
+    const [line] = labelled("Start Your Free Trial Today! >>");
+
+    // The whole recipe: no pulse, no arbitrary 9px size, no tinted colour.
+    // The contrast ratio itself is measured in a browser, not here.
+    expect(classes(line)).toEqual([
+      "text-xs",
+      "font-semibold",
+      "text-foreground",
+    ]);
+    expect(
+      utilities(lineage(line)).filter((name) => name.startsWith("animate-")),
+    ).toEqual([]);
+    expect(hiddenFirstRenderAncestors(line)).toEqual([]);
+    // It still sits in the advert box, beside the "AD" marker.
+    expect(line.parent ? classes(line.parent) : []).toContain("bg-background");
+    expect(elements(line.parent ?? line).map(ownText)).toEqual([
+      "AD",
+      "Start Your Free Trial Today! >>",
+    ]);
+  });
+
   test("the mock content and the table control are still rendered", () => {
     const text = collapse(allText(root));
     for (const copy of [
@@ -496,6 +520,64 @@ describe("comparison mock labels", () => {
           collapse(allText(node)) === "Show all 10 features",
       ),
     ).toHaveLength(1);
+  });
+});
+
+describe("comparison headline word", () => {
+  // Fictional words. The timer and preference changes are covered by
+  // landing-motion-lifecycle.test.ts; this is the markup of a first render.
+  const words = ["alpha", "bravo", "charlie"];
+  const renderFlip = (reduced: boolean | null, list = words) =>
+    withMotionPreference(reduced, () =>
+      render(createElement(ComparisonTextFlip, { words: list })),
+    );
+
+  for (const reduced of [null, false]) {
+    test(`the first word is drawn at once (reduced motion: ${reduced})`, () => {
+      const root = renderFlip(reduced);
+
+      expect(collapse(exposedText(root))).toBe("alpha");
+      expect(elements(root)).toHaveLength(2);
+      expect(hiddenFirstRenderStyles(root)).toEqual([]);
+    });
+  }
+
+  test("reduced motion gets the first word in a plain span", () => {
+    const root = renderFlip(true);
+    const [frame, word] = elements(root);
+
+    expect(elements(root)).toHaveLength(2);
+    expect(frame.attributes.style).toBe("min-width:5ch");
+    // No inline style means no motion wrapper is holding the word.
+    expect(word.tag).toBe("span");
+    expect(word.attributes).toEqual({ class: "font-bold text-orange-400" });
+    expect(ownText(word)).toBe("alpha");
+  });
+
+  for (const reduced of [null, true]) {
+    test(`no words and one word both render (reduced motion: ${reduced})`, () => {
+      const none = renderFlip(reduced, []);
+      expect(elements(none)).toHaveLength(2);
+      expect(collapse(allText(none))).toBe("");
+
+      const one = renderFlip(reduced, ["alpha"]);
+      expect(collapse(exposedText(one))).toBe("alpha");
+      expect(hiddenFirstRenderStyles(one)).toEqual([]);
+    });
+  }
+
+  test("the section headline reads the same under reduced motion", () => {
+    const root = withMotionPreference(true, () =>
+      render(createElement(ComparisonSection)),
+    );
+    const headlines = elements(root).filter(
+      (node) =>
+        node.tag === "h2" &&
+        collapse(exposedText(node)) === "SignUpGenius is outdated",
+    );
+
+    expect(headlines).toHaveLength(1);
+    expect(hiddenFirstRenderAncestors(headlines[0])).toEqual([]);
   });
 });
 
