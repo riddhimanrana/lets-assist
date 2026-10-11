@@ -34,13 +34,13 @@ export default async function ProjectsPage() {
   }
   // Default content for non-authenticated users
   return (
-    <main className="mx-auto min-h-screen w-full max-w-screen-2xl px-4 py-8 sm:px-6">
+    <div className="mx-auto min-h-screen w-full max-w-screen-2xl px-4 py-8 sm:px-6">
       <PageHeader
         title="Upcoming volunteer projects"
         description="Browse upcoming volunteer opportunities. Create an account to join one or to run your own."
         className="mb-6"
       />
       <ProjectsInfiniteScroll />
-    </main>
+    </div>
   );
 }

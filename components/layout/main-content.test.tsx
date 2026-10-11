@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { MAIN_CONTENT_ID, MainContent, SkipToContentLink } from "./MainContent";
@@ -93,5 +95,32 @@ describe("root layout wiring", () => {
   test("wraps the page in the shared main and adds no second one", () => {
     expect(layout).toContain("<MainContent>{children}</MainContent>");
     expect(layout).not.toContain("<main");
+  });
+});
+
+// Source inventory, not rendered coverage. It reads every JSX module under
+// app/ and rejects a literal main tag, because all of them render inside the
+// root layout's main. It does not see a main that arrives from components/,
+// a plugin or a computed tag name, and it renders no route. Route handlers
+// that return their own HTML document are .ts files and are not read.
+describe("app router main inventory", () => {
+  const appDirectory = fileURLToPath(new URL("../../app/", import.meta.url));
+  const modules = readdirSync(appDirectory, { recursive: true })
+    .map(String)
+    .filter(
+      (file) =>
+        file.endsWith(".tsx") && !/\.(?:test|spec|fixture)\.tsx$/u.test(file),
+    );
+
+  test("finds the App Router modules it is meant to read", () => {
+    expect(modules).toContain("layout.tsx");
+    expect(modules.length).toBeGreaterThan(100);
+  });
+
+  test("no page, layout or client module under app/ adds a nested main", () => {
+    const nested = modules.filter((file) =>
+      /<\/?main\b/u.test(readFileSync(join(appDirectory, file), "utf8")),
+    );
+    expect(nested).toEqual([]);
   });
 });

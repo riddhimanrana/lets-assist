@@ -88,7 +88,7 @@ export function HoursClient({
     edits.editing !== null;
   const timezone = project.project_timezone || "America/Los_Angeles";
   return (
-    <main className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
+    <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
       <HoursConfirmPublishDialog publishing={publishing} />
       <HoursEditDialog edits={edits} project={project} windows={windows} />
       <PageHeader
@@ -209,6 +209,6 @@ export function HoursClient({
           ))
         )}
       </section>
-    </main>
+    </div>
   );
 }

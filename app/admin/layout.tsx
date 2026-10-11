@@ -13,9 +13,9 @@ export default function AdminLayout({
           <AdminMobileNav />
           <p className="text-sm font-semibold">Admin console</p>
         </header>
-        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

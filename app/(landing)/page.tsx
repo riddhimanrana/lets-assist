@@ -134,7 +134,7 @@ export default async function HomePage(props: {
 
   const { enabled: demoEnabled } = await readPublicLandingDemoMode();
 
-  // The root layout owns the document's <main>; this is only a wrapper.
+  // The root layout owns the main landmark; this is only a wrapper.
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
       <SmoothScroll />

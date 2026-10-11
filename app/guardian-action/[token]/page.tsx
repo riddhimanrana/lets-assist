@@ -46,7 +46,7 @@ export default async function GuardianActionPage({
   };
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
       <GuardianAvailabilityForm
         token={token}
         guardianName={guardian?.full_name ?? "Guardian"}
@@ -54,6 +54,6 @@ export default async function GuardianActionPage({
           payload.tournamentName ?? "DV Speech & Debate tournament"
         }
       />
-    </main>
+    </div>
   );
 }

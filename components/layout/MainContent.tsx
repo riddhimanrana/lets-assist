@@ -27,9 +27,14 @@ function SkipToContentLink() {
 }
 
 /**
- * The document's one `<main>`. `tabIndex={-1}` lets the skip link move focus
- * here without adding a Tab stop. Pages rendered inside it must not add a
- * second `<main>`.
+ * The one `<main>` for everything the root layout renders: every App Router
+ * page, nested layout and client component sits inside it, so none of them may
+ * add another. Use a `div` for page wrappers. `tabIndex={-1}` lets the skip
+ * link move focus here without adding a Tab stop.
+ *
+ * Responses that are not rendered through the root layout are outside this
+ * boundary and own their landmark: the CSF unsubscribe route handler returns a
+ * whole HTML document with its own `<main>`.
  */
 function MainContent({
   children,

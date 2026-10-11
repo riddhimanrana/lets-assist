@@ -170,7 +170,7 @@ export default function ContactClient() {
         open={organizationDialogOpen}
         onOpenChange={setOrganizationDialogOpen}
       >
-        <main className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-8 sm:px-6 md:py-12">
+        <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-8 sm:px-6 md:py-12">
           <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:gap-16">
             <div className="grid content-start gap-6">
               <div className="grid gap-3">
@@ -302,7 +302,7 @@ export default function ContactClient() {
               })}
             </ul>
           </section>
-        </main>
+        </div>
 
         <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
