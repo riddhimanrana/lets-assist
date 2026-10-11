@@ -30,9 +30,12 @@ P2 LANDING-DEMO-COMMIT-RESULT-20261011, corrected locally: a cache invalidation
 exception after the service RPC confirmed persistence could falsely report that
 the mode was not saved. Persistence failures and independent refresh attempts
 now have separate outcomes. A confirmed save retains success with a fixed
-refresh notice; a failed client refresh shows an unknown disabled mode with
+refresh notice; a failed awaited admin read shows an unknown disabled mode with
 Saved/Reload guidance instead of announcing a failed write. Three post-commit
 cache failure cases retain success and prove all refreshes were attempted.
+The control awaits uncached Server Action reads after save and reload; an
+asynchronous rejection/deferred retry test proves unknown state remains until
+a fresh result arrives, rather than trusting router.refresh returning void.
 
 ## Public landing demo switch — prepared locally
 

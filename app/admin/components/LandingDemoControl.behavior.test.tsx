@@ -7,7 +7,8 @@ let inFlight: { current: boolean };
 let pending: Promise<unknown>[];
 let result: { error?: string; refreshPending?: true };
 let rejectSave: boolean;
-let rejectRefresh: boolean;
+let rejectRead: boolean;
+let deferredRead: Promise<{ enabled: boolean }> | null;
 let refreshCalls: number;
 
 mock.module("react", () => ({
@@ -32,15 +33,12 @@ mock.module("react", () => ({
     },
   ],
 }));
-mock.module("next/navigation", () => ({
-  useRouter: () => ({
-    refresh() {
-      refreshCalls++;
-      if (rejectRefresh) throw new Error("private router context");
-    },
-  }),
-}));
 mock.module("@/app/admin/server/landing-demo-mode", () => ({
+  getLandingDemoModeForAdmin: async () => {
+    refreshCalls++;
+    if (rejectRead) throw new Error("private read context");
+    return deferredRead ?? { enabled: true };
+  },
   setLandingDemoMode: async () => {
     if (rejectSave) throw new Error("private transport context");
     return result;
@@ -80,7 +78,8 @@ beforeEach(() => {
   pending = [];
   result = {};
   rejectSave = false;
-  rejectRefresh = false;
+  rejectRead = false;
+  deferredRead = null;
   refreshCalls = 0;
 });
 
@@ -93,8 +92,8 @@ test("a saved mode with cache refresh pending is reported as saved", async () =>
   expect(text(output)).not.toContain("was not saved");
   expect(refreshCalls).toBe(1);
 });
-test("a router refresh failure after a confirmed save shows an unknown disabled mode", async () => {
-  rejectRefresh = true;
+test("an asynchronous read rejection after a confirmed save shows an unknown disabled mode", async () => {
+  rejectRead = true;
   const output = await save();
   expect(text(output)).toContain("Saved. This view could not refresh.");
   expect(text(output)).toContain("Mode unavailable");
@@ -114,13 +113,36 @@ test("a rejected write remains a save failure and never requests refresh", async
     expect(refreshCalls).toBe(0);
   }
 });
-test("a fresh server mode replaces the unknown post-save view", async () => {
-  rejectRefresh = true;
+test("retry retains the unknown state until an awaited fresh read resolves", async () => {
+  rejectRead = true;
   await save();
-  const output = render(true);
-  expect(text(output)).toContain("Demo preview");
-  const settled = render(true);
+  rejectRead = false;
+  let finishRead!: (value: { enabled: boolean }) => void;
+  deferredRead = new Promise((resolve) => {
+    finishRead = resolve;
+  });
+  const output = render();
+  const reload = nodes(output).find((node) => node.props.children === "Reload");
+  expect(reload).toBeDefined();
+  (reload!.props.onClick as () => void)();
+  const waiting = render();
+  expect(text(waiting)).toContain("Saved. This view could not refresh.");
+  expect(text(waiting)).toContain("Mode unavailable");
+  expect(
+    nodes(waiting).find(
+      (node) => typeof node.props.onCheckedChange === "function",
+    )?.props.disabled,
+  ).toBe(true);
+  finishRead({ enabled: true });
+  await Promise.all(pending);
+  const settled = render();
   expect(text(settled)).not.toContain("could not refresh");
+  expect(text(settled)).toContain("Sample content. Fictional");
+  expect(
+    nodes(settled).find(
+      (node) => typeof node.props.onCheckedChange === "function",
+    )?.props.checked,
+  ).toBe(true);
   expect(
     nodes(settled).find(
       (node) => typeof node.props.onCheckedChange === "function",

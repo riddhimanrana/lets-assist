@@ -2,9 +2,11 @@
 
 import { useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-import { setLandingDemoMode } from "@/app/admin/server/landing-demo-mode";
+import {
+  getLandingDemoModeForAdmin,
+  setLandingDemoMode,
+} from "@/app/admin/server/landing-demo-mode";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -39,13 +41,13 @@ export function LandingDemoControl({
   enabled: boolean | null;
   className?: string;
 }) {
-  const router = useRouter();
   const id = useId();
   const switchId = `${id}-switch`;
   const labelId = `${id}-label`;
   const scopeId = `${id}-scope`;
   const errorId = `${id}-error`;
 
+  const [confirmedEnabled, setConfirmedEnabled] = useState(enabled);
   const [failed, setFailed] = useState(false);
   const [refreshPending, setRefreshPending] = useState(false);
   const [refreshFailed, setRefreshFailed] = useState(false);
@@ -60,11 +62,12 @@ export function LandingDemoControl({
   const [lastEnabled, setLastEnabled] = useState(enabled);
   if (enabled !== lastEnabled) {
     setLastEnabled(enabled);
+    setConfirmedEnabled(enabled);
     setFailed(false);
     setRefreshFailed(false);
   }
 
-  const mode = refreshFailed ? null : enabled;
+  const mode = confirmedEnabled;
   const busy = saving || reloading;
   const error = refreshFailed
     ? REFRESH_ERROR
@@ -89,35 +92,44 @@ export function LandingDemoControl({
         }
         saved = true;
         setRefreshPending(result.refreshPending === true);
-        // Back inside a transition after the await, so the switch stays
-        // disabled until the refreshed page is ready.
-        startSave(() => {
-          try {
-            router.refresh();
-          } catch {
-            setRefreshFailed(true);
-          }
-        });
+        const current = await getLandingDemoModeForAdmin();
+        if (current.error || typeof current.enabled !== "boolean") {
+          setConfirmedEnabled(null);
+          setRefreshFailed(true);
+          return;
+        }
+        setConfirmedEnabled(current.enabled);
+        setRefreshFailed(false);
       } catch {
-        if (saved) setRefreshFailed(true);
-        else setFailed(true);
+        if (saved) {
+          setConfirmedEnabled(null);
+          setRefreshFailed(true);
+        } else setFailed(true);
       } finally {
         inFlight.current = false;
       }
     });
   };
 
-  // Always display the refreshed server value, including a concurrent revert.
+  // An awaited uncached Server Action proves the read completed. RSC refresh
+  // returns void and cannot establish whether fresh props ever arrived.
   const reload = () => {
     if (inFlight.current) return;
-    startReload(() => {
+    inFlight.current = true;
+    startReload(async () => {
       setFailed(false);
       try {
-        router.refresh();
+        const current = await getLandingDemoModeForAdmin();
+        if (current.error || typeof current.enabled !== "boolean") {
+          setConfirmedEnabled(null);
+          return;
+        }
+        setConfirmedEnabled(current.enabled);
         setRefreshFailed(false);
-        setRefreshPending(false);
       } catch {
-        setRefreshFailed(true);
+        setConfirmedEnabled(null);
+      } finally {
+        inFlight.current = false;
       }
     });
   };
