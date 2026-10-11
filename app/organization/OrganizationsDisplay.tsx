@@ -1,30 +1,14 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  BadgeCheck,
-  ChevronRight,
-  FileCheck,
-  MoreHorizontal,
-  Plus,
-  Search,
-  SearchX,
-} from "lucide-react";
+import { FileCheck, Plus, Search, SearchX } from "lucide-react";
 import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 import { getOrganizationDirectoryEmptyActions } from "@/components/organization/organization-directory-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyContent,
@@ -39,16 +23,6 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemSeparator,
-  ItemTitle,
-} from "@/components/ui/item";
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -56,14 +30,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { NoAvatar } from "@/components/shared/NoAvatar";
 import type { Organization } from "@/types";
 import { CsvVerificationModal } from "./CsvVerificationModal";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
-import OrganizationCard, {
-  OrganizationRoleBadge,
-  type OrganizationRole,
-} from "./OrganizationCard";
+import OrganizationCard, { type OrganizationRole } from "./OrganizationCard";
+
+const CARD_GRID =
+  "grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-3";
 
 type OrganizationDisplay = Organization & {
   description?: string | null;
@@ -149,7 +122,6 @@ export default function OrganizationsDisplay({
 }: OrganizationsDisplayProps) {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortValue>("verified-first");
-  const verifyTriggerRef = useRef<HTMLButtonElement>(null);
   const createIcon = useAnimatedIcon();
 
   const canCreate = isTrusted || applicationStatus === true;
@@ -191,9 +163,13 @@ export default function OrganizationsDisplay({
   )?.label;
 
   return (
-    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 px-4 py-8 sm:px-6">
-      <div data-tour-id="org-header">
+    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 px-4 py-8 sm:px-6 lg:gap-8 lg:px-10">
+      <div
+        data-tour-id="org-header"
+        className="flex flex-col gap-4 border-b pb-6 lg:flex-row lg:items-start lg:justify-between"
+      >
         <PageHeader
+          className="min-w-0 flex-1"
           title="Organizations"
           description="Join or create organizations to collaborate on projects"
           meta={
@@ -217,73 +193,48 @@ export default function OrganizationsDisplay({
               )
             ) : null
           }
-          actions={
-            <div
-              className="flex flex-wrap items-center gap-2"
-              data-tour-id="org-actions"
-            >
-              {isLoggedIn ? (
-                <>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          aria-label="More actions"
-                        >
-                          <MoreHorizontal aria-hidden="true" />
-                        </Button>
-                      }
+        />
+        <div
+          className="flex flex-wrap items-center gap-2"
+          data-tour-id="org-actions"
+        >
+          {isLoggedIn ? (
+            <>
+              <CsvVerificationModal>
+                <Button variant="outline">
+                  <FileCheck data-icon="inline-start" aria-hidden="true" />
+                  Verify certificates
+                </Button>
+              </CsvVerificationModal>
+              <JoinOrganizationDialog />
+              {canCreate ? (
+                <Button asChild {...createIcon.triggerProps}>
+                  <Link href="/organization/create">
+                    <PlusIcon
+                      ref={createIcon.ref}
+                      size={16}
+                      data-icon="inline-start"
+                      aria-hidden="true"
                     />
-                    <DropdownMenuContent align="start" className="w-52">
-                      <DropdownMenuItem
-                        onClick={() => verifyTriggerRef.current?.click()}
-                      >
-                        <FileCheck aria-hidden="true" />
-                        Verify certificates
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <JoinOrganizationDialog />
-                  {canCreate ? (
-                    <Button asChild {...createIcon.triggerProps}>
-                      <Link href="/organization/create">
-                        <PlusIcon
-                          ref={createIcon.ref}
-                          size={16}
-                          data-icon="inline-start"
-                          aria-hidden="true"
-                        />
-                        Create organization
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button disabled>
-                      <Plus data-icon="inline-start" aria-hidden="true" />
-                      Create organization
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <Button variant="outline" asChild>
-                  <Link href="/login?redirect=/organization">
-                    Sign in to join or create
+                    Create organization
                   </Link>
                 </Button>
+              ) : (
+                <Button disabled>
+                  <Plus data-icon="inline-start" aria-hidden="true" />
+                  Create organization
+                </Button>
               )}
-            </div>
-          }
-        />
+            </>
+          ) : (
+            <Button variant="outline" asChild>
+              <Link href="/login?redirect=/organization">
+                Sign in to join or create
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
-
-      {/* The certificate checker keeps its own dialog; the menu item above
-          opens it through this hidden trigger so the dialog outlives the menu. */}
-      {isLoggedIn ? (
-        <CsvVerificationModal>
-          <button ref={verifyTriggerRef} type="button" hidden tabIndex={-1} />
-        </CsvVerificationModal>
-      ) : null}
 
       {previewWarning ? (
         <Alert variant="warning">
@@ -382,60 +333,25 @@ export default function OrganizationsDisplay({
           {userOrgs.length > 0 && (
             <section className="grid gap-3">
               <SectionHeader title="Your organizations" />
-              <Card className="py-0">
-                <ItemGroup className="gap-0">
-                  {userOrgs.map(({ org, role }, index) => (
-                    <Fragment key={org.id}>
-                      {index > 0 ? <ItemSeparator className="my-0" /> : null}
-                      <Item
-                        className="rounded-none"
-                        render={<Link href={`/organization/${org.username}`} />}
-                      >
-                        <ItemMedia>
-                          <Avatar size="lg">
-                            <AvatarImage
-                              src={org.logo_url || undefined}
-                              alt={org.name}
-                            />
-                            <AvatarFallback>
-                              <NoAvatar fullName={org.name} />
-                            </AvatarFallback>
-                          </Avatar>
-                        </ItemMedia>
-                        <ItemContent className="min-w-0">
-                          <ItemTitle className="max-w-full">
-                            <span className="truncate">{org.name}</span>
-                            {org.verified && (
-                              <BadgeCheck
-                                role="img"
-                                aria-label="Verified organization"
-                                className="text-primary size-4 shrink-0"
-                              />
-                            )}
-                          </ItemTitle>
-                          <ItemDescription className="line-clamp-1">
-                            @{org.username}
-                          </ItemDescription>
-                        </ItemContent>
-                        <ItemActions>
-                          {role ? <OrganizationRoleBadge role={role} /> : null}
-                          <ChevronRight
-                            className="text-muted-foreground size-4"
-                            aria-hidden="true"
-                          />
-                        </ItemActions>
-                      </Item>
-                    </Fragment>
-                  ))}
-                </ItemGroup>
-              </Card>
+              <div className={CARD_GRID}>
+                {userOrgs.map(({ org, role }) => (
+                  <OrganizationCard
+                    key={org.id}
+                    org={org}
+                    memberCount={memberCounts[org.id] ?? null}
+                    isUserMember
+                    userRole={role}
+                    highlightMembership
+                  />
+                ))}
+              </div>
             </section>
           )}
 
           {otherOrgs.length > 0 && (
             <section className="grid gap-3">
               <SectionHeader title="Discover" />
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className={CARD_GRID}>
                 {otherOrgs.map((org) => (
                   <OrganizationCard
                     key={org.id}
