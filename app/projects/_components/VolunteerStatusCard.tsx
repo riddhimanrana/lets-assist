@@ -82,7 +82,7 @@ export default function VolunteerStatusCard({
   }
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Current check-in status</CardTitle>
@@ -107,6 +107,6 @@ export default function VolunteerStatusCard({
           </Link>
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

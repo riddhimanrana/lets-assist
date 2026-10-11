@@ -97,7 +97,7 @@ export function AttendanceSheetClient({
   }
 
   return (
-    <main
+    <div
       className={`attendance-sheet-root attendance-paper-${paper}`}
       data-hydrated={hydrated}
     >
@@ -248,6 +248,6 @@ export function AttendanceSheetClient({
         </SettingsSection>
       </div>
       <PrintableAttendanceSheets sheets={sheets} />
-    </main>
+    </div>
   );
 }

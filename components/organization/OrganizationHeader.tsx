@@ -29,6 +29,11 @@ interface OrganizationHeaderProps {
   /** False when the organization has no Members tab to link to. */
   showMembersLink?: boolean;
   compact?: boolean;
+  /**
+   * Organization pages keep the default h1. The landing mock passes 2 because
+   * the landing page already has its own h1.
+   */
+  headingLevel?: 1 | 2;
 }
 
 function getInitials(name: string) {
@@ -51,6 +56,7 @@ export default function OrganizationHeader({
   showProjectAction = true,
   showMembersLink = true,
   compact = false,
+  headingLevel = 1,
 }: OrganizationHeaderProps) {
   const typeLabel = formatOrganizationTypeLabel(organization.type);
   const memberCountLabel = `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
@@ -134,6 +140,7 @@ export default function OrganizationHeader({
           </>
         }
         actions={actions}
+        headingLevel={headingLevel}
       />
     );
   }
@@ -151,9 +158,15 @@ export default function OrganizationHeader({
 
         <div className="flex min-w-0 flex-col items-start gap-1 overflow-hidden text-left">
           <div className="flex max-w-full min-w-0 items-center gap-2">
-            <h1 className="truncate text-lg font-semibold tracking-tight md:text-xl">
-              {organization.name}
-            </h1>
+            {headingLevel === 2 ? (
+              <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">
+                {organization.name}
+              </h2>
+            ) : (
+              <h1 className="truncate text-lg font-semibold tracking-tight md:text-xl">
+                {organization.name}
+              </h1>
+            )}
             {organization.verified && (
               <>
                 <BadgeCheck

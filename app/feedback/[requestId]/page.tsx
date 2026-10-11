@@ -90,7 +90,7 @@ export default async function FeedbackTokenPage({
       .eq("project_request_id", requestId)
       .maybeSingle();
     return (
-      <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
         <Card className="w-full">
           <CardHeader>
             <CardTitle>How was using Let&apos;s Assist?</CardTitle>
@@ -113,7 +113,7 @@ export default async function FeedbackTokenPage({
             />
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
@@ -132,7 +132,7 @@ export default async function FeedbackTokenPage({
   const preselected = Number.parseInt(rating ?? "", 10);
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
       <Card className="w-full">
         <CardHeader>
           <CardTitle>How did volunteering go?</CardTitle>
@@ -153,6 +153,6 @@ export default async function FeedbackTokenPage({
           />
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }

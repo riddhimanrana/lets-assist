@@ -53,7 +53,7 @@ const faqs = [
 
 export default function FAQPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
       <PageHeader
         title="Frequently asked questions"
         description="Read through the most common questions about how we support volunteers, why organizations switch from SignupGenius, and what’s next after you sign up."
@@ -94,6 +94,6 @@ export default function FAQPage() {
           </AnimatedLinkButton>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

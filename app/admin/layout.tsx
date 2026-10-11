@@ -1,3 +1,4 @@
+import { PAGE_CONTENT_ID } from "@/components/layout/content-targets";
 import { AdminMobileNav, AdminSidebar } from "./components/AdminSidebar";
 
 export default function AdminLayout({
@@ -13,9 +14,13 @@ export default function AdminLayout({
           <AdminMobileNav />
           <p className="text-sm font-semibold">Admin console</p>
         </header>
-        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div
+          id={PAGE_CONTENT_ID}
+          tabIndex={-1}
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto outline-none"
+        >
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

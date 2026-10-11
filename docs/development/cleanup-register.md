@@ -8,6 +8,21 @@ helpers only export stand-ins and assertions. The discovery guard and all
 existing lifecycle, authorization, retry and cleanup assertions remain intact.
 The focused scenarios and unchanged harness contract must pass before integration.
 
+P2 LANDING-LANDMARK-HEADINGS-20261011, corrected locally: the root layout
+already owned the main landmark while landing and other route bodies added
+nested mains. Their wrappers now use div without other markup changes. The landing
+embedded project and organization demos also emitted extra h1 headings. The
+shared main now has a keyboard focus target and the first skip link. Account
+and admin links target their focusable page container after repeated sidebar
+navigation; ordinary pages use the root main. The native anchor destination
+is rendered from the current App Router pathname. The
+landing uses a div and explicit h2 demo headings. Real project/organization
+pages retain their default h1 and the exact visual classes and actions.
+Actual Claude Opus 5.5 implemented the scoped changes after its native Chrome
+desktop review. Focused SSR/behavior tests, typecheck, affected lint and source
+policy pass. Focus visibility/target focus, mobile and dark rendered proof
+remain pending; the six-screen audit is not comprehensive release acceptance.
+
 P2 TEST-INVENTORY-DRAIN-20261011, corrected locally: full integrated CI on
 Development `1aedb7e7` reported 791 inventory lines versus 1,281 across shards.
 The list command called `process.exit` before a long piped stdout write drained.
@@ -36,6 +51,8 @@ cache failure cases retain success and prove all refreshes were attempted.
 The control awaits uncached Server Action reads after save and reload; an
 asynchronous rejection/deferred retry test proves unknown state remains until
 a fresh result arrives, rather than trusting router.refresh returning void.
+A separate server read identity adopts repeated Boolean values without
+remounting away pending-cache warnings; focused regression cases prove both.
 
 P2 HOSTED-REVIEW-ENTRY-20261011, correction awaiting hosted proof: acceptance
 on Development 1aedb7e7 timed out entering the synthetic application queue.
@@ -48,7 +65,16 @@ are unchanged. Focused regressions cover an ignored pre-hydration click,
 pending queue and browser failure. The timing hypothesis requires fresh hosted
 acceptance; this is not a claim that the earlier failed run passed.
 
-## Public landing demo switch — prepared locally
+P2 PRIVATE-CSF-PUBLIC-LANDMARK-20261011, source-confirmed follow-up:
+CsfDashboardContentSection1 renders the private CsfPublicLanding within the
+platform root main, while that component adds its own main. The App Router
+inventory covers public .tsx modules and does not prove plugin output. Repair
+this through the private repository's ordinary embedded integration workflow;
+retain the exact current gitlink until that separate change is reviewed and
+merged. The unused public SidebarInset primitive and archived Speech and
+Debate editor also contain main tags but are not current route findings.
+
+## Public landing demo switch — Development deployed
 
 The owner corrected the demo scope to the public landing page for everyone.
 The admin overview now has a global switch; the session-only home experiment
@@ -84,12 +110,18 @@ owned replay, never Production.
 
 A read-only Production ledger check found 687 migrations, head
 `20260929051500`. The owner now authorizes Development integration and its
-preview, with Production reserved for later approval. The combined candidate
-still needs the documented schema cutover, recovery evidence,
-hosted acceptance, and full CI before it can release. No Production migration, demo activation, main merge, Production alias
+preview, with Production reserved for later approval. PR 869 merged after its exact-head short gate. Development 1aedb7e7
+is READY with all 723 ledger versions and the reviewed live catalog verified.
+Its full integrated run failed on the inventory/selector defects above; its
+hosted run passed guarded attendance, then timed out entering the fictional
+review queue. The follow-up changes require fresh full and hosted proof.
+Production still requires separately authorized schema cutover and recovery
+evidence before release. No Production migration, demo activation, main merge, Production alias
 promotion or branch deletion happened in this step. Development integration
-and its hosted checks follow the required pull-request gate. Native Chrome still acknowledges navigation while staying on New
-Tab; no current visual or mobile acceptance is claimed.
+and its hosted checks follow the required pull-request gate. Native Claude Opus 5.5 subsequently inspected the deployed landing and six
+reachable signed-in screens in the confirmed browser at 1480x1273, light theme.
+No page-level horizontal overflow was observed. Mobile, dark, super-admin and
+complete 26-screen rendered acceptance remain pending.
 
 P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
 

@@ -77,7 +77,7 @@ export default async function Home({ searchParams }: HomePageProps) {
     <div className="min-h-screen">
       <EmailConfirmationModal />
       <EmailVerificationToast />
-      <main
+      <div
         className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6"
         data-next-url={next}
       >
@@ -108,7 +108,7 @@ export default async function Home({ searchParams }: HomePageProps) {
 
         {/* Render the infinite scroll component */}
         <ProjectsInfiniteScroll />
-      </main>
+      </div>
     </div>
   );
 }

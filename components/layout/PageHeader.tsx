@@ -15,6 +15,7 @@ function PageHeader({
   meta,
   actions,
   className,
+  headingLevel = 1,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
@@ -23,7 +24,11 @@ function PageHeader({
   meta?: React.ReactNode;
   actions?: React.ReactNode;
   className?: string;
+  /** Pass 2 only when the header is embedded in a page that has its own h1. */
+  headingLevel?: 1 | 2;
 }) {
+  const Heading = headingLevel === 2 ? "h2" : "h1";
+
   return (
     <header data-slot="page-header" className={cn("grid gap-3", className)}>
       {breadcrumb}
@@ -31,9 +36,9 @@ function PageHeader({
         <div className="flex min-w-0 items-center gap-4">
           {media ? <div className="shrink-0">{media}</div> : null}
           <div className="grid min-w-0 gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-balance break-words">
+            <Heading className="text-2xl font-semibold tracking-tight text-balance break-words">
               {title}
-            </h1>
+            </Heading>
             {description ? (
               <p className="text-muted-foreground text-sm text-pretty">
                 {description}
