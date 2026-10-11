@@ -17,17 +17,30 @@ Actual Claude responses used `claude-opus-5-5` for the control implementation
 and independent review. The mode/control/page/admin-boundary checks pass 27 tests in five isolated
 Bun files; the proxy suite passes 13 and sample component/data checks pass 30,
 for 70 distinct focused tests in eight files. TypeScript and affected ESLint
-pass. The SQL suite prepares 37 pgTAP assertions but has not run. The 723-entry candidate catalog is not yet accepted: Docker's daemon is
-off and starting the owned isolated stack awaits the owner's answer. The
-historical 722 catalog is unchanged. No catalog expectation was generated
-from Production or fabricated to bypass replay.
+pass. The 37 landing-mode pgTAP assertions pass on the owned 723-migration
+replay. One existing activity-lock observation failed in the first complete
+12,946-assertion run and passed in isolation. Its polling helper now clears the
+transaction's activity snapshot; the regression deliberately warms that cache
+before queuing the mutation, retaining the exact lock proof and timeout.
+The final reset and full rerun pass all 12,946 assertions in 499 files.
+Catalog 723 adds exactly five objects, with no changes or removals among the
+1,434 preceding fingerprints; all 74 catalog/controller unit checks and current
+pin checks pass. Live catalog checks reject 17 deliberate permission, RLS,
+function, trigger and cron drifts; valid off/on display states remain accepted.
+Every drift and fixture teardown rolled back, and the exact 723-version ledger
+matches source. The owned stack, volume, network and directory were removed;
+unrelated containers and Docker settings remain unchanged. Interrupted or previously committed fixture runs are not used
+as clean proof.
+The historical 722 catalog is unchanged; expectations come only from the
+owned replay, never Production.
 
 A read-only Production ledger check found 687 migrations, head
-`20260929051500`. Production publication is now explicitly requested, but the
-combined candidate needs the documented schema cutover, recovery evidence,
-hosted acceptance, and full CI before it can release. No migration, setting
-activation, main merge, alias promotion, or branch deletion happened in this
-local step. Native Chrome still acknowledges navigation while staying on New
+`20260929051500`. The owner now authorizes Development integration and its
+preview, with Production reserved for later approval. The combined candidate
+still needs the documented schema cutover, recovery evidence,
+hosted acceptance, and full CI before it can release. No Production migration, demo activation, main merge, Production alias
+promotion or branch deletion happened in this step. Development integration
+and its hosted checks follow the required pull-request gate. Native Chrome still acknowledges navigation while staying on New
 Tab; no current visual or mobile acceptance is claimed.
 
 P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
