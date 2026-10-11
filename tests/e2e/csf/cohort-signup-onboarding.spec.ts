@@ -268,7 +268,9 @@ test.describe("class-code signup onboarding", () => {
       await expect(fullName).toHaveValue(signupFullName);
       await expect(email).toHaveValue(signupEmail);
       await expect(password).toHaveValue(signupPassword);
-      const submit = page.getByRole("button", { name: "Create account" });
+      const submit = page
+        .getByRole("main")
+        .getByRole("button", { name: "Create account", exact: true });
       await expect(submit).toBeEnabled();
       await submit.click();
       await page.waitForURL(/\/signup\/success/, {

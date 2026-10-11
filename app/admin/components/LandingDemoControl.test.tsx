@@ -5,6 +5,7 @@ mock.module("server-only", () => ({}));
 mock.module("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 mock.module("@/app/admin/server/landing-demo-mode", () => ({
   setLandingDemoMode: async () => ({}),
+  getLandingDemoModeForAdmin: async () => ({ enabled: false }),
 }));
 const { LandingDemoControl } = await import("./LandingDemoControl");
 

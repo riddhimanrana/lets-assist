@@ -21,7 +21,7 @@ export async function getLandingDemoModeForAdmin() {
 export async function setLandingDemoMode(
   enabled: boolean,
   expected: boolean,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; refreshPending?: true }> {
   if (typeof enabled !== "boolean" || typeof expected !== "boolean") {
     return { error: "Choose a valid landing page mode." };
   }
@@ -42,11 +42,23 @@ export async function setLandingDemoMode(
         error: "Landing page mode was not saved. Reload and try again.",
       };
     }
-    updateTag(LANDING_DEMO_CACHE_TAG);
-    revalidatePath("/");
-    revalidatePath("/admin");
-    return {};
   } catch {
     return { error: "Landing page mode was not saved. Reload and try again." };
   }
+
+  // The database has confirmed persistence. A refresh failure cannot undo it
+  // or truthfully be returned as a failed save. Try every refresh independently.
+  let refreshPending = false;
+  for (const refresh of [
+    () => updateTag(LANDING_DEMO_CACHE_TAG),
+    () => revalidatePath("/"),
+    () => revalidatePath("/admin"),
+  ]) {
+    try {
+      refresh();
+    } catch {
+      refreshPending = true;
+    }
+  }
+  return refreshPending ? { refreshPending: true } : {};
 }
