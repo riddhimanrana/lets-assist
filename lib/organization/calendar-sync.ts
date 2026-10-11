@@ -11,7 +11,10 @@ import {
 } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { reconcileOrganizationCalendar } from "@/services/organization-calendar/reconcile";
-import { loadCalendarSourcePages } from "./calendar-source-pages";
+import {
+  loadCalendarSourcePages,
+  withCalendarDeadline,
+} from "./calendar-source-pages";
 import { syncCsfCalendarProjections } from "@/lib/organization/csf-calendar-sync";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import type { Project } from "@/types";
@@ -51,26 +54,53 @@ function getProjectScheduleIds(project: Project): string[] {
   return [];
 }
 
+const STOPPED_AT_DEADLINE: OrganizationCalendarSyncResult = {
+  success: false,
+  // Says only that the pass stopped. A request already sent to Google is not
+  // undone by stopping, and saved progress continues on the next run.
+  error:
+    "Calendar sync stopped at its deadline. Saved progress continues on the next run.",
+};
+
 export async function syncOrganizationCalendarInternal(
   organizationId: string,
+  options: {
+    /**
+     * The worker's deadline for this organization. It is checked before each
+     * load, before provisioning, before every provider mutation and before
+     * the completion stamp, so work left running past it starts nothing new.
+     */
+    signal?: AbortSignal;
+  } = {},
 ): Promise<OrganizationCalendarSyncResult> {
+  const { signal } = options;
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   const serviceSupabase = getAdminClient();
-  const { data: org, error: orgError } = await serviceSupabase
-    .from("organizations")
-    .select("name, username")
-    .eq("id", organizationId)
-    .single();
+  const { data: org, error: orgError } = await withCalendarDeadline(
+    serviceSupabase
+      .from("organizations")
+      .select("name, username")
+      .eq("id", organizationId),
+    signal,
+  ).single();
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (orgError || !org) {
     return { success: false, error: "Organization not found" };
   }
 
-  const { data: syncConfig, error: syncConfigError } = await serviceSupabase
-    .from("organization_calendar_syncs")
-    .select("calendar_id, created_by, calendar_email, auto_sync, updated_at")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
+  const { data: syncConfig, error: syncConfigError } =
+    await withCalendarDeadline(
+      serviceSupabase
+        .from("organization_calendar_syncs")
+        .select(
+          "calendar_id, created_by, calendar_email, auto_sync, updated_at",
+        )
+        .eq("organization_id", organizationId),
+      signal,
+    ).maybeSingle();
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (syncConfigError) {
     return {
       success: false,
@@ -89,6 +119,7 @@ export async function syncOrganizationCalendarInternal(
     purpose: "organization_calendar",
     requestedCapability: null,
   });
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!ownerAuthorization.allowed) {
     // Pause only the configuration this pass read. A calendar that was never
     // provisioned is stored as NULL, which an equality filter never matches.
@@ -116,6 +147,7 @@ export async function syncOrganizationCalendarInternal(
     },
   );
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!accessToken) {
     return {
       success: false,
@@ -134,17 +166,23 @@ export async function syncOrganizationCalendarInternal(
     { organizationId, userId: syncConfig.created_by },
   );
 
+  // Provisioning has its own durable receipt. A deadline that passed while it
+  // ran stops the pass here, before any event work.
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!ensured) {
     return { success: false, error: "Failed to access organization calendar" };
   }
   // Provisioning may update the compatibility row. Pin its resulting version
   // before event work; a later owner or settings change must win completion.
   const { data: currentConfig, error: currentConfigError } =
-    await serviceSupabase
-      .from("organization_calendar_syncs")
-      .select("created_by, calendar_id, updated_at")
-      .eq("organization_id", organizationId)
-      .maybeSingle();
+    await withCalendarDeadline(
+      serviceSupabase
+        .from("organization_calendar_syncs")
+        .select("created_by, calendar_id, updated_at")
+        .eq("organization_id", organizationId),
+      signal,
+    ).maybeSingle();
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (
     currentConfigError ||
     !currentConfig ||
@@ -163,6 +201,7 @@ export async function syncOrganizationCalendarInternal(
     accessToken,
     calendarId: ensured.calendarId,
     sourceKinds: [PROJECT_SCHEDULE_SOURCE_KIND],
+    signal,
     load: async () => {
       const projects = await loadCalendarSourcePages<Project>((after, size) => {
         let query = serviceSupabase
@@ -174,8 +213,8 @@ export async function syncOrganizationCalendarInternal(
           .order("id")
           .limit(size);
         if (after) query = query.gt("id", after);
-        return query;
-      });
+        return withCalendarDeadline(query, signal);
+      }, signal);
       return projects.flatMap((project) =>
         getProjectScheduleIds(project).map((scheduleId) => {
           const event = formatProjectToCalendarEvent(project, scheduleId);
@@ -195,16 +234,20 @@ export async function syncOrganizationCalendarInternal(
   if (!eventSyncResult.success) {
     return eventSyncResult;
   }
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
 
   const csfSyncResult = await syncCsfCalendarProjections({
     userId: syncConfig.created_by,
     organizationId,
     accessToken,
     calendarId: ensured.calendarId,
+    signal,
   });
   if (!csfSyncResult.success) {
     return csfSyncResult;
   }
+  // A pass that outlived its deadline never records a healthy completion.
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
 
   // Membership changes need not move the configuration's version. Confirm
   // authority again before recording a healthy completion for this owner.
@@ -217,6 +260,7 @@ export async function syncOrganizationCalendarInternal(
       requestedCapability: null,
     },
   );
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!completionAuthorization.allowed) {
     return {
       success: false,

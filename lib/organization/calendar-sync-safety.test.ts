@@ -39,16 +39,35 @@ test("the shared Sheets sync checks the destination before it reads or writes th
     source.indexOf("async function writeOrganizationReport"),
   );
   const destinationCheck = writeSource.indexOf("await inspectSpreadsheet(");
-  const reportRead = writeSource.indexOf("buildOrganizationReportRowsForSync(");
-  const rangeCheck = writeSource.indexOf("describeReportRangeOverflow(");
-  const googleWrite = writeSource.indexOf(
-    "const replacement = await replaceSpreadsheetReportValues(",
+  // The report is read, checked and saved by one step, which the write follows.
+  const snapshotStep = writeSource.indexOf(
+    "await saveOrganizationReportSnapshot(",
   );
+  const googleWrite = writeSource.indexOf(
+    "const replacement = await replaceSpreadsheetReportRanges(",
+  );
+  const snapshotSource = source.slice(
+    source.indexOf("async function saveOrganizationReportSnapshot"),
+  );
+  const reportRead = snapshotSource.indexOf(
+    "buildOrganizationReportRowsForSync(",
+  );
+  const rangeCheck = snapshotSource.indexOf("describeReportRangeOverflow(");
+  const reportSave = snapshotSource.indexOf("await run.plan(snapshot)");
 
   assert.ok(destinationCheck >= 0);
-  assert.ok(reportRead > destinationCheck);
+  assert.ok(snapshotStep > destinationCheck);
+  assert.ok(googleWrite > snapshotStep);
+  assert.ok(reportRead >= 0);
   assert.ok(rangeCheck > reportRead);
-  assert.ok(googleWrite > rangeCheck);
+  assert.ok(reportSave > rangeCheck);
+  // The durable claim is taken before this function reads anything.
+  const runSource = source.slice(
+    source.indexOf("export async function runOrganizationSheetSync"),
+  );
+  const claim = runSource.indexOf("await claimOrganizationSheetSyncRun(");
+  assert.ok(claim >= 0);
+  assert.ok(runSource.indexOf("await writeOrganizationReport(") > claim);
   // A sync never creates a tab.
   assert.doesNotMatch(source, /ensureSpreadsheetTab|addSheet/u);
 });

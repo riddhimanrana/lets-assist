@@ -23,7 +23,13 @@ test("manual and cron report syncs share the RAW write-first replacement", () =>
     assert.doesNotMatch(source, /clearSpreadsheetValues\(/u);
     assert.match(source, /ORGANIZATION_SHEET_SYNC_COLUMNS/u);
   }
-  assert.match(sharedSync, /replaceSpreadsheetReportValues\(/u);
+  // The shared sync replays the ranges it saved, through the same write-first
+  // replacement the tab-and-range entry point delegates to.
+  assert.match(sharedSync, /replaceSpreadsheetReportRanges\(/u);
+  assert.match(
+    readWorkspaceFile("services/google-sheets-report.ts"),
+    /export async function replaceSpreadsheetReportValues\([\s\S]*?return replaceSpreadsheetReportRanges\(/u,
+  );
   assert.doesNotMatch(sharedSync, /clearSpreadsheetValues\(/u);
   assert.match(sharedSync, /layout_config/u);
 });
@@ -36,9 +42,15 @@ test("organization integration crons use an explicit concurrency bound", () => {
     "app/api/cron/organization-sheet-sync/route.ts",
   );
 
-  assert.match(calendarCron, /CALENDAR_SYNC_CONCURRENCY/u);
+  // The calendar route passes its bound to the queue module that maps with it.
+  const calendarQueue = readWorkspaceFile(
+    "lib/organization/calendar-sync-queue.ts",
+  );
+  assert.match(calendarCron, /concurrency: CALENDAR_SYNC_CONCURRENCY/u);
+  assert.match(calendarCron, /runOrganizationCalendarSyncQueue\(/u);
+  assert.match(calendarQueue, /limits\.concurrency/u);
   assert.match(sheetCron, /SHEET_SYNC_CONCURRENCY/u);
-  for (const source of [calendarCron, sheetCron]) {
+  for (const source of [calendarQueue, sheetCron]) {
     assert.match(source, /mapWithConcurrency\(/u);
     assert.doesNotMatch(source, /Promise\.all\(syncPromises\)/u);
   }

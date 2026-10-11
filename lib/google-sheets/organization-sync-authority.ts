@@ -62,7 +62,39 @@ class SheetSyncAuthorityError extends Error {
   }
 }
 
-/** Pin the exact credential and configuration before using an export token. */
+/**
+ * Says whether the saved configuration is no longer the one the caller read.
+ * It reads one row and touches no credential, so it can explain a refused
+ * claim. False also covers a row that could not be read.
+ */
+export async function organizationSheetSyncConfigMoved(
+  supabase: ReturnType<typeof getAdminClient>,
+  config: OrganizationSheetSyncConfig,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("organization_sheet_syncs")
+      .select(ORGANIZATION_SHEET_SYNC_COLUMNS)
+      .eq("organization_id", config.organization_id)
+      .maybeSingle();
+    if (error) return false;
+    const current = data as Record<string, unknown> | null;
+    return (
+      !current ||
+      !savedColumns().every((column) =>
+        isDeepStrictEqual(current[column], config[column]),
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pin the exact credential and configuration before using an export token.
+ * This may refresh the stored token, so call it only while holding the
+ * organization's run claim.
+ */
 export async function prepareOrganizationSheetSyncAuthority(
   supabase: ReturnType<typeof getAdminClient>,
   config: OrganizationSheetSyncConfig,

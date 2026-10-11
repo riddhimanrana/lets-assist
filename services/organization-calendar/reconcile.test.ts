@@ -246,6 +246,109 @@ test("an unacknowledged lease renewal stops provider removal", async () => {
   expect(deletions).toBe(0);
   expect(h.steps).not.toContain("complete");
 });
+test("a deadline that already passed claims nothing and loads nothing", async () => {
+  const h = harness();
+  const load = mock(async () => []);
+  const expired = new AbortController();
+  expired.abort();
+  const result = await reconcileOrganizationCalendar(
+    { ...options, load, signal: expired.signal },
+    h.deps,
+  );
+  expect(result.success).toBe(false);
+  expect(h.deps.rpc).not.toHaveBeenCalled();
+  expect(load).not.toHaveBeenCalled();
+});
+test("a deadline that passes while sources load stops before the plan", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  const result = await reconcileOrganizationCalendar(
+    {
+      ...options,
+      signal: controller.signal,
+      load: async () => {
+        controller.abort();
+        return [];
+      },
+    },
+    h.deps,
+  );
+  expect(result.success).toBe(false);
+  expect(h.steps).toEqual(["release"]);
+  expect(h.deps.write).not.toHaveBeenCalled();
+});
+test.each(["before", "during"] as const)(
+  "a deadline that passes %s the lease renewal stops the provider mutation",
+  async (moment) => {
+    const h = harness();
+    const controller = new AbortController();
+    const rpc = h.deps.rpc;
+    h.deps.rpc = mock(async (name: string, args: Record<string, unknown>) => {
+      if (moment === "during" && args.p_step === "renew") controller.abort();
+      return rpc(name, args);
+    });
+    let mutations = 0;
+    h.deps.write.mockImplementation(async (request) => {
+      if (moment === "before") controller.abort();
+      await request.beforeWrite?.();
+      mutations++;
+      return "confirmed";
+    });
+    const result = await reconcileOrganizationCalendar(
+      { ...options, signal: controller.signal },
+      h.deps,
+    );
+    expect(result.success).toBe(false);
+    expect(mutations).toBe(0);
+    expect(h.steps.includes("renew")).toBe(moment === "during");
+    expect(h.steps).not.toContain("complete");
+    expect(h.steps).not.toContain("finish");
+    expect(h.steps[h.steps.length - 1]).toBe("release");
+  },
+);
+test("a deadline that passes before a removal's renewal stops the DELETE", async () => {
+  const h = harness();
+  h.pending({ ...receipt, phase: "pending_remove" });
+  const controller = new AbortController();
+  let deletions = 0;
+  h.deps.remove.mockImplementation(
+    async (_token, _calendar, _id, beforeWrite) => {
+      controller.abort();
+      try {
+        await beforeWrite?.();
+      } catch {
+        return false;
+      }
+      deletions++;
+      return true;
+    },
+  );
+  const result = await reconcileOrganizationCalendar(
+    { ...options, signal: controller.signal },
+    h.deps,
+  );
+  expect(result.success).toBe(false);
+  expect(deletions).toBe(0);
+  expect(h.steps).not.toContain("renew");
+  expect(h.steps).not.toContain("complete");
+});
+test("a write confirmed as the deadline passes is recorded, and nothing else starts", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  h.deps.write.mockImplementation(async (request) => {
+    await request.beforeWrite?.();
+    // The request was already sent. Stopping does not take it back.
+    controller.abort();
+    return "confirmed";
+  });
+  const result = await reconcileOrganizationCalendar(
+    { ...options, signal: controller.signal },
+    h.deps,
+  );
+  expect(result.success).toBe(false);
+  expect(h.steps).toEqual(["plan", "next", "renew", "complete", "release"]);
+  expect(h.deps.write).toHaveBeenCalledTimes(1);
+});
 test("an unacknowledged renewal also stops same-ID provider updates", async () => {
   const h = harness();
   h.pending({ ...receipt, phase: "pending_update" });

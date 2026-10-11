@@ -88,6 +88,7 @@ mock.module("@/lib/supabase/admin", () => ({
         or: record("or"),
         order: record("order"),
         limit: record("limit"),
+        abortSignal: record("abortSignal"),
         gt: () => query,
         update: (values: Record<string, unknown>) => {
           payload = values;
@@ -344,6 +345,73 @@ test("owner revocation after event work cannot stamp healthy completion", async 
   expect(result.success).toBe(false);
   expect(configurationUpdates()).toHaveLength(0);
   expect(savedRow.last_synced_at).toBeNull();
+});
+test("a pass without a deadline attaches no signal to any query", async () => {
+  expect((await syncOrganizationCalendarInternal("org")).success).toBe(true);
+  expect(queryCalls.some(([, method]) => method === "abortSignal")).toBe(false);
+  const passed = reconcile.mock.calls[0][0] as unknown as {
+    signal?: AbortSignal;
+  };
+  expect(passed.signal).toBeUndefined();
+});
+test("a deadline that already passed reads nothing and reaches no provider", async () => {
+  const expired = new AbortController();
+  expired.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: expired.signal,
+  });
+  expect(result.success).toBe(false);
+  expect(queryCalls).toHaveLength(0);
+  expect(token).not.toHaveBeenCalled();
+  expect(ensure).not.toHaveBeenCalled();
+});
+test("a deadline that passes during provisioning stops before any event work", async () => {
+  const controller = new AbortController();
+  duringProvisioning = () => controller.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  expect(result.success).toBe(false);
+  expect(reconcile).not.toHaveBeenCalled();
+  expect(csf).not.toHaveBeenCalled();
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+});
+test("a deadline that passes during event work cannot stamp a healthy completion", async () => {
+  const controller = new AbortController();
+  duringProjection = () => controller.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  // The reconcile reported success, and the pass still does not.
+  expect(result.success).toBe(false);
+  expect(reconcile).toHaveBeenCalledTimes(1);
+  expect(csf).not.toHaveBeenCalled();
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+  expect(savedRow.auto_sync).toBe(true);
+});
+test("the deadline reaches every source query and both projection lanes", async () => {
+  const controller = new AbortController();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  expect(result.success).toBe(true);
+  expect(reconcile.mock.calls[0][0]).toMatchObject({
+    signal: controller.signal,
+  });
+  expect(csf.mock.calls[0][0]).toMatchObject({ signal: controller.signal });
+  const bounded = queryCalls
+    .filter(([, method]) => method === "abortSignal")
+    .map(([table, , args]) => [table, args[0]]);
+  expect(bounded).toEqual([
+    ["organizations", controller.signal],
+    ["organization_calendar_syncs", controller.signal],
+    ["organization_calendar_syncs", controller.signal],
+    ["projects", controller.signal],
+  ]);
+  // The completion stamp is checked against the deadline, not cut off by it.
+  expect(typeof savedRow.last_synced_at).toBe("string");
 });
 test("uncertain destination prevents event reconciliation", async () => {
   failCalendar = true;

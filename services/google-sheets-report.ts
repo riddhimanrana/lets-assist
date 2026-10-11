@@ -47,12 +47,33 @@ const GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS = 60_000;
  * deadline. `budget` caps how many Sheets requests one piece of work may
  * make: each request spends one, and a request past the cap is refused.
  */
+/**
+ * What is known about a mutation after `beforeWrite` passed. `unsent` means
+ * the request was never dispatched. A timeout, a transport failure or any
+ * other status is not an outcome: nothing is acknowledged for it.
+ */
+export type SheetsWriteOutcome = "completed" | "rejected" | "unsent";
+
 export type SheetsRequestOptions = {
   signal?: AbortSignal;
   budget?: { remaining: number };
-  /** Revalidate the caller's authority immediately before each mutation. */
+  /**
+   * Revalidate the caller's authority immediately before each mutation. It
+   * runs after the deadline and budget checks, so passing it means the
+   * request is the next thing sent.
+   */
   beforeWrite?: () => Promise<void>;
+  /**
+   * Records a mutation's known outcome. Called once after an accepted or a
+   * definitively rejected request, or when nothing was sent after
+   * `beforeWrite`. If it throws, the request fails and the outcome stays
+   * unrecorded.
+   */
+  acknowledgeWrite?: (outcome: SheetsWriteOutcome) => Promise<void>;
 };
+
+/** Statuses that prove Sheets refused a mutation without applying it. */
+const DEFINITE_WRITE_REJECTIONS = new Set([400, 401, 403, 404, 429]);
 
 async function sheetsFetch(
   url: string,
@@ -61,23 +82,33 @@ async function sheetsFetch(
   timeoutMs = GOOGLE_SHEETS_REQUEST_TIMEOUT_MS,
 ) {
   options.signal?.throwIfAborted();
-  if (init.method && init.method !== "GET") {
-    await options.beforeWrite?.();
-    options.signal?.throwIfAborted();
-  }
   if (options.budget) {
     if (options.budget.remaining <= 0) {
       throw new Error("Sheets request budget spent");
     }
     options.budget.remaining -= 1;
   }
+  const mutation = Boolean(init.method && init.method !== "GET");
+  if (mutation) {
+    await options.beforeWrite?.();
+    if (options.signal?.aborted) {
+      await options.acknowledgeWrite?.("unsent");
+      options.signal.throwIfAborted();
+    }
+  }
   const timeout = AbortSignal.timeout(timeoutMs);
-  return fetch(url, {
+  const response = await fetch(url, {
     ...init,
     signal: options.signal
       ? AbortSignal.any([timeout, options.signal])
       : timeout,
   });
+  if (mutation) {
+    if (response.ok) await options.acknowledgeWrite?.("completed");
+    else if (DEFINITE_WRITE_REJECTIONS.has(response.status))
+      await options.acknowledgeWrite?.("rejected");
+  }
+  return response;
 }
 
 function failureReasonForError(error: unknown): SheetsFailureReason {
@@ -500,8 +531,29 @@ export async function replaceSpreadsheetReportValues(
    */
   staleClearRangeA1: string | null | undefined = rangeA1,
 ): Promise<SpreadsheetReportReplaceResult> {
-  const writeRange = buildWriteRange(tabName, rangeA1, rows);
-  const staleRanges = buildStaleClearRanges(tabName, staleClearRangeA1, rows);
+  return replaceSpreadsheetReportRanges(
+    accessToken,
+    sheetId,
+    buildWriteRange(tabName, rangeA1, rows),
+    buildStaleClearRanges(tabName, staleClearRangeA1, rows),
+    rows,
+    options,
+  );
+}
+
+/**
+ * The same replacement for ranges that are already resolved. A caller that
+ * saved its ranges before writing passes them back here, so a retry mutates
+ * exactly what was saved instead of what a new calculation would give.
+ */
+export async function replaceSpreadsheetReportRanges(
+  accessToken: string,
+  sheetId: string,
+  writeRange: string,
+  staleRanges: readonly string[],
+  rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  options: SheetsRequestOptions = {},
+): Promise<SpreadsheetReportReplaceResult> {
   // One write and a fixed number of clears: a report can never fan out into
   // an unbounded number of Sheets requests.
   if (staleRanges.length > MAX_REPORT_STALE_CLEAR_REQUESTS) {
