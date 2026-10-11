@@ -1,3 +1,4 @@
+import { workerHeartbeatOwner } from "@/lib/cron/worker-heartbeat";
 import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { safeConsole } from "@/lib/safe-console";
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
         safeConsole.log("Auto-publish process initiated");
         const startTime = Date.now();
 
-        // Process expired sessions
+        // Publish approved sessions, then sweep pending certificate email
         const result = await processExpiredSessions();
         summary.capture(result);
 
@@ -79,12 +80,19 @@ export async function POST(request: NextRequest) {
           `Auto-publish process completed in ${executionTime}ms`,
         );
 
+        // pendingSessions is omitted when discovery did not count. Recovery
+        // counters describe email work only and never add to session counts.
         return NextResponse.json(
           {
             message: "Auto-publish process completed",
+            approvalStatus: result.approvalStatus,
+            discoveryCounted: result.discoveryCounted,
+            heldSessions: result.heldSessions,
             processedSessions: result.processedSessions,
             successfulSessions: result.successfulSessions,
             pendingSessions: result.pendingSessions,
+            discovery: result.discovery,
+            recovery: result.recovery,
             executionTimeMs: executionTime,
             results: result.results,
           },
@@ -92,6 +100,10 @@ export async function POST(request: NextRequest) {
         );
       },
       summary,
+      undefined,
+      // A scheduled Vercel GET owns this worker's heartbeat. Every other
+      // caller, such as the workflow fallback, keeps its own.
+      { heartbeatOwner: workerHeartbeatOwner(request) },
     );
   } catch (error: unknown) {
     safeConsole.error("Error in auto-publish API route:", error);

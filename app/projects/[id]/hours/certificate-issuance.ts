@@ -4,7 +4,8 @@ import * as React from "react";
 
 import CertificatePublished from "@/emails/certificate-published";
 import { sendEmail } from "@/services/email";
-import { getAdminClient } from "@/lib/supabase/admin";
+import { drainPublicationEmails } from "@/lib/projects/hours-publication-email-service";
+import { recoverSupplementalCertificates } from "@/lib/projects/hours-publication-service";
 export { getPublishStateKey } from "@/lib/projects/hours-publish-key";
 
 /**
@@ -12,6 +13,9 @@ export { getPublishStateKey } from "@/lib/projects/hours-publish-key";
  * (publishVolunteerHours / resendCertificateEmails) and the paper signup
  * commit path, which must issue certificates for signups added to a session
  * that was already published.
+ *
+ * sendCertificatePublishedEmails is the explicit organizer resend for legacy
+ * awards that have no email ledger. Nothing automatic calls it.
  */
 
 export type CertificateEmailRow = {
@@ -81,11 +85,21 @@ export const sendCertificatePublishedEmails = async (
   };
 };
 
+export type SupplementalIssuanceResult = {
+  issued: number;
+  emailsSent: number;
+  errors: string[];
+  // True when every requested award that exists has ledger-tracked delivery,
+  // so a repeat that issues nothing is a completed retry, not a failure.
+  deliveryDurable: boolean;
+};
+
 /**
  * Supplemental issuance for signups committed onto an already-published
- * session (paper scans). The service-only RPC derives certificate data from
- * the database and uses the verified-signup unique index as its conflict
- * arbiter, so a raced signup cannot discard unaffected rows in the batch.
+ * session (paper scans). One service-only transaction issues the missing
+ * awards, their in-app notifications, and their durable email work, using the
+ * verified-signup unique index as its conflict arbiter. Email then goes
+ * through the same ledger drain as publication, never a direct send.
  * Does not flip the session's published flag: it is already true, and
  * flipping it is the publish flow's job.
  */
@@ -94,83 +108,63 @@ export async function issueCertificatesForSignups(options: {
   scheduleId: string;
   signupIds: string[];
   actorId: string;
-}): Promise<{ issued: number; emailsSent: number; errors: string[] }> {
+}): Promise<SupplementalIssuanceResult> {
   const { projectId, scheduleId, signupIds, actorId } = options;
   const requestedSignupIds = [...new Set(signupIds)];
   if (requestedSignupIds.length === 0) {
-    return { issued: 0, emailsSent: 0, errors: [] };
+    return { issued: 0, emailsSent: 0, errors: [], deliveryDurable: false };
   }
   if (requestedSignupIds.length > 500) {
-    return { issued: 0, emailsSent: 0, errors: ["too_many_signups"] };
-  }
-
-  const admin = getAdminClient();
-  const errors: string[] = [];
-
-  const { data: projectData, error: projectError } = await admin
-    .from("projects")
-    .select("id, title, project_timezone")
-    .eq("id", projectId)
-    .single();
-  if (projectError || !projectData) {
-    return { issued: 0, emailsSent: 0, errors: ["project_not_found"] };
-  }
-  const { data: insertedCerts, error: insertError } = await admin.rpc(
-    "issue_supplemental_verified_certificates",
-    {
-      p_project_id: projectId,
-      p_schedule_id: scheduleId,
-      p_signup_ids: requestedSignupIds,
-      p_actor_id: actorId,
-    },
-  );
-  if (insertError) {
     return {
       issued: 0,
       emailsSent: 0,
-      errors: [`certificate_insert_failed:${insertError.code}`],
+      errors: ["too_many_signups"],
+      deliveryDurable: false,
     };
   }
 
-  const inserted = (insertedCerts ?? []) as Array<
-    CertificateEmailRow & { user_id: string | null }
-  >;
+  // The helper repeats the request once when the response is lost. The
+  // repeat issues nothing new and returns the first call's deliveries.
+  const transaction = await recoverSupplementalCertificates({
+    actorId,
+    projectId,
+    scheduleId,
+    signupIds: requestedSignupIds,
+  });
+  if (!transaction.publication) {
+    return {
+      issued: 0,
+      emailsSent: 0,
+      errors: [
+        transaction.invalidResponse
+          ? "certificate_recovery_invalid_response"
+          : `certificate_insert_failed:${transaction.errorCode ?? "unknown"}`,
+      ],
+      deliveryDurable: false,
+    };
+  }
 
-  // In-app notifications for registered volunteers, matching publishVolunteerHours.
-  await Promise.allSettled(
-    inserted
-      .filter((cert) => cert.user_id)
-      .map((cert) =>
-        admin.from("notifications").insert({
-          user_id: cert.user_id,
-          title: "Your Volunteer Hours Have Been Published! 🎉",
-          body: `Your volunteer certificate for "${projectData.title}" is now available.`,
-          type: "project_updates",
-          severity: "success",
-          action_url: `/certificates/${cert.id}`,
-          displayed: false,
-          read: false,
-        }),
-      ),
-  );
-
-  const emailResult = await sendCertificatePublishedEmails(
-    inserted.map((cert) => ({
-      id: cert.id,
-      volunteer_name: cert.volunteer_name,
-      volunteer_email: cert.volunteer_email,
-      project_title: cert.project_title,
-      event_start: cert.event_start ?? undefined,
-      event_end: cert.event_end ?? undefined,
-      credited_minutes: cert.credited_minutes,
-    })),
-    projectData.project_timezone ?? undefined,
-  );
-  errors.push(...emailResult.errors);
+  const recovery = transaction.publication;
+  const errors: string[] = [];
+  let emailsSent = 0;
+  if (recovery.publication) {
+    const delivery = await drainPublicationEmails(recovery.publication);
+    emailsSent = delivery.emailsSent;
+    errors.push(...delivery.errors);
+  }
+  // An older award with no ledger entry may or may not have been emailed.
+  // It is reported for review and never sent from here.
+  if (recovery.recoveryRequired) {
+    errors.push("certificate_delivery_review_required");
+  }
 
   return {
-    issued: inserted.length,
-    emailsSent: emailResult.emailsSent,
+    issued: recovery.issued,
+    emailsSent,
     errors,
+    deliveryDurable:
+      !recovery.recoveryRequired &&
+      recovery.publication !== null &&
+      recovery.publication.deliveries.length > 0,
   };
 }
