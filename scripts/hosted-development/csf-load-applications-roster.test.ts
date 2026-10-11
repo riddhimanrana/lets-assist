@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { openApplicationsReviewQueue } from "./csf-load-applications-roster.mjs";
 
 function fixture({
@@ -53,4 +53,21 @@ test("surfaces genuine browser errors instead of treating them as readiness", as
     openApplicationsReviewQueue(flow.search, flow.queue),
   ).rejects.toBe(failure);
   expect(flow.counts()).toEqual({ clicks: 1, waits: 1 });
+});
+
+test("readiness retries cannot exceed the original sixty-second deadline", async () => {
+  const clock = spyOn(performance, "now")
+    .mockReturnValueOnce(0)
+    .mockReturnValueOnce(0)
+    .mockReturnValueOnce(0)
+    .mockReturnValue(60_001);
+  try {
+    const flow = fixture({ ignoredClicks: 100 });
+    await expect(
+      openApplicationsReviewQueue(flow.search, flow.queue),
+    ).rejects.toThrow("within 60 seconds");
+    expect(flow.counts()).toEqual({ clicks: 1, waits: 1 });
+  } finally {
+    clock.mockRestore();
+  }
 });

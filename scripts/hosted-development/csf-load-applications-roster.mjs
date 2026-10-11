@@ -18,25 +18,23 @@ export function applicationsRosterSubjects(search) {
 // Keep the original overall deadline and surface genuine loading failures.
 export async function openApplicationsReviewQueue(search, queue) {
   const deadline = performance.now() + 60_000;
-  while (true) {
+  const timeout = () => {
     const remaining = deadline - performance.now();
     if (remaining <= 0) {
       throw new Error(
         "The fictional application review queue did not become ready within 60 seconds.",
       );
     }
-    if (await search.isVisible()) {
-      await applicationsRosterSubjects(search)
-        .first()
-        .click({
-          timeout: Math.min(1000, remaining),
-        });
-    }
+    return Math.min(1000, remaining);
+  };
+  while (true) {
     try {
-      await queue.waitFor({
-        state: "visible",
-        timeout: Math.min(1000, remaining),
-      });
+      if (await search.isVisible()) {
+        await applicationsRosterSubjects(search)
+          .first()
+          .click({ timeout: timeout() });
+      }
+      await queue.waitFor({ state: "visible", timeout: timeout() });
       return;
     } catch (error) {
       if (error?.name !== "TimeoutError") throw error;
