@@ -352,7 +352,7 @@ export default function ProjectCreator({
       const storage = attemptStorage();
       const attempt = persistAttempt(
         readStagedWaiverAttempt(storage) ??
-          createStagedWaiverAttempt(crypto.randomUUID()),
+          createStagedWaiverAttempt(draftSession.id ?? crypto.randomUUID()),
       );
 
       formData.append("creationIdempotencyKey", attempt.idempotencyKey);

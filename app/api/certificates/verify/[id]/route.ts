@@ -47,6 +47,20 @@ export async function GET(
       .eq("id", certificateId)
       .single();
 
+    // Empty/unreadable rows retain the same privacy-preserving response. A
+    // backend failure cannot truthfully establish that a certificate is absent.
+    if (certError && !["PGRST116", "42501"].includes(certError.code)) {
+      safeConsole.error("Certificate verification read failed:", certError);
+      return NextResponse.json(
+        {
+          error:
+            "Certificate verification is temporarily unavailable. Please try again.",
+          valid: false,
+          retryable: true,
+        },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
     if (certError || !certificate) {
       return NextResponse.json(
         {
@@ -67,7 +81,7 @@ export async function GET(
       {
         error: "Internal server error during verification",
         valid: false,
-        exists: false,
+        retryable: true,
       },
       { status: 500 },
     );
@@ -124,7 +138,7 @@ export async function POST(
       {
         error: "Internal server error during batch verification",
         valid: false,
-        exists: false,
+        retryable: true,
       },
       { status: 500 },
     );

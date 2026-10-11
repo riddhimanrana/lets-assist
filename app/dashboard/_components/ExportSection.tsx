@@ -1,6 +1,7 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
+import { certificateExportType, serializeCsv } from "@/lib/certificates/csv";
 import { certificateHours } from "@/lib/projects/certificate-duration";
 
 import React, { useState, useMemo } from "react";
@@ -88,7 +89,7 @@ export function ExportSection({
   const convertCertificateToExportData = (
     cert: CertificateRecord,
   ): ExportData => {
-    const isVerified = (cert.type || "platform") === "platform";
+    const isVerified = certificateExportType(cert.type) === "platform";
     return {
       id: cert.id,
       projectTitle: cert.project_title || cert.title || "Unknown Project",
@@ -230,10 +231,9 @@ export function ExportSection({
         item.issuedDate, // Issued Date
       ]);
 
-      // Generate CSV
-      const csvContent = [headers, ...rows]
-        .map((row) => row.map((field) => `"${field}"`).join(","))
-        .join("\n");
+      // Generate CSV. The serializer escapes quotes, so names with commas,
+      // quotes, or line breaks read back exactly in the verification modal.
+      const csvContent = serializeCsv([headers, ...rows]);
 
       // Download file
       const blob = new Blob([csvContent], { type: "text/csv" });

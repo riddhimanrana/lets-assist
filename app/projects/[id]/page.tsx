@@ -22,7 +22,10 @@ import { loadVolunteerAttendanceIntervals } from "@/lib/projects/volunteer-atten
 import VolunteerStatusCard from "@/app/projects/_components/VolunteerStatusCard";
 import ProjectClient from "./ProjectClient";
 import { Metadata } from "next";
-import { canManageProjectAccess } from "@/lib/projects/management-access";
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+} from "@/lib/projects/management-access";
 
 export async function generateMetadata({
   params,
@@ -171,12 +174,12 @@ export default async function ProjectPage({
   if (user && project.organization_id && user.id !== project.creator_id) {
     const { data: membership } = await supabase
       .from("organization_members")
-      .select("role")
+      .select("role, status")
       .eq("organization_id", project.organization_id)
       .eq("user_id", user.id)
       .single();
 
-    organizationRole = membership?.role ?? null;
+    organizationRole = activeOrganizationRole(membership);
   }
 
   const canManageProject = user

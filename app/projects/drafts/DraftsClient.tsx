@@ -135,7 +135,11 @@ export default function DraftsClient({
         const message = result.error;
         setPublishErrors((current) => ({ ...current, [draftId]: message }));
       } else if ("success" in result && result.success && result.id) {
-        toast.success("Project published successfully!");
+        if ("draftRetained" in result && result.draftRetained) {
+          toast.warning(result.message);
+        } else {
+          toast.success("Project published successfully!");
+        }
         router.push(`/projects/${result.id}`);
       }
     } catch {

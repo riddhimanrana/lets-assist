@@ -27,7 +27,7 @@ import {
   firstRecurrenceError,
   validateRecurrenceFormState,
 } from "@/lib/projects/recurrence";
-import { parseCreateProjectPayload } from "@/schemas/project-create-schema";
+import { publishSavedDraft } from "./draft-publication";
 
 export async function finalizeProject(projectId: string) {
   "use server";
@@ -301,57 +301,8 @@ export async function publishDraft(draftId: string) {
     return { error: "You must be logged in to publish a project" };
   }
 
-  // Get the draft data
-  const { data: draft, error: draftError } = await supabase
-    .from("project_drafts")
-    .select("*")
-    .eq("id", draftId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (draftError || !draft) {
-    return { error: "Draft not found" };
-  }
-
-  // A draft is saved with relaxed rules, so it can be missing anything. It is
-  // checked against the create form's rules here, and the first thing that
-  // still needs attention is named instead of a generic failure.
-  const draftValidation = parseCreateProjectPayload(draft.draft_data);
-  if (!draftValidation.ok) {
-    return { error: draftValidation.error };
-  }
-  const projectData = draftValidation.data;
-
-  const waiverConfigurationError = getWaiverConfigurationError(projectData);
-  if (waiverConfigurationError) {
-    return { error: waiverConfigurationError };
-  }
-
-  // Drafts intentionally never carry the uploaded waiver PDF, so this path
-  // cannot prove one. Refusing here beats creating a project that would stay
-  // staged and unpublishable with nobody to finish it.
-  if (projectData?.waiverRequired) {
-    return {
-      error:
-        "Projects that require a waiver must be published from the create flow so the waiver PDF can be attached.",
-    };
-  }
-
-  const basicResult = await createBasicProject(draft.draft_data, false);
-
-  if (basicResult.error) {
-    return basicResult;
-  }
-
-  // Delete the draft after successful project creation
-  await supabase.from("project_drafts").delete().eq("id", draftId);
-
-  revalidatePath("/projects");
-  revalidatePath("/projects/drafts");
-  revalidatePath("/projects/create");
-  revalidatePath(`/projects/${basicResult.id}`);
-
-  return { success: true, id: basicResult.id };
+  // Publication and its retry convergence live in draft-publication.ts.
+  return publishSavedDraft(supabase, user.id, draftId);
 }
 
 // Update an existing draft project
