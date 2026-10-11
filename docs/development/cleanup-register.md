@@ -1,5 +1,30 @@
 # Repository cleanup register
 
+## Integrated source checkpoint — 2026-10-11
+
+P2 CSF-REVIEW-QUEUE-SCOPE-20261011 is open in the unpublished candidate.
+Private PR650 review and an independent executable hook-host reproduction
+show that a frozen queue and a deferred queue response can outlive a browser
+history change of semester/class scope. The old application then appears with
+the new period context. This is a workflow/context defect; no authorization
+bypass was demonstrated. Scope identity, first-render suppression and stale
+response cancellation are being corrected before private integration.
+
+The later source corrections supersede the untested-source status in the
+historical desktop entry below. Applications now passes final independent
+source review, focused service/action/query tests, TypeScript, lint, formatting
+and source/data-access guards. The standalone and OAuth query contracts are
+covered in unit tests. Its nondeterministic ICU name-order correction has
+104 planned pgTAP assertions across two bounded files; actual SQL replay,
+running redirects, browser interaction and unchanged hosted latency acceptance
+remain pending. HOSTED-APPLICATIONS-LATENCY-20261011 remains open.
+
+LIGHT-TOKEN-CONTRAST-20261011, ACCOUNT-PROFILE-RECOVERY-20261011 and the private
+CSF nested-main finding have source corrections with focused regressions.
+Both-theme phone/desktop rendered inspection is pending. The separate
+CSF-POINT-REVIEW-V51-20261011 finding remains open and unchanged. Local source
+and unit checks do not establish a deployment or complete redesign audit.
+
 ## Final desktop audit follow-up — 2026-10-11
 
 P2 HOSTED-APPLICATIONS-LATENCY-20261011 remains open. Exact Development
@@ -18,6 +43,90 @@ the response. Cumulative database routine timings are not per-request traces
 and do not establish a cause. Obtain correlated phase timings under the same
 100-session load before selecting a performance repair; retain fresh role
 checks, source visibility and per-record authorization.
+
+A source candidate for that finding exists and is unverified. Private branch
+`codex/application-review-server-pages` and migration
+`20261011110000_csf_review_application_roster_paging.sql` replace the
+whole-semester application read with one bounded server page (default 50,
+maximum 100), URL-backed search, filters and keyset cursors, a
+single-application evidence read when an officer opens a record, and a frozen
+id queue on review entry. No test, replay, build or browser run has been
+recorded for it, it is not deployed, and it carries no latency evidence.
+HOSTED-APPLICATIONS-LATENCY-20261011 stays open until the unchanged hosted run
+passes on a deployed candidate. An application now loads after the queue moves
+to it, so the load harness's review digest was changed in source to wait for a
+loaded-record marker and to refuse a loading panel; that change is as
+unverified as the rest and adds no time to any budget.
+
+An independent review of that candidate (APP-PAGE-001 to APP-PAGE-005) found
+five defects, and the candidate was corrected in source for each: the review
+queue is one bounded document instead of a row set the Data API could cut at
+1,000 rows; page cursors are the boundary row's sort values instead of a
+position that shifts when earlier rows change; every list, queue, split and
+single-application read repeats its runtime, membership and permission check
+after its last read and releases on that answer, with the source link decided
+from the final permissions; and a debounced search no longer rebuilds the URL
+it was typed on. The corrections are source only. They need the same
+independent final review, replay and runs as the candidate itself.
+
+P2 CSF-STANDALONE-REVIEW-STATE-20261011 is fixed in source and unverified at
+runtime. The standalone plugin routes redirected to the embedded organization
+tab with only `tab`, because standalone page props carried no query; the
+review semester, class, search, filters and page were dropped, as were
+`csf_review_term` and `csf_review_cohort` before the list state existed. The
+platform now passes the request's query to standalone plugin renderers as an
+optional, untrusted, uninterpreted `searchParams` prop, and keeps it across
+its own id-to-slug and sign-in redirects on the internal path it builds. The
+CSF route phase carries only its existing workspace allowlist into the
+embedded address, with the tab and the record the path names winning every
+collision. Membership, runtime and route permission checks are unchanged.
+This stays open until the redirects are exercised in a running application,
+including the sign-in return, whose handling of a return address that carries
+a query was not read as part of this change.
+
+The Google return allowlist refused `csf_review_cohort=all`, the value the
+class selector emits for every class, so an officer reviewing every class
+would have had the whole return route refused. It now accepts exactly `all`
+or a class id. Source only.
+
+Still open for the Applications candidate after these corrections: its hooks
+are not rendered by any test because the repository has no DOM renderer, so
+the timed navigation regression drives the logic underneath them; the
+migration and its pgTAP file have not been replayed; and there is no hosted
+latency evidence.
+
+The review list orders names under the ICU root locale so that it keeps the
+order the previous loader's `localeCompare` gave for punctuation and accents.
+No approved written ordering contract was found; this preserves observed
+behavior and is not a new policy. If the product contract should state the
+order, that decision is still to be made.
+
+The independent review then proved one ordering defect in that candidate, and
+it is corrected in source only. Name normalization strips accents but keeps a
+zero-width space (U+200B), and `localeCompare` treats `miller` and
+`mi<U+200B>ller` as the same last name, so the previous loader ordered such
+applicants by first name and then application id. The candidate used the
+built-in deterministic `und-x-icu`, which breaks that tie by byte order before
+the first name is consulted, so those applicants were listed, numbered, paged
+and queued in a different order. The unpublished migration now declares
+`plugin_data.csf_review_name_order` (ICU, locale `und`, nondeterministic) and
+uses it for every name ordering: the roster index, the page order, the keyset
+cursor comparison in both directions, and the queue and split order. Search
+matching is unchanged and still a literal substring test under ordinary
+deterministic text. A composed versus decomposed accent pair is not a defect
+here, because normalization removes accents before the names are stored. The
+collation, the functions and the added pgTAP controls have not been replayed
+or run; no SQL, typecheck, build, browser or hosted check has been made for
+this correction, and the schema capture for the new collation is pending.
+
+P2 CSF-POINT-REVIEW-V51-20261011 is open. Point verification still loads one
+class in full, with every member's submissions, appeals, signed proof links,
+notes and credits, and filters and searches that set in the browser. That is
+the V51 gap the application list had, at class scale instead of semester
+scale. It was left unchanged on purpose: point review assigns by positional
+band over the loaded roster, so paging it needs its own design for band
+coordinates, range review and the points split. Measure a large class before
+choosing one, and do not reuse the application list functions for it.
 
 The exact Development candidate 6d2ec8cbc8b5580e4d869c8ad771ed76e80c3120
 and private gitlink 38dc7c7aff6fd101c87f92eebfae822d1726f2b4 passed full
@@ -10607,3 +10716,69 @@ Private PR #649 pages only the rendered Applications list in groups of 50. The c
 The same real authenticated route on an owned isolated Supabase stack with the repository's 1,000-application fixture returned about 3.62 MB before and 1.25 MB after (65% less). The real roster component's SSR markup dropped from 1,246,109 bytes/1,000 rows to about 71 KB/50 rows. Development-mode wall times were noisy during concurrent compilation and do not prove a hosted latency improvement. Eleven focused regressions, affected static checks and the complete plugin gate passed locally. A synthetic browser check visited all 20 pages/1,000 unique applications, retained the full review queue, checked keyboard paging/search/reset and page-20 return persistence, and recorded zero browser errors. Actual Claude Opus 5.5 review found a page-state regression, which was corrected; its follow-up found no actionable P0–P2.
 
 This is an ordinary embedded Development integration. Fresh exact-head short, full integrated and hosted gates are required before acceptance. Main, Production, signed release tags, organization activation and the held Production guest-signup cleanup job remain unchanged. This record does not claim complete visual audit coverage.
+
+### Server paging review and expanded platform audit, October 11
+
+`CSF-APPLICATIONS-PAYLOAD-20261011` remains **open**. PR #873 review identified
+that the rendered-page change above still fetches and serializes the complete
+roster and performs list filtering in the client. It therefore does not satisfy
+V51. A private correction is implementing bounded server pages, lightweight
+counts, explicit frozen review/split snapshots and lazy authorized detail.
+Neither the earlier green short gate nor the local payload reduction closes
+this finding. Integrated SQL, browser and unchanged hosted performance evidence
+are pending; PR #873 must not merge on its earlier row-only head.
+
+The independent platform audit reproduced the following repository defects.
+Each is **open, under local repair** until its focused regression and integrated
+boundary checks pass. These observations do not authorize provider calls,
+historical award processing, scheduler activation or Production changes.
+
+| Finding                                  | Priority | Reproduced behavior and required correction                                                                                                                                                                                                                    |
+| ---------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WAIVER-CONTENT-VALIDATION-20261011`     | P1       | Arbitrary bytes accepted as PDF/image, and a failed signature-image decode can produce a successful blank signed PDF. Validate actual content on both upload paths and fail closed during rendering.                                                           |
+| `WAIVER-UPLOAD-RETRY-20261011`           | P2       | A failed second file followed by retry can link the first file twice. Preserve completed upload identity and retry only unresolved files.                                                                                                                      |
+| `FILE-PREVIEW-FALLBACK-20261011`         | P2       | Supported download-only files remain behind a loading overlay; signature UI also advertises a larger limit than the server. Use usable truthful preview/fallback and one signature limit.                                                                      |
+| `PROJECT-ACTIVE-MEMBERSHIP-20261011`     | P1       | Inactive organization staff pass role-only project creation and restricted-read checks, including SQL policy. Require active membership while preserving creator and public access.                                                                            |
+| `DRAFT-PUBLICATION-RETRY-20261011`       | P2       | Concurrent or response-loss publication can create duplicate projects; ignored draft deletion leaves a republishable draft. Use a durable attempt identity and affirmative completion.                                                                         |
+| `INVITATION-ROLE-ACK-20261011`           | P2       | A failed member-to-staff update can consume an admin invitation and return success. Require affirmative authorized role transition.                                                                                                                            |
+| `CERTIFICATE-VERIFY-TRUTH-20261011`      | P2       | CSV accepts altered recipient/organization fields and numeric suffixes; database verification failure can appear as missing certificate. Compare complete canonical fields and distinguish retryable backend failure from private absence.                     |
+| `HOURS-DISCOVERY-RECOVERY-20261011`      | P2       | Only48–72h sessions are discovered; old or capped sessions can be omitted and repeated failures can starve others. Use fair complete bounded discovery with explicit approved scope and truthful holds.                                                        |
+| `CERTIFICATE-OUTBOX-RECOVERY-20261011`   | P2       | Committed awards are not independently revisited for queued email; supplemental retry can leave delivery unledgered. Use transactional enqueue and recovery restricted to immutable original approval, never replay accepted/unknown results.                  |
+| `GOOGLE-EFFECT-AUTHORITY-FENCE-20261011` | P1       | Revoked or retargeted report authority can still write the previous Sheet, and stale Calendar completion can affect changed configuration. Revalidate exact authority/binding before writes and require fenced affirmative completion.                         |
+| `WORKER-FAILURE-HEALTH-20261011`         | P2       | Per-organization failure returns HTTP200 while run receipts classify failure, misleading fallback/heartbeat health. Preserve truthful status and sanitized outcome counters.                                                                                   |
+| `PERSONAL-CALENDAR-EDIT-20261011`        | P2       | Project-edit transport loses caller authorization and settled receipts block changed-payload reconciliation. Implement durable same-event updates with fresh authority and truthful recovery; cancellation/volunteer propagation also needs explicit coverage. |
+
+`PERSONAL-CALENDAR-DELETE-AUTHORITY-20261011`, P1, open under local repair:
+an exported Server Action accepts a caller-supplied user/event deletion
+snapshot and invokes service-backed Google deletion before authenticating or
+proving ownership. Supplied identifiers are not authority. The repair must
+derive immutable owned destinations from the authorized durable removal path.
+
+`HOURS-PUBLICATION-ORIGIN-REPLAY-20261011`, P1, open under local repair:
+the automatic wrapper can relabel an already committed manual publication as
+automatic on replay. Original approval and immutable email scope must survive
+manual/automatic races; only newly accepted automatic receipts may receive that
+origin. No historical receipt may be rewritten to enable recovery.
+
+`WAIVER-REQUIRED-PLACEMENT-20261011`, P2, open under local repair:
+the renderer's existing test accepts an actual signer placed on a page absent
+from the source PDF and produces a successful document without that signer.
+Invalid required signer placement must fail privately rather than create a
+false signed result. Historical definitions remain unchanged.
+
+`PROJECT-CLONE-ASSET-RETENTION-20261011`, P2, open, source-ledger evidence:
+cloning copies source document and cover URLs, while deletion removes the
+source folder and cover without checking surviving references. Source deletion
+can break a clone's files; clone deletion can remove the source cover. A
+reference-safe ownership/clone/delete transition and concurrency coverage are
+required before claiming this lifecycle safe. No real deletion was performed
+to reproduce it. Failed unlinked uploads also require scoped cleanup rather
+than unconditional source-folder deletion.
+
+Production's three background GitHub workflows are manually disabled. The
+latest historical jobs each failed five HTTP429 edge-checkpoint attempts.
+Current Development includes a Vercel schedule replacement, but the served
+Production revision does not. The three corresponding Better Stack monitors
+are paused; their old pings do not prove successful job execution. Monitor and
+account evidence is tracked separately from repository repairs. Production
+guest-cleanup job5 and retention remain untouched.

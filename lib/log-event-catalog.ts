@@ -3,6 +3,17 @@ import consoleEvents from "./log-console-events.json";
 // Reviewed static event names. Unknown messages are replaced before export.
 export const SAFE_LOG_MESSAGES = new Set<string>([
   ...consoleEvents,
+  "Error looking up organization join code.",
+  "Certificate verification read failed:",
+  "Error loading invitation:",
+  "Error promoting invited member:",
+  "Error reading invited membership:",
+  "Error loading draft to publish:",
+  "Error removing published draft:",
+  "Error preparing project deletion:",
+  "Error removing claimed project assets:",
+  "Error finalizing project deletion:",
+  "Failed to queue detached waiver PDF for cleanup:",
   "Worker monitoring receipt unavailable",
   "Data export cron failed",
   "Data export artifact cleanup unconfirmed",
