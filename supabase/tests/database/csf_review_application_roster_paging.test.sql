@@ -135,11 +135,11 @@ SELECT extensions.ok(
 SELECT extensions.is(
   (
     SELECT pg_catalog.count(*)::integer
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+    FROM pg_catalog.pg_collation AS name_order_catalog
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = name_order_catalog.collnamespace
     WHERE namespace.nspname = 'plugin_data'
-      AND collation.collname = 'csf_review_name_order'
-      AND collation.collprovider = 'i'
+      AND name_order_catalog.collname = 'csf_review_name_order'
+      AND name_order_catalog.collprovider = 'i'
   ),
   1,
   'the name order is one ICU collation in the plugin_data schema'
@@ -147,31 +147,31 @@ SELECT extensions.is(
 SELECT extensions.is(
   (
     SELECT coalesce(
-      pg_catalog.to_jsonb(collation) ->> 'colllocale',
-      pg_catalog.to_jsonb(collation) ->> 'colliculocale'
+      pg_catalog.to_jsonb(name_order_catalog) ->> 'colllocale',
+      pg_catalog.to_jsonb(name_order_catalog) ->> 'colliculocale'
     )
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+    FROM pg_catalog.pg_collation AS name_order_catalog
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = name_order_catalog.collnamespace
     WHERE namespace.nspname = 'plugin_data'
-      AND collation.collname = 'csf_review_name_order'
+      AND name_order_catalog.collname = 'csf_review_name_order'
   ),
   'und',
   'the name order uses the ICU root locale'
 );
 SELECT extensions.is(
   (
-    SELECT collation.collisdeterministic
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+    SELECT name_order_catalog.collisdeterministic
+    FROM pg_catalog.pg_collation AS name_order_catalog
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = name_order_catalog.collnamespace
     WHERE namespace.nspname = 'plugin_data'
-      AND collation.collname = 'csf_review_name_order'
+      AND name_order_catalog.collname = 'csf_review_name_order'
   ),
   false,
   'the name order is nondeterministic, so names the locale calls equal are equal'
 );
 SELECT extensions.ok(
   (
-    SELECT collation.collowner = (
+    SELECT name_order_catalog.collowner = (
       SELECT routine.proowner
       FROM pg_catalog.pg_proc AS routine
       JOIN pg_catalog.pg_namespace AS routine_namespace
@@ -179,10 +179,10 @@ SELECT extensions.ok(
       WHERE routine_namespace.nspname = 'plugin_data'
         AND routine.proname = 'csf_review_application_roster_page'
     )
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
+    FROM pg_catalog.pg_collation AS name_order_catalog
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = name_order_catalog.collnamespace
     WHERE namespace.nspname = 'plugin_data'
-      AND collation.collname = 'csf_review_name_order'
+      AND name_order_catalog.collname = 'csf_review_name_order'
   ),
   'the name order is owned by the same migration role as the functions that use it'
 );
