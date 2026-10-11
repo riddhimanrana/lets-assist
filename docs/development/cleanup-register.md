@@ -12,7 +12,10 @@ P2 LANDING-LANDMARK-HEADINGS-20261011, corrected locally: the root layout
 already owned the main landmark while landing and other route bodies added
 nested mains. Their wrappers now use div without other markup changes. The landing
 embedded project and organization demos also emitted extra h1 headings. The
-shared main now has a keyboard focus target and the first skip link; the
+shared main now has a keyboard focus target and the first skip link. Account
+and admin links target their focusable page container after repeated sidebar
+navigation; ordinary pages use the root main. The native anchor destination
+is rendered from the current App Router pathname. The
 landing uses a div and explicit h2 demo headings. Real project/organization
 pages retain their default h1 and the exact visual classes and actions.
 Actual Claude Opus 5.5 implemented the scoped changes after its native Chrome

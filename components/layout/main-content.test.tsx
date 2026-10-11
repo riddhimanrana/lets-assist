@@ -124,3 +124,21 @@ describe("app router main inventory", () => {
     expect(nested).toEqual([]);
   });
 });
+
+// Source wiring: nested layouts target the content after their repeated nav.
+test("account and admin layouts give the skip handler a focusable page target", () => {
+  for (const name of ["account", "admin"]) {
+    const source = readFileSync(
+      new URL(`../../app/${name}/layout.tsx`, import.meta.url),
+      "utf8",
+    );
+    const target = source.indexOf("id={PAGE_CONTENT_ID}");
+    expect(target).toBeGreaterThan(-1);
+    expect(source.slice(target, target + 100)).toContain("tabIndex={-1}");
+    const sidebar = source.indexOf(
+      name === "account" ? "<AccountNav" : "<AdminSidebar",
+    );
+    expect(sidebar).toBeGreaterThan(-1);
+    expect(target).toBeGreaterThan(sidebar);
+  }
+});

@@ -1,5 +1,7 @@
 "use client";
 
+import { PAGE_CONTENT_ID } from "@/components/layout/content-targets";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -182,7 +184,11 @@ export default function AccountLayout({
 
       {/* The one content container for every account page. Pages render a
           PageHeader and a stack of sections; they set no padding or width. */}
-      <div className="min-w-0 flex-1">
+      <div
+        id={PAGE_CONTENT_ID}
+        tabIndex={-1}
+        className="min-w-0 flex-1 outline-none"
+      >
         <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6">
           {children}
         </div>
