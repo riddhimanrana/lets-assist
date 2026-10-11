@@ -1,5 +1,35 @@
 # Repository cleanup register
 
+## Public landing demo switch — prepared locally
+
+The owner corrected the demo scope to the public landing page for everyone.
+The admin overview now has a global switch; the session-only home experiment
+was preserved outside source and replaced before integration. The private singleton and service-only RPCs start off, record the changing
+admin in append-only on/off events, and reject stale saves. Opus review found
+and prompted repairs to the signed-in landing link, per-visitor database load,
+last-writer-only audit, and switch naming. The public display read now uses a
+backend-bound 30-second cache expired immediately on a successful save. The server checks the current super-admin role and enrolled MFA.
+Unavailable mode reads show real landing content and a disabled admin control.
+Home dashboards no longer use the demo environment flag. Every fictional
+counter and project retains its sample label and no-signup preview.
+
+Actual Claude responses used `claude-opus-5-5` for the control implementation
+and independent review. The mode/control/page/admin-boundary checks pass 27 tests in five isolated
+Bun files; the proxy suite passes 13 and sample component/data checks pass 30,
+for 70 distinct focused tests in eight files. TypeScript and affected ESLint
+pass. The SQL suite prepares 37 pgTAP assertions but has not run. The 723-entry candidate catalog is not yet accepted: Docker's daemon is
+off and starting the owned isolated stack awaits the owner's answer. The
+historical 722 catalog is unchanged. No catalog expectation was generated
+from Production or fabricated to bypass replay.
+
+A read-only Production ledger check found 687 migrations, head
+`20260929051500`. Production publication is now explicitly requested, but the
+combined candidate needs the documented schema cutover, recovery evidence,
+hosted acceptance, and full CI before it can release. No migration, setting
+activation, main merge, alias promotion, or branch deletion happened in this
+local step. Native Chrome still acknowledges navigation while staying on New
+Tab; no current visual or mobile acceptance is claimed.
+
 P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
 
 P2, certificate rendering: the integrated attendance browser test found that the certificate project link called a client-exported styling function from a server component. It now imports the server-safe styling module. The regression simulates the forbidden client call and passes. The fresh isolated attendance journey also passes certificate access, account linking and corrected-hour readback. The correction is part of PR 867.

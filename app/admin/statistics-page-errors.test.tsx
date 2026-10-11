@@ -20,6 +20,12 @@ mock.module("./actions", () => ({
   getAllFeedback: emptyRead,
   getTrustedMemberApplications: emptyRead,
 }));
+mock.module("./server/landing-demo-mode", () => ({
+  getLandingDemoModeForAdmin: async () => ({ enabled: false }),
+}));
+mock.module("./components/LandingDemoControl", () => ({
+  LandingDemoControl: () => <div>LANDING_DEMO_CONTROL</div>,
+}));
 mock.module("./moderation/actions", () => ({
   getModerationStats: async () => {
     reads += 1;
@@ -75,6 +81,7 @@ describe("admin statistics page error boundaries", () => {
         expect(html).toContain("Error loading");
         expect(html).not.toContain(success);
         expect(html).not.toContain("All clear");
+        if (name === "overview") expect(html).toContain("LANDING_DEMO_CONTROL");
       });
     }
 

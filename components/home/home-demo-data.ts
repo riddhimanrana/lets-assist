@@ -8,7 +8,7 @@
 export const HOME_DEMO_NOTICE = {
   title: "This is a demo with made-up content",
   description:
-    "The numbers and projects on this page are fictional. They are not Let's Assist data, and the sample projects do not accept signups.",
+    "The numbers and projects in this section are fictional. They are not Let's Assist data, and the sample projects do not accept signups.",
 } as const;
 
 export const HOME_DEMO_NO_SIGNUP_TEXT = "This example does not accept signups.";

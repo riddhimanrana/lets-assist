@@ -75,7 +75,7 @@ describe("HomeDemoExperience", () => {
     expect(html).not.toContain('role="alert"');
     expect(html).toContain(HOME_DEMO_NOTICE.title);
     expect(html).toContain(
-      "The numbers and projects on this page are fictional.",
+      "The numbers and projects in this section are fictional.",
     );
     expect(html).not.toContain("<footer");
 

@@ -1,11 +1,40 @@
 # Home demo preview
 
-The friendlier home/landing experiment is disabled by default. Set the server
-variable `LETS_ASSIST_HOME_DEMO=1` only in an owned local development process or
-an authorized Vercel preview. No hosted variable or flag service was changed.
-Production and standalone production builds stay off even with the variable set.
-The isolated preview route is `/preview/home-demo`; it returns 404 when disabled
-and carries noindex/nofollow metadata.
+The public landing page defaults to real content. A super admin can switch
+**Demo preview on the landing page** from the admin overview. This is a global
+setting for everyone viewing the landing page, including Production. Home
+dashboards, real projects, signups, and activity records are unchanged. The
+admin's **Open landing page** link uses `/?noRedirect=1` so the existing
+signed-in redirect does not hide it during a demo.
+
+`20261011100000_landing_demo_mode.sql` installs one private singleton row with
+the mode off. Only service-role RPCs can read or update it; browser roles have
+neither table access nor function execution. Public rendering gets only a
+boolean through the server. Unknown, unavailable, or malformed reads leave
+sample content off. The admin control distinguishes this from a confirmed off
+setting and disables saving until it can read the current mode.
+
+Every admin read and save checks the current auth record, super-admin app
+metadata, and enrolled MFA through `checkSuperAdmin`. The write RPC separately
+verifies the actor's current authoritative app metadata and records actor/time.
+An append-only private event log retains both on and off transitions; failed
+or stale saves add no event.
+It compares the last acknowledged mode before changing it, so stale controls
+cannot overwrite another admin's change. A failed save keeps the previous
+mode, shows an error, and requires refresh for a stale setting. Saving
+expires the public display cache and revalidates `/` and `/admin`. Public mode
+reads use a backend-bound 30-second cache; admin reads always query the current
+setting. `updateTag` immediately expires the public cache after a saved change,
+so the next landing request waits for fresh data. The proxy permits the explicit
+public GET `/?noRedirect=1` without skipping guards on protected routes or POSTs.
+Visitors already on an open page see the change on reload. Deployment does
+not enable the demo; an admin must flip the switch explicitly.
+
+For a fictional local fixture independent of the database, set the server
+variable `LETS_ASSIST_HOME_DEMO=1` in an owned development process or authorized
+Vercel preview and open `/preview/home-demo`. This route always refuses
+Production and carries noindex/nofollow metadata. The environment flag no
+longer controls the public landing page or normal home dashboards.
 
 The greeting uses the visitor's browser timezone after hydration and refreshes
 at midnight and when a hidden page becomes visible. It uses an existing display
@@ -28,7 +57,10 @@ becoming a successful empty list. No trusted-member requirement was invented.
 
 ## Focused verification
 
-Run the home flag/greeting/data/component/timer tests, the existing project-feed
+Run the landing-mode reader/action/page tests in separate Bun processes, the
+`landing_demo_mode.test.sql` pgTAP authorization, audit, and state tests, plus the
+proxy landing-link regression, then the home
+flag/greeting/data/component/timer tests, the existing project-feed
 lifecycle test, and the isolated `app/home/actions.occupancy.test.ts` and
 `app/api/projects/route.test.ts` processes. Module-mocking tests must remain
 isolated, as in the repository test runner. Check keyboard dialogs and state

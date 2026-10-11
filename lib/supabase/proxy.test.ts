@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { NextResponse } from "next/server";
+import { shouldRenderPublicLanding } from "./landing-route";
 
 import {
   applyPrivateNoStore,
@@ -14,6 +15,19 @@ import {
   shouldApplyPrivateNoStore,
   shouldRedirectAuthenticatedRestrictedRequest,
 } from "./proxy";
+
+test("the admin's explicit landing-page link bypasses only the public GET redirect", () => {
+  assert.equal(shouldRenderPublicLanding("GET", "/", "1"), true);
+  for (const method of ["POST", "PUT", "DELETE", "HEAD"]) {
+    assert.equal(shouldRenderPublicLanding(method, "/", "1"), false);
+  }
+  for (const pathname of ["/home", "/admin", "/login", "/organization"]) {
+    assert.equal(shouldRenderPublicLanding("GET", pathname, "1"), false);
+  }
+  for (const value of [null, "", "true", "01", "0"]) {
+    assert.equal(shouldRenderPublicLanding("GET", "/", value), false);
+  }
+});
 
 test("anonymous public responses retain route-owned cache policy", () => {
   const anonymousPublic = {

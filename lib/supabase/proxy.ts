@@ -1,5 +1,6 @@
 import { safeConsole } from "@/lib/safe-console";
 import { createServerClient } from "@supabase/ssr";
+import { shouldRenderPublicLanding } from "./landing-route";
 import { SUPABASE_DB_OPTIONS } from "./retry-policy";
 import { type NextRequest, NextResponse } from "next/server";
 import {
@@ -422,9 +423,11 @@ export async function updateSession(
     !!searchParams.get("org");
 
   if (
-    currentPath === "/" &&
-    searchParams.get("deleted") === "true" &&
-    searchParams.get("noRedirect") === "1"
+    shouldRenderPublicLanding(
+      request.method,
+      currentPath,
+      searchParams.get("noRedirect"),
+    )
   ) {
     return finalizeResponse(supabaseResponse); // Skip redirects if requested
   }

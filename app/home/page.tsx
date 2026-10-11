@@ -15,9 +15,6 @@ import { HomeOrganizationLinks } from "@/components/home/HomeOrganizationLinks";
 import { checkSuperAdmin } from "@/app/admin/actions";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 import { HomeHeaderActions } from "./HomeHeaderActions";
-import { HomeGreeting } from "@/components/home/HomeGreeting";
-import { HomeDemoExperience } from "@/components/home/HomeDemoExperience";
-import { isHomeDemoEnabled } from "@/lib/home/demo-flag";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -72,7 +69,6 @@ export default async function Home({ searchParams }: HomePageProps) {
       : null);
   const userName =
     displayName || user.email?.split("@")[0] || "Let's Assist user";
-  const demoEnabled = isHomeDemoEnabled(process.env);
 
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -97,20 +93,8 @@ export default async function Home({ searchParams }: HomePageProps) {
               </AvatarFallback>
             </Avatar>
           }
-          title={
-            <span data-tour-id="home-greeting">
-              {demoEnabled ? (
-                <HomeGreeting name={displayName} />
-              ) : (
-                <>Hi, {userName}</>
-              )}
-            </span>
-          }
-          description={
-            demoEnabled
-              ? "What would you like to help with? Find a project or connect with your organization."
-              : "Check out the latest projects"
-          }
+          title={<span data-tour-id="home-greeting">Hi, {userName}</span>}
+          description="Check out the latest projects"
           actions={<HomeHeaderActions isAdmin={isAdmin} />}
         />
 
@@ -123,8 +107,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         </Suspense>
 
         {/* Render the infinite scroll component */}
-        {demoEnabled && <HomeDemoExperience showGreeting={false} />}
-        <ProjectsInfiniteScroll demoEnabled={demoEnabled} />
+        <ProjectsInfiniteScroll />
       </main>
     </div>
   );

@@ -96,7 +96,8 @@ function HomeDemoCounters() {
 /**
  * The fictional home demo: a permanent notice, sample counters, and sample
  * projects. It reads no data and links nowhere. Render it only when the
- * server has checked `isHomeDemoEnabled`.
+ * landing page's server read has confirmed the global demo setting, or the
+ * isolated local preview route has checked `isHomeDemoEnabled`.
  *
  * `showGreeting` adds its own greeting heading for places with no page header.
  * `sampleProfile` is for the preview route only: it greets the made-up sample
