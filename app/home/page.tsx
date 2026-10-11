@@ -15,6 +15,9 @@ import { HomeOrganizationLinks } from "@/components/home/HomeOrganizationLinks";
 import { checkSuperAdmin } from "@/app/admin/actions";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
 import { HomeHeaderActions } from "./HomeHeaderActions";
+import { HomeGreeting } from "@/components/home/HomeGreeting";
+import { HomeDemoExperience } from "@/components/home/HomeDemoExperience";
+import { isHomeDemoEnabled } from "@/lib/home/demo-flag";
 
 export const metadata: Metadata = {
   title: "Home",
@@ -58,7 +61,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
   const authMetadata = user.user_metadata as
     Record<string, unknown> | null | undefined;
-  const userName =
+  const displayName =
     profileData?.full_name ||
     (typeof authMetadata?.full_name === "string"
       ? authMetadata.full_name
@@ -66,9 +69,10 @@ export default async function Home({ searchParams }: HomePageProps) {
     (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
     (typeof authMetadata?.display_name === "string"
       ? authMetadata.display_name
-      : null) ||
-    user.email?.split("@")[0] ||
-    "Let's Assist user";
+      : null);
+  const userName =
+    displayName || user.email?.split("@")[0] || "Let's Assist user";
+  const demoEnabled = isHomeDemoEnabled(process.env);
 
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
@@ -93,8 +97,20 @@ export default async function Home({ searchParams }: HomePageProps) {
               </AvatarFallback>
             </Avatar>
           }
-          title={<span data-tour-id="home-greeting">Hi, {userName}</span>}
-          description="Check out the latest projects"
+          title={
+            <span data-tour-id="home-greeting">
+              {demoEnabled ? (
+                <HomeGreeting name={displayName} />
+              ) : (
+                <>Hi, {userName}</>
+              )}
+            </span>
+          }
+          description={
+            demoEnabled
+              ? "What would you like to help with? Find a project or connect with your organization."
+              : "Check out the latest projects"
+          }
           actions={<HomeHeaderActions isAdmin={isAdmin} />}
         />
 
@@ -107,7 +123,8 @@ export default async function Home({ searchParams }: HomePageProps) {
         </Suspense>
 
         {/* Render the infinite scroll component */}
-        <ProjectsInfiniteScroll />
+        {demoEnabled && <HomeDemoExperience showGreeting={false} />}
+        <ProjectsInfiniteScroll demoEnabled={demoEnabled} />
       </main>
     </div>
   );

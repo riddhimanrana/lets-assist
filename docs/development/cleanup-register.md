@@ -10307,3 +10307,42 @@ The same review's announcement concern is disproved by the current dispatch auth
 Production now serves accepted commit `fb326cb335e5ccd90244ba304891180d1c5bc4ca`, deployment `dpl_7apJ4wwUYWChsd31yN7M3BokJXLm`, with CSF 1.2.85 installed through the organization Update action. Migration run 36532207810 and app run 36532329191 succeeded. Full CI passed 10,792 database assertions, 144 CSF browser journeys, and 3 DV browser journeys. Hosted acceptance run 36526563004 passed on attempt 2 after an initial review-navigation timeout. All four previously enabled workers are restored; scheduled post publishing remains disabled.
 
 Chrome verified that the archived activity is absent from the staff catalog. Its retained campaign remains present. All 252 approved contact fills match independent read-only database checks, with all other contact fields and verified account connections preserved. The 18 user-verified account links are complete. Three new requests await separate ownership confirmation and remain pending. No student decisions, earned credits, or proof files were deleted to test this release.
+
+## P1: Retained signups disappear after schedule edits, October 11
+
+Finding: `PROJECT-ROSTER-REMOVED-SCHEDULE-20261011`. Authorized attendee
+reads still contain approved signups on removed days or slots, but the details
+page renders only the current schedule. Older unambiguous schedule aliases
+also fail to contribute to current slot capacity.
+
+Status: implemented and verified locally; no hosted or Production deployment.
+The read index recognizes existing aliases without rewriting saved IDs. The
+roster lists remaining authorized attendees under Previous schedule without
+assigning them to current capacity or providing a signup action. Pending and
+cancelled records retain the existing visibility and occupancy rules. Loading,
+read failure, retry and restricted states are distinct. Twenty-five focused
+regressions cover legacy and current IDs, role-based schedules, completed and
+archived projects, participant and manager policy, ambiguous repeated dates,
+previous slots, and stale attendee requests.
+
+Missing historical records are a separate unresolved finding. Production's
+guest cleanup deletes signup rows with expired unlinked profiles. The existing
+foreign-key repair does not preserve those rows. Historical deletion attribution
+and recoverability require a prior snapshot; a visibility fix does not recover
+missing data. A reviewed retention transition and forward migration, isolated
+pgTAP verification, backup availability and separate authorization for any
+Production action remain necessary. No scheduler or retention policy was changed.
+
+## P2: Project discovery failures look like an empty feed, October 11
+
+Finding: `PROJECT-FEED-FAILURE-EMPTY-20261011`. Discovery reads returned an
+empty successful response after a database error. The local repair propagates
+a sanitized failure to the existing retryable API response. Regressions cover
+both public discovery and organization discovery failures.
+
+The disabled home demo previews distinct empty, filtered, restricted, error
+and loading layouts. Only actual HTTP 401/403 responses select restricted copy.
+The fictional six-project list and sample counters stay outside the real feed,
+signup data and activity counts. Production refuses the demo flag. The preview
+and local checks do not establish hosted acceptance or authenticated workflow
+coverage.
