@@ -118,7 +118,7 @@ export default function VolunteerJourneySection() {
     <section id="journey" ref={sectionRef} className="py-16 sm:py-20">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5 }}
@@ -157,7 +157,7 @@ export default function VolunteerJourneySection() {
           <div>
             {/* A fixed floor keeps the steps from jumping as previews change. */}
             <div className="flex min-h-88 items-center justify-center">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={steps[active].key}
                   className="w-full"
@@ -186,7 +186,7 @@ export default function VolunteerJourneySection() {
             {steps.map((step, i) => (
               <motion.div
                 key={step.label}
-                initial={{ opacity: 0, y: 14 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: i * 0.05 }}
               >

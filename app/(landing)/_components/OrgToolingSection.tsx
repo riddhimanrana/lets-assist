@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +35,6 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Activity,
-  ArrowRight,
   AlertTriangle,
   BarChart3,
   Check,
@@ -53,7 +52,6 @@ import {
   Workflow,
   Wrench,
 } from "lucide-react";
-import Link from "next/link";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import {
@@ -79,31 +77,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { OrganizationTabBehavior, Project } from "@/types";
 import { getProjectStatus } from "@/utils/project";
-
-const orgFeatures = [
-  {
-    icon: FileSpreadsheet,
-    title: "Google Sheets + Calendar syncing",
-    desc: "Keep member hours, project summaries, volunteer slots, and shared calendar reminders connected to the tools your team already uses.",
-    logos: [
-      { src: "/resources/google-sheets-logo-2026.png", alt: "Google Sheets" },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
-  },
-  {
-    icon: Plug,
-    title: "Custom plugins",
-    desc: "Connect membership rules, school workflows, imports, approvals, paid events, and private operational tools.",
-  },
-  {
-    icon: BarChart3,
-    title: "Analytics dashboards",
-    desc: "See verified hours, member progress, project turnout, exports, and CSF-ready reporting from one dashboard.",
-  },
-];
 
 const analyticsBars = [
   { month: "Feb", verified: 42, pending: 10 },
@@ -1636,12 +1609,9 @@ function DemoPluginMarketplace() {
 
 // The mock uses the phone section switcher, so the tab strip is never cut off.
 const DEMO_NAVIGATION = { compactHeader: true };
-const ctaClassName = buttonVariants({
-  size: "lg",
-  variant: "outline",
-  className: "gap-2",
-});
 
+// Only the mock lives here. OrgToolingIntro renders the section, heading,
+// features and links around it.
 export default function OrgToolingSection() {
   // Below `sm` the mock drops Invite so the header actions stay on one line.
   const isWide = useMediaQuery("(min-width: 640px)");
@@ -1660,124 +1630,43 @@ export default function OrgToolingSection() {
   };
 
   return (
-    <section id="org-tooling" className="py-16 sm:py-20">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mx-auto max-w-3xl"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.5 }}
+      className="relative mx-auto mt-12 w-full max-w-6xl"
+    >
+      <div className="relative rounded-2xl border bg-card shadow-(--card-shadow)">
+        <div
+          className="p-4 sm:p-6"
+          onClickCapture={handleMockOrganizationClick}
         >
-          <Badge
-            variant="outline"
-            className="mb-3 border-primary/40 bg-primary/10 text-primary"
-          >
-            For organizations
-          </Badge>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            The workspace SignUpGenius never built
-          </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Manage members and roles, verify hours from QR check-ins, issue
-            certificates, and export reports from one dashboard. Made for
-            schools and nonprofits that have to show their volunteer records to
-            someone else.
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.5 }}
-          className="relative mx-auto mt-12 w-full max-w-6xl"
-        >
-          <div className="relative rounded-2xl border bg-card shadow-(--card-shadow)">
-            <div
-              className="p-4 sm:p-6"
-              onClickCapture={handleMockOrganizationClick}
-            >
-              <OrganizationHeader
-                organization={mockOrganization}
-                userRole="admin"
-                memberCount={mockMembers.length}
-                showInviteAction={isWide}
-              />
-              <div className="mt-6">
-                <OrganizationTabs
-                  organization={mockOrganization}
-                  members={mockMembers}
-                  projects={mockProjects}
-                  userRole="admin"
-                  currentUserId="u1"
-                  reportSummary={demoReportSummary}
-                  organizationCreatedLabel="January 1, 2025"
-                  demoReportsContent={<OrganizationAnalyticsDemo />}
-                  demoAdminToolsContent={<DemoPluginMarketplace />}
-                  pluginTabs={demoPluginTabs}
-                  pluginNavigationOverrides={DEMO_NAVIGATION}
-                  demoMemberHours={demoMemberHours}
-                  demoMemberDetails={demoMemberDetails}
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="mt-12 space-y-10">
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
-            {orgFeatures.map((feat) => (
-              <Card
-                key={feat.title}
-                className="h-full border-border/60 bg-background/90 shadow-xs"
-              >
-                <CardContent className="p-4">
-                  {feat.logos ? (
-                    <div className="mb-2 flex items-center gap-2">
-                      {feat.logos.map((logo) => (
-                        <span
-                          key={logo.src}
-                          className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs"
-                        >
-                          <Image
-                            src={logo.src}
-                            alt={logo.alt}
-                            width={22}
-                            height={22}
-                            className="size-5 object-contain"
-                          />
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-2 text-primary">
-                      <feat.icon className="h-4 w-4" />
-                    </div>
-                  )}
-                  <p className="text-sm font-semibold text-foreground">
-                    {feat.title}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                    {feat.desc}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Link href="/contact" className={ctaClassName}>
-              Contact us for integrations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/organization" className={ctaClassName}>
-              Explore connected organizations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+          <OrganizationHeader
+            organization={mockOrganization}
+            userRole="admin"
+            memberCount={mockMembers.length}
+            showInviteAction={isWide}
+          />
+          <div className="mt-6">
+            <OrganizationTabs
+              organization={mockOrganization}
+              members={mockMembers}
+              projects={mockProjects}
+              userRole="admin"
+              currentUserId="u1"
+              reportSummary={demoReportSummary}
+              organizationCreatedLabel="January 1, 2025"
+              demoReportsContent={<OrganizationAnalyticsDemo />}
+              demoAdminToolsContent={<DemoPluginMarketplace />}
+              pluginTabs={demoPluginTabs}
+              pluginNavigationOverrides={DEMO_NAVIGATION}
+              demoMemberHours={demoMemberHours}
+              demoMemberDetails={demoMemberDetails}
+            />
           </div>
         </div>
       </div>
-    </section>
+    </motion.div>
   );
 }

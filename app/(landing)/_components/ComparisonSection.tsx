@@ -53,7 +53,7 @@ function TextFlip({ words }: { words: string[] }) {
       className="inline-flex items-center justify-center"
       style={{ minWidth: "5ch" }}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={currentIndex}
           initial={{ y: 20, opacity: 0, filter: "blur(8px)" }}
@@ -271,7 +271,7 @@ function ModernDashboardMockup() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: 0.3 }}
@@ -313,7 +313,7 @@ function ModernDashboardMockup() {
         {/* Content Area */}
 
         <div className="relative flex-1 bg-muted/5 p-4 overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {/* PHASE 1: BROWSING */}
 
             {phase === "BROWSING" && (
@@ -729,7 +729,7 @@ function ModernDashboardMockup() {
 function OutdatedMockup() {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: 0.2 }}
@@ -827,7 +827,7 @@ function OutdatedMockup() {
             {["No hours", "No certs", "No QR", "Ads"].map((missing, i) => (
               <motion.div
                 key={missing}
-                initial={{ opacity: 0, x: -10 }}
+                initial={false}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.8 + i * 0.1 }}
@@ -843,7 +843,7 @@ function OutdatedMockup() {
 
       {/* "Stuck in 2010" label */}
       <motion.div
-        initial={{ opacity: 0, rotate: -5 }}
+        initial={false}
         whileInView={{ opacity: 1, rotate: -3 }}
         viewport={{ once: true }}
         transition={{ delay: 1.2 }}
@@ -859,7 +859,7 @@ function OutdatedMockup() {
 function AnimatedCheck({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0 }}
+      initial={false}
       whileInView={{ scale: 1 }}
       viewport={{ once: true }}
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
@@ -873,7 +873,7 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
 function AnimatedX({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0 }}
+      initial={false}
       whileInView={{ scale: 1 }}
       viewport={{ once: true }}
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
@@ -896,7 +896,7 @@ function ComparisonRow({
 
   return (
     <motion.tr
-      initial={{ opacity: 0, y: 10 }}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay, duration: 0.3 }}
@@ -938,7 +938,7 @@ function ComparisonRow({
           )
         ) : (
           <motion.span
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.1 }}
@@ -957,7 +957,7 @@ function ComparisonRow({
           )
         ) : (
           <motion.span
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.15 }}
@@ -988,7 +988,7 @@ export default function ComparisonSection() {
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         {/* Section header with text flip */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
@@ -1006,7 +1006,7 @@ export default function ComparisonSection() {
           </div>
 
           <motion.p
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
@@ -1063,7 +1063,7 @@ export default function ComparisonSection() {
 
         {/* Feature comparison table */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
