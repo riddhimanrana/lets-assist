@@ -63,6 +63,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 - Headline numbers use `StatStrip`: one card, divided cells. No coloured tiles.
 - A status-tinted card tints its ring (`ring-warning/30`), never a second border.
 - Clickable cards change their ring or fill on hover. They do not lift.
+- The organization directory uses a primary wash and ring for the viewer’s membership cards, following the approved earlier card design. Discovered and profile cards stay neutral.
 
 ## Tabs
 
@@ -82,7 +83,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 
 - Every page starts with `PageHeader` from `components/layout/PageHeader.tsx`: optional breadcrumb, title, one-line description, and right-aligned actions with one primary.
 - A block inside a page or tab starts with `SectionHeader`.
-- Containers: `max-w-screen-2xl` for public discovery, the organization directory, generic organization workspaces and admin overviews; `max-w-6xl` for other lists and profiles; `max-w-4xl` for forms; `max-w-3xl` for account settings. Keep prose at a readable measure inside wider workspaces. Compact plugin workspaces keep their own reviewed width. Horizontal padding is `px-4 sm:px-6` everywhere.
+- Containers: `max-w-screen-2xl` for public discovery, the organization directory, generic organization workspaces and admin overviews; `max-w-6xl` for other lists and profiles; `max-w-4xl` for forms; `max-w-3xl` for account settings. Keep prose at a readable measure inside wider workspaces. Compact plugin workspaces keep their own reviewed width. Horizontal padding is `px-4 sm:px-6`. The organization directory adds `lg:px-10` to preserve the approved card-page gutters.
 - Settings areas use a left section nav on desktop and a drawer or select on phones.
 - Type scale: page title `text-2xl font-semibold`, section title `text-lg font-semibold`, card title via `CardTitle`, meta `text-sm text-muted-foreground`. No `text-[10px]`, no `font-black`, no uppercase tracked labels.
 

@@ -1,5 +1,64 @@
 # Repository cleanup register
 
+## Final desktop audit follow-up — 2026-10-11
+
+P2 HOSTED-APPLICATIONS-LATENCY-20261011 remains open. Exact Development
+6d2ec8cbc8b5580e4d869c8ad771ed76e80c3120 hosted run 38123812096 completed
+9,607 successful HTTP requests and twenty-five review navigations, but the
+officer Applications HTML response (including its full streamed body) had
+p95 2,731.944 ms across 322 requests against the unchanged 2,500 ms per-route
+limit. Its p99 4,293.530 ms and every other pinned acceptance criterion passed.
+The former queue-entry timeout did not recur. Do not describe the overall
+hosted run as accepted or widen its budget.
+
+The measured URL is the embedded membership-application review workspace,
+not the legacy application-list RPC. Its loader performs scope/settings and
+roster reads, related evidence reads and sheet-review loading before completing
+the response. Cumulative database routine timings are not per-request traces
+and do not establish a cause. Obtain correlated phase timings under the same
+100-session load before selecting a performance repair; retain fresh role
+checks, source visibility and per-record authorization.
+
+The exact Development candidate 6d2ec8cbc8b5580e4d869c8ad771ed76e80c3120
+and private gitlink 38dc7c7aff6fd101c87f92eebfae822d1726f2b4 passed full
+Code quality run 38123825046. Native Claude Opus 5.5 verified the landing
+and account keyboard bypass destinations, one landing main/h1 and h2 demo
+titles. Earlier entries describing those source checks as local or rendered
+focus as pending are historical; mobile, dark and full-role coverage remain open.
+Hosted run 38123812096 has its separate receipt; this paragraph does not
+attest to that run or Production acceptance.
+
+P2 LIGHT-TOKEN-CONTRAST-20261011 remains open. Final native computed light
+styles and independent root arithmetic confirm 3.00:1 filled-primary small
+text, 3.29:1 primary text on white and a 2.42:1 bound at the 18-percent white
+gloss endpoint. These measurements extend the earlier plain-token finding;
+the endpoint bound is not a pixel sample at the text baseline. Repair semantic
+foreground and small-text colors while preserving the approved green/gloss
+finish, then verify both themes and interaction states.
+
+P2 ACCOUNT-PROFILE-RECOVERY-20261011, observed follow-up: one of three native
+Profile loads remained at eight placeholders after twenty seconds with no
+visible error; two resolved around thirteen seconds. The account page ignores
+useUserProfile.error, while the hook waits for auth and parallel profile/settings
+reads without a local deadline. The actual stalled request and eventual result
+were not traced; the observation occurred while full hosted load testing was
+running. Establish the failing boundary before adding bounded recoverable
+error/retry state and tests that retain stale-user/sign-out protections. No
+global auth timeout or data change is justified solely by this capture.
+
+Normal organization-demo project/create clicks are already intercepted by
+OrgToolingSection's capture handler, preventDefault and mockup toast.
+Destination hrefs alone do not prove navigation; modified/new-tab/no-JavaScript
+behavior remains unverified. Personal/directory width differences follow the
+documented container rules. Compact CSF navigation is an intentional plugin
+exception. The separate private CSF nested-main finding remains open.
+
+The audit is partial: light desktop landing plus twelve interiors, five
+attempted-only redirects/denials, with additional read-only coverage recorded
+separately. It does not attest to mobile/dark/reduced-motion, platform-admin
+controls, signed-out participation, organizer approval/roster or complete
+admin workflows. Private screenshots and transcripts remain outside Git.
+
 P2 TEST-MOCK-DISCOVERY-20261011, corrected: PR 869 exposed three inherited
 fixtures that registered global module mocks outside discoverable test files.
 Each scenario now runs its discoverable Bun test in a separate child process;
@@ -2894,6 +2953,14 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Organization directory cards, October 11, 2026
+
+`ORG-DIRECTORY-CARDS-20261011`, P2, source change on `codex/organization-cards-20261011`; 42 focused tests and affected static checks pass locally. The user rejected the row list for "Your organizations" and the four-column Discover grid, and asked for the earlier card design, improved. Both sections now use `OrganizationCard` in a one, two, three column grid. Owned cards carry the primary wash and edge through the new `highlightMembership` prop and show the type, the viewer's role, the description and a separate member-count footer. Discovered cards stay neutral. A private member list keeps its own footer wording and icon. Verify certificates is a visible page action again and opens `CsvVerificationModal` through its own trigger; the More actions menu and its hidden proxy button are removed. Join with code, creation eligibility, public-safe reads, search, sort and membership deduplication are unchanged. The profile page shares the card and gets the new badge row and footer without the wash.
+
+Two deliberate departures from `docs/development/design-system.md` follow the user's explicit card-reference direction: the owned card uses a translucent `bg-primary/5` fill in addition to the tinted ring, and the directory container adds `lg:px-10` beyond the general `px-4 sm:px-6`. Both directory exceptions are now documented. No token, primitive, action, authorization, migration or private-plugin file changed.
+
+Focused directory, role, organization-profile and empty-action tests pass in separate processes; static checks and actual Opus source review pass. Rendered certificate-trigger verification, exact-head CI and Development deployment remain pending. Phone/dark rendering remains an explicit audit gap. Main and Production remain held.
 
 ### Landing first render, October 10, 2026
 
