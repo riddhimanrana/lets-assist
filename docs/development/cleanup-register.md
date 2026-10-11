@@ -10782,3 +10782,15 @@ Production revision does not. The three corresponding Better Stack monitors
 are paused; their old pings do not prove successful job execution. Monitor and
 account evidence is tracked separately from repository repairs. Production
 guest-cleanup job5 and retention remain untouched.
+
+### Analytics metadata audit, October 11, 2026
+
+PH-001, P1: AI telemetry disabled prompt/output recording but still forwarded
+arbitrary metadata, user identities and organization IDs. Fixed locally on
+`codex/posthog-privacy-20261011` with closed operation contracts, no caller metadata
+reads and the existing hosted-Production runtime gate. AI billing and gateway
+attribution remain separate. The patch is not deployed and does not enable new
+collection. See [analytics audit](analytics-audit.md) for focused source checks,
+deployment limits and proposed aggregate workflow metrics. Existing OPS-02 still
+requires served privacy-payload verification; no historical-data or release
+action was taken.
