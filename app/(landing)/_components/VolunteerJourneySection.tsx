@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useInView,
-  useReducedMotion,
-} from "motion/react";
+import { motion, useInView, useReducedMotion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Mail, QrCode, BarChart3, Award } from "lucide-react";
 import { MiniProjectCard } from "./journey/MiniProjectCard";
@@ -78,12 +73,15 @@ const mockCertificateData = {
 
 export default function VolunteerJourneySection() {
   const [active, setActive] = useState(0);
+  const [userSelected, setUserSelected] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const sectionInView = useInView(sectionRef, { amount: 0.3 });
   const shouldReduceMotion = useReducedMotion();
 
+  // The steps cycle only until someone picks one. After that the choice
+  // stays put, so it is not replaced while they are reading or tabbing.
   useEffect(() => {
-    if (!sectionInView || shouldReduceMotion) {
+    if (!sectionInView || shouldReduceMotion || userSelected) {
       return;
     }
 
@@ -92,7 +90,12 @@ export default function VolunteerJourneySection() {
       3000,
     );
     return () => clearInterval(id);
-  }, [sectionInView, shouldReduceMotion]);
+  }, [sectionInView, shouldReduceMotion, userSelected]);
+
+  const selectStep = (index: number) => {
+    setUserSelected(true);
+    setActive(index);
+  };
 
   const previews = useMemo(
     () => ({
@@ -156,28 +159,35 @@ export default function VolunteerJourneySection() {
         <div className="grid grid-cols-1 items-center gap-4 sm:gap-6 md:grid-cols-2">
           <div>
             {/* A fixed floor keeps the steps from jumping as previews change. */}
+            {/*
+              The key swaps the preview in the same render as the selection.
+              Nothing waits on an exit animation, so the preview always
+              matches the pressed step.
+            */}
             <div className="flex min-h-88 items-center justify-center">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={steps[active].key}
-                  className="w-full"
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -12 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  {previews[steps[active].key as keyof typeof previews]}
-                </motion.div>
-              </AnimatePresence>
+              <div key={steps[active].key} className="w-full">
+                {previews[steps[active].key as keyof typeof previews]}
+              </div>
             </div>
-            <div className="mt-3 flex items-center justify-center gap-2">
-              {steps.map((_, i) => (
+            {/*
+              Each button is a 32px target around the same 8px pill. The pill
+              is centred, so it sits where the old top margin put it.
+            */}
+            <div className="flex items-center justify-center gap-2">
+              {steps.map((step, i) => (
                 <button
-                  key={i}
-                  onClick={() => setActive(i)}
-                  aria-label={`Show ${steps[i].label}`}
-                  className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted/40"}`}
-                />
+                  key={step.key}
+                  type="button"
+                  onClick={() => selectStep(i)}
+                  aria-label={`Show step ${i + 1} of ${steps.length}: ${step.label}`}
+                  aria-pressed={i === active}
+                  className="flex size-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <span
+                    aria-hidden
+                    className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted/40"}`}
+                  />
+                </button>
               ))}
             </div>
           </div>
@@ -192,7 +202,7 @@ export default function VolunteerJourneySection() {
               >
                 <button
                   type="button"
-                  onClick={() => setActive(i)}
+                  onClick={() => selectStep(i)}
                   aria-pressed={i === active}
                   className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >

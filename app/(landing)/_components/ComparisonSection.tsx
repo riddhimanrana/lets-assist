@@ -293,7 +293,7 @@ function ModernDashboardMockup() {
             <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-md bg-background/80 text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 sm:gap-2 transition-all duration-300 w-full max-w-[200px] sm:max-w-xs justify-center">
               <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
 
-              <span className="truncate block opacity-70">
+              <span className="truncate block">
                 {phase === "BROWSING" && "lets-assist.com/explore"}
 
                 {phase === "DETAILS" && "lets-assist.com/events/cleanup"}
@@ -735,7 +735,7 @@ function OutdatedMockup() {
       transition={{ duration: 0.6, delay: 0.2 }}
       className="relative"
     >
-      <div className="relative rounded-xl sm:rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-0.5 sm:p-1 opacity-75">
+      <div className="relative rounded-xl sm:rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-0.5 sm:p-1">
         {/* Browser chrome - old style */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-muted-foreground/20 bg-linear-to-b from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-t-lg sm:rounded-t-xl">
           <div className="flex gap-1 sm:gap-1.5">
@@ -744,7 +744,7 @@ function OutdatedMockup() {
             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-400" />
           </div>
           <div className="flex-1 flex justify-center">
-            <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-sm bg-white dark:bg-gray-900 text-[10px] sm:text-xs text-muted-foreground border border-muted-foreground/30">
+            <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-sm bg-background text-[10px] sm:text-xs text-muted-foreground border border-muted-foreground/30">
               signupgenius.com
             </div>
           </div>
@@ -765,15 +765,15 @@ function OutdatedMockup() {
               <div className="text-xs sm:text-sm font-medium text-muted-foreground">
                 SignUpGenius
               </div>
-              <div className="text-[9px] sm:text-[10px] text-muted-foreground/60">
+              <div className="text-[9px] sm:text-[10px] text-muted-foreground">
                 Founded 2007
               </div>
             </div>
           </div>
 
           {/* Fake Top Banner Ad */}
-          <div className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2 text-center overflow-hidden relative">
-            <div className="text-[8px] text-gray-400 absolute top-0.5 right-1">
+          <div className="w-full bg-background border border-border p-1.5 sm:p-2 text-center overflow-hidden relative">
+            <div className="text-[10px] leading-none text-muted-foreground absolute top-0.5 right-1">
               AD
             </div>
             <span className="text-[9px] sm:text-[10px] font-bold text-info animate-pulse">
@@ -784,8 +784,8 @@ function OutdatedMockup() {
           <div className="flex gap-2">
             {/* Old table-style layout */}
             <div className="flex-1 border border-muted-foreground/30 rounded overflow-hidden">
-              <div className="bg-orange-100 dark:bg-orange-900/30 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-muted-foreground/30">
-                <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">
+              <div className="bg-warning/15 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-muted-foreground/30">
+                <div className="text-[10px] sm:text-xs font-medium text-foreground">
                   Volunteer Signup Sheet
                 </div>
               </div>
@@ -800,7 +800,7 @@ function OutdatedMockup() {
                     className="flex items-center justify-between px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-muted-foreground"
                   >
                     <span className="truncate">{slot}</span>
-                    <span className="text-[9px] sm:text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 sm:px-2 py-0.5 rounded shrink-0 ml-2">
+                    <span className="text-[9px] sm:text-[10px] bg-muted text-foreground px-1.5 sm:px-2 py-0.5 rounded shrink-0 ml-2">
                       3/5
                     </span>
                   </div>
@@ -831,7 +831,7 @@ function OutdatedMockup() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.8 + i * 0.1 }}
-                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground/70"
+                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground"
               >
                 <X className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-destructive shrink-0" />
                 {missing}
@@ -847,7 +847,7 @@ function OutdatedMockup() {
         whileInView={{ opacity: 1, rotate: -3 }}
         viewport={{ once: true }}
         transition={{ delay: 1.2 }}
-        className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-medium shadow-lg"
+        className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full border border-warning/50 bg-background text-foreground text-[10px] sm:text-xs font-medium shadow-lg"
       >
         2010 design
       </motion.div>
