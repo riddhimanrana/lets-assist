@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { MAIN_CONTENT_ID, MainContent, SkipToContentLink } from "./MainContent";
+import { MAIN_CONTENT_ID, MainContent } from "./MainContent";
+import { SkipToContentLink } from "./SkipToContentLink";
 
 // The first two groups render the real components. They cannot show that the
 // link is painted on focus or that focus lands on <main>: both need a browser.

@@ -7,10 +7,8 @@ import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import {
-  MainContent,
-  SkipToContentLink,
-} from "@/components/layout/MainContent";
+import { MainContent } from "@/components/layout/MainContent";
+import { SkipToContentLink } from "@/components/layout/SkipToContentLink";
 import localFont from "next/font/local";
 
 import { Toaster } from "@/components/ui/sonner";

@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { MAIN_CONTENT_ID } from "./content-targets";
-import { SkipToContentLink } from "./SkipToContentLink";
 
 /**
  * The shared root `<main>`: every App Router
@@ -33,4 +32,4 @@ function MainContent({
   );
 }
 
-export { MAIN_CONTENT_ID, MainContent, SkipToContentLink };
+export { MAIN_CONTENT_ID, MainContent };
