@@ -1,5 +1,4 @@
 "use client";
-import { safeConsole } from "@/lib/safe-console";
 
 import { Project, ProjectSchedule } from "@/types";
 import { useRouter } from "next/navigation";
@@ -34,7 +33,6 @@ import {
   canDeleteProject,
   isWithinDeletionRestrictionWindow,
 } from "@/utils/project";
-import { updateCalendarEventForProject } from "@/utils/calendar-helpers";
 import Schedule from "@/app/projects/create/Schedule";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import { WaiverBuilderDialog } from "@/components/waiver/WaiverBuilderDialog";
@@ -46,6 +44,11 @@ import {
   initializeScheduleState,
   type FormValues,
 } from "./edit-project-form";
+import {
+  EditProjectCalendarNotice,
+  runProjectCalendarUpdate,
+  type ProjectCalendarIssue,
+} from "./EditProjectCalendarNotice";
 import { EditProjectDanger } from "./EditProjectDanger";
 import { EditProjectDetails } from "./EditProjectDetails";
 import { EditProjectMediaSection } from "./EditProjectMediaSection";
@@ -69,6 +72,9 @@ export default function EditProjectClient({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [calendarIssue, setCalendarIssue] =
+    useState<ProjectCalendarIssue | null>(null);
+  const [retryingCalendar, setRetryingCalendar] = useState(false);
 
   const schedule = useEditProjectSchedule(project);
   const { scheduleState, recurrenceState, scheduleErrors, setScheduleErrors } =
@@ -224,16 +230,19 @@ export default function EditProjectClient({ project }: Props) {
           toast.success("Project updated successfully");
         }
 
-        // Update calendar event if details changed (non-blocking)
-        try {
-          await updateCalendarEventForProject(project.id);
-        } catch (calendarError) {
-          safeConsole.error("Error updating calendar event:", calendarError);
-          // Don't show error to user - this is non-critical
-        }
-
-        // A draft stays on this page: publishing is the next step.
-        if (project.workflow_status !== "draft") {
+        // The project is saved either way. A calendar failure stays on this
+        // page with a retry instead of being hidden behind the redirect.
+        const issue = await runProjectCalendarUpdate(
+          project.id,
+          Boolean(project.creator_calendar_event_id),
+        );
+        setCalendarIssue(issue);
+        if (issue) {
+          toast.warning(
+            "Project saved. Google Calendar update is unconfirmed.",
+          );
+        } else if (project.workflow_status !== "draft") {
+          // A draft stays on this page: publishing is the next step.
           router.push(`/projects/${project.id}`);
         }
         router.refresh();
@@ -243,6 +252,17 @@ export default function EditProjectClient({ project }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRetryCalendar = async () => {
+    setRetryingCalendar(true);
+    const issue = await runProjectCalendarUpdate(
+      project.id,
+      Boolean(project.creator_calendar_event_id),
+    );
+    setCalendarIssue(issue);
+    if (!issue) toast.success("Google Calendar updated");
+    setRetryingCalendar(false);
   };
 
   // A draft row (a duplicated project, or one whose waiver was never
@@ -361,6 +381,13 @@ export default function EditProjectClient({ project }: Props) {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <EditProjectCalendarNotice
+        issue={calendarIssue}
+        retrying={retryingCalendar}
+        onRetry={handleRetryCalendar}
+        onViewProject={() => router.push(`/projects/${project.id}`)}
+      />
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-8">
         <EditProjectDetails

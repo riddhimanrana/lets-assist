@@ -12,13 +12,15 @@ export const personalCalendarReceiptSchema = z.object({
   user_id: z.string().uuid(),
   project_id: z.string().uuid(),
   generation: z.string().uuid(),
-  phase: z.enum(["syncing", "synced", "removing", "removed"]),
+  phase: z.enum(["syncing", "synced", "updating", "removing", "removed"]),
   requested_schedule_id: z.string().nullable(),
   legacy_event_id: z.string().nullable(),
   calendar_id: z.string().nullable(),
   events: z.array(plannedEventSchema).max(500),
   confirmed_event_ids: z.array(z.string()),
   claim_token: z.string().uuid().nullable(),
+  update_planned_at: z.string().nullable().optional(),
+  update_connection_id: z.string().uuid().nullable().optional(),
 });
 export type PersonalCalendarReceipt = z.infer<
   typeof personalCalendarReceiptSchema
@@ -34,6 +36,31 @@ export class CalendarSyncError extends Error {
   ) {
     super(message);
   }
+}
+
+export const UNFINISHED_CALENDAR_UPDATE =
+  "A Google Calendar update for this project is unfinished. Save the project again or retry the calendar update.";
+
+/**
+ * Run a provider write that rechecks authority immediately before mutating.
+ * A refused check surfaces as its own error, not as an unconfirmed outcome.
+ */
+export async function guardedWrite(
+  check: () => Promise<unknown>,
+  write: (beforeWrite: () => Promise<void>) => Promise<boolean>,
+): Promise<boolean> {
+  const refusal: { raised: boolean; error?: unknown } = { raised: false };
+  const confirmed = await write(async () => {
+    try {
+      await check();
+    } catch (error) {
+      refusal.raised = true;
+      refusal.error = error;
+      throw error;
+    }
+  });
+  if (refusal.raised) throw refusal.error;
+  return confirmed;
 }
 
 export function personalCalendarEventId(generation: string, index: number) {
@@ -55,7 +82,12 @@ export async function reconcilePersonalCalendar(
       id: string,
       event: PersonalCalendarEvent,
     ) => Promise<boolean>;
-    remove: (calendarId: string, id: string) => Promise<boolean>;
+    /** `beforeWrite` must run after remote lookups and immediately before the DELETE. */
+    remove: (
+      calendarId: string,
+      id: string,
+      beforeWrite: () => Promise<void>,
+    ) => Promise<boolean>;
     now?: () => number;
   },
 ): Promise<{ eventId: string | null; phase: "synced" | "removed" }> {
@@ -68,6 +100,9 @@ export async function reconcilePersonalCalendar(
       phase: receipt.phase,
     };
   }
+  // An in-place update has its own plan; treating it as a create or removal would be wrong.
+  if (receipt.phase === "updating")
+    throw new CalendarSyncError(UNFINISHED_CALENDAR_UPDATE, 409);
   try {
     if (
       !receipt.calendar_id &&
@@ -118,7 +153,14 @@ export async function reconcilePersonalCalendar(
               item.id,
               item.event as PersonalCalendarEvent,
             )
-          : await dependencies.remove(receipt.calendar_id!, item.id);
+          : await guardedWrite(
+              // The ownership lookup can outlive the lease and the source check.
+              async () => {
+                receipt = await dependencies.advance(receipt, "renew");
+              },
+              (beforeWrite) =>
+                dependencies.remove(receipt.calendar_id!, item.id, beforeWrite),
+            );
       if (!confirmed)
         throw new CalendarSyncError(
           "Calendar outcome is unconfirmed. Retry to reconcile the same events.",
