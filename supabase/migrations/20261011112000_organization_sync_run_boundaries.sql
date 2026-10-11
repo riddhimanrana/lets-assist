@@ -275,7 +275,8 @@ BEGIN
    -- Stale cells are cleared inside the saved range. The write starts from it, with the legacy default opened.
    -- The application opens exactly one form: the trimmed, case-sensitive text A1:H20, with no tab and no dollar signs.
    OR v_plan->>'stale_clear_range_a1' IS DISTINCT FROM v_config.range_a1
-   OR v_plan->>'write_range_a1' IS DISTINCT FROM CASE WHEN app_private.organization_sheet_sync_trim(v_config.range_a1)='A1:H20' THEN 'A1' ELSE v_config.range_a1 END
+   -- Parenthesized: inside an IF condition, a bare CASE would end the condition at its own THEN.
+   OR v_plan->>'write_range_a1' IS DISTINCT FROM (CASE WHEN app_private.organization_sheet_sync_trim(v_config.range_a1)='A1:H20' THEN 'A1' ELSE v_config.range_a1 END)
    OR jsonb_typeof(v_plan->'ranges') IS DISTINCT FROM 'array' THEN
    RAISE EXCEPTION 'Invalid sheet report snapshot' USING ERRCODE='22023';
   END IF;
