@@ -6,6 +6,7 @@ import {
   type ReportLayoutConfig,
 } from "@/app/organization/[id]/reports/report-layouts";
 import { logWarn } from "@/lib/logger";
+import { prepareOrganizationSheetSyncAuthority } from "./organization-sync-authority";
 import {
   buildOrganizationReportRowsForSync,
   type ReportType,
@@ -29,7 +30,7 @@ export const ORGANIZATION_SHEET_SYNC_DEFAULT_TAB = "Member Hours";
  * select this list, so neither can leave out the saved layout.
  */
 export const ORGANIZATION_SHEET_SYNC_COLUMNS =
-  "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by" as const;
+  "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by, updated_at" as const;
 
 export type OrganizationSheetSyncConfig = {
   organization_id: string;
@@ -40,6 +41,7 @@ export type OrganizationSheetSyncConfig = {
   layout_config: unknown;
   /** The owner the caller authorized. Write-backs only touch their config. */
   created_by: string;
+  updated_at: string;
 };
 
 /** Stable codes for logs, the worker response and the cards. */
@@ -55,6 +57,8 @@ export type OrganizationSheetSyncErrorCode =
   | "sheets_rejected"
   | "sheets_unavailable"
   | "stale_clear_failed"
+  | "authorization_changed"
+  | "configuration_changed"
   | "record_failed";
 
 export type OrganizationSheetSyncResult =
@@ -145,33 +149,40 @@ export function resolveSavedSheetLayout(
  * Runs one organization report sync: resolve the tab, build the rows with the
  * saved layout, write them, and record the sync time.
  *
- * The caller has already authorized the request and obtained the owner's
- * Sheets token. This function never creates a tab: a missing tab means the
+ * This function confirms the current owner, OAuth binding and saved destination
+ * before each provider mutation. It never creates a tab: a missing tab means the
  * destination changed, and writing somewhere new is the admin's decision.
  */
 export async function runOrganizationSheetSync({
   supabase,
   config,
-  accessToken,
   signal,
 }: {
   supabase: ReturnType<typeof getAdminClient>;
   config: OrganizationSheetSyncConfig;
-  accessToken: string;
   /** Ends every Sheets request for this organization, such as at a deadline. */
   signal?: AbortSignal;
 }): Promise<OrganizationSheetSyncResult> {
+  const authority = await prepareOrganizationSheetSyncAuthority(
+    supabase,
+    config,
+    signal,
+  );
+  const refused = authority.failure();
+  if (refused) return refused;
   const result = await writeOrganizationReport(
     supabase,
     config,
-    accessToken,
+    authority.accessToken!,
     signal,
+    authority.beforeWrite,
   );
 
   // Work abandoned at its deadline must not go on to change the saved sync.
   if (signal?.aborted) {
     return { success: false, code: "sheets_timeout", error: TIMEOUT_MESSAGE };
   }
+  if (authority.failure()) return authority.failure()!;
 
   // Each write-back names the owner and spreadsheet that were authorized and
   // synced. If an admin changed either while this ran, the stale result
@@ -186,15 +197,33 @@ export async function runOrganizationSheetSync({
       )
       .eq("organization_id", config.organization_id)
       .eq("sheet_id", config.sheet_id)
-      .eq("created_by", config.created_by);
+      .eq("created_by", config.created_by)
+      .eq("updated_at", config.updated_at)
+      .select("organization_id")
+      .maybeSingle();
 
   if (!result.success) {
     if (isPermanentSheetSyncFailure(result.code)) await authorizedConfig();
     return result;
   }
 
-  const { error: recordError } = await authorizedConfig();
-  if (recordError) {
+  try {
+    await authority.beforeWrite();
+  } catch {
+    // A deadline that ends the last check is a timeout, not lost authority.
+    if (signal?.aborted) {
+      return { success: false, code: "sheets_timeout", error: TIMEOUT_MESSAGE };
+    }
+    return (
+      authority.failure() ?? {
+        success: false,
+        code: "authorization_changed",
+        error: "Export authorization could not be confirmed.",
+      }
+    );
+  }
+  const { data: recorded, error: recordError } = await authorizedConfig();
+  if (recordError || !recorded) {
     return {
       success: false,
       code: "record_failed",
@@ -261,11 +290,13 @@ async function writeOrganizationReport(
   config: OrganizationSheetSyncConfig,
   accessToken: string,
   signal?: AbortSignal,
+  beforeWrite?: () => Promise<void>,
 ): Promise<OrganizationSheetSyncResult> {
   // Every Sheets request below spends from this budget, so one sync can make
   // at most the metadata read, the write and the two clears.
   const sheets = {
     signal,
+    beforeWrite,
     budget: { remaining: ORGANIZATION_SHEET_SYNC_MAX_SHEETS_REQUESTS },
   };
   const timedOut = (): OrganizationSheetSyncResult => ({

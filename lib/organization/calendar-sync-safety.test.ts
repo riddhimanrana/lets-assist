@@ -15,13 +15,19 @@ test("the Sheets worker reauthorizes its owner and disables stale syncs before e
   const disableAutoSync = postSource.search(
     /\.update\(\s*\{\s*auto_sync:\s*false/u,
   );
-  const tokenRead = postSource.indexOf("getGoogleAccessTokenForSheetsForUser(");
   const sharedSync = postSource.indexOf("await runOrganizationSheetSync(");
 
   assert.ok(authorization >= 0);
   assert.ok(disableAutoSync > authorization);
-  assert.ok(tokenRead > disableAutoSync);
-  assert.ok(sharedSync > tokenRead);
+  assert.ok(sharedSync > disableAutoSync);
+  const sharedSource = readFileSync(
+    join(process.cwd(), "lib/google-sheets/organization-report-sync.ts"),
+    "utf8",
+  );
+  assert.match(
+    sharedSource,
+    /prepareOrganizationSheetSyncAuthority\(\s*supabase,\s*config,\s*signal,?\s*\)/u,
+  );
 });
 
 test("the shared Sheets sync checks the destination before it reads or writes the report", () => {

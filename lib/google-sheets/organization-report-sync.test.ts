@@ -12,6 +12,31 @@ mock.module("@/lib/logger", () => ({
   logInfo: () => undefined,
   logWarn: () => undefined,
 }));
+let ownerAllowed = true;
+let bindingActive = true;
+mock.module("@/lib/auth/google-oauth-authorization", () => ({
+  authorizeGoogleOAuthOrganizationRequest: async () => ({
+    allowed: ownerAllowed,
+  }),
+}));
+mock.module("@/lib/auth/google-oauth-connection-store", () => ({
+  getGoogleOAuthConnectionForBinding: async () =>
+    bindingActive
+      ? {
+          id: "fictional-connection",
+          access_token: "fictional-encrypted-access",
+          refresh_token: "fictional-encrypted-refresh",
+          token_expires_at: "2040-01-01",
+        }
+      : null,
+}));
+mock.module("@/services/calendar", () => ({
+  getGoogleAccessTokenForSheetsForUser: async () => "fixture-token",
+  organizationSheetsGoogleBinding: (organizationId: string) => ({
+    organizationId,
+    purpose: "organization_sheets",
+  }),
+}));
 
 let volunteerCount = 2;
 
@@ -71,6 +96,7 @@ let tabs = ["Member Hours"];
 let metadataResponse: () => Response | Promise<Response>;
 let updates: Array<Record<string, unknown>> = [];
 let recordError: { message: string } | null = null;
+let replaceOwnerAtCompletion = false;
 // The row as the database holds it now, which may differ from the config a
 // sync started with.
 let savedRow: Record<string, unknown> = {};
@@ -83,6 +109,22 @@ function updateQuery(payload: Record<string, unknown>) {
     eq: (column: string, value: unknown) => {
       filters.push([column, value]);
       return query;
+    },
+    select: () => query,
+    maybeSingle: async () => {
+      if (replaceOwnerAtCompletion && "last_synced_at" in payload)
+        savedRow.created_by = "new-owner";
+      const matches = filters.every(
+        ([column, value]) => savedRow[column] === value,
+      );
+      if (matches) {
+        updates.push(payload);
+        Object.assign(savedRow, payload);
+      }
+      return {
+        data: matches ? { organization_id: savedRow.organization_id } : null,
+        error: "last_synced_at" in payload ? recordError : null,
+      };
     },
     then: (resolve: (value: { error: unknown }) => void) => {
       if (filters.every(([column, value]) => savedRow[column] === value)) {
@@ -107,7 +149,17 @@ function countQuery(table: string) {
 
 const supabase = {
   from: (table: string) => ({
-    select: () => countQuery(table),
+    select: () =>
+      table === "organization_sheet_syncs"
+        ? {
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: { ...config(), ...savedRow },
+                error: null,
+              }),
+            }),
+          }
+        : countQuery(table),
     update: updateQuery,
   }),
 } as unknown as Parameters<typeof runOrganizationSheetSync>[0]["supabase"];
@@ -120,21 +172,25 @@ const config = (overrides: Record<string, unknown> = {}) => ({
   report_type: "member-hours",
   layout_config: null as unknown,
   created_by: "owner-1",
+  updated_at: "2026-10-11T00:00:00.000Z",
   ...overrides,
 });
 
-const run = (overrides: Record<string, unknown> = {}) =>
-  runOrganizationSheetSync({
+const run = (overrides: Record<string, unknown> = {}) => {
+  Object.assign(savedRow, overrides);
+  return runOrganizationSheetSync({
     supabase,
     config: config(overrides),
-    accessToken: "fixture-token",
   });
+};
 
 const writes = () => calls.filter((call) => call.method === "PUT");
 const writtenValues = () =>
   (writes()[0]?.body as { values: unknown[][] } | undefined)?.values;
 
 beforeEach(() => {
+  ownerAllowed = true;
+  bindingActive = true;
   calls = [];
   updates = [];
   reportBuilds = 0;
@@ -142,12 +198,14 @@ beforeEach(() => {
     organization_id: "org-1",
     sheet_id: "sheet-1",
     created_by: "owner-1",
+    updated_at: "2026-10-11T00:00:00.000Z",
     auto_sync: true,
   };
   sourceCounts = { projects: 3, certificates: 40, project_signups: 12 };
   tabs = ["Member Hours"];
   volunteerCount = 2;
   recordError = null;
+  replaceOwnerAtCompletion = false;
   metadataResponse = () =>
     Response.json({
       spreadsheetId: "sheet-1",
@@ -318,6 +376,7 @@ describe("the shared organization sheet sync", () => {
 
   test("asks for the file to be chosen again when the owner cannot open it", async () => {
     for (const status of [403, 404]) {
+      savedRow.updated_at = "2026-10-11T00:00:00.000Z";
       calls = [];
       updates = [];
       metadataResponse = () =>
@@ -434,7 +493,6 @@ describe("per-organization work bounds", () => {
     const result = await runOrganizationSheetSync({
       supabase,
       config: config(),
-      accessToken: "fixture-token",
       signal: controller.signal,
     });
 
@@ -455,7 +513,6 @@ describe("per-organization work bounds", () => {
     const result = await runOrganizationSheetSync({
       supabase,
       config: config(),
-      accessToken: "fixture-token",
       signal: controller.signal,
     });
 
@@ -486,7 +543,7 @@ describe("write-backs are scoped to the configuration that was synced", () => {
     savedRow.sheet_id = "sheet-2";
     tabs = ["Renamed"];
 
-    expect(await run()).toMatchObject({ code: "tab_missing" });
+    expect(await run()).toMatchObject({ code: "configuration_changed" });
     expect(updates).toHaveLength(0);
     expect(savedRow.auto_sync).toBe(true);
   });
@@ -494,7 +551,68 @@ describe("write-backs are scoped to the configuration that was synced", () => {
   test("a stale success does not stamp the sync time for a new owner", async () => {
     savedRow.created_by = "owner-2";
 
-    await run();
+    expect(await run()).toMatchObject({
+      success: false,
+      code: "configuration_changed",
+    });
+    expect(writes()).toHaveLength(0);
     expect(savedRow.last_synced_at).toBeUndefined();
+  });
+  test.each(["owner", "connection", "destination", "layout", "unlink"])(
+    "a %s change during report acquisition refuses the provider write",
+    async (change) => {
+      metadataResponse = () => {
+        if (change === "owner") ownerAllowed = false;
+        if (change === "connection") bindingActive = false;
+        if (change === "destination") savedRow.sheet_id = "sheet-2";
+        if (change === "layout")
+          savedRow.updated_at = "2026-10-11T01:00:00.000Z";
+        if (change === "unlink") savedRow.organization_id = "removed";
+        return Response.json({
+          spreadsheetId: "sheet-1",
+          sheets: [{ properties: { title: "Member Hours" } }],
+        });
+      };
+      expect(await run()).toMatchObject({ success: false });
+      expect(writes()).toHaveLength(0);
+      expect(updates).toHaveLength(0);
+    },
+  );
+  test("a revocation after the write stops stale-cell clearing and completion", async () => {
+    const mocked = globalThis.fetch;
+    globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
+      const response = await mocked(input as RequestInfo, init);
+      if (init?.method === "PUT") ownerAllowed = false;
+      return response;
+    }) as typeof fetch;
+    expect(await run({ range_a1: "A1:Z500" })).toMatchObject({
+      success: false,
+      code: "authorization_changed",
+    });
+    expect(calls.map((call) => call.method)).toEqual(["GET", "PUT"]);
+    expect(updates).toHaveLength(0);
+  });
+  test("a configuration change between the completion check and update cannot report success", async () => {
+    replaceOwnerAtCompletion = true;
+    expect(await run()).toMatchObject({
+      success: false,
+      code: "record_failed",
+    });
+    expect(savedRow.last_synced_at).toBeUndefined();
+    expect(updates).toHaveLength(0);
+  });
+  test("each stale-cell clear needs its own fresh destination check", async () => {
+    const mocked = globalThis.fetch;
+    globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
+      const response = await mocked(input as RequestInfo, init);
+      if (init?.method === "POST") savedRow.sheet_id = "new-sheet";
+      return response;
+    }) as typeof fetch;
+    expect(await run({ range_a1: "A1:Z500" })).toMatchObject({
+      success: false,
+      code: "configuration_changed",
+    });
+    expect(calls.map((call) => call.method)).toEqual(["GET", "PUT", "POST"]);
+    expect(updates).toHaveLength(0);
   });
 });

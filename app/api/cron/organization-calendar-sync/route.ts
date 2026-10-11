@@ -1,5 +1,6 @@
 import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { workerHeartbeatOwner } from "@/lib/cron/worker-heartbeat";
 import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -43,8 +44,8 @@ export async function POST(request: NextRequest) {
 
   if (!WORKER_ENABLED) {
     return NextResponse.json(
-      { message: "Calendar sync worker disabled" },
-      { status: 200 },
+      { enabled: false, message: "Calendar sync worker disabled" },
+      { status: 503 },
     );
   }
 
@@ -116,10 +117,12 @@ export async function POST(request: NextRequest) {
           results,
           timestamp: new Date().toISOString(),
         },
-        { status: 200 },
+        { status: results.some((result) => !result.success) ? 503 : 200 },
       );
     },
     summary,
+    undefined,
+    { heartbeatOwner: workerHeartbeatOwner(request) },
   );
 }
 

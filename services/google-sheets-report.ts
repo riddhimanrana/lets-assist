@@ -50,15 +50,21 @@ const GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS = 60_000;
 export type SheetsRequestOptions = {
   signal?: AbortSignal;
   budget?: { remaining: number };
+  /** Revalidate the caller's authority immediately before each mutation. */
+  beforeWrite?: () => Promise<void>;
 };
 
-function sheetsFetch(
+async function sheetsFetch(
   url: string,
   init: RequestInit = {},
   options: SheetsRequestOptions = {},
   timeoutMs = GOOGLE_SHEETS_REQUEST_TIMEOUT_MS,
 ) {
   options.signal?.throwIfAborted();
+  if (init.method && init.method !== "GET") {
+    await options.beforeWrite?.();
+    options.signal?.throwIfAborted();
+  }
   if (options.budget) {
     if (options.budget.remaining <= 0) {
       throw new Error("Sheets request budget spent");

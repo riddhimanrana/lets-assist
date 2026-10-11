@@ -28,9 +28,15 @@ type Rpc = (
 type Dependencies = {
   rpc: Rpc;
   write: typeof writeOrganizationCalendarEvent;
-  remove: ReturnType<typeof createPersonalCalendarEventRemover>;
+  remove: (
+    accessToken: string,
+    calendarId: string,
+    id: string,
+    beforeWrite?: () => Promise<unknown>,
+  ) => Promise<boolean>;
   now: () => number;
 };
+const renewalSchema = z.object({}).strict();
 export type DurableOrganizationCalendarSyncResult =
   | {
       success: true;
@@ -74,6 +80,13 @@ export async function reconcileOrganizationCalendar(
         "Calendar progress could not be saved. Retry to continue.",
       );
     return result.data;
+  };
+  const renew = async () => {
+    const renewed = await advance("renew");
+    if (!renewalSchema.safeParse(renewed).success)
+      throw new Error(
+        "Calendar lease renewal was not confirmed. Retry to continue.",
+      );
   };
   try {
     const result = await deps.rpc("claim_organization_calendar_sync", {
@@ -119,6 +132,7 @@ export async function reconcileOrganizationCalendar(
             options.accessToken,
             receipt.calendar_id,
             receipt.event_id,
+            renew,
           ))
         )
           throw new Error(
@@ -137,7 +151,7 @@ export async function reconcileOrganizationCalendar(
         receiptId: receipt.id,
         create: receipt.phase === "pending_create",
         event: receipt.event_payload,
-        beforeWrite: () => advance("renew"),
+        beforeWrite: renew,
       });
       if (written === "unconfirmed")
         throw new Error(

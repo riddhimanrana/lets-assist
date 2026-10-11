@@ -106,7 +106,7 @@ mock.module("@/lib/auth/google-oauth-authorization", () => ({
 }));
 mock.module("@/lib/google-sheets/organization-report-sync", () => ({
   ORGANIZATION_SHEET_SYNC_COLUMNS:
-    "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by",
+    "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by, updated_at",
   runOrganizationSheetSync: async ({ config }: { config: Row }) => {
     synced.push(config);
     return syncResult(config);
@@ -133,6 +133,7 @@ const row = (organizationId: string, lastSyncedAt: string | null): Row => ({
   sync_interval_minutes: 60,
   last_synced_at: lastSyncedAt,
   created_by: "owner-1",
+  updated_at: "2026-10-10T00:00:00.000Z",
 });
 
 const run = async (query = "") => {
@@ -198,8 +199,9 @@ describe("the scheduled organization sheet sync", () => {
     expect(synced.some((config) => config.organization_id === "fresh")).toBe(
       false,
     );
-    expect(status).toBe(200);
+    expect(status).toBe(503);
     expect(body.processed).toBe(2);
+    expect(body.deferredOrganizations).toBe(1);
   });
 
   test("ignores limits sent with the request", async () => {
@@ -257,12 +259,13 @@ describe("the scheduled organization sheet sync", () => {
           }
         : { success: true };
 
-    const { body } = await run();
+    const { status, body } = await run();
 
     expect(body.results).toContainEqual({
       organizationId: "oldest",
       success: true,
     });
+    expect(status).toBe(503);
     expect(body.results).toContainEqual({
       organizationId: "never",
       success: false,
@@ -291,6 +294,7 @@ describe("the scheduled organization sheet sync", () => {
       organization_id: "never",
       created_by: "owner-1",
       sheet_id: "sheet-never",
+      updated_at: "2026-10-10T00:00:00.000Z",
     });
   });
 });

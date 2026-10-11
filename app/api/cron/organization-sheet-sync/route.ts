@@ -1,5 +1,6 @@
 import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { workerHeartbeatOwner } from "@/lib/cron/worker-heartbeat";
 import { NextRequest, NextResponse } from "next/server";
 import {
   mapWithConcurrency,
@@ -17,10 +18,6 @@ import {
   sheetSyncWindowCursor,
 } from "@/lib/google-sheets/organization-sync-queue";
 import { logError, logInfo, logWarn } from "@/lib/logger";
-import {
-  getGoogleAccessTokenForSheetsForUser,
-  organizationSheetsGoogleBinding,
-} from "@/services/calendar";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
@@ -108,8 +105,8 @@ export async function POST(request: NextRequest) {
 
   if (!WORKER_ENABLED) {
     return NextResponse.json(
-      { message: "Sheet sync worker disabled" },
-      { status: 200 },
+      { enabled: false, message: "Sheet sync worker disabled" },
+      { status: 503 },
     );
   }
 
@@ -203,24 +200,12 @@ export async function POST(request: NextRequest) {
             // since changed the owner or the spreadsheet, leave theirs alone.
             .eq("organization_id", row.organization_id)
             .eq("created_by", row.created_by)
-            .eq("sheet_id", row.sheet_id);
+            .eq("sheet_id", row.sheet_id)
+            .eq("updated_at", row.updated_at);
           return failed(
             row.organization_id,
             "owner_not_admin",
             "Sync owner no longer has active organization admin access",
-          );
-        }
-
-        const accessToken = await getGoogleAccessTokenForSheetsForUser(
-          row.created_by,
-          true,
-          organizationSheetsGoogleBinding(row.organization_id),
-        );
-        if (!accessToken) {
-          return failed(
-            row.organization_id,
-            "no_google_token",
-            "No Google token",
           );
         }
 
@@ -229,7 +214,6 @@ export async function POST(request: NextRequest) {
         const result = await runOrganizationSheetSync({
           supabase,
           config: row,
-          accessToken,
           signal,
         });
         return result.success
@@ -291,13 +275,20 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      summary.capture({ processed: results.length, results });
-      return NextResponse.json(
-        { processed: results.length, results },
-        { status: 200 },
-      );
+      const body = {
+        processed: results.length,
+        results,
+        ...(deferred > 0 ? { deferredOrganizations: deferred } : {}),
+      };
+      summary.capture(body);
+      return NextResponse.json(body, {
+        status:
+          deferred > 0 || results.some((result) => !result.success) ? 503 : 200,
+      });
     },
     summary,
+    undefined,
+    { heartbeatOwner: workerHeartbeatOwner(request) },
   );
 }
 

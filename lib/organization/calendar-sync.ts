@@ -67,7 +67,7 @@ export async function syncOrganizationCalendarInternal(
 
   const { data: syncConfig, error: syncConfigError } = await serviceSupabase
     .from("organization_calendar_syncs")
-    .select("calendar_id, created_by, calendar_email, auto_sync")
+    .select("calendar_id, created_by, calendar_email, auto_sync, updated_at")
     .eq("organization_id", organizationId)
     .maybeSingle();
 
@@ -90,10 +90,17 @@ export async function syncOrganizationCalendarInternal(
     requestedCapability: null,
   });
   if (!ownerAuthorization.allowed) {
-    await serviceSupabase
+    // Pause only the configuration this pass read. A calendar that was never
+    // provisioned is stored as NULL, which an equality filter never matches.
+    const pause = serviceSupabase
       .from("organization_calendar_syncs")
       .update({ auto_sync: false, updated_at: new Date().toISOString() })
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("created_by", syncConfig.created_by)
+      .eq("updated_at", syncConfig.updated_at);
+    await (syncConfig.calendar_id === null
+      ? pause.is("calendar_id", null)
+      : pause.eq("calendar_id", syncConfig.calendar_id));
     return {
       success: false,
       error: "Calendar owner no longer has active organization admin access",
@@ -129,6 +136,25 @@ export async function syncOrganizationCalendarInternal(
 
   if (!ensured) {
     return { success: false, error: "Failed to access organization calendar" };
+  }
+  // Provisioning may update the compatibility row. Pin its resulting version
+  // before event work; a later owner or settings change must win completion.
+  const { data: currentConfig, error: currentConfigError } =
+    await serviceSupabase
+      .from("organization_calendar_syncs")
+      .select("created_by, calendar_id, updated_at")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+  if (
+    currentConfigError ||
+    !currentConfig ||
+    currentConfig.created_by !== syncConfig.created_by ||
+    currentConfig.calendar_id !== ensured.calendarId
+  ) {
+    return {
+      success: false,
+      error: "Calendar settings changed. Retry with the current connection.",
+    };
   }
 
   const eventSyncResult = await reconcileOrganizationCalendar({
@@ -180,10 +206,31 @@ export async function syncOrganizationCalendarInternal(
     return csfSyncResult;
   }
 
+  // Membership changes need not move the configuration's version. Confirm
+  // authority again before recording a healthy completion for this owner.
+  const completionAuthorization = await authorizeGoogleOAuthOrganizationRequest(
+    {
+      userId: currentConfig.created_by,
+      organizationId,
+      pluginKey: null,
+      purpose: "organization_calendar",
+      requestedCapability: null,
+    },
+  );
+  if (!completionAuthorization.allowed) {
+    return {
+      success: false,
+      error:
+        "Calendar events synced, but the owner no longer has organization admin access",
+    };
+  }
   const { data: completedSync, error: completionError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .update({ last_synced_at: new Date().toISOString() })
     .eq("organization_id", organizationId)
+    .eq("created_by", currentConfig.created_by)
+    .eq("calendar_id", ensured.calendarId)
+    .eq("updated_at", currentConfig.updated_at)
     .select("organization_id")
     .maybeSingle();
   if (completionError || !completedSync) {
