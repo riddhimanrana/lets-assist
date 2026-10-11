@@ -8,6 +8,17 @@ helpers only export stand-ins and assertions. The discovery guard and all
 existing lifecycle, authorization, retry and cleanup assertions remain intact.
 The focused scenarios and unchanged harness contract must pass before integration.
 
+P2 LANDING-LANDMARK-HEADINGS-20261011, corrected locally: the root layout
+already owned the main landmark while the landing added a nested main. Its
+embedded project and organization demos also emitted extra h1 headings. The
+shared main now has a keyboard focus target and the first skip link; the
+landing uses a div and explicit h2 demo headings. Real project/organization
+pages retain their default h1 and the exact visual classes and actions.
+Actual Claude Opus 5.5 implemented the scoped changes after its native Chrome
+desktop review. Focused SSR/behavior tests, typecheck, affected lint and source
+policy pass. Focus visibility/target focus, mobile and dark rendered proof
+remain pending; the six-screen audit is not comprehensive release acceptance.
+
 ## Public landing demo switch — prepared locally
 
 The owner corrected the demo scope to the public landing page for everyone.

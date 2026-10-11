@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -74,6 +75,7 @@ const header = (props: {
   compact?: boolean;
   showInviteAction?: boolean;
   showProjectAction?: boolean;
+  headingLevel?: 1 | 2;
 }) =>
   renderToStaticMarkup(
     <OrganizationHeader
@@ -142,6 +144,51 @@ describe("organization header", () => {
     expect(html).toContain('aria-label="More organization actions"');
     expect(html).not.toContain("New project");
     expect(html).not.toContain("Invite");
+  });
+
+  for (const compact of [false, true]) {
+    const layout = compact ? "compact" : "generic";
+
+    test(`the ${layout} header names the organization in one h1 by default`, () => {
+      const html = header({ userRole: "admin", compact });
+      expect(html.match(/<h1\b/gu)).toHaveLength(1);
+      expect(html).not.toMatch(/<h2\b/u);
+      expect(html).toMatch(/<h1\b[^>]*>(?:<span[^>]*>)?Fictional Food Bank/u);
+    });
+
+    test(`the ${layout} header moves that name to an h2 when embedded`, () => {
+      const html = header({ userRole: "admin", compact, headingLevel: 2 });
+      expect(html.match(/<h2\b/gu)).toHaveLength(1);
+      expect(html).not.toMatch(/<h1\b/u);
+      expect(html).toMatch(/<h2\b[^>]*>(?:<span[^>]*>)?Fictional Food Bank/u);
+
+      // Only the tag changes: same classes, name, verified mark and actions.
+      const asH1 = header({ userRole: "admin", compact }).replace(
+        /(<\/?)h1\b/gu,
+        "$1h2",
+      );
+      expect(html).toBe(asH1);
+    });
+  }
+});
+
+// Source check only: the mock section pulls in charts, dialogs and the tab
+// module graph, so nothing renders it in a unit process yet.
+describe("landing organization mock", () => {
+  test("asks the header for an h2 and stays on the generic layout", () => {
+    const section = readFileSync(
+      new URL(
+        "../../app/(landing)/_components/OrgToolingSection.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const usage = section.slice(
+      section.indexOf("<OrganizationHeader"),
+      section.indexOf("<OrganizationTabs"),
+    );
+    expect(usage).toContain("headingLevel={2}");
+    expect(usage).not.toContain("compact");
   });
 });
 

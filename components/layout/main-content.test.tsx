@@ -1,0 +1,97 @@
+import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { MAIN_CONTENT_ID, MainContent, SkipToContentLink } from "./MainContent";
+
+// The first two groups render the real components. They cannot show that the
+// link is painted on focus or that focus lands on <main>: both need a browser.
+const shell = renderToStaticMarkup(
+  <>
+    <SkipToContentLink />
+    <nav aria-label="Primary">
+      <a href="/home">Home</a>
+    </nav>
+    <MainContent>
+      <h1>Fictional page</h1>
+    </MainContent>
+  </>,
+);
+
+const openingTag = (tag: string) =>
+  shell.match(new RegExp(`<${tag}\\b[^>]*>`, "u"))?.[0] ?? "";
+const classesOf = (tag: string) =>
+  (/class="([^"]*)"/u.exec(tag)?.[1] ?? "").split(/\s+/u);
+
+describe("skip to content link", () => {
+  const link = openingTag("a");
+
+  test("is the first element and points at the main landmark", () => {
+    expect(shell.startsWith("<a ")).toBe(true);
+    expect(link).toContain(`href="#${MAIN_CONTENT_ID}"`);
+    expect(shell).toContain(">Skip to content</a>");
+    const navigation = shell.indexOf("<nav");
+    expect(shell.indexOf("Skip to content")).toBeLessThan(navigation);
+  });
+
+  test("stays a keyboard stop that assistive technology can read", () => {
+    expect(link).not.toContain("tabindex");
+    expect(link).not.toContain("aria-hidden");
+    expect(link).not.toContain("hidden=");
+    expect(classesOf(link)).not.toContain("hidden");
+    expect(classesOf(link)).not.toContain("invisible");
+  });
+
+  test("is parked off screen and returns on focus with a focus ring", () => {
+    const classes = classesOf(link);
+    expect(classes).toEqual(
+      expect.arrayContaining([
+        "fixed",
+        "-translate-y-20",
+        "focus:translate-y-0",
+        "focus-visible:ring-[3px]",
+        "motion-reduce:transition-none",
+      ]),
+    );
+    // The link must not also be clipped, or focus would reveal nothing.
+    expect(classes).not.toContain("sr-only");
+  });
+});
+
+describe("main landmark", () => {
+  test("is the only main, carries the target id and takes programmatic focus", () => {
+    expect(shell.match(/<main\b/gu)).toHaveLength(1);
+    const main = openingTag("main");
+    expect(main).toContain(`id="${MAIN_CONTENT_ID}"`);
+    expect(main).toContain('tabindex="-1"');
+    expect(shell.split(`id="${MAIN_CONTENT_ID}"`)).toHaveLength(2);
+  });
+
+  test("keeps the layout classes the root layout relied on", () => {
+    expect(classesOf(openingTag("main"))).toEqual(
+      expect.arrayContaining(["flex-1", "w-full"]),
+    );
+    expect(shell).toContain("<h1>Fictional page</h1>");
+  });
+});
+
+// Source check only: the root layout needs fonts and providers that do not
+// load in a unit process, so this proves wiring, not rendered output.
+describe("root layout wiring", () => {
+  const layout = readFileSync(
+    new URL("../../app/layout.tsx", import.meta.url),
+    "utf8",
+  );
+
+  test("renders the skip link before the banner and navigation", () => {
+    const skip = layout.indexOf("<SkipToContentLink />");
+    expect(skip).toBeGreaterThan(-1);
+    expect(skip).toBeLessThan(layout.indexOf("<SystemStickyBanner />"));
+    expect(skip).toBeLessThan(layout.indexOf("<Navbar />"));
+  });
+
+  test("wraps the page in the shared main and adds no second one", () => {
+    expect(layout).toContain("<MainContent>{children}</MainContent>");
+    expect(layout).not.toContain("<main");
+  });
+});

@@ -747,6 +747,26 @@ describe("hero first render", () => {
     expect(hiddenFirstRenderAncestors(demo[0])).toEqual([]);
     expect(collapse(allText(demo[0]))).toContain("Santa Cruz Beach Cleanup");
 
+    // The hero headline is the only h1. The demo is the real project page in
+    // demo mode, so its title drops to an h2 and keeps the page's classes.
+    const headlines = all.filter((node) => node.tag === "h1");
+    expect(headlines).toHaveLength(1);
+    expect(lineage(headlines[0])).not.toContain(demo[0]);
+    const demoTitles = elements(demo[0]).filter(
+      (node) =>
+        ownText(node) === "Santa Cruz Beach Cleanup" &&
+        classes(node).includes("wrap-break-word"),
+    );
+    expect(demoTitles).toHaveLength(1);
+    expect(demoTitles[0].tag).toBe("h2");
+    expect(classes(demoTitles[0])).toEqual([
+      "text-2xl",
+      "font-semibold",
+      "tracking-tight",
+      "text-balance",
+      "wrap-break-word",
+    ]);
+
     // The highlight cards under the demo share the same first render.
     const highlight = all.filter(
       (node) =>

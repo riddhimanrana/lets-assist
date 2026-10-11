@@ -37,6 +37,7 @@ export function ProjectDetailsHeader({
   primaryAction,
   onShare,
   onReport,
+  headingLevel = 1,
 }: {
   title: string;
   status: ProjectStatus;
@@ -49,17 +50,20 @@ export function ProjectDetailsHeader({
   onShare: () => void;
   /** Omit for people who manage the project. */
   onReport?: () => void;
+  /** Project pages keep the h1. The landing demo passes 2, under the landing h1. */
+  headingLevel?: 1 | 2;
 }) {
   const HostIcon = hostIsOrganization ? Building2 : User;
+  const Heading = headingLevel === 2 ? "h2" : "h1";
 
   return (
     <header className="mb-6 grid gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="grid min-w-0 gap-2">
           <ProjectStatusBadge status={status} className="w-fit capitalize" />
-          <h1 className="text-2xl font-semibold tracking-tight text-balance wrap-break-word">
+          <Heading className="text-2xl font-semibold tracking-tight text-balance wrap-break-word">
             {title}
-          </h1>
+          </Heading>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {primaryAction}

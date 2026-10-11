@@ -1647,6 +1647,7 @@ export default function OrgToolingSection() {
             userRole="admin"
             memberCount={mockMembers.length}
             showInviteAction={isWide}
+            headingLevel={2}
           />
           <div className="mt-6">
             <OrganizationTabs

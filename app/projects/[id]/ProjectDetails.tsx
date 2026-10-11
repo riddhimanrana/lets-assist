@@ -371,6 +371,7 @@ export default function ProjectDetails({
           onReport={
             canManageProject ? undefined : () => setIsReportDialogOpen(true)
           }
+          headingLevel={demoMode ? 2 : 1}
         />
         {/* Fixed Report Content Dialog - kept outside the menu so it stays mounted when the menu closes */}
         <ReportContentButton

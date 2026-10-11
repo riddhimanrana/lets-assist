@@ -7,6 +7,10 @@ import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Navbar from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import {
+  MainContent,
+  SkipToContentLink,
+} from "@/components/layout/MainContent";
 import localFont from "next/font/local";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -122,10 +126,11 @@ export default async function RootLayout({
       <body className="antialiased">
         <AppProviders>
           <div className="bg-background text-foreground min-h-screen flex flex-col w-full">
+            <SkipToContentLink />
             <SystemStickyBanner />
             <Navbar />
             <Toaster richColors />
-            <main className="flex-1 w-full">{children}</main>
+            <MainContent>{children}</MainContent>
             <Suspense fallback={null}>
               <QueryMessageToast />
             </Suspense>

@@ -24,6 +24,7 @@ mock.module("./LandingLazySections", () => ({
 mock.module("./_components/SmoothScroll", () => ({ default: () => null }));
 
 const { default: landing } = await import("./page");
+const { MainContent } = await import("@/components/layout/MainContent");
 const render = async (params = {}) =>
   renderToStaticMarkup(
     await landing({ searchParams: Promise.resolve(params) }),
@@ -66,6 +67,21 @@ test("ordinary signed-in navigation keeps its existing home redirect", async () 
   enabled = true;
   user = { id: "fictional-user" };
   await expect(render()).rejects.toThrow("REDIRECT:/home");
+});
+test("the landing page leaves the main landmark to the root layout", async () => {
+  for (const demo of [false, true]) {
+    enabled = demo;
+    const page = await landing({ searchParams: Promise.resolve({}) });
+    expect(renderToStaticMarkup(page)).not.toContain("<main");
+
+    // Inside the layout's real main there is one landmark, not a nested pair.
+    const html = renderToStaticMarkup(<MainContent>{page}</MainContent>);
+    expect(html.match(/<main\b/g)).toHaveLength(1);
+    expect(html).toStartWith('<main id="main-content"');
+    expect(html).toContain("LIVE_LANDING_HERO");
+    expect(html).toContain("LIVE_LANDING_SECTIONS");
+    expect(html).toContain("overflow-x-hidden");
+  }
 });
 test("email error screens do not acquire demo content", async () => {
   enabled = true;
