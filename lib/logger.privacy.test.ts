@@ -20,8 +20,8 @@ describe("telemetry data boundary", () => {
       synced: 1,
       organization_id: "private-organization",
       sheet_id: "private-sheet",
-      ranges: ["Private roster!A1:H20"],
-      report_cells: [["Synthetic Student", "private@example.test"]],
+      ranges: "Private roster!A1:H20",
+      report_cells: "Synthetic Student, private@example.test",
       heartbeat_url: "https://example.test/private-token",
       error_message: "private-provider-body",
     });

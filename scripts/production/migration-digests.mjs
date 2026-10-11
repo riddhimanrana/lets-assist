@@ -1456,4 +1456,18 @@ export const migrationDigests = {
     "5eddf6a9c4d05c9371e66a6bf669f4f388d8c5e3132346113d7ab55a98c6d288",
   "20261011100000_landing_demo_mode.sql":
     "78707e9e1ba93cf2e69cf8f4922625d29572677ad3d83a1966e10c3133f1a143",
+  "20261011104000_active_project_membership_boundaries.sql":
+    "82407e1b0cc63f08f84ca3816c6b9fbb15f96733b1c8fe5bf4fac0f5ee2f95e3",
+  "20261011105000_hours_publication_recovery.sql":
+    "0175d8e78bad552dfead737e5b097a0b459c7c016ce94352e63e24be2fa71c57",
+  "20261011105500_personal_calendar_reconciliation.sql":
+    "865a01b7fe9814669967268fbf9b3b0ab5e07bac174acde6b1cbb2a2a33d06b9",
+  "20261011110000_csf_review_application_roster_paging.sql":
+    "49770537de18414b68071b20b10085d94b20ce660bae85a4d6b0ca49aecdb62c",
+  "20261011112000_organization_sync_run_boundaries.sql":
+    "7ca81a8d620930c4e78d70d9266b6191f1eae12407cd3468e8b632122130cb69",
+  "20261011112500_project_asset_lifecycle.sql":
+    "8c56f8c6857d3c3535602aa8d8ecf41e58dbbc31755a11f018188b828b1d33de",
+  "20261011113000_waiver_geometry_boundary.sql":
+    "10e28f08e51f6741828570918a6e237f6f78e26d076d78f7cb3cb0ca7c430213",
 };
