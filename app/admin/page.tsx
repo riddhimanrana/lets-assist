@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import {
   checkSuperAdmin,
@@ -55,6 +56,10 @@ export default async function AdminOverviewPage() {
     getLandingDemoModeForAdmin(),
   ]);
 
+  // A new server snapshot must replace local state even when its Boolean
+  // equals an older snapshot. Read identity is separate from its value.
+  const landingDemoReadVersion = randomUUID();
+
   const stats = moderationStats.data;
   const aggregateReportStats = reportsStats.data ?? {
     total: 0,
@@ -77,7 +82,10 @@ export default async function AdminOverviewPage() {
     return (
       <AdminPage>
         <PageHeader title="Admin overview" />
-        <LandingDemoControl enabled={landingDemoMode.enabled} />
+        <LandingDemoControl
+          readVersion={landingDemoReadVersion}
+          enabled={landingDemoMode.enabled}
+        />
         <ProjectScheduleHealth result={scheduleHealth} />
         <AdminLoadError title="Error loading admin data" message={firstError} />
       </AdminPage>
@@ -104,7 +112,10 @@ export default async function AdminOverviewPage() {
   return (
     <>
       <div className="mx-auto w-full max-w-screen-2xl px-4 pt-8 sm:px-6">
-        <LandingDemoControl enabled={landingDemoMode.enabled} />
+        <LandingDemoControl
+          readVersion={landingDemoReadVersion}
+          enabled={landingDemoMode.enabled}
+        />
       </div>
       <OverviewTab
         stats={overviewStats}

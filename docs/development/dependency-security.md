@@ -152,3 +152,20 @@ The acceptance scope, operator-input restriction and expiry are unchanged.
 ### Archived plugin input review, October 8
 
 The Speech and Debate archival adds one literal path exclusion to unit discovery and ESLint. Next removes the unused DV transpilation entry and disables upgrade reminders only for the existing isolated test output directories. None of these changes accepts a request, file body, or environment value as a glob pattern. The reviewed source fingerprints now cover those edits. The dependency versions, accepted advisory and October 21 expiry are unchanged.
+
+### Test-inventory output review, October 11
+
+The `scripts/run-tests.mjs` repair waits for piped stdout to drain before
+`--list` exits. Review of the diff confirms that all discovery patterns,
+operator inputs, affected imports and dependency graphs are unchanged; no
+request, environment value or user data becomes a pattern. The source
+fingerprint now covers that reviewed output-only change. All lockfile hashes,
+package versions, advisory scope and October21 expiry remain unchanged.
+The upstream advisory still lists no patched version on October11.
+Read-only Vercel metadata checks covered100 exposed root environment records
+and all six child-app records; none named `VC_MICROFRONTENDS_CONFIG_FILE_NAME`.
+Nineteen Production root records were hidden by the connector and were not
+read. The newly READY Development Preview is bound to SHA`1aedb7e7`;
+Production provider-input verification remains a separate prerequisite after
+later owner approval. No provider values were decrypted, printed or saved, and
+no environment or spending setting was changed.

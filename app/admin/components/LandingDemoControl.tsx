@@ -2,9 +2,11 @@
 
 import { useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
-import { setLandingDemoMode } from "@/app/admin/server/landing-demo-mode";
+import {
+  getLandingDemoModeForAdmin,
+  setLandingDemoMode,
+} from "@/app/admin/server/landing-demo-mode";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,6 +18,11 @@ import { cn } from "@/lib/utils";
 const LOAD_ERROR = "Unable to load landing page mode. Reload to try again.";
 const SAVE_ERROR =
   "The landing page mode was not saved. Reload to check the current mode, then try again.";
+
+const REFRESH_WARNING =
+  "Saved. Some page refreshes could not complete. Reload to check the current mode.";
+const REFRESH_ERROR =
+  "Saved. This view could not refresh. Reload to read the current mode.";
 
 /**
  * Switches the public landing page between real content and the fictional
@@ -29,42 +36,55 @@ const SAVE_ERROR =
  */
 export function LandingDemoControl({
   enabled,
+  readVersion = "initial",
   className,
 }: {
   enabled: boolean | null;
+  readVersion?: string;
   className?: string;
 }) {
-  const router = useRouter();
   const id = useId();
   const switchId = `${id}-switch`;
   const labelId = `${id}-label`;
   const scopeId = `${id}-scope`;
   const errorId = `${id}-error`;
 
+  const [confirmedEnabled, setConfirmedEnabled] = useState(enabled);
   const [failed, setFailed] = useState(false);
+  const [refreshPending, setRefreshPending] = useState(false);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [saving, startSave] = useTransition();
   const [reloading, startReload] = useTransition();
   // The pending flags update on the next render. The ref also stops a second
   // toggle that arrives before it.
   const inFlight = useRef(false);
 
-  // A refreshed page can pass a new `enabled`. Adopt it during render rather
-  // than in an effect, so the stale mode and its error never paint.
-  const [lastEnabled, setLastEnabled] = useState(enabled);
-  if (enabled !== lastEnabled) {
-    setLastEnabled(enabled);
+  // Freshness is separate from the Boolean value. Keep this component mounted
+  // so Server Action RSC refreshes cannot discard post-commit save warnings.
+  const [lastReadVersion, setLastReadVersion] = useState(readVersion);
+  if (readVersion !== lastReadVersion) {
+    setLastReadVersion(readVersion);
+    setConfirmedEnabled(enabled);
     setFailed(false);
+    setRefreshFailed(false);
   }
 
-  const mode = enabled;
+  const mode = confirmedEnabled;
   const busy = saving || reloading;
-  const error = mode === null ? LOAD_ERROR : failed ? SAVE_ERROR : null;
+  const error = refreshFailed
+    ? REFRESH_ERROR
+    : mode === null
+      ? LOAD_ERROR
+      : failed
+        ? SAVE_ERROR
+        : null;
 
   const save = (next: boolean) => {
     if (mode === null || inFlight.current) return;
     inFlight.current = true;
     setFailed(false);
     startSave(async () => {
+      let saved = false;
       try {
         // The server rejects the save when the mode is no longer `mode`.
         const result = await setLandingDemoMode(next, mode);
@@ -72,25 +92,47 @@ export function LandingDemoControl({
           setFailed(true);
           return;
         }
-        // Back inside a transition after the await, so the switch stays
-        // disabled until the refreshed page is ready.
-        startSave(() => {
-          router.refresh();
-        });
+        saved = true;
+        setRefreshPending(result.refreshPending === true);
+        const current = await getLandingDemoModeForAdmin();
+        if (current.error || typeof current.enabled !== "boolean") {
+          setConfirmedEnabled(null);
+          setRefreshFailed(true);
+          return;
+        }
+        setConfirmedEnabled(current.enabled);
+        setRefreshFailed(false);
       } catch {
-        setFailed(true);
+        if (saved) {
+          setConfirmedEnabled(null);
+          setRefreshFailed(true);
+        } else setFailed(true);
       } finally {
         inFlight.current = false;
       }
     });
   };
 
-  // Always display the refreshed server value, including a concurrent revert.
+  // An awaited uncached Server Action proves the read completed. RSC refresh
+  // returns void and cannot establish whether fresh props ever arrived.
   const reload = () => {
     if (inFlight.current) return;
-    startReload(() => {
+    inFlight.current = true;
+    startReload(async () => {
       setFailed(false);
-      router.refresh();
+      try {
+        const current = await getLandingDemoModeForAdmin();
+        if (current.error || typeof current.enabled !== "boolean") {
+          setConfirmedEnabled(null);
+          return;
+        }
+        setConfirmedEnabled(current.enabled);
+        setRefreshFailed(false);
+      } catch {
+        setConfirmedEnabled(null);
+      } finally {
+        inFlight.current = false;
+      }
     });
   };
 
@@ -164,6 +206,12 @@ export function LandingDemoControl({
           Open landing page
         </Link>
       </div>
+
+      {refreshPending && !error ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {REFRESH_WARNING}
+        </p>
+      ) : null}
 
       {error ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

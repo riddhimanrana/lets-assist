@@ -1,4 +1,5 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { setTimeout as wait } from "node:timers/promises";
 import {
   cpSync,
   mkdirSync,
@@ -194,6 +195,58 @@ describe("the test orchestrator's shards", () => {
       expect(list(`--shard=1/${total}`).files).toEqual(shards[0]);
     }
   }, 120_000);
+
+  test("a slow pipe reader receives the complete large inventory", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "lets-assist-list-drain-"));
+    temporaryDirectories.push(directory);
+    mkdirSync(join(directory, "scripts/ci"), { recursive: true });
+    mkdirSync(join(directory, "lib/plugins"), { recursive: true });
+    for (const file of [
+      "scripts/run-tests.mjs",
+      "scripts/ci/test-shards.mjs",
+    ]) {
+      cpSync(join(repositoryRoot, file), join(directory, file));
+    }
+    symlinkSync(
+      join(repositoryRoot, "node_modules"),
+      join(directory, "node_modules"),
+    );
+    const files = Array.from(
+      { length: 5000 },
+      (_, index) =>
+        `lib/plugins/inventory-${String(index).padStart(4, "0")}-${"x".repeat(100)}.test.ts`,
+    );
+    for (const file of files) writeFileSync(join(directory, file), "");
+    const child = spawn(
+      "node",
+      ["scripts/run-tests.mjs", "--plugins-only", "--list"],
+      {
+        cwd: directory,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    let output = "";
+    let errors = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      errors += chunk;
+    });
+    child.stdout.pause();
+    const closed = new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", resolve);
+    });
+    // Exercise pipe backpressure instead of relying on the reader's timing.
+    await wait(750);
+    child.stdout.resume();
+    expect(await closed, errors).toBe(0);
+    expect(output.length).toBeGreaterThan(512 * 1024);
+    expect(output.trimEnd().split("\n")).toEqual(files);
+  }, 30_000);
 
   test("the scoped inventories shard the same way", () => {
     for (const scope of ["--application-only", "--private-only"]) {

@@ -8,6 +8,46 @@ helpers only export stand-ins and assertions. The discovery guard and all
 existing lifecycle, authorization, retry and cleanup assertions remain intact.
 The focused scenarios and unchanged harness contract must pass before integration.
 
+P2 TEST-INVENTORY-DRAIN-20261011, corrected locally: full integrated CI on
+Development `1aedb7e7` reported 791 inventory lines versus 1,281 across shards.
+The list command called `process.exit` before a long piped stdout write drained.
+A slow-reader regression reproduces the loss with a synthetic 5,000-file
+inventory; the command now waits for the write callback. Partitioning and test
+coverage are unchanged. The reviewed glob-input fingerprint changes only for
+that output repair, retaining the existing advisory scope and expiry. App and
+schema behavior are unchanged; the follow-up requests one fresh exact-SHA
+Development Preview and retains full CI and hosted checks. The build-reuse
+allowlist is unchanged.
+
+P2 SIGNUP-E2E-SCOPE-20261011, corrected locally: the new global Create account
+navigation and the signup form submit legitimately share a label. Two signup
+browser journeys now scope their submit locator to the main landmark, retaining
+the enabled check, actual submission, PKCE verifier and email/account round-trip
+assertions. This repairs selector ambiguity observed in full CI; it does not
+change signup or navigation behavior. Fresh isolated browser proof is pending.
+
+P2 LANDING-DEMO-COMMIT-RESULT-20261011, corrected locally: a cache invalidation
+exception after the service RPC confirmed persistence could falsely report that
+the mode was not saved. Persistence failures and independent refresh attempts
+now have separate outcomes. A confirmed save retains success with a fixed
+refresh notice; a failed awaited admin read shows an unknown disabled mode with
+Saved/Reload guidance instead of announcing a failed write. Three post-commit
+cache failure cases retain success and prove all refreshes were attempted.
+The control awaits uncached Server Action reads after save and reload; an
+asynchronous rejection/deferred retry test proves unknown state remains until
+a fresh result arrives, rather than trusting router.refresh returning void.
+
+P2 HOSTED-REVIEW-ENTRY-20261011, correction awaiting hosted proof: acceptance
+on Development 1aedb7e7 timed out entering the synthetic application queue.
+The read-only SSR roster entry can be clicked before its handler is hydrated.
+The harness now retries that entry only while the roster remains visible,
+within the original 60-second bound, and never clicks again during a pending
+queue transition. Real browser errors remain errors and the selected-subject
+digest, at least two subjects, 25 navigation steps and all performance budgets
+are unchanged. Focused regressions cover an ignored pre-hydration click,
+pending queue and browser failure. The timing hypothesis requires fresh hosted
+acceptance; this is not a claim that the earlier failed run passed.
+
 ## Public landing demo switch — prepared locally
 
 The owner corrected the demo scope to the public landing page for everyone.
