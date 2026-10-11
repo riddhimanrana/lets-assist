@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(83);
+SELECT extensions.plan(94);
 
 -- ---------------------------------------------------------------------------
 -- Exact execution ACLs: everything added is service-role only
@@ -414,6 +414,126 @@ SELECT extensions.lives_ok(
       AND name = 'project_waivers/b2000000-0000-4000-8000-000000000001/source.pdf'
   $$,
   'an access-time-only write to a referenced source is not a content change'
+);
+
+-- Generated columns are computed after BEFORE triggers, so the protection
+-- must not read their missing NEW values as a change. Every ordinary column
+-- other than the two timestamps stays fenced.
+CREATE TEMP TABLE referenced_source_before AS
+SELECT to_jsonb(objects) - ARRAY['last_accessed_at', 'updated_at']::text[] AS fenced
+FROM storage.objects AS objects
+WHERE bucket_id = 'waiver-uploads'
+  AND name = 'project_waivers/b2000000-0000-4000-8000-000000000001/source.pdf';
+
+CREATE OR REPLACE FUNCTION pg_temp.referenced_source_fenced()
+RETURNS jsonb
+LANGUAGE sql
+AS $$
+  SELECT to_jsonb(objects) - ARRAY['last_accessed_at', 'updated_at']::text[]
+  FROM storage.objects AS objects
+  WHERE bucket_id = 'waiver-uploads'
+    AND name = 'project_waivers/b2000000-0000-4000-8000-000000000001/source.pdf';
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.referenced_source_update(p_set text)
+RETURNS text
+LANGUAGE sql
+AS $$
+  SELECT format(
+    'UPDATE storage.objects SET %s WHERE bucket_id = %L AND name = %L',
+    p_set,
+    'waiver-uploads',
+    'project_waivers/b2000000-0000-4000-8000-000000000001/source.pdf'
+  );
+$$;
+
+SELECT extensions.ok(
+  EXISTS (
+    SELECT 1 FROM pg_catalog.pg_attribute
+    WHERE attrelid = 'storage.objects'::regclass
+      AND attnum > 0
+      AND NOT attisdropped
+      AND attgenerated <> ''
+  ),
+  'storage.objects has a generated column, so these writes exercise recomputation'
+);
+
+SELECT extensions.lives_ok(
+  pg_temp.referenced_source_update('name = name, metadata = metadata'),
+  'a write that changes no column of a referenced source passes'
+);
+
+SELECT extensions.lives_ok(
+  pg_temp.referenced_source_update(
+    $$last_accessed_at = '2099-01-01T00:00:00Z', updated_at = '2099-01-01T00:00:00Z'$$
+  ),
+  'a write that changes only the two timestamps of a referenced source passes'
+);
+
+SELECT extensions.is(
+  (
+    SELECT last_accessed_at
+    FROM storage.objects
+    WHERE bucket_id = 'waiver-uploads'
+      AND name = 'project_waivers/b2000000-0000-4000-8000-000000000001/source.pdf'
+  ),
+  '2099-01-01T00:00:00Z'::timestamptz,
+  'the access-time write was stored, not skipped'
+);
+
+SELECT extensions.is(
+  pg_temp.referenced_source_fenced(),
+  (SELECT fenced FROM referenced_source_before),
+  'the permitted writes left every ordinary and recomputed generated value as it was'
+);
+
+SELECT extensions.throws_ok(
+  pg_temp.referenced_source_update(
+    $$version = 'b4000000-0000-4000-8000-000000000004'$$
+  ),
+  '23503',
+  'a referenced waiver source document cannot be changed or deleted',
+  'a referenced source cannot be given a new version'
+);
+
+SELECT extensions.throws_ok(
+  pg_temp.referenced_source_update(
+    $$owner_id = 'b1000000-0000-4000-8000-000000000002'$$
+  ),
+  '23503',
+  'a referenced waiver source document cannot be changed or deleted',
+  'a referenced source cannot change owner'
+);
+
+SELECT extensions.throws_ok(
+  pg_temp.referenced_source_update($$user_metadata = '{"replaced":true}'::jsonb$$),
+  '23503',
+  'a referenced waiver source document cannot be changed or deleted',
+  'a referenced source cannot have its user metadata rewritten'
+);
+
+SELECT extensions.throws_ok(
+  pg_temp.referenced_source_update(
+    $$last_accessed_at = now(), updated_at = now(), metadata = '{"mimetype":"application/pdf","size":999}'::jsonb$$
+  ),
+  '23503',
+  'a referenced waiver source document cannot be changed or deleted',
+  'a timestamp write that also changes content is refused'
+);
+
+SELECT extensions.throws_ok(
+  pg_temp.referenced_source_update(
+    $$last_accessed_at = now(), name = 'project_waivers/b2000000-0000-4000-8000-000000000001/moved.pdf'$$
+  ),
+  '23503',
+  'a referenced waiver source document cannot be changed or deleted',
+  'a timestamp write that also moves the object is refused'
+);
+
+SELECT extensions.is(
+  pg_temp.referenced_source_fenced(),
+  (SELECT fenced FROM referenced_source_before),
+  'no refused write changed the referenced source'
 );
 
 SELECT extensions.lives_ok(

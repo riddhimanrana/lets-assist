@@ -158,14 +158,23 @@ COMMENT ON FUNCTION private.lock_waiver_source_object(text) IS
 -- moves it by rewriting name or bucket, and deletes it by deleting the row. All
 -- three are refused for a referenced source. A write that changes nothing but
 -- the access and update timestamps is not a content change and passes. The
--- comparison is on the whole row, so it does not depend on which columns this
--- Storage version has.
+-- comparison is on every ordinary column, so it does not depend on which
+-- columns this Storage version has and a column added later is fenced by
+-- default.
+--
+-- Generated columns are left out of the comparison. PostgreSQL computes them
+-- after BEFORE triggers, so NEW carries no value for them here while OLD does,
+-- and comparing them would report a change on every write. They are derived
+-- from the ordinary columns, which are all compared. Their names are read from
+-- the catalog for the table the trigger fired on, not listed here.
 CREATE OR REPLACE FUNCTION private.protect_referenced_waiver_source_object()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_uncompared_columns text[];
 BEGIN
   IF OLD.bucket_id IS DISTINCT FROM 'waiver-uploads' THEN
     IF TG_OP = 'DELETE' THEN
@@ -175,9 +184,18 @@ BEGIN
   END IF;
 
   IF TG_OP = 'UPDATE' THEN
-    IF (to_jsonb(NEW) - 'last_accessed_at'::text - 'updated_at'::text)
+    SELECT ARRAY['last_accessed_at', 'updated_at']::text[]
+      || COALESCE(array_agg(attributes.attname::text), ARRAY[]::text[])
+    INTO v_uncompared_columns
+    FROM pg_catalog.pg_attribute AS attributes
+    WHERE attributes.attrelid = TG_RELID
+      AND attributes.attnum > 0
+      AND NOT attributes.attisdropped
+      AND attributes.attgenerated <> '';
+
+    IF (to_jsonb(NEW) - v_uncompared_columns)
       IS NOT DISTINCT FROM
-        (to_jsonb(OLD) - 'last_accessed_at'::text - 'updated_at'::text)
+        (to_jsonb(OLD) - v_uncompared_columns)
     THEN
       RETURN NEW;
     END IF;
