@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { differenceInMinutes, parseISO, isValid } from "date-fns";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ReadLoadError } from "@/components/projects/ReadLoadError";
 import { CertificateDocument } from "./_components/CertificateDocument";
 import {
   PrintCertificate,
@@ -58,6 +59,10 @@ function formatDuration(
     return "Error";
   }
 }
+
+// Query errors that mean "no record for this reader", not a failed read: a
+// denied read (42501) and an id that is not a UUID (22P02). Both stay a 404.
+const ABSENT_RECORD_ERROR_CODES = new Set(["42501", "22P02"]);
 
 // Define the page props interface
 interface CertificatePageProps {
@@ -115,11 +120,25 @@ export default async function VolunteerRecordPage({
     `,
     )
     .eq("id", recordId)
-    .single();
+    .maybeSingle();
+
+  if (error && !ABSENT_RECORD_ERROR_CODES.has(error.code)) {
+    // The read itself failed, so whether a record exists is unknown. Say only
+    // that the page did not load: the same copy for every id, real or not.
+    safeConsole.error("Error fetching volunteer record:", error);
+    return (
+      <div className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-8 sm:px-6">
+        <PageHeader
+          title="Volunteer certificate"
+          description="Official record of volunteer activity"
+        />
+        <ReadLoadError title="We couldn't load this certificate" />
+      </div>
+    );
+  }
 
   if (error || !record) {
-    safeConsole.error("Error fetching volunteer record:", error);
-    notFound(); // Show 404 if record not found or error occurs
+    notFound(); // No such record, or one this reader may not see
   }
 
   // Type assertion after checking for null and converting to unknown first

@@ -23,6 +23,7 @@ import {
 } from "@/components/icons/animated";
 import { AnimatedLinkButton } from "@/components/projects/AnimatedLinkButton";
 import { EmptyStateIcon } from "@/components/projects/EmptyStateIcon";
+import { ReadLoadError } from "@/components/projects/ReadLoadError";
 import { Award, Repeat, Users } from "lucide-react";
 import Link from "next/link";
 import { ProjectStatusBadge } from "@/components/ui/status-badge";
@@ -253,6 +254,20 @@ export default async function UserProjects() {
   const volunteeredCount = processedVolunteeredProjects.length;
   const createdCount = processedCreatedProjects.length;
 
+  // A failed read is unknown, not zero. Its tab shows no count and its pane
+  // shows the error, while the other pane keeps whatever loaded.
+  const volunteeredFailed = Boolean(signupsError);
+  const createdFailed = Boolean(createdError);
+  const volunteeredEmpty =
+    upcomingVolunteered.length === 0 &&
+    inProgressVolunteered.length === 0 &&
+    pastVolunteered.length === 0;
+  const createdEmpty =
+    draftCreated.length === 0 &&
+    upcomingCreated.length === 0 &&
+    inProgressCreated.length === 0 &&
+    pastCreated.length === 0;
+
   return (
     <div className="mx-auto min-h-screen w-full max-w-6xl px-4 py-8 sm:px-6">
       <PageHeader
@@ -262,25 +277,43 @@ export default async function UserProjects() {
 
       <Tabs defaultValue="volunteering" className="mt-6 gap-6">
         <TabsList variant="line" className="border-b">
-          <TabsTrigger value="volunteering" className="flex-none px-3">
+          <TabsTrigger
+            value="volunteering"
+            className="flex-none px-3"
+            aria-label={
+              volunteeredFailed
+                ? "Volunteering for, count unavailable"
+                : undefined
+            }
+          >
             Volunteering for
-            <span className="text-muted-foreground tabular-nums">
-              {volunteeredCount}
-            </span>
+            {volunteeredFailed ? null : (
+              <span className="text-muted-foreground tabular-nums">
+                {volunteeredCount}
+              </span>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="created" className="flex-none px-3">
+          <TabsTrigger
+            value="created"
+            className="flex-none px-3"
+            aria-label={
+              createdFailed ? "Created, count unavailable" : undefined
+            }
+          >
             Created
-            <span className="text-muted-foreground tabular-nums">
-              {createdCount}
-            </span>
+            {createdFailed ? null : (
+              <span className="text-muted-foreground tabular-nums">
+                {createdCount}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
 
         {/* Projects you're volunteering for */}
         <TabsContent value="volunteering" className="grid gap-8">
-          {upcomingVolunteered.length === 0 &&
-          inProgressVolunteered.length === 0 &&
-          pastVolunteered.length === 0 ? (
+          {volunteeredFailed ? (
+            <ReadLoadError title="We couldn't load your volunteer signups" />
+          ) : volunteeredEmpty ? (
             <Empty className="border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -388,10 +421,9 @@ export default async function UserProjects() {
 
         {/* Projects you've created */}
         <TabsContent value="created" className="grid gap-8">
-          {draftCreated.length === 0 &&
-          upcomingCreated.length === 0 &&
-          inProgressCreated.length === 0 &&
-          pastCreated.length === 0 ? (
+          {createdFailed ? (
+            <ReadLoadError title="We couldn't load the projects you created" />
+          ) : createdEmpty ? (
             <Empty className="border">
               <EmptyHeader>
                 <EmptyMedia variant="icon">

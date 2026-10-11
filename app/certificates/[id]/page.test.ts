@@ -49,6 +49,18 @@ describe("public certificate projection", () => {
     ]) {
       expect(selection).not.toContain(field);
     }
-    expect(page).toMatch(/if \(error \|\| !record\) \{[\s\S]*?notFound\(\)/);
+    // Absent and hidden records are a 404. A failed read is a separate branch
+    // that renders before it and never reaches the record or its fields.
+    expect(page).toMatch(/if \(error \|\| !record\) \{\s*notFound\(\)/);
+    expect(page).toContain(
+      'const ABSENT_RECORD_ERROR_CODES = new Set(["42501", "22P02"]);',
+    );
+    const failedRead = page.slice(
+      page.indexOf("if (error && !ABSENT_RECORD_ERROR_CODES.has(error.code))"),
+      page.indexOf("if (error || !record)"),
+    );
+    expect(failedRead).toContain("<ReadLoadError");
+    expect(failedRead).not.toMatch(/\brecord\.|recordId|\bdata\.|\.message/);
+    expect(page.match(/\.maybeSingle\(\)/g)).toHaveLength(1);
   });
 });

@@ -1,4 +1,6 @@
 import { PlatformRatingPrompt } from "@/components/feedback/PlatformRatingPrompt";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ReadLoadError } from "@/components/projects/ReadLoadError";
 import {
   getPlatformRatingPromptState,
   type PlatformRatingContext,
@@ -109,6 +111,18 @@ type ManagerSignupRow = {
   check_in_time: string | null;
 };
 
+const PROJECT_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function ProjectLoadError() {
+  return (
+    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6">
+      <PageHeader title="Project" />
+      <ReadLoadError title="We couldn't load this project" />
+    </div>
+  );
+}
+
 export default async function ProjectPage({
   params,
   searchParams,
@@ -127,6 +141,12 @@ export default async function ProjectPage({
     return <ProjectUnauthorized projectId={id} />;
   }
 
+  // A failed read is not a missing project. An id that is not a UUID can only
+  // fail the query, so that one stays a 404. Nothing below runs on a failure.
+  if (projectError && PROJECT_ID_PATTERN.test(id)) {
+    return <ProjectLoadError />;
+  }
+
   // Handle project not found
   if (projectError || !project) {
     notFound();
@@ -136,7 +156,7 @@ export default async function ProjectPage({
     project.creator_id,
   );
   if (profileError) {
-    safeConsole.error("Error fetching creator profile:", profileError);
+    return <ProjectLoadError />;
   }
   if (!creator) {
     notFound();
