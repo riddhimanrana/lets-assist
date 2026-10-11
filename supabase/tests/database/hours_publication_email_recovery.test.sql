@@ -534,10 +534,36 @@ SELECT extensions.ok(
 -- ---------------------------------------------------------------------------
 
 -- Attendance recorded after publication without an award: the state the
--- supplemental path exists to repair.
+-- supplemental path exists to repair. Only the automatic award trigger is
+-- switched off, and only around this one insert.
+--
+-- project_signups_user_id_fkey1 is DEFERRABLE INITIALLY DEFERRED, so every
+-- signup this file inserted earlier still has a foreign-key check queued for
+-- commit, and PostgreSQL refuses ALTER TABLE on a table with pending trigger
+-- events. Making that one constraint IMMEDIATE runs the queued checks now,
+-- which clears the way for the first ALTER. Keeping it IMMEDIATE until the
+-- trigger is back on means the insert below is checked at the end of its own
+-- statement and queues nothing, which clears the way for the second ALTER.
+-- The constraint is still enforced throughout, then returned to DEFERRED.
+SET CONSTRAINTS public.project_signups_user_id_fkey1 IMMEDIATE;
 ALTER TABLE public.project_signups DISABLE TRIGGER issue_verified_certificate_for_late_attendance;
 SELECT pg_temp.attend(2, 20, 21, 'attended', '2020-09-18T10:00:00Z', '2020-09-18T11:00:00Z');
 ALTER TABLE public.project_signups ENABLE TRIGGER issue_verified_certificate_for_late_attendance;
+SET CONSTRAINTS public.project_signups_user_id_fkey1 DEFERRED;
+
+SELECT extensions.ok(
+  (SELECT count(*) = 2 AND bool_and(status = 'attended' AND check_out_time IS NOT NULL)
+   FROM public.project_signups
+   WHERE id IN ('c8300002-0000-4000-8000-000000000020', 'c8300002-0000-4000-8000-000000000021'))
+  AND NOT EXISTS (
+    SELECT 1 FROM public.certificates
+    WHERE signup_id IN ('c8300002-0000-4000-8000-000000000020', 'c8300002-0000-4000-8000-000000000021'))
+  AND (SELECT tgenabled = 'O' FROM pg_catalog.pg_trigger
+       WHERE tgrelid = 'public.project_signups'::regclass
+         AND tgname = 'issue_verified_certificate_for_late_attendance'
+         AND NOT tgisinternal),
+  'both late attendance rows exist without an award, and the automatic award trigger is enabled again before recovery runs'
+);
 
 SELECT extensions.throws_ok(
   $$SELECT public.recover_supplemental_verified_certificates(
