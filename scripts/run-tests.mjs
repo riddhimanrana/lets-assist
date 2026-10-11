@@ -232,7 +232,14 @@ function inShard(file) {
 }
 
 if (listOnly) {
-  for (const file of selectedFiles) console.log(file);
+  // A pipe may still be draining when a large inventory has been queued.
+  // Wait for the write callback before exiting so consumers see every file.
+  await new Promise((resolve, reject) => {
+    process.stdout.write(`${selectedFiles.join("\n")}\n`, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
   process.exit(0);
 }
 

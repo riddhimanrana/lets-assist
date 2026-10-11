@@ -17,6 +17,24 @@ describe("acceptance build reuse", () => {
     expect(() => assertAcceptanceOnlyChanges([])).not.toThrow();
   });
 
+  test("reuses the build for the reviewed inventory repair, but rejects mixed app changes", () => {
+    const tooling = [
+      "scripts/run-tests.mjs",
+      "scripts/ci/test-shards.test.mjs",
+      "docs/development/cleanup-register.md",
+    ];
+    expect(() => assertAcceptanceOnlyChanges(tooling)).not.toThrow();
+    for (const input of [
+      "app/(landing)/page.tsx",
+      ".github/workflows/ci.yml",
+      "scripts/vercel-build-policy.mjs",
+    ]) {
+      expect(() => assertAcceptanceOnlyChanges([...tooling, input])).toThrow(
+        "Build reuse refused",
+      );
+    }
+  });
+
   for (const path of [
     "app/page.tsx",
     "lib/plugins/private",
