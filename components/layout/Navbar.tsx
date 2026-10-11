@@ -133,16 +133,21 @@ export default function Navbar() {
   return (
     <>
       <header className="w-full border-b bg-background">
+        {/*
+          From `lg` up the bar is three grid tracks: brand, primary links,
+          account controls. Equal outer tracks centre the links when all
+          content fits; each track retains its content's minimum width.
+        */}
         <nav
           aria-label="Primary"
-          className="flex h-14 w-full items-center gap-6 px-4 sm:px-6"
+          className="flex h-14 w-full items-center gap-6 px-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]"
         >
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="flex shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:justify-self-start"
           >
             <Image src="/logo.png" alt="" width={28} height={28} />
-            <span className="text-base font-semibold tracking-tight">
+            <span className="text-base font-semibold tracking-tight whitespace-nowrap">
               Let's Assist
             </span>
           </Link>
@@ -167,7 +172,7 @@ export default function Navbar() {
                 <Button variant="ghost" render={<Link href="/login" />}>
                   Login
                 </Button>
-                <Button render={<Link href="/signup" />}>Sign up</Button>
+                <Button render={<Link href="/signup" />}>Create account</Button>
               </>
             )}
           </div>

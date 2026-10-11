@@ -249,7 +249,7 @@ export function MobileNavigation({
                   Login
                 </Button>
                 <Button render={<Link href="/signup" />} onClick={close}>
-                  Sign up
+                  Create account
                 </Button>
               </div>
             )}

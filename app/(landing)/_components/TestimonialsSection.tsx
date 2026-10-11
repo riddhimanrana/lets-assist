@@ -1,10 +1,44 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
 import { Quote } from "lucide-react";
+import type { KeyboardEvent } from "react";
 
 import { cn } from "@/lib/utils";
+
+// One 330px card plus the 16px gap, so each arrow press brings in one quote.
+const ARROW_SCROLL_STEP = 346;
+
+// Arrow keys do not reliably scroll a focused overflow row on their own, so
+// the row handles them. The scroll is instant: it does not wait on animation
+// frames, and the browser clamps the position at either end. Keys aimed at
+// something inside the row, and key combinations, are left alone.
+function scrollRowFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.target !== event.currentTarget) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+  const row = event.currentTarget;
+  let left: number;
+  switch (event.key) {
+    case "ArrowLeft":
+      left = row.scrollLeft - ARROW_SCROLL_STEP;
+      break;
+    case "ArrowRight":
+      left = row.scrollLeft + ARROW_SCROLL_STEP;
+      break;
+    case "Home":
+      left = 0;
+      break;
+    case "End":
+      left = row.scrollWidth;
+      break;
+    default:
+      return;
+  }
+
+  event.preventDefault();
+  row.scrollTo({ left, behavior: "instant" });
+}
 
 const testimonials = [
   {
@@ -77,7 +111,7 @@ function TestimonialCard({
         className,
       )}
     >
-      <Quote className="mb-5 size-5 text-primary" />
+      <Quote aria-hidden="true" className="mb-5 size-5 text-primary" />
       <p className="font-sans text-sm leading-7 text-foreground/82">
         {testimonial.quote}
       </p>
@@ -105,8 +139,6 @@ function TestimonialCard({
 }
 
 export default function TestimonialsSection() {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <section className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20">
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
@@ -121,40 +153,29 @@ export default function TestimonialsSection() {
         </div>
 
         {/*
-          The fade is as wide as a card's padding, so the first and last quotes
-          stay readable at rest. Without motion the row scrolls by hand.
+          The row scrolls by hand for everyone. It used to drift on its own,
+          which moved quotes away mid-sentence and left keyboard users no way
+          to reach the ones off screen. The row takes focus so the arrow keys
+          scroll it, and it renders the same with or without a motion
+          preference. The landing smooth-scroll layer is told to leave
+          sideways wheel gestures to the row.
         */}
         <div
-          className={cn(
-            "relative",
-            shouldReduceMotion ? "overflow-x-auto" : "overflow-hidden",
-          )}
+          role="region"
+          aria-label="Testimonials from teachers and advisors"
+          tabIndex={0}
+          onKeyDown={scrollRowFromKeyboard}
+          data-lenis-prevent-horizontal
+          className="relative overflow-x-auto rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {shouldReduceMotion ? null : (
-            <>
-              <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-5 bg-linear-to-r from-background to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-linear-to-l from-background to-transparent" />
-            </>
-          )}
-
-          <motion.div
-            className="flex w-max gap-4 py-1"
-            animate={
-              shouldReduceMotion ? undefined : { x: ["0%", "-42%", "0%"] }
-            }
-            transition={{
-              duration: 58,
-              ease: "linear",
-              repeat: Infinity,
-            }}
-          >
+          <div className="flex w-max gap-4 py-1">
             {testimonials.map((testimonial) => (
               <TestimonialCard
                 key={testimonial.name}
                 testimonial={testimonial}
               />
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

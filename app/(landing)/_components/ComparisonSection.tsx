@@ -33,41 +33,10 @@ import {
   Scan,
 } from "lucide-react";
 import Image from "next/image";
+import { ComparisonTextFlip } from "./ComparisonTextFlip";
 
 // Words that flip in the header
 const flipWords = ["outdated", "limited", "2010s", "cluttered"];
-
-// Text flip animation component
-function TextFlip({ words }: { words: string[] }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % words.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [words.length]);
-
-  return (
-    <span
-      className="inline-flex items-center justify-center"
-      style={{ minWidth: "5ch" }}
-    >
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={currentIndex}
-          initial={{ y: 20, opacity: 0, filter: "blur(8px)" }}
-          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-          exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="font-bold text-orange-400"
-        >
-          {words[currentIndex]}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  );
-}
 
 interface ComparisonFeature {
   name: string;
@@ -271,7 +240,7 @@ function ModernDashboardMockup() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: 0.3 }}
@@ -293,7 +262,7 @@ function ModernDashboardMockup() {
             <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-md bg-background/80 text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 sm:gap-2 transition-all duration-300 w-full max-w-[200px] sm:max-w-xs justify-center">
               <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary shrink-0" />
 
-              <span className="truncate block opacity-70">
+              <span className="truncate block">
                 {phase === "BROWSING" && "lets-assist.com/explore"}
 
                 {phase === "DETAILS" && "lets-assist.com/events/cleanup"}
@@ -313,7 +282,7 @@ function ModernDashboardMockup() {
         {/* Content Area */}
 
         <div className="relative flex-1 bg-muted/5 p-4 overflow-hidden">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {/* PHASE 1: BROWSING */}
 
             {phase === "BROWSING" && (
@@ -729,13 +698,13 @@ function ModernDashboardMockup() {
 function OutdatedMockup() {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, scale: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: 0.2 }}
       className="relative"
     >
-      <div className="relative rounded-xl sm:rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-0.5 sm:p-1 opacity-75">
+      <div className="relative rounded-xl sm:rounded-2xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-0.5 sm:p-1">
         {/* Browser chrome - old style */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 border-b border-muted-foreground/20 bg-linear-to-b from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-t-lg sm:rounded-t-xl">
           <div className="flex gap-1 sm:gap-1.5">
@@ -744,7 +713,7 @@ function OutdatedMockup() {
             <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-400" />
           </div>
           <div className="flex-1 flex justify-center">
-            <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-sm bg-white dark:bg-gray-900 text-[10px] sm:text-xs text-muted-foreground border border-muted-foreground/30">
+            <div className="px-2 sm:px-4 py-0.5 sm:py-1 rounded-sm bg-background text-[10px] sm:text-xs text-muted-foreground border border-muted-foreground/30">
               signupgenius.com
             </div>
           </div>
@@ -765,18 +734,18 @@ function OutdatedMockup() {
               <div className="text-xs sm:text-sm font-medium text-muted-foreground">
                 SignUpGenius
               </div>
-              <div className="text-[9px] sm:text-[10px] text-muted-foreground/60">
+              <div className="text-[9px] sm:text-[10px] text-muted-foreground">
                 Founded 2007
               </div>
             </div>
           </div>
 
           {/* Fake Top Banner Ad */}
-          <div className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-1.5 sm:p-2 text-center overflow-hidden relative">
-            <div className="text-[8px] text-gray-400 absolute top-0.5 right-1">
+          <div className="w-full bg-background border border-border p-1.5 sm:p-2 text-center overflow-hidden relative">
+            <div className="text-[10px] leading-none text-muted-foreground absolute top-0.5 right-1">
               AD
             </div>
-            <span className="text-[9px] sm:text-[10px] font-bold text-info animate-pulse">
+            <span className="text-xs font-semibold text-foreground">
               Start Your Free Trial Today! &gt;&gt;
             </span>
           </div>
@@ -784,8 +753,8 @@ function OutdatedMockup() {
           <div className="flex gap-2">
             {/* Old table-style layout */}
             <div className="flex-1 border border-muted-foreground/30 rounded overflow-hidden">
-              <div className="bg-orange-100 dark:bg-orange-900/30 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-muted-foreground/30">
-                <div className="text-[10px] sm:text-xs font-medium text-muted-foreground">
+              <div className="bg-warning/15 px-2 sm:px-3 py-1.5 sm:py-2 border-b border-muted-foreground/30">
+                <div className="text-[10px] sm:text-xs font-medium text-foreground">
                   Volunteer Signup Sheet
                 </div>
               </div>
@@ -800,7 +769,7 @@ function OutdatedMockup() {
                     className="flex items-center justify-between px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-muted-foreground"
                   >
                     <span className="truncate">{slot}</span>
-                    <span className="text-[9px] sm:text-[10px] bg-gray-200 dark:bg-gray-700 px-1.5 sm:px-2 py-0.5 rounded shrink-0 ml-2">
+                    <span className="text-[9px] sm:text-[10px] bg-muted text-foreground px-1.5 sm:px-2 py-0.5 rounded shrink-0 ml-2">
                       3/5
                     </span>
                   </div>
@@ -827,11 +796,11 @@ function OutdatedMockup() {
             {["No hours", "No certs", "No QR", "Ads"].map((missing, i) => (
               <motion.div
                 key={missing}
-                initial={{ opacity: 0, x: -10 }}
+                initial={false}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.8 + i * 0.1 }}
-                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground/70"
+                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground"
               >
                 <X className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-destructive shrink-0" />
                 {missing}
@@ -843,11 +812,11 @@ function OutdatedMockup() {
 
       {/* "Stuck in 2010" label */}
       <motion.div
-        initial={{ opacity: 0, rotate: -5 }}
+        initial={false}
         whileInView={{ opacity: 1, rotate: -3 }}
         viewport={{ once: true }}
         transition={{ delay: 1.2 }}
-        className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full bg-orange-500 text-white text-[10px] sm:text-xs font-medium shadow-lg"
+        className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full border border-warning/50 bg-background text-foreground text-[10px] sm:text-xs font-medium shadow-lg"
       >
         2010 design
       </motion.div>
@@ -859,7 +828,7 @@ function OutdatedMockup() {
 function AnimatedCheck({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0 }}
+      initial={false}
       whileInView={{ scale: 1 }}
       viewport={{ once: true }}
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
@@ -873,7 +842,7 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
 function AnimatedX({ delay = 0 }: { delay?: number }) {
   return (
     <motion.div
-      initial={{ scale: 0 }}
+      initial={false}
       whileInView={{ scale: 1 }}
       viewport={{ once: true }}
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
@@ -896,7 +865,7 @@ function ComparisonRow({
 
   return (
     <motion.tr
-      initial={{ opacity: 0, y: 10 }}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ delay, duration: 0.3 }}
@@ -938,7 +907,7 @@ function ComparisonRow({
           )
         ) : (
           <motion.span
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.1 }}
@@ -957,7 +926,7 @@ function ComparisonRow({
           )
         ) : (
           <motion.span
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.15 }}
@@ -988,7 +957,7 @@ export default function ComparisonSection() {
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         {/* Section header with text flip */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
@@ -996,7 +965,7 @@ export default function ComparisonSection() {
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              SignUpGenius is <TextFlip words={flipWords} />
+              SignUpGenius is <ComparisonTextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-primary">
@@ -1006,7 +975,7 @@ export default function ComparisonSection() {
           </div>
 
           <motion.p
-            initial={{ opacity: 0 }}
+            initial={false}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: 0.3 }}
@@ -1063,7 +1032,7 @@ export default function ComparisonSection() {
 
         {/* Feature comparison table */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           className="mx-auto max-w-4xl mb-12 sm:mb-16"

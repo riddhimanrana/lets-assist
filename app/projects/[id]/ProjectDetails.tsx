@@ -36,6 +36,7 @@ import {
 import { getScheduleSlotSummary } from "./project-schedule-summary";
 import { ProjectSlotAction } from "./ProjectSlotAction";
 import { ProjectSlotsCard } from "./ProjectSlotsCard";
+import { ProjectRosterNotice } from "./ProjectRosterNotice";
 import {
   ProjectAnonymousSignupDialog,
   ProjectResendConfirmationDialog,
@@ -97,7 +98,12 @@ export default function ProjectDetails({
   const [showCalendarModal, setShowCalendarModal] = useState(false);
 
   const calculatedStatus = useProjectStatusSync(project, canManageProject);
-  const { getAttendeesForSlot, refetchAttendees } = usePublicAttendees({
+  const {
+    getAttendeesForSlot,
+    previousScheduleAttendees,
+    rosterState,
+    refetchAttendees,
+  } = usePublicAttendees({
     project,
     canManageProject,
     demoMode,
@@ -433,6 +439,13 @@ export default function ProjectDetails({
                 ) : null
               }
             />
+            {showSlotAttendees && (
+              <ProjectRosterNotice
+                state={rosterState}
+                previousSchedule={previousScheduleAttendees}
+                onRetry={refetchAttendees}
+              />
+            )}
           </div>
 
           {/* Right Column */}

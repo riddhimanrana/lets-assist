@@ -24,6 +24,7 @@ const project = {
 const calls: { name: string; args: Record<string, unknown> }[] = [];
 const order: string[] = [];
 let missingCounts = false;
+let discoveryFailed = false;
 let rawSignupReads = 0;
 class Query {
   constructor(private table: string) {}
@@ -51,7 +52,12 @@ class Query {
       this.table === "project_discovery_read_model" || this.table === "projects"
         ? [project]
         : [];
-    return Promise.resolve({ data, error: null }).then(resolve);
+    return Promise.resolve({
+      data: discoveryFailed ? null : data,
+      error: discoveryFailed
+        ? { message: "Synthetic database unavailable" }
+        : null,
+    }).then(resolve);
   }
 }
 const from = (table: string) => {
@@ -97,6 +103,7 @@ describe("project feed exact occupancy integration", () => {
     calls.length = 0;
     order.length = 0;
     missingCounts = false;
+    discoveryFailed = false;
     rawSignupReads = 0;
   });
   test("public discovery requests bounded public aggregates with stable page ordering", async () => {
@@ -137,6 +144,14 @@ describe("project feed exact occupancy integration", () => {
   test("missing aggregates fail the page instead of claiming empty capacity", async () => {
     missingCounts = true;
     await expect(getActiveProjects()).rejects.toThrow("unavailable");
+  });
+  test("database failures do not become a successful empty public or organization feed", async () => {
+    discoveryFailed = true;
+    await expect(getActiveProjects()).rejects.toThrow("unavailable");
+    await expect(
+      getActiveProjects(21, 0, "upcoming", organizationId),
+    ).rejects.toThrow("unavailable");
+    expect(calls).toEqual([]);
   });
   test("invalid direct action pagination is refused before querying", async () => {
     await expect(getActiveProjects(1000)).rejects.toThrow(

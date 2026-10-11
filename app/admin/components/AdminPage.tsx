@@ -18,7 +18,7 @@ export function AdminPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-screen-2xl px-4 py-6 sm:px-6 sm:py-8">
       <div
         className={cn("grid gap-6", width === "form" && "max-w-4xl", className)}
       >

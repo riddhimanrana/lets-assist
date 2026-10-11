@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
+import { MotionLinkButton } from "./MotionLinkButton";
 
 const {
   projectId: PROJECT_ID,
@@ -161,67 +162,6 @@ function formatProjectDate(date: Date) {
     month: "long",
     day: "numeric",
   }).format(date);
-}
-
-type MotionLinkButtonProps = {
-  href: string;
-  children: React.ReactNode;
-  tone?: "solid" | "outline";
-  className?: string;
-};
-
-function MotionLinkButton({
-  href,
-  children,
-  tone = "solid",
-  className,
-}: MotionLinkButtonProps) {
-  const shouldReduceMotion = useReducedMotion();
-
-  return (
-    <motion.div
-      className="w-full sm:w-auto"
-      initial={false}
-      whileHover={shouldReduceMotion ? undefined : "hover"}
-      whileTap={shouldReduceMotion ? undefined : "tap"}
-    >
-      <Button
-        asChild
-        variant={tone === "solid" ? "default" : "outline"}
-        className={cn(
-          "group relative h-11 w-full overflow-hidden rounded-full px-5 sm:w-auto",
-          className,
-        )}
-      >
-        <Link href={href}>
-          <span className="relative grid h-full place-items-center overflow-hidden">
-            <motion.span
-              className="inline-flex items-center gap-2"
-              variants={{
-                hover: { y: "-140%" },
-                tap: { y: "-140%" },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-            <motion.span
-              aria-hidden
-              className="absolute inline-flex items-center gap-2"
-              initial={{ y: "140%" }}
-              variants={{
-                hover: { y: 0 },
-                tap: { y: 0 },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-          </span>
-        </Link>
-      </Button>
-    </motion.div>
-  );
 }
 
 function ProjectSlotCard({
@@ -805,7 +745,7 @@ function RealProjectDemoWindow() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
+      initial={false}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className="relative mx-auto w-full max-w-6xl"
@@ -981,8 +921,14 @@ export const HeroContent = () => {
           <span className="block text-primary">volunteering</span>
         </h1>
 
+        {/*
+          The hero is the first thing in the response. Its copy, links, demo
+          and highlights render in their final state, so they are readable
+          before any script runs and in a tab whose animation frames are
+          paused.
+        */}
         <motion.p
-          initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+          initial={false}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
@@ -993,7 +939,7 @@ export const HeroContent = () => {
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
@@ -1008,7 +954,7 @@ export const HeroContent = () => {
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
+        initial={false}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ delay: 1.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="mt-10"
@@ -1017,7 +963,7 @@ export const HeroContent = () => {
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 18 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"

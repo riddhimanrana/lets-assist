@@ -16,6 +16,7 @@ import {
   summarizeProjectOccupancy,
 } from "@/lib/projects/availability";
 import { canManageProjectAccess } from "@/lib/projects/management-access";
+import { buildScheduleReadIndex } from "@/lib/projects/schedule-read-index";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const shouldLogProjectDebug = process.env.NODE_ENV === "development";
@@ -529,13 +530,18 @@ export async function getSlotCapacities(
     return {}; // No schedules found
   }
 
+  const scheduleReadIndex = buildScheduleReadIndex(project);
+  const readableScheduleIds = [...scheduleReadIndex.keys()].filter(
+    (id) => scheduleReadIndex.get(id) !== null,
+  );
+
   // Count the sign-ups that hold a spot. The status list is shared with the
   // project cards so the two can never disagree about what "taken" means.
   const { data: signups, error } = (await supabase
     .from("project_signups")
     .select("schedule_id, status")
     .eq("project_id", projectId)
-    .in("schedule_id", scheduleIds)
+    .in("schedule_id", readableScheduleIds)
     .in("status", [...ACTIVE_PROJECT_SIGNUP_STATUSES])) as {
     data: { schedule_id: string; status: string }[] | null;
     error: { message: string } | null;
@@ -550,7 +556,7 @@ export async function getSlotCapacities(
   const signupCounts = summarizeProjectOccupancy(
     (signups ?? []).map((signup) => ({
       project_id: projectId,
-      schedule_id: signup.schedule_id,
+      schedule_id: scheduleReadIndex.get(signup.schedule_id) ?? null,
       status: signup.status,
     })),
   ).slotsFilledBySchedule;

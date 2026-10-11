@@ -11,6 +11,14 @@ import { softRemoveContent } from "./enforcement";
 import { notifyContentOwnerOfModeration } from "./notifications";
 import { matchesReportStatusFilter } from "../report-status";
 import { deriveSeverity } from "./shared";
+import { summarizeModerationEvents } from "./moderation-statistics-summary";
+import type { ModerationStats } from "../dashboard-types";
+import {
+  hasStatisticsResult,
+  isMissingModerationStatisticsView,
+  statisticsReadFailure,
+  type StatisticsReadResult,
+} from "./statistics-read-result";
 
 export async function getFlaggedContent(
   status?: "pending" | "blocked" | "confirmed" | "dismissed",
@@ -282,148 +290,178 @@ export async function updateFlaggedContentStatus(
 /**
  * Get moderation statistics
  */
-export async function getModerationStats() {
+export async function getModerationStats(): Promise<
+  StatisticsReadResult<ModerationStats>
+> {
   "use server";
-  const supabase = getAdminClient();
-
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
 
-  const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const oneDayAgo = new Date(now);
-  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+  try {
+    const supabase = getAdminClient();
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const oneDayAgo = new Date(now);
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-  const { data: moderationEvents, error: moderationEventsError } =
-    await supabase
+    const viewResult = await supabase
       .from("content_moderation_events")
       .select(
         "source, status, priority, created_at, updated_at, resolution_notes, flag_source, confidence_score, ai_metadata",
+        { count: "exact" },
       );
+    const { data: moderationEvents, error: moderationEventsError } = viewResult;
 
-  const missingViewError =
-    moderationEventsError?.code === "42P01" ||
-    moderationEventsError?.code === "42703" ||
-    (typeof moderationEventsError?.message === "string" &&
-      moderationEventsError.message.includes("does not exist"));
-
-  if (!moderationEventsError && moderationEvents) {
-    const isRecentWeek = (value: string | null | undefined) => {
-      if (!value) return false;
-      const ts = new Date(value);
-      return !Number.isNaN(ts.getTime()) && ts >= sevenDaysAgo;
-    };
-
-    const isRecentDay = (value: string | null | undefined) => {
-      if (!value) return false;
-      const ts = new Date(value);
-      return !Number.isNaN(ts.getTime()) && ts >= oneDayAgo;
-    };
-
-    const pendingFlags = moderationEvents.filter(
-      (event) =>
-        event.source === "flag" && (event.status || "pending") === "pending",
-    ).length;
-
-    const pendingReports = moderationEvents.filter(
-      (event) =>
-        event.source === "report" &&
-        matchesReportStatusFilter(event.status, "pending"),
-    ).length;
-
-    const resolvedFlags = moderationEvents.filter(
-      (event) =>
-        event.source === "flag" &&
-        ["blocked", "confirmed", "dismissed"].includes(event.status || ""),
-    ).length;
-
-    const resolvedReports = moderationEvents.filter(
-      (event) =>
-        event.source === "report" &&
-        (matchesReportStatusFilter(event.status, "resolved") ||
-          matchesReportStatusFilter(event.status, "dismissed")),
-    ).length;
-
-    const blockedFlags = moderationEvents.filter(
-      (event) => event.source === "flag" && event.status === "blocked",
-    ).length;
-
-    const criticalFlags = moderationEvents.filter(
-      (event) =>
-        event.source === "flag" &&
-        typeof event.confidence_score === "number" &&
-        event.confidence_score >= 0.8,
-    ).length;
-
-    const criticalReports = moderationEvents.filter(
-      (event) =>
-        event.source === "report" &&
-        ["high", "critical"].includes((event.priority || "").toLowerCase()),
-    ).length;
-
-    const recentFlags = moderationEvents.filter(
-      (event) => event.source === "flag" && isRecentWeek(event.created_at),
-    ).length;
-
-    const recentReports = moderationEvents.filter(
-      (event) => event.source === "report" && isRecentWeek(event.created_at),
-    ).length;
-
-    const aiApprovedReports = moderationEvents.filter(
-      (event) =>
-        event.source === "report" &&
-        typeof event.resolution_notes === "string" &&
-        event.resolution_notes
-          .toLowerCase()
-          .includes("approved ai recommendation"),
-    ).length;
-
-    const aiFlagsTotal = moderationEvents.filter(
-      (event) => event.source === "flag" && event.flag_source === "ai",
-    ).length;
-
-    const aiReportsTotal = moderationEvents.filter(
-      (event) => event.source === "report" && event.ai_metadata !== null,
-    ).length;
-
-    const aiFlagsLast24h = moderationEvents.filter(
-      (event) =>
-        event.source === "flag" &&
-        event.flag_source === "ai" &&
-        isRecentDay(event.created_at),
-    ).length;
-
-    const aiReportsLast24h = moderationEvents.filter(
-      (event) =>
-        event.source === "report" &&
-        event.ai_metadata !== null &&
-        isRecentDay(event.updated_at),
-    ).length;
-
-    const latestAiFlag = moderationEvents
-      .filter((event) => event.source === "flag" && event.flag_source === "ai")
-      .map((event) => event.created_at)
-      .filter((value): value is string => Boolean(value))
-      .map((value) => new Date(value))
-      .filter((value) => !Number.isNaN(value.getTime()))
-      .sort((a, b) => b.getTime() - a.getTime())[0];
-
-    const latestAiReport = moderationEvents
-      .filter(
-        (event) => event.source === "report" && event.ai_metadata !== null,
-      )
-      .map((event) => event.updated_at)
-      .filter((value): value is string => Boolean(value))
-      .map((value) => new Date(value))
-      .filter((value) => !Number.isNaN(value.getTime()))
-      .sort((a, b) => b.getTime() - a.getTime())[0];
-
-    const latestCandidates = [latestAiFlag, latestAiReport].filter(
-      (value): value is Date => Boolean(value),
+    const missingViewError = isMissingModerationStatisticsView(
+      moderationEventsError,
     );
+
+    if (
+      hasStatisticsResult(viewResult, "completeRows") &&
+      Array.isArray(moderationEvents)
+    ) {
+      return summarizeModerationEvents(
+        moderationEvents,
+        sevenDaysAgo,
+        oneDayAgo,
+      );
+    }
+
+    if (!missingViewError) {
+      return statisticsReadFailure("moderation", moderationEventsError);
+    }
+
+    const legacyResults = await Promise.all([
+      supabase
+        .from("content_flags")
+        .select("*", { count: "exact", head: true }),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true }),
+      supabase.from("content_flags").select("status", { count: "exact" }),
+      supabase.from("content_reports").select("status", { count: "exact" }),
+      supabase
+        .from("content_flags")
+        .select("*", { count: "exact", head: true })
+        .gte("confidence_score", 0.8),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true })
+        .in("priority", ["high", "critical"]),
+      supabase
+        .from("content_flags")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", sevenDaysAgo.toISOString()),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", sevenDaysAgo.toISOString()),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true })
+        .ilike("resolution_notes", "%Approved AI recommendation%"),
+      supabase
+        .from("content_flags")
+        .select("*", { count: "exact", head: true })
+        .eq("flag_source", "ai")
+        .gte("created_at", oneDayAgo.toISOString()),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true })
+        .not("ai_metadata", "is", null)
+        .gte("updated_at", oneDayAgo.toISOString()),
+      supabase
+        .from("content_flags")
+        .select("*", { count: "exact", head: true })
+        .eq("flag_source", "ai"),
+      supabase
+        .from("content_reports")
+        .select("*", { count: "exact", head: true })
+        .not("ai_metadata", "is", null),
+      supabase
+        .from("content_flags")
+        .select("created_at")
+        .eq("flag_source", "ai")
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("content_reports")
+        .select("updated_at")
+        .not("ai_metadata", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(1),
+    ]);
+    const failedResult = legacyResults.find(
+      (result, index) =>
+        !hasStatisticsResult(
+          result,
+          [2, 3].includes(index)
+            ? "completeRows"
+            : [13, 14].includes(index)
+              ? "rows"
+              : "count",
+        ),
+    );
+    if (failedResult) {
+      return statisticsReadFailure("moderation", failedResult.error);
+    }
+    const [
+      { count: totalFlagged },
+      { count: totalReportsCount },
+      { data: flagStatuses },
+      { data: reportStatuses },
+      { count: criticalFlagsCount },
+      { count: criticalReportsCount },
+      { count: recentFlagsCount },
+      { count: recentReportsCount },
+      { count: aiApprovedReportsCount },
+      { count: aiFlagsLast24hCount },
+      { count: aiReportsLast24hCount },
+      { count: aiFlagsTotalCount },
+      { count: aiReportsTotalCount },
+      { data: latestAiFlagRows },
+      { data: latestAiReportRows },
+    ] = legacyResults;
+
+    const flagStatusCounts = {
+      pending: 0,
+      blocked: 0,
+      confirmed: 0,
+      dismissed: 0,
+    };
+
+    for (const flag of flagStatuses || []) {
+      const key = (flag.status || "pending") as keyof typeof flagStatusCounts;
+      if (key in flagStatusCounts) {
+        flagStatusCounts[key] += 1;
+      }
+    }
+
+    const pendingReportsCount = (reportStatuses || []).filter((report) =>
+      matchesReportStatusFilter(report.status, "pending"),
+    ).length;
+
+    const resolvedReportsCount = (reportStatuses || []).filter(
+      (report) =>
+        matchesReportStatusFilter(report.status, "resolved") ||
+        matchesReportStatusFilter(report.status, "dismissed"),
+    ).length;
+
+    const resolvedFlagsCount =
+      flagStatusCounts.confirmed +
+      flagStatusCounts.blocked +
+      flagStatusCounts.dismissed;
+
+    const latestCandidates = [
+      latestAiFlagRows?.[0]?.created_at,
+      latestAiReportRows?.[0]?.updated_at,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => new Date(value))
+      .filter((value) => !Number.isNaN(value.getTime()));
 
     const lastAutomationAt = latestCandidates.length
       ? latestCandidates
@@ -431,176 +469,37 @@ export async function getModerationStats() {
           .toISOString()
       : null;
 
+    // Combine stats from both tables
+    const totalPending = flagStatusCounts.pending + pendingReportsCount;
+    const totalCritical =
+      (criticalFlagsCount || 0) + (criticalReportsCount || 0);
+    const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
+    const totalResolved = resolvedFlagsCount + resolvedReportsCount;
+    const automationLast24h =
+      (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
+    const automationTotal =
+      (aiFlagsTotalCount || 0) + (aiReportsTotalCount || 0);
+
     return {
       data: {
-        total: moderationEvents.length,
-        pending: pendingFlags + pendingReports,
-        pendingFlags,
-        pendingReports,
-        resolved: resolvedFlags + resolvedReports,
-        aiApproved: aiApprovedReports,
-        automationLast24h: aiFlagsLast24h + aiReportsLast24h,
-        automationTotal: aiFlagsTotal + aiReportsTotal,
+        total: (totalFlagged || 0) + (totalReportsCount || 0),
+        pending: totalPending,
+        pendingFlags: flagStatusCounts.pending,
+        pendingReports: pendingReportsCount,
+        resolved: totalResolved,
+        aiApproved: aiApprovedReportsCount || 0,
+        automationLast24h,
+        automationTotal,
         lastAutomationAt,
-        blocked: blockedFlags,
-        critical: criticalFlags + criticalReports,
-        recentWeek: recentFlags + recentReports,
+        blocked: flagStatusCounts.blocked,
+        critical: totalCritical,
+        recentWeek: totalRecent,
         monthlyActivity: 0,
       },
     };
+  } catch (error) {
+    return statisticsReadFailure("moderation", error);
   }
-
-  if (moderationEventsError && !missingViewError) {
-    safeConsole.warn(
-      "Falling back to legacy moderation stats queries due to view error:",
-      moderationEventsError,
-    );
-  }
-
-  const [
-    { count: totalFlagged },
-    { count: totalReportsCount },
-    { data: flagStatuses },
-    { data: reportStatuses },
-    { count: criticalFlagsCount },
-    { count: criticalReportsCount },
-    { count: recentFlagsCount },
-    { count: recentReportsCount },
-    { count: aiApprovedReportsCount },
-    { count: aiFlagsLast24hCount },
-    { count: aiReportsLast24hCount },
-    { count: aiFlagsTotalCount },
-    { count: aiReportsTotalCount },
-    { data: latestAiFlagRows },
-    { data: latestAiReportRows },
-  ] = await Promise.all([
-    supabase.from("content_flags").select("*", { count: "exact", head: true }),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true }),
-    supabase.from("content_flags").select("status"),
-    supabase.from("content_reports").select("status"),
-    supabase
-      .from("content_flags")
-      .select("*", { count: "exact", head: true })
-      .gte("confidence_score", 0.8),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true })
-      .in("priority", ["high", "critical"]),
-    supabase
-      .from("content_flags")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo.toISOString()),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgo.toISOString()),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true })
-      .ilike("resolution_notes", "%Approved AI recommendation%"),
-    supabase
-      .from("content_flags")
-      .select("*", { count: "exact", head: true })
-      .eq("flag_source", "ai")
-      .gte("created_at", oneDayAgo.toISOString()),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true })
-      .not("ai_metadata", "is", null)
-      .gte("updated_at", oneDayAgo.toISOString()),
-    supabase
-      .from("content_flags")
-      .select("*", { count: "exact", head: true })
-      .eq("flag_source", "ai"),
-    supabase
-      .from("content_reports")
-      .select("*", { count: "exact", head: true })
-      .not("ai_metadata", "is", null),
-    supabase
-      .from("content_flags")
-      .select("created_at")
-      .eq("flag_source", "ai")
-      .order("created_at", { ascending: false })
-      .limit(1),
-    supabase
-      .from("content_reports")
-      .select("updated_at")
-      .not("ai_metadata", "is", null)
-      .order("updated_at", { ascending: false })
-      .limit(1),
-  ]);
-
-  const flagStatusCounts = {
-    pending: 0,
-    blocked: 0,
-    confirmed: 0,
-    dismissed: 0,
-  };
-
-  for (const flag of flagStatuses || []) {
-    const key = (flag.status || "pending") as keyof typeof flagStatusCounts;
-    if (key in flagStatusCounts) {
-      flagStatusCounts[key] += 1;
-    }
-  }
-
-  const pendingReportsCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, "pending"),
-  ).length;
-
-  const resolvedReportsCount = (reportStatuses || []).filter(
-    (report) =>
-      matchesReportStatusFilter(report.status, "resolved") ||
-      matchesReportStatusFilter(report.status, "dismissed"),
-  ).length;
-
-  const resolvedFlagsCount =
-    flagStatusCounts.confirmed +
-    flagStatusCounts.blocked +
-    flagStatusCounts.dismissed;
-
-  const latestCandidates = [
-    latestAiFlagRows?.[0]?.created_at,
-    latestAiReportRows?.[0]?.updated_at,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .map((value) => new Date(value))
-    .filter((value) => !Number.isNaN(value.getTime()));
-
-  const lastAutomationAt = latestCandidates.length
-    ? latestCandidates
-        .sort((a, b) => b.getTime() - a.getTime())[0]
-        .toISOString()
-    : null;
-
-  // Combine stats from both tables
-  const totalPending = flagStatusCounts.pending + pendingReportsCount;
-  const totalCritical = (criticalFlagsCount || 0) + (criticalReportsCount || 0);
-  const totalRecent = (recentFlagsCount || 0) + (recentReportsCount || 0);
-  const totalResolved = resolvedFlagsCount + resolvedReportsCount;
-  const automationLast24h =
-    (aiFlagsLast24hCount || 0) + (aiReportsLast24hCount || 0);
-  const automationTotal = (aiFlagsTotalCount || 0) + (aiReportsTotalCount || 0);
-
-  return {
-    data: {
-      total: (totalFlagged || 0) + (totalReportsCount || 0),
-      pending: totalPending,
-      pendingFlags: flagStatusCounts.pending,
-      pendingReports: pendingReportsCount,
-      resolved: totalResolved,
-      aiApproved: aiApprovedReportsCount || 0,
-      automationLast24h,
-      automationTotal,
-      lastAutomationAt,
-      blocked: flagStatusCounts.blocked,
-      critical: totalCritical,
-      recentWeek: totalRecent,
-      monthlyActivity: 0,
-    },
-  };
 }
 
 /**

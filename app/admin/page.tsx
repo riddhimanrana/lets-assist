@@ -15,6 +15,8 @@ import { AdminLoadError, AdminPage } from "./components/AdminPage";
 import { OverviewTab } from "./components/OverviewTab";
 import { ProjectScheduleHealth } from "./components/ProjectScheduleHealth";
 import { getProjectScheduleHealth } from "./server/project-schedule-health";
+import { getLandingDemoModeForAdmin } from "./server/landing-demo-mode";
+import { LandingDemoControl } from "./components/LandingDemoControl";
 
 export const metadata = {
   title: "Admin overview",
@@ -40,6 +42,7 @@ export default async function AdminOverviewPage() {
     reportsStats,
     underReviewReports,
     scheduleHealth,
+    landingDemoMode,
   ] = await Promise.all([
     getAllFeedback(),
     getTrustedMemberApplications(),
@@ -49,6 +52,7 @@ export default async function AdminOverviewPage() {
     getContentReportsStats(),
     getContentReports("under_review"),
     getProjectScheduleHealth(),
+    getLandingDemoModeForAdmin(),
   ]);
 
   const stats = moderationStats.data;
@@ -73,6 +77,7 @@ export default async function AdminOverviewPage() {
     return (
       <AdminPage>
         <PageHeader title="Admin overview" />
+        <LandingDemoControl enabled={landingDemoMode.enabled} />
         <ProjectScheduleHealth result={scheduleHealth} />
         <AdminLoadError title="Error loading admin data" message={firstError} />
       </AdminPage>
@@ -98,13 +103,16 @@ export default async function AdminOverviewPage() {
 
   return (
     <>
+      <div className="mx-auto w-full max-w-screen-2xl px-4 pt-8 sm:px-6">
+        <LandingDemoControl enabled={landingDemoMode.enabled} />
+      </div>
       <OverviewTab
         stats={overviewStats}
         flaggedContent={flaggedContentData}
         reportPreview={reportPreview}
         reportsStats={aggregateReportStats}
       />
-      <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6">
+      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-8 sm:px-6">
         <ProjectScheduleHealth result={scheduleHealth} />
       </div>
     </>

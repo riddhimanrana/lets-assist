@@ -74,14 +74,15 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 ## Alerts, empty states, notices
 
 - Inline notices use `Alert` with `info`, `success`, `warning`, or `destructive`. They are flat tints.
-- Empty states use `components/ui/empty.tsx`: an icon, a title, one line, and at most one action.
+- Empty states use `components/ui/empty.tsx`: an icon, a title, one line, and one action by default.
+- The organization directory may offer both Join with code and an eligible Create organization action, matching the separate existing workflows. Keep creation eligibility unchanged and only one filled primary on the page.
 - Loading uses `Skeleton` in the shape of the content. No page-level entrance animations.
 
 ## Page layout
 
 - Every page starts with `PageHeader` from `components/layout/PageHeader.tsx`: optional breadcrumb, title, one-line description, and right-aligned actions with one primary.
 - A block inside a page or tab starts with `SectionHeader`.
-- Containers: `max-w-6xl` for lists and profiles, `max-w-4xl` for forms, `max-w-3xl` for account settings. Horizontal padding is `px-4 sm:px-6` everywhere.
+- Containers: `max-w-screen-2xl` for public discovery, the organization directory, generic organization workspaces and admin overviews; `max-w-6xl` for other lists and profiles; `max-w-4xl` for forms; `max-w-3xl` for account settings. Keep prose at a readable measure inside wider workspaces. Compact plugin workspaces keep their own reviewed width. Horizontal padding is `px-4 sm:px-6` everywhere.
 - Settings areas use a left section nav on desktop and a drawer or select on phones.
 - Type scale: page title `text-2xl font-semibold`, section title `text-lg font-semibold`, card title via `CardTitle`, meta `text-sm text-muted-foreground`. No `text-[10px]`, no `font-black`, no uppercase tracked labels.
 

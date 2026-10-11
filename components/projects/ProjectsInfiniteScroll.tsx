@@ -41,8 +41,17 @@ import {
 import { ProjectFeedFilters } from "./project-feed/ProjectFeedFilters";
 import { filterAndSortProjects } from "./project-feed/project-feed-filtering";
 import type { ProjectFeedView, ProjectWithSignups } from "./project-feed/types";
+import { ProjectFeedEmpty } from "@/components/home/ProjectFeedEmpty";
 
-export const ProjectsInfiniteScroll: React.FC = () => {
+class ProjectFeedHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Failed to load projects (${status})`);
+  }
+}
+
+export const ProjectsInfiniteScroll: React.FC<{ demoEnabled?: boolean }> = ({
+  demoEnabled = false,
+}) => {
   const limit = 20;
   const [searchTerm, setSearchTerm] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>(
@@ -66,6 +75,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const latestRequestIdRef = useRef(0);
   const activeRequestAbortRef = useRef<AbortController | null>(null);
   const pageTeardownRef = useRef(false);
@@ -101,6 +111,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
       setIsValidating(true);
       setError(null);
+      setErrorStatus(null);
 
       const params = new URLSearchParams({
         limit: String(limit),
@@ -124,7 +135,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load projects (${response.status})`);
+          throw new ProjectFeedHttpError(response.status);
         }
 
         const nextProjects = (await response.json()) as ProjectWithSignups[];
@@ -152,6 +163,9 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         }
 
         safeConsole.error("Error loading project feed:", fetchError);
+        setErrorStatus(
+          fetchError instanceof ProjectFeedHttpError ? fetchError.status : null,
+        );
         setError(
           fetchError instanceof Error
             ? fetchError.message
@@ -289,6 +303,18 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }
 
   if (error && !isLoading && allProjects.length === 0) {
+    if (demoEnabled) {
+      return (
+        <ProjectFeedEmpty
+          state={
+            errorStatus === 401 || errorStatus === 403 ? "restricted" : "error"
+          }
+          onRetry={() => {
+            void fetchProjectsPage(0, "replace");
+          }}
+        />
+      );
+    }
     return (
       <Empty className="border">
         <EmptyHeader>
@@ -330,40 +356,47 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           clearAllFilters={clearAllFilters}
         />
 
-        <Empty className="border" data-tour-id="home-project-list">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <EmptyStateIcon
-                icon={activeFilterCount > 0 ? SearchIcon : CalendarDaysIcon}
-              />
-            </EmptyMedia>
-            <EmptyTitle>No projects found</EmptyTitle>
-            <EmptyDescription>
-              {activeFilterCount > 0
-                ? "Try changing or clearing your filters."
-                : "No projects are available yet."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            {activeFilterCount > 0 ? (
-              <Button onClick={clearAllFilters}>Clear all filters</Button>
-            ) : (
-              <Link
-                href="/projects/create"
-                className={buttonVariants()}
-                {...createIcon.triggerProps}
-              >
-                <PlusIcon
-                  ref={createIcon.ref}
-                  size={16}
-                  data-icon="inline-start"
-                  aria-hidden="true"
+        {demoEnabled ? (
+          <ProjectFeedEmpty
+            state={activeFilterCount > 0 ? "filtered" : "empty"}
+            onClear={clearAllFilters}
+          />
+        ) : (
+          <Empty className="border" data-tour-id="home-project-list">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <EmptyStateIcon
+                  icon={activeFilterCount > 0 ? SearchIcon : CalendarDaysIcon}
                 />
-                Create a project
-              </Link>
-            )}
-          </EmptyContent>
-        </Empty>
+              </EmptyMedia>
+              <EmptyTitle>No projects found</EmptyTitle>
+              <EmptyDescription>
+                {activeFilterCount > 0
+                  ? "Try changing or clearing your filters."
+                  : "No projects are available yet."}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              {activeFilterCount > 0 ? (
+                <Button onClick={clearAllFilters}>Clear all filters</Button>
+              ) : (
+                <Link
+                  href="/projects/create"
+                  className={buttonVariants()}
+                  {...createIcon.triggerProps}
+                >
+                  <PlusIcon
+                    ref={createIcon.ref}
+                    size={16}
+                    data-icon="inline-start"
+                    aria-hidden="true"
+                  />
+                  Create a project
+                </Link>
+              )}
+            </EmptyContent>
+          </Empty>
+        )}
       </>
     );
   }

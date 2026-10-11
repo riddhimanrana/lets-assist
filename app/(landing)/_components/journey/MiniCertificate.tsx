@@ -22,7 +22,7 @@ export function MiniCertificate({
   const isAnimating = shouldAnimate;
   return (
     <motion.div
-      initial={{ y: 20, opacity: 0 }}
+      initial={false}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
       className="p-4"
@@ -31,14 +31,14 @@ export function MiniCertificate({
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div
-            initial={{ scale: 0 }}
+            initial={false}
             animate={{ scale: 1 }}
             transition={{ type: "spring", duration: 0.6, delay: 0.2 }}
           >
             <Award className="h-10 w-10 text-primary" />
           </motion.div>
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
+            initial={false}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", duration: 0.6, delay: 0.3 }}
           >
@@ -51,7 +51,7 @@ export function MiniCertificate({
 
         {/* Content */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
           className="space-y-3"

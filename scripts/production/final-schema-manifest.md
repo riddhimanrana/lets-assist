@@ -264,3 +264,18 @@ the existing catalog APIs. Replay the final combined candidate, review its
 account-deletion and other security boundaries, then capture and approve its own
 exact catalog before Development cutover. Existing historical acceptance branches
 and migration approvals remain unchanged.
+
+Release 723 was captured from a clean owned local replay after 12,946 passing
+pgTAP assertions across 499 files, including the 37 landing-mode assertions.
+The authoritative seven local fixture functions were removed only inside the
+rolled-back capture transaction. Compared with the preceding 721 inventory
+used by catalog 722, exactly five objects are added and no fingerprints change
+or disappear: two private landing-mode tables, their identity sequence, and
+two service-only public RPCs. Migration `20261011100000` explains every addition.
+The project-status cron, provider Auth/Storage fences, signed publication checks,
+and paused speech/debate catalog wrappers remain required. Seventeen deliberate
+permission, RLS, function, trigger and cron drifts fail the live catalog check,
+with each mutation rolled back. Both ordinary and enabled display states pass.
+The owned stack and temporary directory were removed after verification.
+Hosted Development
+comparison and acceptance remain separate gates before promotion.

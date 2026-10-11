@@ -58,7 +58,7 @@ export default async function Home({ searchParams }: HomePageProps) {
   }
   const authMetadata = user.user_metadata as
     Record<string, unknown> | null | undefined;
-  const userName =
+  const displayName =
     profileData?.full_name ||
     (typeof authMetadata?.full_name === "string"
       ? authMetadata.full_name
@@ -66,9 +66,9 @@ export default async function Home({ searchParams }: HomePageProps) {
     (typeof authMetadata?.name === "string" ? authMetadata.name : null) ||
     (typeof authMetadata?.display_name === "string"
       ? authMetadata.display_name
-      : null) ||
-    user.email?.split("@")[0] ||
-    "Let's Assist user";
+      : null);
+  const userName =
+    displayName || user.email?.split("@")[0] || "Let's Assist user";
 
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();

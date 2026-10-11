@@ -38,6 +38,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Development maintenance cutover](development/development-cutover.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Design system](development/design-system.md)
+- [Home demo preview](development/home-demo.md)
 - [Plugin quickstart](development/plugin-quickstart.md)
 - [Plugin install and entitlement guide](development/plugin-install-guide.md)
 - [Signed plugin release integration](development/plugin-release-integration.md)

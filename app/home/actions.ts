@@ -113,7 +113,9 @@ export async function getActiveProjects(
 
     if (error || !rows) {
       safeConsole.error("Error fetching project discovery read model:", error);
-      return [];
+      throw new Error(
+        "Projects are temporarily unavailable. Please try again.",
+      );
     }
 
     const projectIds = rows.map((project) => project.id);
@@ -185,7 +187,7 @@ export async function getActiveProjects(
 
   if (error || !projects) {
     safeConsole.error("Error fetching projects:", error);
-    return [];
+    throw new Error("Projects are temporarily unavailable. Please try again.");
   }
 
   // Short-circuit: Skip query if no projects to avoid empty in() filter

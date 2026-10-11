@@ -117,8 +117,9 @@ describe("compact organization navigation on phones", () => {
     for (const coreTab of ["overview", "members", "projects", "reports"]) {
       expect(navigationSource).not.toContain(`value="${coreTab}"`);
     }
-    // The organization workspace uses the segmented switch, not line tabs.
-    expect(navigationSource).not.toContain('variant="line"');
+    // Entity sections use page-level line tabs; the phone switcher shares
+    // their destination list and active parent semantics.
+    expect(navigationSource).toContain('variant="line"');
   });
 
   test("retires the competing mobile overflow strip", () => {

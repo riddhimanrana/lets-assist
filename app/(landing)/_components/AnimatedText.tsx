@@ -68,14 +68,19 @@ export function AnimatedText({
     return () => observer.disconnect();
   }, [mode, once]);
 
+  // A span takes no aria-label, so the string is real text for assistive
+  // technology and every animated fragment below is hidden from it. The
+  // surrounding heading or paragraph keeps its role and reads the text once.
+  const readableText = <span className="sr-only">{text}</span>;
+
   if (mode === "words") {
     return (
       <span
         ref={rootRef}
-        aria-label={text}
         data-visible={isVisible}
         className={cn("la-text-reveal inline-block", className)}
       >
+        {readableText}
         {words.map((word, index) => (
           <span
             key={`${word}-${index}`}
@@ -108,10 +113,10 @@ export function AnimatedText({
   return (
     <span
       ref={rootRef}
-      aria-label={text}
       data-visible={isVisible}
       className={cn("la-text-reveal block", className)}
     >
+      {readableText}
       {words.map((word, wordIndex) => (
         <span key={`${word}-${wordIndex}`} aria-hidden>
           {/* Words stay atomic so lines never break mid-word on small screens. */}

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { BadgeCheck } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import type { Organization } from "@/types";
+import { MemberRoleBadge } from "./[id]/MemberRoleBadge";
 
 type OrganizationCardOrg = Omit<
   Organization,
@@ -61,16 +62,9 @@ export function memberCountLabel(memberCount: number | null): string {
   return `${memberCount.toLocaleString()} member${memberCount !== 1 ? "s" : ""}`;
 }
 
+/** The directory's role badge. One presentation, owned by `MemberRoleBadge`. */
 export function OrganizationRoleBadge({ role }: { role: OrganizationRole }) {
-  return (
-    <Badge
-      variant={
-        role === "admin" ? "default" : role === "staff" ? "info" : "outline"
-      }
-    >
-      {role.charAt(0).toUpperCase() + role.slice(1)}
-    </Badge>
-  );
+  return <MemberRoleBadge role={role} />;
 }
 
 export default function OrganizationCard({
@@ -122,10 +116,16 @@ export default function OrganizationCard({
               {org.description}
             </p>
           ) : null}
-          <p className="text-muted-foreground mt-auto text-sm">
-            {typeLabel ? `${typeLabel} · ` : ""}
-            {memberCountLabel(memberCount)}
-          </p>
+          <div className="mt-auto flex flex-wrap items-center gap-2">
+            {typeLabel ? <Badge variant="secondary">{typeLabel}</Badge> : null}
+            {memberCount === null ? (
+              <Badge variant="neutral">{memberCountLabel(memberCount)}</Badge>
+            ) : (
+              <span className="text-muted-foreground text-sm">
+                {memberCountLabel(memberCount)}
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
     </Link>

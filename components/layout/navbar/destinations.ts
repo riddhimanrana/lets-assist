@@ -21,15 +21,18 @@ export const featureLinks = [
   },
 ] as const;
 
+// Both discovery links open a feed of upcoming projects: `/home` for members,
+// `/projects` for visitors. For members `/projects` is their own list, so it
+// keeps the "My projects" label.
 export const memberLinks = [
-  ["Home", "/home"],
+  ["Upcoming projects", "/home"],
   ["Volunteer dashboard", "/dashboard"],
   ["My projects", "/projects"],
   ["Organizations", "/organization"],
 ] as const satisfies readonly NavDestination[];
 
 export const publicLinks = [
-  ["Volunteering near me", "/projects"],
+  ["Upcoming projects", "/projects"],
   ["Connected organizations", "/organization"],
   ["FAQ", "/faq"],
 ] as const satisfies readonly NavDestination[];

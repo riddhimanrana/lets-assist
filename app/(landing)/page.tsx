@@ -15,6 +15,9 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 import { Hero } from "./_components/Hero";
+import { HomeDemoExperience } from "@/components/home/HomeDemoExperience";
+import { HomeGreeting } from "@/components/home/HomeGreeting";
+import { readPublicLandingDemoMode } from "@/lib/home/landing-demo-mode";
 import { LandingLazySections } from "./LandingLazySections";
 import SmoothScroll from "./_components/SmoothScroll";
 
@@ -129,10 +132,29 @@ export default async function HomePage(props: {
     );
   }
 
+  const { enabled: demoEnabled } = await readPublicLandingDemoMode();
+
   return (
     <main className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
       <SmoothScroll />
       <Hero />
+      {demoEnabled === true && (
+        <div
+          data-nosnippet
+          className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-8 sm:px-6"
+        >
+          <p className="text-lg font-semibold">
+            <HomeGreeting
+              name={
+                typeof user?.user_metadata?.full_name === "string"
+                  ? user.user_metadata.full_name
+                  : null
+              }
+            />
+          </p>
+          <HomeDemoExperience showGreeting={false} />
+        </div>
+      )}
       <LandingLazySections />
     </main>
   );

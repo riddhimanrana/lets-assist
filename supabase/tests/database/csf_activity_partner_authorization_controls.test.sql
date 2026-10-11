@@ -236,6 +236,9 @@ DECLARE
   v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '15 seconds';
 BEGIN
   LOOP
+    -- Activity rows are cached within this transaction. Poll the queued
+    -- backend's current state rather than reusing its pre-lock snapshot.
+    PERFORM pg_catalog.pg_stat_clear_snapshot();
     SELECT EXISTS (
       SELECT 1
       FROM pg_catalog.pg_stat_activity AS activity
@@ -384,6 +387,9 @@ BEGIN;
 SELECT pg_catalog.pg_advisory_xact_lock(
   plugin_data.csf_staff_access_lock_key('fa100000-0000-4000-8000-000000000001')
 );
+-- Exercise polling after the activity snapshot was already cached while the
+-- queued backend was idle. The helper must observe its later lock wait.
+DO $$ BEGIN PERFORM 1 FROM pg_catalog.pg_stat_activity; END $$;
 SELECT extensions.dblink_send_query(
   'activity_retry_after_benign_edit',
   $query$

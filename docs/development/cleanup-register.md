@@ -1,5 +1,56 @@
 # Repository cleanup register
 
+P2 TEST-MOCK-DISCOVERY-20261011, corrected: PR 869 exposed three inherited
+fixtures that registered global module mocks outside discoverable test files.
+Each scenario now runs its discoverable Bun test in a separate child process;
+the test registers the mocks explicitly before invoking its fixture. Fixture
+helpers only export stand-ins and assertions. The discovery guard and all
+existing lifecycle, authorization, retry and cleanup assertions remain intact.
+The focused scenarios and unchanged harness contract must pass before integration.
+
+## Public landing demo switch — prepared locally
+
+The owner corrected the demo scope to the public landing page for everyone.
+The admin overview now has a global switch; the session-only home experiment
+was preserved outside source and replaced before integration. The private singleton and service-only RPCs start off, record the changing
+admin in append-only on/off events, and reject stale saves. Opus review found
+and prompted repairs to the signed-in landing link, per-visitor database load,
+last-writer-only audit, and switch naming. The public display read now uses a
+backend-bound 30-second cache expired immediately on a successful save. The server checks the current super-admin role and enrolled MFA.
+Unavailable mode reads show real landing content and a disabled admin control.
+Home dashboards no longer use the demo environment flag. Every fictional
+counter and project retains its sample label and no-signup preview.
+
+Actual Claude responses used `claude-opus-5-5` for the control implementation
+and independent review. The mode/control/page/admin-boundary checks pass 27 tests in five isolated
+Bun files; the proxy suite passes 13 and sample component/data checks pass 30,
+for 70 distinct focused tests in eight files. TypeScript and affected ESLint
+pass. The 37 landing-mode pgTAP assertions pass on the owned 723-migration
+replay. One existing activity-lock observation failed in the first complete
+12,946-assertion run and passed in isolation. Its polling helper now clears the
+transaction's activity snapshot; the regression deliberately warms that cache
+before queuing the mutation, retaining the exact lock proof and timeout.
+The final reset and full rerun pass all 12,946 assertions in 499 files.
+Catalog 723 adds exactly five objects, with no changes or removals among the
+1,434 preceding fingerprints; all 74 catalog/controller unit checks and current
+pin checks pass. Live catalog checks reject 17 deliberate permission, RLS,
+function, trigger and cron drifts; valid off/on display states remain accepted.
+Every drift and fixture teardown rolled back, and the exact 723-version ledger
+matches source. The owned stack, volume, network and directory were removed;
+unrelated containers and Docker settings remain unchanged. Interrupted or previously committed fixture runs are not used
+as clean proof.
+The historical 722 catalog is unchanged; expectations come only from the
+owned replay, never Production.
+
+A read-only Production ledger check found 687 migrations, head
+`20260929051500`. The owner now authorizes Development integration and its
+preview, with Production reserved for later approval. The combined candidate
+still needs the documented schema cutover, recovery evidence,
+hosted acceptance, and full CI before it can release. No Production migration, demo activation, main merge, Production alias
+promotion or branch deletion happened in this step. Development integration
+and its hosted checks follow the required pull-request gate. Native Chrome still acknowledges navigation while staying on New
+Tab; no current visual or mobile acceptance is claimed.
+
 P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
 
 P2, certificate rendering: the integrated attendance browser test found that the certificate project link called a client-exported styling function from a server component. It now imports the server-safe styling module. The regression simulates the forbidden client call and passes. The fresh isolated attendance journey also passes certificate access, account linking and corrected-hour readback. The correction is part of PR 867.
@@ -2771,6 +2822,27 @@ finding detail as evidence only and are explicitly superseded as status
 sources.
 
 ## Repository-owned P0–P2
+
+### Landing first render, October 10, 2026
+
+`LANDING-FIRST-RENDER-20261010`, P2, fixed locally on `codex/landing-first-render-recovery-20261010`; not integrated or deployed. At `development` commit `00960d6a` every section below the landing hero loads client-only with an empty fallback. The comparison and journey components also begin with hidden motion styles, which would conceal their content if rendered on the server. The candidate server-renders those two code-split sections with visible first panels. `OrgToolingIntro` renders the organization heading, features and links around the client-only mock and a compact fallback. Timed demo sequences and the other four lazy sections retain their current behavior. This is a fresh port against `00960d6a`; the recovered patch used a missing snapshot base, so its evidence is historical and does not establish this candidate's behavior.
+
+Local proof for commit `a08bae12` only: the three rendered-markup regressions fail on unchanged development, then pass on this candidate. `bun test "app/(landing)" components/layout` passes 25 tests; typecheck, full zero-warning lint, changed-file formatting and strict private gitlink validation pass. `LANDING_TEST_BASE_URL=<running public app> bunx playwright test --config playwright.landing.config.ts` passes six cases at 390px and 1440px: JavaScript disabled, scripts blocked before hydration, and hydrated keyboard use of the journey certificate preview, comparison table expansion and organization Reports navigation. Eight captures per tree cover those widths without JavaScript, before hydration, and hydrated light/dark. The sections are absent in the baseline's first response and visible in the candidate. All captures show no document overflow or page errors. Hydrated reduced-motion captures retain the baseline's one hero hydration warning; this patch does not fix that warning. A normal-motion smoke check at both widths observes the journey advance from Browse feed to QR check-in/out after 7.1 seconds, with no page errors, document overflow or hydration warning. All browser evidence above predates the user's instruction to use their Chrome extension for further visual QA; later native Chrome access is documented separately below.
+
+`LANDING-PUBLIC-A11Y-20261010`, P2, partially verified locally on `codex/landing-first-render-recovery-20261010`, based on `00960d6a` with the earlier `a08bae12` first-render recovery preserved. This is a local candidate, with no push, PR, merge, deployment or branch deletion.
+
+| Evidence                            | Verified result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Remaining boundary                                                                                                                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused landing/layout regressions  | 58 pass, zero fail. Eight added journey-preview cases fail on the saved before source and pass after fixing hidden initial content and idle success semantics. The hero visibility regression fails with the saved earlier source on its actual opacity/blur ancestor assertion and passes after the fix.                                                                                                                                                                                                                                             | Markup/event proof does not measure pixel contrast or replace browser acceptance. The real hero module uses the repository's Bun `server-only` marker stub; product components remain real and no provider/database action runs.     |
+| Static gates                        | Full formatting, TypeScript, zero-warning ESLint/source-organization guard, exact private gitlink and diff whitespace checks pass.                                                                                                                                                                                                                                                                                                                                                                                                                    | Full build/tests and the integrated Code quality/database/browser gate are not run here.                                                                                                                                             |
+| First real Chrome pass              | Actual `claude-opus-5-5`, installed extension in Chrome Default/Riddhiman, normal motion, 1126px in both themes. Reviewed flat contrast surfaces pass; the comparison table expands from six to ten rows; all journey pills measure 32px.                                                                                                                                                                                                                                                                                                             | Gradients remain manual. Resize calls did not change measured viewport; original outer-size restoration was not verified. The owned tab closed; System theme was restored, with the stored preference changing from unset to System. |
+| Real Chrome follow-up at `be069c08` | Same actual model/profile, 740px dark, with no resize/theme changes. Hero copy, actions and both demo wrappers have opacity 1 from the first response and first capture. Keyboard testimonial scrolling reads 0, 346, 692, 346, 0, then the clamped maximum 2075 for Right/Right/Left/Home/End; the final card is fully visible. Pill and card selections match their preview immediately and remain stable beyond the three-second cycle. Closing text is exposed once, the comparison table still expands and there is no page horizontal overflow. | This is one narrower single-column viewport, not 390px or a desktop recheck of the final corrections. The tab remained hidden and reduced motion was false. No fresh axe scan or CLS benchmark. The owned tab closed.                |
+
+Source fixes remove the prohibited label from `AnimatedText` and provide one screen-reader string beside hidden decorative fragments; make testimonials a named, focusable manual rail with immediate unmodified arrow/Home/End handling and `data-lenis-prevent-horizontal`; remove the reported comparison fades and use semantic colors; provide labelled 32px journey controls with pressed state; stop cycling after user selection and replace the preview without waiting for an exit animation; keep hero link-wrapper `tabIndex` at -1 in both server and reduced-motion renders; make mounted hero content visible initially; and server-render static check-in/testimonials. The reported `.opacity-70.block.truncate` was the modern comparison address label, not an organization label. Hero wording and action routes, all eight quotes, five journey steps and project demo interactions are preserved.
+
+Historical `a08bae12` main-content axe evidence found one prohibited label, eight light/five dark contrast failures and one inaccessible scroll region. Its incomplete contrast counts and differing non-hydrated 390px capture heights remain historical evidence, not current accessibility or CLS acceptance. Current native Chrome logs contain a hydration mismatch with added `data-haptic-enabled` attributes absent from source/server HTML; the runtime origin is unverified and the trace is truncated. A read-only scan found neither exact nor camel-case haptic marker in application source, the installed package graph or compiled assets. The installed Sensurf 1.0.7 extension implements the exact setter on links/buttons and observes added nodes, but current profile metadata records it as disabled (`disable_reasons: [1]`, user action per [Chromium's enum](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/browser/disable_reason.h)). This is a source match, not attribution of the prior runtime warning. No extension or profile setting was changed and the warning was not suppressed. A source-only continuation fixes QR scanning text, email confirmation and certificate content that still depended on entrance frames, and hides the idle check-in toast from assistive technology. Actual Opus 5.5 made those three scoped source edits; the eight regressions and all 58 focused tests pass. The Mac is currently locked, so these latest changes have no new rendered inspection. Browser-dependent 390px and fresh axe checks are paused; the matching loopback axe helper is prepared but not running. The partner section and closing CTA remain client-only; the organization mock replaces a shorter fallback. Broader hierarchy, small mock text, continuous demo motion, 390px Chrome coverage, gradient contrast and the full accessibility audit stay open.
+
+Six additional cases in `tests/e2e/landing/landing-first-render.spec.ts` are written but not run; the six previously passing public browser cases belong to the earlier first-render snapshot. No isolated browser was used after the Chrome-only request. Authenticated volunteer, organizer, admin and plugin coverage remains blocked by unavailable Docker-backed fixtures and unresolved Docker app-use approval. Local public proof is not hosted Development or Production acceptance. The parent/user's main and release decision remains held. Sanitized patches, bundle, receipts and actual Chrome image exports are outside tracked source in the task's evidence package.
 
 ### Project status maintenance schedule, October 8, 2026
 
@@ -10286,3 +10358,103 @@ The same review's announcement concern is disproved by the current dispatch auth
 Production now serves accepted commit `fb326cb335e5ccd90244ba304891180d1c5bc4ca`, deployment `dpl_7apJ4wwUYWChsd31yN7M3BokJXLm`, with CSF 1.2.85 installed through the organization Update action. Migration run 36532207810 and app run 36532329191 succeeded. Full CI passed 10,792 database assertions, 144 CSF browser journeys, and 3 DV browser journeys. Hosted acceptance run 36526563004 passed on attempt 2 after an initial review-navigation timeout. All four previously enabled workers are restored; scheduled post publishing remains disabled.
 
 Chrome verified that the archived activity is absent from the staff catalog. Its retained campaign remains present. All 252 approved contact fills match independent read-only database checks, with all other contact fields and verified account connections preserved. The 18 user-verified account links are complete. Three new requests await separate ownership confirmation and remain pending. No student decisions, earned credits, or proof files were deleted to test this release.
+
+## P1: Retained signups disappear after schedule edits, October 11
+
+Finding: `PROJECT-ROSTER-REMOVED-SCHEDULE-20261011`. Authorized attendee
+reads still contain approved signups on removed days or slots, but the details
+page renders only the current schedule. Older unambiguous schedule aliases
+also fail to contribute to current slot capacity.
+
+Status: implemented and verified locally; no hosted or Production deployment.
+The read index recognizes existing aliases without rewriting saved IDs. The
+roster lists remaining authorized attendees under Previous schedule without
+assigning them to current capacity or providing a signup action. Pending and
+cancelled records retain the existing visibility and occupancy rules. Loading,
+read failure, retry and restricted states are distinct. Twenty-five focused
+regressions cover legacy and current IDs, role-based schedules, completed and
+archived projects, participant and manager policy, ambiguous repeated dates,
+previous slots, and stale attendee requests.
+
+Missing historical records are a separate unresolved finding. Production's
+guest cleanup deletes signup rows with expired unlinked profiles. The existing
+foreign-key repair does not preserve those rows. Historical deletion attribution
+and recoverability require a prior snapshot; a visibility fix does not recover
+missing data. A reviewed retention transition and forward migration, isolated
+pgTAP verification, backup availability and separate authorization for any
+Production action remain necessary. No scheduler or retention policy was changed.
+
+## P2: Project discovery failures look like an empty feed, October 11
+
+Finding: `PROJECT-FEED-FAILURE-EMPTY-20261011`. Discovery reads returned an
+empty successful response after a database error. The local repair propagates
+a sanitized failure to the existing retryable API response. Regressions cover
+both public discovery and organization discovery failures.
+
+The disabled home demo previews distinct empty, filtered, restricted, error
+and loading layouts. Only actual HTTP 401/403 responses select restricted copy.
+The fictional six-project list and sample counters stay outside the real feed,
+signup data and activity counts. Production refuses the demo flag. The preview
+and local checks do not establish hosted acceptance or authenticated workflow
+coverage.
+
+## P2: Navigation hierarchy and organization empty states, October 11
+
+Finding: `NAVIGATION-HIERARCHY-20261011`. Six supplied desktop screenshots
+show a left-clustered public navbar, narrow discovery/directory layouts, quiet
+organization roles and entity tabs, and ambiguous account versus project Sign up
+labels. Historical centered navigation and wider organization layouts provide
+useful comparison evidence. An isolated design candidate was implemented and
+independently reviewed with actual Claude Opus 5.5. It clarifies account and
+upcoming navigation, widens discovery/workspace layouts, adds eligible empty
+actions, shares readable role labels and restores generic entity line tabs.
+Compact plugin styling, account routes, trusted creation eligibility,
+member/staff/admin checks and the separately tested roster repair are preserved.
+Local source/render regressions pass; mobile, selected/focus, contrast and
+authenticated browser acceptance are open.
+
+Finding: `LIGHT-TOKEN-CONTRAST-20261011`, P2. Source token arithmetic at the
+preceding candidate gives approximately 3.00:1 for light primary text against
+its fill and 4.28:1 for info text against its ten-percent tint on white. These
+small-text pairs need rendered measurement and a reviewed primitive/token fix.
+The calculation excludes gloss and varying backgrounds and is not a complete
+accessibility audit. Avoid adding small low-contrast colored text in the design
+candidate. No global token or theme preference was changed for this finding.
+
+Finding: `ADMIN-QUEUE-READ-FAILURE-20261011`, P1, repaired locally. The four
+content report statistics queries and the moderation view or fifteen compatible
+legacy queries now require complete successful responses. An error, rejected
+query, absent count or missing row response returns a sanitized load error;
+valid empty responses still return zero. Exact counts on the view and status
+reads detect API row-limit truncation instead of accepting partial aggregates.
+Only `42P01`, `42703` and `PGRST205` permit legacy reads. Permission, timeout and
+unrelated query errors cannot trigger that fallback.
+Both existing admin pages show their load-error boundary instead of rendering a
+successful queue snapshot. Fresh server-managed super-admin authorization and
+enrolled MFA checks remain in place; no RLS, grants or production data changed.
+
+The initial regression reproduced 34 failures across 50 cases before repair.
+Reader tests include denied volunteer, trusted-member, organization staff/admin,
+forged metadata, demoted and MFA-pending actors, individual query failures and
+successful nonzero/empty reads. Page tests cover both statistics errors on both
+admin pages and deny unauthorized access before reads. Hosted and rendered
+authenticated checks remain pending. Historical high-priority totals still
+include resolved reports; the overview retains neutral zero-count helpers and
+does not treat every historical high-priority report as open.
+
+## Landing motion closeout, October 11
+
+The three scoped Emil plans are implemented locally with actual Claude Opus 5.5.
+The comparison advert label uses readable steady foreground text. The headline
+retains its ordinary cadence and transition while reduced motion renders a plain
+word; hidden documents and zero/one-word lists create no flip timer. The QR
+detection cycle clears both interval and pending timeout when hidden, disabled
+or reduced, and returns to idle before a fresh visible cycle. Existing initial
+content remains legible, with no new live-region announcements or dependencies.
+
+Lifecycle regressions exercise the actual components and effects with fictional
+timers and visibility/preference stand-ins, including cleanup/setup replay. They
+do not replace real React reconciliation, hydration or in-flight frame checks.
+The known dim-phase label contrast issue needs remeasurement in both rendered
+themes before accessibility signoff. Current native local navigation is blocked;
+no complete animation, accessibility or redesigned-screen audit is claimed.
