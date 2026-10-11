@@ -66,6 +66,48 @@ function createSignupClient(rows: typeof signups) {
 }
 
 describe("remaining capacity", () => {
+  it("counts legacy multi-day IDs alongside current IDs without assigning removed slots", async () => {
+    const multiDay = {
+      ...project,
+      event_type: "multiDay",
+      schedule: {
+        multiDay: [{ date: "2030-03-14", slots: [{ volunteers: 8 }] }],
+      },
+    } as unknown as Project;
+    const rows = [
+      {
+        project_id: PROJECT_ID,
+        schedule_id: "2030-03-14-0",
+        status: "approved",
+      },
+      {
+        project_id: PROJECT_ID,
+        schedule_id: "2030-03-14-0-0",
+        status: "attended",
+      },
+      { project_id: PROJECT_ID, schedule_id: "0-0", status: "pending" },
+      {
+        project_id: PROJECT_ID,
+        schedule_id: "2030-03-14-0-1",
+        status: "approved",
+      },
+      {
+        project_id: PROJECT_ID,
+        schedule_id: "2030-03-14-0",
+        status: "cancelled",
+      },
+      {
+        project_id: "another-project",
+        schedule_id: "2030-03-14-0",
+        status: "approved",
+      },
+    ];
+    const { client } = createSignupClient(rows);
+    expect(await getSlotCapacities(multiDay, client, PROJECT_ID)).toEqual({
+      "2030-03-14-0-0": 5,
+    });
+  });
+
   it("counts pending, approved and attended sign-ups as taken, and nothing else", () => {
     expect([...ACTIVE_PROJECT_SIGNUP_STATUSES]).toEqual([
       "pending",
