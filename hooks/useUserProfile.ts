@@ -41,6 +41,9 @@ export interface UseUserProfileReturn {
   profile: UserProfile | null;
   settings: NotificationSettings | null;
   loading: boolean;
+  /** The step still in flight. `refetch` only restarts the profile read. */
+  pending: "auth" | "profile" | null;
+  /** The last read failure for the signed-in account, until a read succeeds. */
   error: Error | null;
   refetch: () => Promise<void>;
 }
@@ -54,7 +57,10 @@ export function useUserProfile(): UseUserProfileReturn {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // Kept with the account it belongs to, like the profile and settings rows.
+  const [error, setError] = useState<{ userId: string; error: Error } | null>(
+    null,
+  );
 
   const supabase = useMemo(() => createClient(), []);
   const channelNameRef = useRef(
@@ -147,7 +153,11 @@ export function useUserProfile(): UseUserProfileReturn {
       },
       onError: (err) => {
         safeConsole.error("[useUserProfile] Fetch error:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
+        if (!user?.id) return;
+        setError({
+          userId: user.id,
+          error: err instanceof Error ? err : new Error(String(err)),
+        });
       },
       onSettled: () => setLoading(false),
     });
@@ -168,7 +178,8 @@ export function useUserProfile(): UseUserProfileReturn {
     profile: profile?.id === user?.id ? profile : null,
     settings: settings?.user_id === user?.id ? settings : null,
     loading: authLoading || loading,
-    error,
+    pending: authLoading ? "auth" : loading ? "profile" : null,
+    error: user?.id && error?.userId === user.id ? error.error : null,
     refetch,
   };
 }
