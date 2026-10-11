@@ -10370,12 +10370,40 @@ The calculation excludes gloss and varying backgrounds and is not a complete
 accessibility audit. Avoid adding small low-contrast colored text in the design
 candidate. No global token or theme preference was changed for this finding.
 
-Finding: `ADMIN-QUEUE-READ-FAILURE-20261011`, P1, source-confirmed and open.
-The content report statistics reader ignores individual query errors, and the
-moderation statistics reader can fall back to legacy reads that also ignore
-query errors. Failed reads can become zero counts without the admin page's
-error boundary seeing an error. The design candidate removes its new All clear
-promise and uses neutral zero-count helpers. Proper error propagation still
-needs a focused server-reader repair and regressions. High-priority aggregate
-counts also include resolved reports; the new destructive triage treatment is
-removed rather than treating every historical high-priority report as open.
+Finding: `ADMIN-QUEUE-READ-FAILURE-20261011`, P1, repaired locally. The four
+content report statistics queries and the moderation view or fifteen compatible
+legacy queries now require complete successful responses. An error, rejected
+query, absent count or missing row response returns a sanitized load error;
+valid empty responses still return zero. Exact counts on the view and status
+reads detect API row-limit truncation instead of accepting partial aggregates.
+Only `42P01`, `42703` and `PGRST205` permit legacy reads. Permission, timeout and
+unrelated query errors cannot trigger that fallback.
+Both existing admin pages show their load-error boundary instead of rendering a
+successful queue snapshot. Fresh server-managed super-admin authorization and
+enrolled MFA checks remain in place; no RLS, grants or production data changed.
+
+The initial regression reproduced 34 failures across 50 cases before repair.
+Reader tests include denied volunteer, trusted-member, organization staff/admin,
+forged metadata, demoted and MFA-pending actors, individual query failures and
+successful nonzero/empty reads. Page tests cover both statistics errors on both
+admin pages and deny unauthorized access before reads. Hosted and rendered
+authenticated checks remain pending. Historical high-priority totals still
+include resolved reports; the overview retains neutral zero-count helpers and
+does not treat every historical high-priority report as open.
+
+## Landing motion closeout, October 11
+
+The three scoped Emil plans are implemented locally with actual Claude Opus 5.5.
+The comparison advert label uses readable steady foreground text. The headline
+retains its ordinary cadence and transition while reduced motion renders a plain
+word; hidden documents and zero/one-word lists create no flip timer. The QR
+detection cycle clears both interval and pending timeout when hidden, disabled
+or reduced, and returns to idle before a fresh visible cycle. Existing initial
+content remains legible, with no new live-region announcements or dependencies.
+
+Lifecycle regressions exercise the actual components and effects with fictional
+timers and visibility/preference stand-ins, including cleanup/setup replay. They
+do not replace real React reconciliation, hydration or in-flight frame checks.
+The known dim-phase label contrast issue needs remeasurement in both rendered
+themes before accessibility signoff. Current native local navigation is blocked;
+no complete animation, accessibility or redesigned-screen audit is claimed.

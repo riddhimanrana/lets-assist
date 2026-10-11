@@ -13,6 +13,12 @@ import {
   normalizeReportStatus,
 } from "../report-status";
 import { notifyReporterOfReportUpdate } from "./notifications";
+import type { ReportsStats } from "../dashboard-types";
+import {
+  hasStatisticsResult,
+  statisticsReadFailure,
+  type StatisticsReadResult,
+} from "./statistics-read-result";
 
 type ProjectSummary = {
   id: string;
@@ -349,55 +355,72 @@ export async function sendReportFeedback(
 /**
  * Get content reports statistics
  */
-export async function getContentReportsStats() {
+export async function getContentReportsStats(): Promise<
+  StatisticsReadResult<ReportsStats>
+> {
   "use server";
-  const supabase = getAdminClient();
-
   const { isAdmin } = await checkSuperAdmin();
   if (!isAdmin) {
     return { error: "Unauthorized - Admin access required" };
   }
 
-  // Get total counts
-  const { count: totalReports } = await supabase
-    .from("content_reports")
-    .select("*", { count: "exact", head: true });
+  try {
+    const supabase = getAdminClient();
+    const totalResult = await supabase
+      .from("content_reports")
+      .select("*", { count: "exact", head: true });
+    if (!hasStatisticsResult(totalResult, "count")) {
+      return statisticsReadFailure("reports", totalResult.error);
+    }
 
-  const { data: reportStatuses } = await supabase
-    .from("content_reports")
-    .select("status");
+    const statusesResult = await supabase
+      .from("content_reports")
+      .select("status", { count: "exact" });
+    if (!hasStatisticsResult(statusesResult, "completeRows")) {
+      return statisticsReadFailure("reports", statusesResult.error);
+    }
+    const reportStatuses = statusesResult.data!;
 
-  const pendingCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, "pending"),
-  ).length;
+    const pendingCount = reportStatuses.filter((report) =>
+      matchesReportStatusFilter(report.status, "pending"),
+    ).length;
 
-  const resolvedCount = (reportStatuses || []).filter((report) =>
-    matchesReportStatusFilter(report.status, "resolved"),
-  ).length;
+    const resolvedCount = reportStatuses.filter((report) =>
+      matchesReportStatusFilter(report.status, "resolved"),
+    ).length;
 
-  const { count: highPriorityCount } = await supabase
-    .from("content_reports")
-    .select("*", { count: "exact", head: true })
-    .in("priority", ["high", "critical"]);
+    const priorityResult = await supabase
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .in("priority", ["high", "critical"]);
+    if (!hasStatisticsResult(priorityResult, "count")) {
+      return statisticsReadFailure("reports", priorityResult.error);
+    }
 
-  // Get recent reports (last 7 days)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Get recent reports (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const { count: recentCount } = await supabase
-    .from("content_reports")
-    .select("*", { count: "exact", head: true })
-    .gte("created_at", sevenDaysAgo.toISOString());
+    const recentResult = await supabase
+      .from("content_reports")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgo.toISOString());
+    if (!hasStatisticsResult(recentResult, "count")) {
+      return statisticsReadFailure("reports", recentResult.error);
+    }
 
-  return {
-    data: {
-      total: totalReports || 0,
-      pending: pendingCount || 0,
-      resolved: resolvedCount || 0,
-      highPriority: highPriorityCount || 0,
-      recentWeek: recentCount || 0,
-    },
-  };
+    return {
+      data: {
+        total: totalResult.count!,
+        pending: pendingCount || 0,
+        resolved: resolvedCount || 0,
+        highPriority: priorityResult.count!,
+        recentWeek: recentResult.count!,
+      },
+    };
+  } catch (error) {
+    return statisticsReadFailure("reports", error);
+  }
 }
 
 export async function getDetailedReportWithContext(reportId: string) {
