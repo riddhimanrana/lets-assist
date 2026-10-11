@@ -338,6 +338,20 @@ VALUES
    'asset-lifecycle-slot', 'approved', 'a8000000-0000-4000-8000-000000000001'),
   ('a8400000-0000-4000-8000-000000000003', 'a8200000-0000-4000-8000-000000000003',
    'asset-lifecycle-slot', 'approved', 'a8000000-0000-4000-8000-000000000001');
+
+-- Waiver evidence must name the project's current definition and a source
+-- document that exists. Projects 5 and 3 therefore get a source object, a
+-- definition pinned to it, and a project row bound to both, so the signatures
+-- below are valid evidence and only the lifecycle rules decide their outcome.
+-- The object rows are catalog proof only; no PDF bytes exist in this suite.
+INSERT INTO storage.objects (id, bucket_id, name, owner, metadata)
+VALUES
+  ('a8600000-0000-4000-8000-000000000005', 'waiver-uploads',
+   'project_waivers/a8200000-0000-4000-8000-000000000005/definition.pdf',
+   'a8000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf"}'::jsonb),
+  ('a8600000-0000-4000-8000-000000000003', 'waiver-uploads',
+   'project_waivers/a8200000-0000-4000-8000-000000000003/definition.pdf',
+   'a8000000-0000-4000-8000-000000000001', '{"mimetype":"application/pdf"}'::jsonb);
 INSERT INTO public.waiver_definitions (
   id, scope, project_id, title, source, created_by, pdf_storage_path
 )
@@ -350,6 +364,16 @@ VALUES
    'a8200000-0000-4000-8000-000000000003', 'Asset lifecycle waiver', 'project_pdf',
    'a8000000-0000-4000-8000-000000000001',
    'project_waivers/a8200000-0000-4000-8000-000000000003/definition.pdf');
+UPDATE public.projects AS project
+SET waiver_definition_id = definition.id,
+    waiver_pdf_storage_path = definition.pdf_storage_path,
+    waiver_pdf_url = 'https://synthetic-platform.example.test/storage/v1/object/public/waiver-uploads/'
+      || definition.pdf_storage_path
+FROM public.waiver_definitions AS definition
+WHERE definition.project_id = project.id
+  AND definition.id IN (
+    'a8300000-0000-4000-8000-000000000005', 'a8300000-0000-4000-8000-000000000003'
+  );
 INSERT INTO public.waiver_signatures (
   id, project_id, signup_id, user_id, signer_name, signer_email,
   signature_type, signature_text, waiver_definition_id, waiver_pdf_storage_path
@@ -359,7 +383,7 @@ VALUES (
   'a8400000-0000-4000-8000-000000000005', 'a8000000-0000-4000-8000-000000000001',
   'Synthetic Signer', 'asset-lifecycle-creator@local.test', 'typed', 'Synthetic Signer',
   'a8300000-0000-4000-8000-000000000005',
-  'project_waivers/a8200000-0000-4000-8000-000000000005/signature.pdf'
+  'project_waivers/a8200000-0000-4000-8000-000000000005/definition.pdf'
 );
 SELECT extensions.is(
   public.prepare_project_deletion(
@@ -745,7 +769,7 @@ SELECT extensions.throws_ok(
       'a8400000-0000-4000-8000-000000000003', 'a8000000-0000-4000-8000-000000000001',
       'Synthetic Signer', 'asset-lifecycle-creator@local.test', 'typed', 'Synthetic Signer',
       'a8300000-0000-4000-8000-000000000003',
-      'project_waivers/a8200000-0000-4000-8000-000000000003/signature.pdf'
+      'project_waivers/a8200000-0000-4000-8000-000000000003/definition.pdf'
     )$$,
   '23514', 'project_deletion_in_progress',
   'a project being deleted accepts no new signed waiver'
