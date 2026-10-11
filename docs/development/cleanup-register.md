@@ -13,11 +13,11 @@ Development `1aedb7e7` reported 791 inventory lines versus 1,281 across shards.
 The list command called `process.exit` before a long piped stdout write drained.
 A slow-reader regression reproduces the loss with a synthetic 5,000-file
 inventory; the command now waits for the write callback. Partitioning and test
-coverage are unchanged. The Development build-reuse guard accepts only the
-five reviewed runner/test/register/browser-test paths added here and still rejects mixed
-application, migration, dependency and deployment-input changes. The existing
-Development app and schema are unchanged; fresh CI and hosted checks remain
-required after integration.
+coverage are unchanged. The reviewed glob-input fingerprint changes only for
+that output repair, retaining the existing advisory scope and expiry. App and
+schema behavior are unchanged; the follow-up requests one fresh exact-SHA
+Development Preview and retains full CI and hosted checks. The build-reuse
+allowlist is unchanged.
 
 P2 SIGNUP-E2E-SCOPE-20261011, corrected locally: the new global Create account
 navigation and the signup form submit legitimately share a label. Two signup

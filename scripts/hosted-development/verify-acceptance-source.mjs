@@ -6,12 +6,6 @@ const acceptanceOnlyPaths = new Set([
   "scripts/hosted-development/verify-acceptance-source.mjs",
   "scripts/hosted-development/verify-acceptance-source.test.ts",
   "scripts/hosted-development/test-csf-load.test.ts",
-  // These reviewed paths affect test discovery and its evidence, not the app build.
-  "scripts/run-tests.mjs",
-  "scripts/ci/test-shards.test.mjs",
-  "docs/development/cleanup-register.md",
-  "tests/e2e/csf/signup-email-pkce-roundtrip.spec.ts",
-  "tests/e2e/csf/cohort-signup-onboarding.spec.ts",
 ]);
 
 export function assertAcceptanceOnlyChanges(paths) {
