@@ -33,41 +33,10 @@ import {
   Scan,
 } from "lucide-react";
 import Image from "next/image";
+import { ComparisonTextFlip } from "./ComparisonTextFlip";
 
 // Words that flip in the header
 const flipWords = ["outdated", "limited", "2010s", "cluttered"];
-
-// Text flip animation component
-function TextFlip({ words }: { words: string[] }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % words.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [words.length]);
-
-  return (
-    <span
-      className="inline-flex items-center justify-center"
-      style={{ minWidth: "5ch" }}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={currentIndex}
-          initial={{ y: 20, opacity: 0, filter: "blur(8px)" }}
-          animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-          exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
-          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-          className="font-bold text-orange-400"
-        >
-          {words[currentIndex]}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  );
-}
 
 interface ComparisonFeature {
   name: string;
@@ -776,7 +745,7 @@ function OutdatedMockup() {
             <div className="text-[10px] leading-none text-muted-foreground absolute top-0.5 right-1">
               AD
             </div>
-            <span className="text-[9px] sm:text-[10px] font-bold text-info animate-pulse">
+            <span className="text-xs font-semibold text-foreground">
               Start Your Free Trial Today! &gt;&gt;
             </span>
           </div>
@@ -996,7 +965,7 @@ export default function ComparisonSection() {
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              SignUpGenius is <TextFlip words={flipWords} />
+              SignUpGenius is <ComparisonTextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-primary">
