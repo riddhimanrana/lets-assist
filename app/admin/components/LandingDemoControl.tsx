@@ -20,7 +20,7 @@ const SAVE_ERROR =
   "The landing page mode was not saved. Reload to check the current mode, then try again.";
 
 const REFRESH_WARNING =
-  "Saved. Landing pages may take longer to update. Reload to check the current mode.";
+  "Saved. Some page refreshes could not complete. Reload to check the current mode.";
 const REFRESH_ERROR =
   "Saved. This view could not refresh. Reload to read the current mode.";
 

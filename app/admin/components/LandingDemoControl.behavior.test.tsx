@@ -83,14 +83,15 @@ beforeEach(() => {
   refreshCalls = 0;
 });
 
-test("a saved mode with cache refresh pending is reported as saved", async () => {
+test("a saved mode with any refresh pending is reported accurately without claiming public delay", async () => {
   result = { refreshPending: true };
   const output = await save();
   expect(text(output)).toContain(
-    "Saved. Landing pages may take longer to update.",
+    "Saved. Some page refreshes could not complete.",
   );
   expect(text(output)).not.toContain("was not saved");
   expect(refreshCalls).toBe(1);
+  expect(text(output)).not.toContain("Landing pages may take longer");
 });
 test("an asynchronous read rejection after a confirmed save shows an unknown disabled mode", async () => {
   rejectRead = true;
@@ -169,7 +170,7 @@ test("an RSC snapshot adopts its mode without discarding a saved refresh warning
   render(true, "server-action-refresh");
   const output = render(true, "server-action-refresh");
   expect(text(output)).toContain(
-    "Saved. Landing pages may take longer to update.",
+    "Saved. Some page refreshes could not complete.",
   );
   expect(text(output)).toContain("Sample content. Fictional");
 });
