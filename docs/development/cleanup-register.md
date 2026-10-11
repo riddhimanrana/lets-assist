@@ -62,6 +62,15 @@ are unchanged. Focused regressions cover an ignored pre-hydration click,
 pending queue and browser failure. The timing hypothesis requires fresh hosted
 acceptance; this is not a claim that the earlier failed run passed.
 
+P2 PRIVATE-CSF-PUBLIC-LANDMARK-20261011, source-confirmed follow-up:
+CsfDashboardContentSection1 renders the private CsfPublicLanding within the
+platform root main, while that component adds its own main. The App Router
+inventory covers public .tsx modules and does not prove plugin output. Repair
+this through the private repository's ordinary embedded integration workflow;
+retain the exact current gitlink until that separate change is reviewed and
+merged. The unused public SidebarInset primitive and archived Speech and
+Debate editor also contain main tags but are not current route findings.
+
 ## Public landing demo switch — Development deployed
 
 The owner corrected the demo scope to the public landing page for everyone.
