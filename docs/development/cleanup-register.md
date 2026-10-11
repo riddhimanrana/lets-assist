@@ -10597,3 +10597,13 @@ do not replace real React reconciliation, hydration or in-flight frame checks.
 The known dim-phase label contrast issue needs remeasurement in both rendered
 themes before accessibility signoff. Current native local navigation is blocked;
 no complete animation, accessibility or redesigned-screen audit is claimed.
+
+## Applications rendered roster budget — October 11, 2026
+
+`CSF-APPLICATIONS-PAYLOAD-20261011`, P2, source repair; hosted validation pending. Hosted Development `accba0cf` returned all 9,531 requests successfully but failed only officer Applications p95 (2,850.83 ms against 2,500) and p99 (5,519.97 ms against 5,000), following another route-specific failure on `6d2ec8cb`. The budgets and required 100 distinct identities, 1,000 applications, 15-minute load and 25 review navigations remain unchanged.
+
+Private PR #649 pages only the rendered Applications list in groups of 50. The complete authorized roster still supplies search, pending/all counts, stable coordinates, assignments, evidence and the review queue. Point campaigns remain unpaged. The workspace owns page position so returning from review retains it; scope/filter changes reset it and a shrinking list clamps it. Paging announces the range and focuses/scrolls to its first row without animation. No authorization, RLS, database read or mutation contract changes.
+
+The same real authenticated route on an owned isolated Supabase stack with the repository's 1,000-application fixture returned about 3.62 MB before and 1.25 MB after (65% less). The real roster component's SSR markup dropped from 1,246,109 bytes/1,000 rows to about 71 KB/50 rows. Development-mode wall times were noisy during concurrent compilation and do not prove a hosted latency improvement. Eleven focused regressions, affected static checks and the complete plugin gate passed locally. A synthetic browser check visited all 20 pages/1,000 unique applications, retained the full review queue, checked keyboard paging/search/reset and page-20 return persistence, and recorded zero browser errors. Actual Claude Opus 5.5 review found a page-state regression, which was corrected; its follow-up found no actionable P0–P2.
+
+This is an ordinary embedded Development integration. Fresh exact-head short, full integrated and hosted gates are required before acceptance. Main, Production, signed release tags, organization activation and the held Production guest-signup cleanup job remain unchanged. This record does not claim complete visual audit coverage.
