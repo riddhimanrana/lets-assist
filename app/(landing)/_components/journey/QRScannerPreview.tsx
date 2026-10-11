@@ -120,7 +120,7 @@ export function QRScannerPreview({
 
         {/* Scanning indicator pill */}
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: isAnimating ? 0.3 : 0 }}
           className="absolute bottom-5 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border/60 text-xs text-muted-foreground flex items-center gap-2"
@@ -137,6 +137,7 @@ export function QRScannerPreview({
             scale: detected ? 1 : 0.98,
           }}
           transition={{ duration: prefersReduced ? 0 : 0.2 }}
+          aria-hidden={!detected}
           className="absolute bottom-16 right-6 flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-green-500/90 text-white shadow-md"
         >
           <CheckCircle2 className="h-4 w-4" />

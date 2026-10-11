@@ -16,6 +16,9 @@ import { MotionLinkButton } from "./MotionLinkButton";
 import { RealCheckIn } from "./RealCheckIn";
 import TestimonialsSection from "./TestimonialsSection";
 import VolunteerJourneySection from "./VolunteerJourneySection";
+import { EmailNotification } from "./journey/EmailNotification";
+import { MiniCertificate } from "./journey/MiniCertificate";
+import { QRScannerPreview } from "./journey/QRScannerPreview";
 
 // These tests read the markup the real components render, as a tree, so they
 // can ask what a screen reader would be given and what sits above a label.
@@ -670,6 +673,53 @@ describe("hero first render", () => {
     expect(highlight).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(highlight[0])).toEqual([]);
   }, 30_000);
+});
+
+describe("journey preview first render", () => {
+  for (const reduced of [null, true]) {
+    const previews = [
+      ["email", createElement(EmailNotification), "Signup confirmed"],
+      [
+        "certificate",
+        createElement(MiniCertificate, {
+          projectName: "Sample service event",
+          organizationName: "Sample organization",
+          volunteerName: "Sample volunteer",
+          hours: 2,
+          shouldAnimate: false,
+        }),
+        "Certificate of Volunteer Service",
+      ],
+      [
+        "scanner",
+        createElement(QRScannerPreview, { shouldAnimate: false }),
+        "Scanning…",
+      ],
+    ] as const;
+
+    for (const [name, preview, label] of previews) {
+      test(`${name} content has no hidden initial ancestor (motion: ${reduced})`, () => {
+        const root = withMotionPreference(reduced, () => render(preview));
+        for (const text of name === "certificate"
+          ? [label, "Verified"]
+          : [label]) {
+          const labels = elements(root).filter(
+            (node) => ownText(node) === text,
+          );
+          expect(labels).toHaveLength(1);
+          expect(hiddenFirstRenderAncestors(labels[0])).toEqual([]);
+        }
+      });
+    }
+
+    test(`an idle scanner does not expose a successful check-in (motion: ${reduced})`, () => {
+      const root = withMotionPreference(reduced, () =>
+        render(createElement(QRScannerPreview, { shouldAnimate: false })),
+      );
+      expect(collapse(exposedText(root))).toContain("Scanning…");
+      expect(collapse(exposedText(root))).not.toContain("Checked in");
+    });
+  }
 });
 
 describe("server-rendered static sections", () => {
