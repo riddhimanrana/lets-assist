@@ -11,8 +11,9 @@ SELECT extensions.ok((SELECT prosecdef AND proconfig=ARRAY['search_path=""']::te
 UPDATE public.organization_calendar_syncs SET auto_sync=false;
 UPDATE app_private.organization_sync_discovery_cursors SET last_organization_id=NULL;
 -- Thirty-three organizations whose ids differ only in their last digits, as ids created together do.
+-- Join codes 982101 to 982133 belong to this file. Another test commits a 9931xx code outside any transaction.
 INSERT INTO public.organizations(id,name,username,type,join_code)
-SELECT ('ca1e0000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'Synthetic calendar batch '||n,'synthetic-calendar-batch-'||n,'school',(993100+n)::text FROM generate_series(1,33)n;
+SELECT ('ca1e0000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'Synthetic calendar batch '||n,'synthetic-calendar-batch-'||n,'school',(982100+n)::text FROM generate_series(1,33)n;
 -- 1 to 29 never synced, 30 synced 61 minutes ago: thirty due. 31 is recent, 32 is switched off, 33 has no sync row.
 INSERT INTO public.organization_calendar_syncs(organization_id,auto_sync,last_synced_at)
 SELECT ('ca1e0000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,n<>32,
