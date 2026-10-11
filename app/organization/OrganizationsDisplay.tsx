@@ -14,6 +14,7 @@ import {
 import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
+import { getOrganizationDirectoryEmptyActions } from "@/components/organization/organization-directory-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -152,6 +153,10 @@ export default function OrganizationsDisplay({
   const createIcon = useAnimatedIcon();
 
   const canCreate = isTrusted || applicationStatus === true;
+  const emptyActions = getOrganizationDirectoryEmptyActions({
+    isLoggedIn,
+    canCreate,
+  });
   const query = search.toLowerCase().trim();
 
   const { userOrgs, otherOrgs } = useMemo(() => {
@@ -186,7 +191,7 @@ export default function OrganizationsDisplay({
   )?.label;
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto grid w-full max-w-screen-2xl gap-6 px-4 py-8 sm:px-6">
       <div data-tour-id="org-header">
         <PageHeader
           title="Organizations"
@@ -351,12 +356,25 @@ export default function OrganizationsDisplay({
                 <EmptyStateIcon name="users" />
               </EmptyMedia>
               <EmptyTitle>No organizations yet</EmptyTitle>
-              <EmptyDescription>
-                {canCreate
-                  ? "Be the first to create an organization."
-                  : "Organizations will show up here once they are created."}
-              </EmptyDescription>
+              <EmptyDescription>{emptyActions.description}</EmptyDescription>
             </EmptyHeader>
+            {/* Outline buttons: the page header already holds the one filled
+                primary for this view. */}
+            <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+              {emptyActions.signIn ? (
+                <Button variant="outline" asChild>
+                  <Link href="/login?redirect=/organization">
+                    Sign in to join or create
+                  </Link>
+                </Button>
+              ) : null}
+              {emptyActions.join ? <JoinOrganizationDialog /> : null}
+              {emptyActions.create ? (
+                <Button variant="outline" asChild>
+                  <Link href="/organization/create">Create organization</Link>
+                </Button>
+              ) : null}
+            </EmptyContent>
           </Empty>
         )
       ) : (
@@ -417,7 +435,7 @@ export default function OrganizationsDisplay({
           {otherOrgs.length > 0 && (
             <section className="grid gap-3">
               <SectionHeader title="Discover" />
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {otherOrgs.map((org) => (
                   <OrganizationCard
                     key={org.id}

@@ -10346,3 +10346,36 @@ The fictional six-project list and sample counters stay outside the real feed,
 signup data and activity counts. Production refuses the demo flag. The preview
 and local checks do not establish hosted acceptance or authenticated workflow
 coverage.
+
+## P2: Navigation hierarchy and organization empty states, October 11
+
+Finding: `NAVIGATION-HIERARCHY-20261011`. Six supplied desktop screenshots
+show a left-clustered public navbar, narrow discovery/directory layouts, quiet
+organization roles and entity tabs, and ambiguous account versus project Sign up
+labels. Historical centered navigation and wider organization layouts provide
+useful comparison evidence. An isolated design candidate was implemented and
+independently reviewed with actual Claude Opus 5.5. It clarifies account and
+upcoming navigation, widens discovery/workspace layouts, adds eligible empty
+actions, shares readable role labels and restores generic entity line tabs.
+Compact plugin styling, account routes, trusted creation eligibility,
+member/staff/admin checks and the separately tested roster repair are preserved.
+Local source/render regressions pass; mobile, selected/focus, contrast and
+authenticated browser acceptance are open.
+
+Finding: `LIGHT-TOKEN-CONTRAST-20261011`, P2. Source token arithmetic at the
+preceding candidate gives approximately 3.00:1 for light primary text against
+its fill and 4.28:1 for info text against its ten-percent tint on white. These
+small-text pairs need rendered measurement and a reviewed primitive/token fix.
+The calculation excludes gloss and varying backgrounds and is not a complete
+accessibility audit. Avoid adding small low-contrast colored text in the design
+candidate. No global token or theme preference was changed for this finding.
+
+Finding: `ADMIN-QUEUE-READ-FAILURE-20261011`, P1, source-confirmed and open.
+The content report statistics reader ignores individual query errors, and the
+moderation statistics reader can fall back to legacy reads that also ignore
+query errors. Failed reads can become zero counts without the admin page's
+error boundary seeing an error. The design candidate removes its new All clear
+promise and uses neutral zero-count helpers. Proper error propagation still
+needs a focused server-reader repair and regressions. High-priority aggregate
+counts also include resolved reports; the new destructive triage treatment is
+removed rather than treating every historical high-priority report as open.

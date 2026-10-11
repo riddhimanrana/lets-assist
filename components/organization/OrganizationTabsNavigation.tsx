@@ -70,13 +70,58 @@ export function OrganizationTabsNavigation(props: Props) {
   const renderNavigationAnchor = (href: string) =>
     fullDocumentTabNavigation ? <a href={href} /> : <Link href={href} />;
 
+  // A generic organization gets page-level line tabs straight on the page. A
+  // compact plugin workspace keeps its segmented switch on the workspace
+  // sheet. The controller derives the flag from `compactHeader`.
+  const usesLineTabs = !usesFullSectionMobileNav;
+
+  const tabTriggers = (
+    <>
+      {/*
+        One trigger per destination, from the same deduplicated list that
+        feeds the phone switcher, so the two can never disagree.
+      */}
+      {workspaceDestinations.map((destination) => {
+        const ownsActiveChild = activePluginParentValue === destination.value;
+
+        return (
+          <TabsTrigger
+            key={destination.value}
+            value={destination.value}
+            aria-current={ownsActiveChild ? "page" : undefined}
+            className={cn(
+              "flex-none gap-2 px-3",
+              // The focus ring is inset because the line strip scrolls
+              // sideways and would clip an outer ring.
+              usesLineTabs &&
+                "h-10 shrink-0 rounded-none focus-visible:ring-inset group-data-[orientation=horizontal]/tabs:after:bottom-0",
+              // A child route keeps its parent tab marked the same way the
+              // active tab is: underlined on a line strip, raised on a
+              // segmented one.
+              ownsActiveChild &&
+                (usesLineTabs
+                  ? "text-foreground dark:text-foreground after:opacity-100"
+                  : "bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm"),
+            )}
+          >
+            {destination.icon ? (
+              <span className="hidden sm:contents">{destination.icon}</span>
+            ) : null}
+            {destination.label}
+          </TabsTrigger>
+        );
+      })}
+    </>
+  );
+
   return (
     <div
       className={cn(
-        // A segmented switch on the workspace sheet, with the utility menu
-        // beside it.
         "flex min-w-0 items-center gap-2",
-        pluginNavigationOverrides.compactHeader ? "mb-3" : "mb-5",
+        // The hairline belongs to the row, so the utility menu beside a line
+        // strip shares it.
+        usesLineTabs && "border-b",
+        usesLineTabs ? "mb-6" : "mb-3",
       )}
     >
       {usesFullSectionMobileNav && switcherDestinations.length > 0 ? (
@@ -117,47 +162,36 @@ export function OrganizationTabsNavigation(props: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      <TabsList
-        className={cn(
-          "w-full min-w-0 sm:w-fit",
-          usesFullSectionMobileNav && "hidden sm:flex",
-        )}
-      >
-        {/*
-          One trigger per destination, from the same deduplicated list that
-          feeds the phone switcher, so the two can never disagree.
-        */}
-        {workspaceDestinations.map((destination) => {
-          const ownsActiveChild = activePluginParentValue === destination.value;
-
-          return (
-            <TabsTrigger
-              key={destination.value}
-              value={destination.value}
-              aria-current={ownsActiveChild ? "page" : undefined}
-              className={cn(
-                "flex-none gap-2 px-3",
-                // A child route keeps its parent tab raised, the same way the
-                // active tab is.
-                ownsActiveChild &&
-                  "bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm",
-              )}
-            >
-              {destination.icon ? (
-                <span className="hidden sm:contents">{destination.icon}</span>
-              ) : null}
-              {destination.label}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+      {usesLineTabs ? (
+        <TabsList
+          variant="line"
+          className="min-w-0 flex-1 gap-0 p-0 group-data-horizontal/tabs:h-10"
+        >
+          {tabTriggers}
+        </TabsList>
+      ) : (
+        <TabsList
+          className={cn(
+            "w-full min-w-0 sm:w-fit",
+            usesFullSectionMobileNav && "hidden sm:flex",
+          )}
+        >
+          {tabTriggers}
+        </TabsList>
+      )}
 
       {morePluginTabs.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
-                variant={activeMoreTab ? "secondary" : "outline"}
+                variant={
+                  activeMoreTab
+                    ? "secondary"
+                    : usesLineTabs
+                      ? "ghost"
+                      : "outline"
+                }
                 size="sm"
                 className={cn(
                   "shrink-0",

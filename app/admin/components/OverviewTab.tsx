@@ -136,6 +136,29 @@ function StatLink({ href, children }: { href: string; children: string }) {
   );
 }
 
+/**
+ * Flags a queue that has items waiting. A zero count falls back to the plain
+ * helper and makes no claim: the count covers pending items only, and a failed
+ * read can also arrive here as zero.
+ */
+function QueueStatus({
+  count,
+  waiting,
+  idle,
+}: {
+  count: number;
+  waiting: string;
+  idle: string;
+}) {
+  return count > 0 ? (
+    <Badge variant="warning" className="text-foreground">
+      {waiting}
+    </Badge>
+  ) : (
+    idle
+  );
+}
+
 function QueueLink({ href, children }: { href: string; children: string }) {
   return (
     <Link
@@ -234,7 +257,13 @@ export function OverviewTab({
               </StatLink>
             ),
             value: stats.trustedPendingCount,
-            helper: "Pending review",
+            helper: (
+              <QueueStatus
+                count={stats.trustedPendingCount}
+                waiting="Pending review"
+                idle="Pending review"
+              />
+            ),
           },
           {
             label: <StatLink href="/admin/feedback">User feedback</StatLink>,
@@ -246,12 +275,24 @@ export function OverviewTab({
               <StatLink href="/admin/moderation">Flagged content</StatLink>
             ),
             value: stats.flaggedPendingCount,
-            helper: "AI & system flags",
+            helper: (
+              <QueueStatus
+                count={stats.flaggedPendingCount}
+                waiting="Pending moderation items"
+                idle="AI & system flags"
+              />
+            ),
           },
           {
             label: <StatLink href="/admin/moderation">User reports</StatLink>,
             value: stats.reportsPendingCount,
-            helper: "User submitted reports",
+            helper: (
+              <QueueStatus
+                count={stats.reportsPendingCount}
+                waiting="Pending review"
+                idle="User submitted reports"
+              />
+            ),
           },
         ]}
       />

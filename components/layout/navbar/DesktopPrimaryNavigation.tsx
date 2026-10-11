@@ -27,7 +27,7 @@ type Props = {
 
 const destinationClass = cn(
   buttonVariants({ variant: "ghost", size: "sm" }),
-  "px-3 text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
+  "shrink-0 px-3 whitespace-nowrap text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
 );
 
 export function DesktopPrimaryNavigation({
@@ -35,10 +35,12 @@ export function DesktopPrimaryNavigation({
   isAuthenticated,
   pathname,
 }: Props) {
+  // The empty placeholder keeps the middle grid track while auth resolves, so
+  // the account controls never jump into the centre.
   if (isLoading) return <div className="hidden lg:flex" />;
 
   return (
-    <div className="hidden lg:flex items-center gap-1">
+    <div className="hidden items-center justify-center gap-1 lg:flex">
       {isAuthenticated ? (
         memberLinks.map((destination) => (
           <DestinationLink

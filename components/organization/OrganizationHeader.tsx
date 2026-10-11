@@ -2,6 +2,7 @@
 
 import { BadgeCheck, GlobeIcon, UsersIcon } from "lucide-react";
 
+import { MemberRoleBadge } from "@/app/organization/[id]/MemberRoleBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,17 @@ export default function OrganizationHeader({
 }: OrganizationHeaderProps) {
   const typeLabel = formatOrganizationTypeLabel(organization.type);
   const memberCountLabel = `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
+
+  // Tells a member which role the page is showing them, in the generic header
+  // only; the compact workspace header is left as it was. Display only: the
+  // actions beside it keep their own checks.
+  const viewerRoleBadge =
+    userRole === "admin" || userRole === "staff" || userRole === "member" ? (
+      <span className="inline-flex items-center">
+        <span className="sr-only">Your role: </span>
+        <MemberRoleBadge role={userRole} />
+      </span>
+    ) : null;
 
   const avatar = (
     <Avatar className={cn(compact ? "size-10 md:size-12" : "size-14")}>
@@ -118,6 +130,7 @@ export default function OrganizationHeader({
               </a>
             )}
             {showMemberCount ? <span>{memberCountLabel}</span> : null}
+            {viewerRoleBadge}
           </>
         }
         actions={actions}

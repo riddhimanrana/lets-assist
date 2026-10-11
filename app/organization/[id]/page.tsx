@@ -491,10 +491,10 @@ export default async function OrganizationPage({
         className={cn(
           "relative z-10 mx-auto flex w-full flex-col px-4 pb-8 sm:px-6",
           // A plugin workspace keeps its wider canvas so its dense tables do not
-          // re-wrap; every other organization uses the shared profile width.
+          // re-wrap; generic organizations use the wider workspace container.
           navOverrides.compactHeader
             ? "max-w-7xl gap-4 pt-4 sm:pt-5"
-            : "max-w-6xl gap-6 pt-6 sm:pt-8",
+            : "max-w-screen-2xl gap-6 pt-6 sm:pt-8",
         )}
       >
         {previewSource === "remote" && (
@@ -528,15 +528,15 @@ export default async function OrganizationPage({
         )}
 
         {/*
-        The workspace sheet: the tab bar and the active tab share one surface,
-        so switching tabs reads as changing panes of the same organization.
+        Entity navigation and its active pane. Compact plugin workspaces share
+        a sheet; generic organizations place their sections on the page.
       */}
         <div
           className={cn(
-            // The sheet starts at tablet width. On a phone the tabs and panes
-            // sit on the page, so cards are not nested inside a card.
-            "sm:bg-card sm:rounded-xl sm:border sm:shadow-(--card-shadow)",
-            navOverrides.compactHeader ? "sm:p-4" : "sm:p-6",
+            // Only compact plugin workspaces use a sheet from tablet width.
+            // Generic organization tabs and panes sit directly on the page.
+            navOverrides.compactHeader &&
+              "sm:bg-card sm:rounded-xl sm:border sm:p-4 sm:shadow-(--card-shadow)",
           )}
         >
           <OrganizationTabs
