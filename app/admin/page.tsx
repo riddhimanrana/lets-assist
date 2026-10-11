@@ -57,8 +57,8 @@ export default async function AdminOverviewPage() {
   ]);
 
   // A new server snapshot must replace local state even when its Boolean
-  // equals an older snapshot. A fresh key remounts the control on every read.
-  const landingDemoReadKey = randomUUID();
+  // equals an older snapshot. Read identity is separate from its value.
+  const landingDemoReadVersion = randomUUID();
 
   const stats = moderationStats.data;
   const aggregateReportStats = reportsStats.data ?? {
@@ -83,7 +83,7 @@ export default async function AdminOverviewPage() {
       <AdminPage>
         <PageHeader title="Admin overview" />
         <LandingDemoControl
-          key={landingDemoReadKey}
+          readVersion={landingDemoReadVersion}
           enabled={landingDemoMode.enabled}
         />
         <ProjectScheduleHealth result={scheduleHealth} />
@@ -113,7 +113,7 @@ export default async function AdminOverviewPage() {
     <>
       <div className="mx-auto w-full max-w-screen-2xl px-4 pt-8 sm:px-6">
         <LandingDemoControl
-          key={landingDemoReadKey}
+          readVersion={landingDemoReadVersion}
           enabled={landingDemoMode.enabled}
         />
       </div>

@@ -100,21 +100,24 @@ describe("admin statistics page error boundaries", () => {
   }
 });
 
-function landingControlKeys(value: unknown): string[] {
-  if (Array.isArray(value)) return value.flatMap(landingControlKeys);
-  if (!React.isValidElement<{ children?: unknown }>(value)) return [];
+function landingControlReads(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(landingControlReads);
+  if (
+    !React.isValidElement<{ children?: unknown; readVersion?: string }>(value)
+  )
+    return [];
   const keys =
     typeof value.type === "function" && value.type.name === "LandingDemoControl"
-      ? [String(value.key)]
+      ? [String(value.props.readVersion)]
       : [];
-  return [...keys, ...landingControlKeys(value.props.children)];
+  return [...keys, ...landingControlReads(value.props.children)];
 }
 
-test("every authoritative overview read remounts the control even when the mode repeats", async () => {
+test("every authoritative overview read identifies freshness independently of its repeated mode", async () => {
   for (const failed of [false, true]) {
     reportResult = failed ? { error: "Unavailable" } : { data: {} };
-    const first = landingControlKeys(await overview());
-    const refreshed = landingControlKeys(await overview());
+    const first = landingControlReads(await overview());
+    const refreshed = landingControlReads(await overview());
     expect(first).toHaveLength(1);
     expect(refreshed).toHaveLength(1);
     expect(first[0]).toMatch(/^[a-f0-9-]{36}$/);

@@ -58,9 +58,9 @@ function text(value: unknown): string {
     return text(value.props.children);
   return "";
 }
-function render(enabled: boolean | null = false) {
+function render(enabled: boolean | null = false, readVersion = "initial") {
   cursor = 0;
-  return LandingDemoControl({ enabled });
+  return LandingDemoControl({ enabled, readVersion });
 }
 async function save() {
   const control = nodes(render()).find(
@@ -148,4 +148,28 @@ test("retry retains the unknown state until an awaited fresh read resolves", asy
       (node) => typeof node.props.onCheckedChange === "function",
     )?.props.disabled,
   ).toBe(false);
+});
+
+test("a fresh repeated false snapshot replaces a locally confirmed true mode", async () => {
+  await save();
+  expect(text(render())).toContain("Sample content. Fictional");
+  render(false, "authoritative-revert");
+  const output = render(false, "authoritative-revert");
+  expect(text(output)).toContain("Real content");
+  expect(
+    nodes(output).find(
+      (node) => typeof node.props.onCheckedChange === "function",
+    )?.props.checked,
+  ).toBe(false);
+});
+
+test("an RSC snapshot adopts its mode without discarding a saved refresh warning", async () => {
+  result = { refreshPending: true };
+  await save();
+  render(true, "server-action-refresh");
+  const output = render(true, "server-action-refresh");
+  expect(text(output)).toContain(
+    "Saved. Landing pages may take longer to update.",
+  );
+  expect(text(output)).toContain("Sample content. Fictional");
 });

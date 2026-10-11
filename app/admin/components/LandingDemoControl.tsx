@@ -36,9 +36,11 @@ const REFRESH_ERROR =
  */
 export function LandingDemoControl({
   enabled,
+  readVersion = "initial",
   className,
 }: {
   enabled: boolean | null;
+  readVersion?: string;
   className?: string;
 }) {
   const id = useId();
@@ -57,8 +59,15 @@ export function LandingDemoControl({
   // toggle that arrives before it.
   const inFlight = useRef(false);
 
-  // The server page gives each authoritative read a fresh React key, so a
-  // repeated Boolean snapshot remounts this local state as well.
+  // Freshness is separate from the Boolean value. Keep this component mounted
+  // so Server Action RSC refreshes cannot discard post-commit save warnings.
+  const [lastReadVersion, setLastReadVersion] = useState(readVersion);
+  if (readVersion !== lastReadVersion) {
+    setLastReadVersion(readVersion);
+    setConfirmedEnabled(enabled);
+    setFailed(false);
+    setRefreshFailed(false);
+  }
 
   const mode = confirmedEnabled;
   const busy = saving || reloading;
