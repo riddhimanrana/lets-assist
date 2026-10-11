@@ -19,6 +19,14 @@ import {
 } from "./shared";
 import { buildWaiverEvidencePath } from "@/lib/waiver/evidence-path";
 import { waiverFileProblem } from "@/lib/waiver/file-validation";
+import {
+  WAIVER_SIGNING_REFUSALS,
+  currentEvidenceSource,
+  findEvidencePlacementProblem,
+  sameWaiverSource,
+  waiverSourceSnapshot,
+  type StoredWaiverDefinition,
+} from "@/lib/waiver/source-boundary";
 
 export async function uploadWaiverAsset(params: {
   bucket: string;
@@ -109,7 +117,7 @@ export async function prepareWaiverSignatureRecord(params: {
   let { data: project } = await serviceSupabase
     .from("projects")
     .select(
-      "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_disable_esignature, waiver_definition_id",
+      "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_disable_esignature, waiver_definition_id, project_timezone",
     )
     .eq("id", params.projectId)
     .maybeSingle();
@@ -119,7 +127,7 @@ export async function prepareWaiverSignatureRecord(params: {
       await serviceSupabase
         .from("projects")
         .select(
-          "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_definition_id",
+          "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_definition_id, project_timezone",
         )
         .eq("id", params.projectId)
         .maybeSingle();
@@ -159,6 +167,12 @@ export async function prepareWaiverSignatureRecord(params: {
     ? true
     : (project?.waiver_allow_upload ?? true);
 
+  // A full signed copy uploaded by the volunteer is its own document. Every
+  // other type is stamped onto the source PDF later.
+  const signatureType = params.waiverSignature.signatureType;
+  const isSignedCopyUpload = signatureType === "upload";
+  let storedDefinition: StoredWaiverDefinition | null = null;
+
   // New system: waiver_definitions are the canonical waiver source (PDF + placements).
   if (waiverDefinitionId) {
     if (project.waiver_definition_id !== waiverDefinitionId) {
@@ -170,7 +184,7 @@ export async function prepareWaiverSignatureRecord(params: {
 
     const { data: definition, error: defError } = await serviceSupabase
       .from("waiver_definitions")
-      .select("id, pdf_public_url, pdf_storage_path")
+      .select("id, pdf_public_url, pdf_storage_path, signers, fields")
       .eq("id", waiverDefinitionId)
       .eq("project_id", params.projectId)
       .limit(1)
@@ -186,12 +200,70 @@ export async function prepareWaiverSignatureRecord(params: {
       return { error: "Invalid waiver definition.", uploadedPaths: [] };
     }
 
-    // A definition is the immutable source used by historical signatures.
-    waiverPdfUrl = definition.pdf_public_url || waiverPdfUrl;
-    waiverPdfStoragePath = definition.pdf_storage_path || waiverPdfStoragePath;
+    // A definition is the immutable source used by historical signatures. Its
+    // placements only mean something on the PDF it was saved against, so an
+    // e-signature is refused while the project points at a different one.
+    const definitionSource = waiverSourceSnapshot(
+      definition.pdf_storage_path,
+      definition.pdf_public_url,
+    );
+    const projectSource = waiverSourceSnapshot(
+      waiverPdfStoragePath,
+      waiverPdfUrl,
+    );
+    if (
+      !isSignedCopyUpload &&
+      !sameWaiverSource(params.projectId, definitionSource, projectSource)
+    ) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS.stale_waiver,
+        uploadedPaths: [],
+      };
+    }
+    // The snapshot the database requires of every new evidence row.
+    const evidenceSource = currentEvidenceSource(
+      params.projectId,
+      projectSource,
+      definitionSource,
+    );
+    waiverPdfUrl = evidenceSource.publicUrl;
+    waiverPdfStoragePath = evidenceSource.storagePath;
+    storedDefinition = definition;
   }
 
   // No global waiver fallback - projects must have custom waivers
+
+  // The placement of an e-signature is proven against the actual bytes of the
+  // source PDF before any signature asset is stored. Nothing the browser
+  // reports about the document is trusted, and no placement is moved.
+  if (!isSignedCopyUpload) {
+    const placementProblem = await findEvidencePlacementProblem({
+      projectId: params.projectId,
+      source: waiverSourceSnapshot(waiverPdfStoragePath, waiverPdfUrl),
+      definition: storedDefinition,
+      evidence: {
+        signaturePayload:
+          signatureType === "multi-signer"
+            ? (params.waiverSignature.payload ?? null)
+            : null,
+        hasDrawnSignature: signatureType === "draw",
+        typedSignatureText:
+          signatureType === "typed"
+            ? (params.waiverSignature.signatureText ?? null)
+            : null,
+        signedAt: null,
+      },
+      // Measured in the project's zone, as the signed-copy routes stamp it.
+      timeZone: project.project_timezone ?? null,
+      adminClient: serviceSupabase,
+    });
+    if (placementProblem) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS[placementProblem],
+        uploadedPaths: [],
+      };
+    }
+  }
 
   const { ipAddress, userAgent } = await getRequestMetadata();
   let signaturePayload: Record<string, unknown> | null = null;
@@ -469,6 +541,88 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
     };
   }
 
+  // Reused evidence is new evidence for a new signup. It is only copied while
+  // it still describes the project's current waiver, and nothing is copied
+  // before that is known.
+  const { data: currentProject, error: currentProjectError } =
+    await serviceSupabase
+      .from("projects")
+      .select(
+        "waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id, project_timezone",
+      )
+      .eq("id", params.projectId)
+      .maybeSingle();
+
+  if (currentProjectError || !currentProject) {
+    return {
+      error: "Failed to reuse existing waiver signature.",
+      uploadedPaths: [],
+    };
+  }
+
+  const reusedSource = waiverSourceSnapshot(
+    latestSignature.waiver_pdf_storage_path,
+    latestSignature.waiver_pdf_url,
+  );
+  const projectSource = waiverSourceSnapshot(
+    currentProject.waiver_pdf_storage_path,
+    currentProject.waiver_pdf_url,
+  );
+  const reusedDefinitionId = latestSignature.waiver_definition_id ?? null;
+  if (
+    reusedDefinitionId !== (currentProject.waiver_definition_id ?? null) ||
+    !sameWaiverSource(params.projectId, reusedSource, projectSource)
+  ) {
+    return { error: WAIVER_SIGNING_REFUSALS.stale_waiver, uploadedPaths: [] };
+  }
+
+  let reusedDefinition: StoredWaiverDefinition | null = null;
+  if (reusedDefinitionId) {
+    const { data: definition, error: definitionError } = await serviceSupabase
+      .from("waiver_definitions")
+      .select("id, pdf_public_url, pdf_storage_path, signers, fields")
+      .eq("id", reusedDefinitionId)
+      .eq("project_id", params.projectId)
+      .maybeSingle();
+
+    if (definitionError || !definition) {
+      return { error: WAIVER_SIGNING_REFUSALS.stale_waiver, uploadedPaths: [] };
+    }
+    reusedDefinition = definition;
+  }
+  // The new row carries the current snapshot, as freshly signed evidence does.
+  const clonedSource = currentEvidenceSource(
+    params.projectId,
+    projectSource,
+    reusedDefinition &&
+      waiverSourceSnapshot(
+        reusedDefinition.pdf_storage_path,
+        reusedDefinition.pdf_public_url,
+      ),
+  );
+
+  if (!latestSignature.upload_storage_path) {
+    const placementProblem = await findEvidencePlacementProblem({
+      projectId: params.projectId,
+      source: clonedSource,
+      definition: reusedDefinition,
+      evidence: {
+        signaturePayload: latestSignature.signature_payload,
+        hasDrawnSignature: Boolean(latestSignature.signature_storage_path),
+        typedSignatureText: latestSignature.signature_text,
+        signedAt: null,
+      },
+      timeZone: currentProject.project_timezone ?? null,
+      adminClient: serviceSupabase,
+    });
+    if (placementProblem) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS[placementProblem],
+        uploadedPaths: [],
+      };
+    }
+  }
+
   const copiedPaths: string[] = [];
   const copiedPathBySource = new Map<string, string>();
 
@@ -588,6 +742,8 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
   return {
     record: {
       ...latestSignature,
+      waiver_pdf_url: clonedSource.publicUrl,
+      waiver_pdf_storage_path: clonedSource.storagePath,
       signature_storage_path: clonedSignatureStoragePath,
       upload_storage_path: clonedUploadStoragePath,
       signature_payload: clonedSignaturePayload,

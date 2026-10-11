@@ -5,7 +5,10 @@ import { ErrorMessage } from "./ErrorMessage";
 import { NoticePage } from "@/components/projects/NoticePage";
 import { Spinner } from "@/components/ui/spinner";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
-import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
+import {
+  AnonymousSignupWaiverError,
+  confirmAnonymousSignupWithCapacity,
+} from "@/lib/projects/signup-capacity";
 
 // Define possible confirmation statuses
 type ConfirmationStatus =
@@ -43,6 +46,11 @@ async function performConfirmation(
     // unmodified so the volunteer never receives a partial confirmation.
     const confirmation =
       await confirmAnonymousSignupWithCapacity(anonymousSignupId);
+    // A waiver refusal carries its own fixed sentence. Nothing was confirmed,
+    // and it is not a database fault.
+    if (confirmation.error instanceof AnonymousSignupWaiverError) {
+      return { status: "error", message: confirmation.error.message };
+    }
     if (confirmation.error || !confirmation.data) {
       safeConsole.error(
         "Error atomically confirming anonymous signup:",

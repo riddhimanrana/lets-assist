@@ -147,10 +147,12 @@ export async function removeProjectWaiverPdf(projectId: string) {
       return { error: "You don't have permission to modify this project" };
     }
 
-    // Get current waiver PDF path
+    // Get the current waiver snapshot. The detach below only applies to it.
     const { data: project, error: fetchError } = await supabase
       .from("projects")
-      .select("waiver_pdf_storage_path, workflow_status, waiver_required")
+      .select(
+        "waiver_pdf_storage_path, waiver_pdf_url, waiver_definition_id, workflow_status, waiver_required",
+      )
       .eq("id", projectId)
       .maybeSingle();
 
@@ -159,79 +161,74 @@ export async function removeProjectWaiverPdf(projectId: string) {
     }
 
     // The database refuses this write on a published, waiver-required project.
-    // Refuse here first, so the stored PDF is never deleted out from under a
-    // project row that still points at it.
+    // Refuse here first, with a sentence that says why.
     if (isWaiverSourceLocked(project)) {
       return { error: WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE };
     }
 
-    const serviceSupabase = getAdminClient();
+    const previousPath: string | null = project.waiver_pdf_storage_path ?? null;
 
-    // Historical definitions/signatures retain immutable source paths. Never
-    // delete a source object while evidence still references it.
-    if (project.waiver_pdf_storage_path) {
-      const [
-        { data: signatureReference, error: signatureReferenceError },
-        { data: definitionReference, error: definitionReferenceError },
-      ] = await Promise.all([
-        serviceSupabase
-          .from("waiver_signatures")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("waiver_pdf_storage_path", project.waiver_pdf_storage_path)
-          .limit(1)
-          .maybeSingle(),
-        serviceSupabase
-          .from("waiver_definitions")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("pdf_storage_path", project.waiver_pdf_storage_path)
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (signatureReferenceError || definitionReferenceError) {
-        safeConsole.error(
-          "Failed to verify waiver source retention references",
-          {
-            signatureReferenceError,
-            definitionReferenceError,
-          },
-        );
-        return {
-          error: "Failed to verify whether the waiver PDF can be removed",
-        };
-      }
-
-      if (!signatureReference && !definitionReference) {
-        const { error: removeError } = await serviceSupabase.storage
-          .from(WAIVER_UPLOAD_BUCKET)
-          .remove([project.waiver_pdf_storage_path]);
-
-        if (removeError) {
-          safeConsole.error(
-            "Failed to remove unreferenced waiver PDF:",
-            removeError,
-          );
-          return { error: "Failed to remove waiver PDF" };
-        }
-      }
+    // Detach first. The stored PDF is never deleted while the project row
+    // still points at it, and the detach is refused if the source or the
+    // definition was replaced after the snapshot above was read.
+    let detach = supabase.from("projects").update({
+      waiver_pdf_url: null,
+      waiver_pdf_storage_path: null,
+      // Detach the current definition while preserving historical versions.
+      waiver_definition_id: null,
+    });
+    detach = detach.eq("id", projectId);
+    for (const column of [
+      "waiver_pdf_storage_path",
+      "waiver_pdf_url",
+      "waiver_definition_id",
+    ] as const) {
+      const expected = project[column] ?? null;
+      detach =
+        expected === null
+          ? detach.is(column, null)
+          : detach.eq(column, expected);
     }
-
-    // Update project to remove waiver PDF info
-    const { error: updateError } = await supabase
-      .from("projects")
-      .update({
-        waiver_pdf_url: null,
-        waiver_pdf_storage_path: null,
-        // Detach the current definition while preserving historical versions.
-        waiver_definition_id: null,
-      })
-      .eq("id", projectId);
+    const { data: detached, error: updateError } = await detach
+      .select("id")
+      .maybeSingle();
 
     if (updateError) {
       safeConsole.error("Error removing waiver PDF from project:", updateError);
       return { error: "Failed to remove waiver PDF" };
+    }
+    if (!detached) {
+      return {
+        error:
+          "The waiver PDF changed while it was being removed. Reload the page and try again.",
+      };
+    }
+
+    // The object is never deleted here. It is handed to the durable cleanup
+    // queue, whose worker deletes it only if no project, definition, or
+    // signature names it at that moment. The project is already detached, so a
+    // queueing failure is logged and does not undo or misreport the removal.
+    // The same holds when the call itself throws, for example on a transport
+    // fault: the detach is committed and the database already queued the
+    // object in that transaction.
+    if (previousPath) {
+      try {
+        const { error: queueError } = await getAdminClient().rpc(
+          "enqueue_superseded_waiver_source",
+          { p_object_path: previousPath },
+        );
+        if (queueError) {
+          safeConsole.error(
+            "Failed to queue detached waiver PDF for cleanup:",
+            queueError,
+          );
+        }
+      } catch (queueError) {
+        safeConsole.error(
+          "Failed to queue detached waiver PDF for cleanup:",
+          queueError,
+        );
+      }
     }
 
     revalidatePath(`/projects/${projectId}`);
