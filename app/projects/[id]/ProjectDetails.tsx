@@ -3,10 +3,11 @@
 import type { WaiverSignatureInput } from "@/types";
 import { AuthUser } from "@/lib/supabase/types";
 import { RichTextContent } from "@/components/ui/rich-text-content";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationMapCard } from "@/app/projects/_components/LocationMapCard";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/utils";
-import { isOneTimeSlotPast, formatDateDisplay } from "@/utils/project";
+import { formatDateDisplay } from "@/utils/project";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSignupConfirmationAction } from "@/app/projects/_components/useSignupConfirmationAction";
@@ -16,11 +17,6 @@ import { ProjectDetailsAside } from "./ProjectDetailsAside";
 import { ProjectDetailsHeader } from "./ProjectDetailsHeader";
 import { ProjectDocumentsCard } from "./ProjectDocumentsCard";
 import { ProjectEmailConfirmationDialog } from "./ProjectEmailConfirmationDialog";
-import {
-  ProjectSignupBar,
-  ProjectSignupCta,
-  type ProjectSignupCtaState,
-} from "./ProjectSignupCta";
 import UserDashboard from "./UserDashboard";
 import { ProjectSignupForm } from "./ProjectForm";
 import ProjectInstructionsModal from "./ProjectInstructionsModalWrapper";
@@ -289,43 +285,6 @@ export default function ProjectDetails({
 
   const showSlotAttendees = project.show_attendees_publicly || canManageProject;
 
-  const oneTimeOpen =
-    project.event_type === "oneTime" &&
-    Boolean(project.schedule.oneTime) &&
-    !hasSignedUp["oneTime"] &&
-    !pendingSlots["oneTime"] &&
-    !rejectedSlots["oneTime"] &&
-    !attendedSlots["oneTime"] &&
-    remainingSlots["oneTime"] !== 0 &&
-    !isOneTimeSlotPast(project);
-  const signupCta: ProjectSignupCtaState | null =
-    isCreator ||
-    calculatedStatus === "cancelled" ||
-    calculatedStatus === "completed"
-      ? null
-      : project.event_type === "oneTime"
-        ? oneTimeOpen
-          ? {
-              label: "Sign up",
-              onClick: () => handleSignUpClick("oneTime"),
-              loading: loadingStates["oneTime"],
-            }
-          : null
-        : {
-            label: "Choose a slot",
-            onClick: () =>
-              document
-                .getElementById("volunteer-opportunities")
-                ?.scrollIntoView({
-                  behavior: window.matchMedia(
-                    "(prefers-reduced-motion: reduce)",
-                  ).matches
-                    ? "auto"
-                    : "smooth",
-                  block: "start",
-                }),
-          };
-
   const enableSavedAnonymousInfoReuse = project.event_type !== "oneTime";
   const waiverProps = {
     waiverRequired: !!project.waiver_required,
@@ -362,11 +321,6 @@ export default function ProjectDetails({
           }
           hostIsOrganization={Boolean(project.organization)}
           hostVerified={Boolean(project.organization?.verified)}
-          primaryAction={
-            signupCta ? (
-              <ProjectSignupCta cta={signupCta} className="hidden lg:flex" />
-            ) : null
-          }
           onShare={handleShare}
           onReport={
             canManageProject ? undefined : () => setIsReportDialogOpen(true)
@@ -408,15 +362,19 @@ export default function ProjectDetails({
           {/* Left Column */}
           <div className="grid content-start gap-6 lg:col-span-3">
             {/* About Section */}
-            <section className="grid gap-2">
-              <h2 className="text-lg font-semibold tracking-tight">
-                About this project
-              </h2>
-              <RichTextContent
-                content={project.description}
-                className="text-muted-foreground max-w-prose text-sm"
-              />
-            </section>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>
+                  <h2>About this project</h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RichTextContent
+                  content={project.description}
+                  className="text-muted-foreground text-sm"
+                />
+              </CardContent>
+            </Card>
 
             <ProjectSlotsCard
               project={project}
@@ -474,14 +432,6 @@ export default function ProjectDetails({
           </div>
         </div>
       </div>
-
-      {signupCta && !demoMode ? (
-        <ProjectSignupBar
-          title={project.title}
-          detail={formatDateDisplay(project)}
-          cta={signupCta}
-        />
-      ) : null}
 
       <ProjectSignInDialog
         open={authDialogOpen}

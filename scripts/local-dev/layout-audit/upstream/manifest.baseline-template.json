@@ -1059,7 +1059,10 @@
     },
     {
       "id": "organization-settings-invitations",
-      "readActions": ["getOrganizationInvitations", "getStaffLinkDetails"],
+      "readActions": [
+        "getOrganizationInvitations",
+        "getStaffLinkDetails"
+      ],
       "route": "/organization/local-platform-org/settings?section=invitations",
       "expectedRoutes": [
         "/organization/local-platform-org/settings?section=invitations"
@@ -1088,7 +1091,11 @@
       ],
       "actorKey": "developer",
       "captureReducedMotion": false,
-      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save",
+      "readActions": [
+        "getOrganizationCalendarStatus",
+        "getSheetSyncStatus"
+      ]
     },
     {
       "id": "organization-settings-plugins",

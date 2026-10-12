@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Actual owned loopback reads only. Never seeds, signs in or logs raw rows.
 import fs from "node:fs";
+import { collectDisconnectedIntegrationFixture } from "./integration-reader-contract.mjs";
 import {
   invitationFixtureFromRows,
   INVITATION_ORG_ID,
@@ -188,6 +189,10 @@ export async function main(output) {
         "/rest/v1/projects",
         "/rest/v1/organizations",
         "/rest/v1/organization_members",
+        "/rest/v1/organization_calendar_syncs",
+        "/rest/v1/organization_sheet_syncs",
+        "/rest/v1/user_google_oauth_connection_bindings",
+        "/rest/v1/user_calendar_connections",
       ].includes(u.pathname)
     )
       os.deny();
@@ -278,6 +283,11 @@ export async function main(output) {
       key: "developer",
       id: developer.userId,
     },
+  );
+  proof.integrationReader = await collectDisconnectedIntegrationFixture(
+    admin,
+    proof.invitationReaderOrganization,
+    { kind: "baseline", key: "developer", id: developer.userId },
   );
   requireLiveBinding();
   dv.getCsfIsolatedSupabaseEnv();

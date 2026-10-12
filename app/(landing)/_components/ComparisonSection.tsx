@@ -294,6 +294,8 @@ function ModernDashboardMockup() {
             {phase === "BROWSING" && (
               <motion.div
                 key="browsing"
+                data-slot="comparison-demo-phase"
+                data-phase="browsing"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, scale: 0.95 }}
@@ -319,14 +321,16 @@ function ModernDashboardMockup() {
                   </div>
 
                   {/* Card 2 (Target) */}
-
                   <div className="p-2.5 rounded-lg border border-primary/40 bg-card shadow-sm relative group">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-medium text-xs sm:text-sm">
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-muted text-foreground hover:bg-muted/80 dark:bg-primary/10 dark:text-primary dark:hover:bg-primary/20">
+                      <Badge
+                        variant="neutral"
+                        className="text-[9px] h-4 bg-muted text-foreground hover:bg-muted/80 dark:bg-primary/10 dark:hover:bg-primary/20"
+                      >
                         Open
                       </Badge>
                     </div>
@@ -341,7 +345,10 @@ function ModernDashboardMockup() {
                       </span>
                     </div>
 
-                    <Button size="sm" className="w-full h-7 text-[10px]">
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-[10px] text-foreground dark:text-primary-foreground"
+                    >
                       View details
                     </Button>
                   </div>
@@ -362,6 +369,8 @@ function ModernDashboardMockup() {
             {phase === "DETAILS" && (
               <motion.div
                 key="details"
+                data-slot="comparison-demo-phase"
+                data-phase="details"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, filter: "blur(4px)" }}
@@ -407,7 +416,9 @@ function ModernDashboardMockup() {
                     transition={{ delay: 2.2, duration: 0.3 }}
                     className="w-full"
                   >
-                    <Button className="w-full h-8 text-xs">Sign up now</Button>
+                    <Button className="w-full h-8 text-xs text-foreground dark:text-primary-foreground">
+                      Sign up now
+                    </Button>
                   </motion.div>
                 </div>
               </motion.div>
@@ -417,6 +428,8 @@ function ModernDashboardMockup() {
             {phase === "QR" && (
               <motion.div
                 key="qr"
+                data-slot="comparison-demo-phase"
+                data-phase="qr"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -478,6 +491,8 @@ function ModernDashboardMockup() {
             {phase === "NOTIFICATION" && (
               <motion.div
                 key="notification"
+                data-slot="comparison-demo-phase"
+                data-phase="notification"
                 className="h-full relative bg-muted/30"
               >
                 {/* Fake Dashboard BG */}
@@ -522,6 +537,8 @@ function ModernDashboardMockup() {
             {phase === "CERTIFICATE" && (
               <motion.div
                 key="certificate"
+                data-slot="comparison-demo-phase"
+                data-phase="certificate"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center justify-center h-full p-4"
@@ -581,6 +598,8 @@ function ModernDashboardMockup() {
             {phase === "DASHBOARD" && (
               <motion.div
                 key="dashboard"
+                data-slot="comparison-demo-phase"
+                data-phase="dashboard"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="space-y-4"
@@ -935,7 +954,7 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.15 }}
-            className="text-[10px] sm:text-xs text-muted-foreground"
+            className="text-[10px] sm:text-xs text-foreground/80"
           >
             {feature.signupGenius}
           </motion.span>

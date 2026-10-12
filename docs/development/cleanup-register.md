@@ -10819,3 +10819,71 @@ token for Actions; connected GitHub read tools work. Exact-head full CI,
 receipt/pixel review, remaining fixtures and old-runtime parity, hosted
 Development acceptance and all conditional Production gates remain open. No
 merge, deployment, secret transfer, provider activation or policy bypass occurred.
+
+## Cloud layout corrections and signup restoration, October 12
+
+Full run [38300762442](https://github.com/riddhimanrana/lets-assist/actions/runs/38300762442),
+at `28e791a7b5acc9450f9e20613c2877341759e5c0`, passed all twelve baseline
+jobs and failed layout and the aggregate gate. Its receipt has 67 attempts,
+66 retained PNGs, 64 awaiting pixel review, two loading states and one blocked
+integration scene. Two invitation modes still contain loading markers; four
+retained invitation PNGs do not establish four settled interiors. The integration
+scene refused two initial POSTs. Remaining scenes and native old-versus-new
+acceptance are open.
+
+The consolidated frontend correction restores the source-backed old project
+layout: About, Volunteer opportunities and Project details cards, individual
+slot rows with inline signup and the image inside the right-hand details card.
+Shared ProjectDetails supplies both actual project pages and the embedded
+Santa Cruz Beach Cleanup demo. Current authorization, waiver, status, capacity,
+confirmation and roster behavior remain. Controlled rendering covers 1280px,
+390px and 320px in both themes and the guest authentication dialog. Seven new
+regressions cover slot actions, disabled states, creator behavior and card
+structure. This is component evidence, not native authenticated acceptance.
+
+The member visibility switch has an explicit accessible name and description.
+Phone moderation tabs use two columns so all four labels fit. Resting capture
+requires a continuous quiet period across both tooltip roles and Base UI portal
+slots, including the exit phase after role removal. Invitations and integrations
+must finish visible loading within a fixed twelve-second bound. Unresolved
+loading still fails.
+
+The exact initial integration getters are admitted only for independently
+observed empty fictional configuration, organization bindings and viewer
+connections. Identity-column queries are bounded to the first row; no credential
+columns are selected. Seventeen literal source hashes, compiled manifest bytes,
+exact action IDs, exports, workers, route, actor, body and organization are
+required, with renewed disconnected proof before each mode. Connected getters
+can refresh credentials or probe providers and remain refused, as do owner
+lists and every mutation. Forty-one adversarial tests cover these boundaries.
+
+Public landing capture now observes its live comparison word and demo phase
+before and after each PNG, retries at most three times and rejects transition
+frames. It never freezes animation. Controlled actual HeroHeading and
+PlatformFeaturesSection traces and compositor recordings demonstrate normal
+letter and word movement and reduced-motion still states. Scoped comparison
+button, provider-note and badge colors address measured weak text; shared
+theme tokens are unchanged. Component contrast measurements include explicit
+gradient bounds because axe alone cannot establish those colors. Native
+exact-head motion, full-scene contrast and complete pixel acceptance remain open.
+
+The frozen SheetJS archive still returns HTTP403 in cloud. Typecheck has ten
+missing-xlsx or dependent-inference errors; a landing accessibility module also
+cannot import that dependency. No lockfile substitution or waiver is made.
+Hosted Development and Production have not been changed. Production remains
+ledger687 with the landing objects absent; its real bootstrap, credentials,
+writer holds, recovery capture and schema/application compatibility gates are
+required before the authorized release. PR873 and all feature branches remain
+preserved.
+
+Cloud validation for this correction: the refreshed owned package passes all
+266 Linux adapter checks, 568 original guards, 52 landing settlement checks,
+65 notification/privacy checks and 99 focused capture tests. Four signup UI
+modules pass 14 tests; the isolated member-switch module passes one test.
+Changed component lint, formatting, agent policy, root/private source layout and
+strict private-submodule checks pass. The broader five-module CI tooling run
+passes 76 tests and fails four replay-fixture tests because `rsync` is absent
+(exit127). This is not full CI. Controlled comparison captures settle in all
+four desktop/phone theme modes; all six phone demo phases in both themes show
+no axe contrast violation or conservative gradient-bound failure. Native
+application coverage and release acceptance are still pending.

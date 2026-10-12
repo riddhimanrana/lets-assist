@@ -174,7 +174,7 @@ export function runProfileDiagnosticChecks(effects, captureSource) {
       "capture.restingState = await restoreCaptureRestingState(page)",
     ),
     screenshotStart = captureSource.indexOf(
-      "const pixels = await page.screenshot(",
+      "const screenshot = await captureSettledPixels(",
     );
   pass(() =>
     assert(

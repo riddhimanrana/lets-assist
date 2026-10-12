@@ -22,3 +22,21 @@ The Linux adapter substitutes lazy `/proc` observations and exclusive/fsynced in
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.
 
 The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. Its147+568 body passed during external preparation before this stage preflight was added; the full staged positive execution remains root-owned.
+
+## October 12 cloud correction
+
+The integration scene permits only its two initial disconnected-state getters,
+bound to exact compiled action IDs, exports, worker and seventeen reviewed source
+hashes. Before each mode, read-only identity-column queries independently require
+no fictional organization calendar/sheet configuration or OAuth binding and no
+viewer connection. Connected getters, owner lists, credential refresh/probes and
+all mutations remain fatal. Invitations and integrations must finish loading
+within twelve seconds; unresolved loading is refused.
+
+Resting capture observes both tooltip roles and Base UI portal slots for a
+continuous quiet period. Public landing capture observes the live comparison
+word and demo phase before and after each PNG, with at most three attempts. It
+does not freeze animations or accept transparent transition frames. These
+helpers and their adversarial tests are part of the frozen package manifest.
+Controlled component renders supplement, but do not replace, native exact-head
+CI, the complete 87-scene fixture audit or old-versus-new pixel review.

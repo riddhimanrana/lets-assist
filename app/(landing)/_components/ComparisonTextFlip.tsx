@@ -28,6 +28,7 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
 
   return (
     <span
+      data-slot="comparison-word"
       className="inline-flex items-center justify-center"
       style={{ minWidth: "5ch" }}
     >

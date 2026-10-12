@@ -23,8 +23,8 @@ import { ProjectStatusBadge } from "@/components/ui/status-badge";
 import type { ProjectStatus } from "@/types";
 
 /**
- * The top of a project page: its state, its name, then when, where and who
- * runs it on one aligned block. Share and report sit to the right.
+ * The previous project header arrangement: title on the left, status and
+ * named share/report controls on the right; status comes first on phones.
  */
 export function ProjectDetailsHeader({
   title,
@@ -58,45 +58,47 @@ export function ProjectDetailsHeader({
 
   return (
     <header className="mb-6 grid gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="grid min-w-0 gap-2">
-          <ProjectStatusBadge status={status} className="w-fit capitalize" />
-          <Heading className="text-2xl font-semibold tracking-tight text-balance wrap-break-word">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-4">
+        <div className="order-1 min-w-0 flex-1 sm:order-0">
+          <Heading className="mb-1.5 text-2xl font-bold text-balance wrap-break-word sm:text-3xl">
             {title}
           </Heading>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {primaryAction}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onShare}
-            aria-label="Share project"
-          >
-            <Share2 aria-hidden="true" />
-          </Button>
-          {onReport ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    suppressHydrationWarning
-                  >
-                    <MoreVertical aria-hidden="true" />
-                    <span className="sr-only">More options</span>
-                  </Button>
-                }
-              />
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onReport}>
-                  <Flag aria-hidden="true" />
-                  Report project
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+        <div className="order-0 flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-start">
+          <ProjectStatusBadge status={status} className="capitalize" />
+          <div className="flex items-center gap-2">
+            {primaryAction}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onShare}
+              aria-label="Share project"
+            >
+              <Share2 aria-hidden="true" />
+            </Button>
+            {onReport ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      suppressHydrationWarning
+                    >
+                      <MoreVertical aria-hidden="true" />
+                      <span className="sr-only">More options</span>
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onReport}>
+                    <Flag aria-hidden="true" />
+                    Report project
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
         </div>
       </div>
 

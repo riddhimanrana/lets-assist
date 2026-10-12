@@ -2,6 +2,10 @@
 // Future actual owned runtime collector. No launch, DB mutation or provider request.
 import fs from "node:fs";
 import {
+  integrationPolicyFromCompiled,
+  verifyIntegrationFixture,
+} from "./integration-reader-contract.mjs";
+import {
   invitationPolicyFromCompiled,
   verifyInvitationFixture,
 } from "./invitation-reader-contract.mjs";
@@ -210,6 +214,7 @@ export async function main(
   );
   let readActionPolicy = { enabled: false, reviewed: false };
   let invitationReadPolicy = { enabled: false, reviewed: false };
+  let integrationReadPolicy = { enabled: false, reviewed: false };
   if (enableReads) {
     const meta = path.join(directory, "server/server-reference-manifest.json");
     os.ownFile(meta, false);
@@ -239,6 +244,21 @@ export async function main(
       REPO,
       digest(bytes),
       readProof.invitationReaderSourceHashes,
+    );
+    verifyIntegrationFixture(
+      fixture.integrationReader,
+      fixture.invitationReaderOrganization,
+      {
+        kind: "baseline",
+        key: "developer",
+        id: developer?.userId,
+      },
+    );
+    integrationReadPolicy = integrationPolicyFromCompiled(
+      JSON.parse(bytes),
+      REPO,
+      digest(bytes),
+      readProof.integrationReaderSourceHashes,
     );
   }
   const runtime = {
@@ -367,6 +387,7 @@ export async function main(
     fixtureProofSha256: digest(fs.readFileSync(fixtureFile)),
     readActionPolicy,
     invitationReadPolicy,
+    integrationReadPolicy,
   };
   const manifestFile = path.join(supportDir, "capture-manifest.json");
   os.exclusiveJSON(manifestFile, manifest);

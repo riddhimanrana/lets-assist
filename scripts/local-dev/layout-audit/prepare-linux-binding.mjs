@@ -3,6 +3,7 @@
 import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
 import { INVITATION_SOURCE_HASHES } from "./invitation-reader-contract.mjs";
+import { INTEGRATION_SOURCE_HASHES } from "./integration-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -136,6 +137,12 @@ review.notificationReaderSourceHashes = Object.fromEntries(
 );
 review.invitationReaderSourceHashes = Object.fromEntries(
   Object.entries(INVITATION_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.integrationReaderSourceHashes = Object.fromEntries(
+  Object.entries(INTEGRATION_SOURCE_HASHES).map(([file, sha]) => [
     file,
     authorizedHash(file, sha),
   ]),

@@ -3,33 +3,67 @@ import { test } from "node:test";
 import vm from "node:vm";
 import { restoreCaptureRestingState } from "./capture-resting-state.mjs";
 
-test("resting capture dismisses tooltips and restores scrolling without disabling keyboard controls", async () => {
+function browserStandIn(visibleAt = () => false) {
+  let now = 0,
+    deadline,
+    frameId = 0;
   const calls = [];
   class Element {
     blur() {
       calls.push("blur");
     }
   }
+  const popup = { getClientRects: () => (visibleAt(now) ? [{}] : []) };
   const document = {
     activeElement: new Element(),
-    querySelectorAll: () => [],
     querySelector: () => null,
+    querySelectorAll(selector) {
+      assert.equal(selector, '[role="tooltip"],[data-slot="tooltip-content"]');
+      return [popup];
+    },
   };
   const window = {
     scrollY: 100,
     scrollTo(options) {
       assert.equal(options.top, 0);
-      assert.equal(options.behavior, "instant");
       this.scrollY = 0;
       calls.push("scroll");
     },
-  };
-  const context = vm.createContext({ document, window, HTMLElement: Element });
-  const page = {
-    keyboard: {
-      press: async () =>
-        assert.fail("Resting capture must preserve open dialogs"),
+    setTimeout(fn) {
+      deadline = fn;
+      return 1;
     },
+    clearTimeout() {
+      deadline = undefined;
+    },
+    cancelAnimationFrame() {},
+    requestAnimationFrame(fn) {
+      const id = ++frameId;
+      queueMicrotask(() => {
+        now += 100;
+        if (now >= 3000 && deadline) {
+          const done = deadline;
+          deadline = undefined;
+          done();
+          return;
+        }
+        fn(now);
+      });
+      return id;
+    },
+  };
+  const context = vm.createContext({
+    document,
+    window,
+    HTMLElement: Element,
+    getComputedStyle: () => ({
+      visibility: "visible",
+      display: "block",
+      opacity: "1",
+    }),
+  });
+  const page = {
+    keyboard: { press: async () => assert.fail("Preserve open dialogs") },
     mouse: {
       move: async (x, y) => {
         assert.equal(x, 0);
@@ -37,26 +71,29 @@ test("resting capture dismisses tooltips and restores scrolling without disablin
         calls.push("pointer");
       },
     },
-    evaluate: async (fn) => vm.runInContext(`(${fn})()`, context),
-    waitForFunction: async (fn, arg, options) => {
-      assert.equal(options.timeout, 3000);
-      assert.equal(vm.runInContext(`(${fn})()`, context), true);
-      calls.push("settled");
-    },
+    evaluate: async (fn) => vm.runInContext("(" + fn + ")()", context),
   };
-  const result = await restoreCaptureRestingState(page);
-  assert.deepEqual(calls, ["blur", "scroll", "pointer", "settled"]);
+  return { page, calls, now: () => now };
+}
+test("resting capture clears focus/scroll and requires a quiet portal interval", async () => {
+  const fixture = browserStandIn();
+  const result = await restoreCaptureRestingState(fixture.page);
+  assert.deepEqual(fixture.calls, ["blur", "scroll", "pointer"]);
   assert.equal(result.focusState, "resting-after-keyboard-proof");
+  assert.equal(result.tooltipProbe, "role-and-component-portal");
+  assert.equal(result.quietPeriodMs, 400);
+  assert.equal(fixture.now(), 500);
 });
-
-test("an undismissed tooltip stops the resting capture", async () => {
-  const page = {
-    keyboard: { press: async () => {} },
-    evaluate: async () => {},
-    mouse: { move: async () => {} },
-    waitForFunction: async () => {
-      throw Error("UI did not settle");
-    },
-  };
-  await assert.rejects(restoreCaptureRestingState(page));
+test("a delayed portal with no tooltip role restarts the quiet interval", async () => {
+  const fixture = browserStandIn((now) => now >= 300 && now <= 500);
+  await restoreCaptureRestingState(fixture.page);
+  assert.equal(fixture.now(), 1000);
+});
+test("an undismissed popup fails within the fixed deadline", async () => {
+  const fixture = browserStandIn(() => true);
+  await assert.rejects(
+    restoreCaptureRestingState(fixture.page),
+    /did not settle/,
+  );
+  assert.equal(fixture.now(), 3000);
 });

@@ -10,6 +10,16 @@ import {
 import { readAxeRows } from "./axe-color-diagnostics.mjs";
 import { createCaptureSessions } from "./capture-sessions.mjs";
 import { restoreCaptureRestingState } from "./capture-resting-state.mjs";
+import { settleSettingsReadiness } from "./settings-readiness.mjs";
+import {
+  settleLandingComparison,
+  captureSettledPixels,
+} from "./landing-comparison-readiness.mjs";
+import {
+  exactIntegrationPolicy,
+  integrationReaderRequest,
+  collectDisconnectedIntegrationFixture,
+} from "./integration-reader-contract.mjs";
 import {
   exactInvitationPolicy,
   invitationReaderRequest,
@@ -128,6 +138,11 @@ const invitationActions = exactInvitationPolicy(
   REPO,
   buildDirectory,
   m.invitationReadPolicy,
+);
+const integrationActions = exactIntegrationPolicy(
+  REPO,
+  buildDirectory,
+  m.integrationReadPolicy,
 );
 if (
   !Number.isInteger(m.appPort) ||
@@ -369,6 +384,20 @@ try {
           ]
         : []),
     ]) {
+      if (entry.id === "organization-settings-integrations") {
+        if (!integrationActions.length)
+          fail("Reviewed integration policy required");
+        const observed = await collectDisconnectedIntegrationFixture(
+          admin,
+          fixtureProof.invitationReaderOrganization,
+          actor,
+        );
+        if (
+          JSON.stringify(observed) !==
+          JSON.stringify(fixtureProof.integrationReader)
+        )
+          fail("Disconnected integration fixture changed");
+      }
       const context = await browser.newContext({
         baseURL,
         viewport: { width: mode.width, height: mode.height },
@@ -433,11 +462,22 @@ try {
               try {
                 readActionRequest(request);
               } catch {
-                invitationReaderRequest({
-                  ...request,
-                  approvedActions: invitationActions,
-                  organizationProof: fixtureProof.invitationReaderOrganization,
-                });
+                try {
+                  invitationReaderRequest({
+                    ...request,
+                    approvedActions: invitationActions,
+                    organizationProof:
+                      fixtureProof.invitationReaderOrganization,
+                  });
+                } catch {
+                  integrationReaderRequest({
+                    ...request,
+                    approvedActions: integrationActions,
+                    organizationProof:
+                      fixtureProof.invitationReaderOrganization,
+                    integrationProof: fixtureProof.integrationReader,
+                  });
+                }
               }
               if (++allowedReadActions > 4)
                 fail("Read-action request bound exceeded");
@@ -627,6 +667,16 @@ try {
             );
           await locator.first().waitFor({ state: "visible", timeout: 12000 });
         }
+        if (
+          [
+            "organization-settings-invitations",
+            "organization-settings-integrations",
+          ].includes(entry.id)
+        )
+          capture.settingsReadiness = await settleSettingsReadiness(
+            page,
+            entry,
+          );
         await page.evaluate(async () => {
           await document.fonts.ready;
           await new Promise((resolve) =>
@@ -687,6 +737,11 @@ try {
             requestAnimationFrame(() => requestAnimationFrame(resolve)),
           );
         });
+        if (entry.id === "landing-baseline") {
+          capture.comparisonRestingState = await settleLandingComparison(page);
+          capture.axe = await readAxeResult();
+          capture.axeSamplePhase = "after-comparison-settlement";
+        }
         capture.dom = await page.evaluate(() => {
           const visible = (e) =>
             !!(
@@ -758,7 +813,13 @@ try {
           fail(
             "Browser/host/effect guard failed; no successful capture claimed",
           );
-        const pixels = await page.screenshot({ fullPage: true, caret: "hide" });
+        const screenshot = await captureSettledPixels(page, entry);
+        const pixels = screenshot.pixels;
+        if (entry.id === "landing-baseline") {
+          capture.comparisonRestingState = screenshot.comparisonState;
+          capture.comparisonCaptureAttempts = screenshot.attempts;
+          capture.dom.documentHeight = screenshot.documentHeight;
+        }
         const png = createExclusiveReceipt(output);
         try {
           fs.writeSync(png, pixels);
