@@ -10940,3 +10940,27 @@ claims. The apparently duplicated closing heading is not an established defect:
 existing accessibility tests verify its exposed text once, but the full route
 still needs rendered assistive-technology inspection. Neither a source test nor
 these desktop captures completes the requested whole-site accessibility audit.
+
+### Build-window teardown ownership, October 12, 2026
+
+`ISOLATED-BUILD-TEARDOWN-20261012`, P2: full run38196088865 at
+`4b5be941` failed the pre-child teardown fixture. A group shutdown could land
+after readiness but before the blocking build child existed. That child missed
+the group signal, while its parent's handler could not run during `spawnSync`.
+The same narrow gap existed around real isolated builds.
+
+Platform and plugin builds now use the existing asynchronous owned-child
+supervisor. Signals reach the build group while the parent waits. The helper
+waits for exit, checks pending shutdown and removes exactly that completed
+build's child and exit registrations, so it cannot terminate a later runtime
+drain or receive stale-PID signals. The claim remains owned by the launcher and
+is released through its existing finalizer. Working directories, positive
+environment allowlists and provider guards are unchanged.
+
+A250ms pre-spawn fixture hold reproduced the old20-second failure locally.
+The repaired actual supervisor passes all10 teardown cases/44 assertions,
+including the unchanged aborted-build,20-second deadline and empty-claim
+checks. A new regression proves a completed build cannot end or signal the
+subsequent runtime. Existing41 runner cases/271 assertions, TypeScript and
+affected lint pass. Independent source review found no blocker. Current-head
+full CI remains required; no timeout or acceptance assertion was relaxed.
