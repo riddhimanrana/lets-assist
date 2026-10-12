@@ -10794,3 +10794,31 @@ collection. See [analytics audit](analytics-audit.md) for focused source checks,
 deployment limits and proposed aggregate workflow metrics. Existing OPS-02 still
 requires served privacy-payload verification; no historical-data or release
 action was taken.
+
+### Correction readback and rendered component follow-up, October 12, 2026
+
+`CSF-CORRECTION-READBACK-20261012`, P2: full root CI at `1e2ecfd2` displayed
+the submitted correction after a successful officer acknowledgement closed its
+dialog. The dialog did not invalidate the open application detail cache.
+Private PR653 adds a confirmed-success callback to the existing visit-scoped
+refresh; independent review, private quality, 12 focused Chromium outcomes and
+queue/cache regressions pass. The reviewed fix is in private Development and
+Main as version1.2.89. A new immutable signed release and root integration must
+precede the full database-backed journey check. Signed1.2.88 remains unchanged.
+
+`LANDING-SAMPLE-LABEL-20261012`, P2: actual Development hero pixels had no
+persistent sample label despite presenting a fictional project. The candidate's
+window chrome now labels it "Sample project" at all reviewed component widths.
+Organization Admin/Staff colors also match the supplied green/blue reference.
+Actual compiled components and repository CSS were inspected at1440,390 and320
+pixels in both themes with fictional props. Phone feed/directory empty padding
+is reduced at its call sites while desktop and shared-primitive defaults remain
+unchanged. The passive URL chip is hidden on phones, and membership cards use a
+decorative brand wash with semantic role text and focus rings.
+
+Component captures show no page errors or horizontal overflow. Computed-color
+contrast arithmetic clears4.5:1 for the reviewed12px role labels, including the
+light filled-primary gloss endpoint. These are component and nominal-color
+proofs, not whole-app, interaction, hosted or Production acceptance. Final
+candidate landing, mobile navbar, generic tabs, all roles/states and matched old
+counterparts remain incomplete.

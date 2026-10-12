@@ -306,6 +306,7 @@ export const ProjectsInfiniteScroll: React.FC<{ demoEnabled?: boolean }> = ({
     if (demoEnabled) {
       return (
         <ProjectFeedEmpty
+          className="p-6 sm:p-12"
           state={
             errorStatus === 401 || errorStatus === 403 ? "restricted" : "error"
           }
@@ -358,11 +359,15 @@ export const ProjectsInfiniteScroll: React.FC<{ demoEnabled?: boolean }> = ({
 
         {demoEnabled ? (
           <ProjectFeedEmpty
+            className="p-6 sm:p-12"
             state={activeFilterCount > 0 ? "filtered" : "empty"}
             onClear={clearAllFilters}
           />
         ) : (
-          <Empty className="border" data-tour-id="home-project-list">
+          <Empty
+            className="border p-6 sm:p-12"
+            data-tour-id="home-project-list"
+          >
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <EmptyStateIcon

@@ -94,7 +94,7 @@ export default function OrganizationCard({
         className={cn(
           "h-full transition-colors",
           highlightMembership
-            ? "bg-primary/5 ring-primary/25 group-hover:bg-primary/10 group-hover:ring-primary/40"
+            ? "bg-brand/5 ring-primary/25 group-hover:bg-brand/10 group-hover:ring-primary/40"
             : "group-hover:bg-muted/40 group-hover:ring-foreground/20",
         )}
       >

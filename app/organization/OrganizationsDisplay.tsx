@@ -282,7 +282,7 @@ export default function OrganizationsDisplay({
 
       {!hasResults ? (
         hasAnyOrganization && query ? (
-          <Empty className="border">
+          <Empty className="border p-6 sm:p-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <SearchX aria-hidden="true" />
@@ -301,7 +301,7 @@ export default function OrganizationsDisplay({
             </EmptyContent>
           </Empty>
         ) : (
-          <Empty className="border">
+          <Empty className="border p-6 sm:p-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <EmptyStateIcon name="users" />

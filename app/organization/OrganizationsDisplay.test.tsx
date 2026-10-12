@@ -151,8 +151,8 @@ describe("organization directory cards", () => {
   test("owned cards keep role, type, handle, description and verified cue", () => {
     const { owned, discover } = populatedDirectory();
 
-    expect(owned).toContain("bg-primary/5");
-    expect(discover).not.toContain("bg-primary/5");
+    expect(owned).toContain("bg-brand/5");
+    expect(discover).not.toContain("bg-brand/5");
     expect(owned).toContain("Maple Tutors");
     expect(owned).toContain("@maple-tutors");
     expect(owned).toContain("Educational");
@@ -203,7 +203,7 @@ describe("organization directory cards", () => {
     });
 
     expect(owned).toBe("");
-    expect(discover).not.toContain("bg-primary/5");
+    expect(discover).not.toContain("bg-brand/5");
     expect(occurrences(discover, 'href="/organization/')).toBe(4);
     expect(html).toContain('href="/login?redirect=/organization"');
     expect(html).not.toContain("Verify certificates");

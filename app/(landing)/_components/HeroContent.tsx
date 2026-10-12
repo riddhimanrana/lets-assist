@@ -39,6 +39,7 @@ import {
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
 import { MotionLinkButton } from "./MotionLinkButton";
+import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
 
 const {
   projectId: PROJECT_ID,
@@ -762,19 +763,7 @@ function RealProjectDemoWindow() {
           setDemoScrollEnabled(true);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b bg-muted/30 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2" aria-hidden>
-            <span className="size-2.5 rounded-full bg-destructive/70" />
-            <span className="size-2.5 rounded-full bg-warning/70" />
-            <span className="size-2.5 rounded-full bg-success/70" />
-          </div>
-          <div className="min-w-0 text-center">
-            <p className="max-w-[58vw] truncate rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs sm:max-w-none sm:px-4">
-              {PROJECT_DISPLAY_URL}
-            </p>
-          </div>
-          <div aria-hidden />
-        </div>
+        <LandingDemoWindowChrome displayUrl={PROJECT_DISPLAY_URL} />
         <div
           className={cn(
             "max-h-[78svh] overflow-hidden md:max-h-[720px] lg:max-h-[760px]",

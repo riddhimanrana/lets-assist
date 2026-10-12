@@ -49,6 +49,12 @@ Two kinds, and they look different on purpose.
 
 Never hand-tint a badge with palette classes such as `bg-emerald-500/10`. If a status has no variant, it is one of the five above.
 
+Organization roles retain the approved reference colors: Admin uses the green
+`default` label, Staff uses the blue `info` tint, and Member stays `outline`.
+Their shared `MemberRoleBadge` owns this presentation across the directory,
+header, and members table. Semantic foregrounds keep text and icons readable
+in both themes.
+
 ## Fields
 
 Text inputs, textareas, and input groups are flat: a hairline border, no shadow, no gradient. Select triggers are the exception, because you press them, so they are glossy neutral.
@@ -63,7 +69,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 - Headline numbers use `StatStrip`: one card, divided cells. No coloured tiles.
 - A status-tinted card tints its ring (`ring-warning/30`), never a second border.
 - Clickable cards change their ring or fill on hover. They do not lift.
-- The organization directory uses a primary wash and ring for the viewer’s membership cards, following the approved earlier card design. Discovered and profile cards stay neutral.
+- The organization directory uses a decorative brand wash and semantic primary ring for the viewer’s membership cards, following the approved earlier card design. Discovered and profile cards stay neutral. Focus rings and readable role labels continue to use semantic colors.
 
 ## Tabs
 

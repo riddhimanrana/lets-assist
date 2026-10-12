@@ -8,22 +8,21 @@ const badge = (role: string) =>
   renderToStaticMarkup(<MemberRoleBadge role={role} />);
 
 describe("member role badge", () => {
-  test("admin is a neutral label with the role colour on the icon only", () => {
+  test("admin uses the primary green label and its semantic foreground", () => {
     const html = badge("admin");
     expect(html).toContain("Admin");
-    expect(html).toContain("bg-secondary");
-    expect(html).toContain("text-primary");
-    // The label never sits on the filled primary or a tinted status fill.
-    expect(html).not.toContain("bg-primary");
+    expect(html).toContain("bg-primary");
+    expect(html).toContain("text-primary-foreground");
+    expect(html).not.toContain("bg-secondary");
     expect(html).not.toContain("bg-info");
   });
 
-  test("staff is an outline label with an info icon", () => {
+  test("staff uses the semantic blue tint for the label and icon", () => {
     const html = badge("staff");
     expect(html).toContain("Staff");
-    expect(html).toContain("border-border");
+    expect(html).toContain("border-info/20");
     expect(html).toContain("text-info");
-    expect(html).not.toContain("bg-info");
+    expect(html).toContain("bg-info/10");
     expect(html).not.toContain("bg-primary");
   });
 
