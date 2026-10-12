@@ -141,7 +141,7 @@ export default function OrgModerationDashboard({
       >
         <TabsList
           variant="line"
-          className="grid min-w-0 grid-cols-2 gap-1 border-b sm:flex"
+          className="grid min-w-0 grid-cols-2 gap-1 border-b group-data-horizontal/tabs:h-auto sm:flex sm:group-data-horizontal/tabs:h-9"
           aria-label="Content status"
         >
           <TabsTrigger value="pending_review" className="flex-none">

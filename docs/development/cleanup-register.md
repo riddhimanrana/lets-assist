@@ -10915,3 +10915,33 @@ hero import remains blocked by the locked xlsx archive returning403 in cloud.
 No mock replacement or skip hides that missing dependency. The corrected
 automatic short gate must pass before a full-run request; no full-run trigger
 or deployment occurs for this correction.
+
+## Phone moderation tab height, October 12
+
+Review [4252427910](https://github.com/riddhimanrana/lets-assist/pull/874#discussion_r4252427910)
+identified a height risk at `907b20e40646a590aef45ccc73226b598977e7b6`.
+Fresh actual-component/CSS rendering reproduces it at320px and390px in both
+themes: the shared horizontal list is36px tall with71px of scroll content.
+Confirmed and Dismissed are outside the visible list and fail center hit tests.
+The earlier horizontal-bound checks did not establish vertical visibility.
+Playwright can scroll the list to click those tabs, so click success by itself
+also cannot establish resting visibility.
+
+A scoped list override uses automatic height below sm and retains the shared
+36px single-row height from sm upward. The shared Tabs primitive and moderation
+reads/authorization are unchanged. The controlled browser regression in
+`tests/e2e/moderation/moderation-tabs.browser.ts` fails against the previous
+36px phone list and passes the correction at320px,390px,640px and1280px in both
+themes. It checks actual list/label rectangles, two phone rows or one desktop
+row, unclipped text, center hit targets and all four clicks without hidden-row
+scrolling. The three changed-status callbacks retain the exact fictional
+organization and statuses. Only that read is an explicit stand-in; React, Base
+UI, Tailwind and app CSS remain actual. No external requests or page errors
+occur. Native authenticated acceptance remains separate and pending.
+
+Phone lists now measure71px; desktop/breakpoint lists remain36px. Full
+zero-warning lint and formatting pass. Typecheck remains blocked by the ten
+existing missing-xlsx/dependent-inference errors; the correction introduces no
+additional TypeScript error. No full CI, merge or deployment was triggered.
+The corrective head must pass the automatic short gate before a full-run
+request. The private pin, PR873 and all feature branches remain preserved.
