@@ -1,11 +1,18 @@
 // Observe the live word/demo phase; do not freeze or disable their animations.
 export function readLandingComparison() {
+  const dimensions = {
+    documentHeight: document.documentElement?.scrollHeight ?? null,
+    documentWidth: document.documentElement?.scrollWidth ?? null,
+    viewportWidth: document.documentElement?.clientWidth ?? null,
+    viewportHeight: globalThis.innerHeight ?? null,
+  };
   const root = document.querySelector("#comparison");
-  if (!root) return { ready: false, reason: "missing-comparison" };
+  if (!root)
+    return { ready: false, reason: "missing-comparison", ...dimensions };
   const words = root.querySelectorAll('[data-slot="comparison-word"] > span'),
     phases = root.querySelectorAll('[data-slot="comparison-demo-phase"]');
   if (words.length !== 1 || phases.length !== 1)
-    return { ready: false, reason: "between-states" };
+    return { ready: false, reason: "between-states", ...dimensions };
   const word = words[0],
     phase = phases[0],
     text = word.textContent.trim(),
@@ -23,7 +30,7 @@ export function readLandingComparison() {
       "dashboard",
     ].includes(name)
   )
-    return { ready: false, reason: "unknown-state" };
+    return { ready: false, reason: "unknown-state", ...dimensions };
   const shown = (node) => {
     if (!node.getClientRects().length) return false;
     for (
@@ -60,7 +67,7 @@ export function readLandingComparison() {
     reason: "live-state",
     word: text,
     phase: name,
-    documentHeight: document.documentElement?.scrollHeight ?? null,
+    ...dimensions,
   };
 }
 export async function settleLandingComparison(page) {
@@ -77,24 +84,101 @@ export async function settleLandingComparison(page) {
   if (!state.ready) throw Error("Live comparison did not settle");
   return state;
 }
-export async function captureSettledPixels(page, entry) {
+// Diagnostics contain only reviewed public states and bounded numeric dimensions.
+export function comparisonCaptureSnapshot(state) {
+  if (!state || typeof state !== "object") return null;
+  const dimension = (value) =>
+    Number.isInteger(value) && value > 0 && value <= 100000 ? value : null;
+  return {
+    ready: state.ready === true,
+    word: ["sign-ups", "check-ins", "verified hours", "certificates"].includes(
+      state.word,
+    )
+      ? state.word
+      : null,
+    phase: [
+      "browsing",
+      "details",
+      "qr",
+      "notification",
+      "certificate",
+      "dashboard",
+    ].includes(state.phase)
+      ? state.phase
+      : null,
+    documentHeight: dimension(state.documentHeight),
+    documentWidth: dimension(state.documentWidth),
+    viewportWidth: dimension(state.viewportWidth),
+    viewportHeight: dimension(state.viewportHeight),
+  };
+}
+export async function captureSettledPixels(page, entry, report = () => {}) {
   if (entry.id !== "landing-baseline")
     return { pixels: await page.screenshot({ fullPage: true, caret: "hide" }) };
   if (entry.actorKey) throw Error("Public landing capture required");
   for (let attempt = 1; attempt <= 3; attempt++) {
-    const before = await settleLandingComparison(page),
-      start = Date.now();
-    const pixels = await page.screenshot({ fullPage: true, caret: "hide" }),
-      elapsed = Date.now() - start;
-    const after = await page.evaluate(readLandingComparison);
+    const record = (category, reasons, before, after, elapsed) =>
+      report({
+        schema: "lets-assist-public-landing-png-attempt-v1",
+        attempt,
+        category,
+        reasons,
+        before: comparisonCaptureSnapshot(before),
+        after: comparisonCaptureSnapshot(after),
+        elapsedMs:
+          Number.isInteger(elapsed) && elapsed >= 0 && elapsed <= 120000
+            ? elapsed
+            : null,
+      });
+    let before;
+    const settleStart = Date.now();
+    try {
+      before = await settleLandingComparison(page);
+    } catch {
+      const observed = await page
+        .evaluate(readLandingComparison)
+        .catch(() => null);
+      record(
+        "failed",
+        ["before-state-unsettled"],
+        null,
+        observed,
+        Date.now() - settleStart,
+      );
+      throw Error("Public landing pre-PNG state did not settle");
+    }
+    const start = Date.now();
+    let pixels;
+    try {
+      pixels = await page.screenshot({ fullPage: true, caret: "hide" });
+    } catch {
+      record("failed", ["screenshot-failed"], before, null, Date.now() - start);
+      throw Error("Public landing PNG operation failed");
+    }
+    const elapsed = Date.now() - start;
+    let after;
+    try {
+      after = await page.evaluate(readLandingComparison);
+    } catch {
+      record("failed", ["after-state-unavailable"], before, null, elapsed);
+      throw Error("Public landing post-PNG state unavailable");
+    }
     // Less than a full 2.5s word cycle prevents matching a later repeat.
-    if (
-      elapsed < 2500 &&
-      after.ready &&
-      before.word === after.word &&
-      before.phase === after.phase &&
-      before.documentHeight === after.documentHeight
-    )
+    const reasons = [];
+    if (elapsed >= 2500) reasons.push("capture-duration");
+    if (!after.ready) reasons.push("after-state-unsettled");
+    if (before.word !== after.word) reasons.push("word-changed");
+    if (before.phase !== after.phase) reasons.push("phase-changed");
+    if (before.documentHeight !== after.documentHeight)
+      reasons.push("height-changed");
+    record(
+      reasons.length ? "rejected" : "accepted",
+      reasons,
+      before,
+      after,
+      elapsed,
+    );
+    if (!reasons.length)
       return {
         pixels,
         comparisonState: after,

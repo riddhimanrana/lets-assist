@@ -806,6 +806,8 @@ try {
               .matches,
           };
         });
+        if (entry.id === "landing-baseline")
+          capture.landingPngStage = "output-preflight";
         const output = path.join(m.outputDir, `${entry.id}-${mode.name}.png`);
         if (fs.existsSync(output))
           fail("Refusing to overwrite existing capture");
@@ -813,13 +815,26 @@ try {
           fail(
             "Browser/host/effect guard failed; no successful capture claimed",
           );
-        const screenshot = await captureSettledPixels(page, entry);
+        if (entry.id === "landing-baseline")
+          capture.landingPngStage = "capture";
+        const screenshot = await captureSettledPixels(
+          page,
+          entry,
+          (diagnostic) => {
+            capture.landingCaptureDiagnostics ??= [];
+            if (capture.landingCaptureDiagnostics.length >= 3)
+              fail("Public landing PNG diagnostic bound exceeded");
+            capture.landingCaptureDiagnostics.push(diagnostic);
+          },
+        );
         const pixels = screenshot.pixels;
         if (entry.id === "landing-baseline") {
           capture.comparisonRestingState = screenshot.comparisonState;
           capture.comparisonCaptureAttempts = screenshot.attempts;
           capture.dom.documentHeight = screenshot.documentHeight;
         }
+        if (entry.id === "landing-baseline")
+          capture.landingPngStage = "exclusive-write";
         const png = createExclusiveReceipt(output);
         try {
           fs.writeSync(png, pixels);
@@ -827,11 +842,16 @@ try {
         } finally {
           fs.closeSync(png);
         }
+        if (entry.id === "landing-baseline")
+          capture.landingPngStage = "written";
         capture.image = path.basename(output);
         capture.status = capture.dom.loadingIndicators
           ? "captured-loading-present"
           : "captured-awaiting-pixel-review";
       } catch {
+        if (entry.id === "landing-baseline")
+          capture.failureCategory =
+            capture.landingPngStage ?? "readiness-or-guard";
         capture.status = "blocked-or-failed";
         capture.failure =
           "Capture guard/readiness failed; private error/URL omitted";

@@ -10945,3 +10945,34 @@ existing missing-xlsx/dependent-inference errors; the correction introduces no
 additional TypeScript error. No full CI, merge or deployment was triggered.
 The corrective head must pass the automatic short gate before a full-run
 request. The private pin, PR873 and all feature branches remain preserved.
+
+## Bounded landing PNG failure diagnostics, October 12
+
+Full run [38317158161](https://github.com/riddhimanrana/lets-assist/actions/runs/38317158161)
+at `cd7a0b92d580152eab4509516610020af050f4d6` passed all twelve baseline
+jobs and failed the first desktop-light landing capture with no retained PNG.
+The parent receipt review reports HTTP200, zero browser/network/mutation faults,
+no loading markers, broken images, overflow or accessibility findings, settled
+landing/tooltips and a ready comparison word check-ins with demo phase details.
+The suppressed failure leaves the PNG path unresolved; screenshot duration or
+state changes are hypotheses, not an established native cause.
+
+The diagnostic correction records at most three public PNG attempts: fixed
+failure/rejection categories, reviewed before/after words and phases, bounded
+document/viewport dimensions and elapsed milliseconds. Private error strings,
+URLs and unrelated fields are excluded. Output-preflight, capture and exclusive
+write stages distinguish a file/guard failure from the screenshot path. The
+existing three-attempt limit, five-second readiness wait,2.5-second image bound
+and actual readiness predicates remain. Animations run normally; no permission,
+traffic allowance, loader or image-policy change is introduced.
+
+Seven additional adversarial tests cover timing rejection, changed word/phase/
+height, failed screenshot/evaluation/wait, diagnostic privacy and isolation from
+private interiors. Thirteen comparison tests pass; the focused capture package
+passes106 tests. A bounded tall synthetic page runs the exact axe,16-keyboard,
+resting, landing, comparison and PNG helper order with actual HeroHeading,
+ComparisonSection and app CSS. Three desktop timings settle and retain actual
+PNGs. Its phone fixture detects a document-height change during the live word
+flip; that remains an open finding, not a waived or native passed capture.
+The previous native desktop failure is not reproduced by these fixtures.
+No full-run request, merge or deployment is made by this correction.

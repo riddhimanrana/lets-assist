@@ -882,7 +882,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "5f68c97388a32024ef797362bfd2f052c93cdbfdd3024726c9d02227364bd132"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "5afca0d7c2a3de70a9290b7a4c226005c2d8549f570b5f89fdc96e0df3940b87"
     steps:
       - name: Require private submodule access
         env:

@@ -5,6 +5,7 @@ import {
   readLandingComparison,
   settleLandingComparison,
   captureSettledPixels,
+  comparisonCaptureSnapshot,
 } from "./landing-comparison-readiness.mjs";
 function observed({
   word = "sign-ups",
@@ -154,4 +155,130 @@ test("private interiors retain their ordinary screenshot and public landing reje
     }),
   );
   assert.equal(shots, 1);
+});
+
+const publicState = {
+  ready: true,
+  word: "check-ins",
+  phase: "details",
+  documentHeight: 2000,
+  documentWidth: 390,
+  viewportWidth: 390,
+  viewportHeight: 900,
+};
+const publicPage = () => ({
+  waitForFunction: async () => ({
+    jsonValue: async () => publicState,
+    dispose: async () => {},
+  }),
+  evaluate: async () => publicState,
+  screenshot: async () => Buffer.from("offline pixels"),
+});
+test("diagnostics discard unknown text, invalid dimensions and unrelated fields", () => {
+  const result = comparisonCaptureSnapshot({
+    ready: true,
+    word: "private@example.test",
+    phase: "secret route",
+    documentHeight: Infinity,
+    documentWidth: -1,
+    viewportWidth: "390",
+    viewportHeight: 900,
+    token: "secret",
+  });
+  assert.deepEqual(result, {
+    ready: true,
+    word: null,
+    phase: null,
+    documentHeight: null,
+    documentWidth: null,
+    viewportWidth: null,
+    viewportHeight: 900,
+  });
+  assert.equal(comparisonCaptureSnapshot(null), null);
+  assert.ok(!JSON.stringify(result).includes("secret"));
+});
+test("slow PNGs retain all three bounded timing and state diagnostics without acceptance", async (t) => {
+  let now = 0;
+  t.mock.method(Date, "now", () => now);
+  const page = publicPage(),
+    rows = [];
+  page.screenshot = async () => {
+    now += 3000;
+    return Buffer.from("offline pixels");
+  };
+  await assert.rejects(
+    captureSettledPixels(page, { id: "landing-baseline" }, (row) =>
+      rows.push(row),
+    ),
+    /bounded PNG/,
+  );
+  assert.equal(rows.length, 3);
+  for (const [i, row] of rows.entries()) {
+    assert.equal(row.attempt, i + 1);
+    assert.equal(row.category, "rejected");
+    assert.deepEqual(row.reasons, ["capture-duration"]);
+    assert.equal(row.elapsedMs, 3000);
+    assert.deepEqual(row.before, publicState);
+    assert.deepEqual(row.after, publicState);
+  }
+});
+test("word, demo-phase and height changes remain separate rejection reasons", async () => {
+  const page = publicPage(),
+    rows = [];
+  page.evaluate = async () => ({
+    ...publicState,
+    word: "certificates",
+    phase: "certificate",
+    documentHeight: 2100,
+  });
+  await assert.rejects(
+    captureSettledPixels(page, { id: "landing-baseline" }, (row) =>
+      rows.push(row),
+    ),
+    /bounded PNG/,
+  );
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0].reasons, [
+    "word-changed",
+    "phase-changed",
+    "height-changed",
+  ]);
+});
+for (const stage of ["screenshot", "evaluate", "waitForFunction"]) {
+  test(`${stage} failure produces only the fixed public diagnostic category`, async () => {
+    const page = publicPage(),
+      rows = [];
+    page[stage] = async () => {
+      throw Error("https://private.invalid/?token=private-value");
+    };
+    await assert.rejects(
+      captureSettledPixels(page, { id: "landing-baseline" }, (row) =>
+        rows.push(row),
+      ),
+      /Public landing/,
+    );
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].category, "failed");
+    assert.deepEqual(rows[0].reasons, [
+      stage === "screenshot"
+        ? "screenshot-failed"
+        : stage === "evaluate"
+          ? "after-state-unavailable"
+          : "before-state-unsettled",
+    ]);
+    assert.ok(!JSON.stringify(rows).includes("private"));
+  });
+}
+test("accepted diagnostics retain real public dimensions and never run on a private interior", async () => {
+  const page = publicPage(),
+    rows = [];
+  await captureSettledPixels(page, { id: "landing-baseline" }, (row) =>
+    rows.push(row),
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].category, "accepted");
+  assert.deepEqual(rows[0].reasons, []);
+  await captureSettledPixels(page, { id: "dashboard-overview" }, () => {
+    throw Error("Private diagnostic attempted");
+  });
 });
