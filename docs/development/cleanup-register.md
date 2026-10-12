@@ -10822,3 +10822,31 @@ light filled-primary gloss endpoint. These are component and nominal-color
 proofs, not whole-app, interaction, hosted or Production acceptance. Final
 candidate landing, mobile navbar, generic tabs, all roles/states and matched old
 counterparts remain incomplete.
+
+### Final-candidate retained CI visual review, October 12, 2026
+
+`ATTENDANCE-MATCH-LABEL-20261012`, P2: authentic passing CI phone captures
+at root0491ae55 clipped the attendance review's native select default label.
+The candidate shortens it to "No existing signup", links the existing help text
+through aria-describedby and rounds the select to match its neighboring inputs.
+Matching values, identity resets and save behavior remain unchanged. Existing
+14 focused review/consistency cases, affected lint and full TypeScript pass.
+Six actual-component captures at1280/390/320 in light/dark show the label fits, with native focus and option changes passing. The native option and visit-date grids also required scoped min-w-0 constraints: at320 the dialog previously had273px client width but291px scroll width. Current captures have273/273 with zero horizontal scrolling, in both themes. Arrow-key native-menu selection remains unproved by the macOS/headless fixture; source behavior is unchanged. The new exact-candidate full gate remains required.
+
+Actual Claude Opus5.5 inspected all12 retained final-candidate CI PNGs, covering
+light desktop/phone proof review, student matching, attendance review and
+corrected certificate/hour pages. Navbar centering, wrapping of long fictional
+labels and primary dialog/page hierarchy are confirmed in those frames. This
+adds actual rendered surfaces, not dark/full-role/matched-old or whole-route
+coverage. The black proof block is a deliberately one-pixel black test image,
+not evidence of a blank document renderer.
+
+Smaller P3 findings remain scoped follow-ups: singular point-count grammar and
+phone proof-toolbar wrapping/shared refresh/rotate icon in private CSF;
+"Main event" versus "Main session" and missing displayed timezone in the
+volunteer's status; lowercase "manual" in the certificate helper's fallback.
+The timezone source attribution in the first review needs verification before
+changing a formatter. Faded buttons, comfortable modal scrolling and a
+mid-transition paging frame are unconfirmed observations. Existing immutable
+private1.2.89 is preserved; these observations do not authorize modifying its
+signed bytes or enabling any provider flow.

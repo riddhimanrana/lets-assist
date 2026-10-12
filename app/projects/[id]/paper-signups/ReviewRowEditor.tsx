@@ -166,7 +166,7 @@ export function ReviewRowEditor({
             </span>
           </a>
         )}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <Label htmlFor="attendance-name">Name</Label>
             <Input
@@ -199,7 +199,7 @@ export function ReviewRowEditor({
             />
           </div>
         </div>
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="attendance-phone">Phone (optional)</Label>
           <Input
             id="attendance-phone"
@@ -214,13 +214,14 @@ export function ReviewRowEditor({
             }
           />
         </div>
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <Label htmlFor="attendance-match">
             Existing signup, if this person already signed up
           </Label>
           <select
             id="attendance-match"
-            className="w-full rounded border bg-background p-2"
+            aria-describedby="attendance-match-help"
+            className="w-full rounded-2xl border bg-background px-3 py-2"
             value={form.matchSignupId}
             onChange={(e) =>
               setForm({
@@ -230,9 +231,7 @@ export function ReviewRowEditor({
               })
             }
           >
-            <option value="">
-              Use reviewed email, or keep as an uncredited roster entry
-            </option>
+            <option value="">No existing signup</option>
             {candidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
                 {candidate.name}
@@ -240,12 +239,15 @@ export function ReviewRowEditor({
               </option>
             ))}
           </select>
-          <p className="text-sm text-muted-foreground">
+          <p
+            id="attendance-match-help"
+            className="text-sm text-muted-foreground"
+          >
             A known signup does not need an email copied from the sheet. Other
             rows need an email before they can receive hours.
           </p>
         </div>
-        <fieldset className="space-y-3">
+        <fieldset className="min-w-0 space-y-3">
           <legend className="font-medium">Visits and breaks</legend>
           {visits.map((visit, index) => (
             <div key={index} className="rounded border p-3 space-y-2">
@@ -262,7 +264,7 @@ export function ReviewRowEditor({
                   Remove visit
                 </Button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                 {(["start", "end"] as const).map((field) => {
                   const choices = localDateTimeCandidates(
                     visit[field],
@@ -271,7 +273,7 @@ export function ReviewRowEditor({
                   const choiceKey =
                     field === "start" ? "startChoice" : "endChoice";
                   return (
-                    <div key={field} className="space-y-1">
+                    <div key={field} className="min-w-0 space-y-1">
                       <Label htmlFor={`visit-${index}-${field}`}>
                         {field === "start" ? "Sign in" : "Sign out"}
                       </Label>
