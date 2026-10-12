@@ -16,13 +16,13 @@ on:
   merge_group:
     types:
       - checks_requested
-workflow_dispatch:
-  inputs:
-    layout_audit:
-      description: "Capture fictional layouts on one owned isolated stack"
-      type: boolean
-      required: false
-      default: false
+  workflow_dispatch:
+    inputs:
+      layout_audit:
+        description: "Capture fictional layouts on one owned isolated stack"
+        type: boolean
+        required: false
+        default: false
   workflow_call:
 
 # A pull request is grouped by its number, so a new push cancels the older run.

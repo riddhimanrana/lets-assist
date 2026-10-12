@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import { YAML } from "bun";
 
 const workflow = readFileSync(
   join(import.meta.dir, "../..", ".github/workflows/ci.yml"),
@@ -38,6 +39,24 @@ function needs(name) {
 }
 
 describe("CI delivery modes", () => {
+  test("manual inputs and reusable trigger belong under on", () => {
+    const parsed = YAML.parse(workflow);
+    expect(Object.keys(parsed.on).sort()).toEqual([
+      "merge_group",
+      "pull_request",
+      "workflow_call",
+      "workflow_dispatch",
+    ]);
+    expect(parsed.on.workflow_dispatch.inputs.layout_audit).toEqual({
+      description: "Capture fictional layouts on one owned isolated stack",
+      type: "boolean",
+      required: false,
+      default: false,
+    });
+    expect(parsed).not.toHaveProperty("workflow_dispatch");
+    expect(parsed).not.toHaveProperty("workflow_call");
+  });
+
   test("the job inventory is the reviewed one", () => {
     expect(jobIds).toEqual([
       "static",
