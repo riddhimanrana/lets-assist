@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Standalone read-only synthetic UI capture. No server/DB/provider lifecycle ownership.
+import { settleLandingVisual } from "./landing-visual-settlement.mjs";
 import fs from "node:fs";
 import { requireLiveBinding } from "./linux-binding.mjs";
 import path from "node:path";
@@ -567,16 +568,19 @@ try {
           );
         });
         await page.addScriptTag({ content: axeSource });
-        capture.axe = await page.evaluate(async () => {
-          const a = await window.axe.run(document, {
-            resultTypes: ["violations"],
+        const readAxeResult = () =>
+          page.evaluate(async () => {
+            const a = await window.axe.run(document, {
+              resultTypes: ["violations"],
+            });
+            return a.violations.map((v) => ({
+              id: v.id,
+              impact: v.impact,
+              nodeCount: v.nodes.length,
+            }));
           });
-          return a.violations.map((v) => ({
-            id: v.id,
-            impact: v.impact,
-            nodeCount: v.nodes.length,
-          }));
-        });
+        capture.axe = await readAxeResult();
+        capture.axeSamplePhase = "before-keyboard";
         capture.keyboard = [];
         for (let i = 0; i < 16; i++) {
           await page.keyboard.press("Tab");
@@ -602,6 +606,19 @@ try {
               };
             }),
           );
+        }
+        if (entry.id === "landing-baseline") {
+          if (actor)
+            fail("Public landing settlement requires signed-out fixture");
+          capture.landingSettlement = await settleLandingVisual(
+            page,
+            entry,
+            baseURL,
+          );
+          if (capture.landingSettlement.status !== "settled")
+            fail("Landing layout/assets did not settle within fixed limits");
+          capture.axe = await readAxeResult();
+          capture.axeSamplePhase = "after-landing-settlement";
         }
         // Sample the rendered state after axe/Tab, immediately before the PNG.
         await page.evaluate(async () => {

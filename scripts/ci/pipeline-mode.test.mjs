@@ -292,6 +292,14 @@ describe("CI delivery modes", () => {
       join(import.meta.dir, "../..", "scripts/local-dev/layout-audit-ci.sh"),
       "utf8",
     );
+    expect(driver).toContain(
+      'node "$layout_tool/landing-visual-settlement.check.mjs"',
+    );
+    expect(
+      driver.indexOf('node "$layout_tool/landing-visual-settlement.check.mjs"'),
+    ).toBeLessThan(
+      driver.indexOf('node "$layout_tool/prepare-linux-binding.mjs"'),
+    );
     expect(driver).toContain("binding.live(binding.load())");
     expect(driver).toContain(
       "os.hash(fs.readFileSync(identity.path)) !== identity.sha256",
