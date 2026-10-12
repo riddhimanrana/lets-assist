@@ -126,6 +126,15 @@ for (const proof of [title, cache]) {
 }
 for (const map of [review.sourceHashes, review.profileReaderSourceHashes])
   for (const f of Object.keys(map)) map[f] = authorizedHash(f, map[f]);
+const wasmCache = require("./frozen-wasm-cache.cjs");
+const wasmSource = wasmCache.SOURCE_RELATIVE;
+cache.files.push({
+  repoRelativePath: wasmSource,
+  realpath: fs.realpathSync(path.join(a.repoRoot, wasmSource)),
+  sha256: authorizedHash(wasmSource, wasmCache.SOURCE_SHA256),
+});
+cache.immutableEmbeddedWasm = wasmCache.immutableWasmDescriptor();
+wasmCache.readPinnedEmbeddedWasm(a.repoRoot);
 const privateTitle = structuredClone(title);
 privateTitle.repoRoot = path.join(a.repoRoot, "lib/plugins/private/apps/csf");
 for (const f of privateTitle.files) {

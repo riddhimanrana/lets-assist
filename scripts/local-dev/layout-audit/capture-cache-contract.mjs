@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { REPO, SHA256, digest, fail, routeSafe } from "./capture-contract.mjs";
+import wasmCache from "./frozen-wasm-cache.cjs";
 const PROOF = new URL(
   "./proof-data/runtime-cache-source-proof.json",
   import.meta.url,
@@ -18,6 +19,7 @@ const SOURCE_PATHS = [
   "node_modules/next/dist/shared/lib/page-path/normalize-page-path.js",
   "node_modules/next/dist/server/web/spec-extension/unstable-cache.js",
   "lib/home/landing-demo-mode.ts",
+  wasmCache.SOURCE_RELATIVE,
 ];
 const JSON_OBJECT = (v) => v && typeof v === "object" && !Array.isArray(v);
 const relativeSafe = (s) =>
@@ -41,6 +43,8 @@ export function exactRuntimeCacheSources() {
     p.sourceOnly !== true ||
     p.repoRoot !== REPO ||
     p.nextVersion !== "16.4.0" ||
+    JSON.stringify(p.immutableEmbeddedWasm) !==
+      JSON.stringify(wasmCache.immutableWasmDescriptor()) ||
     JSON.stringify(p.namespaces) !==
       JSON.stringify([
         "cache/images",
@@ -354,6 +358,10 @@ export function runtimeCacheEntrySafe(directory, rel, st, policy) {
       )
     )
       fail("Non-FETCH JSON cache record refused");
+    // Code embedded by the pinned Next OG source is immutable artifact data.
+    // False means include this exact record in the complete file/hash freeze.
+    if (wasmCache.frozenEmbeddedWasmFetch(data, sub.slice(1), REPO))
+      return false;
     if (data.data.url) {
       let u;
       try {

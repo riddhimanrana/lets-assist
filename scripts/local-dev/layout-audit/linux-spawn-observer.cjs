@@ -33,6 +33,52 @@ const DIAGNOSTIC_MODULES = new Set([
   "observer-cache-policy.cjs",
   "cache-contract-dependency.cjs",
 ]);
+// Exact literal-to-code mapping only; raw error messages never leave this module.
+const DIAGNOSTIC_REASON_CODES = new Map([
+  ["Pinned embedded WASM cache source drifted", "CACHE_EMBEDDED_WASM_SOURCE"],
+  ["Owned cache source proof required", "CACHE_SOURCE_OWNER"],
+  ["Exact reviewed cache source proof required", "CACHE_SOURCE_CONTRACT"],
+  ["Reviewed runtime cache source drifted", "CACHE_SOURCE_DRIFT"],
+  [
+    "Frozen compiled routes and selected capture paths required",
+    "CACHE_ROUTE_MANIFEST",
+  ],
+  ["Canonical query-free selected cache route required", "CACHE_SELECTED_PATH"],
+  [
+    "Selected cache route lacks one positive compiled source owner",
+    "CACHE_ROUTE_OWNER",
+  ],
+  ["Compiled page worker path refused", "CACHE_WORKER_PATH"],
+  [
+    "Exact reviewed source/compiled/selected-route cache policy required",
+    "CACHE_POLICY_BINDING",
+  ],
+  [
+    "Positive cache route worker lacks frozen compiled bytes",
+    "CACHE_WORKER_BYTES",
+  ],
+  ["Bounded nonempty response cache data required", "CACHE_RESPONSE_SIZE"],
+  ["Non-HTML cache payload refused", "CACHE_HTML_SHAPE"],
+  ["Non-RSC cache payload refused", "CACHE_RSC_SHAPE"],
+  ["Unreviewed cache payload extension refused", "CACHE_PAYLOAD_EXTENSION"],
+  ["Unexpected response cache metadata refused", "CACHE_RESPONSE_META_SHAPE"],
+  ["Response cache metadata owner mismatch", "CACHE_RESPONSE_META_OWNER"],
+  ["Unsafe response cache segment paths", "CACHE_RESPONSE_SEGMENT_PATH"],
+  ["Owned nonsymlink non-executable cache data required", "CACHE_DATA_OWNER"],
+  ["Unknown image cache directory", "CACHE_IMAGE_NAMESPACE"],
+  ["Non-raster/unexpected image cache data refused", "CACHE_IMAGE_SHAPE"],
+  ["Unexpected fetch cache directory", "CACHE_FETCH_NAMESPACE"],
+  ["Unexpected fetch cache key/data", "CACHE_FETCH_KEY"],
+  ["Non-FETCH JSON cache record refused", "CACHE_FETCH_SHAPE"],
+  ["Unreviewed fetch cache data URL", "CACHE_FETCH_URL"],
+  ["Foreign fetch cache data refused", "CACHE_FETCH_ORIGIN"],
+  [
+    "Unknown response cache kind/source hash/selected path",
+    "CACHE_RESPONSE_NAMESPACE",
+  ],
+  ["Unreviewed response cache segment", "CACHE_RESPONSE_SEGMENT"],
+  ["Unknown response cache payload path/extension", "CACHE_RESPONSE_PATH"],
+]);
 function observerFailureDiagnostic(
   error,
   phase,
@@ -43,7 +89,16 @@ function observerFailureDiagnostic(
     phase: DIAGNOSTIC_PHASES.has(phase) ? phase : "unknown",
     role: ["platform", "private"].includes(role) ? role : "unknown",
     location: null,
+    reasonCode: "unknown",
   };
+  // Reading a message is solely for an exact literal lookup, never serialization.
+  try {
+    if (typeof error?.message === "string")
+      result.reasonCode =
+        DIAGNOSTIC_REASON_CODES.get(error.message) ?? "unknown";
+  } catch {
+    // Hostile/absent getters are diagnostically unknown.
+  }
   let stack = "";
   try {
     if (typeof error?.stack === "string") stack = error.stack.slice(0, 65536);
@@ -70,7 +125,13 @@ function observerFailureDiagnostic(
       line > 0 &&
       line <= 100000
     ) {
-      result.location = { module: ownModule, line };
+      const candidate = { module: ownModule, line };
+      if (ownModule === "cache-contract-dependency.cjs") {
+        // Prefer the cache policy caller over its generic throw boundary.
+        if (!result.location) result.location = candidate;
+        continue;
+      }
+      result.location = candidate;
       break;
     }
   }

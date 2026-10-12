@@ -758,6 +758,7 @@ try {
         phase: "build-cache-route-map",
         role: "platform",
         location: { module: "linux-platform.cjs", line: 87 },
+        reasonCode: "unknown",
       },
     ),
   );
@@ -771,7 +772,12 @@ try {
       "PRIVATE_ROLE_SENTINEL",
       own,
     );
-    assert.deepEqual(d, { phase: "unknown", role: "unknown", location: null });
+    assert.deepEqual(d, {
+      phase: "unknown",
+      role: "unknown",
+      location: null,
+      reasonCode: "unknown",
+    });
     assert(!JSON.stringify(d).includes("PRIVATE_"));
   });
   pass(() =>
@@ -821,8 +827,79 @@ try {
       phase: "build-receipt",
       role: "private",
       location: null,
+      reasonCode: "unknown",
     });
   });
+  pass(() => {
+    const e = {
+      message: "Unknown response cache kind/source hash/selected path",
+      stack:
+        "Error: PRIVATE_SENTINEL\n at fail (" +
+        path.join(own, "cache-contract-dependency.cjs") +
+        ":18:1)\n at runtimeCacheEntrySafe (" +
+        path.join(own, "observer-cache-policy.cjs") +
+        ":410:2)",
+    };
+    assert.deepEqual(
+      observer.observerFailureDiagnostic(
+        e,
+        "build-artifact-freeze",
+        "platform",
+        own,
+      ),
+      {
+        phase: "build-artifact-freeze",
+        role: "platform",
+        location: { module: "observer-cache-policy.cjs", line: 410 },
+        reasonCode: "CACHE_RESPONSE_NAMESPACE",
+      },
+    );
+  });
+  pass(() => {
+    const d = observer.observerFailureDiagnostic(
+      {
+        message: "PRIVATE_SENTINEL",
+        stack:
+          "Error: PRIVATE_SENTINEL\n at fail (" +
+          path.join(own, "cache-contract-dependency.cjs") +
+          ":18:1)",
+      },
+      "build-artifact-freeze",
+      "platform",
+      own,
+    );
+    assert.equal(d.reasonCode, "unknown");
+    assert.deepEqual(d.location, {
+      module: "cache-contract-dependency.cjs",
+      line: 18,
+    });
+    assert(!JSON.stringify(d).includes("PRIVATE_"));
+  });
+  pass(() =>
+    assert.equal(
+      observer.observerFailureDiagnostic(
+        {
+          message:
+            "Unknown response cache kind/source hash/selected path PRIVATE_SENTINEL",
+        },
+        "build-artifact-freeze",
+        "platform",
+        own,
+      ).reasonCode,
+      "unknown",
+    ),
+  );
+  pass(() =>
+    assert.equal(
+      observer.observerFailureDiagnostic(
+        { message: "Unexpected response cache metadata refused" },
+        "build-artifact-freeze",
+        "platform",
+        own,
+      ).reasonCode,
+      "CACHE_RESPONSE_META_SHAPE",
+    ),
+  );
   // Legacy guard suite remains meaningful and unchanged except explicit binding.
   const data = path.join(dir, "proof-data");
   fs.mkdirSync(data, { mode: 0o700 });
@@ -832,6 +909,15 @@ try {
         ? "next-title-source-proof.json"
         : name;
     const proof = JSON.parse(fs.readFileSync(path.join(old, source)));
+    if (name === "runtime-cache-source-proof.json") {
+      const wasmCache = require("./frozen-wasm-cache.cjs");
+      proof.files.push({
+        repoRelativePath: wasmCache.SOURCE_RELATIVE,
+        realpath: fs.realpathSync(path.join(root, wasmCache.SOURCE_RELATIVE)),
+        sha256: wasmCache.SOURCE_SHA256,
+      });
+      proof.immutableEmbeddedWasm = wasmCache.immutableWasmDescriptor();
+    }
     if (proof.repoRoot) proof.repoRoot = root;
     if (proof.files)
       for (const entry of proof.files) {
@@ -860,6 +946,215 @@ try {
     });
   }
   try {
+    // The real Next16.4 embedded WASM record remains immutable compiled data.
+    const wasmCache = require("./frozen-wasm-cache.cjs"),
+      embedded = wasmCache.readPinnedEmbeddedWasm(root),
+      cacheImplementations = [
+        require("./observer-cache-policy.cjs"),
+        await import("./capture-cache-contract.mjs"),
+      ],
+      record = {
+        kind: "FETCH",
+        data: {
+          headers: { "content-type": "application/octet-stream" },
+          body: embedded.body,
+          status: 200,
+          url: embedded.uri,
+        },
+        revalidate: 31536000,
+        tags: [],
+      },
+      cacheDir = path.join(tmp, "embedded-wasm-dist"),
+      rel = "cache/fetch-cache/" + embedded.key,
+      target = path.join(cacheDir, rel),
+      cachePolicy = {
+        routes: new Map(),
+        loopbackOrigins: ["http://127.0.0.1:3057"],
+      };
+    fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    const writeRecord = (value) => {
+      fs.writeFileSync(target, JSON.stringify(value), { mode: 0o600 });
+      fs.chmodSync(target, 0o600);
+    };
+    const violations = [
+      (v) => {
+        v.data.body = "AGFzbQEAAAA=";
+      },
+      (v) => {
+        v.data.url += "A";
+      },
+      (v) => {
+        v.data.url = "data:text/plain;base64,T0ZGTElORQ==";
+      },
+      (v) => {
+        v.data.url = "https://unowned.invalid/foreign.wasm";
+      },
+      (v) => {
+        v.data.headers["x-extra"] = "OFFLINE ONLY";
+      },
+      (v) => {
+        v.data.headers["content-type"] = "application/wasm";
+      },
+      (v) => {
+        v.data.status = 201;
+      },
+      (v) => {
+        v.revalidate = 30;
+      },
+      (v) => {
+        v.tags = ["OFFLINE ONLY"];
+      },
+      (v) => {
+        delete v.tags;
+      },
+      (v) => {
+        v.data.extra = "OFFLINE ONLY";
+      },
+      (v) => {
+        v.kind = "APP_PAGE";
+      },
+    ];
+    pass(() =>
+      assert.equal(
+        wasmCache.frozenEmbeddedWasmFetch(record, embedded.key, root),
+        true,
+      ),
+    );
+    pass(() =>
+      assert.equal(
+        wasmCache.frozenEmbeddedWasmFetch(record, "f".repeat(64), root),
+        false,
+      ),
+    );
+    for (const cacheImplementation of cacheImplementations) {
+      pass(() => cacheImplementation.exactRuntimeCacheSources());
+      writeRecord(record);
+      pass(() =>
+        assert.equal(
+          cacheImplementation.runtimeCacheEntrySafe(
+            cacheDir,
+            rel,
+            fs.lstatSync(target),
+            cachePolicy,
+          ),
+          false,
+        ),
+      );
+      const files = os.freezeFiles(cacheDir, (d, r, st) =>
+        cacheImplementation.runtimeCacheEntrySafe(d, r, st, cachePolicy),
+      );
+      pass(() => assert.equal(files[rel], os.hash(fs.readFileSync(target))));
+      fs.appendFileSync(target, "\n");
+      pass(() =>
+        assert.notDeepEqual(
+          os.freezeFiles(cacheDir, (d, r, st) =>
+            cacheImplementation.runtimeCacheEntrySafe(d, r, st, cachePolicy),
+          ),
+          files,
+        ),
+      );
+      for (const alter of violations) {
+        const changed = structuredClone(record);
+        alter(changed);
+        writeRecord(changed);
+        deny(() =>
+          cacheImplementation.runtimeCacheEntrySafe(
+            cacheDir,
+            rel,
+            fs.lstatSync(target),
+            cachePolicy,
+          ),
+        );
+      }
+      writeRecord(record);
+      const wrongKey = "cache/fetch-cache/" + "f".repeat(64),
+        wrongFile = path.join(cacheDir, wrongKey);
+      fs.copyFileSync(target, wrongFile);
+      fs.chmodSync(wrongFile, 0o600);
+      deny(() =>
+        cacheImplementation.runtimeCacheEntrySafe(
+          cacheDir,
+          wrongKey,
+          fs.lstatSync(wrongFile),
+          cachePolicy,
+        ),
+      );
+      deny(() =>
+        os.freezeFiles(cacheDir, (d, r, st) =>
+          cacheImplementation.runtimeCacheEntrySafe(d, r, st, cachePolicy),
+        ),
+      );
+      fs.unlinkSync(wrongFile);
+      fs.chmodSync(target, 0o700);
+      deny(() =>
+        cacheImplementation.runtimeCacheEntrySafe(
+          cacheDir,
+          rel,
+          fs.lstatSync(target),
+          cachePolicy,
+        ),
+      );
+      deny(() =>
+        os.freezeFiles(cacheDir, (d, r, st) =>
+          cacheImplementation.runtimeCacheEntrySafe(d, r, st, cachePolicy),
+        ),
+      );
+      fs.chmodSync(target, 0o600);
+      fs.renameSync(target, target + "-saved");
+      fs.symlinkSync(target + "-saved", target);
+      deny(() =>
+        cacheImplementation.runtimeCacheEntrySafe(
+          cacheDir,
+          rel,
+          fs.lstatSync(target),
+          cachePolicy,
+        ),
+      );
+      fs.unlinkSync(target);
+      fs.renameSync(target + "-saved", target);
+      const loopback = structuredClone(record);
+      loopback.data.url = "http://127.0.0.1:3057/rest/v1/site_settings";
+      loopback.data.body = "OFFLINE ONLY";
+      loopback.tags = ["fixture"];
+      loopback.revalidate = 30;
+      writeRecord(loopback);
+      pass(() =>
+        assert.equal(
+          cacheImplementation.runtimeCacheEntrySafe(
+            cacheDir,
+            rel,
+            fs.lstatSync(target),
+            cachePolicy,
+          ),
+          true,
+        ),
+      );
+    }
+    // Source drift is exercised ONLY in a copied disposable dependency fixture.
+    const sourceRepo = path.join(tmp, "copied-wasm-source"),
+      sourceFile = path.join(sourceRepo, wasmCache.SOURCE_RELATIVE),
+      sourceBytes = fs.readFileSync(path.join(root, wasmCache.SOURCE_RELATIVE));
+    fs.mkdirSync(path.dirname(sourceFile), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(sourceFile, sourceBytes, { mode: 0o600 });
+    pass(() =>
+      assert.equal(
+        wasmCache.frozenEmbeddedWasmFetch(record, embedded.key, sourceRepo),
+        true,
+      ),
+    );
+    fs.appendFileSync(sourceFile, "\n// OFFLINE SOURCE DRIFT");
+    deny(() =>
+      wasmCache.frozenEmbeddedWasmFetch(record, embedded.key, sourceRepo),
+    );
+    fs.writeFileSync(sourceFile, sourceBytes, { mode: 0o600 });
+    const cacheProofFile = path.join(data, "runtime-cache-source-proof.json"),
+      cacheProofBytes = fs.readFileSync(cacheProofFile),
+      cacheProof = JSON.parse(cacheProofBytes);
+    delete cacheProof.immutableEmbeddedWasm;
+    fs.writeFileSync(cacheProofFile, JSON.stringify(cacheProof));
+    for (const cacheImplementation of cacheImplementations)
+      deny(() => cacheImplementation.exactRuntimeCacheSources());
+    fs.writeFileSync(cacheProofFile, cacheProofBytes);
     await import("./guard-tests.mjs");
   } finally {
     fs.rmSync(data, { recursive: true });
