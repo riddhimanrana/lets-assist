@@ -280,6 +280,7 @@ export function ReviewRowEditor({
                       <Input
                         id={`visit-${index}-${field}`}
                         type="datetime-local"
+                        aria-describedby={`visit-${index}-${field}-value`}
                         value={visit[field]}
                         onChange={(e) => {
                           patchVisit(index, {
@@ -289,6 +290,14 @@ export function ReviewRowEditor({
                           setForm({ ...form, reviewAcknowledged: false });
                         }}
                       />
+                      <p
+                        id={`visit-${index}-${field}-value`}
+                        className="text-muted-foreground text-xs sm:hidden"
+                      >
+                        {visit[field]
+                          ? `Local time (24-hour): ${visit[field].replace("T", " ")}`
+                          : "No local time entered."}
+                      </p>
                       {visit[field] && choices.length === 0 && (
                         <p className="text-sm text-destructive">
                           This local time does not exist. Check the date and

@@ -10850,3 +10850,9 @@ changing a formatter. Faded buttons, comfortable modal scrolling and a
 mid-transition paging frame are unconfirmed observations. Existing immutable
 private1.2.89 is preserved; these observations do not authorize modifying its
 signed bytes or enabling any provider flow.
+
+The attendance review also exposes each current local date/time as an explicit
+24-hour value beneath phone inputs, associated through aria-describedby.
+Native datetime widgets can clip the AM/PM segment at320px; the readable local
+value prevents that crop from hiding the time being reviewed. Native input
+values, timezone parsing, DST choices and save behavior remain unchanged.
