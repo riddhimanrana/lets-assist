@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Future GitHub-only setup: source facts and proof files, never stack/fixture writes.
+import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -126,6 +127,12 @@ for (const proof of [title, cache]) {
 }
 for (const map of [review.sourceHashes, review.profileReaderSourceHashes])
   for (const f of Object.keys(map)) map[f] = authorizedHash(f, map[f]);
+review.notificationReaderSourceHashes = Object.fromEntries(
+  Object.entries(NOTIFICATION_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
 const wasmCache = require("./frozen-wasm-cache.cjs");
 const wasmSource = wasmCache.SOURCE_RELATIVE;
 cache.files.push({

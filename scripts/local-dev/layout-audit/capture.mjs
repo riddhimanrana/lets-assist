@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 // Standalone read-only synthetic UI capture. No server/DB/provider lifecycle ownership.
 import { settleLandingVisual } from "./landing-visual-settlement.mjs";
+import {
+  verifyNotificationReaderProof,
+  notificationReaderFrame,
+  notificationTopicCategory,
+  notificationFailureReason,
+} from "./notification-reader-contract.mjs";
+import { readAxeRows } from "./axe-color-diagnostics.mjs";
 import fs from "node:fs";
 import { requireLiveBinding } from "./linux-binding.mjs";
 import path from "node:path";
@@ -102,6 +109,7 @@ for (const [file, sha] of Object.entries(
   )
     fail("Reviewed local profile reader source changed");
 }
+verifyNotificationReaderProof(REPO, sourceReview);
 const buildDirectory = exactCompiledBuild(REPO, m);
 const approvedActions = exactReadActionPolicy(
   REPO,
@@ -326,6 +334,7 @@ try {
       let profileAccessToken = null;
       let allowedFrames = 0,
         allowedJoins = 0,
+        allowedNotificationJoins = 0,
         allowedReadActions = 0;
       const faults = {
         pageErrors: 0,
@@ -421,27 +430,51 @@ try {
             return;
           }
           socket.onMessage((frame) => {
-            let phase = "frame";
+            let phase = "frame",
+              notificationAttempt = false;
             try {
-              const kind = profileReaderFrame(frame, actor, profileAccessToken);
+              let kind;
+              try {
+                kind = profileReaderFrame(frame, actor, profileAccessToken);
+              } catch (error) {
+                if (
+                  notificationTopicCategory(frame, actor) !==
+                  "self-notifications"
+                )
+                  throw error;
+                notificationAttempt = true;
+                kind = notificationReaderFrame(
+                  frame,
+                  actor,
+                  profileAccessToken,
+                );
+              }
               phase = "bounds";
               if (
                 ++allowedFrames > 512 ||
-                (kind === "profile-join" && ++allowedJoins > 8)
+                (kind === "profile-join" && ++allowedJoins > 8) ||
+                (kind === "notification-join" && allowedNotificationJoins >= 1)
               )
                 fail("Local profile subscription bound exceeded");
+              if (kind === "notification-join") allowedNotificationJoins++;
               phase = "transport";
               connection.server.send(frame);
-            } catch {
-              refuse(
+            } catch (error) {
+              const diagnostic =
                 phase === "frame"
                   ? profileReaderDiagnostic(frame, actor, profileAccessToken)
                   : {
                       phase,
                       event: "other",
                       reason: phase === "bounds" ? "reader-limit" : "send",
-                    },
+                    };
+              diagnostic.topicCategory = notificationTopicCategory(
+                frame,
+                actor,
               );
+              if (phase === "frame" && notificationAttempt)
+                diagnostic.reason = notificationFailureReason(error);
+              refuse(diagnostic);
             }
           });
           connection.server = socket.connectToServer();
@@ -569,15 +602,8 @@ try {
         });
         await page.addScriptTag({ content: axeSource });
         const readAxeResult = () =>
-          page.evaluate(async () => {
-            const a = await window.axe.run(document, {
-              resultTypes: ["violations"],
-            });
-            return a.violations.map((v) => ({
-              id: v.id,
-              impact: v.impact,
-              nodeCount: v.nodes.length,
-            }));
+          page.evaluate(readAxeRows, {
+            includeColorDetails: entry.id === "landing-baseline" && !actor,
           });
         capture.axe = await readAxeResult();
         capture.axeSamplePhase = "before-keyboard";
@@ -717,7 +743,9 @@ try {
       } finally {
         capture.readOnlyTraffic = {
           profileJoins: allowedJoins,
-          profileFrames: allowedFrames,
+          profileFrames: allowedFrames - allowedNotificationJoins,
+          notificationJoins: allowedNotificationJoins,
+          readerFrames: allowedFrames,
           readActions: allowedReadActions,
         };
         results.push(capture);

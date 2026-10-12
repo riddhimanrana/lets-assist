@@ -6,8 +6,23 @@ import type { KeyboardEvent } from "react";
 
 import { cn } from "@/lib/utils";
 
-// One 330px card plus the 16px gap, so each arrow press brings in one quote.
-const ARROW_SCROLL_STEP = 346;
+// The gap between cards: `gap-4` on the row.
+const CARD_GAP = 16;
+// One 330px card plus the gap. Used when the first card cannot be measured.
+const FALLBACK_ARROW_SCROLL_STEP = 346;
+
+// A card is narrower than 330px on a phone, so the step is read from the first
+// card. Each arrow press then brings in one quote at any width.
+function arrowScrollStep(row: HTMLDivElement) {
+  const card =
+    typeof row.querySelector === "function"
+      ? row.querySelector("article")
+      : null;
+  const width = card?.getBoundingClientRect().width;
+  return typeof width === "number" && Number.isFinite(width) && width > 0
+    ? width + CARD_GAP
+    : FALLBACK_ARROW_SCROLL_STEP;
+}
 
 // Arrow keys do not reliably scroll a focused overflow row on their own, so
 // the row handles them. The scroll is instant: it does not wait on animation
@@ -21,10 +36,10 @@ function scrollRowFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
   let left: number;
   switch (event.key) {
     case "ArrowLeft":
-      left = row.scrollLeft - ARROW_SCROLL_STEP;
+      left = row.scrollLeft - arrowScrollStep(row);
       break;
     case "ArrowRight":
-      left = row.scrollLeft + ARROW_SCROLL_STEP;
+      left = row.scrollLeft + arrowScrollStep(row);
       break;
     case "Home":
       left = 0;
@@ -105,9 +120,13 @@ function TestimonialCard({
   className?: string;
 }) {
   return (
+    // 330px wide, or narrower on a phone: the viewport less the 32px of page
+    // padding, the 16px gap and a strip of the next card. The strip is up to
+    // 48px with no scrollbar gutter, and 33px beside a 15px classic gutter,
+    // which is enough to show part of the next card's quote mark.
     <article
       className={cn(
-        "w-[330px] shrink-0 rounded-3xl border border-foreground/10 bg-card/95 p-5 shadow-xs backdrop-blur",
+        "w-[min(330px,calc(100vw_-_96px))] shrink-0 rounded-3xl border border-foreground/10 bg-card/95 p-5 shadow-xs backdrop-blur",
         className,
       )}
     >

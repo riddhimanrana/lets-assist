@@ -237,9 +237,15 @@ describe("landing testimonials", () => {
     expect(classes(region)).toContain("overflow-x-auto");
     expect(classes(region)).toContain("focus-visible:ring-2");
 
-    expect(
-      elements(region).filter((node) => node.tag === "article"),
-    ).toHaveLength(8);
+    const cards = elements(region).filter((node) => node.tag === "article");
+    expect(cards).toHaveLength(8);
+    // 330px, or narrower on a phone so a strip of the next card shows. How
+    // much shows at 320 and 390 is a browser measurement.
+    for (const card of cards) {
+      expect(classes(card)).toContain("w-[min(330px,calc(100vw_-_96px))]");
+      expect(classes(card)).toContain("shrink-0");
+      expect(classes(card)).not.toContain("w-[330px]");
+    }
     const text = collapse(exposedText(region));
     for (const copy of [
       "Let's Assist looks like a very promising system!",
@@ -292,15 +298,19 @@ describe("testimonial row keyboard scrolling", () => {
 
   // Stands in for the scroll container: 2752px of quotes in a 1063px row. It
   // clamps the way a browser does, and records how it was asked to scroll.
+  // `cardWidth` gives the row a first card to measure. Left out, the row has
+  // no `querySelector` at all; null is a row with no card in it.
   function press(
     key: string,
     {
       from = 400,
       nested = false,
+      cardWidth,
       ...modifiers
     }: {
       from?: number;
       nested?: boolean;
+      cardWidth?: number | null;
       altKey?: boolean;
       ctrlKey?: boolean;
       metaKey?: boolean;
@@ -312,6 +322,13 @@ describe("testimonial row keyboard scrolling", () => {
       scrollLeft: from,
       scrollWidth: 2752,
       clientWidth: 1063,
+      querySelector:
+        cardWidth === undefined
+          ? undefined
+          : (selector: string) =>
+              selector === "article" && cardWidth !== null
+                ? { getBoundingClientRect: () => ({ width: cardWidth }) }
+                : null,
       scrollTo(options: ScrollToOptions) {
         requests.push(options);
         row.scrollLeft = Math.min(
@@ -354,6 +371,33 @@ describe("testimonial row keyboard scrolling", () => {
 
     // One press each way returns to the start.
     expect(400 - left.scrollLeft).toBe(right.scrollLeft - 400);
+  });
+
+  test("an arrow press moves by the measured card plus the 16px gap", () => {
+    // The card widths the class gives at 390, at 320 and on a desktop.
+    expect(press("ArrowRight", { cardWidth: 294 }).scrollLeft).toBe(400 + 310);
+    expect(press("ArrowLeft", { cardWidth: 224 }).scrollLeft).toBe(400 - 240);
+    expect(press("ArrowRight", { cardWidth: 330 }).scrollLeft).toBe(400 + 346);
+    expect(press("ArrowLeft", { cardWidth: 330 }).scrollLeft).toBe(400 - 346);
+  });
+
+  test("a card that cannot be measured falls back to the 346px step", () => {
+    for (const cardWidth of [
+      undefined,
+      null,
+      0,
+      -10,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(press("ArrowRight", { cardWidth }).scrollLeft).toBe(400 + 346);
+      expect(press("ArrowLeft", { cardWidth }).scrollLeft).toBe(400 - 346);
+    }
+  });
+
+  test("Home and End ignore the card width", () => {
+    expect(press("Home", { cardWidth: 224 }).scrollLeft).toBe(0);
+    expect(press("End", { cardWidth: 224 }).scrollLeft).toBe(2752 - 1063);
   });
 
   test("Home and End reach the first and last quotes", () => {
@@ -423,10 +467,10 @@ describe("comparison mock labels", () => {
   const reported: Array<[label: string, count: number]> = [
     ["signupgenius.com", 1],
     ["AD", 1],
-    ["Start Your Free Trial Today! >>", 1],
+    ["Ads show on the free plan", 1],
     ["Volunteer Signup Sheet", 1],
     ["3/5", 3],
-    ["2010 design", 1],
+    ["Illustrative mock", 1],
     ["lets-assist.com/explore", 1],
   ];
 
@@ -462,9 +506,8 @@ describe("comparison mock labels", () => {
   test("no mock label uses a translucent text colour", () => {
     for (const label of [
       ...reported.map(([name]) => name),
-      "Founded 2007",
-      "No hours",
-      "Ads",
+      "Sign-up sheet",
+      "Not a screenshot. See the provider's site for its current product.",
     ]) {
       const nodes = labelled(label);
       expect(nodes.length).toBeGreaterThan(0);
@@ -479,7 +522,7 @@ describe("comparison mock labels", () => {
   });
 
   test("the advert line is steady foreground text at a readable size", () => {
-    const [line] = labelled("Start Your Free Trial Today! >>");
+    const [line] = labelled("Ads show on the free plan");
 
     // The whole recipe: no pulse, no arbitrary 9px size, no tinted colour.
     // The contrast ratio itself is measured in a browser, not here.
@@ -496,8 +539,49 @@ describe("comparison mock labels", () => {
     expect(line.parent ? classes(line.parent) : []).toContain("bg-background");
     expect(elements(line.parent ?? line).map(ownText)).toEqual([
       "AD",
-      "Start Your Free Trial Today! >>",
+      "Ads show on the free plan",
     ]);
+  });
+
+  // The other provider's sheet is a drawing. It says so, and it says nothing
+  // about what that provider lacks or how old it is.
+  test("the provider mock is labelled illustrative and claims no gaps", () => {
+    expect(labelled("Illustrative mock")).toHaveLength(1);
+    expect(
+      hiddenFirstRenderAncestors(labelled("Illustrative mock")[0]),
+    ).toEqual([]);
+
+    const text = collapse(allText(root));
+    for (const claim of [
+      "Founded 2007",
+      "2010 design",
+      "No hours",
+      "No certs",
+      "No QR",
+      "Start Your Free Trial",
+      "potluck",
+      "outdated",
+      "cluttered",
+      "SignUpGenius is",
+      "Not included",
+      "Premium only",
+      "COPPA",
+    ]) {
+      expect(text).not.toContain(claim);
+    }
+  });
+
+  test("a logo beside its written name has an empty alt", () => {
+    const logos = elements(root).filter(
+      (node) =>
+        node.tag === "img" &&
+        /signupgenius-logo|logo\.png/u.test(node.attributes.src ?? ""),
+    );
+    // The mock's logo and the two column headings.
+    expect(logos).toHaveLength(3);
+    for (const logo of logos) {
+      expect(logo.attributes.alt).toBe("");
+    }
   });
 
   test("the mock content and the table control are still rendered", () => {
@@ -506,8 +590,7 @@ describe("comparison mock labels", () => {
       "9:00 AM - Setup",
       "10:00 AM - Registration",
       "11:00 AM - Food",
-      "No certs",
-      "No QR",
+      "Sign-up sheet",
       "Explore opportunities",
       "View details",
     ]) {
@@ -570,21 +653,58 @@ describe("comparison table", () => {
       expect(classes(cell)).not.toContain("whitespace-nowrap");
     }
     expect(elements(table).flatMap(classes)).not.toContain("truncate");
-    expect(collapse(allText(table))).toContain("Premium only");
+    expect(collapse(allText(table))).toContain("Paid hour reports");
   });
 
   // What each status cell gives assistive technology, written out here by
-  // hand so a mark with no words, or the wrong words, fails.
+  // hand so a mark with no words, or the wrong words, fails. The provider
+  // column says what its public pages document. Where we have not confirmed
+  // a feature either way it points to those pages, and never says "Not
+  // included". These are the words on the page, not a check of the provider.
   const statuses: Array<
     [feature: string, letsAssist: string, signupGenius: string]
   > = [
-    ["QR check-in and check-out", "Included", "Not included"],
-    ["Hour certificates", "Included", "Not included"],
-    ["Verified hours", "Included", "Not included"],
-    ["Organization roles", "Included", "Not included"],
-    ["Personal dashboard", "Included", "Not included"],
-    ["CSV exports", "Included", "Premium only"],
+    ["QR check-in and check-out", "Included", "Ticket QR scans"],
+    ["Hour certificates", "Included", "See provider docs"],
+    ["Verified hours", "Included", "See provider docs"],
+    ["Organization roles", "Included", "See provider docs"],
+    ["Personal dashboard", "Included", "See provider docs"],
+    ["Hours CSV exports", "Included", "Paid hour reports"],
   ];
+
+  test("the provider column is dated and links to its three sources", () => {
+    const [table] = tables;
+    const noteId = table?.attributes["aria-describedby"];
+    expect(noteId).toBe("comparison-sources");
+
+    const notes = elements(root).filter(
+      (node) => node.attributes.id === noteId,
+    );
+    expect(notes).toHaveLength(1);
+    const [note] = notes;
+    expect(hiddenFirstRenderAncestors(note)).toEqual([]);
+    expect(collapse(exposedText(note))).toBe(
+      "SignUpGenius column checked against its public pages on October 12, 2026. Plans and features change, so confirm with the provider: Hours report, Product overview, Sign-up features.",
+    );
+
+    const links = elements(note).filter((node) => node.tag === "a");
+    expect(links.map((link) => [ownText(link), link.attributes.href])).toEqual([
+      [
+        "Hours report",
+        "https://support.signupgenius.com/hc/en-us/articles/29670376445335-Track-Volunteer-Hours-with-a-Report",
+      ],
+      [
+        "Product overview",
+        "https://www.signupgenius.com/videos/what-is-signupgenius",
+      ],
+      ["Sign-up features", "https://www.signupgenius.com/sign-ups"],
+    ]);
+    for (const link of links) {
+      expect(link.attributes.target).toBe("_blank");
+      expect(link.attributes.rel).toBe("noopener noreferrer");
+      expect(classes(link)).toContain("underline");
+    }
+  });
 
   // The six rows of a first render. The four behind "Show all 10 features"
   // need a click, so the browser spec reads those.
@@ -684,7 +804,11 @@ describe("comparison headline word", () => {
     expect(frame.attributes.style).toBe("min-width:5ch");
     // No inline style means no motion wrapper is holding the word.
     expect(word.tag).toBe("span");
-    expect(word.attributes).toEqual({ class: "font-bold text-orange-400" });
+    // The darker orange is for the light page. Dark keeps the lighter one.
+    // The ratios are a browser measurement.
+    expect(word.attributes).toEqual({
+      class: "font-bold text-orange-700 dark:text-orange-400",
+    });
     expect(ownText(word)).toBe("alpha");
   });
 
@@ -707,11 +831,20 @@ describe("comparison headline word", () => {
     const headlines = elements(root).filter(
       (node) =>
         node.tag === "h2" &&
-        collapse(exposedText(node)) === "SignUpGenius is outdated",
+        collapse(exposedText(node)) === "One workflow for sign-ups",
     );
 
     expect(headlines).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(headlines[0])).toEqual([]);
+  });
+
+  test("the animated branch carries the same two-theme colour", () => {
+    const [, word] = elements(renderFlip(false));
+
+    expect(classes(word)).toEqual(
+      expect.arrayContaining(["text-orange-700", "dark:text-orange-400"]),
+    );
+    expect(classes(word)).not.toContain("text-orange-400");
   });
 });
 

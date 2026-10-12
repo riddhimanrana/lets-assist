@@ -20,6 +20,7 @@ git check-ignore "$layout_tool/code-manifest.sha256" "$layout_support/authorizat
 [[ "$(sha256sum "$layout_tool/code-manifest.sha256" | cut -d ' ' -f 1)" == "$LAYOUT_AUDIT_CODE_MANIFEST_SHA256" ]]
 node "$layout_tool/linux-adapters.check.mjs"
 node "$layout_tool/landing-visual-settlement.check.mjs"
+node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"
 # Root authorized only reordering the original87 scenes, not altering landmarks.
 node --input-type=module - "$layout_tool" "$layout_support" <<'NODE'
 import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';

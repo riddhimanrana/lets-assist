@@ -36,7 +36,10 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
         // the moment the preference applies, even in the middle of a flip.
         // The server cannot know the preference and sends the animated span's
         // resting style, which is why this element tolerates the difference.
-        <span className="font-bold text-orange-400" suppressHydrationWarning>
+        <span
+          className="font-bold text-orange-700 dark:text-orange-400"
+          suppressHydrationWarning
+        >
           {word}
         </span>
       ) : (
@@ -47,7 +50,7 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
             animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
             exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-            className="font-bold text-orange-400"
+            className="font-bold text-orange-700 dark:text-orange-400"
           >
             {word}
           </motion.span>

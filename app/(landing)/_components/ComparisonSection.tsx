@@ -33,9 +33,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { ComparisonTextFlip } from "./ComparisonTextFlip";
+import { ComparisonSources } from "./ComparisonSources";
 
-// Words that flip in the header
-const flipWords = ["outdated", "limited", "2010s", "cluttered"];
+// Words that flip in the header: the steps Let's Assist keeps in one workflow.
+const flipWords = ["sign-ups", "check-ins", "verified hours", "certificates"];
+
+// Shown where we have not confirmed what the other provider offers. The
+// column never says a feature is missing on our word alone.
+const SEE_PROVIDER_DOCS = "See provider docs";
 
 interface ComparisonFeature {
   name: string;
@@ -51,7 +56,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "QR check-in and check-out",
     description: "Contactless attendance verification",
     letsAssist: true,
-    signupGenius: false,
+    // Their overview describes QR attendance scanning for event tickets.
+    signupGenius: "Ticket QR scans",
     highlight: true,
     icon: QrCode,
   },
@@ -59,7 +65,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Hour certificates",
     description: "PDF certificates after verified hours are published",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     highlight: true,
     icon: Award,
   },
@@ -67,7 +73,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Verified hours",
     description: "Supervisor-verified time tracking",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     highlight: true,
     icon: Shield,
   },
@@ -75,21 +81,22 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Organization roles",
     description: "Admin, staff, and member permissions",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Users,
   },
   {
     name: "Personal dashboard",
     description: "Track all your volunteer hours",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: BarChart3,
   },
   {
-    name: "CSV exports",
+    name: "Hours CSV exports",
     description: "Export hours for your records",
     letsAssist: true,
-    signupGenius: "Premium only",
+    // Their hours report, with CSV export, is listed for paid plans.
+    signupGenius: "Paid hour reports",
     icon: FileText,
   },
   {
@@ -110,14 +117,14 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Multiple event types",
     description: "One-time, multi-day, same-day slots",
     letsAssist: true,
-    signupGenius: "Limited",
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Clock,
   },
   {
-    name: "COPPA compliance",
+    name: "Parental consent",
     description: "Parental consent for minors",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Shield,
   },
 ];
@@ -693,7 +700,8 @@ function ModernDashboardMockup() {
   );
 }
 
-// Outdated SignUpGenius mockup
+// An illustrative sign-up sheet for the other provider. It is drawn by hand,
+// labelled as a mock, and makes no claim about what the provider lacks.
 function OutdatedMockup() {
   return (
     <motion.div
@@ -720,11 +728,12 @@ function OutdatedMockup() {
 
         {/* Old-style content */}
         <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 rounded-b-xl  bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-          {/* SignUpGenius logo */}
+          {/* SignUpGenius logo. The name is written beside it, so the image
+              carries no second copy of it. */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Image
               src="/resources/signupgenius-logo.jpg"
-              alt="SignUpGenius"
+              alt=""
               width={32}
               height={32}
               className="rounded opacity-70 w-8 h-8 sm:w-10 sm:h-10"
@@ -734,18 +743,19 @@ function OutdatedMockup() {
                 SignUpGenius
               </div>
               <div className="text-[9px] sm:text-[10px] text-muted-foreground">
-                Founded 2007
+                Sign-up sheet
               </div>
             </div>
           </div>
 
-          {/* Fake Top Banner Ad */}
+          {/* Advert slot. The provider's sign-ups page says paid plans remove
+              ads. */}
           <div className="w-full bg-background border border-border p-1.5 sm:p-2 text-center overflow-hidden relative">
             <div className="text-[10px] leading-none text-muted-foreground absolute top-0.5 right-1">
               AD
             </div>
             <span className="text-xs font-semibold text-foreground">
-              Start Your Free Trial Today! &gt;&gt;
+              Ads show on the free plan
             </span>
           </div>
 
@@ -790,26 +800,14 @@ function OutdatedMockup() {
             </div>
           </div>
 
-          {/* Missing features callout */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            {["No hours", "No certs", "No QR", "Ads"].map((missing, i) => (
-              <motion.div
-                key={missing}
-                initial={false}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.8 + i * 0.1 }}
-                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground"
-              >
-                <X className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-destructive shrink-0" />
-                {missing}
-              </motion.div>
-            ))}
-          </div>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
+            Not a screenshot. See the provider&apos;s site for its current
+            product.
+          </p>
         </div>
       </div>
 
-      {/* "Stuck in 2010" label */}
+      {/* Says what the drawing is */}
       <motion.div
         initial={false}
         whileInView={{ opacity: 1, rotate: -3 }}
@@ -817,7 +815,7 @@ function OutdatedMockup() {
         transition={{ delay: 1.2 }}
         className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full border border-warning/50 bg-background text-foreground text-[10px] sm:text-xs font-medium shadow-lg"
       >
-        2010 design
+        Illustrative mock
       </motion.div>
     </motion.div>
   );
@@ -972,11 +970,11 @@ export default function ComparisonSection() {
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              SignUpGenius is <ComparisonTextFlip words={flipWords} />
+              One workflow for <ComparisonTextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-primary">
-                Let&apos;s Assist is built for today.
+                Let&apos;s Assist is built for volunteer hours.
               </span>
             </h2>
           </div>
@@ -988,8 +986,8 @@ export default function ComparisonSection() {
             transition={{ delay: 0.3 }}
             className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4"
           >
-            SignUpGenius was made for potluck lists. Let&apos;s Assist tracks
-            hours, issues certificates, and exports reports, and it is{" "}
+            Let&apos;s Assist takes a volunteer from sign-up to QR check-in,
+            verified hours, and a certificate, and it is{" "}
             <span className="text-foreground dark:text-primary font-medium">
               free
             </span>
@@ -1053,6 +1051,7 @@ export default function ComparisonSection() {
                 out to fit a 320px phone by wrapping instead of scrolling. */}
             <table
               aria-label="Let's Assist and SignUpGenius feature comparison"
+              aria-describedby="comparison-sources"
               className="w-full table-fixed caption-bottom text-sm"
             >
               <TableHeader>
@@ -1065,7 +1064,7 @@ export default function ComparisonSection() {
                       <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
                         <Image
                           src="/logo.png"
-                          alt="Let's Assist"
+                          alt=""
                           width={28}
                           height={28}
                           className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
@@ -1080,7 +1079,7 @@ export default function ComparisonSection() {
                     <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
                       <Image
                         src="/resources/signupgenius-logo.jpg"
-                        alt="SignUpGenius"
+                        alt=""
                         width={28}
                         height={28}
                         className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
@@ -1118,6 +1117,7 @@ export default function ComparisonSection() {
               </div>
             )}
           </Card>
+          <ComparisonSources />
         </motion.div>
       </div>
     </section>

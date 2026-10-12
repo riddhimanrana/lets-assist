@@ -300,6 +300,14 @@ describe("CI delivery modes", () => {
     ).toBeLessThan(
       driver.indexOf('node "$layout_tool/prepare-linux-binding.mjs"'),
     );
+    expect(driver).toContain(
+      'node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"',
+    );
+    expect(
+      driver.indexOf('node "$layout_tool/notification-reader.check.mjs"'),
+    ).toBeLessThan(
+      driver.indexOf('node "$layout_tool/prepare-linux-binding.mjs"'),
+    );
     expect(driver).toContain("binding.live(binding.load())");
     expect(driver).toContain(
       "os.hash(fs.readFileSync(identity.path)) !== identity.sha256",

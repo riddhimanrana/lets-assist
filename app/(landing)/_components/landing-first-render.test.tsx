@@ -53,8 +53,8 @@ describe("landing first-response visibility", () => {
     const html = renderToStaticMarkup(createElement(ComparisonSection));
     const text = readableText(html);
     for (const copy of [
-      "SignUpGenius is outdated",
-      "Let's Assist is built for today.",
+      "One workflow for",
+      "Let's Assist is built for volunteer hours.",
       "QR check-in and check-out",
       "Explore opportunities",
       "Volunteer Signup Sheet",
@@ -92,7 +92,7 @@ describe("landing first-response visibility", () => {
     expect(section).toBeDefined();
     const text = readableText(section ?? "");
     for (const copy of [
-      "The workspace SignUpGenius never built",
+      "A workspace for your volunteer organization",
       "Google Sheets + Calendar syncing",
       "Custom plugins",
       "Analytics dashboards",

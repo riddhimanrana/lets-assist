@@ -10673,3 +10673,35 @@ do not replace real React reconciliation, hydration or in-flight frame checks.
 The known dim-phase label contrast issue needs remeasurement in both rendered
 themes before accessibility signoff. Current native local navigation is blocked;
 no complete animation, accessibility or redesigned-screen audit is claimed.
+
+## P2: Settled landing copy and phone layout, October 12
+
+Actual Claude Opus 5.5 reviewed all five settled native landing captures from
+full run 38253378376, including light, dark and reduced motion. The prior blank
+organization reveal, QR image delay and long footer capture were settlement
+artifacts. This is landing evidence, not complete redesigned-screen acceptance.
+
+Findings `LANDING-PROVIDER-CLAIMS-20261012` and
+`LANDING-SAMPLE-IDENTITY-20261012`, P2, are corrected in the frontend candidate.
+The competitor table cites dated official provider pages and no longer asserts
+unverified feature absences. The hand-drawn provider panel is labelled
+illustrative. Hours CSV reports are described specifically, and parental
+consent is not presented as a legal compliance certification. The organization
+preview says Sample organization, uses a reserved example domain and shows no
+verified badge. Permissions, actions, fixture records and private integration
+are unchanged.
+
+Findings `LANDING-TESTIMONIAL-DISCOVERY-20261012` and
+`ORGANIZATION-RECENT-TITLE-WRAP-20261012`, P2, have candidate fixes. Testimonial
+cards use a responsive width and arrow movement follows the measured card;
+Home, End and modifier handling remain. Recent project titles can wrap to two
+lines on phones and remain one line on desktop. Focused tests and component measurements verify keyboard movement and title
+wrapping. The phone render found a 13px blank peek under a 15px scrollbar
+gutter. The revised 96px subtraction shows 33px and part of the quote icon.
+Fresh exact-source rendering and full CI are required before closure.
+
+The scoped orange headline uses orange-700 in light mode and retains
+orange-400 in dark mode. Component rendering measures at least 5.18:1 in light and 7.75:1 in dark.
+This is scoped headline evidence. The existing shared primary token issue
+remains separate. No global palette changes or
+complete accessibility signoff are claimed.

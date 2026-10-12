@@ -130,8 +130,13 @@ export function OrganizationOverviewTab({
                     render={<Link href={`/projects/${project.id}`} />}
                   >
                     <ItemContent className="min-w-0">
-                      <ItemTitle className="w-full">
-                        <span className="truncate">{project.title}</span>
+                      {/* The title clamps itself: two lines on a phone, where
+                          the status badge leaves it little room, and one from
+                          `sm` up. */}
+                      <ItemTitle className="w-full line-clamp-none">
+                        <span className="min-w-0 line-clamp-2 wrap-break-word sm:line-clamp-1">
+                          {project.title}
+                        </span>
                       </ItemTitle>
                       {project.location ? (
                         <ItemDescription className="line-clamp-1">
