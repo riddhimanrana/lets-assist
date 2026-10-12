@@ -5,7 +5,12 @@ import { Play, HeartHandshake } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { AnimatedText } from "./AnimatedText";
 
 export const CallToAction = () => {
@@ -22,7 +27,7 @@ export const CallToAction = () => {
 
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
@@ -56,14 +61,20 @@ export const CallToAction = () => {
                     </Button>
                   }
                 />
-                <DialogContent className="w-full max-w-5xl border-none bg-transparent p-0 shadow-none sm:max-w-6xl">
-                  <div className="aspect-video w-full overflow-hidden rounded-3xl bg-black ring-1 ring-white/10 shadow-2xl">
+                <DialogContent className="w-[calc(100%-2rem)] max-w-5xl border-none bg-transparent p-0 shadow-none sm:max-w-6xl [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white">
+                  <DialogTitle className="sr-only">
+                    Let&apos;s Assist demo video
+                  </DialogTitle>
+                  <div className="relative aspect-video min-h-[200px] w-full overflow-hidden rounded-3xl bg-black ring-1 ring-white/10 shadow-2xl">
                     {open ? (
                       <iframe
-                        className="h-full w-full"
+                        className="absolute inset-0 h-full w-full"
                         src="https://www.youtube.com/embed/0Smto1UOqTY?autoplay=1&rel=0"
                         title="Let's Assist Demo"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        // The site sends no referrer by default. YouTube
+                        // needs the embedding origin, and only the origin.
+                        referrerPolicy="strict-origin-when-cross-origin"
                         allowFullScreen
                       />
                     ) : null}

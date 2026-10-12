@@ -87,7 +87,6 @@ const RESTRICTED_PATHS_FOR_LOGGED_IN_USERS = [
   "/login",
   "/signup",
   "/reset-password",
-  "/faq",
 ];
 
 // Certificate detail pages expose only the narrow public verification view.

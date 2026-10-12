@@ -3,13 +3,21 @@ import { describe, expect, test } from "bun:test";
 import { getOrganizationDirectoryEmptyActions } from "./organization-directory-actions";
 
 describe("empty organization directory actions", () => {
-  test("a visitor is only asked to sign in", () => {
+  test("a visitor is asked to sign up, with sign in kept for existing accounts", () => {
     const actions = getOrganizationDirectoryEmptyActions({
       isLoggedIn: false,
       canCreate: false,
     });
-    expect(actions).toMatchObject({ signIn: true, join: false, create: false });
-    expect(actions.description).toContain("Sign in");
+    expect(actions).toMatchObject({
+      signUp: true,
+      signIn: true,
+      join: false,
+      create: false,
+    });
+    // The copy leads with the same step as the button and does not promise
+    // creation to an account that has no Trusted Member access yet.
+    expect(actions.description).toStartWith("Sign up to join");
+    expect(actions.description).toContain("Trusted Member");
   });
 
   test("a visitor never gets a create action, whatever the caller passes", () => {
@@ -26,7 +34,12 @@ describe("empty organization directory actions", () => {
       isLoggedIn: true,
       canCreate: false,
     });
-    expect(actions).toMatchObject({ signIn: false, join: true, create: false });
+    expect(actions).toMatchObject({
+      signUp: false,
+      signIn: false,
+      join: true,
+      create: false,
+    });
     expect(actions.description).toContain("Trusted Member");
   });
 
@@ -35,6 +48,11 @@ describe("empty organization directory actions", () => {
       isLoggedIn: true,
       canCreate: true,
     });
-    expect(actions).toMatchObject({ signIn: false, join: true, create: true });
+    expect(actions).toMatchObject({
+      signUp: false,
+      signIn: false,
+      join: true,
+      create: true,
+    });
   });
 });

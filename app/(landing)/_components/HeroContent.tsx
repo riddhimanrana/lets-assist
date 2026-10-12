@@ -38,7 +38,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
+import { HeroHeading } from "./HeroHeading";
 import { MotionLinkButton } from "./MotionLinkButton";
+import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
 
 const {
   projectId: PROJECT_ID,
@@ -762,19 +764,7 @@ function RealProjectDemoWindow() {
           setDemoScrollEnabled(true);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b bg-muted/30 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2" aria-hidden>
-            <span className="size-2.5 rounded-full bg-destructive/70" />
-            <span className="size-2.5 rounded-full bg-warning/70" />
-            <span className="size-2.5 rounded-full bg-success/70" />
-          </div>
-          <div className="min-w-0 text-center">
-            <p className="max-w-[58vw] truncate rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs sm:max-w-none sm:px-4">
-              {PROJECT_DISPLAY_URL}
-            </p>
-          </div>
-          <div aria-hidden />
-        </div>
+        <LandingDemoWindowChrome displayUrl={PROJECT_DISPLAY_URL} />
         <div
           className={cn(
             "max-h-[78svh] overflow-hidden md:max-h-[720px] lg:max-h-[760px]",
@@ -916,16 +906,14 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
-          The modern way to do{" "}
-          <span className="block text-primary">volunteering</span>
-        </h1>
+        <HeroHeading className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]" />
 
         {/*
           The hero is the first thing in the response. Its copy, links, demo
           and highlights render in their final state, so they are readable
           before any script runs and in a tab whose animation frames are
-          paused.
+          paused. The headline above is the one exception: its letters play a
+          CSS entrance that ends in the same final state.
         */}
         <motion.p
           initial={false}

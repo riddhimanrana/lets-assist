@@ -1,10 +1,12 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import Link from "next/link";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { siGithub } from "simple-icons";
 import { ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { SimpleIcon } from "@/components/ui/simple-icon";
+import { TEXT_LINK_CLASS } from "@/lib/text-link";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Acknowledgements",
@@ -13,7 +15,10 @@ export const metadata: Metadata = {
 
 /** Reading rhythm for the two short sections below the page header. */
 const PROSE_CLASS =
-  "mt-6 border-t text-base leading-7 [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_p]:mt-3";
+  "mt-6 border-t text-base leading-7 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:tracking-tight [&_p]:mt-3";
+
+/** A standalone link that ends in the external-link icon. */
+const ICON_LINK_CLASS = cn(TEXT_LINK_CLASS, "inline-flex items-center gap-1");
 
 export default function AcknowledgementsPage() {
   return (
@@ -36,17 +41,17 @@ export default function AcknowledgementsPage() {
           Initial idea, founder, and developer
         </p>
         <p>
-          <Link
-            href="https://riddhimanrana.com"
-            className="inline-flex items-center gap-1 font-medium"
-          >
+          <Link href="https://riddhimanrana.com" className={ICON_LINK_CLASS}>
             Riddhiman Rana
             <ExternalLink className="size-4" aria-hidden="true" />
           </Link>
         </p>
         <p>
           You can read more about the creation of Let&apos;s Assist on my{" "}
-          <Link href="https://riddhimanrana.com/blog/building-lets-assist">
+          <Link
+            href="https://riddhimanrana.com/blog/building-lets-assist"
+            className={TEXT_LINK_CLASS}
+          >
             blog post
           </Link>
           .
@@ -60,7 +65,7 @@ export default function AcknowledgementsPage() {
         <p>
           <Link
             href="https://github.com/riddhimanrana/lets-assist"
-            className="inline-flex items-center gap-1 font-medium"
+            className={ICON_LINK_CLASS}
           >
             lets-assist
             <ExternalLink className="size-4" aria-hidden="true" />

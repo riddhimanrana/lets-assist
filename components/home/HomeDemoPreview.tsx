@@ -83,6 +83,7 @@ export function HomeDemoPreview() {
         <FeedLoadingPreview />
       ) : (
         <ProjectFeedEmpty
+          className="p-6 sm:p-12"
           state={state}
           onClear={() => setState("empty")}
           onRetry={() => setState("loading")}

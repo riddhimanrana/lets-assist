@@ -1,5 +1,39 @@
 # Repository cleanup register
 
+## Frontend review candidate — 2026-10-12
+
+The frontend candidate based on Development `accba0cf` keeps the 723-migration
+ledger and private gitlink `38dc7c7a`. The separate backend release candidate
+`4b4987c5` remains in PR 873; its newer database and private Applications
+changes are outside this frontend release.
+
+P2 LIGHT-TOKEN-CONTRAST-20261011 is implemented in this candidate. Semantic
+primary, success, warning, info, destructive and muted text use tested readable
+light tokens, with a reduced white gloss endpoint. Decorative brand green is
+preserved separately. Both-theme token and foreground/gloss bounds pass.
+
+P2 ACCOUNT-PROFILE-RECOVERY-20261011 is implemented in this candidate. Slow
+loads offer a retry or auth reload without declaring a timeout failure. Failed
+initial profile reads do not display empty editors; failed refreshes retain the
+previous profile with a stale-data notice. A settings-only failure preserves the
+successful profile and identifies the failed settings read. Sixteen hook tests
+and twelve component tests pass, including stale reads, account switches,
+sign-out, disposal and retry. Real React/provider recovery remains unverified.
+
+The landing mockup's dark Open badge now has legible semantic text at rest and
+hover; its scan-line glow uses a valid complete color. Help export instructions
+match the retained dashboard exporter and omit unsupported summary totals.
+Organization card hierarchy, signup wording, keyboard content links, hero
+entrance/reduced motion and demo dialog geometry have scoped rendered evidence.
+The external video was intercepted before network: this proves layout and
+origin-only referrer behavior, not actual YouTube playback.
+
+Focused tests, formatting, lint and TypeScript pass. Independent source review
+found no remaining P0–P2 issue in the 36 frontend paths. Full CI and hosted
+Development validation remain pending. The comprehensive old/new screen audit
+is incomplete; local Docker is unresponsive and its planned CI capture adapter
+has not executed. Production and existing background jobs remain unchanged.
+
 ## Final desktop audit follow-up — 2026-10-11
 
 P2 HOSTED-APPLICATIONS-LATENCY-20261011 remains open. Exact Development

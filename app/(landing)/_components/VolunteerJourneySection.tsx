@@ -39,7 +39,7 @@ const steps = [
     icon: Award,
     key: "certificate",
     label: "Get certified",
-    desc: "Auto-published certificates 48–72h after event",
+    desc: "Certificates after organizers verify and publish hours",
   },
 ];
 

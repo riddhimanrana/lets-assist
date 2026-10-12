@@ -13,11 +13,13 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 36.3%);
+    /* Each semantic colour sits at a darker step of its own hue so small text
+       reads at 4.5:1 on white and on its own 10 to 20% tint. */
+    --success: hsl(142.1 76.2% 23%);
     /* green */
-    --warning: hsl(35 77% 49%);
-    /* yellow */
-    --info: hsl(220 91% 54%);
+    --warning: hsl(35 77% 27%);
+    /* amber */
+    --info: hsl(220 91% 42%);
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -31,13 +33,13 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 36.3%);
-    /* accent - green */
+    --primary: hsl(142.1 76.2% 23%);
+    /* accent - green, the identity hue at the step that carries small text */
     --brand: hsl(142.1 76.2% 36.3%);
-    /* green #16a34a — compatibility token for decorative brand washes. It
-       intentionally matches the restored light-mode primary. Decorative only: never
-       put text, an icon that carries meaning, a filled control, or a focus ring
-       on --brand. Interactive and status surfaces use --primary. */
+    /* green #16a34a, the identity green for decorative brand washes. It stays
+       lighter than --primary on purpose. Decorative only: never put text, an
+       icon that carries meaning, a filled control, or a focus ring on --brand.
+       Interactive and status surfaces use --primary. */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
     /* Gloss, not lift. Nothing casts a drop shadow. A control earns its
@@ -45,10 +47,12 @@
        edge. Read these through the ui primitives, never inline.
        - button-primary: the filled action.
        - control: outline buttons, select triggers, toggles.
-       - surface: text fields, which stay flat. */
+       - surface: text fields, which stay flat.
+       The sheen lightens the fill under the label, so its strongest stop is
+       part of the label's contrast. Change it together with --primary. */
     --button-primary-gloss: linear-gradient(
       180deg,
-      rgb(255 255 255 / 18%) 0%,
+      rgb(255 255 255 / 12%) 0%,
       rgb(255 255 255 / 0%) 100%
     );
     --button-primary-shadow:
@@ -75,13 +79,13 @@
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    /* subtext1 */
+    --muted-foreground: hsl(240 3.8% 45%);
+    /* subtext1, one step down so it also reads on the muted surface */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 60.2%);
+    --destructive: hsl(0 84.2% 36%);
     /* red */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
@@ -89,7 +93,7 @@
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 36.3%);
+    --ring: hsl(142.1 76.2% 23%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
@@ -207,8 +211,8 @@
     /* surface0 */
     --accent-foreground: hsl(226 64% 88%);
     /* text */
-    --destructive: hsl(343 81% 75%);
-    /* red */
+    --destructive: hsl(343 81% 80%);
+    /* red, one step lighter than --chart-1 so it reads on its own tint */
     --destructive-foreground: hsl(240 23% 9%);
     /* crust */
     --ring: hsl(226 64% 88%);
@@ -402,6 +406,29 @@
       opacity: 1;
       filter: none;
       transform: none;
+    }
+  }
+
+  /* Landing headline letters. The resting state is the final one, so the
+     heading is readable with no script and where animations do not run. The
+     entrance plays once per mount and only when motion is welcome. */
+  @keyframes la-hero-letter-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      transform: translate3d(0, 20px, 0);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .la-hero-letter {
+      animation: la-hero-letter-in 0.62s cubic-bezier(0.16, 1, 0.3, 1)
+        var(--la-delay, 0s) 1 both;
     }
   }
 

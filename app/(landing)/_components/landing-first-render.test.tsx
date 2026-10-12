@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { LandingLazySections } from "../LandingLazySections";
 import ComparisonSection from "./ComparisonSection";
+import { CallToAction } from "./CallToAction";
 import VolunteerJourneySection from "./VolunteerJourneySection";
 
 // The real components render here, with the real motion library, so an
@@ -40,6 +41,14 @@ function linkDestination(markup: string, name: string) {
 }
 
 describe("landing first-response visibility", () => {
+  test("the final signup and demo actions are visible in the first response", () => {
+    const html = renderToStaticMarkup(createElement(CallToAction));
+    expect(linkDestination(html, "Make a difference")).toBe("/signup");
+    expect(readableText(html)).toContain("Play demo video");
+    expect(hiddenFirstRenderStyles(html)).toEqual([]);
+    expect(html).not.toContain("<iframe");
+  });
+
   test("comparison copy, table and first mock panel start visible without JavaScript", () => {
     const html = renderToStaticMarkup(createElement(ComparisonSection));
     const text = readableText(html);

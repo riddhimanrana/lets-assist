@@ -57,8 +57,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     icon: QrCode,
   },
   {
-    name: "Auto certificates",
-    description: "PDF certificates generated automatically",
+    name: "Hour certificates",
+    description: "PDF certificates after verified hours are published",
     letsAssist: true,
     signupGenius: false,
     highlight: true,
@@ -320,7 +320,7 @@ function ModernDashboardMockup() {
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/30 dark:text-primary-foreground">
+                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/10 dark:text-primary dark:hover:bg-primary/20">
                         Open
                       </Badge>
                     </div>
@@ -438,7 +438,7 @@ function ModernDashboardMockup() {
                           repeat: Infinity,
                           ease: "linear",
                         }}
-                        className="absolute left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_1px_rgba(var(--primary),0.5)] z-10"
+                        className="absolute left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_1px_color-mix(in_srgb,var(--primary)_50%,transparent)] z-10"
                       />
                     </div>
                   </div>

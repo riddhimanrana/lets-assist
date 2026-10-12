@@ -166,7 +166,8 @@ export function ProjectsSection() {
                 <AccordionTrigger>Earning certificates</AccordionTrigger>
                 <AccordionContent className="space-y-2 text-sm">
                   <p>
-                    After completing volunteer work, you automatically receive:
+                    After an organizer verifies and publishes your volunteer
+                    hours, your certificate includes:
                   </p>
                   <ul className="list-disc pl-5 space-y-1 ml-2">
                     <li>Digital certificate with project details</li>
