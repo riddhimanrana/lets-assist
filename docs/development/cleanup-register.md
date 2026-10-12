@@ -8,7 +8,8 @@ and its iframe is at least 200 pixels high. Both demo iframes send only the
 embedding origin, while the global `no-referrer` policy stays unchanged.
 The missing referrer explains the documented YouTube Error 153 condition;
 actual playback still requires hosted Development verification. Video dialogs
-also have accessible titles. The active call-to-action is visible at first
+also have accessible titles and white dismissal controls over a black backing
+in both themes. The active call-to-action is visible at first
 render. The user-requested letter headline recovers actual Production timing,
 with reduced-motion and no replay proof in an owned component fixture.
 

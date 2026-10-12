@@ -61,7 +61,7 @@ export const CallToAction = () => {
                     </Button>
                   }
                 />
-                <DialogContent className="w-[calc(100%-2rem)] max-w-5xl border-none bg-transparent p-0 shadow-none sm:max-w-6xl">
+                <DialogContent className="w-[calc(100%-2rem)] max-w-5xl border-none bg-transparent p-0 shadow-none sm:max-w-6xl [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white">
                   <DialogTitle className="sr-only">
                     Let&apos;s Assist demo video
                   </DialogTitle>
