@@ -368,8 +368,19 @@ describe("db-replay-validation CI job contract", () => {
       teardownStep,
     );
     expect(upload).toContain("        if: ${{ always() }}\n");
-    expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
+    expect(browser.split("uses: actions/upload-artifact@").length - 1).toBe(1);
+    const layoutAudit = workflowJob("layout-audit");
+    expect(layoutAudit.split("uses: actions/upload-artifact@").length - 1).toBe(
       1,
+    );
+    expect(layoutAudit).toContain(
+      "path: ${{ steps.layout-capture.outputs.paths }}",
+    );
+    expect(layoutAudit).toContain("if-no-files-found: error");
+    expect(layoutAudit).toContain("retention-days: 7");
+    expect(layoutAudit).not.toContain("path: .artifacts/");
+    expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
+      2,
     );
     expect(playwrightConfig).toContain(
       'process.env.CSF_E2E_RUN_ID ?? "playwright-local"',

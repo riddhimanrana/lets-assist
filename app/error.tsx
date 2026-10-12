@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * The fallback for an uncaught error in any route under the root layout. The
  * copy is fixed: an error message or digest can carry record contents, so
- * neither is rendered or logged here. The root layout already owns `<main>`.
+ * neither is rendered or logged here. The root layout already owns the main landmark.
  */
 export default function RootError({
   retry,

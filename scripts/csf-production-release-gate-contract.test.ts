@@ -111,13 +111,12 @@ describe("CSF Production release preflight", () => {
     const workflows = [
       {
         source: ciWorkflow,
-        // Five jobs check out code (static, unit, build, database, browser),
-        // each with a root and a private checkout. The database and browser
-        // jobs each start their own stack.
+        // Six jobs check out code, each with root and private checkouts.
+        // Database, browser and the opt-in layout audit own isolated stacks.
         counts: {
-          "actions/checkout": 10,
-          "oven-sh/setup-bun": 5,
-          "supabase/setup-cli": 2,
+          "actions/checkout": 12,
+          "oven-sh/setup-bun": 6,
+          "supabase/setup-cli": 3,
         },
       },
       {
