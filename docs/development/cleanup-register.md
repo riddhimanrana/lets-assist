@@ -2,6 +2,18 @@
 
 ## Frontend review candidate — 2026-10-12
 
+P2 DASHBOARD-OPTIONAL-IDENTITY-20261012 is implemented after automatic CI
+38283808673 exposed two route-fallback test failures at `f3d0bc26`. The observed
+failure was the fixture contract; no live-route crash was observed. The loader
+always supplies an identity object, including a fallback when its profile read
+fails. The presentation boundary now explicitly accepts absent/null imagery
+and uses Volunteer initials for missing or blank names, preserving the
+dashboard and export tab without displaying an email address. The old fixture
+is now fully typed instead of casting an incomplete dashboard payload. Four
+regression cases cover absent, null, blank and available identities; both
+original export fallback cases pass. Eighteen focused dashboard/route tests
+pass, including module boundaries and actual avatar fallback rendering.
+
 P2 DASHBOARD-CONTROL-NAMES-20261012, P2 MODERATION-PHONE-OVERFLOW-20261012
 and P2 FOOTER-CHECKING-CONTRAST-20261012 are implemented in this candidate.
 Native Linux run 38271350105 at `87d2f3d4` passed all twelve baseline jobs,

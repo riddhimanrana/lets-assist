@@ -60,7 +60,9 @@ export function VolunteerDashboardView({
   uiCertificates,
   pluginCards = [],
   ratingPrompt,
-}: VolunteerDashboardData & {
+}: Omit<VolunteerDashboardData, "profileIdentity"> & {
+  // Optional presentation data must not prevent access to hours or exports.
+  profileIdentity?: VolunteerDashboardData["profileIdentity"] | null;
   pluginCards?: PlatformDashboardCard[];
   ratingPrompt?: ReactNode;
 }) {
@@ -101,8 +103,8 @@ export function VolunteerDashboardView({
       <PageHeader
         media={
           <DashboardAvatar
-            name={profileIdentity.name}
-            src={profileIdentity.avatarUrl}
+            name={profileIdentity?.name.trim() || "Volunteer"}
+            src={profileIdentity?.avatarUrl}
           />
         }
         title="Volunteer dashboard"
