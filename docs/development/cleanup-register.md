@@ -2,6 +2,55 @@
 
 ## Frontend review candidate — 2026-10-12
 
+P2 DASHBOARD-CONTROL-NAMES-20261012, P2 MODERATION-PHONE-OVERFLOW-20261012
+and P2 FOOTER-CHECKING-CONTRAST-20261012 are implemented in this candidate.
+Native Linux run 38271350105 at `87d2f3d4` passed all twelve baseline jobs,
+but stopped at organization invitations after 62 PNGs across fifteen scenes.
+It did not complete the 87-scene audit. Its unnamed dashboard progress/date
+controls, moderation phone overflow and light footer status contrast are
+addressed here. Twenty-one focused UI tests pass. Controlled rendering of the
+actual components and application CSS in Chromium 151 at 1280, 390 and 320px
+in both themes checks page overflow, accessible names, existing image loading
+and resting focus/scroll state; targeted axe checks pass for progress names
+and the Checking badge contrast. This harness substitutes only the moderation
+read, signed-out footer auth state and Next Link/Image adapters. It does not
+prove authenticated route data, native Next rendering or full acceptance.
+
+The member navigation label is Home. Dashboard profile, organization and
+upcoming project imagery uses existing stored image fields, with stable
+initials when absent. Certificate organization logos require an exact snapshot
+name and one organization identity; ambiguous or renamed identities retain
+the fallback. Organization directory cards retain their current join/create
+behavior with clearer image sizing and membership emphasis.
+
+The capture resets focus, pointer and scrolling after recording keyboard
+proof, without sending Escape or disabling accessibility. Native settings
+sidebar and tooltip placement still require fresh resting-state captures.
+The invitation exception permits only the two reviewed initial reads for the
+proved fictional active administrator on the exact invitations route. Source
+hashes, compiled action mappings and an absent staff capability are required.
+The staff-link getter performs the existing get-only RPC branch, including its
+row/advisory locks; it does not change data. Mutating branches and unknown
+traffic remain fatal. Twenty-seven positive/refusal tests cover this boundary.
+
+Global light-theme contrast, missing fixture states, complete old/new pixel
+review and hosted Development acceptance remain open. Production remains at
+schema 687 while Development has 723; the landing objects and request fence
+are absent in Production. Protected credential presence is unconfirmed, and
+writer compatibility/shutdown and recovery gates remain required. Production
+approval is conditional on passing those actual gates.
+
+Cloud source organization, full zero-warning ESLint, agent configuration and
+strict private-pin checks pass. The five affected CI contract modules pass
+47 tests; owned offline checks pass 266 Linux adapters, 568 original guards,
+52 landing-settlement and 65 notification/color checks, plus 48 session,
+summary, invitation and resting-state tests. Full local TypeScript remains
+blocked by the unavailable locked SheetJS tarball (HTTP 403); its ten errors
+are confined to missing xlsx declarations and dependent inferred types.
+Twelve existing replay-harness tests exit 127 because rsync is unavailable.
+Neither limitation is waived: fresh exact-commit hosted CI must pass before
+the candidate can be accepted or deployed.
+
 P2 JOURNEY-INDICATOR-VISIBILITY-20261012 is implemented in this candidate.
 The inactive landing journey pills used a translucent surface token and were
 hard to see in the authentic light-theme capture. The scoped Opus 5.5 change

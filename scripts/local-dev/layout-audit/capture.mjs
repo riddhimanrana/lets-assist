@@ -9,6 +9,13 @@ import {
 } from "./notification-reader-contract.mjs";
 import { readAxeRows } from "./axe-color-diagnostics.mjs";
 import { createCaptureSessions } from "./capture-sessions.mjs";
+import { restoreCaptureRestingState } from "./capture-resting-state.mjs";
+import {
+  exactInvitationPolicy,
+  invitationReaderRequest,
+  invitationFixtureFromRows,
+  INVITATION_ORG_ID,
+} from "./invitation-reader-contract.mjs";
 import fs from "node:fs";
 import { requireLiveBinding } from "./linux-binding.mjs";
 import path from "node:path";
@@ -116,6 +123,11 @@ const approvedActions = exactReadActionPolicy(
   REPO,
   buildDirectory,
   m.readActionPolicy,
+);
+const invitationActions = exactInvitationPolicy(
+  REPO,
+  buildDirectory,
+  m.invitationReadPolicy,
 );
 if (
   !Number.isInteger(m.appPort) ||
@@ -230,6 +242,34 @@ const corpus = verifyFixtureRows(contracts, authUsers, profiles);
 const actorContracts = new Map(
   contracts.filter((a) => a.kind === "baseline").map((a) => [a.key, a]),
 );
+if (invitationActions.length) {
+  const developer = actorContracts.get("developer");
+  const organizationRead = await admin
+    .from("organizations")
+    .select(
+      "id,username,created_by,staff_join_token,staff_join_token_created_at,staff_join_token_expires_at,staff_join_token_issued_by",
+    )
+    .eq("id", INVITATION_ORG_ID)
+    .range(0, 1);
+  const membershipRead = await admin
+    .from("organization_members")
+    .select("organization_id,user_id,role,status")
+    .eq("organization_id", INVITATION_ORG_ID)
+    .eq("user_id", developer?.id)
+    .range(0, 1);
+  if (organizationRead.error || membershipRead.error)
+    fail("Invitation fixture read failed");
+  const actual = invitationFixtureFromRows(
+    organizationRead.data,
+    membershipRead.data,
+    developer,
+  );
+  if (
+    JSON.stringify(actual) !==
+    JSON.stringify(fixtureProof.invitationReaderOrganization)
+  )
+    fail("Invitation fixture changed");
+}
 const creatorProjects = new Map();
 if (approvedActions.length) {
   const expectedProjects = [
@@ -378,7 +418,7 @@ try {
           }
           if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
             try {
-              readActionRequest({
+              const request = {
                 method: req.method(),
                 url: req.url(),
                 contentType: req.headers()["content-type"],
@@ -389,7 +429,16 @@ try {
                 baseURL,
                 approvedActions,
                 creatorProjects,
-              });
+              };
+              try {
+                readActionRequest(request);
+              } catch {
+                invitationReaderRequest({
+                  ...request,
+                  approvedActions: invitationActions,
+                  organizationProof: fixtureProof.invitationReaderOrganization,
+                });
+              }
               if (++allowedReadActions > 4)
                 fail("Read-action request bound exceeded");
             } catch {
@@ -617,6 +666,7 @@ try {
             }),
           );
         }
+        capture.restingState = await restoreCaptureRestingState(page);
         if (entry.id === "landing-baseline") {
           if (actor)
             fail("Public landing settlement requires signed-out fixture");
@@ -649,7 +699,7 @@ try {
             ),
           ].filter(visible);
           return {
-            samplePhase: "after-keyboard-before-png",
+            samplePhase: "resting-after-keyboard-before-png",
             viewportHeight: document.documentElement.clientHeight,
             documentHeight: document.documentElement.scrollHeight,
             viewportWidth: document.documentElement.clientWidth,

@@ -1059,6 +1059,7 @@
     },
     {
       "id": "organization-settings-invitations",
+      "readActions": ["getOrganizationInvitations", "getStaffLinkDetails"],
       "route": "/organization/local-platform-org/settings?section=invitations",
       "expectedRoutes": [
         "/organization/local-platform-org/settings?section=invitations"

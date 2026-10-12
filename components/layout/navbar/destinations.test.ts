@@ -13,12 +13,12 @@ const byLabel = (links: readonly NavDestination[]) =>
 describe("primary navigation destinations", () => {
   test("members get discovery and their own projects on separate routes", () => {
     expect(byLabel(memberLinks)).toMatchObject({
-      "Upcoming projects": "/home",
+      Home: "/home",
       "My projects": "/projects",
     });
   });
 
-  test("visitors reach the public feed under the same discovery label", () => {
+  test("visitors reach the public upcoming-project feed", () => {
     expect(byLabel(publicLinks)).toMatchObject({
       "Upcoming projects": "/projects",
     });

@@ -100,7 +100,7 @@ export default function OrgModerationDashboard({
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <StatStrip
         items={[
           { label: "Total flagged", value: stats.total, helper: "All time" },
@@ -131,7 +131,7 @@ export default function OrgModerationDashboard({
       </Alert>
 
       <Tabs
-        className="gap-4"
+        className="min-w-0 gap-4"
         value={selectedTab}
         onValueChange={(v) => {
           if (!isFlagStatus(v)) return;
@@ -139,7 +139,11 @@ export default function OrgModerationDashboard({
           loadFlaggedContent(v);
         }}
       >
-        <TabsList variant="line" className="border-b">
+        <TabsList
+          variant="line"
+          className="min-w-0 border-b"
+          aria-label="Content status"
+        >
           <TabsTrigger value="pending_review" className="flex-none">
             Pending ({stats.pending})
           </TabsTrigger>

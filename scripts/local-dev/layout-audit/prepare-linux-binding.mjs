@@ -2,6 +2,7 @@
 // Future GitHub-only setup: source facts and proof files, never stack/fixture writes.
 import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
+import { INVITATION_SOURCE_HASHES } from "./invitation-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -129,6 +130,12 @@ for (const map of [review.sourceHashes, review.profileReaderSourceHashes])
   for (const f of Object.keys(map)) map[f] = authorizedHash(f, map[f]);
 review.notificationReaderSourceHashes = Object.fromEntries(
   Object.entries(NOTIFICATION_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.invitationReaderSourceHashes = Object.fromEntries(
+  Object.entries(INVITATION_SOURCE_HASHES).map(([file, sha]) => [
     file,
     authorizedHash(file, sha),
   ]),

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Future actual owned runtime collector. No launch, DB mutation or provider request.
 import fs from "node:fs";
+import {
+  invitationPolicyFromCompiled,
+  verifyInvitationFixture,
+} from "./invitation-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -205,6 +209,7 @@ export async function main(
     ),
   );
   let readActionPolicy = { enabled: false, reviewed: false };
+  let invitationReadPolicy = { enabled: false, reviewed: false };
   if (enableReads) {
     const meta = path.join(directory, "server/server-reference-manifest.json");
     os.ownFile(meta, false);
@@ -223,6 +228,18 @@ export async function main(
     if (readActionPolicy.approvedActions?.length !== 2) os.deny();
     readActionPolicy.enabled = true;
     readActionPolicy.reviewed = true;
+    const developer = fixture.baselineActors.find((a) => a.key === "developer");
+    verifyInvitationFixture(fixture.invitationReaderOrganization, {
+      kind: "baseline",
+      key: "developer",
+      id: developer?.userId,
+    });
+    invitationReadPolicy = invitationPolicyFromCompiled(
+      JSON.parse(bytes),
+      REPO,
+      digest(bytes),
+      readProof.invitationReaderSourceHashes,
+    );
   }
   const runtime = {
     schema: "lets-assist-layout-runtime-binding-v1",
@@ -349,6 +366,7 @@ export async function main(
     fixtureProofFile: fixtureFile,
     fixtureProofSha256: digest(fs.readFileSync(fixtureFile)),
     readActionPolicy,
+    invitationReadPolicy,
   };
   const manifestFile = path.join(supportDir, "capture-manifest.json");
   os.exclusiveJSON(manifestFile, manifest);

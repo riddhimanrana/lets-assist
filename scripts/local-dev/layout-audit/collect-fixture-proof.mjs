@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Actual owned loopback reads only. Never seeds, signs in or logs raw rows.
 import fs from "node:fs";
+import {
+  invitationFixtureFromRows,
+  INVITATION_ORG_ID,
+} from "./invitation-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -182,6 +186,8 @@ export async function main(output) {
         "/auth/v1/admin/users",
         "/rest/v1/profiles",
         "/rest/v1/projects",
+        "/rest/v1/organizations",
+        "/rest/v1/organization_members",
       ].includes(u.pathname)
     )
       os.deny();
@@ -248,6 +254,31 @@ export async function main(output) {
     ids: seed.IDS,
     observations,
   });
+  const developer = proof.baselineActors.find((a) => a.key === "developer");
+  const organizationRead = await admin
+    .from("organizations")
+    .select(
+      "id,username,created_by,staff_join_token,staff_join_token_created_at,staff_join_token_expires_at,staff_join_token_issued_by",
+    )
+    .eq("id", INVITATION_ORG_ID)
+    .range(0, 1);
+  const membershipRead = await admin
+    .from("organization_members")
+    .select("organization_id,user_id,role,status")
+    .eq("organization_id", INVITATION_ORG_ID)
+    .eq("user_id", developer.userId)
+    .range(0, 1);
+  if (organizationRead.error || membershipRead.error)
+    fail("Invitation fixture read failed");
+  proof.invitationReaderOrganization = invitationFixtureFromRows(
+    organizationRead.data,
+    membershipRead.data,
+    {
+      kind: "baseline",
+      key: "developer",
+      id: developer.userId,
+    },
+  );
   requireLiveBinding();
   dv.getCsfIsolatedSupabaseEnv();
   os.exclusiveJSON(output, proof);

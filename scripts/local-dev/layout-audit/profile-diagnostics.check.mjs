@@ -170,11 +170,18 @@ export function runProfileDiagnosticChecks(effects, captureSource) {
       "capture.dom = await page.evaluate(() => {",
     ),
     keyboardStart = captureSource.indexOf("capture.keyboard = []"),
+    restingStart = captureSource.indexOf(
+      "capture.restingState = await restoreCaptureRestingState(page)",
+    ),
     screenshotStart = captureSource.indexOf(
       "const pixels = await page.screenshot(",
     );
   pass(() =>
-    assert(snapshotStart > keyboardStart && snapshotStart < screenshotStart),
+    assert(
+      restingStart > keyboardStart &&
+        snapshotStart > restingStart &&
+        snapshotStart < screenshotStart,
+    ),
   );
   const marker = (
     skeleton,
@@ -248,6 +255,8 @@ export function runProfileDiagnosticChecks(effects, captureSource) {
       pulseOnly: 1,
     }),
   );
-  pass(() => assert.equal(snapshot.samplePhase, "after-keyboard-before-png"));
+  pass(() =>
+    assert.equal(snapshot.samplePhase, "resting-after-keyboard-before-png"),
+  );
   return checks;
 }
