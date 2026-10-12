@@ -839,6 +839,9 @@ export function runRepairGuards({ contracts, users, profiles }) {
     fs.writeFileSync(path.join(tmp, ".gitignore"), ".artifacts/\n");
     const wide = path.join(tmp, ".artifacts/layout-audit/wide");
     fs.mkdirSync(wide, { mode: 0o755 });
+    // mkdir's requested mode is filtered by the caller's umask.
+    fs.chmodSync(wide, 0o755);
+    assert.equal(fs.statSync(wide).mode & 0o777, 0o755);
     deny("output", () => newCaptureOutput(tmp, wide));
     fs.symlinkSync(ignored, path.join(tmp, ".artifacts/layout-audit/link"));
     deny("output", () =>
