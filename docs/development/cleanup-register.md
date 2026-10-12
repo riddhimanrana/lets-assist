@@ -41,16 +41,31 @@ group signal. The existing asynchronous owned-build repair from backend
 `4b4987c5` is included in three local runner/fixture/test files. The original
 20-second deadline, claim-release and completed-build assertions remain intact.
 
-The comparison table now wraps all columns on narrow screens without nested
-horizontal scroll containers. Both video close controls have scoped 44px targets
-and a black backing, measured over a bright intercepted iframe.
+The comparison table wraps all columns on narrow screens without nested
+horizontal scroll containers. Native included/excluded cells have explicit screen
+reader status text. Both video dialogs place their visible title and scoped 44px
+close control in a separate toolbar before the iframe, with readable backing and
+an inset focus ring measured over an intercepted bright player.
 
-Focused tests, formatting, lint and TypeScript pass. Independent source review
-found no remaining P0–P2 issue in the frontend source. The initial full CI failed as described above; fresh
-exact-head full CI and hosted
-Development validation remain pending. The comprehensive old/new screen audit
-is incomplete; local Docker is unresponsive and its planned CI capture adapter
-has not executed. Production and existing background jobs remain unchanged.
+Route corrections add an MFA heading, OTP label and native Enter submission;
+email/current-password autocomplete preserving existing validation; a direct
+draft edit menu link; the admin header before its landing control; logout failure
+feedback; an export unavailable state; and the Next 16.4 retry error boundary.
+The proposed admin loading module was withdrawn to preserve page-level auth
+redirect timing. Authentication, business actions and provider settings are
+unchanged. Focused tests, formatting, lint and TypeScript pass. Twenty-four
+controlled route-component interaction captures and seventy-eight landing/video
+captures pass; they do not establish full authenticated route acceptance.
+
+Both full Code quality 38218073051 and short 38218062199 passed at committed
+156c121a. Later corrections still require fresh exact-head CI. Independent source
+review found no verified P0–P2 regression in those route corrections. The
+comprehensive old/new screen audit and hosted Development validation remain
+incomplete. Local Docker is unresponsive; an opt-in isolated Linux capture job is
+being integrated. Production is authorized after its release gates, but its last
+verified 687-migration schema differs from the candidate's 723 and the protected
+Production database connection secret names are absent. No Production or
+background job change has been made.
 
 ## Final desktop audit follow-up — 2026-10-11
 

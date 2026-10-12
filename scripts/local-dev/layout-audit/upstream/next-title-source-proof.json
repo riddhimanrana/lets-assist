@@ -1,0 +1,30 @@
+{
+  "schema": "lets-assist-next-title-source-proof-v1",
+  "sourceOnly": true,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "version": "16.4.0",
+  "exactTitle": "next-server (v16.4.0)",
+  "assignment": "process.title = `next-server (v${\"16.4.0\"})`;",
+  "files": [
+    {
+      "repoRelativePath": "node_modules/next/package.json",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/package.json",
+      "sha256": "440efba874450dc997b2c3bf9efa4c3c4835abbc40d65442e94a7c69f4bad031"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/bin/next",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/bin/next",
+      "sha256": "643904c74474080e3f04b3d354a11d5e86c6030645d80883596b2a28ecbd6d25"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/cli/next-start.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/cli/next-start.js",
+      "sha256": "e267c86ab2a7d05792267ff0c98499e08207bf22c4918449af41e063fa796e62"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/lib/start-server.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/lib/start-server.js",
+      "sha256": "af5fd02bb07111f4794f7c7123e7388953bdfb85e131024c85dbc9abbab82d6c"
+    }
+  ]
+}

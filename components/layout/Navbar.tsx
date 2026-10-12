@@ -7,6 +7,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 import { logout } from "@/app/logout/actions";
 import { DonateDialog } from "@/components/feedback/DonateDialog";
@@ -106,10 +107,12 @@ export default function Navbar() {
       } else {
         safeConsole.error("Logout failed:", result.error);
         setIsLoggingOut(false);
+        toast.error("We could not sign you out. Please try again.");
       }
     } catch (error) {
       safeConsole.error("Logout failed:", error);
       setIsLoggingOut(false);
+      toast.error("We could not sign you out. Please try again.");
     }
   };
 

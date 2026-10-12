@@ -82,3 +82,26 @@ describe("admin overview queue signals", () => {
     expect(html).not.toContain("All clear");
   });
 });
+
+describe("admin overview composition", () => {
+  test("a page-level control sits under the one heading and above the stats", () => {
+    const html = overview({
+      afterHeader: <section>Fictional page control</section>,
+    });
+    expect(html.match(/<h1\b/gu)).toHaveLength(1);
+    const heading = html.indexOf("<h1");
+    const headerAction = html.indexOf("Review moderation queue");
+    const control = html.indexOf("Fictional page control");
+    const stats = html.indexOf("Trusted applications");
+    expect(heading).toBeGreaterThan(-1);
+    expect(headerAction).toBeGreaterThan(heading);
+    expect(control).toBeGreaterThan(headerAction);
+    expect(stats).toBeGreaterThan(control);
+  });
+
+  test("the overview renders unchanged when no control is passed", () => {
+    const html = overview();
+    expect(html.match(/<h1\b/gu)).toHaveLength(1);
+    expect(html).not.toContain("Fictional page control");
+  });
+});

@@ -572,6 +572,89 @@ describe("comparison table", () => {
     expect(elements(table).flatMap(classes)).not.toContain("truncate");
     expect(collapse(allText(table))).toContain("Premium only");
   });
+
+  // What each status cell gives assistive technology, written out here by
+  // hand so a mark with no words, or the wrong words, fails.
+  const statuses: Array<
+    [feature: string, letsAssist: string, signupGenius: string]
+  > = [
+    ["QR check-in and check-out", "Included", "Not included"],
+    ["Hour certificates", "Included", "Not included"],
+    ["Verified hours", "Included", "Not included"],
+    ["Organization roles", "Included", "Not included"],
+    ["Personal dashboard", "Included", "Not included"],
+    ["CSV exports", "Included", "Premium only"],
+  ];
+
+  // The six rows of a first render. The four behind "Show all 10 features"
+  // need a click, so the browser spec reads those.
+  test("every status cell of the first six rows reads its truth in words", () => {
+    const rows = elements(root).filter(
+      (node) => node.tag === "tr" && node.parent?.tag === "tbody",
+    );
+    expect(rows).toHaveLength(statuses.length);
+
+    rows.forEach((row, index) => {
+      const [feature, ...columns] = elements(row).filter(
+        (node) => node.tag === "td",
+      );
+      const [name, letsAssist, signupGenius] = statuses[index];
+
+      expect(collapse(exposedText(feature))).toStartWith(name);
+      expect(columns.map((cell) => collapse(exposedText(cell)))).toEqual([
+        letsAssist,
+        signupGenius,
+      ]);
+
+      for (const cell of columns) {
+        const words = collapse(exposedText(cell));
+        const marks = elements(cell).filter((node) => node.tag === "svg");
+        if (words === "Included" || words === "Not included") {
+          // The drawn mark stays, hidden, beside one readable label.
+          expect(marks).toHaveLength(1);
+          expect(isHidden(marks[0])).toBe(true);
+          expect(
+            elements(cell)
+              .filter((node) => classes(node).includes("sr-only"))
+              .map(ownText),
+          ).toEqual([words]);
+        } else {
+          expect(marks).toEqual([]);
+        }
+      }
+    });
+  });
+
+  // The light green does not carry small text on a white card. The ratio is
+  // a browser measurement; this holds the recipe on the rendered labels:
+  // foreground text, with the green only under the dark variant.
+  test("small labels are foreground text and take the green only in dark", () => {
+    const labels = elements(root).filter(
+      (node) =>
+        ["Open", "Key", "Let's Assist", "QR check-in and check-out"].includes(
+          ownText(node),
+        ) ||
+        (node.tag === "button" &&
+          collapse(allText(node)) === "Show all 10 features"),
+    );
+    // One badge, three key rows, one column heading, one name, one control.
+    expect(labels).toHaveLength(7);
+
+    for (const label of labels) {
+      const own = [label, ...(label.parent ? [label.parent] : [])].flatMap(
+        classes,
+      );
+      expect(own).toContain("text-foreground");
+      expect(own).toContain("dark:text-primary");
+      expect(
+        own.filter((name) =>
+          ["text-primary", "text-primary-foreground", "bg-primary"].includes(
+            name,
+          ),
+        ),
+      ).toEqual([]);
+    }
+  });
 });
 
 describe("comparison headline word", () => {

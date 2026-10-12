@@ -309,6 +309,9 @@ export default function LoginClient({
         <CardContent className="space-y-5 p-6 sm:p-7">
           <form
             method="post"
+            // The schema owns validation and its messages. Without this,
+            // type="email" would let the browser block submit first.
+            noValidate
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-5"
             data-hydrated={isHydrated ? "true" : "false"}
@@ -377,6 +380,8 @@ export default function LoginClient({
                     </FieldLabel>
                     <Input
                       id={field.name}
+                      type="email"
+                      autoComplete="email"
                       placeholder="m@example.com"
                       {...field}
                       aria-invalid={fieldState.invalid}
@@ -412,6 +417,7 @@ export default function LoginClient({
                     <Input
                       id={field.name}
                       type="password"
+                      autoComplete="current-password"
                       {...field}
                       aria-invalid={fieldState.invalid}
                       className="h-11 rounded-xl px-4"

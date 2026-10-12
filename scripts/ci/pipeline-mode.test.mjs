@@ -46,6 +46,7 @@ describe("CI delivery modes", () => {
       "quality",
       "database",
       "browser",
+      "layout-audit",
       "db-replay-validation",
       "ci-gate",
     ]);
@@ -253,6 +254,30 @@ describe("CI delivery modes", () => {
     expect(replay).not.toContain("continue-on-error");
   });
 
+  test("layout capture runs only on explicit manual opt-in and gates its result", () => {
+    const capture = job("layout-audit");
+    const gate = job("ci-gate");
+    expect(capture).toContain(
+      "github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main'",
+    );
+    expect(workflow).toContain("layout_audit:");
+    expect(workflow).toContain("default: false");
+    expect(capture).toContain("persist-credentials: false");
+    expect(capture).toContain("run: bash scripts/local-dev/layout-audit-ci.sh");
+    expect(capture).toContain(
+      "path: ${{ steps.layout-capture.outputs.paths }}",
+    );
+    expect(capture).not.toContain("continue-on-error");
+    expect(gate).toContain(
+      "LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit }}",
+    );
+    expect(gate).toContain(
+      'if [[ "${LAYOUT_AUDIT_REQUESTED}" == "true" ]]; then',
+    );
+    expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "success" ]]');
+    expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "skipped" ]]');
+  });
+
   test("the aggregate gate requires full validation outside pull requests", () => {
     const gate = job("ci-gate");
     expect(gate).toContain("    name: ci-gate\n");
@@ -281,6 +306,7 @@ describe("CI delivery modes", () => {
       quality: "QUALITY_RESULT",
       database: "DATABASE_CHECKS_RESULT",
       browser: "BROWSER_RESULT",
+      "layout-audit": "LAYOUT_AUDIT_RESULT",
       "db-replay-validation": "DATABASE_RESULT",
     };
     expect(Object.keys(variables)).toEqual(needs("ci-gate"));
@@ -316,6 +342,9 @@ describe("CI delivery modes", () => {
       "skipped",
       "skipped",
       "skipped",
+      "skipped",
+      "true",
+      "success",
       "skipped",
     ]);
   });

@@ -319,7 +319,7 @@ function ModernDashboardMockup() {
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/10 dark:text-primary dark:hover:bg-primary/20">
+                      <Badge className="text-[9px] h-4 bg-muted text-foreground hover:bg-muted/80 dark:bg-primary/10 dark:text-primary dark:hover:bg-primary/20">
                         Open
                       </Badge>
                     </div>
@@ -458,7 +458,7 @@ function ModernDashboardMockup() {
                   transition={{ delay: 1.5, type: "spring" }}
                   className="absolute bottom-8 right-8 z-20"
                 >
-                  <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-xl flex items-center gap-2">
+                  <div className="bg-[color-mix(in_srgb,var(--primary)_15%,var(--background))] text-foreground ring-1 ring-primary/30 dark:bg-primary dark:text-primary-foreground dark:ring-0 px-3 py-2 rounded-lg shadow-xl flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     <span className="font-bold text-xs">Checked in</span>
                   </div>
@@ -533,7 +533,7 @@ function ModernDashboardMockup() {
                       </div>
 
                       <div className="space-y-1">
-                        <h2 className="font-serif text-lg sm:text-xl font-bold tracking-wider text-primary">
+                        <h2 className="font-serif text-lg sm:text-xl font-bold tracking-wider text-foreground dark:text-primary">
                           CERTIFICATE
                         </h2>
                         <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -833,7 +833,11 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
       className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-primary/15 mx-auto"
     >
-      <Check className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+      <Check
+        aria-hidden="true"
+        className="h-3 w-3 sm:h-4 sm:w-4 text-foreground dark:text-primary"
+      />
+      <span className="sr-only">Included</span>
     </motion.div>
   );
 }
@@ -847,7 +851,11 @@ function AnimatedX({ delay = 0 }: { delay?: number }) {
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
       className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-destructive/10 mx-auto"
     >
-      <X className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
+      <X
+        aria-hidden="true"
+        className="h-3 w-3 sm:h-4 sm:w-4 text-destructive"
+      />
+      <span className="sr-only">Not included</span>
     </motion.div>
   );
 }
@@ -873,19 +881,19 @@ function ComparisonRow({
       <TableCell className="py-3 sm:py-4 px-3 sm:px-4 whitespace-normal">
         <div className="flex items-center gap-2 sm:gap-3">
           <div
-            className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
+            className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-foreground dark:text-primary" : "bg-muted text-muted-foreground"}`}
           >
             <feature.icon className="h-3 w-3 sm:h-4 sm:w-4" />
           </div>
           <div className="min-w-0">
             <div
-              className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}
+              className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight text-foreground ${feature.highlight ? "dark:text-primary" : ""}`}
             >
               <span className="min-w-0 wrap-break-word">{feature.name}</span>
               {feature.highlight && (
                 <Badge
                   variant="outline"
-                  className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-primary"
+                  className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-foreground dark:text-primary"
                 >
                   Key
                 </Badge>
@@ -910,7 +918,7 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.1 }}
-            className="text-[10px] sm:text-xs font-medium text-primary"
+            className="text-[10px] sm:text-xs font-medium text-foreground dark:text-primary"
           >
             {feature.letsAssist}
           </motion.span>
@@ -982,7 +990,10 @@ export default function ComparisonSection() {
           >
             SignUpGenius was made for potluck lists. Let&apos;s Assist tracks
             hours, issues certificates, and exports reports, and it is{" "}
-            <span className="text-primary font-medium">free</span>.
+            <span className="text-foreground dark:text-primary font-medium">
+              free
+            </span>
+            .
           </motion.p>
         </motion.div>
 
@@ -1060,7 +1071,7 @@ export default function ComparisonSection() {
                           className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
                         />
                       </div>
-                      <span className="text-[10px] sm:text-sm font-bold text-primary tracking-tight">
+                      <span className="text-[10px] sm:text-sm font-bold text-foreground dark:text-primary tracking-tight">
                         Let&apos;s Assist
                       </span>
                     </div>
@@ -1099,7 +1110,7 @@ export default function ComparisonSection() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAllFeatures(true)}
-                  className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs sm:text-sm"
+                  className="text-foreground hover:text-foreground hover:bg-primary/10 dark:text-primary dark:hover:text-primary/80 text-xs sm:text-sm"
                 >
                   Show all {comparisonFeatures.length} features
                   <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />

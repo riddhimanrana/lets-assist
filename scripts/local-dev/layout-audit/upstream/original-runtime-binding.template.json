@@ -1,0 +1,69 @@
+{
+  "schema": "lets-assist-layout-runtime-binding-v1",
+  "template": true,
+  "materialized": false,
+  "fromCanonicalLaunch": false,
+  "sourceClean": false,
+  "buildFinalized": false,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "rootHead": null,
+  "privateHead": null,
+  "dirtyDiffSha256": null,
+  "workDir": null,
+  "runId": null,
+  "projectId": null,
+  "appPort": null,
+  "apiPort": null,
+  "databasePort": null,
+  "buildId": null,
+  "buildDistDir": ".next-csf-isolated/browser-app",
+  "uid": null,
+  "script": {
+    "path": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/scripts/local-dev/run-dvhs-csf-isolated-app.mjs",
+    "sha256": null
+  },
+  "node": {
+    "path": null,
+    "sha256": null
+  },
+  "startMode": "start",
+  "createdAtEpochMs": null,
+  "buildCompletedAtEpochMs": null,
+  "portClaimedAtEpochMs": null,
+  "portWasVacant": false,
+  "runner": {
+    "pid": null,
+    "uid": null,
+    "cwd": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+    "startIdentity": null,
+    "startedAtEpochMs": null,
+    "argv": null
+  },
+  "listener": {
+    "pid": null,
+    "uid": null,
+    "cwd": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+    "startIdentity": null,
+    "startedAtEpochMs": null,
+    "argv": null
+  },
+  "compiledFileHashes": null,
+  "servedArtifacts": null,
+  "instructions": "DISABLED; no actual spawn/launch/build proof. Root explicitly enables the reviewed external observer in the canonical runner only, independently captures a successful exact platform Next-start spawn into an immutable exclusive receipt, and binds its hash/observer/opt-in to the new runtime receipt. Runner original argv remains machine checked; listener exact source-bound title is admitted ONLY with that actual contemporaneous spawn receipt, matching PID/start/cwd/executable/environment/parent, full compiled bytes and actual served BUILD_ID proof. Cache policy excludes only source-proved owned non-code data and positively mapped selected APP_PAGE route-cache paths; every compiled worker/static/manifest remains frozen. No reconstructed/declarative/title-only proof.",
+  "spawnReceiptFile": null,
+  "spawnReceiptSha256": null,
+  "spawnObserver": {
+    "path": "/private/tmp/lets-assist-layout-audit-20261011/capture-spawn-observer.cjs",
+    "sha256": null
+  },
+  "spawnObserverOptInFile": null,
+  "spawnObserverOptInSha256": null,
+  "listenerTitle": "next-server (v16.4.0)",
+  "nextTitleSourceProofSha256": null,
+  "cachePolicy": {
+    "enabled": false,
+    "sourceProofSha256": null,
+    "appPathsManifestSha256": null,
+    "selectedPaths": null
+  }
+}

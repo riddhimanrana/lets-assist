@@ -315,7 +315,7 @@ export function VolunteerDashboardView({
         </TabsContent>
 
         <TabsContent value="export" className="grid gap-6">
-          {user.email && (
+          {user.email ? (
             <ExportSection
               userEmail={user.email}
               // For the export UI, use uiCertificates where 'platform' == previously 'verified'
@@ -329,6 +329,16 @@ export function VolunteerDashboardView({
               totalCertificates={uiCertificates.length}
               certificatesData={uiCertificates}
             />
+          ) : (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyTitle>Export unavailable</EmptyTitle>
+                <EmptyDescription>
+                  This account has no email address. Your hours are still
+                  available in All hours.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </TabsContent>
       </Tabs>

@@ -117,9 +117,63 @@ describe("demo video surfaces", () => {
         "hover:bg-black/90",
         "hover:text-white",
         "focus-visible:ring-white",
+        // Inset, so the white ring is drawn on the button's own black.
+        "focus-visible:ring-inset",
       ]) {
         expect(source).toContain(`${close}${utility}`);
       }
+    }
+  });
+
+  // Source only as well: the dialog is portalled, so a server render has no
+  // open popup to read. This holds the structure that keeps the button off
+  // the player. Whether it clears the player on screen, and anything about
+  // playback, is a browser measurement.
+  test("each video dialog draws its title and close button in a bar above the player", () => {
+    const close = "[&>[data-slot=dialog-close]]:";
+    for (const file of ["./HeroVideo.tsx", "./CallToAction.tsx"]) {
+      const source = read(file);
+      const content = source.slice(
+        source.indexOf("<DialogContent"),
+        source.indexOf("</DialogContent>"),
+      );
+      const toolbarStart = content.indexOf('data-slot="video-dialog-toolbar"');
+      const playerStart = content.indexOf('data-slot="video-dialog-player"');
+      expect(toolbarStart).toBeGreaterThan(-1);
+      expect(playerStart).toBeGreaterThan(toolbarStart);
+
+      const toolbar = content.slice(toolbarStart, playerStart);
+      const player = content.slice(playerStart);
+
+      // The bar closes before the player opens: siblings, not nested.
+      expect(toolbar.match(/<\/div>/gu)).toHaveLength(1);
+      expect(toolbar.match(/<div\b/gu)).toHaveLength(1);
+      expect(toolbar).not.toContain("<iframe");
+      expect(player.match(/<iframe\b/gu)).toHaveLength(1);
+
+      // One title, visible, under the name the dialog already had.
+      expect(source.match(/<DialogTitle\b/gu)).toHaveLength(1);
+      expect(toolbar).toMatch(
+        /<DialogTitle\b[^>]*>\s*Let&apos;s Assist demo video\s*<\/DialogTitle>/u,
+      );
+      expect(source).not.toContain("sr-only");
+
+      // The button is 10px in and 44px square, so it ends at 54px. The bar
+      // is at least 64px tall and keeps 64px clear on the right for it.
+      for (const utility of [
+        "min-h-16",
+        "pr-16",
+        "bg-background",
+        "text-foreground",
+      ]) {
+        expect(toolbar).toContain(utility);
+      }
+      expect(content).toContain(`${close}top-2.5`);
+      expect(content).toContain(`${close}right-2.5`);
+      expect(content).toContain(`${close}size-11`);
+
+      // The player keeps its own box.
+      expect(player).toContain("relative aspect-video min-h-[200px] w-full");
     }
   });
 

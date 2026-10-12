@@ -1,0 +1,69 @@
+{
+  "schema": "lets-assist-runtime-cache-source-proof-v1",
+  "sourceOnly": true,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "nextVersion": "16.4.0",
+  "namespaces": [
+    "cache/images",
+    "cache/fetch-cache",
+    "server/route-cache"
+  ],
+  "files": [
+    {
+      "repoRelativePath": "node_modules/next/dist/server/image-optimizer.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/image-optimizer.js",
+      "sha256": "b599e7d1483e6df7d941ca23c45a00c2b3db3903869180e1384ab4558af644ba"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/image-optimizer/extract-etag.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/image-optimizer/extract-etag.js",
+      "sha256": "adc3868c39f251ad134e7a7f20f0368f23963f96c915487629d73d1aaae40bc5"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/lib/incremental-cache/file-system-cache.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/lib/incremental-cache/file-system-cache.js",
+      "sha256": "427a5a07865eb68f0335ef701636bc1e065e8809552d243333d22e5eefcaae29"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/lib/incremental-cache/index.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/lib/incremental-cache/index.js",
+      "sha256": "facca0f9403eb2e40094e38f80fbf4f1ba99fa6e8508e3a8da634d6d00e39d80"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/lib/route-cache-key.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/lib/route-cache-key.js",
+      "sha256": "9887ca766b6bf1a85567c963a76e8cc7f682f66347079f1c00893d9c623d9dc8"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/lib/multi-file-writer.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/lib/multi-file-writer.js",
+      "sha256": "8f5c802d3633f76d642a0ed593f39aaa30371de8f53dfc6b4c88c4d2ef91f46b"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/lib/node-fs-methods.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/lib/node-fs-methods.js",
+      "sha256": "6bc8642f72edfd01f57072915271eb8fe5e959fe56c2f44005f6d9a258abb0a7"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+      "sha256": "8ce6e40258934d6109d002b1245d49474693b5b40da3455a64599c0c8cbc523f"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/shared/lib/page-path/normalize-page-path.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/shared/lib/page-path/normalize-page-path.js",
+      "sha256": "341bb66e308e93580e4b122dead46b45ff6afbe12237703c9546bab84b7cc834"
+    },
+    {
+      "repoRelativePath": "node_modules/next/dist/server/web/spec-extension/unstable-cache.js",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/node_modules/next/dist/server/web/spec-extension/unstable-cache.js",
+      "sha256": "f5dba032273f2e5a43bb06c970630b9b678748d5e5463fb5a076ec23b467c81b"
+    },
+    {
+      "repoRelativePath": "lib/home/landing-demo-mode.ts",
+      "realpath": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/lib/home/landing-demo-mode.ts",
+      "sha256": "776f59b59b778a37b59606460684a280fcb1a74ea66cc9a1d6d7fbc4f1921655"
+    }
+  ],
+  "limits": "Only owned nonsymlink non-executable image/FETCH data and positively mapped selected APP_PAGE response data. Unknown kinds/routes/workers/extensions, atomic in-flight temp files or missing shape proof remain blocked. No cache generated or executed."
+}
