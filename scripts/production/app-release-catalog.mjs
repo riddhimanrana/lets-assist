@@ -1,5 +1,6 @@
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { platformWorkflowRepairCatalog } from "./platform-workflow-repair-catalog.mjs";
+import { publishedEmbedded732Catalog } from "./published-embedded-732-catalog.mjs";
 import { publishedEmbedded731Catalog } from "./published-embedded-731-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { publishedEmbeddedBatch719Catalog } from "./published-embedded-batch-719-catalog.mjs";
@@ -355,6 +356,33 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  if (
+    ledgerDigest(versions) ===
+    "30474c44971426ef8a8fdabaef1981113bb85791b6abce595c3a3181e8dd0f6a"
+  )
+    return platformWorkflowRepairCatalog(
+      projectStatusCronCatalog(
+        publishedEmbedded732Catalog(
+          pausedSpeechDebateCatalog(
+            publicImageStorageCatalog(
+              accountDeletionStorageCatalog(
+                csfSubmissionDeletionCatalog(
+                  finalSchemaCatalog(
+                    JSON.parse(
+                      readFileSync(
+                        new URL("./final-schema-732.json", import.meta.url),
+                        "utf8",
+                      ),
+                    ),
+                    versions,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   if (
     ledgerDigest(versions) ===
     "fa30297d652a336269f75d3c8bb4da2cffb59775ed454deae9e9ba9309494ae4"

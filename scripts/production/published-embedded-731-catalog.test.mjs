@@ -6,7 +6,9 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { maintenanceTarget } from "./maintenance-preflight.mjs";
 const root = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(root);
+const versions = expectedVersions(root).filter(
+  (version) => version <= "20261011224034",
+);
 const read = (file) =>
   JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
 
@@ -26,7 +28,7 @@ test("the exact signed data-only publication is recognized without accepting fut
   ])
     assert.ok(query.includes(value), value);
   assert.ok(!query.includes("untrusted"));
-  assert.deepEqual(maintenanceTarget(root), versions);
+  assert.deepEqual(maintenanceTarget(root), expectedVersions(root));
   for (const ledger of [
     [...versions, "20990101000000"],
     [...versions.slice(0, -1), "20261011224035"],
@@ -61,7 +63,7 @@ test("publication retains the measured730 object inventory and binds only its re
   );
   assert.doesNotMatch(
     migration,
-    /organization_plugin_installations|plugin_data\./u,
+    /organization_plugin_install(?:s|ations)|plugin_data\./u,
   );
   assert.match(migration, /automaticUpdate":false/u);
   // This is a reviewed expected inventory inherited from730, not a claim that
