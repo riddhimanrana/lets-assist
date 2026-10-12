@@ -57,10 +57,23 @@ layout_stop_runner() {
 trap layout_stop_runner EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+# /proc keeps the original launch strings; Node normalizes process.argv.
+# Use the binding's exact real executable so both independent witnesses agree.
+layout_node="$(node - "$layout_tool" <<'NODE'
+const fs = require('node:fs'), path = require('node:path');
+const tool = process.argv[2], binding = require(path.join(tool, 'linux-binding.cjs'));
+const os = require(path.join(tool, 'linux-platform.cjs')), b = binding.live(binding.load());
+for (const identity of [b.node, b.script]) {
+  const st = fs.lstatSync(identity.path);
+  if (!st.isFile() || st.isSymbolicLink() || fs.realpathSync(identity.path) !== identity.path || os.hash(fs.readFileSync(identity.path)) !== identity.sha256) os.deny();
+}
+process.stdout.write(b.node.path);
+NODE
+)"
 NODE_OPTIONS="--require $layout_tool/capture-spawn-observer.cjs" \
 LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN="$layout_support/observer-opt-in.json" \
 CSF_BROWSER_SERVER_MODE=production CSF_ISOLATED_APP_PORT=3000 \
-node scripts/local-dev/run-dvhs-csf-isolated-app.mjs &
+"$layout_node" "$GITHUB_WORKSPACE/scripts/local-dev/run-dvhs-csf-isolated-app.mjs" &
 layout_runner_pid=$!
 layout_spawn="$GITHUB_WORKSPACE/.artifacts/layout-audit-spawn/$CSF_ISOLATED_RUN_ID"
 layout_deadline=$((SECONDS + 1200))

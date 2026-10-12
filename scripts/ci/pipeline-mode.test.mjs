@@ -288,6 +288,21 @@ describe("CI delivery modes", () => {
     );
     expect(capture).toContain("persist-credentials: false");
     expect(capture).toContain("run: bash scripts/local-dev/layout-audit-ci.sh");
+    const driver = readFileSync(
+      join(import.meta.dir, "../..", "scripts/local-dev/layout-audit-ci.sh"),
+      "utf8",
+    );
+    expect(driver).toContain("binding.live(binding.load())");
+    expect(driver).toContain(
+      "os.hash(fs.readFileSync(identity.path)) !== identity.sha256",
+    );
+    expect(driver).toContain("process.stdout.write(b.node.path)");
+    expect(driver).toContain(
+      '"$layout_node" "$GITHUB_WORKSPACE/scripts/local-dev/run-dvhs-csf-isolated-app.mjs" &',
+    );
+    expect(driver).not.toContain(
+      "node scripts/local-dev/run-dvhs-csf-isolated-app.mjs &",
+    );
     expect(capture).toContain(
       "path: ${{ steps.layout-capture.outputs.paths }}",
     );
