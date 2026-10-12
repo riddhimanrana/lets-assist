@@ -627,6 +627,202 @@ try {
     );
     assert.equal(d.unknownAuthCount, 0);
   });
+  // These literal/dynamic owners are grounded in real source page files.
+  pass(() => {
+    for (const file of [
+      "app/projects/[id]/page.tsx",
+      "app/projects/create/page.tsx",
+      "app/projects/drafts/page.tsx",
+      "app/organization/[id]/page.tsx",
+      "app/organization/create/page.tsx",
+    ]) {
+      const f = path.join(root, file),
+        st = fs.lstatSync(f);
+      assert(st.isFile() && !st.isSymbolicLink() && st.uid === uid);
+      assert.equal(fs.realpathSync(f), f);
+    }
+  });
+  const esmCache = await import("./capture-cache-contract.mjs"),
+    cjsCache = require("./observer-cache-policy.cjs");
+  const pageOwners = {
+    "/projects/[id]/page": "app/projects/[id]/page.js",
+    "/projects/create/page": "app/projects/create/page.js",
+    "/projects/drafts/page": "app/projects/drafts/page.js",
+    "/organization/[id]/page": "app/organization/[id]/page.js",
+    "/organization/create/page": "app/organization/create/page.js",
+  };
+  const mapOwner = (cacheImplementation, owners, selected) =>
+    cacheImplementation.cachePolicyFromCompiled(
+      owners,
+      selected,
+      "6".repeat(64),
+      "7".repeat(64),
+    );
+  for (const cacheImplementation of [esmCache, cjsCache]) {
+    for (const selected of [
+      "/projects/create",
+      "/projects/drafts",
+      "/organization/create",
+    ]) {
+      pass(() => {
+        const result = mapOwner(cacheImplementation, pageOwners, [selected]);
+        assert.equal(
+          [...result.routes.values()][0].sourceRoute,
+          selected + "/page",
+        );
+        assert.equal(
+          [...result.routes.values()][0].worker,
+          "app" + selected + "/page.js",
+        );
+      });
+    }
+    pass(() =>
+      assert.equal(
+        [
+          ...mapOwner(cacheImplementation, pageOwners, [
+            "/projects/fictional-id",
+          ]).routes.values(),
+        ][0].sourceRoute,
+        "/projects/[id]/page",
+      ),
+    );
+    deny(() =>
+      mapOwner(
+        cacheImplementation,
+        {
+          ...pageOwners,
+          "/(duplicate)/projects/create/page":
+            "app/(duplicate)/projects/create/page.js",
+        },
+        ["/projects/create"],
+      ),
+    );
+    deny(() =>
+      mapOwner(
+        cacheImplementation,
+        {
+          "/projects/[id]/page": "app/projects/[id]/page.js",
+          "/(duplicate)/projects/[id]/page":
+            "app/(duplicate)/projects/[id]/page.js",
+        },
+        ["/projects/fictional-id"],
+      ),
+    );
+    for (const worker of [
+      42,
+      "pages/projects/create.js",
+      "app/projects/create/../page.js",
+    ]) {
+      deny(() =>
+        mapOwner(
+          cacheImplementation,
+          { ...pageOwners, "/projects/create/page": worker },
+          ["/projects/create"],
+        ),
+      );
+    }
+  }
+  pass(() =>
+    assert.deepEqual(
+      [
+        ...mapOwner(esmCache, pageOwners, [
+          "/projects/create",
+          "/projects/drafts",
+        ]).routes,
+      ],
+      [
+        ...mapOwner(cjsCache, pageOwners, [
+          "/projects/create",
+          "/projects/drafts",
+        ]).routes,
+      ],
+    ),
+  );
+  // Diagnostic fields contain no raw message/stack/args/env/paths or records.
+  const own = path.join(tmp, "owned"),
+    safeFrame = {
+      stack:
+        "Error: PRIVATE_SECRET_SENTINEL\n    at failure (" +
+        path.join(own, "linux-platform.cjs") +
+        ":87:2)",
+    };
+  pass(() =>
+    assert.deepEqual(
+      observer.observerFailureDiagnostic(
+        safeFrame,
+        "build-cache-route-map",
+        "platform",
+        own,
+      ),
+      {
+        phase: "build-cache-route-map",
+        role: "platform",
+        location: { module: "linux-platform.cjs", line: 87 },
+      },
+    ),
+  );
+  pass(() => {
+    const d = observer.observerFailureDiagnostic(
+      {
+        stack:
+          "Error: PRIVATE_SECRET_SENTINEL\n    at function (/foreign/linux-platform.cjs:87:2)",
+      },
+      "PRIVATE_PHASE_SENTINEL",
+      "PRIVATE_ROLE_SENTINEL",
+      own,
+    );
+    assert.deepEqual(d, { phase: "unknown", role: "unknown", location: null });
+    assert(!JSON.stringify(d).includes("PRIVATE_"));
+  });
+  pass(() =>
+    assert.equal(
+      observer.observerFailureDiagnostic(
+        {
+          stack:
+            "Error\n at function (" +
+            path.join(own, "not-approved.cjs") +
+            ":87:2)",
+        },
+        "build-artifact-freeze",
+        "private",
+        own,
+      ).location,
+      null,
+    ),
+  );
+  pass(() =>
+    assert.equal(
+      observer.observerFailureDiagnostic(
+        {
+          stack:
+            "Error\n at function (" +
+            path.join(own, "linux-platform.cjs") +
+            ":0:2)",
+        },
+        "build-artifact-freeze",
+        "private",
+        own,
+      ).location,
+      null,
+    ),
+  );
+  pass(() => {
+    const d = observer.observerFailureDiagnostic(
+      {
+        get stack() {
+          throw Error("PRIVATE_SECRET_SENTINEL");
+        },
+      },
+      "build-receipt",
+      "private",
+      own,
+    );
+    assert.deepEqual(d, {
+      phase: "build-receipt",
+      role: "private",
+      location: null,
+    });
+  });
   // Legacy guard suite remains meaningful and unchanged except explicit binding.
   const data = path.join(dir, "proof-data");
   fs.mkdirSync(data, { mode: 0o700 });

@@ -6,6 +6,76 @@ const fs = require("node:fs"),
 const os = require("./linux-platform.cjs"),
   binding = require("./linux-binding.cjs");
 const SELF = path.join(__dirname, "capture-spawn-observer.cjs");
+const DIAGNOSTIC_PHASES = new Set([
+  "before-build",
+  "build-child-identity",
+  "build-child-error",
+  "build-exit",
+  "build-outcome",
+  "build-source-proof",
+  "build-source-binding",
+  "build-cache-source",
+  "build-cache-route-map",
+  "build-artifact-freeze",
+  "build-cache-worker-proof",
+  "build-receipt",
+  "duplicate-start",
+  "start-guards",
+  "start-source-binding",
+  "start-source-proof",
+  "start-process",
+  "start-receipt",
+]);
+const DIAGNOSTIC_MODULES = new Set([
+  "linux-spawn-observer.cjs",
+  "linux-platform.cjs",
+  "linux-binding.cjs",
+  "observer-cache-policy.cjs",
+  "cache-contract-dependency.cjs",
+]);
+function observerFailureDiagnostic(
+  error,
+  phase,
+  role,
+  ownedDirectory = __dirname,
+) {
+  const result = {
+    phase: DIAGNOSTIC_PHASES.has(phase) ? phase : "unknown",
+    role: ["platform", "private"].includes(role) ? role : "unknown",
+    location: null,
+  };
+  let stack = "";
+  try {
+    if (typeof error?.stack === "string") stack = error.stack.slice(0, 65536);
+  } catch {
+    return result;
+  }
+  for (const frame of stack.split("\n").slice(1, 33)) {
+    const match = frame.match(
+      /((?:file:\/\/)?\/[^\n]+):(\d{1,6}):(\d{1,6})\)?$/u,
+    );
+    if (!match) continue;
+    let file = match[1];
+    try {
+      if (file.startsWith("file://"))
+        file = require("node:url").fileURLToPath(file);
+    } catch {
+      continue;
+    }
+    const ownModule = path.basename(file),
+      line = Number(match[2]);
+    if (
+      DIAGNOSTIC_MODULES.has(ownModule) &&
+      file === path.join(ownedDirectory, ownModule) &&
+      line > 0 &&
+      line <= 100000
+    ) {
+      result.location = { module: ownModule, line };
+      break;
+    }
+  }
+  return result;
+}
 function repo() {
   return binding.load().repoRoot;
 }
@@ -206,17 +276,32 @@ function install(optFile) {
     codeManifestSha256: b.codeManifestSha256,
     runner,
   });
-  function failure() {
+  function failure(error, phase, role) {
+    const first = !failed;
     failed = true;
+    if (!first) return;
+    const diagnostic = observerFailureDiagnostic(error, phase, role);
     try {
       os.exclusiveJSON(path.join(opt.outputDir, "observer-failure.json"), {
         schema: "lets-assist-linux-observer-failure-v1",
         proved: false,
         reason:
           "Actual canonical event could not be proved; private details omitted",
+        diagnostic,
       });
     } catch {
       // Existing failure receipt remains authoritative; never overwrite it.
+    }
+    // No message, stack, arguments, environment, paths or records are emitted.
+    try {
+      process.stderr.write(
+        JSON.stringify({
+          schema: "lets-assist-observer-diagnostic-v1",
+          ...diagnostic,
+        }) + "\n",
+      );
+    } catch {
+      // Receipt still fails closed if the CI output stream has closed.
     }
   }
   function beforeBuild(role, command, args) {
@@ -235,62 +320,78 @@ function install(optFile) {
     };
   }
   function completedBuild(role, before, buildChild, code, signal) {
-    if (failed || !before || !buildChild || code !== 0 || signal) os.deny();
-    const buildCompletedAtEpochMs = Date.now();
-    verifyProofs(b);
-    binding.live(b);
-    const buildDirectory =
-      role === "platform"
-        ? path.join(root, ".next-csf-isolated/browser-app")
-        : path.join(root, "lib/plugins/private/apps/csf/.next");
-    let hashes;
-    if (role === "platform") {
-      const c = require("./observer-cache-policy.cjs"),
-        appFile = path.join(buildDirectory, "server/app-paths-manifest.json"),
-        policy = {
-          enabled: true,
-          sourceProofSha256: c.exactRuntimeCacheSources(),
-          appPathsManifestSha256: os.hash(fs.readFileSync(appFile)),
-          selectedPaths: b.capturePaths,
-        };
-      const mapped = c.cachePolicyFromCompiled(
-        JSON.parse(fs.readFileSync(appFile)),
-        b.capturePaths,
-        policy.appPathsManifestSha256,
-        policy.sourceProofSha256,
+    let phase = "build-outcome";
+    try {
+      if (failed || !before || !buildChild || code !== 0 || signal) os.deny();
+      const buildCompletedAtEpochMs = Date.now();
+      phase = "build-source-proof";
+      verifyProofs(b);
+      phase = "build-source-binding";
+      binding.live(b);
+      const buildDirectory =
+        role === "platform"
+          ? path.join(root, ".next-csf-isolated/browser-app")
+          : path.join(root, "lib/plugins/private/apps/csf/.next");
+      let hashes;
+      if (role === "platform") {
+        phase = "build-cache-source";
+        const c = require("./observer-cache-policy.cjs"),
+          appFile = path.join(buildDirectory, "server/app-paths-manifest.json"),
+          policy = {
+            enabled: true,
+            sourceProofSha256: c.exactRuntimeCacheSources(),
+            appPathsManifestSha256: os.hash(fs.readFileSync(appFile)),
+            selectedPaths: b.capturePaths,
+          };
+        phase = "build-cache-route-map";
+        const mapped = c.cachePolicyFromCompiled(
+          JSON.parse(fs.readFileSync(appFile)),
+          b.capturePaths,
+          policy.appPathsManifestSha256,
+          policy.sourceProofSha256,
+        );
+        mapped.loopbackOrigins = [
+          `http://127.0.0.1:${b.appPort}`,
+          `http://127.0.0.1:${b.apiPort}`,
+        ];
+        phase = "build-artifact-freeze";
+        hashes = os.freezeFiles(buildDirectory, (d, r, s) =>
+          c.runtimeCacheEntrySafe(d, r, s, mapped),
+        );
+        phase = "build-cache-worker-proof";
+        c.runtimeCachePolicy(buildDirectory, policy, b.capturePaths, b, hashes);
+      } else {
+        phase = "build-artifact-freeze";
+        hashes = os.freezeFiles(buildDirectory);
+      }
+      phase = "build-receipt";
+      const value = os.exclusiveJSON(
+        path.join(opt.outputDir, "canonical-build-" + role + ".json"),
+        {
+          schema: "lets-assist-linux-canonical-build-v1",
+          materialized: true,
+          observedBuildSuccess: true,
+          observedBuildChild: true,
+          role,
+          ...common(),
+          ...before,
+          buildChild,
+          exitCode: code,
+          exitSignal: signal,
+          buildCompletedAtEpochMs,
+          artifactFrozenAtEpochMs: Date.now(),
+          buildDirectory,
+          buildId: fs
+            .readFileSync(path.join(buildDirectory, "BUILD_ID"), "utf8")
+            .trim(),
+          compiledFileHashes: hashes,
+        },
       );
-      mapped.loopbackOrigins = [
-        `http://127.0.0.1:${b.appPort}`,
-        `http://127.0.0.1:${b.apiPort}`,
-      ];
-      hashes = os.freezeFiles(buildDirectory, (d, r, s) =>
-        c.runtimeCacheEntrySafe(d, r, s, mapped),
-      );
-      c.runtimeCachePolicy(buildDirectory, policy, b.capturePaths, b, hashes);
-    } else hashes = os.freezeFiles(buildDirectory);
-    const value = os.exclusiveJSON(
-      path.join(opt.outputDir, "canonical-build-" + role + ".json"),
-      {
-        schema: "lets-assist-linux-canonical-build-v1",
-        materialized: true,
-        observedBuildSuccess: true,
-        observedBuildChild: true,
-        role,
-        ...common(),
-        ...before,
-        buildChild,
-        exitCode: code,
-        exitSignal: signal,
-        buildCompletedAtEpochMs,
-        artifactFrozenAtEpochMs: Date.now(),
-        buildDirectory,
-        buildId: fs
-          .readFileSync(path.join(buildDirectory, "BUILD_ID"), "utf8")
-          .trim(),
-        compiledFileHashes: hashes,
-      },
-    );
-    builds.set(role, value);
+      builds.set(role, value);
+    } catch (error) {
+      failure(error, phase, role);
+      throw error;
+    }
   }
   cp.spawn = function (command, args, options) {
     const buildRole = ["platform", "private"].find((r) =>
@@ -303,8 +404,8 @@ function install(optFile) {
     if (buildRole) {
       try {
         before = beforeBuild(buildRole, command, args);
-      } catch {
-        failure();
+      } catch (error) {
+        failure(error, "before-build", buildRole);
       }
     }
     const call = role ? Date.now() : null,
@@ -325,27 +426,30 @@ function install(optFile) {
             buildChild.executable !== b.node.path
           )
             os.deny();
-        } catch {
-          failure();
+        } catch (error) {
+          failure(error, "build-child-identity", buildRole);
         }
       });
-      child.once("error", failure);
+      child.once("error", (error) =>
+        failure(error, "build-child-error", buildRole),
+      );
       child.once("exit", (code, signal) => {
         try {
           completedBuild(buildRole, before, buildChild, code, signal);
-        } catch {
-          failure();
+        } catch (error) {
+          failure(error, "build-exit", buildRole);
         }
       });
     }
     if (role) {
       if (seen.has("spawn-" + role)) {
-        failure();
+        failure(null, "duplicate-start", role);
         return child;
       }
       seen.add("spawn-" + role);
       child.once("spawn", () => {
         const observed = Date.now();
+        let phase = "start-guards";
         try {
           if (
             failed ||
@@ -354,8 +458,11 @@ function install(optFile) {
             builds.get(role).artifactFrozenAtEpochMs > call
           )
             os.deny();
+          phase = "start-source-binding";
           binding.live(b);
+          phase = "start-source-proof";
           verifyProofs(b);
+          phase = "start-process";
           const listener = os.identity(child.pid);
           if (
             listener.parentPid !== runner.pid ||
@@ -378,6 +485,7 @@ function install(optFile) {
             nextTitleSourceProofSha256:
               b.proofHashes["next-title-source-proof.json"],
           };
+          phase = "start-receipt";
           os.exclusiveJSON(
             path.join(
               opt.outputDir,
@@ -387,8 +495,8 @@ function install(optFile) {
             ),
             value,
           );
-        } catch {
-          failure();
+        } catch (error) {
+          failure(error, phase, role);
         }
       });
     }
@@ -404,6 +512,7 @@ module.exports = {
   freshOutput,
   passthroughSpawn,
   makeObserverOptIn,
+  observerFailureDiagnostic,
 };
 if (process.env.LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN)
   install(process.env.LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN);

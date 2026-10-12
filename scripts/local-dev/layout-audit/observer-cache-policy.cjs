@@ -131,18 +131,33 @@ function cachePolicyFromCompiled(
     const u = routeSafe(selected);
     if (u.search || u.hash || u.pathname !== selected)
       fail("Canonical query-free selected cache route required");
-    const matches = Object.entries(appPaths).filter(
-      ([source, worker]) =>
-        source.endsWith("/page") &&
-        typeof worker === "string" &&
-        worker.startsWith("app/") &&
-        worker.endsWith(".js") &&
-        sourcePattern(source).test(selected),
+    // Next prioritizes a unique literal pathname before parameter routes.
+    // Exact owners are validated below; malformed static entries never fall
+    // through to an otherwise matching dynamic worker.
+    const exact = Object.entries(appPaths).filter(
+      ([source]) =>
+        source.endsWith("/page") && normalizedSource(source) === selected,
     );
+    const matches = exact.length
+      ? exact
+      : Object.entries(appPaths).filter(
+          ([source, worker]) =>
+            source.endsWith("/page") &&
+            typeof worker === "string" &&
+            worker.startsWith("app/") &&
+            worker.endsWith(".js") &&
+            sourcePattern(source).test(selected),
+        );
     if (matches.length !== 1)
       fail("Selected cache route lacks one positive compiled source owner");
     const [sourceRoute, worker] = matches[0];
-    if (!relativeSafe(worker)) fail("Compiled page worker path refused");
+    if (
+      typeof worker !== "string" ||
+      !worker.startsWith("app/") ||
+      !worker.endsWith(".js") ||
+      !relativeSafe(worker)
+    )
+      fail("Compiled page worker path refused");
     const hash = digest(Buffer.from(sourceRoute));
     routes.set(
       `server/route-cache/APP_PAGE/${hash}/$${normalizePage(selected)}`,
