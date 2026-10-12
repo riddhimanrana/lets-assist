@@ -10888,3 +10888,15 @@ exclusions remain. No `.first()` selection, test budget increase or business
 behavior change was used. Full TypeScript, affected lint and shell syntax pass;
 the repaired browser journeys and complete database concurrency suite require the
 new exact-source full CI run.
+
+`ACCOUNT-EXPORT-ZIP-TIME-20261012`, P2: full run38193536706 at
+`5663d120` failed account export byte equality. JSON file entries already used
+the database snapshot timestamp, but JSZip's implicitly created directory
+entries used the current clock. Rebuilding the same snapshot across a ZIP clock
+tick could therefore change its bytes. Parent directories now receive the same
+snapshot timestamp explicitly. File paths, directory entries, dataset contents,
+redaction and size bounds remain unchanged. The regression requires every
+directory entry to carry the fixture snapshot timestamp. It failed consistently
+before the fix and passes afterward, along with all11 export cases and30
+assertions. The original archive byte-equality assertion remains. Full TypeScript
+and affected lint pass; fresh exact-source full CI remains required.
