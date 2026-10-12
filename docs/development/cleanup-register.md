@@ -10705,3 +10705,56 @@ orange-400 in dark mode. Component rendering measures at least 5.18:1 in light a
 This is scoped headline evidence. The existing shared primary token issue
 remains separate. No global palette changes or
 complete accessibility signoff are claimed.
+
+## Cloud continuation and layout capture quota, October 12
+
+The local owner stopped owned watchers, browsers and servers and handed off
+frontend PR874 at `d3b62e82836388680f299f02bfa61c91cf56775d`. Cloud work uses
+that existing branch and exact private gitlink `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`.
+Backend PR873 remains separate and unmerged. No branches were deleted.
+
+Full run [38264156631](https://github.com/riddhimanrana/lets-assist/actions/runs/38264156631)
+passed all 12 baseline jobs, including database replay and four browser shards.
+Layout and the dependent aggregate gate failed. Its validated upload list names
+62 PNGs, including all four home-member modes. This proves retained captures,
+not loaded receipt states or inspected pixels. The cloud artifact download
+returned HTTP403; the precise failed guard and old-versus-new pixel acceptance
+remain unverified. No cause is inferred from filenames alone.
+
+Finding `LAYOUT-AUTH-QUOTA-20261012`, P2: the capture loop repeats password
+sign-in per viewport/theme despite the local 30-per-five-minute quota. The cloud
+repair caches at most 22 exact baseline actor sessions in process memory and
+validates each exact JWT through Auth before every capture. Foreign identities,
+revocation, expiration and quota overflow fail closed. No retry, token refresh,
+sign-out, persisted cookie/session file or broader browser traffic allowance is
+introduced. Twelve focused Node/Bun tests cover 266 capture accesses with 22
+sign-ins and 266 identity checks. A fixed-field summary logs validated receipt
+state counts and failed-scene fault counters without private errors or traffic,
+so diagnosis does not depend solely on artifact transport. Seven adversarial
+summary tests cover privacy, unknown fields and loading-state separation.
+The owned staged package digest, 266 Linux adapter checks, 568 original guards,
+52 settlement checks, 65 notification/privacy checks, changed-file formatting,
+zero-warning lint, agent policy and source organization pass in cloud. The
+broader four-file tooling run reports 52 passes and eight fixture failures;
+an isolated reproduction identifies the missing cloud `rsync` executable
+(exit127). These failures are not credited as a pass or changed to skip.
+
+Fresh cloud read-only metadata confirms Development ledger723 and all landing
+switch objects, and Production ledger687 with all four objects absent.
+Development has four active database cron schedules and no enabled CSF worker
+control rows. Production has six active schedules, one enabled worker-control
+row and no configured application write block. Neither has a running cron row
+or active publication-notification lease at this observation. These checks are
+not the complete catalog, credential capability, external-writer hold or live
+PostgREST enforcement gates. The last READY Development deployment remains
+`accba0cfc2cd2f880b5632f4535cea822947da94`; Production remains
+`fb326cb335e5ccd90244ba304891180d1c5bc4ca`.
+
+Cloud Node24.21.0 and Bun1.4.2 are installed. The frozen dependency installation
+is blocked by HTTP403 from the committed SheetJS archive URL; root typecheck
+reports its missing module and resulting inferred-type errors. The dependency
+URL and lockfile remain unchanged. The cloud GitHub CLI cannot use its supplied
+token for Actions; connected GitHub read tools work. Exact-head full CI,
+receipt/pixel review, remaining fixtures and old-runtime parity, hosted
+Development acceptance and all conditional Production gates remain open. No
+merge, deployment, secret transfer, provider activation or policy bypass occurred.

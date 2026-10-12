@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { BINDING, REPO, requireLiveBinding } from "./linux-binding.mjs";
+import { captureSummary } from "./capture-summary.mjs";
 const os = createRequire(import.meta.url)("./linux-platform.cjs");
 requireLiveBinding();
 const manifest = os.readCreatedJSON(process.argv[2]),
@@ -106,6 +107,7 @@ if (
 )
   os.deny();
 requireLiveBinding();
+process.stderr.write(JSON.stringify(captureSummary(final, scenes)) + "\n");
 process.stdout.write(
   [...names]
     .sort()

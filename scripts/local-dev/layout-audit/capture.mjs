@@ -8,6 +8,7 @@ import {
   notificationFailureReason,
 } from "./notification-reader-contract.mjs";
 import { readAxeRows } from "./axe-color-diagnostics.mjs";
+import { createCaptureSessions } from "./capture-sessions.mjs";
 import fs from "node:fs";
 import { requireLiveBinding } from "./linux-binding.mjs";
 import path from "node:path";
@@ -273,6 +274,12 @@ const password = fs
   .trim();
 if (password.length < 16 || /[\r\n]/u.test(password))
   fail("Invalid local fixture password");
+const actorSessions = createCaptureSessions({
+  password,
+  actorLimit: actorContracts.size,
+  createClient: (cookies) =>
+    createServerClient(local.url, local.anonKey, { cookies }),
+});
 const axeSource = fs.readFileSync(
   require.resolve("axe-core/axe.min.js"),
   "utf8",
@@ -493,39 +500,16 @@ try {
             [u],
             profiles.filter((p) => p.id === actor.id),
           );
-          const jar = new Map();
-          const auth = createServerClient(local.url, local.anonKey, {
-            cookies: {
-              getAll: () => [...jar].map(([name, value]) => ({ name, value })),
-              setAll: (cs) => {
-                for (const c of cs) {
-                  if (c.value) jar.set(c.name, c.value);
-                  else jar.delete(c.name);
-                }
-              },
-            },
-          });
-          const signed = await auth.auth.signInWithPassword({
-            email: actor.email,
-            password,
-          });
-          if (signed.error || signed.data.user?.id !== actor.id || !jar.size)
-            fail("Exact fictional sign-in failed");
-          profileAccessToken = signed.data.session?.access_token;
-          if (!profileAccessToken)
-            fail("Fresh local actor access token absent");
+          const session = await actorSessions.get(actor);
+          profileAccessToken = session.accessToken;
           await context.addCookies(
-            [...jar].map(([name, value]) => ({
-              name,
-              value,
+            session.cookies.map((cookie) => ({
+              ...cookie,
               url: baseURL,
               sameSite: "Lax",
               secure: false,
             })),
           );
-          const verify = await auth.auth.getUser();
-          if (verify.error || verify.data.user?.id !== actor.id)
-            fail("Fresh fictional identity failed");
         }
         const page = await context.newPage();
         page.on("pageerror", () => faults.pageErrors++);
@@ -763,6 +747,7 @@ try {
   executionFailure = true;
   throw new Error("Capture stopped; inspect exclusive sanitized receipts");
 } finally {
+  actorSessions.dispose();
   try {
     await browser?.close();
   } catch {
