@@ -281,6 +281,11 @@ describe("CI delivery modes", () => {
     );
     expect(workflow).toContain("layout_audit:");
     expect(workflow).toContain("default: false");
+    expect(needs("layout-audit")).toEqual(["database"]);
+    expect(capture).not.toContain("supabase test db");
+    expect(capture).toContain(
+      "Verify the release catalog before loading fixtures",
+    );
     expect(capture).toContain("persist-credentials: false");
     expect(capture).toContain("run: bash scripts/local-dev/layout-audit-ci.sh");
     expect(capture).toContain(

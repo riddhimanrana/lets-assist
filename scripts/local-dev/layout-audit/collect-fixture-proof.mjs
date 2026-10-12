@@ -14,6 +14,78 @@ import {
 } from "./capture-contract.mjs";
 const require = createRequire(import.meta.url),
   os = require("./linux-platform.cjs");
+const DIAGNOSTIC_ACTOR_KEYS = new Set([
+  "developer",
+  "staff",
+  "member",
+  "outsider",
+  "csfAdmin",
+  "csfOfficer",
+  "csfAdviser",
+  "csfCoPresidentOne",
+  "csfCoPresidentTwo",
+  "csfVpMembership",
+  "csfVpPublicity",
+  "csfVpClubs",
+  "csfTreasurer",
+  "csfSecretary",
+  "csfWebMaster",
+  "csfActivityCoordinatorTwo",
+  "csfActivityCoordinatorThree",
+  "csfActivityCoordinatorFour",
+  "csfActivityCoordinatorFive",
+  "csfDataManagement",
+  "csfApplicant",
+  "csfMember",
+]);
+const diagnosticCount = (value) =>
+  Number.isSafeInteger(value) && value >= 0 ? value : null;
+// Only counts and literal source actor keys can leave this boundary.
+export function fixtureCorpusDiagnostics({
+  accounts,
+  users,
+  profiles,
+  observations = {},
+}) {
+  const known = accounts.filter((a) => DIAGNOSTIC_ACTOR_KEYS.has(a.key));
+  const emails = new Set(known.map((a) => a.email));
+  const knownAuthIds = new Set(
+    users.filter((u) => emails.has(u.email)).map((u) => u.id),
+  );
+  return {
+    sourceActorCount: accounts.length,
+    unknownSourceActorCount: accounts.length - known.length,
+    observedAuthCount: users.length,
+    observedProfileCount: Array.isArray(profiles) ? profiles.length : null,
+    missingAuthActorKeys: known
+      .filter((a) => !users.some((u) => u.email === a.email))
+      .map((a) => a.key),
+    missingProfileActorKeys: Array.isArray(profiles)
+      ? known
+          .filter((a) => !profiles.some((p) => p.email === a.email))
+          .map((a) => a.key)
+      : null,
+    unknownAuthCount: users.filter((u) => !emails.has(u.email)).length,
+    unknownProfileObservedCount: Array.isArray(profiles)
+      ? profiles.filter((p) => !emails.has(p.email) || !knownAuthIds.has(p.id))
+          .length
+      : null,
+    duplicateKnownAuthCount: known.reduce(
+      (n, a) =>
+        n + Math.max(0, users.filter((u) => u.email === a.email).length - 1),
+      0,
+    ),
+    profileReportedTotal: diagnosticCount(observations.profileReportedTotal),
+    authPages: Array.isArray(observations.authPages)
+      ? observations.authPages.map((p) => ({
+          page: diagnosticCount(p.page),
+          rowCount: diagnosticCount(p.rowCount),
+          reportedTotal: diagnosticCount(p.reportedTotal),
+          nextPage: diagnosticCount(p.nextPage),
+        }))
+      : [],
+  };
+}
 export function fixtureProofFromRows({
   binding,
   accounts,
@@ -21,10 +93,16 @@ export function fixtureProofFromRows({
   profiles,
   projects,
   ids,
+  observations,
 }) {
   const expected = baselineContracts(accounts);
   if (expected.length !== 22 || users.length !== 22 || profiles.length !== 22)
-    fail("Exact22 baseline corpus required");
+    fail(
+      "Exact22 baseline corpus required; " +
+        JSON.stringify(
+          fixtureCorpusDiagnostics({ accounts, users, profiles, observations }),
+        ),
+    );
   const contracts = expected.map((a) => {
     const rows = users.filter((u) => u.email === a.email);
     if (rows.length !== 1) fail("Exact actual Auth identity required");
@@ -118,36 +196,57 @@ export async function main(output) {
       global: { fetch: guardedFetch },
     }),
     users = [];
+  const seed = await import(
+    pathToFileURL(
+      path.join(REPO, "scripts/local-dev/seed-platform-fixtures.mjs"),
+    )
+  );
+  const accounts = seed.buildSeedFixtureSets(true).seededAccounts;
+  const observations = { authPages: [], profileReportedTotal: null };
   for (let page = 1; page <= 2; page++) {
     const r = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (r.error || !Array.isArray(r.data?.users)) os.deny();
     users.push(...r.data.users);
-    if (users.length > 22) os.deny();
+    observations.authPages.push({
+      page,
+      rowCount: r.data.users.length,
+      reportedTotal: r.data.total,
+      nextPage: r.data.nextPage,
+    });
+    if (users.length > 22)
+      fail(
+        "Exact22 Auth corpus required; " +
+          JSON.stringify(
+            fixtureCorpusDiagnostics({
+              accounts,
+              users,
+              profiles: null,
+              observations,
+            }),
+          ),
+      );
     if (r.data.users.length < 1000) break;
   }
   const profileRead = await admin
     .from("profiles")
-    .select("id,email,username,full_name,avatar_url,phone")
+    .select("id,email,username,full_name,avatar_url,phone", { count: "exact" })
     .order("id")
     .range(0, 22);
   if (profileRead.error || !Array.isArray(profileRead.data)) os.deny();
-  const seed = await import(
-      pathToFileURL(
-        path.join(REPO, "scripts/local-dev/seed-platform-fixtures.mjs"),
-      )
-    ),
-    projectRead = await admin
-      .from("projects")
-      .select("id,creator_id")
-      .in("id", [seed.IDS.publicProject, seed.IDS.orgProject]);
+  observations.profileReportedTotal = profileRead.count;
+  const projectRead = await admin
+    .from("projects")
+    .select("id,creator_id")
+    .in("id", [seed.IDS.publicProject, seed.IDS.orgProject]);
   if (projectRead.error || !Array.isArray(projectRead.data)) os.deny();
   const proof = fixtureProofFromRows({
     binding: BINDING,
-    accounts: seed.buildSeedFixtureSets(true).seededAccounts,
+    accounts,
     users,
     profiles: profileRead.data,
     projects: projectRead.data,
     ids: seed.IDS,
+    observations,
   });
   requireLiveBinding();
   dv.getCsfIsolatedSupabaseEnv();

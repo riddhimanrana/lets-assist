@@ -519,6 +519,114 @@ try {
     mutation(x);
     deny(() => fixture.fixtureProofFromRows(x));
   }
+  // Count/key diagnostics never serialize caller identities or arbitrary source keys.
+  const diagnostic = fixture.fixtureCorpusDiagnostics({
+    ...input,
+    observations: {
+      profileReportedTotal: 22,
+      authPages: [{ page: 1, rowCount: 22, reportedTotal: 22, nextPage: null }],
+    },
+  });
+  pass(() =>
+    assert.deepEqual(
+      [
+        diagnostic.sourceActorCount,
+        diagnostic.observedAuthCount,
+        diagnostic.observedProfileCount,
+        diagnostic.unknownAuthCount,
+        diagnostic.unknownProfileObservedCount,
+      ],
+      [22, 22, 22, 0, 0],
+    ),
+  );
+  pass(() => {
+    const x = structuredClone(input);
+    x.users.pop();
+    x.profiles.pop();
+    const d = fixture.fixtureCorpusDiagnostics(x);
+    assert.deepEqual(d.missingAuthActorKeys, [accounts.at(-1).key]);
+    assert.deepEqual(d.missingProfileActorKeys, [accounts.at(-1).key]);
+  });
+  pass(() => {
+    const x = structuredClone(input);
+    x.users.push({
+      id: "PRIVATE_UUID_SENTINEL",
+      email: "PRIVATE_EMAIL_SENTINEL",
+      full_name: "PRIVATE_NAME_SENTINEL",
+    });
+    x.profiles.push({
+      id: "PRIVATE_UUID_SENTINEL",
+      email: "PRIVATE_EMAIL_SENTINEL",
+      full_name: "PRIVATE_NAME_SENTINEL",
+    });
+    const d = fixture.fixtureCorpusDiagnostics(x);
+    assert.equal(d.unknownAuthCount, 1);
+    assert.equal(d.unknownProfileObservedCount, 1);
+    assert(!JSON.stringify(d).includes("PRIVATE_"));
+    assert.throws(
+      () => fixture.fixtureProofFromRows(x),
+      (error) =>
+        !error.message.includes("PRIVATE_") &&
+        error.message.includes('"unknownAuthCount":1'),
+    );
+  });
+  pass(() => {
+    const x = structuredClone(input);
+    x.accounts[0].key = "PRIVATE_NAME_SENTINEL";
+    const d = fixture.fixtureCorpusDiagnostics(x);
+    assert.equal(d.unknownSourceActorCount, 1);
+    assert(!JSON.stringify(d).includes("PRIVATE_"));
+  });
+  pass(() => {
+    const d = fixture.fixtureCorpusDiagnostics({
+      ...input,
+      profiles: null,
+      observations: {
+        profileReportedTotal: "PRIVATE_SECRET_SENTINEL",
+        authPages: [
+          {
+            page: 1,
+            rowCount: 20,
+            reportedTotal: 22,
+            nextPage: 2,
+            url: "PRIVATE_SECRET_SENTINEL",
+          },
+        ],
+      },
+    });
+    assert.equal(d.observedProfileCount, null);
+    assert.equal(d.profileReportedTotal, null);
+    assert.deepEqual(d.authPages, [
+      { page: 1, rowCount: 20, reportedTotal: 22, nextPage: 2 },
+    ]);
+    assert(!JSON.stringify(d).includes("PRIVATE_"));
+  });
+  pass(() => {
+    const x = structuredClone(input);
+    x.profiles.push({
+      id: "PRIVATE_UUID_SENTINEL",
+      email: "PRIVATE_EMAIL_SENTINEL",
+    });
+    assert.throws(
+      () => fixture.fixtureProofFromRows(x),
+      (error) =>
+        error.message.includes('"observedAuthCount":22') &&
+        error.message.includes('"observedProfileCount":23') &&
+        error.message.includes('"unknownProfileObservedCount":1') &&
+        !error.message.includes("PRIVATE_"),
+    );
+  });
+  pass(() => {
+    const x = structuredClone(input);
+    x.users.splice(-2);
+    const d = fixture.fixtureCorpusDiagnostics(x);
+    assert.equal(d.observedAuthCount, 20);
+    assert.deepEqual(
+      d.missingAuthActorKeys,
+      accounts.slice(-2).map((a) => a.key),
+    );
+    assert.equal(d.unknownAuthCount, 0);
+  });
   // Legacy guard suite remains meaningful and unchanged except explicit binding.
   const data = path.join(dir, "proof-data");
   fs.mkdirSync(data, { mode: 0o700 });

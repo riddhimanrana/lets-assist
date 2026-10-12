@@ -871,6 +871,10 @@ jobs:
   # Opt-in audit evidence only; existing full-quality/db/browser/ci-gate jobs stay unchanged.
   layout-audit:
     name: layout-audit
+    # Required pgTAP/scale/workflow gates run on their separate owned stack.
+    # Capture owns a pristine replay, catalog check and ordinary source seed.
+    needs:
+      - database
     runs-on: ubuntu-latest
     timeout-minutes: 60
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main' }}
@@ -878,7 +882,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "2c8fd0a151cf3ecc23e2b0f0f61e4ea8641301133349edbc47a20e4a8f156e5e"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "b62534dc2eac0a2fedfa5674cb73d1661aeaee2bc1d88f358c5a920620cfbf5f"
     steps:
       - name: Require private submodule access
         env:
@@ -1045,9 +1049,6 @@ jobs:
             exit 1
           fi
           echo "The clean isolated schema matches the reviewed release catalog."
-
-      - name: Validate database tests on the same running isolated stack
-        run: SUPABASE_PROJECT_ID="$(node scripts/local-dev/supabase-project-id.mjs --workdir "${CSF_ISOLATED_WORK_DIR}")" supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
       - name: Install Playwright Chromium
         run: |
