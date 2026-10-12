@@ -523,6 +523,57 @@ describe("comparison mock labels", () => {
   });
 });
 
+describe("comparison table", () => {
+  const root = render(createElement(ComparisonSection));
+  const tables = elements(root).filter((node) => node.tag === "table");
+  const cells = tables.flatMap((table) =>
+    elements(table).filter((node) => node.tag === "th" || node.tag === "td"),
+  );
+
+  test("it is one named table with the three column headings", () => {
+    expect(tables).toHaveLength(1);
+    expect(tables[0]?.attributes["aria-label"]).toBe(
+      "Let's Assist and SignUpGenius feature comparison",
+    );
+    expect(
+      cells
+        .filter((cell) => cell.tag === "th")
+        .map((cell) => collapse(allText(cell))),
+    ).toEqual(["Feature comparison", "Let's Assist", "SignUpGenius"]);
+  });
+
+  // Whether every column is readable at 390 and 320 is a browser measurement.
+  // This holds the layout that makes it possible: a fixed table with no
+  // minimum width, no scroll region around it, and cells that wrap.
+  test("it fits its card by wrapping, with no scroll region and no cut text", () => {
+    const [table] = tables;
+    if (!table) throw new Error("The comparison table is missing");
+
+    expect(classes(table)).toContain("table-fixed");
+    expect(classes(table).filter((name) => name.includes("min-w-"))).toEqual(
+      [],
+    );
+    expect(
+      lineage(table)
+        .flatMap(classes)
+        .filter((name) => /overflow-(?:x-)?(?:auto|scroll)$/u.test(name)),
+    ).toEqual([]);
+    expect(
+      elements(root).filter(
+        (node) => node.attributes["data-slot"] === "table-container",
+      ),
+    ).toEqual([]);
+
+    expect(cells.length).toBeGreaterThan(3);
+    for (const cell of cells) {
+      expect(classes(cell)).toContain("whitespace-normal");
+      expect(classes(cell)).not.toContain("whitespace-nowrap");
+    }
+    expect(elements(table).flatMap(classes)).not.toContain("truncate");
+    expect(collapse(allText(table))).toContain("Premium only");
+  });
+});
+
 describe("comparison headline word", () => {
   // Fictional words. The timer and preference changes are covered by
   // landing-motion-lifecycle.test.ts; this is the markup of a first render.

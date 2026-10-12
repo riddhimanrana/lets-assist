@@ -939,11 +939,9 @@ export function createOwnedChildSupervisor({
      * is what stops Node from ending the process, so without this the runner
      * would answer a teardown by starting a multi-minute production build.
      *
-     * The turn of the event loop is load-bearing, not politeness: the phases
-     * between the claim and the first child are blocking `spawnSync` builds,
-     * and a signal that arrives during one is only recorded until the loop
-     * runs its handler. Checking synchronously on return from the build would
-     * read the shutdown flag just before it was set.
+     * Yield so a queued signal handler runs before starting the next phase.
+     * Builds are owned asynchronous children too, so a teardown cannot miss
+     * their process group and then wait behind a blocking build.
      */
     async checkpoint() {
       await new Promise((resolve) => setImmediate(resolve));
@@ -988,6 +986,30 @@ export function createOwnedChildSupervisor({
         escalate();
       }
       return exit;
+    },
+
+    /**
+     * Run a build under the same claim and signal ownership as the servers.
+     * Its settled exit must not participate in the later runtime drain.
+     * @param {string} name
+     * @param {string} command
+     * @param {string[]} args
+     * @param {{ cwd: string, env: Record<string, string> }} options
+     */
+    async runOwnedBuild(name, command, args, options) {
+      const childIndex = children.length;
+      const exit = this.spawnOwnedChild(name, command, args, options);
+      const child = children[childIndex];
+      try {
+        const result = await exit;
+        await this.checkpoint();
+        return result;
+      } finally {
+        const completedChild = children.indexOf(child);
+        if (completedChild >= 0) children.splice(completedChild, 1);
+        const completedExit = exits.indexOf(exit);
+        if (completedExit >= 0) exits.splice(completedExit, 1);
+      }
     },
 
     /**
@@ -1127,15 +1149,18 @@ async function main() {
     if ("build" in next) {
       await supervisor.checkpoint();
       console.log("  browser runtime  : production build");
-      const build = spawnSync(next.build.command, next.build.args, {
-        cwd: REPO_ROOT,
-        env: childEnv,
-        stdio: "inherit",
-      });
-      if (build.error) throw build.error;
-      if (build.status !== 0) {
+      const build = await supervisor.runOwnedBuild(
+        "platform build",
+        next.build.command,
+        next.build.args,
+        {
+          cwd: REPO_ROOT,
+          env: childEnv,
+        },
+      );
+      if (build.code !== 0) {
         throw new Error(
-          `The isolated Next production build exited with code ${build.status}.`,
+          `The isolated Next production build exited with code ${build.code}.`,
         );
       }
     } else {
@@ -1144,15 +1169,18 @@ async function main() {
 
     if ("build" in pluginNext) {
       await supervisor.checkpoint();
-      const build = spawnSync(pluginNext.build.command, pluginNext.build.args, {
-        cwd: PLUGIN_APPLICATION_ROOT,
-        env: pluginChildEnv,
-        stdio: "inherit",
-      });
-      if (build.error) throw build.error;
-      if (build.status !== 0) {
+      const build = await supervisor.runOwnedBuild(
+        "plugin application build",
+        pluginNext.build.command,
+        pluginNext.build.args,
+        {
+          cwd: PLUGIN_APPLICATION_ROOT,
+          env: pluginChildEnv,
+        },
+      );
+      if (build.code !== 0) {
         throw new Error(
-          `The isolated plugin application build exited with code ${build.status}.`,
+          `The isolated plugin application build exited with code ${build.code}.`,
         );
       }
     }

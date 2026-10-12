@@ -233,8 +233,8 @@ describe("organization directory cards", () => {
     for (const token of TEXT_LINK_CLASS.split(/\s+/u)) {
       expect(trustedMemberLink).toContain(token);
     }
-    expect(trustedMemberLink).toContain("text-primary");
-    expect(trustedMemberLink).toContain("focus-visible:ring-primary");
+    expect(trustedMemberLink).toContain("text-content-link");
+    expect(trustedMemberLink).toContain("focus-visible:ring-content-link");
     expect(trustedMemberLink).not.toContain("brand");
     expect(untrusted).not.toContain('href="/signup');
 

@@ -3,11 +3,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
- * `--brand` holds the historical Production identity green, `#16a34a`.
- * `--primary` is a darker step of the same hue, because the identity green is
- * below AA as small text and under a white label. They are separate tokens so
- * decorative organization washes keep the identity and never become
- * interactive surfaces by accident.
+ * `--primary` and `--brand` intentionally share the historical Production
+ * identity green, `#16a34a`. They remain separate semantic tokens so decorative
+ * organization washes do not become interactive surfaces by accident.
  *
  * `--brand` splits those two jobs apart. This file is the contract for that
  * split, and it has to be a source test rather than a browser test: the failure
@@ -117,21 +115,8 @@ describe("the brand token carries identity, the primary token carries meaning", 
     expect(token(light, "brand")).toEqual(PRODUCTION_BRAND);
   });
 
-  test("light --primary is an accessible step, not the identity green", () => {
-    const white = token(light, "background");
-    const primary = token(light, "primary");
-    expect(primary).not.toEqual(PRODUCTION_BRAND);
-    // The reason for the split: the identity green cannot carry small text.
-    expect(contrastRatio(PRODUCTION_BRAND, white)).toBeLessThan(AA_NORMAL_TEXT);
-    const ratio = contrastRatio(primary, white);
-    expect(
-      ratio,
-      `--primary on --background is ${ratio.toFixed(2)}:1`,
-    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-    // Still a green: the same channel order as the identity, only darker.
-    expect(primary.g).toBeGreaterThan(primary.b);
-    expect(primary.b).toBeGreaterThan(primary.r);
-    expect(primary.g).toBeLessThan(PRODUCTION_BRAND.g);
+  test("light --primary uses the historical Production identity green", () => {
+    expect(token(light, "primary")).toEqual(PRODUCTION_BRAND);
   });
 
   test("the focus ring tracks --primary", () => {
@@ -258,10 +243,9 @@ describe("the brand washes follow their scoped token contracts", () => {
     ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
-  test("the brand wash keeps the identity green whatever --primary does", () => {
+  test("the brand and primary washes share the historical identity green", () => {
     const brandWash = tint(token(light, "brand"), background, 0.15);
     const primaryWash = tint(token(light, "primary"), background, 0.15);
-    expect(brandWash).toEqual(tint(PRODUCTION_BRAND, background, 0.15));
-    expect(brandWash).not.toEqual(primaryWash);
+    expect(brandWash).toEqual(primaryWash);
   });
 });

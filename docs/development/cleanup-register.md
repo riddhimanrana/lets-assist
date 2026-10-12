@@ -7,10 +7,14 @@ ledger and private gitlink `38dc7c7a`. The separate backend release candidate
 `4b4987c5` remains in PR 873; its newer database and private Applications
 changes are outside this frontend release.
 
-P2 LIGHT-TOKEN-CONTRAST-20261011 is implemented in this candidate. Semantic
-primary, success, warning, info, destructive and muted text use tested readable
-light tokens, with a reduced white gloss endpoint. Decorative brand green is
-preserved separately. Both-theme token and foreground/gloss bounds pass.
+P2 LIGHT-TOKEN-CONTRAST-20261011 remains open for this frontend release.
+The exact private gitlink still requires its historical shared palette. Full
+CI 38216164624 and affected CI 38216143025 caught the attempted global palette
+change; the candidate now restores the baseline colors and their existing
+contracts unchanged. The global fix remains preserved in backend PR 873.
+Page-content links use a separate opt-in content-link token with tested 4.5:1
+solid page/card contrast in both themes. This does not attest to global control
+or semantic-status contrast.
 
 P2 ACCOUNT-PROFILE-RECOVERY-20261011 is implemented in this candidate. Slow
 loads offer a retry or auth reload without declaring a timeout failure. Failed
@@ -18,7 +22,9 @@ initial profile reads do not display empty editors; failed refreshes retain the
 previous profile with a stale-data notice. A settings-only failure preserves the
 successful profile and identifies the failed settings read. Sixteen hook tests
 and twelve component tests pass, including stale reads, account switches,
-sign-out, disposal and retry. Real React/provider recovery remains unverified.
+sign-out, disposal and retry. Controlled real React recovery also passes with local-only query/auth stand-ins
+and labelled editor bodies. Actual provider reads and editable form flows remain
+unverified.
 
 The landing mockup's dark Open badge now has legible semantic text at rest and
 hover; its scan-line glow uses a valid complete color. Help export instructions
@@ -28,8 +34,20 @@ entrance/reduced motion and demo dialog geometry have scoped rendered evidence.
 The external video was intercepted before network: this proves layout and
 origin-only referrer behavior, not actual YouTube playback.
 
+P2 FRONTEND-RUNNER-TEARDOWN-20261012, implemented: affected CI also caught a
+shutdown before a blocking build spawn creates its first child. The queued
+signal cannot run during spawnSync, and a child created afterwards misses the
+group signal. The existing asynchronous owned-build repair from backend
+`4b4987c5` is included in three local runner/fixture/test files. The original
+20-second deadline, claim-release and completed-build assertions remain intact.
+
+The comparison table now wraps all columns on narrow screens without nested
+horizontal scroll containers. Both video close controls have scoped 44px targets
+and a black backing, measured over a bright intercepted iframe.
+
 Focused tests, formatting, lint and TypeScript pass. Independent source review
-found no remaining P0–P2 issue in the 36 frontend paths. Full CI and hosted
+found no remaining P0–P2 issue in the frontend source. The initial full CI failed as described above; fresh
+exact-head full CI and hosted
 Development validation remain pending. The comprehensive old/new screen audit
 is incomplete; local Docker is unresponsive and its planned CI capture adapter
 has not executed. Production and existing background jobs remain unchanged.

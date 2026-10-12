@@ -74,7 +74,7 @@ export const HeroVideo = () => {
               </CardContent>
             </Card>
 
-            <DialogContent className="w-[calc(100%-2rem)] max-w-screen-xl sm:max-w-screen-xl border-none bg-transparent p-0 shadow-none [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-screen-xl sm:max-w-screen-xl border-none bg-transparent p-0 shadow-none [&>[data-slot=dialog-close]]:top-2.5 [&>[data-slot=dialog-close]]:right-2.5 [&>[data-slot=dialog-close]]:size-11 [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white">
               <DialogTitle className="sr-only">
                 Let&apos;s Assist demo video
               </DialogTitle>

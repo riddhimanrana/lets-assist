@@ -24,8 +24,6 @@
  * still starting.
  */
 
-import { spawnSync } from "node:child_process";
-
 import {
   claimAppPort,
   createOwnedChildSupervisor,
@@ -133,17 +131,31 @@ async function runBuildWindow() {
   announce(`CLAIMED ${claim.claimPath}`);
   try {
     announce("RUNNER-READY");
-    // A stand-in for `next build`: a plain child in this process group, exactly
-    // like the real build, so a group signal ends it the same way.
-    const build = spawnSync(
+    // Reproduce a teardown delivered after readiness but before the build
+    // child exists. A blocked parent cannot run its pending signal handler.
+    const preBuildHold = Number(
+      process.env.CSF_TEARDOWN_FIXTURE_PRE_BUILD_HOLD_MS ?? "0",
+    );
+    if (preBuildHold > 0)
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        preBuildHold,
+      );
+    // Use the real build ownership path, so a pending signal reaches a build
+    // spawned after the runner's group was already signalled.
+    const build = await supervisor.runOwnedBuild(
+      "fixture build",
       process.execPath,
       ["-e", "setTimeout(() => {}, 30000)"],
       {
-        stdio: "ignore",
+        cwd: process.cwd(),
+        env: { ...process.env },
       },
     );
-    if (build.status !== 0) {
-      throw new Error(`The stand-in build exited with code ${build.status}.`);
+    if (build.code !== 0) {
+      throw new Error(`The stand-in build exited with code ${build.code}.`);
     }
     await supervisor.checkpoint();
     announce("BUILD-COMPLETED");

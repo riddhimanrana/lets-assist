@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -871,7 +870,7 @@ function ComparisonRow({
       transition={{ delay, duration: 0.3 }}
       className={`border-b border-border/50 ${feature.highlight ? "bg-primary/5" : ""}`}
     >
-      <TableCell className="py-3 sm:py-4 px-3 sm:px-4">
+      <TableCell className="py-3 sm:py-4 px-3 sm:px-4 whitespace-normal">
         <div className="flex items-center gap-2 sm:gap-3">
           <div
             className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
@@ -882,7 +881,7 @@ function ComparisonRow({
             <div
               className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}
             >
-              <span>{feature.name}</span>
+              <span className="min-w-0 wrap-break-word">{feature.name}</span>
               {feature.highlight && (
                 <Badge
                   variant="outline"
@@ -892,13 +891,13 @@ function ComparisonRow({
                 </Badge>
               )}
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block truncate">
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
               {feature.description}
             </p>
           </div>
         </div>
       </TableCell>
-      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center leading-tight whitespace-normal">
         {typeof feature.letsAssist === "boolean" ? (
           feature.letsAssist ? (
             <AnimatedCheck delay={delay + 0.1} />
@@ -917,7 +916,7 @@ function ComparisonRow({
           </motion.span>
         )}
       </TableCell>
-      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center leading-tight whitespace-normal">
         {typeof feature.signupGenius === "boolean" ? (
           feature.signupGenius ? (
             <AnimatedCheck delay={delay + 0.15} />
@@ -1038,56 +1037,62 @@ export default function ComparisonSection() {
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
         >
           <Card className="overflow-hidden border-border/60 py-[-2]">
-            <div className="overflow-x-auto">
-              <Table className="w-full min-w-[360px]">
-                <TableHeader>
-                  <TableRow className="border-b border-border bg-muted/30">
-                    <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground">
-                      Feature comparison
-                    </TableHead>
-                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
-                      <div className="flex flex-col items-center gap-1 sm:gap-1.5">
-                        <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
-                          <Image
-                            src="/logo.png"
-                            alt="Let's Assist"
-                            width={28}
-                            height={28}
-                            className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
-                          />
-                        </div>
-                        <span className="text-[10px] sm:text-sm font-bold text-primary tracking-tight">
-                          Let&apos;s Assist
-                        </span>
-                      </div>
-                    </TableHead>
-                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
-                      <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
+            {/* A plain table, not the Table primitive: the primitive wraps
+                itself in a horizontal scroll region, and this table is laid
+                out to fit a 320px phone by wrapping instead of scrolling. */}
+            <table
+              aria-label="Let's Assist and SignUpGenius feature comparison"
+              className="w-full table-fixed caption-bottom text-sm"
+            >
+              <TableHeader>
+                <TableRow className="border-b border-border bg-muted/30">
+                  <TableHead className="h-auto py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground whitespace-normal">
+                    Feature comparison
+                  </TableHead>
+                  <TableHead className="h-auto py-3 sm:py-5 px-2 sm:px-4 text-center w-18 sm:w-32 whitespace-normal">
+                    <div className="flex flex-col items-center gap-1 sm:gap-1.5">
+                      <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
                         <Image
-                          src="/resources/signupgenius-logo.jpg"
-                          alt="SignUpGenius"
+                          src="/logo.png"
+                          alt="Let's Assist"
                           width={28}
                           height={28}
-                          className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
+                          className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
                         />
-                        <span className="text-[10px] sm:text-sm font-semibold text-muted-foreground tracking-tight">
-                          SignUpGenius
-                        </span>
                       </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleFeatures.map((feature, i) => (
-                    <ComparisonRow
-                      key={feature.name}
-                      feature={feature}
-                      index={i}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      <span className="text-[10px] sm:text-sm font-bold text-primary tracking-tight">
+                        Let&apos;s Assist
+                      </span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="h-auto py-3 sm:py-5 px-2 sm:px-4 text-center w-18 sm:w-32 whitespace-normal">
+                    <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
+                      <Image
+                        src="/resources/signupgenius-logo.jpg"
+                        alt="SignUpGenius"
+                        width={28}
+                        height={28}
+                        className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
+                      />
+                      <span className="text-[10px] sm:text-sm leading-tight font-semibold text-muted-foreground tracking-tight">
+                        SignUp
+                        <wbr />
+                        Genius
+                      </span>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleFeatures.map((feature, i) => (
+                  <ComparisonRow
+                    key={feature.name}
+                    feature={feature}
+                    index={i}
+                  />
+                ))}
+              </TableBody>
+            </table>
             {!showAllFeatures && comparisonFeatures.length > 6 && (
               <div className="p-3 sm:p-4 text-center border-t border-border/50 bg-muted/20">
                 <Button

@@ -102,6 +102,27 @@ describe("demo video surfaces", () => {
     }
   });
 
+  // Source only. The painted backing and the 44px box are measured in a
+  // browser, and nothing here speaks for the real YouTube player.
+  test("each video dialog scopes a 44px white-on-black close button to itself", () => {
+    const close = "[&>[data-slot=dialog-close]]:";
+    for (const file of ["./HeroVideo.tsx", "./CallToAction.tsx"]) {
+      const source = read(file);
+      for (const utility of [
+        "size-11",
+        "top-2.5",
+        "right-2.5",
+        "bg-black/70",
+        "text-white",
+        "hover:bg-black/90",
+        "hover:text-white",
+        "focus-visible:ring-white",
+      ]) {
+        expect(source).toContain(`${close}${utility}`);
+      }
+    }
+  });
+
   test("each YouTube embed sends the app origin while the site default stays no-referrer", () => {
     for (const file of ["./HeroVideo.tsx", "./CallToAction.tsx"]) {
       const iframes = read(file).match(/<iframe\b[\s\S]*?\/>/gu) ?? [];
