@@ -9,7 +9,6 @@ import {
   INTEGRATION_ROUTE,
   INTEGRATION_SOURCE_HASHES,
   integrationFixtureFromRows,
-  verifyIntegrationFixture,
   collectDisconnectedIntegrationFixture,
   integrationPolicyFromCompiled,
   exactIntegrationPolicy,

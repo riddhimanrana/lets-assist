@@ -10887,3 +10887,31 @@ passes 76 tests and fails four replay-fixture tests because `rsync` is absent
 four desktop/phone theme modes; all six phone demo phases in both themes show
 no axe contrast violation or conservative gradient-bound failure. Native
 application coverage and release acceptance are still pending.
+
+## Short CI review correction, October 12
+
+Automatic short run
+[38309488545](https://github.com/riddhimanrana/lets-assist/actions/runs/38309488545)
+failed at `c07d407194af421d6f837b2b97f239554dbb939b`: zero-warning lint
+found an unused integration-test import, and two landing markup assertions
+expected the prior badge color and demo title classes. Unit shard2 passed.
+The correction removes that import, requires the Open badge to retain its
+neutral variant with foreground text and no filled gradient, and expects the
+restored bold responsive demo heading while preserving its h2 semantics.
+Product markup is unchanged. The frozen test package and CI digest are refreshed.
+
+Fresh controlled actual-component/CSS measurements at1280px and390px show
+18.10:1 badge contrast in light and9.69:1 in dark, neutral variant and no
+background image, with no axe contrast findings or page errors. Colors are
+composited through the actual ancestor backgrounds; samples are taken only
+while the badge is fully visible. This is scoped contrast evidence, not native
+full-page acceptance.
+
+Full zero-warning lint, formatting and agent policy pass. The owned package
+passes266 Linux checks,568 original guards,52 settlement checks,65 notification
+checks and99 focused tests. The integration suite passes41 tests; actual project
+header/signup suites pass10 tests. Landing accessibility passes52 tests; its
+hero import remains blocked by the locked xlsx archive returning403 in cloud.
+No mock replacement or skip hides that missing dependency. The corrected
+automatic short gate must pass before a full-run request; no full-run trigger
+or deployment occurs for this correction.

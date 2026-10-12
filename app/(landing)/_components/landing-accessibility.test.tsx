@@ -747,8 +747,9 @@ describe("comparison table", () => {
 
   // The light green does not carry small text on a white card. The ratio is
   // a browser measurement; this holds the recipe on the rendered labels:
-  // foreground text, with the green only under the dark variant.
-  test("small labels are foreground text and take the green only in dark", () => {
+  // foreground text. The Open badge is flat in both themes; the remaining
+  // labels use the green only under the dark variant.
+  test("small labels retain readable foreground recipes without a filled status badge", () => {
     const labels = elements(root).filter(
       (node) =>
         ["Open", "Key", "Let's Assist", "QR check-in and check-out"].includes(
@@ -765,7 +766,13 @@ describe("comparison table", () => {
         classes,
       );
       expect(own).toContain("text-foreground");
-      expect(own).toContain("dark:text-primary");
+      if (ownText(label) === "Open") {
+        expect(label.attributes["data-variant"]).toBe("neutral");
+        expect(own).not.toContain("dark:text-primary");
+        expect(own.filter((name) => name.startsWith("bg-[image:"))).toEqual([]);
+      } else {
+        expect(own).toContain("dark:text-primary");
+      }
       expect(
         own.filter((name) =>
           ["text-primary", "text-primary-foreground", "bg-primary"].includes(
@@ -1072,11 +1079,12 @@ describe("hero first render", () => {
     expect(demoTitles).toHaveLength(1);
     expect(demoTitles[0].tag).toBe("h2");
     expect(classes(demoTitles[0])).toEqual([
+      "mb-1.5",
       "text-2xl",
-      "font-semibold",
-      "tracking-tight",
+      "font-bold",
       "text-balance",
       "wrap-break-word",
+      "sm:text-3xl",
     ]);
 
     // The highlight cards under the demo share the same first render.
