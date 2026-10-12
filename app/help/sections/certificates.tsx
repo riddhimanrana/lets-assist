@@ -46,7 +46,7 @@ export function CertificatesSection() {
                     aria-hidden="true"
                     className="text-success size-4 shrink-0"
                   />
-                  Automatically generated after completing projects
+                  Issued after organizers verify and publish your hours
                 </li>
                 <li className="flex items-center gap-2">
                   <Share2
@@ -97,7 +97,10 @@ export function CertificatesSection() {
               <div>
                 <h6 className="font-medium mb-2">Certificates page:</h6>
                 <ol className="list-decimal pl-5 space-y-1 text-sm">
-                  <li>Click &quot;Certificates&quot; in the main navigation</li>
+                  <li>
+                    Use &quot;View my certificates&quot; below to open the
+                    certificates page
+                  </li>
                   <li>Browse all your certificates in a grid view</li>
                   <li>Filter by date, organization, or project</li>
                   <li>Sort by newest, oldest, or hours</li>
@@ -106,10 +109,16 @@ export function CertificatesSection() {
               <div>
                 <h6 className="font-medium mb-2">Dashboard access:</h6>
                 <ol className="list-decimal pl-5 space-y-1 text-sm">
-                  <li>View recent certificates on your dashboard</li>
-                  <li>See certificate count and total hours</li>
-                  <li>Quick export options available</li>
-                  <li>Links to full certificates page</li>
+                  <li>
+                    Open &quot;Volunteer dashboard&quot; in the navigation
+                  </li>
+                  <li>
+                    Select the &quot;All hours&quot; tab to view your records
+                  </li>
+                  <li>See certificate counts and total hours</li>
+                  <li>
+                    Use the &quot;Export&quot; tab to download your records
+                  </li>
                 </ol>
               </div>
             </div>

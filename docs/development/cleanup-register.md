@@ -10900,3 +10900,43 @@ directory entry to carry the fixture snapshot timestamp. It failed consistently
 before the fix and passes afterward, along with all11 export cases and30
 assertions. The original archive byte-equality assertion remains. Full TypeScript
 and affected lint pass; fresh exact-source full CI remains required.
+
+### Public-page design readback, October 12, 2026
+
+Actual Claude Opus5.5 reviewed the served Development landing, Help, Contact
+and Acknowledgements in the explicitly confirmed Chrome connection. Captures
+use1480x1329, light theme, existing fictional signed-in state and sourceaccba0cf.
+No setting, form, provider, demo mode or other tab changed. The owned tab closed.
+FAQ redirected to Home; that route and signed-out/mobile/dark states were not
+reviewed. Eleven public-page frames are retained; the incidental fictional Home
+redirect frame is excluded. This is additional bounded visual evidence, not a
+complete redesign or matched old/new audit.
+
+`PUBLIC-CERTIFICATE-PROMISE-20261012`, P1: landing and Help promised automatic
+certificate publication within48–72 hours or immediately after participation,
+while live worker execution was unverified. Landing, Help, FAQ and QR completion
+copy now tie availability to verified attendance and published hours. They make
+no delivery-time promise. The FAQ also leaves acceptance for school or CSF
+requirements to the relevant school or chapter. Provider scheduling, publication
+logic, data and signed private1.2.89 remain unchanged.
+
+`HELP-CERTIFICATE-NAVIGATION-20261012`, P2: Help directed volunteers to a
+missing Certificates navigation item. It now points to its existing certificate
+link and the actual Volunteer dashboard, All hours and Export labels.
+
+`FAQ-AUTHENTICATED-ACCESS-20261012`, P2: FAQ was incorrectly grouped with
+login/signup in the authenticated redirect list. Removing only FAQ makes this
+public information page accessible when signed in. The new request regression
+reproduced307 before and passes200/private no-store afterward; login still
+redirects to Home. Existing protected routes, fresh authentication, MFA and
+management permissions remain.21 proxy cases,41 landing accessibility cases,
+3 first-render cases and3 Help cases pass, as do TypeScript and affected lint.
+Independent engineering review and actual Opus source readback found no blocker.
+Exact-source full CI and final hosted rendered proof remain required.
+
+Unverified P3 follow-ups remain: help metadata, scroll-time reveal/layout changes,
+phone wrapping of the longer copy, reduced motion, and competitive feature
+claims. The apparently duplicated closing heading is not an established defect:
+existing accessibility tests verify its exposed text once, but the full route
+still needs rendered assistive-technology inspection. Neither a source test nor
+these desktop captures completes the requested whole-site accessibility audit.

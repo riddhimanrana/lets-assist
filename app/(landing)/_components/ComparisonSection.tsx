@@ -57,8 +57,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     icon: QrCode,
   },
   {
-    name: "Auto certificates",
-    description: "PDF certificates generated automatically",
+    name: "Hour certificates",
+    description: "PDF certificates after verified hours are published",
     letsAssist: true,
     signupGenius: false,
     highlight: true,

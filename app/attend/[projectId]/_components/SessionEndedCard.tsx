@@ -57,7 +57,7 @@ export function SessionEndedCard({
         </div>
       </dl>
       <p className="text-muted-foreground text-sm">
-        Your hours will be finalized within 48 hours.
+        Your hours become available after attendance is verified and published.
       </p>
     </NoticePage>
   );
