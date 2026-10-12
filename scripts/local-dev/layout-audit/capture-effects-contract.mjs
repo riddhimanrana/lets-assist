@@ -102,6 +102,58 @@ export function profileReaderFrame(frame, actor, accessToken) {
   return "profile-join";
 }
 
+// Diagnosis never authorizes traffic and returns only finite literal categories.
+// It cannot expose the frame, topic, actor UUID, URL or token.
+const PROFILE_EVENTS = new Set([
+  "heartbeat",
+  "phx_join",
+  "access_token",
+  "phx_leave",
+  "broadcast",
+  "presence",
+]);
+const PROFILE_REASONS = new Map([
+  ["Fresh proved baseline identity required", "actor-or-token"],
+  ["Binary or oversized WebSocket frame refused", "type-or-size"],
+  ["Unreviewed Phoenix frame refused", "envelope"],
+  [
+    "Business, presence or unreviewed channel traffic refused",
+    "event-or-channel",
+  ],
+  ["Profile reader must use the exact fresh actor token", "nonce-or-token"],
+  ["Unreviewed subscription configuration refused", "configuration"],
+  ["Only the proved actor profile reader is permitted", "profile-filter"],
+]);
+export function profileReaderDiagnostic(frame, actor, accessToken) {
+  const result = { phase: "frame", event: "other", reason: "unknown" };
+  if (typeof frame === "string" && Buffer.byteLength(frame) <= 8192) {
+    try {
+      const value = JSON.parse(frame);
+      if (
+        Array.isArray(value) &&
+        value.length === 5 &&
+        PROFILE_EVENTS.has(value[3])
+      )
+        result.event = value[3];
+    } catch {
+      result.reason = "json";
+    }
+  }
+  try {
+    profileReaderFrame(frame, actor, accessToken);
+    result.reason = "accepted";
+  } catch (error) {
+    // Exact constant lookup only. A parse error or arbitrary exception is never
+    // stringified, trimmed or copied into output.
+    try {
+      result.reason = PROFILE_REASONS.get(error?.message) ?? result.reason;
+    } catch {
+      result.reason = "unknown";
+    }
+  }
+  return result;
+}
+
 export const READ_ACTION_SPECS = [
   {
     exportedName: "getDataExportJobs",

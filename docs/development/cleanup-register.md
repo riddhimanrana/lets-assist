@@ -2,6 +2,15 @@
 
 ## Frontend review candidate — 2026-10-12
 
+P2 JOURNEY-INDICATOR-VISIBILITY-20261012 is implemented in this candidate.
+The inactive landing journey pills used a translucent surface token and were
+hard to see in the authentic light-theme capture. The scoped Opus 5.5 change
+uses the existing opaque muted foreground token, preserving the active green,
+native button semantics, keyboard behavior and motion. Twelve owned component
+captures at desktop, 390px and 320px in both themes verify inactive contrast
+of at least 4.83:1, focus and selection, and no horizontal overflow. This is
+component evidence; authenticated route and Production acceptance remain open.
+
 The frontend candidate based on Development `accba0cf` keeps the 723-migration
 ledger and private gitlink `38dc7c7a`. The separate backend release candidate
 `4b4987c5` remains in PR 873; its newer database and private Applications

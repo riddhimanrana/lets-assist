@@ -900,6 +900,12 @@ try {
       "CACHE_RESPONSE_META_SHAPE",
     ),
   );
+  checks += (
+    await import("./profile-diagnostics.check.mjs")
+  ).runProfileDiagnosticChecks(
+    await import("./capture-effects-contract.mjs"),
+    fs.readFileSync(new URL("./capture.mjs", import.meta.url), "utf8"),
+  );
   // Legacy guard suite remains meaningful and unchanged except explicit binding.
   const data = path.join(dir, "proof-data");
   fs.mkdirSync(data, { mode: 0o700 });

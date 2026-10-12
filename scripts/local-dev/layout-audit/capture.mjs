@@ -30,6 +30,7 @@ import {
 import {
   profileReaderUrl,
   profileReaderFrame,
+  profileReaderDiagnostic,
   exactReadActionPolicy,
   readActionRequest,
 } from "./capture-effects-contract.mjs";
@@ -341,6 +342,7 @@ try {
         status: "incomplete",
         pixelsInspected: false,
         faults,
+        socketRefusals: [],
       };
       try {
         await context.addInitScript(
@@ -388,8 +390,10 @@ try {
         });
         await context.routeWebSocket("**/*", (socket) => {
           const connection = {};
-          const refuse = () => {
+          const refuse = (diagnostic) => {
             faults.blockedSocket++;
+            if (capture.socketRefusals.length < 4)
+              capture.socketRefusals.push(diagnostic);
             socket.close({
               code: 1008,
               reason: "Unreviewed local capture traffic refused",
@@ -408,20 +412,35 @@ try {
             );
             if (!profileAccessToken) fail("Fresh local actor token absent");
           } catch {
-            refuse();
+            refuse({
+              phase: "endpoint",
+              event: "other",
+              reason: "url-or-actor-token",
+            });
             return;
           }
           socket.onMessage((frame) => {
+            let phase = "frame";
             try {
               const kind = profileReaderFrame(frame, actor, profileAccessToken);
+              phase = "bounds";
               if (
                 ++allowedFrames > 512 ||
                 (kind === "profile-join" && ++allowedJoins > 8)
               )
                 fail("Local profile subscription bound exceeded");
+              phase = "transport";
               connection.server.send(frame);
             } catch {
-              refuse();
+              refuse(
+                phase === "frame"
+                  ? profileReaderDiagnostic(frame, actor, profileAccessToken)
+                  : {
+                      phase,
+                      event: "other",
+                      reason: phase === "bounds" ? "reader-limit" : "send",
+                    },
+              );
             }
           });
           connection.server = socket.connectToServer();
@@ -547,39 +566,6 @@ try {
             requestAnimationFrame(() => requestAnimationFrame(resolve)),
           );
         });
-        capture.dom = await page.evaluate(() => {
-          const visible = (e) =>
-            !!(
-              e.getClientRects().length &&
-              getComputedStyle(e).visibility !== "hidden"
-            );
-          return {
-            viewportWidth: document.documentElement.clientWidth,
-            documentWidth: document.documentElement.scrollWidth,
-            horizontalOverflow:
-              document.documentElement.scrollWidth >
-              document.documentElement.clientWidth + 1,
-            mainCount: [
-              ...document.querySelectorAll('main,[role="main"]'),
-            ].filter(visible).length,
-            h1Count: [
-              ...document.querySelectorAll(
-                'h1,[role="heading"][aria-level="1"]',
-              ),
-            ].filter(visible).length,
-            loadingIndicators: [
-              ...document.querySelectorAll(
-                '[aria-busy="true"],[data-slot="skeleton"]',
-              ),
-            ].filter(visible).length,
-            brokenImages: [...document.images].filter(
-              (i) => visible(i) && i.complete && i.naturalWidth === 0,
-            ).length,
-            themeDark: document.documentElement.classList.contains("dark"),
-            reducedMotion: matchMedia("(prefers-reduced-motion: reduce)")
-              .matches,
-          };
-        });
         await page.addScriptTag({ content: axeSource });
         capture.axe = await page.evaluate(async () => {
           const a = await window.axe.run(document, {
@@ -617,6 +603,77 @@ try {
             }),
           );
         }
+        // Sample the rendered state after axe/Tab, immediately before the PNG.
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+          await new Promise((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(resolve)),
+          );
+        });
+        capture.dom = await page.evaluate(() => {
+          const visible = (e) =>
+            !!(
+              e.getClientRects().length &&
+              getComputedStyle(e).visibility !== "hidden"
+            );
+          const loadingMarkers = [
+            ...document.querySelectorAll(
+              '[aria-busy="true"],[data-slot="skeleton"]',
+            ),
+          ].filter(visible);
+          return {
+            samplePhase: "after-keyboard-before-png",
+            viewportHeight: document.documentElement.clientHeight,
+            documentHeight: document.documentElement.scrollHeight,
+            viewportWidth: document.documentElement.clientWidth,
+            documentWidth: document.documentElement.scrollWidth,
+            horizontalOverflow:
+              document.documentElement.scrollWidth >
+              document.documentElement.clientWidth + 1,
+            mainCount: [
+              ...document.querySelectorAll('main,[role="main"]'),
+            ].filter(visible).length,
+            h1Count: [
+              ...document.querySelectorAll(
+                'h1,[role="heading"][aria-level="1"]',
+              ),
+            ].filter(visible).length,
+            loadingIndicators: loadingMarkers.length,
+            loadingMarkerCounts: {
+              skeletons: loadingMarkers.filter((e) =>
+                e.matches('[data-slot="skeleton"]'),
+              ).length,
+              ariaBusy: loadingMarkers.filter((e) =>
+                e.matches('[aria-busy="true"]'),
+              ).length,
+              main: loadingMarkers.filter((e) =>
+                e.closest('main,[role="main"]'),
+              ).length,
+              navigation: loadingMarkers.filter((e) =>
+                e.closest('nav,[role="navigation"]'),
+              ).length,
+              outsideMain: loadingMarkers.filter(
+                (e) => !e.closest('main,[role="main"]'),
+              ).length,
+              ariaHidden: loadingMarkers.filter((e) =>
+                e.closest('[aria-hidden="true"]'),
+              ).length,
+              pulseOnly: [
+                ...document.querySelectorAll(".animate-pulse"),
+              ].filter(
+                (e) =>
+                  visible(e) &&
+                  !e.closest('[aria-busy="true"],[data-slot="skeleton"]'),
+              ).length,
+            },
+            brokenImages: [...document.images].filter(
+              (i) => visible(i) && i.complete && i.naturalWidth === 0,
+            ).length,
+            themeDark: document.documentElement.classList.contains("dark"),
+            reducedMotion: matchMedia("(prefers-reduced-motion: reduce)")
+              .matches,
+          };
+        });
         const output = path.join(m.outputDir, `${entry.id}-${mode.name}.png`);
         if (fs.existsSync(output))
           fail("Refusing to overwrite existing capture");

@@ -760,6 +760,51 @@ describe("journey pagination", () => {
     }
   });
 
+  test("unpressed pills are painted with an opaque token, not a faint wash", () => {
+    const root = render(createElement(VolunteerJourneySection));
+    const pills = elements(root).filter(
+      (node) =>
+        node.tag === "button" &&
+        node.attributes["aria-label"]?.startsWith("Show step"),
+    );
+    const fills = pills.map((pill) =>
+      classes(elements(pill)[0]).filter((name) => name.startsWith("bg-")),
+    );
+
+    // The pressed pill keeps the green. The rest share one text token that
+    // is drawn at full strength in both themes. This checks the markup only,
+    // not the rendered contrast.
+    expect(fills).toEqual([
+      ["bg-primary"],
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
+    ]);
+
+    for (const pill of pills) {
+      const mark = elements(pill)[0];
+      // No opacity modifier, no theme override and no hiding utility can
+      // thin the fill back out.
+      expect(
+        classes(mark).filter(
+          (name) =>
+            name.includes("/") ||
+            name.includes("dark:") ||
+            name.startsWith("opacity-") ||
+            name === "invisible" ||
+            name === "hidden",
+        ),
+      ).toEqual([]);
+      // The pill is still a native toggle with its name and focus ring.
+      expect(pill.attributes.type).toBe("button");
+      expect(pill.attributes["aria-pressed"]).toMatch(/^(true|false)$/);
+      expect(classes(pill)).toEqual(
+        expect.arrayContaining(["size-8", "focus-visible:ring-2"]),
+      );
+    }
+  });
+
   test("the step cards keep their own toggles and copy", () => {
     const root = render(createElement(VolunteerJourneySection));
     const cards = elements(root).filter(
