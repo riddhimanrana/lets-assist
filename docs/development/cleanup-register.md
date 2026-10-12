@@ -10856,3 +10856,35 @@ The attendance review also exposes each current local date/time as an explicit
 Native datetime widgets can clip the AM/PM segment at320px; the readable local
 value prevents that crop from hiding the time being reviewed. Native input
 values, timezone parsing, DST choices and save behavior remain unchanged.
+
+### Concurrency fixture and browser assertion repairs, October 12, 2026
+
+`HOURS-FIXTURE-MAINTENANCE-20261012`, P2: full run38191711867 at
+`a14acff1` failed the Hours concurrency fixture at01:35:05. Its past-dated
+2021 project could become completed during the five-minute status maintenance
+tick, before a later independently committed signup approval. The active-project
+approval guard correctly refused it. Fixture setup and each independent legacy
+reapproval now hold the project in one transaction through enrollment. Real
+`process_projects()` runs after each commit while holding the same maintenance
+advisory lock, with a10-second lock timeout and a required completed-state
+assertion. This waits for competing cron maintenance instead of silently skipping
+it. Only the synthetic fixture is restored between races.
+No lifecycle function, cancellation guard, migration or worker schedule changed.
+An owned native PostgreSQL probe reproduced the old refusal, waited behind a real
+competing maintenance lock, passed the initial
+enrollment and both exact repaired reset blocks, and confirmed cancelled projects
+still refuse approval. The probe used the three actual repository SQL functions
+with minimal supporting tables. It does not replace the full Supabase replay or
+publication-lock gate.
+
+`CSF-BROWSER-ASSERTIONS-20261012`, P2: run38191042614 at`d973c6ee`
+exposed three brittle acceptance assumptions. Released applicants could fall
+beyond the first50-row server page as fictional fixtures accumulated. The test
+now reaches each released applicant through committed name search. Profile tests
+select the accessible term panel and require exactly one visible matching panel.
+Post tests require exactly one accessible class heading, avoiding hidden retained
+markup. All database state, release, role-revocation and whole-DOM privacy
+exclusions remain. No `.first()` selection, test budget increase or business
+behavior change was used. Full TypeScript, affected lint and shell syntax pass;
+the repaired browser journeys and complete database concurrency suite require the
+new exact-source full CI run.
