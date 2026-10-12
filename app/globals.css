@@ -409,6 +409,29 @@
     }
   }
 
+  /* Landing headline letters. The resting state is the final one, so the
+     heading is readable with no script and where animations do not run. The
+     entrance plays once per mount and only when motion is welcome. */
+  @keyframes la-hero-letter-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      transform: translate3d(0, 20px, 0);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .la-hero-letter {
+      animation: la-hero-letter-in 0.62s cubic-bezier(0.16, 1, 0.3, 1)
+        var(--la-delay, 0s) 1 both;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
   }

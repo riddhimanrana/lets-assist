@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Play } from "lucide-react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const videoId = "0Smto1UOqTY";
 const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
@@ -12,6 +17,7 @@ const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
 export const HeroVideo = () => {
   const [open, setOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <section
@@ -20,7 +26,7 @@ export const HeroVideo = () => {
     >
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
@@ -33,15 +39,14 @@ export const HeroVideo = () => {
                   render={
                     <motion.button
                       type="button"
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
+                      whileHover={
+                        shouldReduceMotion ? undefined : { scale: 1.01 }
+                      }
+                      whileTap={
+                        shouldReduceMotion ? undefined : { scale: 0.99 }
+                      }
                       className="group relative block aspect-video w-full overflow-hidden bg-muted"
                     >
-                      {/* subtle glow behind the video thumbnail */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-3/4 h-3/4 rounded-2xl bg-linear-to-r from-indigo-500/30 via-purple-500/20 to-pink-500/10 blur-2xl opacity-0 transform scale-90 transition-all duration-300 group-hover:opacity-90 group-hover:scale-100" />
-                      </div>
-
                       <div
                         className="absolute inset-0 bg-cover bg-center"
                         style={{ backgroundImage: `url(${thumbnailUrl})` }}
@@ -49,7 +54,9 @@ export const HeroVideo = () => {
                       <div className="absolute inset-0 bg-linear-to-b from-black/20 via-black/5 to-black/40" />
                       <motion.div
                         className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white"
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={
+                          shouldReduceMotion ? false : { opacity: 0, y: 10 }
+                        }
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
                       >
@@ -67,14 +74,20 @@ export const HeroVideo = () => {
               </CardContent>
             </Card>
 
-            <DialogContent className="w-full max-w-screen-xl sm:max-w-screen-xl border-none bg-transparent p-0 shadow-none">
-              <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10 shadow-2xl">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-screen-xl sm:max-w-screen-xl border-none bg-transparent p-0 shadow-none">
+              <DialogTitle className="sr-only">
+                Let&apos;s Assist demo video
+              </DialogTitle>
+              <div className="relative aspect-video min-h-[200px] w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10 shadow-2xl">
                 {open ? (
                   <iframe
-                    className="h-full w-full"
+                    className="absolute inset-0 h-full w-full"
                     src={embedUrl}
                     title="Let's Assist Demo"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    // The site sends no referrer by default. YouTube needs
+                    // the embedding origin, and only the origin.
+                    referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
                   />
                 ) : null}

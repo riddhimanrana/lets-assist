@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
+import { HeroHeading } from "./HeroHeading";
 import { MotionLinkButton } from "./MotionLinkButton";
 import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
 
@@ -905,16 +906,14 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
-          The modern way to do{" "}
-          <span className="block text-primary">volunteering</span>
-        </h1>
+        <HeroHeading className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]" />
 
         {/*
           The hero is the first thing in the response. Its copy, links, demo
           and highlights render in their final state, so they are readable
           before any script runs and in a tab whose animation frames are
-          paused.
+          paused. The headline above is the one exception: its letters play a
+          CSS entrance that ends in the same final state.
         */}
         <motion.p
           initial={false}

@@ -1,5 +1,7 @@
 export type OrganizationDirectoryEmptyActions = {
-  /** Visitors get one link to sign in; joining and creating both need an account. */
+  /** Visitors are asked to sign up first; joining and creating both need an account. */
+  signUp: boolean;
+  /** Visitors who already have an account keep a link to sign in. */
   signIn: boolean;
   join: boolean;
   create: boolean;
@@ -21,16 +23,18 @@ export function getOrganizationDirectoryEmptyActions({
 }): OrganizationDirectoryEmptyActions {
   if (!isLoggedIn) {
     return {
+      signUp: true,
       signIn: true,
       join: false,
       create: false,
       description:
-        "Sign in to join an organization with a code or to create one.",
+        "Sign up to join an organization with a code. Creating one also needs Trusted Member access.",
     };
   }
 
   if (canCreate) {
     return {
+      signUp: false,
       signIn: false,
       join: true,
       create: true,
@@ -40,6 +44,7 @@ export function getOrganizationDirectoryEmptyActions({
   }
 
   return {
+    signUp: false,
     signIn: false,
     join: true,
     create: false,

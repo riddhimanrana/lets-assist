@@ -1,5 +1,37 @@
 # Repository cleanup register
 
+## Requested design restoration — 2026-10-12
+
+P2 LANDING-VIDEO-PHONE-GUTTER-20261012 and LANDING-VIDEO-REFERRER-20261012
+have scoped source corrections in PR873. The popup preserves phone gutters
+and its iframe is at least 200 pixels high. Both demo iframes send only the
+embedding origin, while the global `no-referrer` policy stays unchanged.
+The missing referrer explains the documented YouTube Error 153 condition;
+actual playback still requires hosted Development verification. Video dialogs
+also have accessible titles. The active call-to-action is visible at first
+render. The user-requested letter headline recovers actual Production timing,
+with reduced-motion and no replay proof in an owned component fixture.
+
+P2 ORGANIZATION-SIGNUP-PHONE-OVERFLOW-20261012 is corrected with wrapping and
+a bounded signup action. The directory restores the old card grid and footer
+bands, keeps private counts and creation eligibility, and offers the exact
+signed-out signup label with the directory return route. Semantic content
+links use the green text token and an underline. Flat card interaction is
+retained under the approved design system. These are scoped rendered checks,
+not a complete integrated route audit or a deployment receipt.
+
+The October 12 independent Supabase advisor inventory has zero security
+ERROR findings in either environment. WARN security-definer RPCs and
+no-policy/no-client-grant tables are intentional authorization boundaries,
+not grounds for blanket privilege changes. Existing runtime tests cover
+caller, membership and lease denials. Staff-view and account-deletion pgTAP
+suites add missing-actor, other-organization, inactive-membership and actual
+anonymous/private-helper refusals; fresh full CI must execute them. No
+migration, grant, index or provider setting changes accompany this pass.
+FK/unused-index INFO findings need workload evidence before any index change.
+Development deployment and full hosted acceptance remain pending; Production
+is held for the user's subsequent Development review.
+
 ## Integrated source checkpoint — 2026-10-11
 
 P2 CSF-REVIEW-QUEUE-SCOPE-20261011 is open in the unpublished candidate.

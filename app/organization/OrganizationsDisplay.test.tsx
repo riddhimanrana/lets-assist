@@ -127,7 +127,23 @@ function populatedDirectory({
 const occurrences = (html: string, needle: string) =>
   html.split(needle).length - 1;
 
+const { TEXT_LINK_CLASS } = await import("@/lib/text-link");
+
+// The visitor action, closed by its anchor so a longer label cannot match.
+const SIGN_UP_LINK = ">Sign up to join or create an organization</a>";
+
 describe("organization directory cards", () => {
+  test("the visitor sign-up action goes to signup with the directory as its return path", () => {
+    const { html } = populatedDirectory({ isLoggedIn: false });
+    const attributes =
+      /<a\b([^>]*)>Sign up to join or create an organization<\/a>/u.exec(
+        html,
+      )?.[1] ?? "";
+
+    // `/signup` reads `redirect` and carries it through confirmation.
+    expect(attributes).toContain('href="/signup?redirect=/organization"');
+  });
+
   test("memberships and discovered organizations each link once from their own section", () => {
     const { html, owned, discover } = populatedDirectory();
 
@@ -164,6 +180,24 @@ describe("organization directory cards", () => {
     );
     expect(occurrences(owned, 'aria-label="Verified organization"')).toBe(1);
 
+    // The earlier card layout: a description block on every card, and one
+    // whole-card link with no control nested inside it. Hover never lifts
+    // the card or adds a shadow.
+    expect(occurrences(owned, "No description provided.")).toBe(1);
+    expect(occurrences(discover, "No description provided.")).toBe(1);
+    for (const section of [owned, discover]) {
+      const cards = [
+        ...section.matchAll(
+          /<a\b[^>]*href="\/organization\/[^"]+"[^>]*>([\s\S]*?)<\/a>/gu,
+        ),
+      ];
+      expect(cards).toHaveLength(2);
+      for (const [, body] of cards) {
+        expect(body).not.toMatch(/<(?:a|button)\b/u);
+      }
+      expect(section).not.toMatch(/-translate-y|hover:shadow|shadow-lg/u);
+    }
+
     // Discovered cards carry no membership role for the viewer.
     expect(discover).not.toContain("Admin");
     expect(discover).not.toContain('aria-label="Verified organization"');
@@ -189,14 +223,29 @@ describe("organization directory cards", () => {
     expect(untrusted).not.toContain("More actions");
     // An organization admin role is not global creation eligibility.
     expect(untrusted).not.toContain('href="/organization/create"');
-    expect(untrusted).toContain('href="/trusted-member"');
+    // The Trusted Member reason stays next to the disabled action, and its
+    // link is a green content link with its own focus ring.
+    expect(untrusted).toContain(
+      "Trusted Member access is required to create organizations.",
+    );
+    const trustedMemberLink =
+      /<a\b[^>]*href="\/trusted-member"[^>]*>/u.exec(untrusted)?.[0] ?? "";
+    for (const token of TEXT_LINK_CLASS.split(/\s+/u)) {
+      expect(trustedMemberLink).toContain(token);
+    }
+    expect(trustedMemberLink).toContain("text-primary");
+    expect(trustedMemberLink).toContain("focus-visible:ring-primary");
+    expect(trustedMemberLink).not.toContain("brand");
+    expect(untrusted).not.toContain('href="/signup');
 
     const trusted = populatedDirectory({ isTrusted: true }).html;
     expect(trusted).toContain("Verify certificates");
     expect(occurrences(trusted, 'href="/organization/create"')).toBe(1);
+    expect(trusted).not.toContain('href="/trusted-member"');
+    expect(trusted).not.toContain('href="/signup');
   });
 
-  test("visitors see neutral cards and sign-in guidance only", () => {
+  test("visitors see neutral cards and one sign-up action that returns here", () => {
     const { html, owned, discover } = populatedDirectory({
       isLoggedIn: false,
       isTrusted: true,
@@ -205,6 +254,7 @@ describe("organization directory cards", () => {
     expect(owned).toBe("");
     expect(discover).not.toContain("bg-brand/5");
     expect(occurrences(discover, 'href="/organization/')).toBe(4);
+    expect(occurrences(html, SIGN_UP_LINK)).toBe(1);
     expect(html).toContain('href="/login?redirect=/organization"');
     expect(html).not.toContain("Verify certificates");
     expect(html).not.toContain("Join with code");
@@ -214,9 +264,12 @@ describe("organization directory cards", () => {
 });
 
 describe("organization directory empty-state eligibility", () => {
-  test("visitors receive sign-in guidance without join or create controls", () => {
+  test("visitors are asked to sign up, without join or create controls", () => {
     for (const isTrusted of [false, true]) {
       const html = emptyState({ isLoggedIn: false, isTrusted });
+      expect(occurrences(html, SIGN_UP_LINK)).toBe(1);
+      // The description leads with the same step as the button.
+      expect(html).toContain("Sign up to join an organization with a code.");
       expect(html).toContain('href="/login?redirect=/organization"');
       expect(html).not.toContain("Join with code");
       expect(html).not.toContain('href="/organization/create"');
@@ -226,6 +279,7 @@ describe("organization directory empty-state eligibility", () => {
   test("signed-in users can join while creation eligibility is unresolved or refused", () => {
     for (const applicationStatus of [undefined, null, false]) {
       const html = emptyState({ isLoggedIn: true, applicationStatus });
+      expect(html).not.toContain('href="/signup');
       expect(html).toContain("Join with code");
       expect(html).not.toContain('href="/organization/create"');
       expect(html).not.toContain('href="/login?redirect=/organization"');
