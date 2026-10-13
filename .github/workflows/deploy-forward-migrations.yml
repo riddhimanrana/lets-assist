@@ -8,8 +8,16 @@ on:
         required: true
         type: string
       hosted_development_sha:
-        description: "Full hosted-accepted Development SHA with identical tree"
-        required: true
+        description: "Full hosted-accepted Development SHA with identical tree (normal path)"
+        required: false
+        type: string
+      production_app_sha:
+        description: "Schema-only path: full SHA of the unchanged app currently served on lets-assist.com"
+        required: false
+        type: string
+      schema_only_confirmation:
+        description: "Schema-only path: schema-only:<Production app SHA>:<release SHA>"
+        required: false
         type: string
       performance_waiver_confirmation:
         description: "Optional: waive-csf-performance:<release SHA>:<Development SHA>"
@@ -52,6 +60,8 @@ jobs:
     env:
       RELEASE_SHA: ${{ inputs.release_sha }}
       ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+      PRODUCTION_APP_SHA: ${{ inputs.production_app_sha }}
+      SCHEMA_ONLY_CONFIRMATION: ${{ inputs.schema_only_confirmation }}
       PERFORMANCE_WAIVER_CONFIRMATION: ${{ inputs.performance_waiver_confirmation }}
       PERFORMANCE_WAIVER_REASON: ${{ inputs.performance_waiver_reason }}
       LOCAL_VALIDATION_CONFIRMATION: ${{ inputs.local_validation_confirmation }}
@@ -66,8 +76,17 @@ jobs:
           set -euo pipefail
           [[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]
           [[ "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
           [[ "${CONFIRMATION}" == "apply-forward-migrations:${RELEASE_SHA}" ]]
+          if [[ -z "${PRODUCTION_APP_SHA}" ]]; then
+            [[ "${ACCEPTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ -z "${SCHEMA_ONLY_CONFIRMATION}" ]]
+          else
+            [[ -z "${ACCEPTED_SHA}" ]]
+            [[ "${PRODUCTION_APP_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${SCHEMA_ONLY_CONFIRMATION}" == "schema-only:${PRODUCTION_APP_SHA}:${RELEASE_SHA}" ]]
+            [[ "${RELEASE_SHA}" == "${GITHUB_SHA}" ]]
+            [[ -z "${PERFORMANCE_WAIVER_CONFIRMATION}${PERFORMANCE_WAIVER_REASON}${LOCAL_VALIDATION_CONFIRMATION}${LOCAL_VALIDATION_REASON}" ]]
+          fi
       - name: Checkout accepted source
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
@@ -80,6 +99,7 @@ jobs:
         with:
           node-version-file: release/.node-version
       - name: Verify accepted source and CI
+        if: inputs.production_app_sha == ''
         working-directory: release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,6 +107,44 @@ jobs:
           set -euo pipefail
           mkdir -p .artifacts
           node ../scripts/production/app-release-checks.mjs source | tee .artifacts/source-verification.json
+      - name: Verify schema-only source, full CI and live Production app
+        if: inputs.production_app_sha != ''
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "${RELEASE_SHA}" ]]
+          git merge-base --is-ancestor "${PRODUCTION_APP_SHA}" "${RELEASE_SHA}"
+          mkdir -p .artifacts
+          git diff --name-only --no-renames --no-ext-diff --no-textconv -z "${PRODUCTION_APP_SHA}" "${RELEASE_SHA}" -- > .artifacts/schema-only-changed-paths
+          printf '%s\0' \
+            '.github/workflows/deploy-forward-migrations.yml' \
+            'docs/README.md' \
+            'docs/development/production-points-schema-hotfix.md' \
+            'scripts/production/app-release-catalog.mjs' \
+            'scripts/production/app-release-checks.mjs' \
+            'scripts/production/csf-repeatable-pending-claims-catalog.test.mjs' \
+            'scripts/production/final-schema-688.json' \
+            'scripts/production/final-schema-manifest.md' \
+            'scripts/production/forward-migration-allowlist.mjs' \
+            'scripts/production/forward-migration-historical-tails.test.mjs' \
+            'scripts/production/forward-migration-release-fixture.mjs' \
+            'scripts/production/migration-digests.mjs' \
+            'scripts/production/production-schema-only-source.mjs' \
+            'scripts/production/production-schema-only-source.test.mjs' \
+            'supabase/migrations/20261013071100_csf_repeatable_pending_activity_claims.sql' \
+            'supabase/tests/database/csf_fixed_activity_submission_uniqueness.test.sql' > .artifacts/schema-only-reviewed-paths
+          cmp -s .artifacts/schema-only-changed-paths .artifacts/schema-only-reviewed-paths
+          SCHEMA_ONLY_VERIFIER_BLOB=20b1da6807faf61d0154459efdd0cd6f8736dcef
+          [[ "$(git hash-object ../scripts/production/production-schema-only-source.mjs)" == "${SCHEMA_ONLY_VERIFIER_BLOB}" ]]
+          [[ "$(sha256sum ../scripts/production/app-release-checks.mjs | cut -d ' ' -f1)" == "64790cb3c0879d0d979ef8bbbac13c4353f293ae6a72e3de90c5bc618acbea65" ]]
+          [[ "$(sha256sum ../scripts/production/app-release-catalog.mjs | cut -d ' ' -f1)" == "4dd8f5d74f062f36cd354b6c51e7c1de7b5b34aca76666be8b6afc529d361e59" ]]
+          node ../scripts/production/production-schema-only-source.mjs | tee .artifacts/source-verification.json
       - name: Retain source verification and any explicit waiver
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -95,6 +153,24 @@ jobs:
           path: release/.artifacts/source-verification.json
           if-no-files-found: ignore
           retention-days: 30
+      - name: Verify Production project binding for schema-only release
+        if: inputs.production_app_sha != ''
+        working-directory: release
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: bash ../scripts/production/verify-vercel-project.sh
+      - name: Recheck unchanged Production app before schema-only write
+        if: inputs.production_app_sha != ''
+        working-directory: release
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: node ../scripts/production/production-schema-only-source.mjs live
       - name: Apply the approved migration bytes once
         working-directory: release
         env:
@@ -104,6 +180,16 @@ jobs:
           set -euo pipefail
           mkdir -p .artifacts
           node ../scripts/production/forward-migration-release.mjs > .artifacts/forward-migrations.json
+      - name: Recheck unchanged Production app after schema-only release
+        if: inputs.production_app_sha != ''
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        run: node ../scripts/production/production-schema-only-source.mjs live
       - name: Retain count-only outcome
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -67,7 +67,7 @@ async function providerRequest(config, path, options, fetcher) {
   let response;
   try {
     response = await fetcher(
-      `https://api.vercel.com${path}?teamId=${config.team}`,
+      `https://api.vercel.com${path}?teamId=${config.team}${options.method === "GET" ? "&withGitRepoInfo=true" : ""}`,
       {
         ...options,
         headers: {

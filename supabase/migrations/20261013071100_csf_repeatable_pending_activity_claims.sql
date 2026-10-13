@@ -35,6 +35,10 @@ DECLARE
   v_rules jsonb;
   v_person_cap numeric;
   v_reserved numeric;
+  v_pending numeric;
+  v_current_repeatable boolean;
+  v_current_unfinished_only boolean;
+  v_indexed_sibling boolean;
 BEGIN
   IF p_submission_id IS NULL OR p_profile_id IS NULL OR p_term_id IS NULL
     OR p_actor_user_id IS NULL OR p_correlation_id IS NULL THEN
@@ -120,49 +124,118 @@ BEGIN
       AND activity.term_id = p_term_id
     FOR UPDATE;
 
-    IF v_rules ->> 'mode' IN ('quantity', 'per_item')
-      AND (v_rules -> 'legacy') IS DISTINCT FROM 'true'::jsonb THEN
-      -- The same lock order serializes separate requests from one member and
-      -- officer approvals against the reserved-plus-verified point total.
-      SELECT least(
-        coalesce(activity.point_cap, nullif(activity.point_value, 0), policy.max_points_per_activity),
-        policy.max_points_per_activity
-      )
-      INTO v_person_cap
-      FROM plugin_data.csf_opportunities AS activity
-      JOIN plugin_data.csf_term_policies AS policy
-        ON policy.organization_id = activity.organization_id
-       AND policy.term_id = activity.term_id
-       AND policy.published_at IS NOT NULL
-      WHERE activity.organization_id = p_organization_id
-        AND activity.id = p_opportunity_id
-        AND activity.term_id = p_term_id;
-      IF v_person_cap IS NULL THEN
-        RAISE EXCEPTION 'A published semester policy is required for this point action.';
-      END IF;
+    -- The current mode can differ from an unfinished claim's preserved rules.
+    -- Reserve every pending claim even if staff switched this activity from
+    -- repeatable quantity/per-item to fixed, shifts, assessment, or legacy.
+    -- The same lock order serializes requests and officer approvals.
+    SELECT least(
+      coalesce(activity.point_cap, nullif(activity.point_value, 0), policy.max_points_per_activity),
+      policy.max_points_per_activity
+    )
+    INTO v_person_cap
+    FROM plugin_data.csf_opportunities AS activity
+    JOIN plugin_data.csf_term_policies AS policy
+      ON policy.organization_id = activity.organization_id
+     AND policy.term_id = activity.term_id
+     AND policy.published_at IS NOT NULL
+    WHERE activity.organization_id = p_organization_id
+      AND activity.id = p_opportunity_id
+      AND activity.term_id = p_term_id;
+    IF v_person_cap IS NULL THEN
+      RAISE EXCEPTION 'A published semester policy is required for this point action.';
+    END IF;
 
-      SELECT coalesce(pg_catalog.sum(points), 0)
-      INTO v_reserved
-      FROM (
-        SELECT credit.points
-        FROM plugin_data.csf_credit_records AS credit
-        WHERE credit.organization_id = p_organization_id
-          AND credit.profile_id = p_profile_id
-          AND credit.opportunity_id = p_opportunity_id
-          AND credit.status = 'verified'
-        UNION ALL
-        SELECT submission.claimed_points
-        FROM plugin_data.csf_point_submissions AS submission
-        WHERE submission.organization_id = p_organization_id
-          AND submission.profile_id = p_profile_id
-          AND submission.term_id = p_term_id
-          AND submission.opportunity_id = p_opportunity_id
-          AND submission.status IN ('draft', 'submitted', 'needs_action')
-      ) AS active_points;
-      IF v_reserved + p_claimed_points > v_person_cap THEN
-        RAISE EXCEPTION 'This activity allows at most % points per person; % already submitted or verified.',
+    v_current_repeatable := (v_rules -> 'legacy') IS DISTINCT FROM 'true'::jsonb
+      AND coalesce(v_rules ->> 'mode', '') IN ('quantity', 'per_item');
+    v_current_unfinished_only := (v_rules -> 'legacy') IS DISTINCT FROM 'true'::jsonb
+      AND coalesce(v_rules ->> 'mode', '') IN ('shifts', 'assessment');
+    -- A second index-guarded claim must keep the existing 23505 response.
+    -- It cannot be inserted, so the cap refusal below is only needed when
+    -- the index itself will not settle the attempt.
+    SELECT EXISTS (
+      SELECT 1 FROM plugin_data.csf_point_submissions AS prior
+      WHERE prior.organization_id = p_organization_id
+        AND prior.profile_id = p_profile_id
+        AND prior.term_id = p_term_id
+        AND prior.opportunity_id = p_opportunity_id
+        AND prior.status NOT IN ('rejected', 'duplicate', 'withdrawn')
+        AND (
+          prior.earning_rules_snapshot -> 'legacy' = 'true'::jsonb
+          OR coalesce(prior.earning_rules_snapshot ->> 'mode', '')
+            NOT IN ('quantity', 'per_item', 'shifts', 'assessment')
+          OR (prior.status <> 'approved'
+            AND coalesce(prior.earning_rules_snapshot ->> 'mode', '')
+              IN ('shifts', 'assessment'))
+        )
+    ) INTO v_indexed_sibling;
+
+    SELECT coalesce(pg_catalog.sum(points), 0)
+    INTO v_reserved
+    FROM (
+      SELECT credit.points
+      FROM plugin_data.csf_credit_records AS credit
+      WHERE credit.organization_id = p_organization_id
+        AND credit.profile_id = p_profile_id
+        AND credit.opportunity_id = p_opportunity_id
+        AND credit.status = 'verified'
+      UNION ALL
+      SELECT submission.claimed_points
+      FROM plugin_data.csf_point_submissions AS submission
+      WHERE submission.organization_id = p_organization_id
+        AND submission.profile_id = p_profile_id
+        AND submission.term_id = p_term_id
+        AND submission.opportunity_id = p_opportunity_id
+        AND submission.status IN ('draft', 'submitted', 'needs_action')
+    ) AS active_points;
+    IF v_reserved + p_claimed_points > v_person_cap
+      AND NOT (NOT v_current_repeatable AND v_indexed_sibling) THEN
+      SELECT coalesce(pg_catalog.sum(submission.claimed_points), 0)
+      INTO v_pending
+      FROM plugin_data.csf_point_submissions AS submission
+      WHERE submission.organization_id = p_organization_id
+        AND submission.profile_id = p_profile_id
+        AND submission.term_id = p_term_id
+        AND submission.opportunity_id = p_opportunity_id
+        AND submission.status IN ('draft', 'submitted', 'needs_action');
+      IF v_pending = 0 THEN
+        RAISE EXCEPTION 'This activity allows at most % points per person; % already verified.',
           v_person_cap, v_reserved;
       END IF;
+      RAISE EXCEPTION 'This activity allows at most % points per person; % already submitted or verified.',
+        v_person_cap, v_reserved;
+    END IF;
+    -- An earlier claim keeps its own mode snapshot. The partial index protects
+    -- two indexed claims, but cannot compare an indexed fixed/shift claim with
+    -- an excluded quantity/per-item claim. Close that crossing under the same
+    -- activity lock without changing the established same-mode index errors.
+    IF EXISTS (
+      WITH sibling AS (
+        SELECT prior.status,
+          (
+            coalesce(prior.earning_rules_snapshot -> 'legacy' = 'true'::jsonb, false)
+            OR coalesce(prior.earning_rules_snapshot ->> 'mode', '')
+              NOT IN ('quantity', 'per_item', 'shifts', 'assessment')
+            OR (
+              prior.status <> 'approved'
+              AND coalesce(prior.earning_rules_snapshot ->> 'mode', '')
+                IN ('shifts', 'assessment')
+            )
+          ) AS index_guarded
+        FROM plugin_data.csf_point_submissions AS prior
+        WHERE prior.organization_id = p_organization_id
+          AND prior.profile_id = p_profile_id
+          AND prior.term_id = p_term_id
+          AND prior.opportunity_id = p_opportunity_id
+          AND prior.status NOT IN ('rejected', 'duplicate', 'withdrawn')
+      )
+      SELECT 1 FROM sibling
+      WHERE (v_current_repeatable AND sibling.index_guarded)
+        OR (v_current_unfinished_only AND sibling.status <> 'approved'
+          AND NOT sibling.index_guarded)
+        OR (NOT v_current_repeatable AND NOT v_current_unfinished_only
+          AND NOT sibling.index_guarded)
+    ) THEN
+      RAISE EXCEPTION 'This activity already has a claim that blocks another submission for this member.';
     END IF;
   END IF;
 
@@ -378,22 +451,21 @@ BEGIN
       RAISE EXCEPTION 'This activity allows at most % points per person; % already verified.',
         v_person_cap, v_verified;
     END IF;
-    -- Repeatable claims can coexist before review. Reserve sibling claims as
-    -- well as verified credit when correcting, editing, or approving one.
-    IF v_mode IN ('quantity', 'per_item') THEN
-      SELECT coalesce(pg_catalog.sum(pending.claimed_points), 0)
-      INTO v_pending
-      FROM plugin_data.csf_point_submissions AS pending
-      WHERE pending.organization_id = p_organization_id
-        AND pending.profile_id = p_profile_id
-        AND pending.term_id = v_activity.term_id
-        AND pending.opportunity_id = p_opportunity_id
-        AND pending.id IS DISTINCT FROM p_submission_id
-        AND pending.status IN ('draft', 'submitted', 'needs_action');
-      IF v_verified + v_pending + p_points > v_person_cap THEN
-        RAISE EXCEPTION 'This activity allows at most % points per person; % already submitted or verified.',
-          v_person_cap, v_verified + v_pending;
-      END IF;
+    -- A sibling can carry a repeatable snapshot even if the current claim
+    -- carries a different mode after an activity edit. Count it on every
+    -- correction, resubmission, or award.
+    SELECT coalesce(pg_catalog.sum(pending.claimed_points), 0)
+    INTO v_pending
+    FROM plugin_data.csf_point_submissions AS pending
+    WHERE pending.organization_id = p_organization_id
+      AND pending.profile_id = p_profile_id
+      AND pending.term_id = v_activity.term_id
+      AND pending.opportunity_id = p_opportunity_id
+      AND pending.id IS DISTINCT FROM p_submission_id
+      AND pending.status IN ('draft', 'submitted', 'needs_action');
+    IF v_verified + v_pending + p_points > v_person_cap THEN
+      RAISE EXCEPTION 'This activity allows at most % points per person; % already submitted or verified.',
+        v_person_cap, v_verified + v_pending;
     END IF;
   END IF;
 

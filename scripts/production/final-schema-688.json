@@ -389,7 +389,7 @@
     },
     {
       "identity": "function:plugin_data.csf_assert_activity_earning_award(p_organization_id uuid, p_profile_id uuid, p_opportunity_id uuid, p_submission_id uuid, p_points numeric, p_rules_snapshot jsonb, p_selection jsonb)",
-      "digest": "d8b2742457a31f5faf788de14849096b"
+      "digest": "2deef61e7f6fcd61e0fb615fd837face"
     },
     {
       "identity": "function:plugin_data.csf_assert_application_record_correctable(p_organization_id uuid, p_application_id uuid, p_blocker_key text)",
@@ -593,7 +593,7 @@
     },
     {
       "identity": "function:plugin_data.csf_begin_point_submission_authority_base_20260810(p_organization_id uuid, p_submission_id uuid, p_profile_id uuid, p_term_id uuid, p_opportunity_id uuid, p_partner_club_term_id uuid, p_source text, p_description text, p_claimed_points numeric, p_point_type text, p_activity_date date, p_actor_user_id uuid, p_file_id uuid, p_file_bucket text, p_file_object_path text, p_file_original_filename text, p_file_mime_type text, p_file_size_bytes bigint, p_upload_token uuid, p_correlation_id uuid)",
-      "digest": "c994e8bcaf7b2986cd5a80b2f99e2dfa"
+      "digest": "bd60acf5559f1004e587e7fe5f6a4a9c"
     },
     {
       "identity": "function:plugin_data.csf_begin_point_submission_request(p_organization_id uuid, p_profile_id uuid, p_term_id uuid, p_opportunity_id uuid, p_partner_club_term_id uuid, p_source text, p_description text, p_claimed_points numeric, p_point_type text, p_activity_date date, p_actor_user_id uuid, p_file_original_filename text, p_file_mime_type text, p_file_size_bytes bigint, p_proof_sha256 text, p_request_id uuid)",

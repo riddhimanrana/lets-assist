@@ -198,6 +198,150 @@ SELECT 'shift-activity', plugin_data.csf_create_activity(
   'fd800000-0000-4000-8000-000000000004'
 );
 
+INSERT INTO fixed_results (label, result)
+SELECT 'mode-change-activity', plugin_data.csf_create_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'status', 'published',
+    'title', 'Changing donation rules',
+    'signupMode', 'none',
+    'pointCap', 2,
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'quantity',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'items', 'label', 'Items', 'category', 'drive', 'kind', 'quantity', 'unitLabel', 'items', 'unitsPerPoint', 1, 'maxPoints', 2)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000010'
+);
+
+INSERT INTO fixed_results (label, result)
+SELECT 'mode-change-pending', plugin_data.csf_begin_point_submission_request_v2(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd400000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+  NULL, 'student', 'One item before rule change.', 1, 'drive', '2099-10-14',
+  'fd000000-0000-4000-8000-000000000001',
+  NULL, NULL, NULL, NULL,
+  'fd600000-0000-4000-8000-000000000010',
+  '{"version":1,"items":[{"key":"items","quantity":1}]}'::jsonb
+);
+
+SELECT plugin_data.csf_update_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'title', 'Changing donation rules',
+    'signupMode', 'none',
+    'pointCap', 2,
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'fixed',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'credit', 'label', 'Fixed credit', 'category', 'non_drive', 'kind', 'fixed', 'points', 2)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000011'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_assert_activity_earning_award(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+    NULL,
+    2,
+    '{"version":1,"mode":"fixed","components":[{"key":"credit","label":"Fixed credit","category":"non_drive","kind":"fixed","points":2}]}'::jsonb,
+    '{"version":1,"items":[{"key":"credit"}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 2.00 points per person; 1.00 already submitted or verified.',
+  'the award assertion also counts a quantity snapshot after a fixed-mode change'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+    NULL, 'student', 'Fixed credit after rule change.', 2, 'non_drive', '2099-10-15',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-000000000011',
+    '{"version":1,"items":[{"key":"credit"}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 2.00 points per person; 1.00 already submitted or verified.',
+  'a fixed-mode claim cannot ignore a preserved pending quantity reservation'
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_point_submissions
+    WHERE opportunity_id = (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity')
+      AND status = 'submitted'
+      AND earning_rules_snapshot ->> 'mode' = 'quantity'
+  ),
+  1,
+  'a mode change leaves the earlier quantity claim and its snapshot intact'
+);
+
+SELECT plugin_data.csf_update_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'title', 'Changing donation rules',
+    'signupMode', 'none',
+    'pointCap', 2,
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'fixed',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'credit', 'label', 'Fixed credit', 'category', 'non_drive', 'kind', 'fixed', 'points', 1)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000012'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'mode-change-activity'),
+    NULL, 'student', 'Fixed credit within the remaining cap.', 1, 'non_drive', '2099-10-16',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-000000000012',
+    '{"version":1,"items":[{"key":"credit"}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity already has a claim that blocks another submission for this member.',
+  'fixed mode refuses an older quantity claim even when both fit within the cap'
+);
+
 -- ---------------------------------------------------------------------------
 -- Fixed mode: approval does not open the door to a second identical claim
 -- ---------------------------------------------------------------------------
@@ -275,6 +419,69 @@ SELECT extensions.is(
   ),
   1,
   'the refused fixed claim leaves a single submission on the activity'
+);
+
+-- The cap may also be full, but the old one-claim index remains the fixed
+-- activity's public duplicate contract.
+UPDATE plugin_data.csf_opportunities SET point_cap = 1
+WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
+  AND id = (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'fixed-activity');
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'fixed-activity'),
+    NULL, 'student', 'Duplicate with a full cap.', 1, 'non_drive', '2099-09-18',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-000000000014',
+    '{"version":1,"items":[{"key":"credit"}]}'::jsonb
+  ) $$,
+  '23505',
+  'duplicate key value violates unique constraint "csf_point_submissions_one_active_activity_claim_idx"',
+  'a fixed duplicate keeps its unique-index response even when the point cap is full'
+);
+
+SELECT plugin_data.csf_update_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'fixed-activity'),
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'title', 'Club meeting attendance',
+    'signupMode', 'none',
+    'pointCap', 3,
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'quantity',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'visit', 'label', 'Visit', 'category', 'non_drive', 'kind', 'quantity', 'unitLabel', 'visits', 'unitsPerPoint', 1, 'maxPoints', 3)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000013'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'fixed-activity'),
+    NULL, 'student', 'Visit after fixed award.', 1, 'non_drive', '2099-10-17',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-000000000013',
+    '{"version":1,"items":[{"key":"visit","quantity":1}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity already has a claim that blocks another submission for this member.',
+  'a historical fixed award still blocks a new repeatable claim after a mode change'
 );
 
 -- ---------------------------------------------------------------------------
