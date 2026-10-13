@@ -28,10 +28,14 @@ function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {
 function AccordionTrigger({
   className,
   children,
+  headingLevel = 3,
   ...props
-}: AccordionPrimitive.Trigger.Props) {
+}: AccordionPrimitive.Trigger.Props & { headingLevel?: 2 | 3 }) {
   return (
-    <AccordionPrimitive.Header className="flex min-w-0">
+    <AccordionPrimitive.Header
+      className="flex min-w-0"
+      render={headingLevel === 2 ? <h2 /> : undefined}
+    >
       {/* `min-w-0` is load-bearing: the trigger is a `flex-1` flex item, so
           without it the automatic minimum size pins it to the min-content width
           of its own children. A collapsed trigger whose summary line uses

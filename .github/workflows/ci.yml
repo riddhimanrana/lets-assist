@@ -86,6 +86,12 @@ jobs:
     timeout-minutes: 20
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     steps:
+      - name: Reject unsupported Main layout capture
+        if: github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref == 'refs/heads/main'
+        run: |
+          echo "::error::layout_audit=true requires a reviewed non-Main candidate; Main layout capture is unsupported."
+          exit 1
+
       - name: Require private submodule access
         env:
           PRIVATE_SUBMODULE_SSH_KEY: ${{ secrets.PRIVATE_SUBMODULE_SSH_KEY }}
@@ -882,7 +888,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "6065768c29c5635aabcaa1c7a25d9438693f6c70ad915fdec05fd171b41793c7"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "7aa9fc77c0eaff5a7d953bdba504af78a06660484f49e16d08021354ee2294d5"
     steps:
       - name: Require private submodule access
         env:
@@ -1140,7 +1146,7 @@ jobs:
           DATABASE_CHECKS_RESULT: ${{ needs.database.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           DATABASE_RESULT: ${{ needs.db-replay-validation.result }}
-          LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit }}
+          LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main' }}
           LAYOUT_AUDIT_RESULT: ${{ needs.layout-audit.result }}
         run: |
           set -euo pipefail

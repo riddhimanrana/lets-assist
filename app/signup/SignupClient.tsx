@@ -179,7 +179,7 @@ export default function SignupClient({
       <Card className="relative mx-auto w-full max-w-[430px] gap-0 overflow-hidden rounded-2xl py-0">
         <CardHeader className="space-y-2 px-6 pt-6 pb-0 sm:px-7">
           <CardTitle className="text-left text-2xl font-semibold tracking-tight">
-            {isStaffInvite ? "Staff invite" : "Create an account"}
+            <h1>{isStaffInvite ? "Staff invite" : "Create an account"}</h1>
           </CardTitle>
           <CardDescription className="text-left text-sm leading-5">
             {isStaffInvite

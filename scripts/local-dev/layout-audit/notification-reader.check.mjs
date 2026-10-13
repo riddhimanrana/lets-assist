@@ -262,6 +262,19 @@ pass(() => assert.equal(capped[0].colorDetails.length, 8));
 pass(() => assert.equal(capped[0].colorDetailsTruncated, true));
 const opaque = await colors([node], false);
 pass(() => assert(!Object.hasOwn(opaque[0], "colorDetails")));
+for (const [selector, region] of [
+  ['[data-slot="badge"]', "badge"],
+  ['[data-slot="alert-description"]', "alert-description"],
+  ["main", "main"],
+]) {
+  const rows = await colors([node], true, {
+    tagName: "SPAN",
+    closest: (candidate) => (candidate === selector ? {} : null),
+  });
+  pass(() => assert.equal(rows[0].colorDetails[0].region, region));
+  pass(() => assert(!Object.hasOwn(rows[0].colorDetails[0], "selector")));
+  pass(() => assert(!JSON.stringify(rows).includes(secret)));
+}
 for (const data of [
   {
     fgColor: "red",
@@ -354,13 +367,7 @@ pass(() =>
       delta.includes('await route.abort("blockedbyclient")'),
   ),
 );
-pass(() =>
-  assert(
-    delta.includes(
-      'includeColorDetails: entry.id === "landing-baseline" && !actor',
-    ),
-  ),
-);
+pass(() => assert(delta.includes("includeColorDetails: true")));
 console.log(
   JSON.stringify({
     offlineNotificationAndColorChecks: checks,

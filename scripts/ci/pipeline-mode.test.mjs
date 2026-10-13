@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 import { YAML } from "bun";
@@ -324,13 +325,66 @@ describe("CI delivery modes", () => {
     );
     expect(capture).not.toContain("continue-on-error");
     expect(gate).toContain(
-      "LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit }}",
+      "LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main' }}",
     );
     expect(gate).toContain(
       'if [[ "${LAYOUT_AUDIT_REQUESTED}" == "true" ]]; then',
     );
     expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "success" ]]');
     expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "skipped" ]]');
+  });
+
+  test("layout execution and required result agree for every event/ref/input combination", () => {
+    const parsed = YAML.parse(workflow);
+    const captureCondition = parsed.jobs["layout-audit"].if;
+    const gateCondition =
+      parsed.jobs["ci-gate"].steps[0].env.LAYOUT_AUDIT_REQUESTED;
+    const refusal = parsed.jobs.static.steps[0];
+    expect(refusal.name).toBe("Reject unsupported Main layout capture");
+    expect(refusal.run).toContain("exit 1");
+    expect(refusal.run).toContain("Main layout capture is unsupported");
+    const rejected = spawnSync("/bin/bash", ["-c", refusal.run], {
+      encoding: "utf8",
+    });
+    expect(rejected.status).toBe(1);
+    expect(rejected.stdout).toContain("Main layout capture is unsupported");
+    expect(job("ci-gate")).toContain('[[ "${STATIC_RESULT}" == "success" ]]');
+
+    const evaluate = (condition, event, ref, requested) => {
+      // Evaluate the actual fixed YAML predicates with only synthetic inputs.
+      const expression = condition
+        .replace(/^\$\{\{\s*|\s*\}\}$/gu, "")
+        .replaceAll("github.event_name", JSON.stringify(event))
+        .replaceAll("github.ref", JSON.stringify(ref))
+        .replaceAll("inputs.layout_audit", JSON.stringify(requested));
+      return Function(`return (${expression});`)();
+    };
+    for (const event of [
+      "workflow_dispatch",
+      "workflow_call",
+      "pull_request",
+      "merge_group",
+    ]) {
+      for (const ref of ["refs/heads/main", "refs/heads/candidate"]) {
+        for (const requested of [false, true]) {
+          const supported =
+            event === "workflow_dispatch" &&
+            requested &&
+            ref !== "refs/heads/main";
+          const rejected =
+            event === "workflow_dispatch" &&
+            requested &&
+            ref === "refs/heads/main";
+          expect(evaluate(captureCondition, event, ref, requested)).toBe(
+            supported,
+          );
+          expect(evaluate(gateCondition, event, ref, requested)).toBe(
+            supported,
+          );
+          expect(evaluate(refusal.if, event, ref, requested)).toBe(rejected);
+        }
+      }
+    }
   });
 
   test("the aggregate gate requires full validation outside pull requests", () => {

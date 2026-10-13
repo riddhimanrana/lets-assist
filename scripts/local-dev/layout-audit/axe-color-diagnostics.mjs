@@ -61,17 +61,17 @@ export async function readAxeRows({ includeColorDetails = false } = {}) {
         ["#org-tooling", "org-tooling"],
         ["#cta", "cta"],
         ["#live-demo", "hero"],
+        ['[data-slot="badge"]', "badge"],
+        ['[data-slot="alert-description"]', "alert-description"],
       ])
         if (element.closest(selector)) {
           region = name;
           break;
         }
       if (region === "other") {
-        const section = element.closest("section"),
-          hero = document.querySelector("main section");
-        if (section && section === hero) region = "hero";
-        else if (element.closest("footer")) region = "footer";
+        if (element.closest("footer")) region = "footer";
         else if (element.closest("header")) region = "header";
+        else if (element.closest("main")) region = "main";
       }
     }
     const tag =

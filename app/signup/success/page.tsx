@@ -40,7 +40,9 @@ export default async function SignupSuccessPage({ searchParams }: PageProps) {
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md mx-auto">
           <CardHeader className="text-center">
-            <CardTitle>Invalid Access</CardTitle>
+            <CardTitle>
+              <h1>Invalid Access</h1>
+            </CardTitle>
             <CardDescription>
               Please sign up to create an account.
             </CardDescription>
@@ -66,7 +68,7 @@ export default async function SignupSuccessPage({ searchParams }: PageProps) {
           </div>
           <div>
             <CardTitle className="text-2xl">
-              Account Created Successfully!
+              <h1>Account Created Successfully!</h1>
             </CardTitle>
             <CardDescription className="mt-2">
               We&apos;ve sent a verification email to:
@@ -80,7 +82,7 @@ export default async function SignupSuccessPage({ searchParams }: PageProps) {
           <div className="bg-muted p-4 rounded-lg space-y-2">
             <div className="flex items-start gap-3">
               <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-foreground/70">
                 <p className="font-medium text-foreground mb-1">Next Steps:</p>
                 <ol className="list-decimal list-inside space-y-1">
                   <li>Check your email inbox (and spam/junk folder)</li>

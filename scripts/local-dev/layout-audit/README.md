@@ -2,6 +2,17 @@
 
 Runnable support code for the existing approved capture policies. No live Linux process, stack, fixture, build or browser has been observed during preparation. The 87 candidates / 348 four-mode captures are planned, and zero pixels have been inspected here.
 
+The signed-out Help landmark uses the labelled `searchbox` exposed by the actual
+`type="search"` input. Its exact heading and accessible name remain required;
+`platform-help-readiness.spec.ts` checks those frozen landmarks against the native
+route and exercises search/clear. This semantic correction does not relax any
+capture, fault, loading or geometry guard.
+
+All reviewed fictional scenes retain the same bounded color diagnostics as the
+landing: fixed region/tag, validated hex colors and finite contrast ratios, with
+at most eight nodes per violation. HTML, selectors, text and raw axe payloads
+remain excluded. These measurements support review; they never waive a finding.
+
 Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix are immutable anchors. The approved attendance repair appends one reviewed migration, so the candidate requires the exact724 ledger and fresh database/application acceptance. No new credentials, provider settings or spend is needed.
 
 Implemented entrypoints:

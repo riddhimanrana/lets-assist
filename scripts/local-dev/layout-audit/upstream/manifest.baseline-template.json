@@ -199,7 +199,7 @@
           "name": "Help center"
         },
         {
-          "role": "textbox",
+          "role": "searchbox",
           "name": "Search help articles"
         }
       ],

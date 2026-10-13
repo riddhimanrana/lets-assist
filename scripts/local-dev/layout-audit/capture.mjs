@@ -741,7 +741,7 @@ try {
         await page.addScriptTag({ content: axeSource });
         const readAxeResult = () =>
           page.evaluate(readAxeRows, {
-            includeColorDetails: entry.id === "landing-baseline" && !actor,
+            includeColorDetails: true,
           });
         capturePhase = "axe-before-keyboard";
         capture.axe = await readAxeResult();
