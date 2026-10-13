@@ -11280,3 +11280,32 @@ remain. Historical palette/component reports are retained as superseded evidence
 they cannot be final acceptance for the corrected candidate or evidence for Dicy.
 No wrong-palette Development or Production release occurred in this source task.
 Fresh exact-head CI/layout/pixel review and actual release gates remain required.
+
+## Cron history retention test isolation
+
+P2 CRON-HISTORY-TEST-ISOLATION-20261013: full38349434485 on obsolete8c7
+passes all browser/build/static/typecheck/unit jobs but fails one of12995 database
+assertions. At the05:05UTC minute boundary cron_history_retention assertion8
+counts6 total rows while expecting its three retained fixtures. The test replaces
+the whole history relation in a transaction but previously allowed pg_cron's
+independent logging transactions to insert new rows before the final count.
+The identities of the three historical CI rows were not retained and remain
+unproved; all three canonical project/attendance cron schedules are eligible at
+that minute boundary.
+
+A focused owned PostgreSQL17.11/pg_cron1.6.4 database with three real one-second
+noop cron jobs reproduces the same assertion8 failure (12 rows vs3). A bounded
+transaction-scoped SHARE ROW EXCLUSIVE lock before fixture replacement preserves
+all eight original assertions, including the global final count and50000-row
+batch limit. Three delayed concurrent-writer runs and one unchanged-runtime run
+pass32 assertions. pg_locks observes the fixture lock and a queued native cron
+writer; after rollback logging continues, all four scheduled jobs remain active,
+and no negative fixture rows persist. The test changes no cron schedule, worker
+control, production retention command, migration, role, provider or application
+behavior. Focused SQL proof does not replace full exact-head database/layout CI.
+
+The first disposable CLI startup could not create its outside-workspace cache;
+no database or source change resulted. The focused proof instead used the cached
+official PostgreSQL filesystem on a new network-disabled Unix-socket-only
+container. It does not claim full Supabase stack health or application acceptance.
+Let’s Assist retains its pre-rollback palette; the Dicy color task remains separate.
