@@ -157,7 +157,7 @@ jobs:
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
         run: |
           set -euo pipefail
-          SECURITY_ONLY_VERIFIER_BLOB=69d7ec6f4bc59c0f0ffbb99b76ed83c5efb08892
+          SECURITY_ONLY_VERIFIER_BLOB=7ce166c4e72204dd6feeeda694f1e277a713b37a
           [[ "$(git hash-object ../scripts/production/security-only-app-source.mjs)" == "${SECURITY_ONLY_VERIFIER_BLOB}" ]]
           mkdir -p .artifacts
           node ../scripts/production/security-only-app-source.mjs | tee .artifacts/source-verification.json

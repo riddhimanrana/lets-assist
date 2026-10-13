@@ -80,7 +80,7 @@ export function verifyReviewedContent(cwd) {
         const workflow = contents.toString("utf8");
         const anchors = [
           ...workflow.matchAll(
-            /^          SECURITY_ONLY_VERIFIER_BLOB=([0-9a-f]{40})$/gmu,
+            /^ {10}SECURITY_ONLY_VERIFIER_BLOB=([0-9a-f]{40})$/gmu,
           ),
         ];
         if (anchors.length !== 1 || anchors[0][1] !== verifierBlob)
