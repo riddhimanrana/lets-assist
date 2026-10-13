@@ -55,11 +55,15 @@ all waiver fields empty, and enter
 reviewed `main` workflow commit. This path is restricted to the reviewed
 dependency, vendored glob replacement, and release-tooling files; application
 source, database migrations, private gitlink, and environment settings cannot
-change through it.
+change through it. The controller also checks the exact reviewed bytes of the
+dependency repair and release workflow. A later change to an allowed filename
+requires its own review; the filename alone does not extend this exception.
 
 The controller proves the current Production alias points to the exact ready
 Git-connected application commit, verifies the Vercel project and GitHub
-binding, and requires a successful full CI run on the release SHA. Full CI
+binding, and requires a successful full CI run on the release SHA. The baseline
+must carry a `gitSource` repository ID and commit SHA; a CLI deployment with
+only GitHub-looking metadata fails this gate. Full CI
 includes the dependency audit, isolated database/browser checks, and the
 Production-schema catalog tests. The existing app-only workflow then checks
 the live schema, stages the exact security build, verifies its SHA and deep

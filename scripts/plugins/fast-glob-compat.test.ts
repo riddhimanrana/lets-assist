@@ -25,6 +25,8 @@ fixture("depth.txt");
 fixture("one/first.txt");
 fixture("one/two/second.txt");
 fixture("one/two/three/third.txt");
+fixture("static-export/index.html");
+fixture("static-export/help/index.html");
 
 test("Vercel config discovery keeps brace, absolute, and ignore semantics", () => {
   expect(
@@ -55,6 +57,25 @@ test("sitemap page discovery returns the same public route source set", async ()
   expect(
     (await fg("app/**/page.{js,jsx,ts,tsx}", { cwd: root, dot: false })).sort(),
   ).toEqual(["app/admin/page.tsx", "app/help/page.js", "app/help/page.tsx"]);
+});
+
+test("absolute static-export patterns keep absolute paths without an absolute option", async () => {
+  const exportRoot = join(root, "static-export");
+  const pattern = join(exportRoot, "**", "*.html");
+  const expected = [
+    join(exportRoot, "index.html"),
+    join(exportRoot, "help/index.html"),
+  ].sort();
+  for (const options of [{ cwd: root }, { cwd: root, absolute: false }]) {
+    const sync = fg.globSync(pattern, options).sort();
+    const asyncMatches = (await fg(pattern, options)).sort();
+    expect(sync).toEqual(expected);
+    expect(asyncMatches).toEqual(expected);
+    expect(sync.map((path) => path.replace(exportRoot, ""))).toEqual([
+      "/help/index.html",
+      "/index.html",
+    ]);
+  }
 });
 
 test("test discovery accepts pattern arrays and excludes node_modules", async () => {

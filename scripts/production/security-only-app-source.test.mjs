@@ -8,12 +8,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
 import {
   verifyDeployedApp,
   verifyExactFullCi,
   verifyLiveBaseline,
+  verifyReviewedContent,
   verifySecurityOnlyPaths,
   verifySecurityOnlySource,
 } from "./security-only-app-source.mjs";
@@ -34,6 +35,7 @@ const deployment = (sha) => ({
     githubOrg: "example",
     githubRepo: "application",
   },
+  gitSource: { sha, repoId: repositoryId },
 });
 const alias = (id = deploymentId) => ({
   aliases: [{ alias: "lets-assist.com", projectId, deploymentId: id }],
@@ -74,14 +76,18 @@ test("security-only workflow retains staging, exact public checks and rollback",
 
 test("reviewed dependency paths exclude app, schema, plugin and unrelated releases", () => {
   const required = [
+    ".github/workflows/deploy-app-only.yml",
     "bun.lock",
+    "docs/development/deployment.md",
     "package.json",
     "scripts/plugins/fast-glob-compat.test.ts",
+    "scripts/production/security-only-app-source.mjs",
+    "scripts/production/security-only-app-source.test.mjs",
     "vendor/fast-glob-compat/index.cjs",
     "vendor/fast-glob-compat/index.d.ts",
     "vendor/fast-glob-compat/package.json",
   ];
-  assert.equal(verifySecurityOnlyPaths(required), 6);
+  assert.equal(verifySecurityOnlyPaths(required), 10);
   for (const paths of [
     ["package.json"],
     [...required, "app/page.tsx"],
@@ -114,6 +120,8 @@ test("baseline deployment is exact, ready and Git-connected", () => {
       },
     },
     { meta: { ...deployment(productionAppSha).meta, githubOrg: "other" } },
+    { gitSource: undefined },
+    { gitSource: { sha: "b".repeat(40), repoId: repositoryId } },
     { gitSource: { sha: productionAppSha, repoId: "456" } },
   ])
     assert.throws(() =>
@@ -214,23 +222,25 @@ test("security-only source requires exact main commit, review diff and no waiver
   git("add", ".");
   git("commit", "-m", "Fictional Production app");
   const productionAppSha = git("rev-parse", "HEAD");
-  mkdirSync(resolve(cwd, "vendor/fast-glob-compat"), { recursive: true });
-  mkdirSync(resolve(cwd, "scripts/plugins"), { recursive: true });
-  writeFileSync(resolve(cwd, "package.json"), '{"version":"2"}\n');
-  writeFileSync(resolve(cwd, "bun.lock"), "repaired\n");
-  writeFileSync(
-    resolve(cwd, "vendor/fast-glob-compat/index.cjs"),
-    "module.exports = {};\n",
-  );
-  writeFileSync(
-    resolve(cwd, "vendor/fast-glob-compat/index.d.ts"),
-    "export {};\n",
-  );
-  writeFileSync(resolve(cwd, "vendor/fast-glob-compat/package.json"), "{}\n");
-  writeFileSync(
-    resolve(cwd, "scripts/plugins/fast-glob-compat.test.ts"),
-    "// fixture\n",
-  );
+  const reviewedFiles = [
+    ".github/workflows/deploy-app-only.yml",
+    "bun.lock",
+    "docs/development/deployment.md",
+    "package.json",
+    "scripts/plugins/fast-glob-compat.test.ts",
+    "scripts/production/security-only-app-source.mjs",
+    "scripts/production/security-only-app-source.test.mjs",
+    "vendor/fast-glob-compat/index.cjs",
+    "vendor/fast-glob-compat/index.d.ts",
+    "vendor/fast-glob-compat/package.json",
+  ];
+  for (const path of reviewedFiles) {
+    mkdirSync(dirname(resolve(cwd, path)), { recursive: true });
+    writeFileSync(
+      resolve(cwd, path),
+      readFileSync(new URL(`../../${path}`, import.meta.url)),
+    );
+  }
   git("add", ".");
   git("commit", "-m", "Fictional audited dependency repair");
   const releaseSha = git("rev-parse", "HEAD");
@@ -283,6 +293,7 @@ test("security-only source requires exact main commit, review diff and no waiver
   const receipt = await verifySecurityOnlySource(config, fetchers);
   assert.equal(receipt.ciRunId, "42");
   assert.equal(receipt.deploymentId, deploymentId);
+  verifyReviewedContent(cwd);
   for (const patch of [
     { controllerSha: productionAppSha },
     { confirmation: "" },
@@ -294,6 +305,28 @@ test("security-only source requires exact main commit, review diff and no waiver
     );
   git("update-ref", "refs/remotes/origin/main", productionAppSha);
   await assert.rejects(verifySecurityOnlySource(config, fetchers));
+  git("update-ref", "refs/remotes/origin/main", releaseSha);
+  writeFileSync(
+    resolve(cwd, "package.json"),
+    '{"scripts":{"unexpected":"run"}}\n',
+  );
+  git("add", "package.json");
+  git("commit", "-m", "Fictional later package change");
+  const alteredSha = git("rev-parse", "HEAD");
+  git("update-ref", "refs/remotes/origin/main", alteredSha);
+  await assert.rejects(
+    verifySecurityOnlySource(
+      {
+        ...config,
+        releaseSha: alteredSha,
+        controllerSha: alteredSha,
+        confirmation: `security-only:${productionAppSha}:${alteredSha}`,
+      },
+      fetchers,
+    ),
+    /exact reviewed repair/u,
+  );
+  git("reset", "--hard", releaseSha);
   git("update-ref", "refs/remotes/origin/main", releaseSha);
   writeFileSync(resolve(cwd, "app.ts"), "export const changed = true;\n");
   git("add", ".");

@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { lstatSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -24,14 +26,30 @@ const reviewedPaths = new Set([
   "vendor/fast-glob-compat/index.d.ts",
   "vendor/fast-glob-compat/package.json",
 ]);
-const requiredPaths = [
-  "bun.lock",
-  "package.json",
-  "scripts/plugins/fast-glob-compat.test.ts",
-  "vendor/fast-glob-compat/index.cjs",
-  "vendor/fast-glob-compat/index.d.ts",
-  "vendor/fast-glob-compat/package.json",
-];
+const requiredPaths = [...reviewedPaths];
+// Exact reviewed contents, rather than broad filenames, bind this one-time
+// exception to the dependency repair. This verifier is the guard itself; its
+// source is still subject to the exact main commit, full CI, and code review.
+const reviewedContentSha256 = Object.freeze({
+  ".github/workflows/deploy-app-only.yml":
+    "e830f9954658b48a1dc752a7e65c1e3b67e05a82d00b424ca5bfa80f12e29589",
+  "bun.lock":
+    "c9fcf5c38d2cbedb434e47e1fb03f15852064995659395a54261aa12ac7d2b59",
+  "docs/development/deployment.md":
+    "032d35ac57f6056f6ab26866b020cb081d9f68ad9df7e5d587d6f53f3d850377",
+  "package.json":
+    "f693d86088b79e34a7f8c3866375e7ac4fb4f41d8460768e385779db791b52c9",
+  "scripts/plugins/fast-glob-compat.test.ts":
+    "f94c2aa33ce65cb9fa41a0831a3de751e8713768ec9de6a7fd95049b26abd227",
+  "scripts/production/security-only-app-source.test.mjs":
+    "5e5257b8208bf5a27b1c9682616c12391799239e1cf6305ec51dbc534fb0b9c3",
+  "vendor/fast-glob-compat/index.cjs":
+    "8624706331be0d538f1deffbb6cfc9b808ae11ef61e98fba97270e5033535867",
+  "vendor/fast-glob-compat/index.d.ts":
+    "0400b2d1f1789ae622dc2f6379255f34ca253571882c77015b05871b6df559ba",
+  "vendor/fast-glob-compat/package.json":
+    "80c3768c7991bb36cb3b2f10c191a75505f6273fa4ea042e7b3601fad857a528",
+});
 
 export function verifySecurityOnlyPaths(paths) {
   if (
@@ -45,6 +63,23 @@ export function verifySecurityOnlyPaths(paths) {
   return paths.length;
 }
 
+export function verifyReviewedContent(cwd) {
+  for (const [path, expected] of Object.entries(reviewedContentSha256)) {
+    try {
+      const file = resolve(cwd, path);
+      if (!lstatSync(file).isFile()) throw new Error("Not a regular file");
+      const actual = createHash("sha256")
+        .update(readFileSync(file))
+        .digest("hex");
+      if (actual !== expected) throw new Error("Content differs");
+    } catch {
+      throw new ReleaseCheckError(
+        "Security-only source differs from the exact reviewed repair.",
+      );
+    }
+  }
+}
+
 export function verifyDeployedApp(deployment, config) {
   const [owner, name] = config.repository.split("/");
   if (
@@ -56,9 +91,8 @@ export function verifyDeployedApp(deployment, config) {
     deployment?.meta?.githubCommitRef !== config.productionAppSha ||
     deployment?.meta?.githubOrg !== owner ||
     deployment?.meta?.githubRepo !== name ||
-    (deployment?.gitSource &&
-      (deployment.gitSource.sha !== config.productionAppSha ||
-        String(deployment.gitSource.repoId) !== config.repositoryId))
+    deployment?.gitSource?.sha !== config.productionAppSha ||
+    String(deployment?.gitSource?.repoId) !== config.repositoryId
   ) {
     throw new ReleaseCheckError(
       "Live Production deployment does not prove the reviewed baseline SHA.",
@@ -215,6 +249,7 @@ export async function verifySecurityOnlySource(config, fetchers = {}) {
     .split("\0")
     .filter(Boolean);
   verifySecurityOnlyPaths(changedPaths);
+  verifyReviewedContent(config.cwd);
   const ciRunId = await verifyExactFullCi(config, fetchers.github);
   const deploymentId = await verifyLiveBaseline(config, fetchers.vercel);
   return {
