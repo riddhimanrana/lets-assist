@@ -43,13 +43,42 @@ export async function runMotionScenario() {
   // The comparison headline's flipping word, with fictional words.
   const WORDS = ["alpha", "bravo", "charlie"];
 
-  function flipWord(output: unknown) {
+  function flipWord(output: unknown, sizingPhrases: readonly string[]) {
     const tree = elementsIn(output);
-    const words = tree.filter(
+    const measurementLayers = tree.filter(
+      (node) => node.props["aria-hidden"] === "true",
+    );
+    assert.equal(measurementLayers.length, 1);
+    const [measurement] = measurementLayers;
+    assert.equal(measurement.type, "span");
+    assert.match(measurement.props.className as string, /\binvisible\b/u);
+    assert.match(measurement.props.className as string, /\binline-grid\b/u);
+    const measurementTree = elementsIn(measurement);
+    const sizingWords = measurementTree.filter(
       (node) => typeof node.props.children === "string",
+    );
+    assert.deepEqual(
+      sizingWords.map((node) => node.props.children),
+      sizingPhrases,
+    );
+    for (const node of measurementTree) {
+      assert.equal(node.type, "span");
+      assert.equal(node.props.animate, undefined);
+      assert.match(node.props.className as string, /\bcol-start-1\b/u);
+      assert.match(node.props.className as string, /\brow-start-1\b/u);
+    }
+
+    // The sizing phrases inherit aria-hidden from their invisible ancestor.
+    // Count every other text span so duplicate exposed phrases still fail.
+    const hidden = new Set(measurementTree);
+    const words = tree.filter(
+      (node) => !hidden.has(node) && typeof node.props.children === "string",
     );
     assert.equal(words.length, 1);
     const [word] = words;
+    assert.match(word.props.className as string, /\bwhitespace-nowrap\b/u);
+    assert.match(word.props.className as string, /\bcol-start-1\b/u);
+    assert.match(word.props.className as string, /\brow-start-1\b/u);
     const animated = tree.filter(
       (node) => node.type === AnimatePresence || "animate" in node.props,
     );
@@ -57,15 +86,19 @@ export async function runMotionScenario() {
   }
 
   function assertPlainWord(output: unknown, text: string) {
-    const flip = flipWord(output);
+    const flip = flipWord(output, WORDS);
     assert.equal(flip.text, text);
     assert.equal(flip.word.type, "span");
     assert.equal(flip.word.props.style, undefined);
     assert.deepEqual(flip.animated, []);
   }
 
-  function assertAnimatedWord(output: unknown, text: string) {
-    const flip = flipWord(output);
+  function assertAnimatedWord(
+    output: unknown,
+    text: string,
+    sizingPhrases: readonly string[] = WORDS,
+  ) {
+    const flip = flipWord(output, sizingPhrases);
     assert.equal(flip.text, text);
     const presence = flip.tree.filter((node) => node.type === AnimatePresence);
     assert.equal(presence.length, 1);
@@ -173,23 +206,23 @@ export async function runMotionScenario() {
       assertNothingLeftBehind();
     } else if (name === "flip-short") {
       const none = mount(ComparisonTextFlip, { words: [] as string[] });
-      assertAnimatedWord(none.output, "");
+      assertAnimatedWord(none.output, "", []);
       const one = mount(ComparisonTextFlip, { words: ["alpha"] });
-      assertAnimatedWord(one.output, "alpha");
+      assertAnimatedWord(one.output, "alpha", ["alpha"]);
       advance(60_000);
-      assertAnimatedWord(none.output, "");
-      assertAnimatedWord(one.output, "alpha");
+      assertAnimatedWord(none.output, "", []);
+      assertAnimatedWord(one.output, "alpha", ["alpha"]);
       assert.equal(timersCreated(), 0);
       // A second word is what makes the timer worth starting.
       one.update({ words: ["alpha", "bravo"] });
       assert.equal(intervals().length, 1);
       advance(2500);
-      assertAnimatedWord(one.output, "bravo");
+      assertAnimatedWord(one.output, "bravo", ["alpha", "bravo"]);
       const createdForTwoWords = timersCreated();
       one.update({ words: ["alpha"] });
       assert.equal(timers.size, 0);
       assert.equal(timersCreated(), createdForTwoWords);
-      assertAnimatedWord(one.output, "alpha");
+      assertAnimatedWord(one.output, "alpha", ["alpha"]);
       none.unmount();
       one.unmount();
       assertNothingLeftBehind();

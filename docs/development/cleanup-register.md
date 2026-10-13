@@ -11160,3 +11160,14 @@ import and ten dependency-related type diagnostics remain blocked. No substitute
 or waiver. Exact-candidate short/full CI, full layout/pixel review, Development
 deployment/acceptance and the actual Production compatibility/writer/recovery
 gates remain mandatory.
+
+Short CI38337052343 on843f5f55 passes static checks and the first unit shard,
+but six headline lifecycle scenarios fail: the fixture counts the new hidden
+measurement phrases as live words. The fixture now checks the one invisible,
+aria-hidden measurement ancestor, every expected sizing phrase and its shared
+grid cell, then requires exactly one exposed live phrase. It retains all cycle,
+visibility, reduced-motion, zero/one-word, effect-replay and timer/listener cleanup
+assertions. All12 lifecycle scenarios pass on Bun1.4.2/Node24.21.0, alongside nine
+focused markup/accessibility tests with114 expectations. The product component,
+animation and verified heading geometry are unchanged. Exact-head short/full CI
+and hosted release acceptance remain pending; the full dispatch stays held.
