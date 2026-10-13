@@ -812,12 +812,12 @@ describe("CSF Production release preflight", () => {
       "Verify Production quiescence receipt and database posture",
     );
     expect(quiescenceStep).toContain(
-      'timeout 30s psql -X "${PRODUCTION_READONLY_URL}"',
+      "scripts/production/maintenance-preflight.mjs quiescence",
     );
     expect(quiescenceStep).toContain(
-      "scripts/production/verify-cutover-quiescence.sql",
+      "PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}",
     );
-    expect(quiescenceStep).toContain("Raw output was suppressed");
+    expect(quiescenceStep).not.toContain("psql");
     expect(deployment).toContain(
       "applicationWritesBlockedConfirmation: $application_writes_blocked_confirmation",
     );
@@ -843,7 +843,9 @@ describe("CSF Production release preflight", () => {
       '.recoveryCaptureSha256 | test("^[0-9a-f]{64}$")',
     );
 
-    expect(productionQuiescenceVerifier).toContain("BEGIN READ ONLY;");
+    expect(productionQuiescenceVerifier).toContain(
+      "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
+    );
     expect(productionQuiescenceVerifier).toContain(
       "SET LOCAL statement_timeout = '20s';",
     );

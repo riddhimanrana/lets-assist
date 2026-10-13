@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { captureSummary } from "./capture-summary.mjs";
+import { assertCaptureDomReady, captureSummary } from "./capture-summary.mjs";
 
 const scenes = new Map([["home-member", {}]]);
 const receipt = () => ({
@@ -37,15 +37,30 @@ test("CI summary logs only fixed scene/mode/state and bounded counters", () => {
   assert(!JSON.stringify(summary).includes("PRIVATE"));
 });
 
-test("loading PNGs remain distinct from captures awaiting pixel review", () => {
+test("historical loading PNG receipts cannot qualify for successful CI upload", () => {
   const final = receipt();
   final.results[0].status = "captured-loading-present";
   final.results[0].image = "home-member-phone-dark.png";
-  const summary = captureSummary(final, scenes);
-  assert.equal(summary.images, 1);
-  assert.equal(summary.statusCounts["captured-loading-present"], 1);
-  assert.equal(summary.statusCounts["captured-awaiting-pixel-review"], 0);
-  assert.deepEqual(summary.blocked, []);
+  assert.throws(() => captureSummary(final, scenes), /scene refused/u);
+});
+
+test("a visible landmark or PNG does not make a still-loading scene complete", () => {
+  const final = receipt();
+  final.executionFailure = false;
+  const row = final.results[0];
+  row.status = "captured-awaiting-pixel-review";
+  row.image = "home-member-phone-dark.png";
+  row.dom = { mainCount: 1, h1Count: 1, loadingIndicators: 1 };
+  assert.throws(() => captureSummary(final, scenes), /unresolved loading/u);
+  row.dom.loadingIndicators = 0;
+  assert.equal(captureSummary(final, scenes).images, 1);
+});
+
+test("only an explicit zero loading count passes the PNG preflight", () => {
+  assert.doesNotThrow(() => assertCaptureDomReady({ loadingIndicators: 0 }));
+  for (const value of [undefined, null, -1, 1, Infinity, NaN, "0", false])
+    assert.throws(() => assertCaptureDomReady({ loadingIndicators: value }));
+  assert.throws(() => assertCaptureDomReady(null));
 });
 
 for (const [name, alter] of [

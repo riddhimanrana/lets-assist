@@ -6,11 +6,7 @@ const modes = new Set([
   "phone-dark",
   "desktop-light-reduced",
 ]);
-const states = new Set([
-  "captured-awaiting-pixel-review",
-  "captured-loading-present",
-  "blocked-or-failed",
-]);
+const states = new Set(["captured-awaiting-pixel-review", "blocked-or-failed"]);
 const faultNames = [
   "pageErrors",
   "consoleErrors",
@@ -24,6 +20,10 @@ function count(value) {
   if (!Number.isSafeInteger(value) || value < 0 || value > 1000000)
     throw Error("Capture summary counter refused");
   return value;
+}
+export function assertCaptureDomReady(dom) {
+  if (dom?.loadingIndicators !== 0)
+    throw Error("Capture has unresolved loading markers");
 }
 export function captureSummary(final, scenes) {
   const statusCounts = Object.fromEntries([...states].map((s) => [s, 0]));
@@ -45,6 +45,8 @@ export function captureSummary(final, scenes) {
     )
       throw Error("Capture summary scene refused");
     statusCounts[row.status]++;
+    if (row.status === "captured-awaiting-pixel-review")
+      assertCaptureDomReady(row.dom);
     if (row.image) images++;
     if (row.status === "blocked-or-failed")
       blocked.push({

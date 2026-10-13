@@ -65,11 +65,9 @@ for (const row of journal) {
         row.mode === "desktop-light-reduced"
       )) ||
     row.pixelsInspected !== false ||
-    ![
-      "captured-awaiting-pixel-review",
-      "captured-loading-present",
-      "blocked-or-failed",
-    ].includes(row.status)
+    !["captured-awaiting-pixel-review", "blocked-or-failed"].includes(
+      row.status,
+    )
   )
     os.deny();
   pairs.add(key);

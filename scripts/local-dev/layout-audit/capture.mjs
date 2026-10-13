@@ -2,6 +2,7 @@
 // Standalone read-only synthetic UI capture. No server/DB/provider lifecycle ownership.
 import { settleLandingVisual } from "./landing-visual-settlement.mjs";
 import { recordPageError } from "./page-error-diagnostics.mjs";
+import { assertCaptureDomReady } from "./capture-summary.mjs";
 import {
   verifyNotificationReaderProof,
   notificationReaderFrame,
@@ -840,6 +841,7 @@ try {
         if (entry.id === "landing-baseline")
           capture.landingPngStage = "output-preflight";
         capturePhase = "output-preflight";
+        assertCaptureDomReady(capture.dom);
         const output = path.join(m.outputDir, `${entry.id}-${mode.name}.png`);
         if (fs.existsSync(output))
           fail("Refusing to overwrite existing capture");
@@ -878,9 +880,7 @@ try {
         if (entry.id === "landing-baseline")
           capture.landingPngStage = "written";
         capture.image = path.basename(output);
-        capture.status = capture.dom.loadingIndicators
-          ? "captured-loading-present"
-          : "captured-awaiting-pixel-review";
+        capture.status = "captured-awaiting-pixel-review";
       } catch {
         if (entry.id === "landing-baseline") {
           capture.phaseAtFailure = capturePhase;

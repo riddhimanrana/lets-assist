@@ -11053,3 +11053,46 @@ typecheck remain blocked by the unavailable lockedxlsx dependency; the ten
 reported typecheck diagnostics are the existing missing-module/dependent errors.
 No substitute package, waived check, second full dispatch or deployment is used.
 The three automatic-attendance findings above remain open and separate.
+
+### October13 approved Production preflight connection reuse
+
+The user approved reuse of the existing protected bootstrap owner connection
+for fixed Production preflight reads. The schema workflow now prefers a
+configured PRODUCTION_READONLY_URL and otherwise selects
+PRODUCTION_BOOTSTRAP_DATABASE_URL. An invalid configured URL fails without a
+fallback. Project, host, owner fallback, database, port and TLS checks remain;
+no role, credential, persistent grant or duplicate secret is created. Receipts
+label owner authority and read-only execution separately, and never describe
+the owner connection as a restricted login. Binding-only validation does not
+prove live connectivity.
+
+Fixed ledger/catalog/posture/data checks retain their explicit read-only
+transactions. The child session also defaults to read-only with a safe search
+path and bounded timeouts. The quiescence mode uses its reviewed SQL through
+the same secret-suppressing transport, replacing the shell URL argument while
+retaining its30-second process limit. Arbitrary SQL and extra CLI arguments
+are refused. Bootstrap mutation and schema-push paths remain separate. Exact
+source, protected review, application fence, fresh API proof, external-writer
+hold, SHA-bound recovery capture, schema/catalog and acceptance gates remain.
+
+Focused controller/bootstrap/fence tests pass37 checks; release and recovery
+contracts pass30 tests. A disposable PostgreSQL17 owner fixture passes nine
+actual CLI/quiescence checks, including DDL/DML refusal, no committed writes,
+active/running cron refusal and a disabled write-block flag refusal. The fixture
+uses minimal fictional tables and a bounded local transport adapter, proving
+transaction behavior rather than Supabase or saved Production credential
+capability. Its server and files are removed. No Production connection,
+writer change, recovery export, manual CI dispatch, merge or deployment is made.
+The integrated candidate still requires exact-head full CI and hosted
+Development acceptance, followed by the actual Production compatibility and
+recovery gates.
+
+The current PR review identified that a visible landmark could coexist with
+loading markers while the capture still reported success. The output preflight
+now requires an explicit zero visible skeleton/aria-busy count before any PNG
+write. Such incomplete scenes use the existing fatal blocked receipt and stop
+the run. Historical captured-loading-present receipts are no longer accepted
+by upload validation; successful PNG receipts must also prove zero loading
+markers. No time, traffic or mutation allowance is added. Focused regressions
+cover a visible landmark/PNG with a remaining marker and malformed or missing
+counts. Full native scene acceptance remains pending.

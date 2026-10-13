@@ -479,16 +479,17 @@ jobs:
       - name: Require Production recovery credentials
         timeout-minutes: 1
         env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
-          for variable in PRODUCTION_READONLY_URL SUPABASE_SECRET_KEY; do
-            if [[ -z "${!variable:-}" ]]; then
-              echo "${variable} is required before Production release preparation." >&2
-              exit 1
-            fi
-          done
+          if [[ -z "${SUPABASE_SECRET_KEY:-}" ]]; then
+            echo "SUPABASE_SECRET_KEY is required before Production release preparation." >&2
+            exit 1
+          fi
+          node scripts/production/maintenance-preflight.mjs credentials
 
       - name: Require Production quiescence receipts
         timeout-minutes: 1
@@ -572,6 +573,7 @@ jobs:
         env:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Show pending migrations
@@ -787,19 +789,10 @@ jobs:
       - name: Verify Production quiescence receipt and database posture
         timeout-minutes: 2
         env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
-        run: |
-          set -euo pipefail
-          quiescence_log="$(mktemp)"
-          trap 'rm -f "${quiescence_log}"' EXIT
-          if ! timeout 30s psql -X "${PRODUCTION_READONLY_URL}" \
-            -v ON_ERROR_STOP=1 \
-            -f scripts/production/verify-cutover-quiescence.sql \
-            >"${quiescence_log}" 2>&1; then
-            echo "Production quiescence verification failed. Raw output was suppressed." >&2
-            exit 1
-          fi
-          echo "Production quiescence verified."
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+        run: node scripts/production/maintenance-preflight.mjs quiescence
 
       - name: Arm Production maintenance recovery
         id: write_block_recovery
@@ -870,6 +863,7 @@ jobs:
         env:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Push schema to production
@@ -907,6 +901,7 @@ jobs:
         env:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: node scripts/production/maintenance-preflight.mjs target
 
       - name: Smoke the staged Production application
