@@ -20,6 +20,8 @@ const reviewedPaths = new Set([
   "docs/development/deployment.md",
   "package.json",
   "scripts/plugins/fast-glob-compat.test.ts",
+  "scripts/production/app-release-stage.mjs",
+  "scripts/production/app-release-stage.test.mjs",
   "scripts/production/security-only-app-source.mjs",
   "scripts/production/security-only-app-source.test.mjs",
   "vendor/fast-glob-compat/index.cjs",
@@ -32,7 +34,7 @@ const requiredPaths = [...reviewedPaths];
 // verifier's Git blob; its own digest here normalizes only that blob literal.
 const reviewedContentSha256 = Object.freeze({
   ".github/workflows/deploy-app-only.yml":
-    "0261609a5bce90da227dc861f659ae04c7af300a3766bf3bd1af1dc3b63a83a9",
+    "8e3d1fd7f447a96c51cf9541794754862973e2bc9b177b513e091658b90f3137",
   "bun.lock":
     "c9fcf5c38d2cbedb434e47e1fb03f15852064995659395a54261aa12ac7d2b59",
   "docs/development/deployment.md":
@@ -41,8 +43,12 @@ const reviewedContentSha256 = Object.freeze({
     "f693d86088b79e34a7f8c3866375e7ac4fb4f41d8460768e385779db791b52c9",
   "scripts/plugins/fast-glob-compat.test.ts":
     "f94c2aa33ce65cb9fa41a0831a3de751e8713768ec9de6a7fd95049b26abd227",
+  "scripts/production/app-release-stage.mjs":
+    "224bae2c3d6b4d6b4e94ad2334db7777fe7d1b41a65e9753a46262b405d4e54c",
+  "scripts/production/app-release-stage.test.mjs":
+    "3a9575349af65c2b7620af6e23cb5d804a4bf71cac9f76362687bea11dd521dc",
   "scripts/production/security-only-app-source.test.mjs":
-    "0cda5dec93eb1c59bbbbe63a41dde6069da8559d5598c4fc80f1bf1c2b6a1e94",
+    "ee264d9daf4a03902543f6226a87dfcd1fca08e5ccd37174110ec8b71482c06a",
   "vendor/fast-glob-compat/index.cjs":
     "8624706331be0d538f1deffbb6cfc9b808ae11ef61e98fba97270e5033535867",
   "vendor/fast-glob-compat/index.d.ts":
@@ -104,13 +110,13 @@ export function verifyReviewedContent(cwd) {
 
 export function verifyDeployedApp(deployment, config) {
   const [owner, name] = config.repository.split("/");
+  // githubCommitRef is a branch name; gitSource and githubCommitSha pin the commit.
   if (
     deployment?.id !== config.deploymentId ||
     (deployment?.projectId ?? deployment?.project?.id) !== config.projectId ||
     deployment?.target !== "production" ||
     deployment?.readyState !== "READY" ||
     deployment?.meta?.githubCommitSha !== config.productionAppSha ||
-    deployment?.meta?.githubCommitRef !== config.productionAppSha ||
     deployment?.meta?.githubOrg !== owner ||
     deployment?.meta?.githubRepo !== name ||
     deployment?.gitSource?.sha !== config.productionAppSha ||
@@ -158,7 +164,7 @@ export async function verifyLiveBaseline(config, fetcher = fetch) {
   };
   const deploymentId = await alias();
   const deployment = await readJson(
-    `https://api.vercel.com/v13/deployments/${deploymentId}?teamId=${config.teamId}`,
+    `https://api.vercel.com/v13/deployments/${deploymentId}?teamId=${config.teamId}&withGitRepoInfo=true`,
     { headers },
     fetcher,
   );

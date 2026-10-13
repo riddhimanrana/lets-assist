@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -31,7 +32,7 @@ const deployment = (sha) => ({
   readyState: "READY",
   meta: {
     githubCommitSha: sha,
-    githubCommitRef: sha,
+    githubCommitRef: "main",
     githubOrg: "example",
     githubRepo: "application",
   },
@@ -65,6 +66,17 @@ test("security-only workflow retains staging, exact public checks and rollback",
     workflow,
     /\[\[ "\$\(git hash-object \.\.\/scripts\/production\/security-only-app-source\.mjs\)" == "\$\{SECURITY_ONLY_VERIFIER_BLOB\}" \]\]/u,
   );
+  const securityStep = workflow
+    .split(
+      "      - name: Verify security-only source, full CI and live Production baseline\n",
+    )[1]
+    .split("      - name: Retain source verification")[0];
+  assert.ok(
+    securityStep.indexOf("cmp -s .artifacts/security-only-changed-paths") <
+      securityStep.indexOf(
+        "node ../scripts/production/security-only-app-source.mjs",
+      ),
+  );
   assert.match(workflow, /security-only-app-source\.mjs live/u);
   assert.match(workflow, /app-release-checks\.mjs schema/u);
   assert.match(workflow, /verify-vercel-project\.sh/u);
@@ -78,6 +90,67 @@ test("security-only workflow retains staging, exact public checks and rollback",
   );
 });
 
+test("workflow refuses an unreviewed import before executing local code", (t) => {
+  const root = mkdtempSync(resolve(tmpdir(), "csf-app-source-bootstrap-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const release = resolve(root, "release");
+  const sourceDir = resolve(root, "scripts/production");
+  mkdirSync(release);
+  mkdirSync(sourceDir, { recursive: true });
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: release, encoding: "utf8" }).trim();
+  git("init", "--initial-branch=main");
+  git("config", "user.name", "Fictional fixture");
+  git("config", "user.email", "fixture@example.test");
+  git("config", "commit.gpgsign", "false");
+  writeFileSync(resolve(release, "base.txt"), "baseline\n");
+  git("add", ".");
+  git("commit", "-m", "Fictional deployed app");
+  const productionAppSha = git("rev-parse", "HEAD");
+  mkdirSync(resolve(release, "scripts/production"), { recursive: true });
+  writeFileSync(
+    resolve(release, "scripts/production/app-release-catalog.mjs"),
+    "unreviewed local import\n",
+  );
+  git("add", ".");
+  git("commit", "-m", "Fictional unreviewed change");
+  const releaseSha = git("rev-parse", "HEAD");
+  writeFileSync(
+    resolve(sourceDir, "security-only-app-source.mjs"),
+    readFileSync(new URL("security-only-app-source.mjs", import.meta.url)),
+  );
+  const marker = resolve(root, "unreviewed-code-ran");
+  writeFileSync(
+    resolve(sourceDir, "app-release-checks.mjs"),
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(marker)}, "executed");\n`,
+  );
+  const workflow = readFileSync(
+    new URL("../../.github/workflows/deploy-app-only.yml", import.meta.url),
+    "utf8",
+  );
+  const body = workflow
+    .split(
+      "      - name: Verify security-only source, full CI and live Production baseline\n",
+    )[1]
+    .split("      - name: Retain source verification")[0]
+    .split("        run: |\n")[1]
+    .trimEnd()
+    .split("\n")
+    .map((line) => line.slice(10))
+    .join("\n");
+  assert.throws(() =>
+    execFileSync("bash", ["-c", body], {
+      cwd: release,
+      env: {
+        ...process.env,
+        RELEASE_SHA: releaseSha,
+        PRODUCTION_APP_SHA: productionAppSha,
+      },
+    }),
+  );
+  assert.equal(existsSync(marker), false);
+});
+
 test("reviewed dependency paths exclude app, schema, plugin and unrelated releases", () => {
   const required = [
     ".github/workflows/deploy-app-only.yml",
@@ -85,13 +158,15 @@ test("reviewed dependency paths exclude app, schema, plugin and unrelated releas
     "docs/development/deployment.md",
     "package.json",
     "scripts/plugins/fast-glob-compat.test.ts",
+    "scripts/production/app-release-stage.mjs",
+    "scripts/production/app-release-stage.test.mjs",
     "scripts/production/security-only-app-source.mjs",
     "scripts/production/security-only-app-source.test.mjs",
     "vendor/fast-glob-compat/index.cjs",
     "vendor/fast-glob-compat/index.d.ts",
     "vendor/fast-glob-compat/package.json",
   ];
-  assert.equal(verifySecurityOnlyPaths(required), 10);
+  assert.equal(verifySecurityOnlyPaths(required), required.length);
   for (const paths of [
     ["package.json"],
     [...required, "app/page.tsx"],
@@ -112,6 +187,16 @@ test("baseline deployment is exact, ready and Git-connected", () => {
     repository: repo,
   };
   verifyDeployedApp(deployment(productionAppSha), config);
+  verifyDeployedApp(
+    {
+      ...deployment(productionAppSha),
+      meta: {
+        ...deployment(productionAppSha).meta,
+        githubCommitRef: undefined,
+      },
+    },
+    config,
+  );
   for (const patch of [
     { id: "dpl_Other" },
     { projectId: "prj_Other" },
@@ -144,12 +229,15 @@ test("live baseline checks alias twice and refuses movement", async () => {
     vercelToken: "fictional-token",
   };
   let calls = 0;
-  const fetcher = async () => {
+  const urls = [];
+  const fetcher = async (url) => {
+    urls.push(String(url));
     calls += 1;
     return Response.json(calls === 2 ? deployment(productionAppSha) : alias());
   };
   assert.equal(await verifyLiveBaseline(config, fetcher), deploymentId);
   assert.equal(calls, 3);
+  assert.equal(new URL(urls[1]).searchParams.get("withGitRepoInfo"), "true");
   calls = 0;
   await assert.rejects(
     verifyLiveBaseline(config, async () => {
@@ -232,6 +320,8 @@ test("security-only source requires exact main commit, review diff and no waiver
     "docs/development/deployment.md",
     "package.json",
     "scripts/plugins/fast-glob-compat.test.ts",
+    "scripts/production/app-release-stage.mjs",
+    "scripts/production/app-release-stage.test.mjs",
     "scripts/production/security-only-app-source.mjs",
     "scripts/production/security-only-app-source.test.mjs",
     "vendor/fast-glob-compat/index.cjs",

@@ -157,9 +157,26 @@ jobs:
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
         run: |
           set -euo pipefail
-          SECURITY_ONLY_VERIFIER_BLOB=7ce166c4e72204dd6feeeda694f1e277a713b37a
-          [[ "$(git hash-object ../scripts/production/security-only-app-source.mjs)" == "${SECURITY_ONLY_VERIFIER_BLOB}" ]]
+          [[ "$(git rev-parse HEAD)" == "${RELEASE_SHA}" ]]
+          git merge-base --is-ancestor "${PRODUCTION_APP_SHA}" "${RELEASE_SHA}"
           mkdir -p .artifacts
+          git diff --name-only --no-renames --no-ext-diff --no-textconv -z "${PRODUCTION_APP_SHA}" "${RELEASE_SHA}" -- > .artifacts/security-only-changed-paths
+          printf '%s\0' \
+            '.github/workflows/deploy-app-only.yml' \
+            'bun.lock' \
+            'docs/development/deployment.md' \
+            'package.json' \
+            'scripts/plugins/fast-glob-compat.test.ts' \
+            'scripts/production/app-release-stage.mjs' \
+            'scripts/production/app-release-stage.test.mjs' \
+            'scripts/production/security-only-app-source.mjs' \
+            'scripts/production/security-only-app-source.test.mjs' \
+            'vendor/fast-glob-compat/index.cjs' \
+            'vendor/fast-glob-compat/index.d.ts' \
+            'vendor/fast-glob-compat/package.json' > .artifacts/security-only-reviewed-paths
+          cmp -s .artifacts/security-only-changed-paths .artifacts/security-only-reviewed-paths
+          SECURITY_ONLY_VERIFIER_BLOB=0685d6a55db4149d2976360ae71678802ea067d3
+          [[ "$(git hash-object ../scripts/production/security-only-app-source.mjs)" == "${SECURITY_ONLY_VERIFIER_BLOB}" ]]
           node ../scripts/production/security-only-app-source.mjs | tee .artifacts/source-verification.json
       - name: Retain source verification and any explicit waiver
         if: always()
