@@ -166,10 +166,13 @@ else process.stdout.write(${JSON.stringify(receipts)});
     }
   };
   try {
-    const syntax = spawnSync(process.execPath, ["--check", psql], {
+    // CI runs this suite under Bun, whose --check executes this script. Node's
+    // syntax-only mode must not start the synthetic database transport.
+    const syntax = spawnSync("node", ["--check", psql], {
       encoding: "utf8",
     });
     assert.equal(syntax.status, 0, syntax.stderr);
+    assert.equal(calls().length, 0, "Syntax validation executed psql");
     run(invoke, calls);
   } finally {
     rmSync(root, { recursive: true, force: true });

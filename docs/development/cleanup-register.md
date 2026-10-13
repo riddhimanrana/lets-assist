@@ -11096,3 +11096,12 @@ by upload validation; successful PNG receipts must also prove zero loading
 markers. No time, traffic or mutation allowance is added. Focused regressions
 cover a visible landmark/PNG with a remaining marker and malformed or missing
 counts. Full native scene acceptance remains pending.
+
+Short CI38329529088 on0874a449 fails five new transport tests under Bun1.4.2,
+although their earlier Node execution passed. Bun executes the synthetic psql
+fixture when given --check, adding an unexpected call or triggering its fictional
+error. The syntax-only check now explicitly uses Node and verifies that zero
+transport calls occurred. All37 focused controller/bootstrap/fence tests pass
+under Bun1.4.2 with the repository preload. No Production code or credential
+changes accompany this test repair. The full dispatch was held; new exact-head
+short CI must pass before the parent starts full acceptance.
