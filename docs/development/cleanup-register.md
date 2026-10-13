@@ -10976,3 +10976,80 @@ PNGs. Its phone fixture detects a document-height change during the live word
 flip; that remains an open finding, not a waived or native passed capture.
 The previous native desktop failure is not reproduced by these fixtures.
 No full-run request, merge or deployment is made by this correction.
+
+### October12 full899 landing page-error evidence
+
+Full Code quality38321503995 on899369d8 passes all12 baseline jobs but fails
+layout-audit before its first PNG. The parent receipt records output-preflight,
+one page error and zero other browser/network/mutation faults; landing,
+comparison, assets and accessibility settlement pass. The decoded job log
+retains only the fault count. This is a different observation from the previous
+zero-fault helper failure; the actual exception and its cause remain unproved.
+
+The capture now preserves at most three public page-error diagnostics: fixed
+error kind/category, known capture phase, optional React error number, and a
+bounded line/column in a delivered local Next chunk with a generated filename.
+Messages, arbitrary stack/function/path/query text and actor values are omitted.
+Authenticated interiors still count every error without inspecting its text.
+Every event increments the fatal counter even after the diagnostic limit. No
+traffic, animation, readiness or error allowance is changed. Native reproduction
+through the owned cloud launcher is blocked by PostgreSQL image registration
+running out of Docker storage; no migrations ran. The lockedxlsx0.20.2 archive
+also returnsHTTP403 in this cloud environment. No additional full run or
+deployment is dispatched and the landing failure is not claimed fixed.
+
+A separate disposable PostgreSQL17 function harness checks actual QR generation,
+redemption, check-in and checkout actions, with the current SQL checkout RPC and
+committed row readbacks. Missing/tampered/wrong-project challenges, unauthorized
+checkout, canceled-project redemption and immutable retries pass. Actual typed
+and drawn SignatureCapture interactions at1280/390 light mode pass through
+waiver preparation, atomic signup/evidence SQL, matching project/signup/actor
+readbacks, retry and signed PDF generation. Missing evidence/signers are refused;
+an injected evidence constraint failure rolls back the signup. These use minimal
+fictional test tables and a local transport/storage adapter, not a full Supabase
+ledger/RLS or deployed product route. No real agreement or email is involved.
+
+Repository findings PLATFORM-AUTO-20261012-01/02/03, P2, open: current canonical
+automatic functions omit sameDayMultiArea, filter scheduled checkout to auto
+rather than providing the documented QR fallback, and turn a blank start into
+midnight attendance. The current verbatim function closure reproduces all three
+in disposable PostgreSQL; eight other automatic semantics checks pass. No
+historical migration or backend PR873 file is changed. Add full-stack pgTAP and
+browser regressions before claiming these workflows accepted.
+
+Read-only provider metadata shows zero marked CSF Sheet test workspaces/files in
+Production687 and zero marked workspaces in Development723. Development retains
+onecsf-load-fixture organization, which does not establish Google-write authority.
+Historical copied-workbook connection reports are not current resource proof.
+No live test Calendar/Sheet ID, fresh OAuth or provider write is claimed.
+
+### October12 landing demo calendar hydration correction
+
+The exact899 helper at the failed run's2026-10-12T23:41:01.616Z produces
+November12/13 on a UTC server and November13/14 in Los Angeles. Adding31/32
+local days crosses the daylight-saving change, then toISOString changes the
+calendar dates. This changes the real demo's dates and schedule IDs during
+hydration. A controlled production React reproduction using the source-derived
+factory, actual date formatter and actual ProjectDetailsHeader emits one page
+error, React418, with zero console or external-request errors. Reusing the server
+snapshot emits zero errors. This reproduces a concrete source defect with the
+same failure profile and clock; the original CI exception text was discarded,
+so its precise identity still requires native confirmation.
+
+The server now computes one Pacific calendar anchor and serializes it through
+Hero and HeroContent. Demo dates use UTC calendar arithmetic on that anchor;
+the legacy Saturday preview also formats its anchored calendar date explicitly.
+The corrected factory produces zero page/console errors in the same controlled
+hydration reproduction. Five calendar tests cover the failed instant, UTC/Pacific
+midnight, DST, leap/month/year boundaries and invalid inputs. Two native browser
+regressions compare the rendered demo date range with the server anchor in UTC
+and Pacific contexts and exercise the real demo-scroll toggle. They await the
+full owned runtime gate; no cloud-native Next/Supabase acceptance is claimed.
+
+Cloud validation passes122 capture tests,266 Linux adapter checks and568 original
+guards,52 landing settlement checks,61 notification/color checks, full lint and
+81 focused landing tests. One existing full Hero import test and standalone
+typecheck remain blocked by the unavailable lockedxlsx dependency; the ten
+reported typecheck diagnostics are the existing missing-module/dependent errors.
+No substitute package, waived check, second full dispatch or deployment is used.
+The three automatic-attendance findings above remain open and separate.

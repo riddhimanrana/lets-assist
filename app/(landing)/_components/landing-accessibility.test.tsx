@@ -1029,7 +1029,7 @@ describe("hero first render", () => {
         createElement(
           AppRouterContext.Provider,
           { value: router },
-          createElement(HeroContent),
+          createElement(HeroContent, { demoDateAnchor: "2026-10-12" }),
         ),
       ),
     );

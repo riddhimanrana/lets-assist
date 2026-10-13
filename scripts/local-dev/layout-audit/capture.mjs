@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Standalone read-only synthetic UI capture. No server/DB/provider lifecycle ownership.
 import { settleLandingVisual } from "./landing-visual-settlement.mjs";
+import { recordPageError } from "./page-error-diagnostics.mjs";
 import {
   verifyNotificationReaderProof,
   notificationReaderFrame,
@@ -430,6 +431,8 @@ try {
         faults,
         socketRefusals: [],
       };
+      let capturePhase = "navigation";
+      const deliveredScriptURLs = new Set();
       try {
         await context.addInitScript(
           ({ theme }) => localStorage.setItem("theme", theme),
@@ -601,12 +604,28 @@ try {
           );
         }
         const page = await context.newPage();
-        page.on("pageerror", () => faults.pageErrors++);
+        page.on("pageerror", (error) => {
+          recordPageError(error, {
+            faults,
+            capture,
+            publicLanding: entry.id === "landing-baseline" && !actor,
+            phase: capturePhase,
+            baseURL,
+            scriptURLs: deliveredScriptURLs,
+          });
+        });
         page.on("console", (msg) => {
           if (msg.type() === "error") faults.consoleErrors++;
         });
         page.on("response", (res) => {
           if (res.status() >= 500) faults.http5xx++;
+          if (
+            entry.id === "landing-baseline" &&
+            !actor &&
+            res.request().resourceType() === "script" &&
+            deliveredScriptURLs.size < 256
+          )
+            deliveredScriptURLs.add(res.url());
         });
         const response = await page.goto(parsed.pathname + parsed.search, {
           waitUntil: "domcontentloaded",
@@ -622,6 +641,7 @@ try {
         capture.finalPath = current.pathname;
         if (!response || response.status() < 200 || response.status() >= 300)
           fail("Loaded interior requires a successful page response");
+        capturePhase = "ui-inspection";
         if (entry.uiSteps) {
           if (!Array.isArray(entry.uiSteps) || entry.uiSteps.length > 4)
             fail("Bounded tab-only inspection required");
@@ -644,6 +664,7 @@ try {
           !entry.expectedRoutes.includes(after.pathname + after.search)
         )
           fail("Tab changed to an unreviewed route");
+        capturePhase = "loaded-landmarks";
         for (const landmark of entry.ready) {
           const scope = landmark.scope ? page.locator(landmark.scope) : page;
           let locator;
@@ -677,6 +698,7 @@ try {
             page,
             entry,
           );
+        capturePhase = "initial-assets";
         await page.evaluate(async () => {
           await document.fonts.ready;
           await new Promise((resolve) =>
@@ -688,9 +710,11 @@ try {
           page.evaluate(readAxeRows, {
             includeColorDetails: entry.id === "landing-baseline" && !actor,
           });
+        capturePhase = "axe-before-keyboard";
         capture.axe = await readAxeResult();
         capture.axeSamplePhase = "before-keyboard";
         capture.keyboard = [];
+        capturePhase = "keyboard";
         for (let i = 0; i < 16; i++) {
           await page.keyboard.press("Tab");
           capture.keyboard.push(
@@ -716,10 +740,12 @@ try {
             }),
           );
         }
+        capturePhase = "resting-state";
         capture.restingState = await restoreCaptureRestingState(page);
         if (entry.id === "landing-baseline") {
           if (actor)
             fail("Public landing settlement requires signed-out fixture");
+          capturePhase = "landing-settlement";
           capture.landingSettlement = await settleLandingVisual(
             page,
             entry,
@@ -727,10 +753,12 @@ try {
           );
           if (capture.landingSettlement.status !== "settled")
             fail("Landing layout/assets did not settle within fixed limits");
+          capturePhase = "axe-after-landing";
           capture.axe = await readAxeResult();
           capture.axeSamplePhase = "after-landing-settlement";
         }
         // Sample the rendered state after axe/Tab, immediately before the PNG.
+        capturePhase = "fonts-before-png";
         await page.evaluate(async () => {
           await document.fonts.ready;
           await new Promise((resolve) =>
@@ -738,10 +766,13 @@ try {
           );
         });
         if (entry.id === "landing-baseline") {
+          capturePhase = "comparison-settlement";
           capture.comparisonRestingState = await settleLandingComparison(page);
+          capturePhase = "axe-after-comparison";
           capture.axe = await readAxeResult();
           capture.axeSamplePhase = "after-comparison-settlement";
         }
+        capturePhase = "dom-before-png";
         capture.dom = await page.evaluate(() => {
           const visible = (e) =>
             !!(
@@ -808,6 +839,7 @@ try {
         });
         if (entry.id === "landing-baseline")
           capture.landingPngStage = "output-preflight";
+        capturePhase = "output-preflight";
         const output = path.join(m.outputDir, `${entry.id}-${mode.name}.png`);
         if (fs.existsSync(output))
           fail("Refusing to overwrite existing capture");
@@ -817,6 +849,7 @@ try {
           );
         if (entry.id === "landing-baseline")
           capture.landingPngStage = "capture";
+        capturePhase = "png-capture";
         const screenshot = await captureSettledPixels(
           page,
           entry,
@@ -849,9 +882,11 @@ try {
           ? "captured-loading-present"
           : "captured-awaiting-pixel-review";
       } catch {
-        if (entry.id === "landing-baseline")
+        if (entry.id === "landing-baseline") {
+          capture.phaseAtFailure = capturePhase;
           capture.failureCategory =
             capture.landingPngStage ?? "readiness-or-guard";
+        }
         capture.status = "blocked-or-failed";
         capture.failure =
           "Capture guard/readiness failed; private error/URL omitted";

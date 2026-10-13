@@ -41,6 +41,7 @@ import { landingDemoAssets } from "./landing-demo-assets";
 import { HeroHeading } from "./HeroHeading";
 import { MotionLinkButton } from "./MotionLinkButton";
 import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
+import { landingDemoDate, landingDemoSaturday } from "./landing-demo-dates";
 
 const {
   projectId: PROJECT_ID,
@@ -149,20 +150,12 @@ const platformHighlights = [
   },
 ];
 
-function getFutureProjectDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 31);
-  const day = date.getDay();
-  const daysUntilSaturday = (6 - day + 7) % 7;
-  date.setDate(date.getDate() + daysUntilSaturday);
-  return date;
-}
-
 function formatProjectDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   }).format(date);
 }
 
@@ -230,12 +223,15 @@ function SignupRequirement({
   );
 }
 
-export function ProjectDemo() {
+export function ProjectDemo({ demoDateAnchor }: { demoDateAnchor: string }) {
   const shouldReduceMotion = useReducedMotion();
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState("East Side Beach Cleanup");
   const [demoSubmitted, setDemoSubmitted] = useState(false);
-  const projectDate = useMemo(() => getFutureProjectDate(), []);
+  const projectDate = useMemo(
+    () => landingDemoSaturday(demoDateAnchor),
+    [demoDateAnchor],
+  );
   const formattedDate = formatProjectDate(projectDate);
   const signupSlots = [
     {
@@ -490,20 +486,14 @@ export function ProjectDemo() {
   );
 }
 
-function getFutureDateString(offsetDays: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
-function buildDemoProject(): {
+function buildDemoProject(demoDateAnchor: string): {
   project: Project;
   creator: ProjectCreatorProfileRecord;
   organization: Organization;
   attendees: SlotAttendee[];
 } {
-  const dayOne = getFutureDateString(31);
-  const dayTwo = getFutureDateString(32);
+  const dayOne = landingDemoDate(demoDateAnchor, 31);
+  const dayTwo = landingDemoDate(demoDateAnchor, 32);
 
   const organization: Organization = {
     id: "demo-org-dvhs",
@@ -710,12 +700,12 @@ function buildDemoProject(): {
   return { project, creator, organization, attendees };
 }
 
-function RealProjectDemoWindow() {
+function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
   const [demoScrollEnabled, setDemoScrollEnabled] = useState(false);
   const demoWindowRef = useRef<HTMLDivElement>(null);
   const { project, creator, organization, attendees } = useMemo(
-    buildDemoProject,
-    [],
+    () => buildDemoProject(demoDateAnchor),
+    [demoDateAnchor],
   );
   const remainingSlots = useMemo(
     () => ({
@@ -852,7 +842,7 @@ function RealProjectDemoWindow() {
   );
 }
 
-export const HeroContent = () => {
+export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
 
   return (
@@ -947,7 +937,7 @@ export const HeroContent = () => {
         transition={{ delay: 1.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="mt-10"
       >
-        <RealProjectDemoWindow />
+        <RealProjectDemoWindow demoDateAnchor={demoDateAnchor} />
       </motion.div>
 
       <motion.div

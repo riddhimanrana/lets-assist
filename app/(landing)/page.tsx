@@ -20,6 +20,7 @@ import { HomeGreeting } from "@/components/home/HomeGreeting";
 import { readPublicLandingDemoMode } from "@/lib/home/landing-demo-mode";
 import { LandingLazySections } from "./LandingLazySections";
 import SmoothScroll from "./_components/SmoothScroll";
+import { getProjectCalendarDate } from "@/lib/projects/recurrence-occurrence-dates";
 
 // This page calls getAuthUser() which reads cookies — it must be dynamic.
 // Without this, Next.js attempts a build-time prerender and fails when
@@ -138,7 +139,12 @@ export default async function HomePage(props: {
   return (
     <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
       <SmoothScroll />
-      <Hero />
+      <Hero
+        demoDateAnchor={getProjectCalendarDate(
+          new Date(),
+          "America/Los_Angeles",
+        )}
+      />
       {demoEnabled === true && (
         <div
           data-nosnippet
