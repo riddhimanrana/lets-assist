@@ -86,6 +86,141 @@ export async function settleLandingComparison(page) {
   if (!state.ready) throw Error("Live comparison did not settle");
   return state;
 }
+
+// A currently opaque phrase may be about to leave. Observe actual transitions
+// before choosing a new interval; this never edits an element or its animation.
+export async function observeFreshComparison(read) {
+  const started = performance.now();
+  // The reviewed demo holds phases for 2500–4000ms. Reserve 500ms for its
+  // outgoing frame and 1200ms for PNG work; a shorter phase has a smaller window.
+  const phaseWindows = {
+    browsing: 1800,
+    details: 1300,
+    qr: 1300,
+    notification: 800,
+    certificate: 1300,
+    dashboard: 2300,
+  };
+  const reducedMotion =
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches === true;
+  let word = null,
+    phase = null,
+    wordChangedAt = null,
+    phaseChangedAt = null,
+    signature = null,
+    unchangedSince = null;
+  while (performance.now() - started < 15_000) {
+    const state = read();
+    const now = performance.now();
+    if (state.word && state.word !== word) {
+      if (word !== null) wordChangedAt = now;
+      word = state.word;
+    }
+    if (state.phase && state.phase !== phase) {
+      if (phase !== null) phaseChangedAt = now;
+      phase = state.phase;
+    }
+    const next = state.ready
+      ? JSON.stringify([
+          state.word,
+          state.phase,
+          state.documentHeight,
+          state.documentWidth,
+          state.viewportWidth,
+          state.viewportHeight,
+        ])
+      : null;
+    if (next !== signature || next === null) {
+      signature = next;
+      unchangedSince = next === null ? null : now;
+    }
+    const wordAge = wordChangedAt === null ? null : now - wordChangedAt;
+    const phaseAge = phaseChangedAt === null ? null : now - phaseChangedAt;
+    const quiet = unchangedSince === null ? 0 : now - unchangedSince;
+    if (
+      state.ready &&
+      quiet >= 80 &&
+      (reducedMotion || (wordAge !== null && wordAge <= 700)) &&
+      phaseAge !== null &&
+      phaseAge <= phaseWindows[state.phase]
+    )
+      return {
+        ...state,
+        freshness: {
+          schema: "lets-assist-comparison-fresh-interval-v1",
+          reducedMotion,
+          wordTransitionObserved: wordChangedAt !== null,
+          phaseTransitionObserved: true,
+          wordChangeObservedMsAgo:
+            wordAge === null ? null : Math.round(wordAge),
+          phaseChangeObservedMsAgo: Math.round(phaseAge),
+          readyUnchangedForMs: Math.round(quiet),
+        },
+      };
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  }
+  throw Error("A fresh comparison interval was not observed within its bound");
+}
+
+export function comparisonFreshness(proof, phase) {
+  const phaseWindow = {
+    browsing: 1800,
+    details: 1300,
+    qr: 1300,
+    notification: 800,
+    certificate: 1300,
+    dashboard: 2300,
+  }[phase];
+  const bounded = (value, low, high) =>
+    Number.isInteger(value) && value >= low && value <= high;
+  if (
+    proof?.schema !== "lets-assist-comparison-fresh-interval-v1" ||
+    typeof proof.reducedMotion !== "boolean" ||
+    typeof proof.wordTransitionObserved !== "boolean" ||
+    proof.phaseTransitionObserved !== true ||
+    !bounded(proof.phaseChangeObservedMsAgo, 0, phaseWindow) ||
+    !bounded(proof.readyUnchangedForMs, 80, 1200) ||
+    (proof.reducedMotion
+      ? proof.wordTransitionObserved
+        ? !bounded(proof.wordChangeObservedMsAgo, 0, 700)
+        : proof.wordChangeObservedMsAgo !== null
+      : proof.wordTransitionObserved !== true ||
+        !bounded(proof.wordChangeObservedMsAgo, 0, 700))
+  )
+    return null;
+  return {
+    schema: proof.schema,
+    reducedMotion: proof.reducedMotion,
+    wordTransitionObserved: proof.wordTransitionObserved,
+    phaseTransitionObserved: true,
+    wordChangeObservedMsAgo: proof.wordChangeObservedMsAgo,
+    phaseChangeObservedMsAgo: proof.phaseChangeObservedMsAgo,
+    readyUnchangedForMs: proof.readyUnchangedForMs,
+  };
+}
+
+export async function settleFreshLandingComparison(page) {
+  const handle = await page.waitForFunction(
+    "(" +
+      observeFreshComparison.toString() +
+      ")(" +
+      readLandingComparison.toString() +
+      ")",
+    null,
+    { timeout: 16_000 },
+  );
+  let state;
+  try {
+    state = await handle.jsonValue();
+  } finally {
+    await handle.dispose();
+  }
+  const freshness = comparisonFreshness(state?.freshness, state?.phase);
+  if (!state?.ready || !freshness)
+    throw Error("A fresh comparison interval was not verified");
+  return { ...state, freshness };
+}
 // Diagnostics contain only reviewed public states and bounded numeric dimensions.
 export function comparisonCaptureSnapshot(state) {
   if (!state || typeof state !== "object") return null;
@@ -112,6 +247,9 @@ export function comparisonCaptureSnapshot(state) {
     documentWidth: dimension(state.documentWidth),
     viewportWidth: dimension(state.viewportWidth),
     viewportHeight: dimension(state.viewportHeight),
+    ...(comparisonFreshness(state.freshness, state.phase)
+      ? { freshness: comparisonFreshness(state.freshness, state.phase) }
+      : {}),
   };
 }
 export async function captureSettledPixels(page, entry, report = () => {}) {
@@ -135,7 +273,7 @@ export async function captureSettledPixels(page, entry, report = () => {}) {
     let before;
     const settleStart = Date.now();
     try {
-      before = await settleLandingComparison(page);
+      before = await settleFreshLandingComparison(page);
     } catch {
       const observed = await page
         .evaluate(readLandingComparison)

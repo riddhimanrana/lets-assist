@@ -6,7 +6,19 @@ import {
   settleLandingComparison,
   captureSettledPixels,
   comparisonCaptureSnapshot,
+  observeFreshComparison,
+  comparisonFreshness,
+  settleFreshLandingComparison,
 } from "./landing-comparison-readiness.mjs";
+const freshInterval = {
+  schema: "lets-assist-comparison-fresh-interval-v1",
+  reducedMotion: false,
+  wordTransitionObserved: true,
+  phaseTransitionObserved: true,
+  wordChangeObservedMsAgo: 500,
+  phaseChangeObservedMsAgo: 600,
+  readyUnchangedForMs: 80,
+};
 function observed({
   word = "sign-ups",
   phase = "browsing",
@@ -96,6 +108,7 @@ test("a screenshot taken across a live flip is retried within the fixed bound", 
     word: "sign-ups",
     phase: "browsing",
     documentHeight: 2000,
+    freshness: freshInterval,
   };
   const page = {
     waitForFunction: async () => ({
@@ -120,6 +133,7 @@ test("repeated changing frames never become accepted PNGs", async () => {
     word: "sign-ups",
     phase: "browsing",
     documentHeight: 2000,
+    freshness: freshInterval,
   };
   const page = {
     waitForFunction: async () => ({
@@ -165,6 +179,7 @@ const publicState = {
   documentWidth: 390,
   viewportWidth: 390,
   viewportHeight: 900,
+  freshness: freshInterval,
 };
 const publicPage = () => ({
   waitForFunction: async () => ({
@@ -174,6 +189,115 @@ const publicPage = () => ({
   evaluate: async () => publicState,
   screenshot: async () => Buffer.from("offline pixels"),
 });
+
+function freshObservation(read, reducedMotion = false) {
+  let now = 0;
+  const context = {
+    performance: { now: () => now },
+    matchMedia: () => ({ matches: reducedMotion }),
+    requestAnimationFrame(callback) {
+      now += 16;
+      callback();
+    },
+  };
+  return vm.runInNewContext(
+    "(" + observeFreshComparison + ")",
+    context,
+  )(() => read(now));
+}
+
+test("a stale opaque interval is skipped until both live transitions and a quiet ready span are observed", async () => {
+  const result = await freshObservation((now) => ({
+    ...publicState,
+    word: now < 500 ? "sign-ups" : "verified hours",
+    phase: now < 500 ? "browsing" : "qr",
+    ready: now < 500 || now >= 800,
+  }));
+  assert.equal(result.word, "verified hours");
+  assert.equal(result.phase, "qr");
+  assert(result.freshness.readyUnchangedForMs >= 80);
+  assert(result.freshness.wordChangeObservedMsAgo <= 700);
+  assert(result.freshness.phaseChangeObservedMsAgo <= 1300);
+  assert(comparisonFreshness(result.freshness, result.phase));
+});
+
+test("unchanged stale states, one-sided transitions, opacity and geometry instability all hit the fixed observation bound", async () => {
+  for (const read of [
+    () => publicState,
+    (now) => ({ ...publicState, word: now < 500 ? "sign-ups" : "check-ins" }),
+    (now) => ({ ...publicState, phase: now < 500 ? "browsing" : "qr" }),
+    (now) => ({
+      ...publicState,
+      ready: false,
+      word: now < 500 ? "sign-ups" : "check-ins",
+      phase: now < 500 ? "browsing" : "qr",
+    }),
+    (now) => ({
+      ...publicState,
+      word: now < 500 ? "sign-ups" : "check-ins",
+      phase: now < 500 ? "browsing" : "qr",
+      documentHeight: 2000 + now,
+    }),
+  ])
+    await assert.rejects(freshObservation(read), /within its bound/u);
+});
+
+test("natural reduced motion needs a fresh demo phase while its headline remains still", async () => {
+  const result = await freshObservation(
+    (now) => ({
+      ...publicState,
+      word: "sign-ups",
+      phase: now < 500 ? "browsing" : "qr",
+      ready: now < 500 || now >= 800,
+    }),
+    true,
+  );
+  assert.equal(result.freshness.reducedMotion, true);
+  assert.equal(result.freshness.wordTransitionObserved, false);
+  assert.equal(result.freshness.wordChangeObservedMsAgo, null);
+  assert(comparisonFreshness(result.freshness, result.phase));
+});
+
+test("freshness proof rejects missing edges and stale or unbounded ages without retaining extra fields", () => {
+  for (const changed of [
+    { schema: "unknown" },
+    { wordTransitionObserved: false },
+    { phaseTransitionObserved: false },
+    { wordChangeObservedMsAgo: 701 },
+    { phaseChangeObservedMsAgo: 1301 },
+    { readyUnchangedForMs: 79 },
+    { readyUnchangedForMs: Infinity },
+  ])
+    assert.equal(
+      comparisonFreshness({ ...freshInterval, ...changed }, "details"),
+      null,
+    );
+  assert.deepEqual(
+    comparisonFreshness({ ...freshInterval, token: "PRIVATE" }, "details"),
+    freshInterval,
+  );
+});
+
+test("fresh browser wait refuses a merely opaque state and always disposes its handle", async () => {
+  let disposed = 0;
+  await assert.rejects(
+    settleFreshLandingComparison({
+      async waitForFunction(expression, args, options) {
+        assert.equal(typeof expression, "string");
+        assert.equal(options.timeout, 16_000);
+        return {
+          jsonValue: async () => ({ ...publicState, freshness: undefined }),
+          dispose: async () => {
+            disposed++;
+          },
+        };
+      },
+    }),
+    /not verified/u,
+  );
+  assert.equal(disposed, 1);
+});
+
 test("diagnostics discard unknown text, invalid dimensions and unrelated fields", () => {
   const result = comparisonCaptureSnapshot({
     ready: true,
@@ -281,4 +405,18 @@ test("accepted diagnostics retain real public dimensions and never run on a priv
   await captureSettledPixels(page, { id: "dashboard-overview" }, () => {
     throw Error("Private diagnostic attempted");
   });
+});
+
+test("fresh phase timing reserves the same capture budget across different demo holds", () => {
+  const proof = { ...freshInterval, phaseChangeObservedMsAgo: 1100 };
+  assert(comparisonFreshness(proof, "details"));
+  assert(comparisonFreshness(proof, "qr"));
+  assert.equal(comparisonFreshness(proof, "notification"), null);
+  assert.equal(comparisonFreshness(proof, "unreviewed"), null);
+  assert(
+    comparisonFreshness(
+      { ...proof, phaseChangeObservedMsAgo: 2000 },
+      "dashboard",
+    ),
+  );
 });

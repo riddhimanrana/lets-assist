@@ -2,6 +2,22 @@
 
 How Let's Assist surfaces earn their visual treatment. This is the source of truth for buttons, badges, fields, cards, tabs, icons, and page layout. Tokens live in `app/globals.css`. Primitives live in `components/ui`. Screens use the primitives and never restate a recipe inline.
 
+## Palette provenance
+
+Platform color values follow historical source
+[`d95a0aa9846bc02e611f67f0f9017245c08821d8`](https://github.com/riddhimanrana/lets-assist/commit/d95a0aa9846bc02e611f67f0f9017245c08821d8).
+Light mode keeps the white surfaces and identity green. Dark mode uses mantle for
+the page, base for cards and popovers, surface0 for muted areas, and surface1 for
+borders. Primary and destructive label colors use their historical surface values.
+The shared token tests lock both palettes and retain the dark contrast checks.
+
+The gloss tokens describe the approved control finish separately from the palette.
+`brand` remains a decorative alias of the identity green. The opt-in `content-link`
+keeps its existing accessible green text step in light mode and historical green
+in dark mode; it does not recolor filled controls or status surfaces. Keep the
+landing video free of purple/indigo glows. Do not replace semantic state colors
+or add a new screen palette during a layout repair.
+
 ## The idea
 
 Things you press look glossy. Things you read are flat. Things that sit above the page cast a shadow. Nothing else does.

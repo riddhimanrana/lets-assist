@@ -5,8 +5,8 @@ import { join } from "node:path";
 /**
  * Light mode intentionally follows the historical palette from
  * d95a0aa9846bc02e611f67f0f9017245c08821d8. Lock those exact colors here so a
- * later accessibility pass cannot silently rebrand the product. Dark mode keeps
- * its existing contrast contracts.
+ * later accessibility pass cannot silently rebrand the product. Both themes retain
+ * the historical palette and the existing dark contrast contracts.
  */
 
 const css = readFileSync(join(import.meta.dir, "globals.css"), "utf8");
@@ -104,6 +104,29 @@ const HISTORICAL_LIGHT_TOKENS: Record<string, Rgb> = {
   ring: { r: 22, g: 163, b: 74 },
 };
 
+const HISTORICAL_DARK_TOKENS: Record<string, Rgb> = {
+  background: { r: 24, g: 24, b: 37 },
+  foreground: { r: 205, g: 214, b: 244 },
+  muted: { r: 49, g: 50, b: 68 },
+  "muted-foreground": { r: 186, g: 194, b: 222 },
+  popover: { r: 30, g: 30, b: 46 },
+  "popover-foreground": { r: 205, g: 214, b: 244 },
+  card: { r: 30, g: 30, b: 46 },
+  "card-foreground": { r: 205, g: 214, b: 244 },
+  border: { r: 69, g: 71, b: 89 },
+  input: { r: 69, g: 71, b: 89 },
+  primary: { r: 166, g: 227, b: 161 },
+  "primary-foreground": { r: 30, g: 30, b: 46 },
+  success: { r: 166, g: 227, b: 161 },
+  warning: { r: 249, g: 225, b: 174 },
+  info: { r: 137, g: 181, b: 250 },
+  destructive: { r: 243, g: 140, b: 169 },
+  "destructive-foreground": { r: 24, g: 24, b: 37 },
+  secondary: { r: 49, g: 50, b: 68 },
+  accent: { r: 49, g: 50, b: 68 },
+  ring: { r: 205, g: 214, b: 244 },
+};
+
 function token(tokens: Map<string, Rgb>, name: string) {
   const value = tokens.get(name);
   expect(value, `missing --${name} token`).toBeDefined();
@@ -144,6 +167,12 @@ describe("theme token contrast contracts", () => {
   test("light mode matches the requested historical palette", () => {
     for (const [name, expected] of Object.entries(HISTORICAL_LIGHT_TOKENS)) {
       expect(token(light, name), `unexpected --${name}`).toEqual(expected);
+    }
+  });
+
+  test("dark page, surface, border and semantic colors match the historical source", () => {
+    for (const [name, expected] of Object.entries(HISTORICAL_DARK_TOKENS)) {
+      expect(token(dark, name), `unexpected dark --${name}`).toEqual(expected);
     }
   });
 

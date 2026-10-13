@@ -11220,3 +11220,50 @@ durations, publication and certificate authorization stay unchanged.
 Source changes await exact-head short/full CI, complete layout/pixel review,
 parent-owned Development prepare/merge/complete and hosted acceptance. Production
 remains subject to actual compatibility, writer/fence and recovery gates.
+
+
+## Current landing PNG timing and historical palette restoration
+
+P2 LANDING-PNG-FRESH-INTERVAL-20261013: fullCI38342965362 on5d98d999
+passes all non-layout jobs, including native320/390/414 comparison journeys and
+DST certificate coverage. Layout fails on its first landing PNG. The retained
+receipt has zero faults, status200, no loading/broken images/axe findings and
+constant7793px document height. All three838–926ms PNG attempts end during a
+live word or demo transition. This is the identified current capture failure;
+it does not establish identities for historical failures.
+
+The capture helper now observes fresh live transitions and an80ms quiet interval
+before each PNG. Source-reviewed phase holds determine conservative capture
+windows; a fifteen-second observation bound and three-attempt limit remain.
+Natural reduced motion preserves its still headline. Same-state, geometry,
+duration, loading and fault guards remain fatal. Controlled real-component
+Chromium first accepts four desktop/mobile light/dark PNGs in423–747ms with
+unchanged public word/phase/height. Longer artificial stress captures remain
+rejected when they cross transitions. Framework/hero/action adapters and one
+controlled console error limit this evidence to timing diagnosis; exact-head
+native layout and full pixel acceptance remain required.
+
+P2 HISTORICAL-PALETTE-RESTORE-20261013: the existing palette contract explicitly
+names historical source d95a0aa9846bc02e611f67f0f9017245c08821d8. Its exact raw
+source and tree were verified remotely. Repository tags/releases do not contain
+an app v1.5 label; the chosen historical source is documented rather than
+inventing a release association. Light palette values already match that source.
+Seven dark tokens had changed in060ea012: background, muted, popover, card,
+border, primary foreground and destructive foreground. They are restored exactly;
+shared tests now lock dark surfaces and semantic colors as well as light values.
+Dark contrast and the private light-palette contract remain passing. Functional
+hydration, geometry, reader, attendance and certificate repairs, the approved
+gloss finish and existing opt-in accessible content-link remain. The active
+landing video has no historical purple glow; a legacy unused Highlight helper
+still contains its historical purple defaults and is not mounted by a route.
+New full route and old-versus-new pixel acceptance must use this palette candidate;
+prior captures do not establish final acceptance.
+
+Controlled palette comparison renders actual HomeHeaderActions, ProjectCard,
+OrganizationHeader and ExportSection with fictional inputs. Eight1280/390px
+before/after captures in both themes have zero page/console/external faults,
+zero server-action calls, no overflow and unchanged1122/1632px heights. Root
+inspected all eight: light white/green surfaces remain stable; dark surfaces and
+borders return to the verified historical levels without wrapping drift. These
+framework-adapted components do not prove complete authenticated route or old
+whole-page acceptance, and no Claude pixel-review receipt is claimed.
