@@ -2,6 +2,7 @@
 // Future GitHub-only setup: source facts and proof files, never stack/fixture writes.
 import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
+import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
 import { INVITATION_SOURCE_HASHES } from "./invitation-reader-contract.mjs";
 import { INTEGRATION_SOURCE_HASHES } from "./integration-reader-contract.mjs";
 import path from "node:path";
@@ -53,12 +54,7 @@ execFileSync(
 const ledger = git(["ls-tree", "-r", "HEAD", "--", "supabase/migrations"])
   .split("\n")
   .filter((v) => v.endsWith(".sql"));
-if (
-  ledger.length !== 723 ||
-  os.hash(Buffer.from(ledger.join("\n") + "\n")) !==
-    baseline.ledgerGitObjectListSha256
-)
-  os.deny();
+verifyCaptureLedger(baseline, ledger);
 process.env.CSF_ISOLATED_WORK_DIR = a.workDir;
 const dv = await import(
   pathToFileURL(path.join(a.repoRoot, "scripts/local-dev/dv-local-env.mjs"))
@@ -224,8 +220,8 @@ const b = {
   repoRoot: a.repoRoot,
   ...source,
   privateHead: a.privateHead,
-  ledgerCount: 723,
-  ledgerGitObjectListSha256: baseline.ledgerGitObjectListSha256,
+  ledgerCount: baseline.targetLedgerCount,
+  ledgerGitObjectListSha256: baseline.targetLedgerGitObjectListSha256,
   uid: process.getuid(),
   workDir: marker.workDir,
   runId: marker.runId,

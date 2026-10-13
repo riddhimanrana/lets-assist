@@ -798,7 +798,7 @@ describe("comparison headline word", () => {
       const root = renderFlip(reduced);
 
       expect(collapse(exposedText(root))).toBe("alpha");
-      expect(elements(root)).toHaveLength(2);
+      expect(elements(root)).toHaveLength(words.length + 3);
       expect(hiddenFirstRenderStyles(root)).toEqual([]);
     });
   }
@@ -807,22 +807,26 @@ describe("comparison headline word", () => {
     const root = renderFlip(true);
     const [frame, word] = elements(root);
 
-    expect(elements(root)).toHaveLength(2);
-    expect(frame.attributes.style).toBe("min-width:5ch");
+    expect(elements(root)).toHaveLength(words.length + 3);
+    expect(classes(frame)).toContain("inline-grid");
+    expect(frame.attributes.style).toBeUndefined();
     // No inline style means no motion wrapper is holding the word.
     expect(word.tag).toBe("span");
     // The darker orange is for the light page. Dark keeps the lighter one.
     // The ratios are a browser measurement.
     expect(word.attributes).toEqual({
-      class: "font-bold text-orange-700 dark:text-orange-400",
+      class:
+        "col-start-1 row-start-1 whitespace-nowrap font-bold text-orange-700 dark:text-orange-400",
     });
     expect(ownText(word)).toBe("alpha");
+    expect(collapse(exposedText(root))).toBe("alpha");
+    expect(collapse(decorativeText(root))).toBe(words.join(""));
   });
 
   for (const reduced of [null, true]) {
     test(`no words and one word both render (reduced motion: ${reduced})`, () => {
       const none = renderFlip(reduced, []);
-      expect(elements(none)).toHaveLength(2);
+      expect(elements(none)).toHaveLength(3);
       expect(collapse(allText(none))).toBe("");
 
       const one = renderFlip(reduced, ["alpha"]);

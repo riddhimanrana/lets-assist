@@ -2,5 +2,7 @@
   "rootHead": "accba0cfc2cd2f880b5632f4535cea822947da94",
   "privateGitlink": "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
   "ledgerCount": 723,
-  "ledgerGitObjectListSha256": "9301abd5b3a10163803545d6520209cf0debf4a9182be9437737b3691db61452"
+  "ledgerGitObjectListSha256": "9301abd5b3a10163803545d6520209cf0debf4a9182be9437737b3691db61452",
+  "targetLedgerCount": 724,
+  "targetLedgerGitObjectListSha256": "06f0bac014a8385dacf64135b578d80423bcc753638afc996893b0a9d2596c03"
 }

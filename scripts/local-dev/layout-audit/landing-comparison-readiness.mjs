@@ -9,7 +9,9 @@ export function readLandingComparison() {
   const root = document.querySelector("#comparison");
   if (!root)
     return { ready: false, reason: "missing-comparison", ...dimensions };
-  const words = root.querySelectorAll('[data-slot="comparison-word"] > span'),
+  const words = root.querySelectorAll(
+      '[data-slot="comparison-word"] > span:not([aria-hidden="true"])',
+    ),
     phases = root.querySelectorAll('[data-slot="comparison-demo-phase"]');
   if (words.length !== 1 || phases.length !== 1)
     return { ready: false, reason: "between-states", ...dimensions };

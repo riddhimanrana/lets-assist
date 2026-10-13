@@ -29,8 +29,7 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
   return (
     <span
       data-slot="comparison-word"
-      className="inline-flex items-center justify-center"
-      style={{ minWidth: "5ch" }}
+      className="inline-grid items-center justify-items-center align-baseline"
     >
       {reduceMotion ? (
         // A plain span has no entering or leaving state, so the word is whole
@@ -38,7 +37,7 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
         // The server cannot know the preference and sends the animated span's
         // resting style, which is why this element tolerates the difference.
         <span
-          className="font-bold text-orange-700 dark:text-orange-400"
+          className="col-start-1 row-start-1 whitespace-nowrap font-bold text-orange-700 dark:text-orange-400"
           suppressHydrationWarning
         >
           {word}
@@ -51,12 +50,24 @@ export function ComparisonTextFlip({ words }: { words: string[] }) {
             animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
             exit={{ y: -20, opacity: 0, filter: "blur(8px)" }}
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-            className="font-bold text-orange-700 dark:text-orange-400"
+            className="col-start-1 row-start-1 whitespace-nowrap font-bold text-orange-700 dark:text-orange-400"
           >
             {word}
           </motion.span>
         </AnimatePresence>
       )}
+      {/* All phrases occupy the same grid cell, reserving their actual largest
+          width even between exit/enter states. Only the live phrase is exposed. */}
+      <span
+        aria-hidden="true"
+        className="invisible col-start-1 row-start-1 inline-grid whitespace-nowrap font-bold"
+      >
+        {words.map((phrase, index) => (
+          <span key={index} className="col-start-1 row-start-1">
+            {phrase}
+          </span>
+        ))}
+      </span>
     </span>
   );
 }

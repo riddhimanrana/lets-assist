@@ -47,6 +47,18 @@ The 625 inventory was captured after a clean replay of all candidate migrations.
 Local fixture helpers were removed inside a rollback-only transaction before
 capture. Hosted comparison remains a separate release check.
 
+Release724 repairs scheduled platform attendance with one private selected-session
+parser and two replaced canonical worker definitions. The clean PostgreSQL17.11
+replay applies all724 migrations;500 pgTAP files and12,991 assertions pass,
+including45 new attendance/authorization regressions. The inventory capture uses
+the exact local-fixture teardown in a rollback-only transaction. It adds only
+`private.project_attendance_slot_window(uuid,text)` and changes only
+`public.process_automatic_check_ins()` and `public.process_automatic_check_outs()`;
+every other723 object fingerprint remains identical. No attendance, certificate,
+point, client-role grant or cron definition is changed by the migration itself.
+Hosted comparison, the full application/browser gate and Production acceptance
+remain separate requirements.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the

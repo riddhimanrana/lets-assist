@@ -2,7 +2,7 @@
 
 Runnable support code for the existing approved capture policies. No live Linux process, stack, fixture, build or browser has been observed during preparation. The 87 candidates / 348 four-mode captures are planned, and zero pixels have been inspected here.
 
-Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and ledger723 are immutable anchors. No new credentials, provider settings, spend or backend release is needed.
+Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix are immutable anchors. The approved attendance repair appends one reviewed migration, so the candidate requires the exact724 ledger and fresh database/application acceptance. No new credentials, provider settings or spend is needed.
 
 Implemented entrypoints:
 

@@ -11105,3 +11105,58 @@ transport calls occurred. All37 focused controller/bootstrap/fence tests pass
 under Bun1.4.2 with the repository preload. No Production code or credential
 changes accompany this test repair. The full dispatch was held; new exact-head
 short CI must pass before the parent starts full acceptance.
+
+### October13 scheduled attendance and comparison-cycle repair
+
+The three PLATFORM-AUTO-20261012 findings are source-fixed and locally verified;
+hosted/Production acceptance remains pending. Reproduction temporarily restores
+the exact original worker SQL inside a rollback-only transaction on an owned
+Supabase PostgreSQL17.11 database. A valid published named-role schedule remains
+approved with no attendance; QR arrival10:15 retains no departure after its12:00
+end; a legacy blank start incorrectly records00:00–12:00. The earlier named-role
+fixture lacked required overall times; the corrected valid fixture reproduces
+the omission, so this is a source defect rather than a changed expectation.
+
+Forward migration20261013010957_repair_scheduled_attendance_windows reuses the
+published-schedule validator through a private selected-session parser. Named
+roles and both multi-day ID forms use their exact slot instants. QR checkout
+fills only a missing departure at the scheduled end after a recorded arrival;
+explicit early departures remain unchanged. Blank/missing/invalid times and
+malformed legacy schedules are skipped without inventing midnight credit or
+aborting healthy rows. Started/completed published projects remain eligible
+after the scheduled status worker runs. Draft, cancelled/inactive, unapproved
+and future attendance stays unchanged. Manual attendance remains staff-owned.
+The workers lock project/signup boundaries without waiting on busy rows and
+retain explicit service execution with browser roles denied. They record
+attendance only; certificate publication and CSF points remain separate.
+
+All724 migrations replay successfully. The full existing pgTAP run passes500
+files and12,991 assertions, including45 new worker/window/authorization checks.
+The added two-session lock regression passes four assertions through the normal
+Supabase test runner. Clean catalog capture uses the exact fixture teardown in
+a rollback-only transaction:1440 objects, one new private parser and two changed
+worker definitions, with every other723 fingerprint unchanged. The complete724
+catalog and its prior release-boundary wrappers verify on that replay. No old
+migration or private gitlink is changed. Production remains687; Development723.
+
+ComparisonTextFlip's5ch reservation is independently reproduced as a phone
+rewrap: at390/414px, heading40.8→81.6px changes document height by41px. The live
+word animation keeps its2500ms timing; an aria-hidden grid of the actual phrases
+reserves the largest font-measured footprint. Capture readiness reads only the
+live phrase. Seven controlled Chromium width/theme combinations see every phrase
+and have invariant heading/document height, zero overflow and zero browser
+faults after the fix. This uses the real section, app CSS and Geist with Next
+link/image adapters; full Next route acceptance is separate. Three native phone
+browser regressions await the integrated full run.
+
+The image-registration obstacle is resolved locally by exporting the verified
+official PostgreSQL17.11 filesystem into one cache layer with all runtime
+configuration preserved; provenance is retained outside source. No registry,
+Docker daemon/security or provider setting is changed. Full local app startup
+still fails Auth/Storage health checks, which are not bypassed; the supported
+fresh database-only start supplies the SQL replay evidence above. The lockedxlsx
+archive remains unavailable:52 landing assertions pass while the existing Hero
+import and ten dependency-related type diagnostics remain blocked. No substitute
+or waiver. Exact-candidate short/full CI, full layout/pixel review, Development
+deployment/acceptance and the actual Production compatibility/writer/recovery
+gates remain mandatory.
