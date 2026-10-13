@@ -389,7 +389,7 @@
     },
     {
       "identity": "function:plugin_data.csf_assert_activity_earning_award(p_organization_id uuid, p_profile_id uuid, p_opportunity_id uuid, p_submission_id uuid, p_points numeric, p_rules_snapshot jsonb, p_selection jsonb)",
-      "digest": "579b488d795260f34196b9f6996072d9"
+      "digest": "d8b2742457a31f5faf788de14849096b"
     },
     {
       "identity": "function:plugin_data.csf_assert_application_record_correctable(p_organization_id uuid, p_application_id uuid, p_blocker_key text)",

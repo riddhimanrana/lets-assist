@@ -475,6 +475,55 @@ SELECT extensions.is(
   'the second donation can finalize its separate proof before review'
 );
 
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_validate_submission_edit(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first'),
+    'fd000000-0000-4000-8000-000000000001',
+    (SELECT revision FROM plugin_data.csf_point_submissions WHERE id =
+      (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first')),
+    '{"description":"Six products instead","claimedPoints":2,"pointType":"drive","activityDate":"2099-10-09","earningSelection":{"version":1,"items":[{"key":"products","quantity":6}]}}'::jsonb,
+    false
+  ) $$,
+  'P0001',
+  'This activity allows at most 2.00 points per person; 1.00 already submitted or verified.',
+  'editing one pending claim cannot exceed the cap reserved by its sibling'
+);
+
+SELECT plugin_data.csf_review_point_submission_request(
+  'fd100000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first'),
+  'needs_action', NULL, 'Please clarify this donation.',
+  'fd000000-0000-4000-8000-000000000002',
+  'fd700000-0000-4000-8000-000000000008'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_resubmit_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first'),
+    2, 'drive', '2099-10-09', 'Six products instead.',
+    'fd000000-0000-4000-8000-000000000001',
+    'fd600000-0000-4000-8000-00000000000e',
+    '{"version":1,"items":[{"key":"products","quantity":6}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 2.00 points per person; 1.00 already submitted or verified.',
+  'resubmitting one pending claim cannot exceed the cap reserved by its sibling'
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_resubmit_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first'),
+    1, 'drive', '2099-10-09', 'Three products confirmed.',
+    'fd000000-0000-4000-8000-000000000001',
+    'fd600000-0000-4000-8000-00000000000f',
+    '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+  ) $$,
+  'a within-cap correction remains allowed'
+);
+
 SELECT extensions.lives_ok(
   $$ SELECT plugin_data.csf_review_point_submission_request(
     'fd100000-0000-4000-8000-000000000001',

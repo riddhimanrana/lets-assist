@@ -227,6 +227,212 @@ GRANT EXECUTE ON FUNCTION plugin_data.csf_begin_point_submission_authority_base_
   uuid, text, text, text, text, bigint, uuid, uuid
 ) TO postgres;
 
+-- Apply the same reservation bound to revisions, resubmissions, and officer
+-- awards. Each caller takes the activity row lock before this aggregate read.
+CREATE OR REPLACE FUNCTION plugin_data.csf_assert_activity_earning_award(
+  p_organization_id uuid,
+  p_profile_id uuid,
+  p_opportunity_id uuid,
+  p_submission_id uuid,
+  p_points numeric,
+  p_rules_snapshot jsonb,
+  p_selection jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_activity plugin_data.csf_opportunities%ROWTYPE;
+  v_normalized jsonb;
+  v_rules jsonb;
+  v_mode text;
+  v_ceiling numeric;
+  v_selected_count integer := 0;
+  v_selected_categories integer := 0;
+  v_selected_category text;
+  v_selected_sum numeric;
+  v_selected_max numeric;
+  v_allow_multiple boolean;
+  v_selection_ceiling numeric;
+  v_verified numeric;
+  v_pending numeric;
+  v_person_cap numeric;
+  v_shift_keys text[];
+  v_duplicates text;
+BEGIN
+  IF p_organization_id IS NULL OR p_profile_id IS NULL OR p_opportunity_id IS NULL
+    OR p_points IS NULL OR p_points <= 0 THEN
+    RAISE EXCEPTION 'Activity award assertion inputs are incomplete.';
+  END IF;
+
+  -- The eligibility helper already holds the semester advisory lock and this
+  -- row lock; taking it again here keeps the assertion safe when a caller
+  -- reaches it through another path.
+  SELECT activity.*
+  INTO v_activity
+  FROM plugin_data.csf_opportunities AS activity
+  WHERE activity.organization_id = p_organization_id
+    AND activity.id = p_opportunity_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CSF activity was not found in this organization.';
+  END IF;
+
+  IF p_rules_snapshot IS NOT NULL
+    AND (p_rules_snapshot -> 'legacy') IS DISTINCT FROM 'true'::jsonb THEN
+    v_normalized := plugin_data.csf_normalize_earning_rules(p_rules_snapshot);
+    v_rules := v_normalized -> 'rules';
+    v_mode := v_rules ->> 'mode';
+    v_ceiling := (v_normalized ->> 'ceilingPoints')::numeric;
+    IF p_points > v_ceiling THEN
+      RAISE EXCEPTION 'Awarded points exceed this submission''s maximum of %.',
+        pg_catalog.trim_scale(v_ceiling);
+    END IF;
+
+    -- The activity-wide ceiling is the larger category ceiling. An override
+    -- must also stay within what the selected components can earn: the sum of
+    -- selected per-item maximums, the shift policy applied to the selected
+    -- shifts, or the single selected component's maximum.
+    IF p_selection IS NOT NULL
+      AND pg_catalog.jsonb_typeof(p_selection -> 'items') = 'array'
+      AND pg_catalog.jsonb_array_length(p_selection -> 'items') > 0 THEN
+      SELECT
+        pg_catalog.count(*)::integer,
+        pg_catalog.count(DISTINCT component.value ->> 'category')::integer,
+        pg_catalog.min(component.value ->> 'category'),
+        pg_catalog.sum(
+          CASE component.value ->> 'kind'
+            WHEN 'fixed' THEN (component.value ->> 'points')::numeric
+            WHEN 'shift' THEN (component.value ->> 'points')::numeric
+            ELSE (component.value ->> 'maxPoints')::numeric
+          END
+        ),
+        pg_catalog.max(
+          CASE component.value ->> 'kind'
+            WHEN 'fixed' THEN (component.value ->> 'points')::numeric
+            WHEN 'shift' THEN (component.value ->> 'points')::numeric
+            ELSE (component.value ->> 'maxPoints')::numeric
+          END
+        )
+      INTO v_selected_count, v_selected_categories, v_selected_category,
+        v_selected_sum, v_selected_max
+      FROM pg_catalog.jsonb_array_elements(v_rules -> 'components') AS component(value)
+      WHERE component.value ->> 'key' IN (
+        SELECT item.value ->> 'key'
+        FROM pg_catalog.jsonb_array_elements(p_selection -> 'items') AS item(value)
+        WHERE pg_catalog.jsonb_typeof(item.value) = 'object'
+      );
+      IF v_selected_count = 0 THEN
+        RAISE EXCEPTION 'Selection refers to an unknown component.';
+      END IF;
+      IF v_selected_categories > 1 THEN
+        RAISE EXCEPTION 'Submit drive and non-drive items as separate submissions.';
+      END IF;
+
+      IF v_mode = 'shifts' THEN
+        v_allow_multiple := coalesce(
+          (v_rules -> 'shiftPolicy' ->> 'allowMultiple')::boolean,
+          false
+        );
+        v_selection_ceiling := least(
+          (v_rules -> 'shiftPolicy' ->> 'combinedMaxPoints')::numeric,
+          CASE WHEN v_allow_multiple THEN v_selected_sum ELSE v_selected_max END
+        );
+      ELSIF v_mode = 'per_item' THEN
+        v_selection_ceiling := v_selected_sum;
+      ELSE
+        v_selection_ceiling := v_selected_max;
+      END IF;
+      v_selection_ceiling := least(v_selection_ceiling, v_ceiling);
+
+      IF p_points > v_selection_ceiling THEN
+        RAISE EXCEPTION 'Awarded points exceed the maximum of % for the selected % items.',
+          pg_catalog.trim_scale(v_selection_ceiling),
+          CASE WHEN v_selected_category = 'drive' THEN 'drive' ELSE 'non-drive' END;
+      END IF;
+    END IF;
+  END IF;
+
+  SELECT least(v_activity.point_cap, policy.max_points_per_activity)
+  INTO v_person_cap
+  FROM plugin_data.csf_term_policies AS policy
+  WHERE policy.organization_id = p_organization_id
+    AND policy.term_id = v_activity.term_id
+    AND policy.published_at IS NOT NULL;
+  IF v_person_cap IS NULL THEN
+    RAISE EXCEPTION 'A published semester policy is required for this point action.';
+  END IF;
+
+  IF v_person_cap IS NOT NULL THEN
+    SELECT coalesce(pg_catalog.sum(credit.points), 0)
+    INTO v_verified
+    FROM plugin_data.csf_credit_records AS credit
+    WHERE credit.organization_id = p_organization_id
+      AND credit.profile_id = p_profile_id
+      AND credit.opportunity_id = p_opportunity_id
+      AND credit.status = 'verified'
+      AND credit.submission_id IS DISTINCT FROM p_submission_id;
+    IF v_verified + p_points > v_person_cap THEN
+      RAISE EXCEPTION 'This activity allows at most % points per person; % already verified.',
+        v_person_cap, v_verified;
+    END IF;
+    -- Repeatable claims can coexist before review. Reserve sibling claims as
+    -- well as verified credit when correcting, editing, or approving one.
+    IF v_mode IN ('quantity', 'per_item') THEN
+      SELECT coalesce(pg_catalog.sum(pending.claimed_points), 0)
+      INTO v_pending
+      FROM plugin_data.csf_point_submissions AS pending
+      WHERE pending.organization_id = p_organization_id
+        AND pending.profile_id = p_profile_id
+        AND pending.term_id = v_activity.term_id
+        AND pending.opportunity_id = p_opportunity_id
+        AND pending.id IS DISTINCT FROM p_submission_id
+        AND pending.status IN ('draft', 'submitted', 'needs_action');
+      IF v_verified + v_pending + p_points > v_person_cap THEN
+        RAISE EXCEPTION 'This activity allows at most % points per person; % already submitted or verified.',
+          v_person_cap, v_verified + v_pending;
+      END IF;
+    END IF;
+  END IF;
+
+  IF p_rules_snapshot ->> 'mode' = 'shifts' AND p_selection IS NOT NULL THEN
+    SELECT pg_catalog.array_agg(element.value ->> 'key')
+    INTO v_shift_keys
+    FROM pg_catalog.jsonb_array_elements(coalesce(p_selection -> 'items', '[]'::jsonb)) AS element(value);
+    IF coalesce(pg_catalog.array_length(v_shift_keys, 1), 0) > 0 THEN
+      SELECT pg_catalog.string_agg(DISTINCT element.value ->> 'key', ', ')
+      INTO v_duplicates
+      FROM plugin_data.csf_point_submissions AS prior
+      JOIN plugin_data.csf_credit_records AS credit
+        ON credit.organization_id = prior.organization_id
+       AND credit.submission_id = prior.id
+       AND credit.status = 'verified'
+      CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
+        coalesce(prior.earning_selection -> 'items', '[]'::jsonb)
+      ) AS element(value)
+      WHERE prior.organization_id = p_organization_id
+        AND prior.profile_id = p_profile_id
+        AND prior.opportunity_id = p_opportunity_id
+        AND prior.id IS DISTINCT FROM p_submission_id
+        AND prior.earning_rules_snapshot ->> 'mode' = 'shifts'
+        AND element.value ->> 'key' = ANY (v_shift_keys);
+      IF v_duplicates IS NOT NULL THEN
+        RAISE EXCEPTION 'Shift % was already awarded for this member.', v_duplicates;
+      END IF;
+    END IF;
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION plugin_data.csf_assert_activity_earning_award(
+  uuid, uuid, uuid, uuid, numeric, jsonb, jsonb
+) FROM PUBLIC, anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION plugin_data.csf_assert_activity_earning_award(
+  uuid, uuid, uuid, uuid, numeric, jsonb, jsonb
+) TO postgres;
+
 -- Fixed, legacy and unknown modes retain the one-claim guard. Shift and
 -- assessment modes still allow only one unfinished claim; repeatable quantity
 -- and per-item donations may have separate unfinished claims within the cap.
