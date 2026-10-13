@@ -1458,4 +1458,6 @@ export const migrationDigests = {
     "78707e9e1ba93cf2e69cf8f4922625d29572677ad3d83a1966e10c3133f1a143",
   "20261013010957_repair_scheduled_attendance_windows.sql":
     "e79805146244e7b7cea595d7bedd24cc3dcac8c2769bccf0ff0df3bf031887eb",
+  "20261013071100_csf_repeatable_pending_activity_claims.sql":
+    "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
 };

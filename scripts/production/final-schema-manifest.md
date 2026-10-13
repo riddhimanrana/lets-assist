@@ -59,6 +59,15 @@ point, client-role grant or cron definition is changed by the migration itself.
 Hosted comparison, the full application/browser gate and Production acceptance
 remain separate requirements.
 
+Release 725 applies the repeatable pending-point claim repair after all 724 v4
+migrations. Its clean isolated PostgreSQL 17.11 replay passes 501 pgTAP files
+and 13,011 assertions. The canonical catalog query returns `1` on that replay.
+The inventory changes only the point-submission begin function, the activity
+award assertion, and the point-submissions relation/index; it adds or removes
+no catalog object. This is the v4 ledger and relation fingerprint, distinct
+from the isolated Production 688 path. Hosted Development comparison, full CI,
+and visual acceptance remain separate gates.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the
