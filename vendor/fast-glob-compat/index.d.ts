@@ -1,6 +1,6 @@
 import type { GlobOptions } from "tinyglobby";
 
-type Options = GlobOptions & { unique?: boolean };
+type Options = GlobOptions & { unique?: boolean; markDirectories?: boolean };
 
 declare function fastGlob(
   patterns: string | string[],

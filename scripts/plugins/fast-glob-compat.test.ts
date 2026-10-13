@@ -21,6 +21,10 @@ fixture("app/help/page.tsx");
 fixture("app/help/page.js");
 fixture("app/admin/page.tsx");
 fixture("app/.hidden/page.tsx");
+fixture("depth.txt");
+fixture("one/first.txt");
+fixture("one/two/second.txt");
+fixture("one/two/three/third.txt");
 
 test("Vercel config discovery keeps brace, absolute, and ignore semantics", () => {
   expect(
@@ -64,4 +68,45 @@ test("test discovery accepts pattern arrays and excludes node_modules", async ()
       })
     ).sort(),
   ).toEqual(["app/admin/page.tsx", "app/help/page.js", "app/help/page.tsx"]);
+});
+
+test("fast-glob depth counts the starting directory", async () => {
+  const filesAtDepth = [
+    ["depth.txt"],
+    ["depth.txt", "one/first.txt"],
+    ["depth.txt", "one/first.txt", "one/two/second.txt"],
+  ];
+  for (const [index, expected] of filesAtDepth.entries()) {
+    const deep = index + 1;
+    expect(fg.globSync("**/*.txt", { cwd: root, deep }).sort()).toEqual(
+      expected,
+    );
+    expect((await fg("**/*.txt", { cwd: root, deep })).sort()).toEqual(
+      expected,
+    );
+  }
+  expect(fg.globSync("one/**/*.txt", { cwd: root, deep: 2 }).sort()).toEqual([
+    "one/first.txt",
+    "one/two/second.txt",
+  ]);
+  expect((await fg("one/two/**/*.txt", { cwd: root, deep: 1 })).sort()).toEqual(
+    ["one/two/second.txt"],
+  );
+});
+
+test("directory results match fast-glob's path and globstar semantics", async () => {
+  const expected = ["one/two", "one/two/three"];
+  expect(fg.globSync("one/**", { cwd: root, onlyDirectories: true })).toEqual(
+    expected,
+  );
+  expect(await fg("one/**", { cwd: root, onlyDirectories: true })).toEqual(
+    expected,
+  );
+  expect(
+    fg.globSync("one/**", {
+      cwd: root,
+      onlyDirectories: true,
+      markDirectories: true,
+    }),
+  ).toEqual(["one/two/", "one/two/three/"]);
 });
