@@ -11221,7 +11221,6 @@ Source changes await exact-head short/full CI, complete layout/pixel review,
 parent-owned Development prepare/merge/complete and hosted acceptance. Production
 remains subject to actual compatibility, writer/fence and recovery gates.
 
-
 ## Current landing PNG timing and historical palette restoration
 
 P2 LANDING-PNG-FRESH-INTERVAL-20261013: fullCI38342965362 on5d98d999
