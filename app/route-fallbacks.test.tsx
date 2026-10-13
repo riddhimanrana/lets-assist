@@ -1,6 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import {
+  ErrorBoundaryHandler,
+  type ErrorInfo,
+} from "next/dist/client/components/error-boundary";
 
 import { MainContent } from "@/components/layout/MainContent";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -46,19 +50,47 @@ describe("root error boundary", () => {
     expect(html).not.toContain("fictional-digest");
   });
 
-  test("Try again calls the retry callback Next supplies", () => {
-    let retries = 0;
-    const output = RootError({
-      error,
-      retry: () => {
-        retries++;
-      },
+  test("Try again uses the callback supplied by the pinned Next error boundary", () => {
+    // Next's internal ErrorInfo uses `unknown` for the thrown value, while the
+    // file-convention component receives the serialized Error at runtime.
+    const boundary = new ErrorBoundaryHandler({
+      pathname: "/fictional-error",
+      errorComponent: RootError as unknown as React.ComponentType<ErrorInfo>,
+      children: null,
     });
+    boundary.state = {
+      error: { thrownValue: error },
+      previousPathname: "/fictional-error",
+    };
+    let refreshes = 0;
+    let resets = 0;
+    boundary.context = {
+      refresh: () => {
+        refreshes++;
+      },
+    } as unknown as typeof boundary.context;
+    boundary.reset = () => {
+      resets++;
+    };
+
+    const fallback = nodes(boundary.render()).find(
+      (node) => node.type === RootError,
+    );
+    expect(fallback).toBeDefined();
+    const supplied = fallback!.props as {
+      error: Error & { digest?: string };
+      retry: () => void;
+      reset: () => void;
+    };
+    expect(typeof supplied.retry).toBe("function");
+    expect(typeof supplied.reset).toBe("function");
+    const output = RootError(supplied);
     const retryButton = nodes(output).find((node) => node.type === Button);
     expect(text(retryButton)).toBe("Try again");
     expect(retryButton?.props.type).toBe("button");
     (retryButton!.props.onClick as () => void)();
-    expect(retries).toBe(1);
+    expect(refreshes).toBe(1);
+    expect(resets).toBe(1);
   });
 });
 
