@@ -149,6 +149,30 @@ SELECT 'per-item-activity', plugin_data.csf_create_activity(
 );
 
 INSERT INTO fixed_results (label, result)
+SELECT 'quantity-drive', plugin_data.csf_create_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'status', 'published',
+    'title', 'Repeatable donation drive',
+    'signupMode', 'none',
+    'pointCap', 2,
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'quantity',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'products', 'label', 'Products', 'category', 'drive', 'kind', 'quantity', 'unitLabel', 'products', 'unitsPerPoint', 3, 'maxPoints', 2)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000005'
+);
+
+INSERT INTO fixed_results (label, result)
 SELECT 'shift-activity', plugin_data.csf_create_activity(
   'fd100000-0000-4000-8000-000000000001',
   'fd300000-0000-4000-8000-000000000001',
@@ -342,6 +366,147 @@ SELECT extensions.is(
   ),
   2,
   'the per_item activity carries one approved and one submitted claim'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'per-item-activity'),
+    NULL, 'student', 'More bookmarks beyond the cap.', 1, 'non_drive', '2099-10-11',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-00000000000a',
+    '{"version":1,"items":[{"key":"bookmark","quantity":1}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 3.00 points per person; 3.00 already submitted or verified.',
+  'a pending per-item claim reserves the remaining per-person capacity'
+);
+
+-- Two different donations may await review at once, without reserving more
+-- than the activity cap or treating a retry as a third donation.
+INSERT INTO fixed_results (label, result)
+SELECT 'quantity-first', plugin_data.csf_begin_point_submission_request_v2(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd400000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive'),
+  NULL, 'student', 'First separate donation.', 1, 'drive', '2099-10-09',
+  'fd000000-0000-4000-8000-000000000001',
+  NULL, NULL, NULL, NULL,
+  'fd600000-0000-4000-8000-00000000000b',
+  '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+);
+
+INSERT INTO fixed_results (label, result)
+SELECT 'quantity-second', plugin_data.csf_begin_point_submission_request_v2(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd400000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive'),
+  NULL, 'student', 'Second separate donation.', 1, 'drive', '2099-10-12',
+  'fd000000-0000-4000-8000-000000000001',
+  'second-donation.pdf', 'application/pdf', 1024,
+  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  'fd600000-0000-4000-8000-00000000000c',
+  '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+);
+
+SELECT extensions.is(
+  (
+    SELECT count(*)::integer
+    FROM plugin_data.csf_point_submissions
+    WHERE opportunity_id = (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive')
+      AND status IN ('draft', 'submitted')
+      AND earning_rules_snapshot ->> 'mode' = 'quantity'
+  ),
+  2,
+  'two separate quantity claims, including a pending proof, retain their rules snapshots'
+);
+
+SELECT extensions.is(
+  (plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive'),
+    NULL, 'student', 'Second separate donation.', 1, 'drive', '2099-10-12',
+    'fd000000-0000-4000-8000-000000000001',
+    'second-donation.pdf', 'application/pdf', 1024,
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    'fd600000-0000-4000-8000-00000000000c',
+    '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+  ) ->> 'submissionId')::uuid,
+  (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-second'),
+  'an exact retry returns the second claim instead of creating another'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive'),
+    NULL, 'student', 'Third donation over the activity cap.', 1, 'drive', '2099-10-13',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-00000000000d',
+    '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 2.00 points per person; 2.00 already submitted or verified.',
+  'a third donation is refused while the first two await review'
+);
+
+SELECT extensions.is(
+  (
+    plugin_data.csf_finalize_point_submission_proof_request(
+      'fd100000-0000-4000-8000-000000000001',
+      (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-second'),
+      (SELECT (result ->> 'fileId')::uuid FROM fixed_results WHERE label = 'quantity-second'),
+      (SELECT (result ->> 'uploadToken')::uuid FROM fixed_results WHERE label = 'quantity-second'),
+      'fd000000-0000-4000-8000-000000000001',
+      'fd600000-0000-4000-8000-00000000000c'
+    ) ->> 'status'
+  ),
+  'submitted',
+  'the second donation can finalize its separate proof before review'
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_review_point_submission_request(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-first'),
+    'approved', 1, NULL,
+    'fd000000-0000-4000-8000-000000000002',
+    'fd700000-0000-4000-8000-000000000006'
+  ) $$,
+  'the first pending donation can be approved under the activity cap'
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_review_point_submission_request(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'quantity-second'),
+    'approved', 1, NULL,
+    'fd000000-0000-4000-8000-000000000002',
+    'fd700000-0000-4000-8000-000000000007'
+  ) $$,
+  'the second pending donation can be approved up to the combined cap'
+);
+
+SELECT extensions.is(
+  (
+    SELECT pg_catalog.sum(credit.points)::numeric
+    FROM plugin_data.csf_credit_records AS credit
+    WHERE credit.profile_id = 'fd400000-0000-4000-8000-000000000001'
+      AND credit.opportunity_id = (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'quantity-drive')
+      AND credit.status = 'verified'
+  ),
+  2::numeric,
+  'approval creates exactly two verified drive points across the two donations'
 );
 
 -- ---------------------------------------------------------------------------
