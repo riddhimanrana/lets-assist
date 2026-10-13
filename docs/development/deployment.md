@@ -56,8 +56,10 @@ reviewed `main` workflow commit. This path is restricted to the reviewed
 dependency, vendored glob replacement, and release-tooling files; application
 source, database migrations, private gitlink, and environment settings cannot
 change through it. The controller also checks the exact reviewed bytes of the
-dependency repair and release workflow. A later change to an allowed filename
-requires its own review; the filename alone does not extend this exception.
+dependency repair and release workflow. The workflow independently checks the
+verifier's exact Git blob before executing it. A later change to an allowed
+filename requires its own review; the filename alone does not extend this
+exception.
 
 The controller proves the current Production alias points to the exact ready
 Git-connected application commit, verifies the Vercel project and GitHub

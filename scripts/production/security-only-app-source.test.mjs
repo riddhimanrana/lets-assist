@@ -61,6 +61,10 @@ test("security-only workflow retains staging, exact public checks and rollback",
     workflow,
     /security-only-app-source\.mjs \| tee \.artifacts\/source-verification\.json/u,
   );
+  assert.match(
+    workflow,
+    /\[\[ "\$\(git hash-object \.\.\/scripts\/production\/security-only-app-source\.mjs\)" == "\$\{SECURITY_ONLY_VERIFIER_BLOB\}" \]\]/u,
+  );
   assert.match(workflow, /security-only-app-source\.mjs live/u);
   assert.match(workflow, /app-release-checks\.mjs schema/u);
   assert.match(workflow, /verify-vercel-project\.sh/u);
@@ -326,6 +330,31 @@ test("security-only source requires exact main commit, review diff and no waiver
     ),
     /exact reviewed repair/u,
   );
+  for (const path of [
+    "scripts/production/security-only-app-source.mjs",
+    ".github/workflows/deploy-app-only.yml",
+  ]) {
+    git("reset", "--hard", releaseSha);
+    git("update-ref", "refs/remotes/origin/main", releaseSha);
+    const file = resolve(cwd, path);
+    writeFileSync(file, `${readFileSync(file, "utf8")}\n# later edit\n`);
+    git("add", path);
+    git("commit", "-m", `Fictional later ${path} change`);
+    const laterSha = git("rev-parse", "HEAD");
+    git("update-ref", "refs/remotes/origin/main", laterSha);
+    await assert.rejects(
+      verifySecurityOnlySource(
+        {
+          ...config,
+          releaseSha: laterSha,
+          controllerSha: laterSha,
+          confirmation: `security-only:${productionAppSha}:${laterSha}`,
+        },
+        fetchers,
+      ),
+      /exact reviewed repair/u,
+    );
+  }
   git("reset", "--hard", releaseSha);
   git("update-ref", "refs/remotes/origin/main", releaseSha);
   writeFileSync(resolve(cwd, "app.ts"), "export const changed = true;\n");

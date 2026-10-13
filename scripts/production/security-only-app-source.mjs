@@ -28,21 +28,21 @@ const reviewedPaths = new Set([
 ]);
 const requiredPaths = [...reviewedPaths];
 // Exact reviewed contents, rather than broad filenames, bind this one-time
-// exception to the dependency repair. This verifier is the guard itself; its
-// source is still subject to the exact main commit, full CI, and code review.
+// exception to the dependency repair. The workflow independently pins this
+// verifier's Git blob; its own digest here normalizes only that blob literal.
 const reviewedContentSha256 = Object.freeze({
   ".github/workflows/deploy-app-only.yml":
-    "e830f9954658b48a1dc752a7e65c1e3b67e05a82d00b424ca5bfa80f12e29589",
+    "0261609a5bce90da227dc861f659ae04c7af300a3766bf3bd1af1dc3b63a83a9",
   "bun.lock":
     "c9fcf5c38d2cbedb434e47e1fb03f15852064995659395a54261aa12ac7d2b59",
   "docs/development/deployment.md":
-    "032d35ac57f6056f6ab26866b020cb081d9f68ad9df7e5d587d6f53f3d850377",
+    "ddd130440403036f3121af0becd6178c2277180f011a1c0ac2c7c956034ec945",
   "package.json":
     "f693d86088b79e34a7f8c3866375e7ac4fb4f41d8460768e385779db791b52c9",
   "scripts/plugins/fast-glob-compat.test.ts":
     "f94c2aa33ce65cb9fa41a0831a3de751e8713768ec9de6a7fd95049b26abd227",
   "scripts/production/security-only-app-source.test.mjs":
-    "5e5257b8208bf5a27b1c9682616c12391799239e1cf6305ec51dbc534fb0b9c3",
+    "0cda5dec93eb1c59bbbbe63a41dde6069da8559d5598c4fc80f1bf1c2b6a1e94",
   "vendor/fast-glob-compat/index.cjs":
     "8624706331be0d538f1deffbb6cfc9b808ae11ef61e98fba97270e5033535867",
   "vendor/fast-glob-compat/index.d.ts":
@@ -64,13 +64,35 @@ export function verifySecurityOnlyPaths(paths) {
 }
 
 export function verifyReviewedContent(cwd) {
+  const verifier = readFileSync(
+    resolve(cwd, "scripts/production/security-only-app-source.mjs"),
+  );
+  const verifierBlob = createHash("sha1")
+    .update(`blob ${verifier.length}\0`)
+    .update(verifier)
+    .digest("hex");
   for (const [path, expected] of Object.entries(reviewedContentSha256)) {
     try {
       const file = resolve(cwd, path);
       if (!lstatSync(file).isFile()) throw new Error("Not a regular file");
-      const actual = createHash("sha256")
-        .update(readFileSync(file))
-        .digest("hex");
+      let contents = readFileSync(file);
+      if (path === ".github/workflows/deploy-app-only.yml") {
+        const workflow = contents.toString("utf8");
+        const anchors = [
+          ...workflow.matchAll(
+            /^          SECURITY_ONLY_VERIFIER_BLOB=([0-9a-f]{40})$/gmu,
+          ),
+        ];
+        if (anchors.length !== 1 || anchors[0][1] !== verifierBlob)
+          throw new Error("Verifier blob differs");
+        contents = Buffer.from(
+          workflow.replace(
+            anchors[0][0],
+            "          SECURITY_ONLY_VERIFIER_BLOB=<reviewed-verifier-blob>",
+          ),
+        );
+      }
+      const actual = createHash("sha256").update(contents).digest("hex");
       if (actual !== expected) throw new Error("Content differs");
     } catch {
       throw new ReleaseCheckError(
