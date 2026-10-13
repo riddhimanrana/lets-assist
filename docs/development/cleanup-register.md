@@ -11266,3 +11266,17 @@ inspected all eight: light white/green surfaces remain stable; dark surfaces and
 borders return to the verified historical levels without wrapping drift. These
 framework-adapted components do not prove complete authenticated route or old
 whole-page acceptance, and no Claude pixel-review receipt is claimed.
+
+## Corrected project scope: preserve Let's Assist palette
+
+The user clarified that the v1.5 color restoration request was for Dicy.
+Let's Assist's palette rollback in70180c3d was based on a misinterpreted project
+scope. Only that rollback is undone: globals.css, its palette-specific root test
+additions and design-system provenance paragraph return exactly to5d98d999.
+The approved prior palette, gloss, content-link and earlier layout/accessibility
+fixes remain. All screenshot fresh-interval, hydration, heading/lifecycle,
+notification/plugin reader, scheduled-attendance and certificate timezone fixes
+remain. Historical palette/component reports are retained as superseded evidence;
+they cannot be final acceptance for the corrected candidate or evidence for Dicy.
+No wrong-palette Development or Production release occurred in this source task.
+Fresh exact-head CI/layout/pixel review and actual release gates remain required.

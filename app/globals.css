@@ -138,7 +138,7 @@
   }
 
   .dark {
-    /* Historical palette from d95a0aa9846bc02e611f67f0f9017245c08821d8. */
+    /* Dark theme variables */
     /*--page-background: 240 21% 12%;*/
     /* mantle */
     /*--page-foreground: 226 64% 88%;*/
@@ -149,24 +149,24 @@
     /* yellow */
     --info: hsl(217 92% 76%);
 
-    --background: hsl(240 21% 12%);
-    /* Historical palette: mantle/page, base/cards and surface0/muted. */
+    --background: hsl(240 23% 9%);
+    /* crust */
     --foreground: hsl(226 64% 88%);
     /* text */
-    --muted: hsl(237 16.239316761493683% 23%);
-    /* surface0 */
+    --muted: hsl(240 21% 15%);
+    /* base */
     --muted-foreground: hsl(227 35.29411852359772% 80%);
     /* subtext1 */
-    --popover: hsl(240 21% 15%);
-    /* base */
+    --popover: hsl(240 21% 12%);
+    /* mantle */
     --popover-foreground: hsl(226 64% 88%);
     /* text */
-    --card: hsl(240 21% 15%);
-    /* base */
+    --card: hsl(240 21% 12%);
+    /* mantle */
     --card-foreground: hsl(226 64% 88%);
     /* text */
-    --border: hsl(234 13% 31%);
-    /* surface1 */
+    --border: hsl(237 16% 23%);
+    /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
     --content-link: hsl(115 54% 76%);
@@ -177,8 +177,8 @@
        they did before --brand existed. The light-theme split exists because AA
        forced --primary away from the identity green; dark mode never had that
        conflict, so it needs no second hue. */
-    --primary-foreground: hsl(240 21% 15%);
-    /* base */
+    --primary-foreground: hsl(240 23% 9%);
+    /* crust */
     --button-primary-gloss: linear-gradient(
       180deg,
       rgb(255 255 255 / 30%) 0%,
@@ -211,8 +211,8 @@
     /* text */
     --destructive: hsl(343 81% 75%);
     /* red */
-    --destructive-foreground: hsl(240 21% 12%);
-    /* mantle */
+    --destructive-foreground: hsl(240 23% 9%);
+    /* crust */
     --ring: hsl(226 64% 88%);
     /* text */
     --radius: 1rem;
