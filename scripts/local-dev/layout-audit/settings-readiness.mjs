@@ -1,4 +1,6 @@
 const routes = Object.freeze({
+  "organization-settings-plugins":
+    "/organization/local-platform-org/settings?section=plugins",
   "organization-settings-invitations":
     "/organization/local-platform-org/settings?section=invitations",
   "organization-settings-integrations":

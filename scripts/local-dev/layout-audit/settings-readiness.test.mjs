@@ -5,7 +5,7 @@ import {
   settingsReadinessScope,
   settleSettingsReadiness,
 } from "./settings-readiness.mjs";
-const entries = ["invitations", "integrations"].map((section) => ({
+const entries = ["invitations", "integrations", "plugins"].map((section) => ({
   id: "organization-settings-" + section,
   actorKey: "developer",
   route: "/organization/local-platform-org/settings?section=" + section,
@@ -19,7 +19,7 @@ test("only exact reviewed settings scenes get this bounded readiness wait", () =
     for (const changed of [
       { actorKey: "csfMember" },
       { route: entry.route + "&other=1" },
-      { id: "organization-settings-plugins" },
+      { id: "organization-settings-danger" },
       { expectedRoutes: ["/organization/other/settings"] },
     ])
       assert.equal(settingsReadinessScope({ ...entry, ...changed }), false);

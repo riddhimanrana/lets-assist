@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assertCaptureDomReady, captureSummary } from "./capture-summary.mjs";
+import {
+  assertCaptureDomReady,
+  captureSummary,
+  readRequestRefusalCategory,
+} from "./capture-summary.mjs";
 
 const scenes = new Map([["home-member", {}]]);
 const receipt = () => ({
@@ -35,6 +39,35 @@ test("CI summary logs only fixed scene/mode/state and bounded counters", () => {
   assert.equal(summary.completeVisualAudit, false);
   assert.equal(summary.pixelsInspected, 0);
   assert(!JSON.stringify(summary).includes("PRIVATE"));
+});
+
+test("refused reader requests expose only fixed classifications, never IDs or arguments", () => {
+  const knownId = "a".repeat(40);
+  const groups = { plugin: [{ actionId: knownId }] };
+  assert.equal(
+    readRequestRefusalCategory(knownId, groups),
+    "reviewed-plugin-reader-refused",
+  );
+  assert.equal(
+    readRequestRefusalCategory("PRIVATE_COOKIE_TOKEN", groups),
+    "unreviewed-request",
+  );
+  const final = receipt();
+  final.results[0].requestRefusals = ["reviewed-plugin-reader-refused"];
+  const summary = captureSummary(final, scenes);
+  assert.deepEqual(summary.blocked[0].requestRefusals, [
+    "reviewed-plugin-reader-refused",
+  ]);
+  assert(!JSON.stringify(summary).includes(knownId));
+  assert(!JSON.stringify(summary).includes("PRIVATE"));
+  for (const invalid of [
+    ["PRIVATE_URL"],
+    Array(5).fill("unreviewed-request"),
+    "PRIVATE_TEXT",
+  ]) {
+    final.results[0].requestRefusals = invalid;
+    assert.throws(() => captureSummary(final, scenes));
+  }
 });
 
 test("historical loading PNG receipts cannot qualify for successful CI upload", () => {

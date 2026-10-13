@@ -16,6 +16,27 @@ const faultNames = [
   "blockedSocket",
   "unsafeNavigation",
 ];
+const requestRefusalCategories = new Set([
+  "reviewed-platform-reader-refused",
+  "reviewed-invitation-reader-refused",
+  "reviewed-integration-reader-refused",
+  "reviewed-plugin-reader-refused",
+  "unreviewed-request",
+]);
+export function readRequestRefusalCategory(actionId, groups) {
+  for (const [name, actions] of [
+    ["platform", groups.platform],
+    ["invitation", groups.invitation],
+    ["integration", groups.integration],
+    ["plugin", groups.plugin],
+  ])
+    if (
+      typeof actionId === "string" &&
+      actions?.some((a) => a.actionId === actionId)
+    )
+      return `reviewed-${name}-reader-refused`;
+  return "unreviewed-request";
+}
 function count(value) {
   if (!Number.isSafeInteger(value) || value < 0 || value > 1000000)
     throw Error("Capture summary counter refused");
@@ -48,14 +69,25 @@ export function captureSummary(final, scenes) {
     if (row.status === "captured-awaiting-pixel-review")
       assertCaptureDomReady(row.dom);
     if (row.image) images++;
-    if (row.status === "blocked-or-failed")
+    if (row.status === "blocked-or-failed") {
+      const requestRefusals = row.requestRefusals ?? [];
+      if (
+        !Array.isArray(requestRefusals) ||
+        requestRefusals.length > 4 ||
+        requestRefusals.some(
+          (category) => !requestRefusalCategories.has(category),
+        )
+      )
+        throw Error("Capture request refusal category refused");
       blocked.push({
         id: row.id,
         mode: row.mode,
         faults: Object.fromEntries(
           faultNames.map((name) => [name, count(row.faults?.[name])]),
         ),
+        requestRefusals,
       });
+    }
   }
   return {
     layoutCaptureSummary: true,

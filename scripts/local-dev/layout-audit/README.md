@@ -40,3 +40,20 @@ does not freeze animations or accept transparent transition frames. These
 helpers and their adversarial tests are part of the frozen package manifest.
 Controlled component renders supplement, but do not replace, native exact-head
 CI, the complete 87-scene fixture audit or old-versus-new pixel review.
+
+The plugin-settings scene now permits only its initial
+getOrganizationPluginSettings action. The policy binds the implementation export,
+compiled ID and settings worker,29 frozen caller/query/authorization/registry/SQL
+source files, the exact route and one fictional organization argument, and an
+independently observed active developer admin membership. The getter reads
+plugin catalog/access/install data; its optional application-status RPC chain
+is STABLE and reads local catalog/deployment records without provider probes.
+It does not invoke lifecycle hooks. All install/configuration/runtime/update/
+uninstall/deletion actions remain blocked. Plugin loading must finish within
+twelve seconds. Refused requests retain at most four fixed reader categories;
+no action ID, body, URL, cookie or private console text enters the CI summary.
+
+CI38338528368 stopped after70 captured scenes and one blocked plugin-settings
+scene; its actual request identity and private console cause were not retained
+in the readable summary. This source-backed policy repair is not a claim that
+those historical identities were proved, nor that the full audit passed.

@@ -1111,7 +1111,10 @@
       ],
       "actorKey": "developer",
       "captureReducedMotion": false,
-      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save",
+      "readActions": [
+        "getOrganizationPluginSettings"
+      ]
     },
     {
       "id": "organization-settings-danger",

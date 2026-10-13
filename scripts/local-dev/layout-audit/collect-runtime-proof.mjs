@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Future actual owned runtime collector. No launch, DB mutation or provider request.
 import fs from "node:fs";
+import { pluginPolicyFromCompiled } from "./plugin-reader-contract.mjs";
 import {
   integrationPolicyFromCompiled,
   verifyIntegrationFixture,
@@ -215,6 +216,7 @@ export async function main(
   let readActionPolicy = { enabled: false, reviewed: false };
   let invitationReadPolicy = { enabled: false, reviewed: false };
   let integrationReadPolicy = { enabled: false, reviewed: false };
+  let pluginReadPolicy = { enabled: false, reviewed: false };
   if (enableReads) {
     const meta = path.join(directory, "server/server-reference-manifest.json");
     os.ownFile(meta, false);
@@ -259,6 +261,12 @@ export async function main(
       REPO,
       digest(bytes),
       readProof.integrationReaderSourceHashes,
+    );
+    pluginReadPolicy = pluginPolicyFromCompiled(
+      JSON.parse(bytes),
+      REPO,
+      digest(bytes),
+      readProof.pluginReaderSourceHashes,
     );
   }
   const runtime = {
@@ -388,6 +396,7 @@ export async function main(
     readActionPolicy,
     invitationReadPolicy,
     integrationReadPolicy,
+    pluginReadPolicy,
   };
   const manifestFile = path.join(supportDir, "capture-manifest.json");
   os.exclusiveJSON(manifestFile, manifest);

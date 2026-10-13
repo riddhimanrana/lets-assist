@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 // Standalone read-only synthetic UI capture. No server/DB/provider lifecycle ownership.
+import {
+  exactPluginPolicy,
+  pluginReaderRequest,
+} from "./plugin-reader-contract.mjs";
 import { settleLandingVisual } from "./landing-visual-settlement.mjs";
 import { recordPageError } from "./page-error-diagnostics.mjs";
-import { assertCaptureDomReady } from "./capture-summary.mjs";
+import {
+  assertCaptureDomReady,
+  readRequestRefusalCategory,
+} from "./capture-summary.mjs";
 import {
   verifyNotificationReaderProof,
   notificationReaderFrame,
@@ -145,6 +152,11 @@ const integrationActions = exactIntegrationPolicy(
   REPO,
   buildDirectory,
   m.integrationReadPolicy,
+);
+const pluginActions = exactPluginPolicy(
+  REPO,
+  buildDirectory,
+  m.pluginReadPolicy,
 );
 if (
   !Number.isInteger(m.appPort) ||
@@ -431,6 +443,7 @@ try {
         pixelsInspected: false,
         faults,
         socketRefusals: [],
+        requestRefusals: [],
       };
       let capturePhase = "navigation";
       const deliveredScriptURLs = new Set();
@@ -474,19 +487,37 @@ try {
                       fixtureProof.invitationReaderOrganization,
                   });
                 } catch {
-                  integrationReaderRequest({
-                    ...request,
-                    approvedActions: integrationActions,
-                    organizationProof:
-                      fixtureProof.invitationReaderOrganization,
-                    integrationProof: fixtureProof.integrationReader,
-                  });
+                  try {
+                    integrationReaderRequest({
+                      ...request,
+                      approvedActions: integrationActions,
+                      organizationProof:
+                        fixtureProof.invitationReaderOrganization,
+                      integrationProof: fixtureProof.integrationReader,
+                    });
+                  } catch {
+                    pluginReaderRequest({
+                      ...request,
+                      approvedActions: pluginActions,
+                      organizationProof:
+                        fixtureProof.invitationReaderOrganization,
+                    });
+                  }
                 }
               }
               if (++allowedReadActions > 4)
                 fail("Read-action request bound exceeded");
             } catch {
               faults.blockedMutation++;
+              if (capture.requestRefusals.length < 4)
+                capture.requestRefusals.push(
+                  readRequestRefusalCategory(req.headers()["next-action"], {
+                    platform: approvedActions,
+                    invitation: invitationActions,
+                    integration: integrationActions,
+                    plugin: pluginActions,
+                  }),
+                );
               await route.abort("blockedbyclient");
               return;
             }
@@ -693,6 +724,7 @@ try {
           [
             "organization-settings-invitations",
             "organization-settings-integrations",
+            "organization-settings-plugins",
           ].includes(entry.id)
         )
           capture.settingsReadiness = await settleSettingsReadiness(

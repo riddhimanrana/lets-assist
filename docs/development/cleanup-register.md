@@ -11171,3 +11171,52 @@ assertions. All12 lifecycle scenarios pass on Bun1.4.2/Node24.21.0, alongside ni
 focused markup/accessibility tests with114 expectations. The product component,
 animation and verified heading geometry are unchanged. Exact-head short/full CI
 and hosted release acceptance remain pending; the full dispatch stays held.
+
+### October12 integrated browser and plugin-reader follow-up
+
+Full CI38338528368 on25242dd2 passes all501 database files/12,995 assertions,
+release/scale/concurrency and633 cron assertions, static/build/all three unit
+shards/full-quality. Browser shard2 fails the three comparison-cycle widths;
+layout stops at the plugin-settings scene after70 images. Neither is accepted
+as a complete UI audit or pixel review; no merge or deployment occurred.
+
+Comparison heading height stays constant through every word, but two document
+heights are recorded. The old test starts before client-only partner tiles,
+organization demo replacement and closing section are required to exist. A
+controlled real-component composition with deliberately delayed lazy regions
+reproduces this exact assertion shape at320/390/414px: organization content and
+inserted sections change page height while the heading remains constant. The
+same native-test measurement callback reports one document height after the
+new bounded presence/font prerequisites. It uses a fixed hero placeholder and
+Next/action/navigation adapters, so it proves the harness phase gap rather than
+the historical full-Next error identity. The native test retains strict all-word,
+one heading height, one page height, no overflow and zero fault assertions.
+Numeric initial presence/dimensions and bounded section-height transitions are
+attached for fresh native diagnosis; both geometry and fault assertions execute.
+
+The plugin-settings component calls getOrganizationPluginSettings on mount,
+but the scene previously declared no reader. Its source path revalidates active
+organization-admin access and only selects plugin catalog/access/install rows,
+with pure registry/release transformations and a STABLE local status getter
+chain. The new policy admits only that exact compiled export/worker, reviewed
+29-file snapshot, fixed fictional developer/admin organization, route and single
+argument. Twenty-five contract tests retain strict mutation/unknown-action/
+wrong-actor/organization/mapping/dependency rejection. All other POSTs remain
+fatal. The scene now uses the existing bounded loading-marker check. Fixed
+request-refusal categories improve future diagnosis without exposing IDs, bodies
+or private console text. The original blocked request/console identity remains
+unproved; fresh full scene coverage is mandatory.
+
+Reviewer finding4254134963 is repaired in dashboard certificate export and hours
+rows. Project wall clocks, dates and abbreviations now use one project timezone
+with the existing Pacific legacy fallback, so a Pacific viewer never sees a
+local time labeled EDT. Overnight CSV rows use the actual project end date.
+Picker date labels compare against project calendar labels without UTC parsing.
+Five formatter/export tests pass under both Pacific and UTC host timezones,
+including spring-forward, repeated fall-back times and cross-midnight dates;
+actual dashboard rendering verifies the New York date beside EDT. Credited
+durations, publication and certificate authorization stay unchanged.
+
+Source changes await exact-head short/full CI, complete layout/pixel review,
+parent-owned Development prepare/merge/complete and hosted acceptance. Production
+remains subject to actual compatibility, writer/fence and recovery gates.
