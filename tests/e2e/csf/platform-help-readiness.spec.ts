@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { expect, test, type Page } from "@playwright/test";
 
-import captureTemplate from "../../../scripts/local-dev/layout-audit/upstream/manifest.baseline-template.json";
+import captureTemplate from "../../../scripts/local-dev/layout-audit/upstream/manifest.baseline-template.json" with { type: "json" };
 import { readAxeRows } from "../../../scripts/local-dev/layout-audit/axe-color-diagnostics.mjs";
 
 const axeSource = readFileSync(

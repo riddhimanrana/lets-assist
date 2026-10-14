@@ -13,7 +13,7 @@ landing: fixed region/tag, validated hex colors and finite contrast ratios, with
 at most eight nodes per violation. HTML, selectors, text and raw axe payloads
 remain excluded. These measurements support review; they never waive a finding.
 
-Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix are immutable anchors. The approved attendance repair appends one reviewed migration, so the candidate requires the exact724 ledger and fresh database/application acceptance. No new credentials, provider settings or spend is needed.
+Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix are immutable anchors. The reviewed attendance and points migrations extend the candidate to the exact725 ledger, which still requires fresh database/application acceptance. No new credentials, provider settings or spend is needed.
 
 Implemented entrypoints:
 

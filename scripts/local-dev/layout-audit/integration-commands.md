@@ -1,6 +1,6 @@
 # Owned Linux capture integration
 
-The support code is implemented. Its kernel, stack, build, browser and capture paths have not been executed. Passing offline checks is not runtime acceptance. The final frontend SHA is a parameter; preserve private `38dc7c7aff6fd101c87f92eebfae822d1726f2b4` and the immutable 723-migration prefix anchored at `accba0cfc2cd2f880b5632f4535cea822947da94`. The approved scheduled-attendance repair adds migration724. Capture requires that exact reviewed724 ledger and Git-object-list hash; the original prefix is still checked separately. Unknown additions or changes to either portion fail.
+The support code is implemented. Passing offline checks is not runtime acceptance. The final frontend SHA is a parameter; preserve private `38dc7c7aff6fd101c87f92eebfae822d1726f2b4` and the immutable 723-migration prefix anchored at `accba0cfc2cd2f880b5632f4535cea822947da94`. The reviewed scheduled-attendance and points migrations extend the candidate to 725. Capture requires that exact reviewed725 ledger and Git-object-list hash; the original prefix is still checked separately. Unknown additions or changes to either portion fail.
 
 ## Source integration and job boundary
 

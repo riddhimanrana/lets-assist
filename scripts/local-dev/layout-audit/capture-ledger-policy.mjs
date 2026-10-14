@@ -8,7 +8,7 @@ const digest = (rows) =>
 export function verifyCaptureLedger(policy, rows) {
   if (
     policy.ledgerCount !== 723 ||
-    policy.targetLedgerCount !== 724 ||
+    policy.targetLedgerCount !== 725 ||
     !Array.isArray(rows) ||
     rows.length !== policy.targetLedgerCount ||
     rows.some((row) => typeof row !== "string" || !row.endsWith(".sql")) ||
