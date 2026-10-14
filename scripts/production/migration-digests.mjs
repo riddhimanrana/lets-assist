@@ -1460,4 +1460,6 @@ export const migrationDigests = {
     "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
   "20261013071100_csf_repeatable_pending_activity_claims.sql":
     "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
+  "20261014050438_preserve_self_reported_certificate_timezone.sql":
+    "e5bef0c9cee06d99f6a18aa80a592f35195487a3b938efb53cdf6f03b216e053",
 };

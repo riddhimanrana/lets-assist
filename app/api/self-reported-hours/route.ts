@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       project_location: null,
       event_start: parsed.eventStart,
       event_end: parsed.eventEnd,
+      event_timezone: body.timeZone,
       organization_name: body.organizationName || null,
       creator_name: body.creatorName,
       is_certified: false,
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
       .from("certificates")
       .insert(certificateRow)
       .select(
-        "id, project_title, event_start, event_end, organization_name, type, volunteer_name",
+        "id, project_title, event_start, event_end, event_timezone, organization_name, type, volunteer_name",
       )
       .single();
 

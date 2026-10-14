@@ -57,6 +57,7 @@ interface Certificate {
   type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
+  event_timezone?: string | null;
   credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
@@ -173,13 +174,13 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
                   <Calendar className="size-3" aria-hidden="true" />
                   {formatCertificateDate(
                     cert.event_start,
-                    cert.projects?.project_timezone,
+                    cert.projects?.project_timezone || cert.event_timezone,
                     "display",
                   )}
                 </span>
                 <TimezoneBadge
                   timezone={certificateTimezone(
-                    cert.projects?.project_timezone,
+                    cert.projects?.project_timezone || cert.event_timezone,
                   )}
                   date={cert.event_start}
                 />

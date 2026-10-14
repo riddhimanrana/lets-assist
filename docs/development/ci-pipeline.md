@@ -226,3 +226,39 @@ pull request run its checks against that commit, so the two can be validated
 together. The merge rule would not change. The root pull request still could not
 merge until the pointer names a commit merged in the plugin repository, so the
 strict gitlink check stays the last word.
+
+## Bounded v4 feedback delivery proposal
+
+The existing short PR/queue path is already the default for small fixes. Keep it:
+repository policy, frozen dependency audits, seed safety, formatting, lint, host
+and plugin contracts, typecheck, affected unit groups and the aggregate gate.
+Application-only diffs select application groups; tooling, dependency, migration,
+configuration and gitlink changes retain all unit groups. Unknown paths must
+continue to select broad coverage. Keep mock-sensitive tests in separate Bun
+processes.
+
+The October 14 [full run 38498982521](https://github.com/riddhimanrana/lets-assist/actions/runs/38498982521)
+passed build, database and every browser shard, then failed optional layout
+capture. That optional failure does not justify repeatedly running every full
+job during each fixture-allowlist correction. Run focused fixture contracts
+while repairing the capture harness, and request the whole audit only when its
+own source/fixture review is ready. Do not loosen its network or mutation guards.
+For feedback delivery, use the required full candidate gate with
+`layout_audit=false`; keep the incomplete visual audit explicitly unaccepted.
+
+After the coherent candidate lands, dispatch one full `Code quality` run on that
+exact integrated SHA. Reuse its immutable successful `full-quality` and
+`db-replay-validation` identities only for the same source tree and reviewed
+ledger/gitlink. New behavior, migration bytes, dependency changes or a failure
+that affects those gates invalidate reuse. Preserve Production preflight,
+provenance, exact deployment/alias readbacks, migration/catalog verification,
+permission cutover ordering, rollback and protected environment reviews.
+
+A subsequent independent CI optimization can introduce conservative leaf scopes
+for presentation-only changes, but first build a tested mapping from changed
+paths to native route, component and related domain tests. Fall back to the
+existing application groups for shared layouts/providers, authorization, data
+writes, import ambiguity and unclassified files. Validate the selector against
+an executed coverage matrix before using it to skip a suite. This proposal
+changes no current check requirements and does not modify the active points
+release.

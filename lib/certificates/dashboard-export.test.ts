@@ -77,6 +77,35 @@ test("legacy timezone fallback formats both the date and time in the same zone",
   }
 });
 
+test("self-reported Tokyo hours retain the submitted date across the UTC boundary", () => {
+  const cert = {
+    id: "fictional-self-report",
+    type: "self-reported",
+    projects: null,
+    event_timezone: "Asia/Tokyo",
+    event_start: "2026-10-12T15:30:00Z",
+    event_end: "2026-10-12T16:30:00Z",
+    issued_at: "2026-10-12T17:00:00Z",
+  };
+  const row = certificateToDashboardExport(cert, "fictional@local.test");
+  expect(row.date).toBe("2026-10-13");
+  expect(row.startTime).toMatch(/^12:30 AM /u);
+  expect(row.endDate).toBe("2026-10-13");
+  expect(row.endTime).toMatch(/^1:30 AM /u);
+  expect(
+    formatCertificateDate(cert.event_start, cert.event_timezone, "display"),
+  ).toBe("Oct 13, 2026");
+});
+
+test("project-backed certificates keep their authoritative project zone", () => {
+  expect(
+    certificateToDashboardExport(
+      { ...certificate, event_timezone: "Asia/Tokyo" },
+      "fictional@local.test",
+    ).startTime,
+  ).toBe("11:45 PM EDT");
+});
+
 test("missing and invalid certificate instants never invent a labeled time", () => {
   for (const value of [null, undefined, "not-a-date"]) {
     expect(formatCertificateDate(value, projectZone)).toBe("Unknown Date");

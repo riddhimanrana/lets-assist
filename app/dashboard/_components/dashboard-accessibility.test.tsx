@@ -98,3 +98,38 @@ test("dashboard hours and export rows show the project day beside its timezone",
   expect(exportRows).toContain("2026-10-13");
   expect(exportRows).not.toContain("2026-10-12");
 });
+
+test("self-reported list and export use the persisted zone with no project relation", () => {
+  const certificate = {
+    id: "fictional-tokyo-self-report",
+    project_title: "Fictional volunteering",
+    creator_name: "Supervisor",
+    is_certified: false,
+    type: "self-reported" as const,
+    event_start: "2026-10-12T15:30:00Z",
+    event_end: "2026-10-12T16:30:00Z",
+    event_timezone: "Asia/Tokyo",
+    volunteer_email: null,
+    organization_name: null,
+    project_id: null,
+    schedule_id: null,
+    issued_at: "2026-10-12T17:00:00Z",
+    signup_id: null,
+    volunteer_name: null,
+    project_location: null,
+  };
+  const hours = renderToStaticMarkup(
+    createElement(AllHoursSection, { certificates: [certificate] }),
+  );
+  expect(hours).toContain("Oct 13, 2026");
+  expect(hours).not.toContain("Oct 12, 2026");
+  expect(hours).toContain("GMT+9");
+  const exportRows = renderToStaticMarkup(
+    createElement(ExportSection, {
+      userEmail: "fictional@local.test",
+      certificatesData: [certificate],
+    }),
+  );
+  expect(exportRows).toContain("2026-10-13");
+  expect(exportRows).not.toContain("2026-10-12");
+});

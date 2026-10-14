@@ -11325,3 +11325,18 @@ The retained80c layout receipts identified12 missing-h1 observations across sign
 The same controlled actual-CSS DOM recheck reproduced the four signup-success instruction nodes and the expired-link notice at4.39:1: muted foreground #71717a on #f4f4f5. Those specific muted surfaces now use foreground at70% opacity. Neutral Badge status text used the same failing combination; its foreground is strengthened for that variant while keeping fill, borders and all global palette tokens unchanged. These measurements do not establish the identity or resolution of every predecessor signed-in contrast finding. The remaining native scene findings require exact-head capture and actual node/pixel review. All fictional captures now retain capped fixed-region/tag and validated hex/ratio diagnostics, never selectors, text, HTML or raw axe payloads; no fault, loading, geometry or accessibility finding is waived.
 
 The manual Main layout request was also inconsistent: capture excluded Main, but the aggregate gate demanded its success. Execution and required-result predicates now agree on explicit non-Main workflow dispatch. The first static step rejects layout_audit=true on Main with a fixed actionable error; a Main request cannot become an accepted skipped audit. The actual rejection exits1 and all16 event/ref/input combinations are covered. Normal Main full validation remains unchanged. Current exact-head short/full CI, complete capture, authentic historical counterparts, root/actual Claude pixel review and all hosted/release compatibility gates are still pending.
+
+## P2: Self-reported volunteer-hour timezone loss, October 14
+
+Finding `SELF-REPORTED-TIMEZONE-20261014`: the hours form sends an IANA zone,
+but POST stored only UTC instants with `project_id = null`. The list and CSV
+therefore relabeled non-Pacific hours using the legacy Pacific fallback.
+The candidate persists `event_timezone`, retains it through dashboard reads,
+and uses it when no project zone exists. New York API-to-export and Tokyo
+render/date-boundary regressions pass. The forward nullable-column migration
+and 12 ownership/storage pgTAP assertions are prepared; schema replay and
+whole-catalog acceptance remain blocked, so this finding is fixed in source
+only and open for deployed verification. See the current
+[v4 feedback status](v4-development-feedback-status.md) for exact provider,
+source and test evidence. Production and the separate points release were not
+changed.

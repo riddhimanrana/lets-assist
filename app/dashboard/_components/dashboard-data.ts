@@ -26,6 +26,7 @@ interface BackendCertificate {
   type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
+  event_timezone?: string | null;
   credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
@@ -54,6 +55,7 @@ interface UICertificate {
   is_certified: boolean;
   type?: "platform" | "self-reported";
   event_start: string;
+  event_timezone?: string | null;
   projects?: {
     project_timezone?: string;
   };
