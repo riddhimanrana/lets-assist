@@ -100,7 +100,7 @@ export default function BayAreaExamples() {
           </ul>
           <Link
             href="/organization"
-            className="mt-8 flex w-fit items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+            className="mt-8 flex w-fit items-center gap-2 text-sm font-semibold text-green-700 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary dark:text-primary"
           >
             Explore organization profiles
             <ArrowRight aria-hidden="true" className="size-4" />

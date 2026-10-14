@@ -1,7 +1,14 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { expect, test } from "@playwright/test";
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
+import { readAxeRows } from "../../../scripts/local-dev/layout-audit/axe-color-diagnostics.mjs";
 
 const sections = ["journey", "org-tooling", "check-in", "partners", "cta"];
+const axeSource = readFileSync(
+  createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
+  "utf8",
+);
 
 for (const width of [320, 390, 414]) {
   test(`public landing keeps its sections and page height at ${width}px`, async ({
@@ -58,6 +65,15 @@ for (const width of [320, 390, 414]) {
         await document.fonts.ready;
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       });
+      if (width === 390) {
+        await page.addScriptTag({ content: axeSource });
+        const axeRows = (await page.evaluate(readAxeRows, {
+          includeColorDetails: true,
+        })) as { id: string }[];
+        expect(axeRows.filter((row) => row.id === "color-contrast")).toEqual(
+          [],
+        );
+      }
       const samples: Array<{
         height: number;
         overflow: boolean;
