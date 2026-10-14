@@ -112,7 +112,7 @@ export default function OrganizationCard({
           </Avatar>
           <div className="grid min-w-0 flex-1 gap-0.5">
             <div className="flex min-w-0 items-start gap-1.5">
-              <CardTitle className="group-hover:text-primary line-clamp-2 text-base font-semibold leading-tight break-words transition-colors">
+              <CardTitle className="group-hover:text-content-link line-clamp-2 text-base font-semibold leading-tight break-words transition-colors">
                 {org.name}
               </CardTitle>
               {org.verified && (

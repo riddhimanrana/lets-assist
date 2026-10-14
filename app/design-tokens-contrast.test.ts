@@ -134,6 +134,13 @@ const contracts: Contract[] = [
     tintOver: "background",
   },
   {
+    theme: "light",
+    description: "organization title on the hovered green card",
+    foreground: "content-link",
+    background: "primary",
+    tintOver: "background",
+  },
+  {
     theme: "dark",
     description: "staff badge label on the blue tint",
     foreground: "info",
@@ -165,6 +172,25 @@ describe("theme token contrast contracts", () => {
     for (const [name, expected] of Object.entries(HISTORICAL_LIGHT_TOKENS)) {
       expect(token(light, name), `unexpected --${name}`).toEqual(expected);
     }
+  });
+
+  test("scanner errors use legible solid fills in both themes", () => {
+    const scanner = readFileSync(
+      join(import.meta.dir, "projects/_components/QRCodeScannerModal.tsx"),
+      "utf8",
+    );
+    expect(scanner).toContain(
+      "bg-red-700 text-white dark:bg-destructive dark:text-destructive-foreground",
+    );
+    const red700 = { r: 185, g: 28, b: 28 };
+    const white = { r: 255, g: 255, b: 255 };
+    expect(contrastRatio(white, red700)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    expect(
+      contrastRatio(
+        token(dark, "destructive-foreground"),
+        token(dark, "destructive"),
+      ),
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
   for (const contract of contracts) {

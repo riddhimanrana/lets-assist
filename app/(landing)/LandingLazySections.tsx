@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 
+import { CallToAction } from "./_components/CallToAction";
 import {
   OrgToolingDemoFallback,
   OrgToolingIntro,
@@ -44,14 +45,6 @@ const OrgToolingDemo = dynamic(
     ssr: false,
   },
 );
-// The closing section starts hidden and reveals itself from an effect, so
-// server markup would stay invisible without JavaScript. It is the last
-// landing section here. It can still move the footer and change page height.
-const CallToAction = dynamic(
-  () => import("./_components/CallToAction").then((mod) => mod.CallToAction),
-  { loading: () => null, ssr: false },
-);
-
 export function LandingLazySections() {
   return (
     <>

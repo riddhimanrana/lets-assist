@@ -216,6 +216,12 @@ describe("organization directory cards", () => {
     expect(html).not.toContain("0 members");
   });
 
+  test("organization titles retain readable link color on hover", () => {
+    const { html } = populatedDirectory();
+    expect(html).toContain("group-hover:text-content-link");
+    expect(html).not.toContain("group-hover:text-primary");
+  });
+
   test("signed-in page actions are visible without a More actions menu", () => {
     const untrusted = populatedDirectory().html;
     expect(untrusted).toContain("Verify certificates");
