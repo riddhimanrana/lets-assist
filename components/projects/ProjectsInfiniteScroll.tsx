@@ -373,26 +373,34 @@ export const ProjectsInfiniteScroll: React.FC<{ demoEnabled?: boolean }> = ({
               <EmptyDescription>
                 {activeFilterCount > 0
                   ? "Try changing or clearing your filters."
-                  : "No projects are available yet."}
+                  : "No public projects are scheduled right now. Some groups share sign-up links directly, so check with your club or school too."}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               {activeFilterCount > 0 ? (
                 <Button onClick={clearAllFilters}>Clear all filters</Button>
               ) : (
-                <Link
-                  href="/projects/create"
-                  className={buttonVariants()}
-                  {...createIcon.triggerProps}
-                >
-                  <PlusIcon
-                    ref={createIcon.ref}
-                    size={16}
-                    data-icon="inline-start"
-                    aria-hidden="true"
-                  />
-                  Create a project
-                </Link>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/organization"
+                    className={buttonVariants({ variant: "outline" })}
+                  >
+                    Explore organizations
+                  </Link>
+                  <Link
+                    href="/projects/create"
+                    className={buttonVariants()}
+                    {...createIcon.triggerProps}
+                  >
+                    <PlusIcon
+                      ref={createIcon.ref}
+                      size={16}
+                      data-icon="inline-start"
+                      aria-hidden="true"
+                    />
+                    Create a project
+                  </Link>
+                </div>
               )}
             </EmptyContent>
           </Empty>

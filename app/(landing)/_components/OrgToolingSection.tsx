@@ -163,9 +163,9 @@ const reportMetricCards = [
 ];
 
 const topVolunteersThisMonth = [
-  { name: "Maya Chen", hours: "42.5h", projects: "8 projects" },
-  { name: "Noah Patel", hours: "37.0h", projects: "7 projects" },
-  { name: "Priya Shah", hours: "31.5h", projects: "6 projects" },
+  { name: "Volunteer 01", hours: "42.5h", projects: "8 projects" },
+  { name: "Volunteer 02", hours: "37.0h", projects: "7 projects" },
+  { name: "Volunteer 03", hours: "31.5h", projects: "6 projects" },
 ];
 
 type DemoMemberHours = {
@@ -555,42 +555,10 @@ type OrganizationMember = {
   };
 };
 
-const memberSeeds = [
-  ["Riddhiman", "Rana"],
-  ["Maya", "Chen"],
-  ["Liam", "O'Connor"],
-  ["Avery", "Nguyen"],
-  ["Noah", "Patel"],
-  ["Sofia", "Martinez"],
-  ["Ethan", "Kim"],
-  ["Aria", "Singh"],
-  ["Mateo", "Garcia"],
-  ["Zoe", "Hughes"],
-  ["Julian", "Bennett"],
-  ["Priya", "Shah"],
-  ["Amir", "Hassan"],
-  ["Leah", "Carter"],
-  ["Caleb", "Wright"],
-  ["Nora", "Diaz"],
-  ["Owen", "Brooks"],
-  ["Mina", "Park"],
-  ["Elena", "Flores"],
-  ["Jonah", "Baker"],
-  ["Iris", "Young"],
-  ["Theo", "Ramirez"],
-  ["Anika", "Desai"],
-  ["Miles", "Foster"],
-] as const;
-
 const mockMembers: OrganizationMember[] = Array.from(
   { length: 147 },
   (_, index) => {
-    const [firstName, lastName] = memberSeeds[index % memberSeeds.length];
-    const sequence = Math.floor(index / memberSeeds.length) + 1;
-    const name =
-      sequence === 1
-        ? `${firstName} ${lastName}`
-        : `${firstName} ${lastName} ${sequence}`;
+    const name = `Volunteer ${String(index + 1).padStart(3, "0")}`;
     const role: OrganizationMember["role"] =
       index === 0 ? "admin" : index < 8 ? "staff" : "member";
     const month = String((index % 12) + 1).padStart(2, "0");
@@ -621,10 +589,10 @@ function oneTime(dateISO: string, start: string, end: string) {
 }
 
 const mockProfile = {
-  full_name: "Riddhiman Rana",
-  email: "hello@lets-assist.com",
+  full_name: "Example Coordinator",
+  email: "coordinator@example.org",
   avatar_url: null,
-  username: "riddhiman",
+  username: "example-coordinator",
   created_at: "2025-01-01T00:00:00.000Z",
 };
 
