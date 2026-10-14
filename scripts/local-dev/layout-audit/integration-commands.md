@@ -52,7 +52,7 @@ Place an owner-only, new `$layout_support/authorization.json` containing these f
 }
 ```
 
-An empty `reviewedSourceHashes` approves **no changed proof sources**. Unchanged files must match original reviewed hashes. Add only specifically rereviewed files with their exact final bytes (routing/static images, title/cache implementation, app profile reader or the three optional read actions). Installed dependency targets may resolve inside the exact root/private `node_modules`; tracked app/public paths cannot be symlinked. Do not automatically fill a changed file's hash and call that review. The template may retain the 87 original scene IDs or an explicit subset; altered route/loaded landmark/role assignments need root source review. All four modes are automatic. Optional reduced motion uses `captureReducedMotion: true` on reviewed entries.
+An empty `reviewedSourceHashes` approves **no changed proof sources**. Unchanged files must match original reviewed hashes. Add only specifically rereviewed files with their exact final bytes (routing/static images, title/cache implementation, app profile reader or the four optional read actions). Installed dependency targets may resolve inside the exact root/private `node_modules`; tracked app/public paths cannot be symlinked. Do not automatically fill a changed file's hash and call that review. The template may retain the 87 original scene IDs or an explicit subset; altered route/loaded landmark/role assignments need root source review. All four modes are automatic. Optional reduced motion uses `captureReducedMotion: true` on reviewed entries.
 
 Run setup against the **already started owned stack**:
 

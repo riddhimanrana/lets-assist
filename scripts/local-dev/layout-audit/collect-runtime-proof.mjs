@@ -232,7 +232,7 @@ export async function main(
       digest(bytes),
       readProof.sourceHashes,
     );
-    if (readActionPolicy.approvedActions?.length !== 3) os.deny();
+    if (readActionPolicy.approvedActions?.length !== 4) os.deny();
     readActionPolicy.enabled = true;
     readActionPolicy.reviewed = true;
     const developer = fixture.baselineActors.find((a) => a.key === "developer");

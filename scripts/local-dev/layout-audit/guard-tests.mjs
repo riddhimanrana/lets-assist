@@ -472,6 +472,7 @@ for (const frame of [
   deny(() => profileReaderFrame(frame, actor, token));
 const aId = "1".repeat(40),
   sId = "2".repeat(40),
+  wId = "6".repeat(40),
   pId = "4".repeat(40),
   sources = reviewedSourceHashes(REPO);
 const compiled = {
@@ -494,6 +495,11 @@ const compiled = {
         "app/projects/[id]/signups/page": { moduleId: "y", async: true },
       },
     },
+    [wId]: {
+      exportedName: "getMyWaiverSignatures",
+      filename: path.join(REPO, "app/projects/[id]/server/waiver-queries.ts"),
+      workers: { "app/projects/[id]/page": { moduleId: "z", async: true } },
+    },
   },
 };
 const policy = readActionPolicyFromCompiled(
@@ -513,6 +519,10 @@ for (const mutate of [
   (c) => (c.node[pId].filename = "outside/actions.ts"),
   (c) => (c.node[pId].workers = {}),
   (c) => delete c.node[sId],
+  (c) => delete c.node[wId],
+  (c) => (c.node[wId].exportedName = "getWaiverDownloadUrl"),
+  (c) => (c.node[wId].filename = "outside/actions.ts"),
+  (c) => (c.node[wId].workers = {}),
   (c) => (c.node[aId].exportedName = "requestDataExport"),
   (c) => (c.node[aId].filename = "outside/actions.ts"),
   (c) => (c.node[aId].workers = {}),
@@ -588,6 +598,37 @@ for (const change of [
 ])
   deny(() => readActionRequest({ ...request, ...change }));
 const project = seed.IDS.publicProject;
+const volunteerActor = contracts.find((a) => a.key === "csfMember");
+const waiverRead = {
+  ...request,
+  url: `${app}/projects/${project}`,
+  actionId: wId,
+  body: JSON.stringify([project]),
+  actor: volunteerActor,
+  entry: {
+    id: "project-volunteer",
+    route: `/projects/${project}`,
+    readActions: ["getMyWaiverSignatures"],
+  },
+  creatorProjects: new Map([[project, actor.id]]),
+};
+allow(() => readActionRequest(waiverRead));
+for (const change of [
+  { body: "[]" },
+  { body: JSON.stringify([project, project]) },
+  { body: ` ["${project}"] ` },
+  { body: JSON.stringify([seed.IDS.orgProject]) },
+  { actionId: sId },
+  { url: `${app}/projects/${project}?other=x` },
+  { url: `${app}/projects/${seed.IDS.orgProject}` },
+  { actor },
+  { actor: { ...volunteerActor, key: "csfOfficer" } },
+  { creatorProjects: new Map() },
+  { creatorProjects: new Map([[project, volunteerActor.id]]) },
+  { entry: { ...waiverRead.entry, id: "project-creator" } },
+  { entry: { ...waiverRead.entry, readActions: [] } },
+])
+  deny(() => readActionRequest({ ...waiverRead, ...change }));
 const roster = {
   ...request,
   url: `${app}/projects/${project}/signups`,

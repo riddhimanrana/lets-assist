@@ -30,6 +30,8 @@ The Linux adapter substitutes lazy `/proc` observations and exclusive/fsynced in
 
 The creator project scene permits one bounded local `get_public_attendees` projection read for the proved fictional creator and project. The browser client sends this read-only RPC as POST. Its endpoint, headers, token, and JSON argument are checked separately before the general RPC and mutation refusals; other RPCs remain blocked.
 
+The volunteer project scene permits only the signed-in fictional member's `getMyWaiverSignatures` read. The server action derives the user from the request, filters by that user and the exact fictional project, and returns only that user's signed-waiver metadata. The capture binds its compiled action ID, source and worker, POST route and argument, actor, and project proof; other actions and project IDs remain blocked.
+
 `upstream/` contains source-derived original templates/review references, not live evidence. `proof-data/`, authorizations and runtime receipts are generated only in the disposable staged copy after source/stack checks. No saved fixture UUIDs, cookies, sessions or secret values are distributed. `code-manifest.sha256` freezes code/reference bytes; pin its SHA from the final handoff, then verify the actual files before use.
 
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.

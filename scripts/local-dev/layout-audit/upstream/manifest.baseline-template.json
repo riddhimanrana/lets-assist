@@ -729,6 +729,9 @@
         }
       ],
       "actorKey": "csfMember",
+      "readActions": [
+        "getMyWaiverSignatures"
+      ],
       "captureReducedMotion": false,
       "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
     },

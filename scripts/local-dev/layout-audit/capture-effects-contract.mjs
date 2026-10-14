@@ -173,6 +173,12 @@ export const READ_ACTION_SPECS = [
     worker: "app/projects/[id]/signups/page",
     route: null,
   },
+  {
+    exportedName: "getMyWaiverSignatures",
+    sourceFile: "app/projects/[id]/server/waiver-queries.ts",
+    worker: "app/projects/[id]/page",
+    route: null,
+  },
 ];
 export const REVIEWED_SOURCE_FILES = [
   "app/account/email-actions.ts",
@@ -181,7 +187,13 @@ export const REVIEWED_SOURCE_FILES = [
   "app/account/profile/EmailAddressesSection.tsx",
   "app/account/security/actions.ts",
   "app/account/security/data-export-actions.ts",
+  "app/projects/[id]/actions.ts",
+  "app/projects/[id]/page.tsx",
+  "app/projects/[id]/ProjectClient.tsx",
+  "app/projects/[id]/ProjectDetails.tsx",
+  "app/projects/[id]/server/waiver-queries.ts",
   "app/projects/[id]/signups/actions.ts",
+  "app/projects/[id]/UserDashboard.tsx",
   "lib/projects/management-access.ts",
   "lib/waiver/signature-preview.ts",
   "lib/supabase/auth-helpers.ts",
@@ -335,6 +347,20 @@ export function readActionRequest({
       creatorProjects.get(args[0]) !== actor.id
     )
       fail("Exact proved creator project roster read required");
+  } else if (action.exportedName === "getMyWaiverSignatures") {
+    if (
+      entry.id !== "project-volunteer" ||
+      actor.key !== "csfMember" ||
+      args.length !== 1 ||
+      typeof args[0] !== "string" ||
+      !UUID.test(args[0]) ||
+      body !== JSON.stringify([args[0]]) ||
+      u.pathname !== `/projects/${args[0]}` ||
+      entry.route !== u.pathname ||
+      !creatorProjects.has(args[0]) ||
+      creatorProjects.get(args[0]) === actor.id
+    )
+      fail("Exact proved volunteer signed-waiver read required");
   } else fail("Unknown read action refused");
   return true;
 }
