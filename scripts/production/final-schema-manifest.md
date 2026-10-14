@@ -111,6 +111,18 @@ A further fresh owned replay returned `1` from the complete isolated release
 catalog query after registration. Hosted Development comparison and full
 integrated CI remain separate gates.
 
+Release 729 pins the checked-in certificate formatter timezone set at both the
+API and direct-write boundary. It refuses any preexisting unsupported zone for
+review and never rewrites timestamps. Its 1,441-object expected inventory
+retains every 728 identity and fingerprint except
+`private.enforce_certificate_event_timezone()`. The replacement fingerprint was
+measured in a temporary PostgreSQL 18 catalog after that same catalog reproduced
+the reviewed 728 PostgreSQL 17 fingerprint exactly. Ledger digest
+`5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c`
+selects this candidate manifest. The clean PostgreSQL 17 full replay, pgTAP,
+complete catalog comparison, hosted Development and visual acceptance remain
+release gates; the temporary catalog check is not a substitute for them.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the

@@ -14,7 +14,7 @@ import { accountDeletionStorageCatalog } from "./account-deletion-storage-catalo
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(root);
+const versions = expectedVersions(root).slice(0, 728);
 const manifestBytes = readFileSync(
   new URL("./final-schema-728.json", import.meta.url),
 );
@@ -26,7 +26,7 @@ const previous = JSON.parse(
 test("the 728 target binds the reviewed forward timezone guard", () => {
   assert.equal(versions.length, 728);
   assert.equal(versions.at(-1), "20261014142100");
-  assert.deepEqual(maintenanceTarget(root), versions);
+  assert.deepEqual(maintenanceTarget(root).slice(0, 728), versions);
   assert.equal(
     ledgerDigest(versions),
     "b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c",
