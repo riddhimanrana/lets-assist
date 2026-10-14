@@ -45,6 +45,7 @@ import {
 import { ExportSection } from "./ExportSection";
 import { ProgressCircle } from "./ProgressCircle";
 import { VolunteerGoals } from "./VolunteerGoals";
+import { DashboardAvatar } from "./DashboardAvatar";
 
 /** Page-level line tabs, sized like the organization profile's tab row. */
 const PAGE_TAB_CLASS =
@@ -55,10 +56,13 @@ export function VolunteerDashboardView({
   selfReportedHours,
   upcomingSessions,
   user,
+  profileIdentity,
   uiCertificates,
   pluginCards = [],
   ratingPrompt,
-}: VolunteerDashboardData & {
+}: Omit<VolunteerDashboardData, "profileIdentity"> & {
+  // Optional presentation data must not prevent access to hours or exports.
+  profileIdentity?: VolunteerDashboardData["profileIdentity"] | null;
   pluginCards?: PlatformDashboardCard[];
   ratingPrompt?: ReactNode;
 }) {
@@ -97,6 +101,12 @@ export function VolunteerDashboardView({
   return (
     <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6">
       <PageHeader
+        media={
+          <DashboardAvatar
+            name={profileIdentity?.name.trim() || "Volunteer"}
+            src={profileIdentity?.avatarUrl}
+          />
+        }
         title="Volunteer dashboard"
         description="Track your volunteering progress and achievements"
         actions={<AddVolunteerHoursModal />}
@@ -155,6 +165,7 @@ export function VolunteerDashboardView({
                           key={index}
                           className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
                         >
+                          <DashboardAvatar name={org.name} src={org.logoUrl} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-medium">{org.name}</p>
                             <p className="text-muted-foreground text-sm">
@@ -164,6 +175,7 @@ export function VolunteerDashboardView({
                             </p>
                           </div>
                           <ProgressCircle
+                            label={`${org.name} share of volunteer hours`}
                             value={(org.hours / statistics.totalHours) * 100}
                             size={40}
                             strokeWidth={4}
@@ -221,51 +233,59 @@ export function VolunteerDashboardView({
                         {upcomingSessions.map((session) => (
                           <li
                             key={session.signupId}
-                            className="grid gap-1 py-3 first:pt-0 last:pb-0"
+                            className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <Link
-                                href={`/projects/${session.projectId}`}
-                                className="hover:text-primary min-w-0 font-medium transition-colors"
-                              >
-                                {session.projectTitle}
-                              </Link>
-                              <Badge
-                                variant={
-                                  session.status === "approved"
-                                    ? "success"
-                                    : "warning"
-                                }
-                              >
-                                {session.status === "approved"
-                                  ? "Confirmed"
-                                  : "Pending"}
-                              </Badge>
-                            </div>
-                            <p className="text-muted-foreground text-sm">
-                              {session.sessionDisplayName}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <DashboardAvatar
+                              name={session.projectTitle}
+                              src={session.projectImage}
+                              square
+                            />
+                            <div className="grid min-w-0 flex-1 gap-1">
+                              <div className="flex items-start justify-between gap-3">
+                                <Link
+                                  href={`/projects/${session.projectId}`}
+                                  className="hover:text-primary min-w-0 font-medium transition-colors"
+                                >
+                                  {session.projectTitle}
+                                </Link>
+                                <Badge
+                                  variant={
+                                    session.status === "approved"
+                                      ? "success"
+                                      : "warning"
+                                  }
+                                >
+                                  {session.status === "approved"
+                                    ? "Confirmed"
+                                    : "Pending"}
+                                </Badge>
+                              </div>
                               <p className="text-muted-foreground text-sm">
-                                {format(
-                                  session.sessionStartTime,
-                                  "MMM d, yyyy 'at' h:mm a",
-                                  { in: tz(session.project_timezone) },
-                                )}
+                                {session.sessionDisplayName}
                               </p>
-                              <Tooltip>
-                                <TooltipTrigger className="cursor-default">
-                                  <TimezoneBadge
-                                    timezone={session.project_timezone}
-                                    date={session.sessionStartTime}
-                                  />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs">
-                                    Times shown in this project&apos;s timezone.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-muted-foreground text-sm">
+                                  {format(
+                                    session.sessionStartTime,
+                                    "MMM d, yyyy 'at' h:mm a",
+                                    { in: tz(session.project_timezone) },
+                                  )}
+                                </p>
+                                <Tooltip>
+                                  <TooltipTrigger className="cursor-default">
+                                    <TimezoneBadge
+                                      timezone={session.project_timezone}
+                                      date={session.sessionStartTime}
+                                    />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">
+                                      Times shown in this project&apos;s
+                                      timezone.
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
                             </div>
                           </li>
                         ))}
@@ -315,7 +335,7 @@ export function VolunteerDashboardView({
         </TabsContent>
 
         <TabsContent value="export" className="grid gap-6">
-          {user.email && (
+          {user.email ? (
             <ExportSection
               userEmail={user.email}
               // For the export UI, use uiCertificates where 'platform' == previously 'verified'
@@ -329,6 +349,16 @@ export function VolunteerDashboardView({
               totalCertificates={uiCertificates.length}
               certificatesData={uiCertificates}
             />
+          ) : (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyTitle>Export unavailable</EmptyTitle>
+                <EmptyDescription>
+                  This account has no email address. Your hours are still
+                  available in All hours.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </TabsContent>
       </Tabs>

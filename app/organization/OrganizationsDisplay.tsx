@@ -30,13 +30,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TEXT_LINK_CLASS } from "@/lib/text-link";
 import type { Organization } from "@/types";
 import { CsvVerificationModal } from "./CsvVerificationModal";
 import { JoinOrganizationDialog } from "./JoinOrganizationDialog";
 import OrganizationCard, { type OrganizationRole } from "./OrganizationCard";
 
+// The earlier card page: two columns from small tablets, three on desktop.
 const CARD_GRID =
-  "grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6 xl:grid-cols-3";
+  "grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3";
+
+// The signup page reads `redirect` and carries it through confirmation.
+const SIGN_UP_HREF = "/signup?redirect=/organization";
+const SIGN_IN_HREF = "/login?redirect=/organization";
+const SIGN_UP_LABEL = "Sign up to join or create an organization";
+// The label is long, so it wraps inside the button on a narrow phone.
+const SIGN_UP_BUTTON_CLASS =
+  "h-auto max-w-full py-2 text-center whitespace-normal";
 
 type OrganizationDisplay = Organization & {
   description?: string | null;
@@ -182,10 +192,7 @@ export default function OrganizationsDisplay({
               ) : (
                 <span>
                   Trusted Member access is required to create organizations.{" "}
-                  <Link
-                    href="/trusted-member"
-                    className="text-foreground underline underline-offset-4"
-                  >
+                  <Link href="/trusted-member" className={TEXT_LINK_CLASS}>
                     Apply using the Trusted Member form
                   </Link>
                   .
@@ -194,8 +201,9 @@ export default function OrganizationsDisplay({
             ) : null
           }
         />
+        {/* Full-width stacked actions on a phone, one row from sm up. */}
         <div
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
           data-tour-id="org-actions"
         >
           {isLoggedIn ? (
@@ -227,11 +235,14 @@ export default function OrganizationsDisplay({
               )}
             </>
           ) : (
-            <Button variant="outline" asChild>
-              <Link href="/login?redirect=/organization">
-                Sign in to join or create
-              </Link>
-            </Button>
+            <>
+              <Button asChild className={SIGN_UP_BUTTON_CLASS}>
+                <Link href={SIGN_UP_HREF}>{SIGN_UP_LABEL}</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href={SIGN_IN_HREF}>Sign in</Link>
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -282,7 +293,7 @@ export default function OrganizationsDisplay({
 
       {!hasResults ? (
         hasAnyOrganization && query ? (
-          <Empty className="border">
+          <Empty className="border p-6 sm:p-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <SearchX aria-hidden="true" />
@@ -301,7 +312,7 @@ export default function OrganizationsDisplay({
             </EmptyContent>
           </Empty>
         ) : (
-          <Empty className="border">
+          <Empty className="border p-6 sm:p-12">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <EmptyStateIcon name="users" />
@@ -312,11 +323,18 @@ export default function OrganizationsDisplay({
             {/* Outline buttons: the page header already holds the one filled
                 primary for this view. */}
             <EmptyContent className="flex-row flex-wrap justify-center gap-2">
+              {emptyActions.signUp ? (
+                <Button
+                  variant="outline"
+                  asChild
+                  className={SIGN_UP_BUTTON_CLASS}
+                >
+                  <Link href={SIGN_UP_HREF}>{SIGN_UP_LABEL}</Link>
+                </Button>
+              ) : null}
               {emptyActions.signIn ? (
                 <Button variant="outline" asChild>
-                  <Link href="/login?redirect=/organization">
-                    Sign in to join or create
-                  </Link>
+                  <Link href={SIGN_IN_HREF}>Sign in</Link>
                 </Button>
               ) : null}
               {emptyActions.join ? <JoinOrganizationDialog /> : null}

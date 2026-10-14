@@ -1,0 +1,1618 @@
+{
+  "schema": "lets-assist-layout-capture-v2",
+  "template": true,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "rootHead": null,
+  "privateHead": null,
+  "dirtyDiffSha256": null,
+  "syntheticOnly": true,
+  "seedMode": "csf-isolated-v1",
+  "serverMode": "production",
+  "isolatedWorkDir": null,
+  "projectId": null,
+  "appPort": null,
+  "runnerPid": null,
+  "runtimeBindingFile": null,
+  "runtimeBindingSha256": null,
+  "buildDistDir": ".next-csf-isolated/browser-app",
+  "buildId": null,
+  "buildArtifactHashes": {
+    "BUILD_ID": null,
+    "build-manifest.json": null,
+    "routes-manifest.json": null,
+    "required-server-files.json": null,
+    "server/app-paths-manifest.json": null
+  },
+  "outputDir": null,
+  "fixtureProofFile": null,
+  "fixtureProofSha256": null,
+  "readActionPolicy": {
+    "enabled": false,
+    "reviewed": false
+  },
+  "modes": [
+    "desktop-light 1440x1000",
+    "desktop-dark 1440x1000",
+    "phone-light 390x844",
+    "phone-dark 390x844"
+  ],
+  "captures": [
+    {
+      "id": "landing-baseline",
+      "route": "/?noRedirect=1",
+      "expectedRoutes": [
+        "/?noRedirect=1"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "The modern way to do volunteering"
+        }
+      ],
+      "captureReducedMotion": true,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected",
+      "requiresFixtureState": "Record durable landing demo mode in the canonical receipt. Capture ON/OFF separately; helper never toggles it."
+    },
+    {
+      "id": "login",
+      "route": "/login",
+      "expectedRoutes": [
+        "/login"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Login"
+        },
+        {
+          "selector": "form[data-hydrated=\"true\"]"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "signup",
+      "route": "/signup",
+      "expectedRoutes": [
+        "/signup"
+      ],
+      "ready": [
+        {
+          "text": "Create an account"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "reset-request",
+      "route": "/reset-password",
+      "expectedRoutes": [
+        "/reset-password"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Reset password"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "signup-success-display",
+      "route": "/signup/success?email=platform.member%40local.test",
+      "expectedRoutes": [
+        "/signup/success?email=platform.member%40local.test"
+      ],
+      "ready": [
+        {
+          "text": "Account Created Successfully!"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "Display only; does not prove creation, verification or email delivery"
+    },
+    {
+      "id": "email-expired",
+      "route": "/auth/email-expired",
+      "expectedRoutes": [
+        "/auth/email-expired"
+      ],
+      "ready": [
+        {
+          "text": "Verification link no longer works"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "verification-display",
+      "route": "/auth/verification-success",
+      "expectedRoutes": [
+        "/auth/verification-success"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Verification Successful"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "Display only; does not prove verification"
+    },
+    {
+      "id": "auth-error",
+      "route": "/error",
+      "expectedRoutes": [
+        "/error"
+      ],
+      "ready": [
+        {
+          "text": "Authentication error"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "contact",
+      "route": "/contact",
+      "expectedRoutes": [
+        "/contact"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Talk to our team."
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "faq",
+      "route": "/faq",
+      "expectedRoutes": [
+        "/faq"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Frequently asked questions"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "help",
+      "route": "/help",
+      "expectedRoutes": [
+        "/help"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Help center"
+        },
+        {
+          "role": "searchbox",
+          "name": "Search help articles"
+        }
+      ],
+      "captureReducedMotion": true,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "acknowledgements",
+      "route": "/acknowledgements",
+      "expectedRoutes": [
+        "/acknowledgements"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Acknowledgements"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "terms",
+      "route": "/terms",
+      "expectedRoutes": [
+        "/terms"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Terms of Service"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "privacy",
+      "route": "/privacy",
+      "expectedRoutes": [
+        "/privacy"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Privacy Policy"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organizations-public",
+      "route": "/organization",
+      "expectedRoutes": [
+        "/organization"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Organizations"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "projects-public",
+      "route": "/projects",
+      "expectedRoutes": [
+        "/projects"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Upcoming volunteer projects"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-public",
+      "route": "/projects/10000000-0000-4000-8000-000000000020",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Santa Cruz Beach Cleanup"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "profile-public",
+      "route": "/profile/platform-admin",
+      "expectedRoutes": [
+        "/profile/platform-admin"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Riddhiman Rana"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "unsubscribe-form",
+      "route": "/unsubscribe/csf/10000000-0000-4000-8000-000000000004/general",
+      "expectedRoutes": [
+        "/unsubscribe/csf/10000000-0000-4000-8000-000000000004/general"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Unsubscribe from announcement emails"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "Form appearance only; no unsubscribe submitted"
+    },
+    {
+      "id": "home-member",
+      "route": "/home",
+      "expectedRoutes": [
+        "/home"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Hi, Aarav Mehta"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "dashboard-overview",
+      "route": "/dashboard",
+      "expectedRoutes": [
+        "/dashboard"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Volunteer dashboard"
+        },
+        {
+          "role": "tabpanel",
+          "name": "Overview"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": true,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "dashboard-hours",
+      "route": "/dashboard",
+      "expectedRoutes": [
+        "/dashboard"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Volunteer dashboard"
+        },
+        {
+          "role": "heading",
+          "name": "All volunteer hours"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected",
+      "uiSteps": [
+        {
+          "role": "tab",
+          "name": "All hours"
+        }
+      ]
+    },
+    {
+      "id": "dashboard-export",
+      "route": "/dashboard",
+      "expectedRoutes": [
+        "/dashboard"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Volunteer dashboard"
+        },
+        {
+          "role": "heading",
+          "name": "Export preview"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Preview appearance only; no export requested or downloaded",
+      "uiSteps": [
+        {
+          "role": "tab",
+          "name": "Export"
+        }
+      ]
+    },
+    {
+      "id": "account-profile",
+      "readActions": [
+        "getLinkedIdentitiesAction"
+      ],
+      "route": "/account/profile",
+      "expectedRoutes": [
+        "/account/profile"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Profile"
+        },
+        {
+          "role": "heading",
+          "name": "Public profile"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "Own linked-email rows read only; profile and alias changes remain blocked; pixels must be inspected"
+    },
+    {
+      "id": "account-calendar",
+      "route": "/account/calendar",
+      "expectedRoutes": [
+        "/account/calendar"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Calendar"
+        },
+        {
+          "role": "heading",
+          "name": "Google Calendar"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "Disconnected or fixture display; no OAuth or provider operation"
+    },
+    {
+      "id": "account-notifications",
+      "route": "/account/notifications",
+      "expectedRoutes": [
+        "/account/notifications"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Notifications"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "account-security",
+      "route": "/account/security",
+      "expectedRoutes": [
+        "/account/security"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Sign-in & security"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected",
+      "readActions": [
+        "getDataExportJobs"
+      ],
+      "requiresPolicy": "Exact compiled read-action allowlist must be reviewed and enabled by root"
+    },
+    {
+      "id": "account-content",
+      "route": "/account/plugins",
+      "expectedRoutes": [
+        "/account/plugins"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Organization content"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "trusted-member",
+      "route": "/trusted-member",
+      "expectedRoutes": [
+        "/trusted-member"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Trusted member"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "my-projects-volunteer",
+      "route": "/projects",
+      "expectedRoutes": [
+        "/projects"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "My projects"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "my-projects-creator",
+      "route": "/projects",
+      "expectedRoutes": [
+        "/projects"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "My projects"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Initial volunteering pane; Created pane needs exact count-labelled tab selector from fixture receipt"
+    },
+    {
+      "id": "drafts-baseline",
+      "route": "/projects/drafts",
+      "expectedRoutes": [
+        "/projects/drafts"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "My drafts"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Baseline empty/owned list only; populated draft/edit-resume requires separately retained owned fixture"
+    },
+    {
+      "id": "project-create-blank",
+      "route": "/projects/create?creation=20000000-1111-4000-8000-000000000001",
+      "expectedRoutes": [
+        "/projects/create?creation=20000000-1111-4000-8000-000000000001"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Create a volunteering project"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": true,
+      "coverageClaim": "Blank first step with URL-only creation UUID, no title change/autosave/upload/submit; later steps require owned journey"
+    },
+    {
+      "id": "organization-create",
+      "route": "/organization/create",
+      "expectedRoutes": [
+        "/organization/create"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Create organization"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organizations-member",
+      "route": "/organization",
+      "expectedRoutes": [
+        "/organization"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Organizations"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organization-public",
+      "route": "/organization/local-platform-org",
+      "expectedRoutes": [
+        "/organization/local-platform-org"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Local Platform Org"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organization-member",
+      "route": "/organization/local-platform-org",
+      "expectedRoutes": [
+        "/organization/local-platform-org"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Local Platform Org"
+        }
+      ],
+      "actorKey": "member",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organization-admin",
+      "route": "/organization/local-platform-org",
+      "expectedRoutes": [
+        "/organization/local-platform-org"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Local Platform Org"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organization-moderation",
+      "route": "/organization/local-platform-org/moderation",
+      "expectedRoutes": [
+        "/organization/local-platform-org/moderation"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Moderation"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "organization-settings",
+      "route": "/organization/local-platform-org/settings",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-creator",
+      "route": "/projects/10000000-0000-4000-8000-000000000020",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Santa Cruz Beach Cleanup"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-volunteer",
+      "route": "/projects/10000000-0000-4000-8000-000000000020",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Santa Cruz Beach Cleanup"
+        }
+      ],
+      "actorKey": "csfMember",
+      "readActions": [
+        "getMyWaiverSignatures"
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-attendance",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/attendance",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/attendance"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Attendance records"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-print",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/attendance-sheet",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/attendance-sheet"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Print attendance sheets"
+        },
+        {
+          "role": "heading",
+          "name": "Sheet setup"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Setup appearance only; do not generate or print attendance sheets"
+    },
+    {
+      "id": "project-hours",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/hours",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/hours"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Manage volunteer hours"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Baseline only; never publish/resend/correct hours. Retained Hours corpus optional only after exact SQL proof"
+    },
+    {
+      "id": "project-signups",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/signups",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/signups"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Manage volunteer signups"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected",
+      "readActions": [
+        "getOrganizerSignupsWithWaiverStatus"
+      ],
+      "requiresPolicy": "Exact compiled read action and baseline project creator proof required"
+    },
+    {
+      "id": "project-paper",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/paper-signups",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/paper-signups"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Paper attendance"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-feedback",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/feedback",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/feedback"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Volunteer feedback"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "project-edit",
+      "route": "/projects/10000000-0000-4000-8000-000000000020/edit",
+      "expectedRoutes": [
+        "/projects/10000000-0000-4000-8000-000000000020/edit"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Edit project"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+    },
+    {
+      "id": "certificates-baseline",
+      "route": "/certificates",
+      "expectedRoutes": [
+        "/certificates"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Certificates"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Baseline may be empty; certificate details require exact completed Hours fixture receipt"
+    },
+    {
+      "id": "admin-overview",
+      "route": "/admin",
+      "expectedRoutes": [
+        "/admin"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Admin overview"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-feedback",
+      "route": "/admin/feedback",
+      "expectedRoutes": [
+        "/admin/feedback"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "User feedback"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-moderation",
+      "route": "/admin/moderation",
+      "expectedRoutes": [
+        "/admin/moderation"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Content moderation"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-notifications",
+      "route": "/admin/notifications",
+      "expectedRoutes": [
+        "/admin/notifications"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Notifications"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-organizations",
+      "route": "/admin/organizations",
+      "expectedRoutes": [
+        "/admin/organizations"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Organizations"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-plugins",
+      "route": "/admin/plugins",
+      "expectedRoutes": [
+        "/admin/plugins"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Plugins"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-system-banner",
+      "route": "/admin/system-banner",
+      "expectedRoutes": [
+        "/admin/system-banner"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "System sticky banners"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-trusted-members",
+      "route": "/admin/trusted-members",
+      "expectedRoutes": [
+        "/admin/trusted-members"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Trusted members"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-user-access",
+      "route": "/admin/user-access",
+      "expectedRoutes": [
+        "/admin/user-access"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "User access control"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "admin-waivers",
+      "route": "/admin/waivers",
+      "expectedRoutes": [
+        "/admin/waivers"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Project waiver definitions"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Proved baseline super-admin only; no settings, notifications, permissions or release controls changed"
+    },
+    {
+      "id": "organization-settings-general",
+      "route": "/organization/local-platform-org/settings?section=general",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=general"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+    },
+    {
+      "id": "organization-settings-members",
+      "route": "/organization/local-platform-org/settings?section=members",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=members"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+    },
+    {
+      "id": "organization-settings-invitations",
+      "readActions": [
+        "getOrganizationInvitations",
+        "getStaffLinkDetails"
+      ],
+      "route": "/organization/local-platform-org/settings?section=invitations",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=invitations"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+    },
+    {
+      "id": "organization-settings-integrations",
+      "route": "/organization/local-platform-org/settings?section=integrations",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=integrations"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save",
+      "readActions": [
+        "getOrganizationCalendarStatus",
+        "getSheetSyncStatus"
+      ]
+    },
+    {
+      "id": "organization-settings-plugins",
+      "route": "/organization/local-platform-org/settings?section=plugins",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=plugins"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save",
+      "readActions": [
+        "getOrganizationPluginSettings"
+      ]
+    },
+    {
+      "id": "organization-settings-danger",
+      "route": "/organization/local-platform-org/settings?section=danger",
+      "expectedRoutes": [
+        "/organization/local-platform-org/settings?section=danger"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        }
+      ],
+      "actorKey": "developer",
+      "captureReducedMotion": false,
+      "coverageClaim": "Read-only panel; no connect, invite, rotate, plugin change, dangerous action or save"
+    },
+    {
+      "id": "csf-public",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/public",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/public"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Dougherty Valley High School"
+        },
+        {
+          "role": "region",
+          "name": "Chapter updates"
+        }
+      ],
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-overview",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/overview",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/overview"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Home"
+        },
+        {
+          "role": "heading",
+          "name": "Your tasks"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-home",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/home",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/home"
+      ],
+      "ready": [
+        {
+          "role": "region",
+          "name": "CSF membership summary"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-my-profile",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/my-profile",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/my-profile"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "My CSF"
+        },
+        {
+          "role": "region",
+          "name": "Current semester status"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-profiles",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/profiles",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/profiles"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Members"
+        },
+        {
+          "role": "navigation",
+          "name": "Member views"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-cohorts",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/cohorts",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/cohorts"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Classes"
+        },
+        {
+          "role": "heading",
+          "name": "Your classes"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-terms",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/terms",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/terms"
+      ],
+      "ready": [
+        {
+          "text": "Meeting schedule"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-meetings",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/meetings",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/meetings"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Meetings"
+        },
+        {
+          "role": "region",
+          "name": "Meeting list"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-applications",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/applications",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/applications"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Applications"
+        },
+        {
+          "text": "Link Google Sheet"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-opportunities",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/opportunities",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/opportunities"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Activities"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-partner-clubs",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Partner clubs"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-submissions",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/submissions",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/submissions"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Point submissions"
+        },
+        {
+          "role": "region",
+          "name": "Point submissions"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-points",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/points",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/points"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Submissions"
+        },
+        {
+          "role": "region",
+          "name": "Current semester point policy"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-verification",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/verification",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/verification"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Submissions"
+        },
+        {
+          "role": "textbox",
+          "name": "Search by name"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-sheets",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/sheets",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/sheets"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Classes"
+        },
+        {
+          "role": "heading",
+          "name": "Your classes"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-staff",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/staff",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/staff"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Officers & access"
+        },
+        {
+          "role": "heading",
+          "name": "Officer roster"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-audit",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/audit",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/audit"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Change history"
+        },
+        {
+          "text": "Change history"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-communications",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/communications",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/communications"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Communications"
+        },
+        {
+          "role": "navigation",
+          "name": "Communications sections"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-settings",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/settings",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/settings"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Settings"
+        },
+        {
+          "role": "heading",
+          "name": "Connected Google account"
+        }
+      ],
+      "actorKey": "csfAdmin",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-help",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/help",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/help"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "DVHS CSF Help"
+        }
+      ],
+      "actorKey": "csfMember",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    },
+    {
+      "id": "csf-connect",
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/connect",
+      "expectedRoutes": [
+        "/organization/dvhs-csf/plugins/dvhs-csf/connect"
+      ],
+      "ready": [
+        {
+          "role": "heading",
+          "name": "Connect CSF Profile"
+        }
+      ],
+      "actorKey": "csfApplicant",
+      "captureReducedMotion": false,
+      "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
+      "group": "private-candidate"
+    }
+  ],
+  "remainingCoverage": [
+    {
+      "kind": "class-tabs",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts&csf_cohort=10000000-0000-4000-8000-000000000102&csf_semester_term=10000000-0000-4000-8000-000000000101",
+      "tabs": [
+        "stream",
+        "members",
+        "activities",
+        "submissions",
+        "settings"
+      ],
+      "actorKey": "csfAdmin",
+      "safeEntryOnly": true,
+      "blocker": "Review each body landmark and mount-time action IDs; Class stream region source exists. Other panels/empty/queue use independent controlled state."
+    },
+    {
+      "kind": "member-role-variants",
+      "actorKeys": [
+        "csfMember",
+        "csfApplicant",
+        "outsider",
+        "csfOfficer",
+        "csfAdviser",
+        "csfSecretary",
+        "csfVpMembership"
+      ],
+      "blocker": "Capability and route-phase proof plus body landmarks per permitted role; admin success does not prove other roles."
+    },
+    {
+      "kind": "landing-mode-and-nav",
+      "blocker": "Isolated durable real/demo settings receipts plus owned mobile-menu open/cancel journey. Do not mutate in capture helper."
+    },
+    {
+      "kind": "certificate-detail",
+      "blocker": "Exact retained owned certificate ID, associated fictional actor, successful issuance fixture; do not guess ID or trigger email."
+    },
+    {
+      "kind": "MFA",
+      "blocker": "Owned verified TOTP actor and AAL1/AAL2 journey, no disabling MFA or new real grants."
+    },
+    {
+      "kind": "tokens-and-QR",
+      "blocker": "Owned feedback/recovery/anonymous/QR challenge/session tokens; action-on-visit entries require separate acceptance journey, generic helper refuses."
+    },
+    {
+      "kind": "partner-representative",
+      "blocker": "Proved fictional assigned club representative not present in baseline actors; no role grant by helper."
+    },
+    {
+      "kind": "private-app-runtime",
+      "blocker": "Separate exact private application origin/build/host authorization receipt required; root app helper never adopts another origin."
+    },
+    {
+      "kind": "empty-error-loading-dialogs",
+      "blocker": "Existing focused acceptance fixture or controlled fault adapter per flow; no hiding failing loads. Keyboard Tab sample and axe are diagnostics, not complete dialog/focus or contrast review."
+    },
+    {
+      "kind": "retained-hours-overview",
+      "route": "/projects/c8a61100-0002-4000-8000-000000000001",
+      "blocker": "Exact retained identity SQL proof and retained project creator/record receipt; c8a actors have no password and are never login actors."
+    }
+  ],
+  "templateLimits": "No live metadata. Root independently reviews/materializes exact runtime receipt and selected batches. Each selected entry runs all four modes; reduced motion optional. Specific heading assertions were read from source, never matched to invented screenshots; first runtime mismatch fails closed."
+}

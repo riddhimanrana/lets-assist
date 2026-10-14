@@ -21,11 +21,10 @@ export const featureLinks = [
   },
 ] as const;
 
-// Both discovery links open a feed of upcoming projects: `/home` for members,
-// `/projects` for visitors. For members `/projects` is their own list, so it
-// keeps the "My projects" label.
+// Members return Home at `/home`; `/projects` is their own project list.
+// Visitors discover upcoming projects at `/projects`.
 export const memberLinks = [
-  ["Upcoming projects", "/home"],
+  ["Home", "/home"],
   ["Volunteer dashboard", "/dashboard"],
   ["My projects", "/projects"],
   ["Organizations", "/organization"],

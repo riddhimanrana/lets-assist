@@ -7,6 +7,7 @@ import { escapeHtml } from "@/lib/security/html";
 import { mountCertificatePrintFrame } from "./print-frame";
 import { format, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
+import { certificateTimezone } from "@/lib/certificates/project-dates";
 import { useEffect, useState, useRef } from "react";
 
 export interface PrintCertificateData {
@@ -15,6 +16,7 @@ export interface PrintCertificateData {
   creator_name: string | null;
   is_certified: boolean;
   event_start: string;
+  timeZone?: string | null;
   organization_name: string | null;
   issued_at: string;
   volunteer_name: string | null;
@@ -40,24 +42,15 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
       .map((link) => link.outerHTML)
       .join("");
 
-    // Get user's timezone for print formatting
-    const getUserTimezone = () => {
-      try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
-      } catch {
-        return "UTC";
-      }
-    };
+    const timeZone = certificateTimezone(data.timeZone);
 
-    const userTimezone = getUserTimezone();
-
-    // Format dates in user's timezone for print
+    // Printed dates match the saved zone used by the certificate document.
     const printEventDate = format(parseISO(data.event_start), "MMMM d, yyyy", {
-      in: tz(userTimezone),
+      in: tz(timeZone),
     });
 
     const printIssuedDate = format(parseISO(data.issued_at), "MMM d, yyyy", {
-      in: tz(userTimezone),
+      in: tz(timeZone),
     });
 
     const safeCertificateId = escapeHtml(data.id);

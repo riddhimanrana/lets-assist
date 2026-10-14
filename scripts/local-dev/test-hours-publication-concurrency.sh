@@ -76,6 +76,7 @@ trap cleanup EXIT
 cleanup_database
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -125,7 +126,7 @@ VALUES (
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
   verification_method, schedule, require_login, organization_id,
-  can_be_managed_by_staff
+  can_be_managed_by_staff, status
 )
 VALUES (
   'ac200000-0000-4000-8000-000000000001',
@@ -135,7 +136,7 @@ VALUES (
   '{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
   true,
   'ac100000-0000-4000-8000-000000000001',
-  true
+  true, 'upcoming'
 );
 
 INSERT INTO public.project_signups (
@@ -148,6 +149,25 @@ VALUES (
   'oneTime',
   'approved'
 );
+COMMIT;
+SQL
+
+# Control only this historical fixture. Maintenance may skip a run when another
+# maintenance transaction already holds its advisory lock; the publication and
+# reset scenarios must still deterministically begin with a completed project.
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
+SELECT public.process_projects();
+DO $$
+BEGIN
+  IF (SELECT status FROM public.projects
+      WHERE id = 'ac200000-0000-4000-8000-000000000001') IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'historical publication fixture must begin completed';
+  END IF;
+END;
+$$;
 SQL
 
 (
@@ -439,6 +459,7 @@ if [[ "${BOUNDARY_RESULT}" != "unknown_outcome:settlement_unconfirmed" ]]; then
 fi
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
 DELETE FROM public.hours_publication_email_outbox
 WHERE receipt_id IN (
   SELECT id FROM public.hours_publication_receipts
@@ -449,7 +470,7 @@ WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 DELETE FROM public.certificates
 WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.projects
-SET published = '{}'::jsonb
+SET published = '{}'::jsonb, status = 'upcoming'
 WHERE id = 'ac200000-0000-4000-8000-000000000001';
 -- The preceding publication established reviewed intervals. The independent
 -- legacy scenarios need a new signup, not an edit that bypasses corrections.
@@ -477,6 +498,7 @@ BEGIN
   END IF;
 END;
 $$;
+COMMIT;
 SQL
 
 # A status change that already owns the signup lock must settle before the
@@ -522,9 +544,14 @@ if [[ "${STATUS_RACE_EXIT}" -eq 0 ]] || ! grep -q "one or more signups" "${OUTPU
 fi
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
+UPDATE public.projects
+SET status = 'upcoming'
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.project_signups
 SET status = 'approved'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
+COMMIT;
 SQL
 
 # The same serialization guarantee applies to the staff membership used for

@@ -49,10 +49,10 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
             variant="outline"
             className="mb-3 border-primary/40 bg-primary/10 text-primary"
           >
-            For organizations
+            For organizations · Sample organization
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            The workspace SignUpGenius never built
+            A workspace for your volunteer organization
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
             Manage members and roles, verify hours from QR check-ins, issue

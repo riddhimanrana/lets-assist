@@ -24,7 +24,9 @@ export function GettingStartedSection() {
     <div className="space-y-6">
       <Card id="getting-started-welcome">
         <CardHeader>
-          <CardTitle>Welcome to Let&apos;s Assist</CardTitle>
+          <CardTitle>
+            <h2>Welcome to Let&apos;s Assist</h2>
+          </CardTitle>
           <CardDescription>
             Your complete guide to tracking volunteer hours and managing
             projects
@@ -33,7 +35,7 @@ export function GettingStartedSection() {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h4 className="font-semibold">Quick start</h4>
+              <h3 className="font-semibold">Quick start</h3>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center gap-2">
                   <CheckCircle
@@ -59,7 +61,7 @@ export function GettingStartedSection() {
               </ul>
             </div>
             <div className="space-y-3">
-              <h4 className="font-semibold">Key features</h4>
+              <h3 className="font-semibold">Key features</h3>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">Hour tracking</Badge>
                 <Badge variant="secondary">Project management</Badge>

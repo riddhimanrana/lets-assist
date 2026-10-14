@@ -22,3 +22,9 @@ packages/plugin-sdk/dist/
 # Local agent notes and browser captures.
 .remember/
 .playwright-mcp/
+
+# Four immutable source-reference inputs; handwritten helpers stay formatted.
+scripts/local-dev/layout-audit/upstream/manifest.baseline-template.json
+scripts/local-dev/layout-audit/upstream/original-route-role-state-inventory.json
+scripts/local-dev/layout-audit/upstream/read-action-source-review.json
+scripts/local-dev/layout-audit/upstream/runtime-cache-source-proof.json

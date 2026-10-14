@@ -1,0 +1,712 @@
+{
+  "schema": "lets-assist-layout-source-inventory-v2",
+  "template": true,
+  "rootPageModules": 68,
+  "privateManifestRoutes": 22,
+  "captureCandidates": 87,
+  "rootRoutes": [
+    {
+      "route": "/",
+      "source": "app/(landing)/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/authentication",
+      "source": "app/account/authentication/page.tsx",
+      "classification": "redirect alias; no distinct interior",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/calendar",
+      "source": "app/account/calendar/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/notifications",
+      "source": "app/account/notifications/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/plugins",
+      "source": "app/account/plugins/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/profile",
+      "source": "app/account/profile/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/account/security",
+      "source": "app/account/security/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/acknowledgements",
+      "source": "app/acknowledgements/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/feedback",
+      "source": "app/admin/feedback/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/moderation",
+      "source": "app/admin/moderation/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/notifications",
+      "source": "app/admin/notifications/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/organizations",
+      "source": "app/admin/organizations/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin",
+      "source": "app/admin/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/plugins",
+      "source": "app/admin/plugins/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/system-banner",
+      "source": "app/admin/system-banner/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/trusted-members",
+      "source": "app/admin/trusted-members/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/user-access",
+      "source": "app/admin/user-access/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/admin/waivers",
+      "source": "app/admin/waivers/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/anonymous/[id]/confirm",
+      "source": "app/anonymous/[id]/confirm/page.tsx",
+      "classification": "unsafe GET effect; separate owned journey",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/anonymous/[id]",
+      "source": "app/anonymous/[id]/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/attend/[projectId]",
+      "source": "app/attend/[projectId]/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/attend/[projectId]/prepare",
+      "source": "app/attend/[projectId]/prepare/page.tsx",
+      "classification": "unsafe GET effect; separate owned journey",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/auth/email-expired",
+      "source": "app/auth/email-expired/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/auth/mfa",
+      "source": "app/auth/mfa/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/auth/verification-success",
+      "source": "app/auth/verification-success/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/certificates/[id]",
+      "source": "app/certificates/[id]/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/certificates",
+      "source": "app/certificates/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/contact",
+      "source": "app/contact/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/dashboard",
+      "source": "app/dashboard/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/error",
+      "source": "app/error/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/faq",
+      "source": "app/faq/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/feedback/[requestId]",
+      "source": "app/feedback/[requestId]/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/guardian-action/[token]",
+      "source": "app/guardian-action/[token]/page.tsx",
+      "classification": "archived workflow excluded",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/help",
+      "source": "app/help/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/home",
+      "source": "app/home/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/login",
+      "source": "app/login/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/logout",
+      "source": "app/logout/page.tsx",
+      "classification": "unsafe GET effect; separate owned journey",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]/admin/members",
+      "source": "app/organization/[id]/admin/members/page.tsx",
+      "classification": "redirect alias; no distinct interior",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]/moderation",
+      "source": "app/organization/[id]/moderation/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]",
+      "source": "app/organization/[id]/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]/plugins/[pluginKey]/[...pluginRoute]",
+      "source": "app/organization/[id]/plugins/[pluginKey]/[...pluginRoute]/page.tsx",
+      "classification": "plugin dispatch shell; enumerate private manifest/body variants",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]/plugins/[pluginKey]",
+      "source": "app/organization/[id]/plugins/[pluginKey]/page.tsx",
+      "classification": "plugin dispatch shell; enumerate private manifest/body variants",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/[id]/settings",
+      "source": "app/organization/[id]/settings/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/create",
+      "source": "app/organization/create/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/join/invite",
+      "source": "app/organization/join/invite/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/organization/join",
+      "source": "app/organization/join/page.tsx",
+      "classification": "unsafe GET effect; separate owned journey",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization",
+      "source": "app/organization/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/preview/home-demo",
+      "source": "app/preview/home-demo/page.tsx",
+      "classification": "production-mode intentional404; do not weaken fence",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/privacy",
+      "source": "app/privacy/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/profile/[username]",
+      "source": "app/profile/[username]/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/attendance-sheet",
+      "source": "app/projects/[id]/attendance-sheet/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/attendance",
+      "source": "app/projects/[id]/attendance/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/edit",
+      "source": "app/projects/[id]/edit/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/feedback",
+      "source": "app/projects/[id]/feedback/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/hours",
+      "source": "app/projects/[id]/hours/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]",
+      "source": "app/projects/[id]/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/paper-signups",
+      "source": "app/projects/[id]/paper-signups/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/[id]/signups",
+      "source": "app/projects/[id]/signups/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/create",
+      "source": "app/projects/create/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects/drafts",
+      "source": "app/projects/drafts/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/projects",
+      "source": "app/projects/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/reset-password/[token]",
+      "source": "app/reset-password/[token]/page.tsx",
+      "classification": "fixture/token/MFA gap; not generic capture",
+      "reviewedModes": 0,
+      "pixelsInspected": 0,
+      "fixtureGap": true
+    },
+    {
+      "route": "/reset-password",
+      "source": "app/reset-password/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/signup",
+      "source": "app/signup/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/signup/success",
+      "source": "app/signup/success/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/terms",
+      "source": "app/terms/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/trusted-member",
+      "source": "app/trusted-member/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/unsubscribe/csf/[organizationId]/[topicKey]",
+      "source": "app/unsubscribe/csf/[organizationId]/[topicKey]/page.tsx",
+      "classification": "safe source-derived baseline candidate",
+      "reviewedModes": 0,
+      "pixelsInspected": 0
+    }
+  ],
+  "privateRoutes": [
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/public",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/partner-representative",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "role fixture gap",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/overview",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/home",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/my-profile",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/profiles",
+      "capabilities": "manage_profiles",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/cohorts",
+      "capabilities": "class-tab capability; each tab independently gated",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/terms",
+      "capabilities": "manage_cohorts_terms / manage_schedule / close_term / reopen_term / manage_settings",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/meetings",
+      "capabilities": "manage_meetings / reconcile_meeting_attendance",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/applications",
+      "capabilities": "verify_submissions / manage_review_periods / import_applications / manage_sheet_sync / resolve_imports",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/sheets",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "alias/canonical content; no additional interior",
+      "aliasTo": "cohorts",
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/opportunities",
+      "capabilities": "member read / manage_opportunities edit",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs",
+      "capabilities": "manage_partner_clubs",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/submissions",
+      "capabilities": "member own / verify_submissions staff",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/points",
+      "capabilities": "member own / process_points or verify_submissions staff",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/verification",
+      "capabilities": "verify_submissions / manage_review_periods",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/staff",
+      "capabilities": "manage_roles",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/audit",
+      "capabilities": "view_audit_history",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/communications",
+      "capabilities": "manage_settings",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/settings",
+      "capabilities": "manage_settings or report-export capability; each card gated",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/help",
+      "capabilities": "all signed-in chapter roles",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    },
+    {
+      "route": "/organization/dvhs-csf/plugins/dvhs-csf/connect",
+      "capabilities": "role-aware; see navigation.ts and route-phase gate",
+      "classification": "source-derived candidate; capability/mount-effect must pass",
+      "aliasTo": null,
+      "pixelsInspected": 0
+    }
+  ],
+  "remainingCoverage": [
+    {
+      "kind": "class-tabs",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts&csf_cohort=10000000-0000-4000-8000-000000000102&csf_semester_term=10000000-0000-4000-8000-000000000101",
+      "tabs": [
+        "stream",
+        "members",
+        "activities",
+        "submissions",
+        "settings"
+      ],
+      "actorKey": "csfAdmin",
+      "safeEntryOnly": true,
+      "blocker": "Review each body landmark and mount-time action IDs; Class stream region source exists. Other panels/empty/queue use independent controlled state."
+    },
+    {
+      "kind": "member-role-variants",
+      "actorKeys": [
+        "csfMember",
+        "csfApplicant",
+        "outsider",
+        "csfOfficer",
+        "csfAdviser",
+        "csfSecretary",
+        "csfVpMembership"
+      ],
+      "blocker": "Capability and route-phase proof plus body landmarks per permitted role; admin success does not prove other roles."
+    },
+    {
+      "kind": "landing-mode-and-nav",
+      "blocker": "Isolated durable real/demo settings receipts plus owned mobile-menu open/cancel journey. Do not mutate in capture helper."
+    },
+    {
+      "kind": "certificate-detail",
+      "blocker": "Exact retained owned certificate ID, associated fictional actor, successful issuance fixture; do not guess ID or trigger email."
+    },
+    {
+      "kind": "MFA",
+      "blocker": "Owned verified TOTP actor and AAL1/AAL2 journey, no disabling MFA or new real grants."
+    },
+    {
+      "kind": "tokens-and-QR",
+      "blocker": "Owned feedback/recovery/anonymous/QR challenge/session tokens; action-on-visit entries require separate acceptance journey, generic helper refuses."
+    },
+    {
+      "kind": "partner-representative",
+      "blocker": "Proved fictional assigned club representative not present in baseline actors; no role grant by helper."
+    },
+    {
+      "kind": "private-app-runtime",
+      "blocker": "Separate exact private application origin/build/host authorization receipt required; root app helper never adopts another origin."
+    },
+    {
+      "kind": "empty-error-loading-dialogs",
+      "blocker": "Existing focused acceptance fixture or controlled fault adapter per flow; no hiding failing loads. Keyboard Tab sample and axe are diagnostics, not complete dialog/focus or contrast review."
+    },
+    {
+      "kind": "retained-hours-overview",
+      "route": "/projects/c8a61100-0002-4000-8000-000000000001",
+      "blocker": "Exact retained identity SQL proof and retained project creator/record receipt; c8a actors have no password and are never login actors."
+    }
+  ],
+  "pixelsInspected": 0,
+  "completeVisualAudit": false
+}

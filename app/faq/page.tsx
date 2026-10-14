@@ -17,21 +17,21 @@ const faqs = [
   {
     question: "What is Let’s Assist?",
     answer: [
-      "Let’s Assist is a volunteer management platform built for high schools, families, and local nonprofits. We help volunteers discover events, verify their attendance with QR check‑ins, and automatically publish certificates and hour reports once work is validated.",
+      "Let’s Assist is a volunteer management platform built for high schools, families, and local nonprofits. We help volunteers discover events, record attendance with QR check-ins, and access certificates and hour reports after organizers verify and publish their hours.",
       "We pair modern volunteer tools with district-friendly safeguards (like parental consent flows and audit-ready exports) so students and organizations can focus on impact instead of spreadsheets.",
     ],
   },
   {
     question: "How is this different from SignupGenius?",
     answer: [
-      "SignupGenius is great for scheduling, but Let’s Assist layers in attendance verification, QR-based check-in/out, and auto-published certificates for verified hours. That means approvals, proof, and reporting happen without manual work.",
-      "Organizations get role-based access, activity exports, and certificate automation out of the box, while volunteers instantly see verified hours, certificates, and progress toward requirements like CSF.",
+      "Let’s Assist combines project signups with attendance verification, QR check-in/out, and certificates for published hours. Organizers review attendance before publishing volunteer records.",
+      "Organizations have role-based access and activity exports. Volunteers can view published hours and certificates in their Volunteer dashboard.",
     ],
   },
   {
     question: "Can I use Let’s Assist for school service requirements?",
     answer: [
-      "Yes. Let’s Assist tracks verified and self-reported hours, syncs with personal calendars, and surfaces automated certificates that map directly to graduation or CSF goals.",
+      "Yes. Let’s Assist tracks verified and self-reported hours and provides certificates and exports. Your school or CSF chapter decides how these records meet its service requirements.",
       "Teachers and admins can set cadence alerts, attach supervisor approvals, and export compliance-ready reports for every student in seconds.",
     ],
   },
@@ -39,7 +39,7 @@ const faqs = [
     question: "How do organizations get started?",
     answer: [
       "Apply for trusted member access, invite team members with six-digit join codes, and publish projects that support one-time, multi-day, or same-day multi-area events.",
-      "Once events run, supervisors verify check-ins via QR scans, and certificates auto-publish 48–72 hours later — no extra spreadsheets needed.",
+      "After an event, supervisors review attendance and publish verified hours. Volunteers can then view their certificates. Contact the organizer if your hours have not been published.",
     ],
   },
   {
@@ -62,7 +62,7 @@ export default function FAQPage() {
       <Accordion className="mt-6 w-full" defaultValue={["item-1"]}>
         {faqs.map((faq, index) => (
           <AccordionItem key={faq.question} value={`item-${index + 1}`}>
-            <AccordionTrigger className="py-4 text-base">
+            <AccordionTrigger headingLevel={2} className="py-4 text-base">
               {faq.question}
             </AccordionTrigger>
             <AccordionContent className="text-muted-foreground flex max-w-prose flex-col gap-3 text-sm leading-6">

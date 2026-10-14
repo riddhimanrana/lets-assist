@@ -133,11 +133,27 @@ protection-bypass values used by the workflow. At minimum, the workflow expects:
 - `SUPABASE_ACCESS_TOKEN`
 - `SUPABASE_DB_PASSWORD`
 - `SUPABASE_SECRET_KEY`
-- `PRODUCTION_READONLY_URL`
+- `PRODUCTION_READONLY_URL` when configured, otherwise the existing protected
+  `PRODUCTION_BOOTSTRAP_DATABASE_URL` owner connection
 - `VERCEL_TOKEN`
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
 - `VERCEL_TEAM_ID` as an environment variable
 - `VERCEL_ROOT_PROJECT_ID` as an environment variable
+
+The fixed maintenance preflight prefers the configured readonly URL. An invalid
+configured URL fails rather than falling back. When absent, the preflight reuses
+the bootstrap connection after checking the exact Production project, owner
+account, host, database, port and TLS. No credential is copied into another secret.
+The receipt labels owner authority honestly; a read-only transaction is not a
+restricted login. A non-owner configured account is labeled unverified authority.
+
+Ledger, catalog, posture and quiescence checks use fixed reviewed SQL, explicit
+read-only transactions, safe local search paths and bounded timeouts. The child
+session also defaults to read-only. Credentials stay in a whitelisted child
+environment, outside process arguments; raw database output is suppressed.
+Bootstrap mutations and schema pushes retain their separate reviewed paths.
+This transport choice changes no release identity, environment review,
+application write-fence, external-writer, recovery-capture, schema or acceptance gate.
 
 Do not copy these values into a shell history, issue, pull request, workflow
 summary, or repository file.

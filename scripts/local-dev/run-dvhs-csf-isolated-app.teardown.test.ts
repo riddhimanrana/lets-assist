@@ -329,6 +329,42 @@ describe("the owned-child supervisor", () => {
     }
   });
 
+  test("a completed build cannot end or signal the later runtime", async () => {
+    const scope = supervisorWithFakeChildren();
+    try {
+      const build = scope.supervisor.runOwnedBuild("build", "node", [], {
+        cwd: ".",
+        env: {},
+      });
+      const buildChild = scope.children[0];
+      buildChild.emit("exit", 0, null);
+      expect((await build).code).toBe(0);
+      expect(scope.released).toEqual([]);
+
+      scope.supervisor.spawnOwnedChild("platform", "node", [], {
+        cwd: ".",
+        env: {},
+      });
+      const platform = scope.children[1];
+      const drained = scope.supervisor.drain();
+      await Bun.sleep(10);
+      expect(scope.signalled).toEqual([]);
+      platform.emit("exit", 7, null);
+      expect(await drained).toEqual({
+        name: "platform",
+        code: 7,
+        signal: null,
+      });
+      expect(scope.signalled).toEqual([[-platform.pid!, "SIGTERM"]]);
+      expect(scope.released).toEqual([]);
+      expect(scope.supervisor.stop()).toBe(true);
+      expect(scope.released).toEqual([0]);
+    } finally {
+      scope.restore();
+      scope.supervisor.stop();
+    }
+  });
+
   test("a child that never starts ends the run instead of stalling it", async () => {
     const scope = supervisorWithFakeChildren();
     try {
@@ -396,7 +432,9 @@ describe("the isolated app runner gives its port claim back", () => {
 
   test("after a teardown that lands before the first child exists", async () => {
     const claimRoot = hermeticClaimRoot();
-    const run = launchFixture("build-window", "graceful", claimRoot);
+    const run = launchFixture("build-window", "graceful", claimRoot, {
+      CSF_TEARDOWN_FIXTURE_PRE_BUILD_HOLD_MS: "250",
+    });
     await run.waitFor((text) => text.includes("RUNNER-READY"));
     expect(readdirSync(claimRoot)).toEqual(["app-port-3000"]);
 

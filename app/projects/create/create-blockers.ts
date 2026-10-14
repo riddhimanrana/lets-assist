@@ -4,6 +4,7 @@ import {
   type RecurrenceFieldErrors,
 } from "@/lib/projects/recurrence";
 import { getWaiverConfigurationError } from "@/lib/projects/waiver-validation";
+import { waiverDefinitionInputSchema } from "@/lib/waiver/definition-input";
 
 export const WAIVER_DEFINITION_REQUIRED_MESSAGE =
   "Configure the waiver signers and signature fields before you continue, or turn off e-signatures.";
@@ -29,8 +30,23 @@ export function getWaiverStepError(state: WaiverStepState): string | null {
 
   // An e-signature waiver is only publishable once its signature placements
   // exist. Without them the project would be saved and then refuse to publish.
-  if (!state.waiverDisableEsignature && !state.waiverDefinition) {
-    return WAIVER_DEFINITION_REQUIRED_MESSAGE;
+  if (!state.waiverDisableEsignature) {
+    const definition = waiverDefinitionInputSchema.safeParse(
+      state.waiverDefinition,
+    );
+    if (!definition.success) return WAIVER_DEFINITION_REQUIRED_MESSAGE;
+    const fields = [
+      ...Object.values(definition.data.fields.detected),
+      ...definition.data.fields.custom,
+    ];
+    if (
+      !fields.some(
+        (field) =>
+          field.fieldType === "signature" || field.fieldType === "initial",
+      )
+    ) {
+      return WAIVER_DEFINITION_REQUIRED_MESSAGE;
+    }
   }
 
   return null;

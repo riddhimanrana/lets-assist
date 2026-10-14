@@ -16,7 +16,12 @@ notifications. Prove the existing PostgREST write block with a fresh request.
 
 The current read-only preflight uses reviewed migration bytes and the accepted
 catalog for the observed ledger. Supply `EXPECTED_SUPABASE_PROJECT_REF` and
-`PRODUCTION_READONLY_URL` through the approved secret environment, then run:
+`PRODUCTION_READONLY_URL` when configured, otherwise the existing protected
+`PRODUCTION_BOOTSTRAP_DATABASE_URL`, through the approved secret environment.
+The fallback must be the reviewed Production owner connection; it creates no
+new role, credential or grant. Its authority remains owner-level even while
+fixed checks execute in read-only transactions. An invalid configured readonly
+URL fails rather than selecting the fallback. Then run:
 
 ```bash
 node scripts/production/maintenance-preflight.mjs before
@@ -42,6 +47,10 @@ After the workflow applies migrations, it requires the complete accepted target:
 node scripts/production/maintenance-preflight.mjs target
 ```
 
+The workflow also uses the fixed `quiescence` mode for its cron/flag check;
+`credentials` validates binding only and does not prove live connectivity.
+All database modes use explicit read-only transactions and a read-only session
+default. Receipts distinguish owner authority from an unverified configured role.
 Both commands run their database checks in read-only transactions and print only
 a sanitized receipt. Credentials stay out of process arguments and raw database
 errors stay out of logs. Connection parameters cannot override the reviewed

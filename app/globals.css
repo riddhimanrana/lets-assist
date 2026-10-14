@@ -31,6 +31,7 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
+    --content-link: hsl(142.1 76.2% 23%);
     --primary: hsl(142.1 76.2% 36.3%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
@@ -168,6 +169,7 @@
     /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
+    --content-link: hsl(115 54% 76%);
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);
@@ -276,6 +278,7 @@
   --color-primary-foreground: var(--primary-foreground);
 
   --color-brand: var(--brand);
+  --color-content-link: var(--content-link);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -402,6 +405,29 @@
       opacity: 1;
       filter: none;
       transform: none;
+    }
+  }
+
+  /* Landing headline letters. The resting state is the final one, so the
+     heading is readable with no script and where animations do not run. The
+     entrance plays once per mount and only when motion is welcome. */
+  @keyframes la-hero-letter-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      transform: translate3d(0, 20px, 0);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .la-hero-letter {
+      animation: la-hero-letter-in 0.62s cubic-bezier(0.16, 1, 0.3, 1)
+        var(--la-delay, 0s) 1 both;
     }
   }
 

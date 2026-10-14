@@ -146,7 +146,7 @@ export function QRCodeScannerModal({
           {scanError && (
             <div
               role="alert"
-              className="absolute top-6 left-6 right-6 z-20 bg-destructive/95 text-white p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
+              className="absolute top-6 left-6 right-6 z-20 bg-red-700 text-white dark:bg-destructive dark:text-destructive-foreground p-4 rounded-2xl text-sm flex items-center gap-3 shadow-xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-4"
             >
               <AlertCircle className="h-5 w-5 shrink-0" />
               <span>{scanError}</span>

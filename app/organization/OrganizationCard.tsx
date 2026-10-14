@@ -34,7 +34,7 @@ interface OrganizationCardProps {
   org: OrganizationCardOrg;
   /**
    * Visible member count. `null` means the organization keeps its member list
-   * private, which is different from genuinely having no members — the card
+   * private, which is different from genuinely having no members. The card
    * says so instead of rendering a misleading "0 members".
    */
   memberCount: number | null;
@@ -90,16 +90,21 @@ export default function OrganizationCard({
       href={`/organization/${org.username}`}
       className="group focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-[3px]"
     >
+      {/* Hover changes the ring and the title colour only. The card never
+          lifts or gains a shadow. */}
       <Card
         className={cn(
           "h-full transition-colors",
           highlightMembership
-            ? "bg-primary/5 ring-primary/25 group-hover:bg-primary/10 group-hover:ring-primary/40"
-            : "group-hover:bg-muted/40 group-hover:ring-foreground/20",
+            ? "bg-primary/5 ring-primary/30 group-hover:bg-primary/10 group-hover:ring-primary/40"
+            : "group-hover:ring-primary/30",
         )}
       >
         <CardHeader className="flex flex-row items-start gap-3">
-          <Avatar size="lg">
+          <Avatar
+            size="lg"
+            className="size-12 border border-border data-[size=lg]:size-12"
+          >
             <AvatarImage src={org.logo_url || undefined} alt="" />
             <AvatarFallback>
               <NoAvatar fullName={org.name} />
@@ -107,7 +112,7 @@ export default function OrganizationCard({
           </Avatar>
           <div className="grid min-w-0 flex-1 gap-0.5">
             <div className="flex min-w-0 items-start gap-1.5">
-              <CardTitle className="line-clamp-2 break-words">
+              <CardTitle className="group-hover:text-content-link line-clamp-2 text-base font-semibold leading-tight break-words transition-colors">
                 {org.name}
               </CardTitle>
               {org.verified && (
@@ -131,19 +136,21 @@ export default function OrganizationCard({
               {role ? <OrganizationRoleBadge role={role} /> : null}
             </div>
           ) : null}
-          {org.description ? (
-            <p className="text-muted-foreground line-clamp-2 text-sm break-words">
-              {org.description}
-            </p>
-          ) : null}
+          {/* Two lines are always reserved, so cards in a row share one
+              rhythm whether or not an organization wrote a description. */}
+          <p className="text-muted-foreground line-clamp-2 min-h-10 text-sm break-words">
+            {org.description || "No description provided."}
+          </p>
         </CardContent>
 
-        {/* The count sits in its own footer row. A private member list keeps
-            its own icon and wording and never reads as zero. */}
+        {/* The count sits in its own footer band. A private member list keeps
+            its own icon and wording and never reads as zero. The membership
+            wash shows through its footer; neutral cards keep the primitive's
+            muted band. */}
         <CardFooter
           className={cn(
-            "text-muted-foreground gap-2 bg-transparent py-3 text-sm",
-            highlightMembership && "border-primary/15",
+            "text-muted-foreground gap-2 py-3 text-sm",
+            highlightMembership && "border-primary/15 bg-transparent",
           )}
         >
           <FooterIcon className="size-4 shrink-0" aria-hidden="true" />

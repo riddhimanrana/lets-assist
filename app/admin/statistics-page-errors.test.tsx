@@ -46,7 +46,9 @@ mock.module("./components/ProjectScheduleHealth", () => ({
   ProjectScheduleHealth: () => null,
 }));
 mock.module("./components/OverviewTab", () => ({
-  OverviewTab: () => <div>SUCCESSFUL_OVERVIEW</div>,
+  OverviewTab: ({ afterHeader }: { afterHeader?: React.ReactNode }) => (
+    <div>SUCCESSFUL_OVERVIEW{afterHeader}</div>
+  ),
 }));
 mock.module("./moderation/ModerationDashboardWrapper", () => ({
   default: () => <div>SUCCESSFUL_MODERATION</div>,
@@ -90,6 +92,7 @@ describe("admin statistics page error boundaries", () => {
       const html = renderToStaticMarkup(await page());
       expect(html).toContain(success);
       expect(html).not.toContain("Error loading");
+      if (name === "overview") expect(html).toContain("LANDING_DEMO_CONTROL");
     });
 
     test(`${name} redirects an unauthorized actor before any queue read`, async () => {
@@ -103,14 +106,22 @@ describe("admin statistics page error boundaries", () => {
 function landingControlReads(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(landingControlReads);
   if (
-    !React.isValidElement<{ children?: unknown; readVersion?: string }>(value)
+    !React.isValidElement<{
+      children?: unknown;
+      afterHeader?: unknown;
+      readVersion?: string;
+    }>(value)
   )
     return [];
   const keys =
     typeof value.type === "function" && value.type.name === "LandingDemoControl"
       ? [String(value.props.readVersion)]
       : [];
-  return [...keys, ...landingControlReads(value.props.children)];
+  return [
+    ...keys,
+    ...landingControlReads(value.props.afterHeader),
+    ...landingControlReads(value.props.children),
+  ];
 }
 
 test("every authoritative overview read identifies freshness independently of its repeated mode", async () => {

@@ -25,6 +25,17 @@ describe("self-reported hours input", () => {
     ).toHaveProperty("eventStart", "2026-12-06T17:00:00.000Z");
   });
 
+  test("keeps supported timezone aliases inside the stored formatter contract", () => {
+    const parsed = parseSelfReportedHours({
+      ...input,
+      timeZone: "US/Eastern",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.eventStart).toBe("2026-10-06T13:00:00.000Z");
+    expect(["US/Eastern", "America/New_York"]).toContain(parsed.data.timeZone);
+  });
+
   test.each(
     [
       null,
@@ -42,6 +53,10 @@ describe("self-reported hours input", () => {
       { ...input, endTime: "09:00" },
       { ...input, timeZone: undefined },
       { ...input, timeZone: "not-a-zone" },
+      { ...input, timeZone: "Factory" },
+      { ...input, timeZone: "localtime" },
+      { ...input, timeZone: "posixrules" },
+      { ...input, timeZone: "CST6CDT" },
       { ...input, date: "2026-03-08", startTime: "02:30" },
     ].map((value) => [value]),
   )("rejects malformed or impossible input %#", (value) => {

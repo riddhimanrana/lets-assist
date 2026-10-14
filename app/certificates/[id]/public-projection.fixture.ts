@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { mock } from "bun:test";
 import { isValidElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { PrintCertificateData } from "./_components/PrintCertificate";
 
 const scenario = process.argv[2];
@@ -18,16 +19,27 @@ const record = {
   project_title: "Historical project title",
   creator_name: "Fictional Coordinator",
   creator_username: "fictional-coordinator",
-  is_certified: true,
+  is_certified: scenario !== "self-reported",
   type: scenario === "self-reported" ? "self-reported" : null,
-  event_start: "2020-09-18T09:00:00Z",
-  event_end: "2020-09-18T12:00:00Z",
+  event_start:
+    scenario === "self-reported"
+      ? "2026-10-12T15:30:00Z"
+      : "2020-09-18T09:00:00Z",
+  event_end:
+    scenario === "self-reported"
+      ? "2026-10-12T16:30:00Z"
+      : "2020-09-18T12:00:00Z",
+  event_timezone: scenario === "legacy" ? null : "Asia/Tokyo",
+  project_timezone: scenario === "canonical" ? "America/New_York" : null,
   credited_minutes: scenario === "legacy" ? null : 95,
   check_in_method: "manual",
   created_at: "2020-09-18T12:05:00Z",
   organization_name: "Historical organization snapshot",
-  project_id: "public-project-id",
-  issued_at: "2020-09-18T12:05:00Z",
+  project_id: scenario === "self-reported" ? null : "public-project-id",
+  issued_at:
+    scenario === "self-reported"
+      ? "2026-10-12T17:00:00Z"
+      : "2020-09-18T12:05:00Z",
   volunteer_name: "Fictional Volunteer",
   project_location: "Historical location",
   description: "Fictional self-reported activity",
@@ -85,6 +97,12 @@ assert.deepEqual(printProps[0].data, {
   creator_name: record.creator_name,
   is_certified: record.is_certified,
   event_start: record.event_start,
+  timeZone:
+    scenario === "canonical"
+      ? "America/New_York"
+      : scenario === "self-reported"
+        ? "Asia/Tokyo"
+        : "America/Los_Angeles",
   organization_name: record.organization_name,
   issued_at: record.issued_at,
   volunteer_name: record.volunteer_name,
@@ -113,11 +131,22 @@ assert.ok(
 assert.ok(serialized.includes(record.volunteer_name));
 assert.ok(serialized.includes(record.organization_name));
 assert.ok(serialized.includes(record.project_title));
+assert.ok(selections[0].includes("event_timezone"));
+assert.ok(selections[0].includes("project_timezone"));
+const rendered = renderToStaticMarkup(tree);
 assert.ok(
-  serialized.includes(
-    scenario === "self-reported" ? record.description : record.project_id,
-  ),
+  !rendered.includes("Loading..."),
+  "Certificate dates render without a client-only loading placeholder",
 );
+if (scenario === "self-reported") {
+  assert.ok(rendered.includes("Oct 13, 2026"));
+  assert.ok(rendered.includes("12:30 AM GMT+9"));
+  assert.ok(!rendered.includes("Oct 12, 2026"));
+}
+const displaySnapshot =
+  scenario === "self-reported" ? record.description : record.project_id;
+assert.ok(typeof displaySnapshot === "string");
+assert.ok(serialized.includes(displaySnapshot));
 const metadata = await generateMetadata({ params });
 assert.equal(metadata.title, `${record.project_title} Volunteer Certificate`);
 for (const columns of selections) {

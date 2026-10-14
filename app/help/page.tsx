@@ -88,7 +88,7 @@ const searchIndex = [
     title: "Earning certificates",
     category: "projects",
     content:
-      "earning certificates digital certificate project details hour totals verification status downloadable pdf shareable links verification automatic generation",
+      "earning certificates organizer verified published hours digital certificate project details hour totals verification status downloadable pdf shareable links verification",
     section: "Certificates",
   },
   {
@@ -198,7 +198,7 @@ const searchIndex = [
     title: "Understanding certificates",
     category: "certificates",
     content:
-      "understanding certificates digital proof volunteer work automatically generated completing projects shareable links downloadable verification",
+      "understanding certificates digital proof volunteer work organizer verified published hours shareable links downloadable verification",
     section: "Certificate Basics",
   },
   {

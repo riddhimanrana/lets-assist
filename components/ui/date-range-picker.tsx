@@ -190,7 +190,10 @@ export function DateRangePicker({
     <div className={cn("flex flex-col sm:flex-row gap-2 w-full", className)}>
       {showQuickSelect && (
         <Select value={selectedPreset} onValueChange={handleQuickSelect}>
-          <SelectTrigger className="w-full sm:w-[200px] h-9">
+          <SelectTrigger
+            aria-label="Quick date range"
+            className="w-full sm:w-[200px] h-9"
+          >
             <SelectValue placeholder="Quick select">
               {selectedPreset === "academic-year"
                 ? "This Academic Year"
@@ -224,6 +227,11 @@ export function DateRangePicker({
           render={
             <Button
               id="date"
+              aria-label={
+                value?.from
+                  ? `Date range: ${formatDateRangeLabel(value)}`
+                  : "Select date range"
+              }
               variant="outline"
               className={cn(
                 "justify-start text-left",

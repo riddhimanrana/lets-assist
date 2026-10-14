@@ -531,8 +531,10 @@ const mockOrganization = {
   name: "San Ramon City Alliance",
   username: "sanramon",
   type: "nonprofit",
-  website: "https://sanramon.ca.gov/",
-  verified: true,
+  // A reserved example domain and no verified mark: this organization is a
+  // sample, and the section's eyebrow says so.
+  website: "https://sanramon.example/",
+  verified: false,
   logo_url: "/logos/sanramon.jpg",
   description:
     "A community coalition connecting residents, schools, and local nonprofits to improve San Ramon through service and events. Note that this is a mock and is not affiliated with the actual City of San Ramon.",

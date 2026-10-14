@@ -4,23 +4,26 @@ import { Badge } from "@/components/ui/badge";
 
 /**
  * The one role badge: members table, member details, organization header and
- * the directory (through `OrganizationRoleBadge`). The label always sits on a
- * neutral badge so it stays readable; only the icon carries the role colour.
+ * the directory (through `OrganizationRoleBadge`). Admin is the primary green
+ * label, Staff uses the semantic blue tint, and Member stays outlined.
  * Any role other than admin or staff reads as Member.
  */
 export function MemberRoleBadge({ role }: { role: string }) {
   switch (role) {
     case "admin":
       return (
-        <Badge variant="secondary">
-          <Shield className="text-primary" aria-hidden="true" />
+        <Badge
+          variant="default"
+          className="text-foreground dark:text-primary-foreground"
+        >
+          <Shield aria-hidden="true" />
           Admin
         </Badge>
       );
     case "staff":
       return (
-        <Badge variant="outline">
-          <UserRoundCog className="text-info" aria-hidden="true" />
+        <Badge variant="info" className="text-foreground dark:text-info">
+          <UserRoundCog aria-hidden="true" />
           Staff
         </Badge>
       );

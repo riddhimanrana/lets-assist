@@ -6,6 +6,10 @@ SELECT plan(8);
 SELECT is((SELECT count(*) FROM cron.job WHERE jobname = 'retain-cron-execution-history' AND active AND schedule = '17 * * * *'), 1::bigint, 'One hourly retention job is active');
 
 -- All changes, including replacement fixtures, roll back after this test.
+-- pg_cron continues writing history while this transaction runs. Protect the
+-- replaced fixture table until rollback so those writes cannot change its counts.
+SET LOCAL lock_timeout = '5s';
+LOCK TABLE cron.job_run_details IN SHARE ROW EXCLUSIVE MODE;
 DELETE FROM cron.job_run_details;
 INSERT INTO cron.job_run_details (runid, status, end_time)
 VALUES (-1, 'succeeded', now() - interval '29 days'),

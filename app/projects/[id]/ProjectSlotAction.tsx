@@ -151,8 +151,8 @@ function SlotStateLabel({
 }
 
 /**
- * One button per slot. The label carries the slot's state; the page's single
- * filled action lives in the header and the phone sign-up bar.
+ * One signup button per slot, as in the previous project layout.
+ * The label and disabled state carry the actual slot's state.
  */
 export function ProjectSlotAction({
   isPast,
@@ -170,12 +170,19 @@ export function ProjectSlotAction({
   }
   return (
     <Button
+      className={
+        !state.isPending && !state.isSignedUp && !state.isRejected
+          ? "text-foreground dark:text-primary-foreground"
+          : undefined
+      }
       variant={
-        state.isSignedUp && !state.isPending
-          ? "secondary"
-          : state.isRejected
-            ? "destructive"
-            : "outline"
+        state.isPending
+          ? "outline"
+          : state.isSignedUp
+            ? "secondary"
+            : state.isRejected
+              ? "destructive"
+              : "default"
       }
       onClick={onClick}
       disabled={

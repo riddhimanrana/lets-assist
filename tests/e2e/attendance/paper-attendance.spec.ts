@@ -363,9 +363,31 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         has: page.getByText("Walk-in Fixture", { exact: true }),
       }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: /Review and publish 1 volunteers?/ })
-      .click();
+    const publicationDialog = page.getByRole("dialog", {
+      name: "Publish volunteer hours",
+      exact: true,
+    });
+    const openPublicationDeadline = Date.now() + 12_000;
+    const remainingOpenTime = () =>
+      Math.max(1, openPublicationDeadline - Date.now());
+    // A visible SSR row does not prove that the disclosure has hydrated. Retry
+    // only the idempotent confirmation setter, within the existing action budget.
+    await expect(async () => {
+      if (!(await publicationDialog.isVisible())) {
+        await page
+          .getByRole("button", { name: /Review and publish 1 volunteers?/ })
+          .click({ timeout: Math.min(2_000, remainingOpenTime()) });
+      }
+      await expect(publicationDialog).toBeVisible({
+        timeout: Math.min(2_000, remainingOpenTime()),
+      });
+      await expect(
+        publicationDialog.getByRole("heading", {
+          name: "Publish volunteer hours",
+          exact: true,
+        }),
+      ).toBeVisible({ timeout: Math.min(2_000, remainingOpenTime()) });
+    }).toPass({ timeout: 12_000 });
     await page
       .getByRole("button", { name: "Publish hours", exact: true })
       .click();

@@ -229,9 +229,12 @@ export default function DraftsClient({
                   </div>
                 ) : null}
 
-                <div className="grid min-w-0 flex-1 gap-1.5">
+                {/* The single column is minmax(0, 1fr): an implicit auto
+                    track grows to the unwrapped title and pushes it under
+                    the actions trigger on narrow phones. */}
+                <div className="grid min-w-0 flex-1 grid-cols-1 gap-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate text-base font-semibold">
+                    <h2 className="min-w-0 truncate text-base font-semibold">
                       {draft.title || "Untitled draft"}
                     </h2>
                     <Badge variant="neutral">Draft</Badge>
@@ -292,14 +295,13 @@ export default function DraftsClient({
                     <MoreVertical aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Link
-                        href={draftEditorHref(draft.id)}
-                        className="flex w-full items-center gap-2"
-                      >
-                        <Edit aria-hidden="true" />
-                        Continue editing
-                      </Link>
+                    {/* The link is the menu item itself, so arrow keys and
+                        Enter reach it. A nested link is not a menu item. */}
+                    <DropdownMenuItem
+                      render={<Link href={draftEditorHref(draft.id)} />}
+                    >
+                      <Edit aria-hidden="true" />
+                      Continue editing
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handlePublish(draft.id)}

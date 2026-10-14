@@ -355,6 +355,131 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
+    "5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c"
+  )
+    return projectStatusCronCatalog(
+      publishedEmbedded721Catalog(
+        pausedSpeechDebateCatalog(
+          publicImageStorageCatalog(
+            accountDeletionStorageCatalog(
+              csfSubmissionDeletionCatalog(
+                finalSchemaCatalog(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("./final-schema-729.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
+                  versions,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c"
+  )
+    return projectStatusCronCatalog(
+      publishedEmbedded721Catalog(
+        pausedSpeechDebateCatalog(
+          publicImageStorageCatalog(
+            accountDeletionStorageCatalog(
+              csfSubmissionDeletionCatalog(
+                finalSchemaCatalog(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("./final-schema-728.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
+                  versions,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b"
+  )
+    return projectStatusCronCatalog(
+      publishedEmbedded721Catalog(
+        pausedSpeechDebateCatalog(
+          publicImageStorageCatalog(
+            accountDeletionStorageCatalog(
+              csfSubmissionDeletionCatalog(
+                finalSchemaCatalog(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("./final-schema-727.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
+                  versions,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "f58ef985ade7f9553a8ef42465828c51f541ad3e33c54ee9b0a1720d5bbb2517"
+  )
+    return projectStatusCronCatalog(
+      publishedEmbedded721Catalog(
+        pausedSpeechDebateCatalog(
+          publicImageStorageCatalog(
+            accountDeletionStorageCatalog(
+              csfSubmissionDeletionCatalog(
+                finalSchemaCatalog(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("./final-schema-725.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
+                  versions,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "072dc6499cc67ae35fbc410b646b3c222dc09c227558783eec3a3fce5bc978ac"
+  )
+    return projectStatusCronCatalog(
+      publishedEmbedded721Catalog(
+        pausedSpeechDebateCatalog(
+          publicImageStorageCatalog(
+            accountDeletionStorageCatalog(
+              csfSubmissionDeletionCatalog(
+                finalSchemaCatalog(
+                  JSON.parse(
+                    readFileSync(
+                      new URL("./final-schema-724.json", import.meta.url),
+                      "utf8",
+                    ),
+                  ),
+                  versions,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
     "a0b9aa845a1d479b45669a4268819bf2a08f1404b5cefcee6394d7ff413b392d"
   )
     return projectStatusCronCatalog(

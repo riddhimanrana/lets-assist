@@ -295,6 +295,7 @@ export async function setPrimaryEmailAction(
   });
 }
 
+/** Read verified aliases without changing account state during page load. */
 export async function getLinkedIdentitiesAction() {
   const { user, error: authError } = await getAuthUser({
     sensitive: true,
@@ -302,15 +303,6 @@ export async function getLinkedIdentitiesAction() {
   });
   if (authError || !user) {
     return { success: false as const, error: "Not authenticated", emails: [] };
-  }
-
-  const primarySync = await syncPrimaryUserEmail(user.id);
-  if (!primarySync.success) {
-    return {
-      success: false as const,
-      error: "Unable to synchronize primary email",
-      emails: [],
-    };
   }
 
   const admin = getAdminClient();

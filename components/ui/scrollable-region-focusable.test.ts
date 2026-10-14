@@ -83,7 +83,7 @@ describe("accordion trigger intrinsic width", () => {
 
   test("the header and the flex-1 trigger can both shrink below content", () => {
     expectAllContained(source, [
-      '<AccordionPrimitive.Header className="flex min-w-0">',
+      '<AccordionPrimitive.Header\n      className="flex min-w-0"',
       "relative flex min-w-0 flex-1 items-start",
     ]);
   });

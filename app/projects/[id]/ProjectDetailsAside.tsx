@@ -21,7 +21,7 @@ import {
 } from "@/components/shared/ProfileHoverCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
 import type { Project } from "@/types";
 
@@ -53,7 +53,7 @@ function Requirement({
 
 /**
  * Supporting facts beside the schedule: who coordinates the project, how to
- * reach them, and what signing up involves. One card, divided sections.
+ * reach them, and what signing up involves, in the previous Project Details card.
  */
 export function ProjectDetailsAside({
   project,
@@ -76,32 +76,40 @@ export function ProjectDetailsAside({
           : { icon: Users, label: "Sign-up only" };
 
   return (
-    <Card className="gap-0 py-0">
-      {project.cover_image_url && (
-        <button
-          type="button"
-          className="focus-visible:ring-ring/50 block w-full cursor-pointer outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
-          aria-label="View project image"
-          onClick={() =>
-            onPreviewImage(
-              project.cover_image_url!,
-              project.title,
-              "image/jpeg",
-            )
-          }
-        >
-          <Image
-            src={project.cover_image_url}
-            alt={project.title}
-            width={300}
-            height={180}
-            loading={eagerImage ? "eager" : "lazy"}
-            className="aspect-video h-auto w-full object-cover"
-          />
-        </button>
-      )}
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle>
+          <h2>Project details</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {project.cover_image_url && (
+          <section>
+            <AsideHeading>Project image</AsideHeading>
+            <button
+              type="button"
+              className="focus-visible:ring-ring/50 block w-full max-w-100 cursor-pointer overflow-hidden rounded-md border outline-none focus-visible:ring-[3px] focus-visible:ring-inset"
+              aria-label="View project image"
+              onClick={() =>
+                onPreviewImage(
+                  project.cover_image_url!,
+                  project.title,
+                  "image/jpeg",
+                )
+              }
+            >
+              <Image
+                src={project.cover_image_url}
+                alt={project.title}
+                width={300}
+                height={180}
+                loading={eagerImage ? "eager" : "lazy"}
+                className="aspect-video h-auto w-full object-cover transition-transform hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100"
+              />
+            </button>
+          </section>
+        )}
 
-      <CardContent className="divide-y px-0 *:px-4 *:py-4">
         <section>
           <AsideHeading>Project coordinator</AsideHeading>
           <div className="grid gap-3">

@@ -1,5 +1,10 @@
 import { certificateHours } from "@/lib/projects/certificate-duration";
-import { endOfDay, format, parseISO, startOfDay } from "date-fns";
+import { endOfDay, startOfDay } from "date-fns";
+import {
+  certificateTimezone,
+  formatCertificateDate,
+} from "@/lib/certificates/project-dates";
+import { getTimezoneAbbreviation } from "@/utils/timezone";
 
 import { escapeHtml } from "@/lib/security/html";
 
@@ -116,24 +121,7 @@ export function printCertificates({
                 <td>${escapeHtml(cert.project_title)}</td>
                 <td>${escapeHtml(cert.organization_name || cert.creator_name || "-")}</td>
                 <td>${escapeHtml(
-                  `${format(parseISO(cert.issued_at), "MMM d, yyyy")} ${(() => {
-                    const date = parseISO(cert.issued_at);
-                    const timezone =
-                      cert.projects?.project_timezone || "America/Los_Angeles";
-                    try {
-                      return (
-                        new Intl.DateTimeFormat("en-US", {
-                          timeZone: timezone,
-                          timeZoneName: "short",
-                        })
-                          .formatToParts(date)
-                          .find((part) => part.type === "timeZoneName")
-                          ?.value || ""
-                      );
-                    } catch {
-                      return "";
-                    }
-                  })()}`,
+                  `${formatCertificateDate(cert.issued_at, cert.projects?.project_timezone || cert.event_timezone, "display")} ${getTimezoneAbbreviation(certificateTimezone(cert.projects?.project_timezone || cert.event_timezone), cert.issued_at)}`,
                 )}</td>
                 <td>${escapeHtml(formatTotalDuration(certificateHours(cert, () => calculateDecimalHours(cert.event_start, cert.event_end))))}</td>
                 <td>${escapeHtml(cert.is_certified ? "Yes" : "No")}</td>
