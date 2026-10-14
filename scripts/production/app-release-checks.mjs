@@ -118,6 +118,55 @@ export function selectQualityChecks(runs, repository) {
   return selected;
 }
 
+export async function verifyFullCi(request, sha, repository) {
+  const checks = await request(`commits/${sha}/check-runs?per_page=100`);
+  if (checks.total_count > 100)
+    throw new ReleaseCheckError(
+      "Application checks exceed the bounded inventory.",
+    );
+  const selectedChecks = selectQualityChecks(
+    checks.check_runs ?? [],
+    repository,
+  );
+  const prefix = `https://github.com/${repository}/actions/runs/`;
+  const runIds = new Set();
+  for (const name of ["full-quality", "db-replay-validation"]) {
+    const check = selectedChecks
+      .filter(
+        (item) => item.name === name && item.app?.slug === "github-actions",
+      )
+      .sort((a, b) => b.id - a.id)[0];
+    const match = check.details_url?.startsWith(prefix)
+      ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)
+      : null;
+    if (!match)
+      throw new ReleaseCheckError(
+        "Required CI check has no trusted workflow run.",
+      );
+    runIds.add(match[1]);
+  }
+  if (runIds.size !== 1)
+    throw new ReleaseCheckError(
+      "Full quality and database checks must belong to the same run.",
+    );
+  const [runId] = runIds;
+  const run = await request(`actions/runs/${runId}`);
+  if (
+    run.path !== ".github/workflows/ci.yml" ||
+    !["workflow_dispatch", "workflow_call"].includes(run.event) ||
+    run.head_sha !== sha ||
+    run.repository?.full_name !== repository ||
+    run.head_repository?.full_name !== repository ||
+    run.status !== "completed" ||
+    run.conclusion !== "success"
+  ) {
+    throw new ReleaseCheckError(
+      "Required CI run does not verify the accepted application.",
+    );
+  }
+  return runId;
+}
+
 export function performanceWaiver(
   { confirmation, reason, actor, runId },
   releaseSha,
@@ -278,54 +327,7 @@ export async function verifySource(
         repository,
       );
     }
-    const checks = await request(
-      `commits/${acceptedSha}/check-runs?per_page=100`,
-    );
-    if (checks.total_count > 100)
-      throw new ReleaseCheckError(
-        "Application checks exceed the bounded inventory.",
-      );
-    const selectedChecks = selectQualityChecks(
-      checks.check_runs ?? [],
-      repository,
-    );
-    const ciRuns = new Set();
-    for (const name of ["full-quality", "db-replay-validation"]) {
-      const check = selectedChecks
-        .filter(
-          (item) => item.name === name && item.app?.slug === "github-actions",
-        )
-        .sort((a, b) => b.id - a.id)[0];
-      const match = check.details_url?.startsWith(prefix)
-        ? check.details_url.slice(prefix.length).match(/^(\d+)\/job\/\d+$/u)
-        : null;
-      if (!match)
-        throw new ReleaseCheckError(
-          "Required CI check has no trusted workflow run.",
-        );
-      ciRuns.add(match[1]);
-    }
-    if (ciRuns.size !== 1) {
-      throw new ReleaseCheckError(
-        "Full quality and database checks must belong to the same run.",
-      );
-    }
-    for (const runId of ciRuns) {
-      const run = await request(`actions/runs/${runId}`);
-      if (
-        run.path !== ".github/workflows/ci.yml" ||
-        !["workflow_dispatch", "workflow_call"].includes(run.event) ||
-        run.head_sha !== acceptedSha ||
-        run.repository?.full_name !== repository ||
-        run.head_repository?.full_name !== repository ||
-        run.status !== "completed" ||
-        run.conclusion !== "success"
-      ) {
-        throw new ReleaseCheckError(
-          "Required CI run does not verify the accepted application.",
-        );
-      }
-    }
+    await verifyFullCi(request, acceptedSha, repository);
   }
   return {
     releaseSha,

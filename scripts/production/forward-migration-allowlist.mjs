@@ -877,4 +877,8 @@ export const approvedMigrations = [
     "20260929051500_csf_review_removed_activity_submissions",
     "643e7b1bf86b767cee6ca8a5544f65b5a51604ee52a58c19e74b6d9cde6f47c9",
   ],
+  [
+    "20261013071100_csf_repeatable_pending_activity_claims",
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
+  ],
 ];

@@ -156,3 +156,20 @@ for this comparison.
 
 Release 686 adds the signed CSF 1.2.85 publication without changing schema objects.
 It reuses the reviewed 685 inventory with the exact 686 ledger binding.
+
+Release 688 permits multiple pending quantity and per-item activity claims while
+retaining the fixed and legacy one-claim guard and the shift and assessment
+one-unfinished-claim guard.
+The begin function writes the locked activity-rule snapshot on the initial
+insert, before the partial unique index evaluates the row. Both the begin and
+award assertions reserve pending plus verified points under the activity lock,
+including when staff changes the activity mode after a claim starts. The begin
+function also blocks a cross-mode sibling when a fixed or unfinished-claim
+guard would otherwise be hidden by the partial index. The clean
+replay changes only those two function digests and the point-submissions relation
+digest, which includes the revised index predicate. No objects are added or
+removed; synthetic fixture helpers were excluded inside a rolled-back capture
+transaction.
+An activity without an explicit `pointCap` uses the published semester policy's
+per-person activity cap; its `pointValue` limits one selection only. A focused
+regression claims two points, then one more, before rejecting a further claim.
