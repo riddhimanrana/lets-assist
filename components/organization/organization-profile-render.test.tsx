@@ -224,7 +224,7 @@ describe("landing organization mock", () => {
       ),
       "utf8",
     );
-    expect(intro).toContain("Interactive example · Sample organization");
+    expect(intro).toContain("Fictional organization demo");
     expect(intro).toContain("One workspace for your team");
     expect(intro).not.toContain("SignUpGenius");
   });
@@ -274,6 +274,22 @@ describe("organization overview tab", () => {
       userRole: null,
     });
     expect(html).toContain("Cancelled");
+  });
+
+  test("keeps completed and cancelled badges compact beside recent project titles", () => {
+    const html = overview({
+      projects: [
+        project({ id: "completed", status: "completed" }),
+        project({ id: "cancelled", status: "cancelled" }),
+      ],
+      userRole: null,
+    });
+    expect(
+      html.match(/data-slot="item-actions"[^>]*class="[^"]*shrink-0/g) ?? [],
+    ).toHaveLength(2);
+    expect(
+      html.match(/text-xs py-0[^"]*whitespace-nowrap/g) ?? [],
+    ).toHaveLength(2);
   });
 
   test("lists recent projects with a link to the full list", () => {

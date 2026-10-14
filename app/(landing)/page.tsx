@@ -31,15 +31,15 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Let's Assist: Create and run volunteer projects",
+    absolute: "Let's Assist: A workspace for volunteer organizations",
   },
   description:
-    "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
+    "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: "Let's Assist: Create and run volunteer projects",
+    title: "Let's Assist: A workspace for volunteer organizations",
     description:
-      "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
+      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
     url: siteUrl,
     siteName: "Let's Assist",
     type: "website",
@@ -54,9 +54,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Let's Assist: Create and run volunteer projects",
+    title: "Let's Assist: A workspace for volunteer organizations",
     description:
-      "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
+      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
     images: [`${siteUrl}/opengraph-image`],
   },
   alternates: {

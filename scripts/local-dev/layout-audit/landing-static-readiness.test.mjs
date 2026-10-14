@@ -61,7 +61,7 @@ function observe(change = {}) {
             querySelector: () => ({
               textContent:
                 change.headline ??
-                "Create a volunteer project. Share one link.",
+                "A workspace for your volunteer organization.",
             }),
           },
         ];

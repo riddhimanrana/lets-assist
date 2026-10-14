@@ -1042,7 +1042,7 @@ describe("hero first render", () => {
     const copy = all.filter(
       (node) =>
         node.tag === "p" &&
-        collapse(allText(node)).startsWith("Set shifts and optional waivers"),
+        collapse(allText(node)).startsWith("Plan shifts and signups"),
     );
     expect(copy).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(copy[0])).toEqual([]);

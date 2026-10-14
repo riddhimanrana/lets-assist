@@ -11,7 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AnimatedText } from "./AnimatedText";
 
 export const CallToAction = () => {
   const [open, setOpen] = useState(false);
@@ -28,10 +27,7 @@ export const CallToAction = () => {
         >
           <div className="space-y-6">
             <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              <AnimatedText
-                text="Set up your next volunteer project"
-                mode="words"
-              />
+              Set up your next volunteer project
             </h2>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button

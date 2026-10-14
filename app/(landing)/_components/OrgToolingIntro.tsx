@@ -5,24 +5,23 @@ import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { AnimatedText } from "./AnimatedText";
 
 const orgFeatures = [
   {
-    title: "Plan the shifts",
-    desc: "Set each session's time and capacity, then share one project page with volunteers.",
+    title: "Share one signup",
+    desc: "Set session times and capacity, then send volunteers one project page.",
   },
   {
-    title: "Review real attendance",
-    desc: "Use QR check-in and check-out records to verify hours before you publish them.",
+    title: "Record attendance",
+    desc: "Use QR check-in and check-out, or scan a handwritten roster for staff review afterward.",
   },
   {
-    title: "Issue service proof",
-    desc: "Published, verified hours can become a volunteer certificate and an exportable record.",
+    title: "Verify the hours",
+    desc: "Attribute attendance to volunteers, review the hours, and publish verified service records.",
   },
   {
-    title: "Add organization tools",
-    desc: "Eligible teams can install an organization-scoped plugin for workflows beyond projects.",
+    title: "Use your connections",
+    desc: "Volunteers can connect Google Calendar; the CSF chapter plugin supports reviewed Google Sheets imports.",
   },
 ];
 
@@ -36,12 +35,12 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText text="One workspace for your team" mode="words" />
+            One workspace for your team
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Project signups, attendance, hours, and certificates stay together.
-            Organization plugins can add a workspace for needs specific to your
-            group.
+            Signups, QR or reviewed paper attendance, attributed hours, and
+            certificates stay together. Organization plugins can add workflows
+            specific to your group.
           </p>
         </div>
 
@@ -50,7 +49,7 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
             variant="outline"
             className="border-primary/40 bg-primary/10 text-primary"
           >
-            Interactive example · Sample organization
+            Fictional organization demo
           </Badge>
         </div>
         {children}
@@ -70,7 +69,7 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
         </div>
         <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>Works with</span>
+            <span>Where connected</span>
             <Image
               src="/resources/google-sheets-logo-2026.png"
               alt="Google Sheets"
@@ -85,7 +84,7 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
               height={24}
               className="size-6 object-contain"
             />
-            <span>Sheets and Calendar</span>
+            <span>Sheets imports · Calendar sync</span>
           </div>
           <Link
             href={createHref}

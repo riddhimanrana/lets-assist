@@ -10,8 +10,8 @@ type LetterStyle = CSSProperties & { "--la-delay": string };
 const LETTER_STAGGER = 0.018;
 
 export const HERO_HEADLINE_LINES = [
-  { text: "Create a volunteer project.", delay: 0.04, className: undefined },
-  { text: "Share one link.", delay: 0.46, className: "text-primary" },
+  { text: "A workspace for your", delay: 0.04, className: undefined },
+  { text: "volunteer organization.", delay: 0.46, className: "text-primary" },
 ] as const;
 
 export const HERO_HEADLINE_TEXT = HERO_HEADLINE_LINES.map(

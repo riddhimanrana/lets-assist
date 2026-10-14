@@ -48,8 +48,8 @@ const {
   coordinatorImage: COORDINATOR_IMAGE,
 } = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const PROJECT_HREF = `/projects/${PROJECT_ID}`;
-// Display only. The demo links still point at PROJECT_HREF.
-const PROJECT_DISPLAY_URL = "lets-assist.com/projects/santa-cruz-beach-cleanup";
+// Display only: the example is not a live signup destination.
+const PROJECT_DISPLAY_URL = `lets-assist.com${PROJECT_HREF}`;
 
 const attendees = [
   { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
@@ -476,7 +476,6 @@ function buildDemoProject(demoDateAnchor: string): {
   project: Project;
   creator: ProjectCreatorProfileRecord;
   organization: Organization;
-  attendees: SlotAttendee[];
 } {
   const dayOne = landingDemoDate(demoDateAnchor, 31);
   const dayTwo = landingDemoDate(demoDateAnchor, 32);
@@ -519,8 +518,8 @@ function buildDemoProject(demoDateAnchor: string): {
     event_type: "multiDay",
     verification_method: "qr-code",
     require_login: false,
-    enable_volunteer_comments: true,
-    show_attendees_publicly: true,
+    enable_volunteer_comments: false,
+    show_attendees_publicly: false,
     waiver_required: false,
     creator_id: creator.id,
     schedule: {
@@ -579,117 +578,13 @@ function buildDemoProject(demoDateAnchor: string): {
     project_timezone: "America/Los_Angeles",
   };
 
-  const profileAvatarByName: Record<string, string> = {
-    "Maya Chen": "/demo/avatars/maya-chen.png",
-    "Jordan Lee": "/demo/avatars/jordan-lee.png",
-    "Avery Patel": "/demo/avatars/avery-patel.png",
-    "Priya Shah": "/demo/avatars/priya-shah.png",
-  };
-  const makeAttendee = (
-    scheduleId: string,
-    index: number,
-    name: string,
-    comment = "",
-    anonymous = false,
-  ): SlotAttendee => {
-    const username = name.toLowerCase().replace(/[^a-z0-9]+/g, ".");
-
-    return {
-      signup_id: `demo-${scheduleId}-${index}`,
-      schedule_id: scheduleId,
-      user_id: anonymous ? null : `demo-user-${username}`,
-      full_name: name,
-      username: anonymous ? "" : username,
-      avatar_url: anonymous ? "" : (profileAvatarByName[name] ?? ""),
-      volunteer_comment: comment,
-      is_anonymous: anonymous,
-      anonymous_name: anonymous ? name : "",
-      profile_note: anonymous
-        ? undefined
-        : index % 3 === 0
-          ? "Verified volunteer with recent project check-ins."
-          : index % 3 === 1
-            ? "Student volunteer tracking service hours."
-            : "Community member helping with local cleanup projects.",
-      is_trusted: !anonymous && index % 4 === 0,
-      created_at: "2025-01-15T00:00:00.000Z",
-    };
-  };
-
-  const attendeeGroups = [
-    {
-      scheduleId: `${dayOne}-0-0`,
-      rows: [
-        ["Maya Chen", "Bringing gloves and trash bags."],
-        ["Jordan Lee", "Can help sort recycling."],
-        ["Avery Patel", ""],
-        ["Nina Brooks", "Happy to cover shoreline photos."],
-        ["Sam Rivera", ""],
-        ["Priya Shah", "Joining with two friends."],
-        ["Ethan Wong", ""],
-        ["Lena Kim", "Can stay 15 minutes late."],
-        ["Marcus Reed", ""],
-        ["Anonymous Volunteer", "Prefers supply sorting.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayOne}-0-1`,
-      rows: [
-        ["Grace Lin", "I can check people in."],
-        ["Owen Clark", ""],
-        ["Anonymous Volunteer", "Bringing extra water.", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-0`,
-      rows: [
-        ["Sofia Martinez", ""],
-        ["Noah Singh", "Can help carry full bags."],
-        ["Isabella Nguyen", ""],
-        ["Lucas Brown", ""],
-        ["Amara Davis", "I have a grabber tool."],
-        ["Ben Carter", ""],
-        ["Mila Johnson", "Can lead a small group."],
-        ["Kai Thompson", ""],
-        ["Emma Wilson", ""],
-        ["Daniel Park", "Bringing reusable gloves."],
-        ["Leah Robinson", ""],
-        ["Ravi Mehta", ""],
-        ["Anonymous Volunteer", "Coming with family.", true],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can help with photos.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-1`,
-      rows: [
-        ["Chloe Adams", "Experienced with sorting."],
-        ["Henry Scott", ""],
-        ["Zara Ali", "Can label bins."],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can stay until 5:30.", true],
-      ],
-    },
-  ] satisfies Array<{
-    scheduleId: string;
-    rows: Array<[string, string?, boolean?]>;
-  }>;
-
-  const attendees: SlotAttendee[] = attendeeGroups.flatMap((group) =>
-    group.rows.map(([name, comment = "", anonymous = false], index) =>
-      makeAttendee(group.scheduleId, index, name, comment, anonymous),
-    ),
-  );
-
-  return { project, creator, organization, attendees };
+  return { project, creator, organization };
 }
 
 function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
   const [demoScrollEnabled, setDemoScrollEnabled] = useState(false);
   const demoWindowRef = useRef<HTMLDivElement>(null);
-  const { project, creator, organization, attendees } = useMemo(
+  const { project, creator, organization } = useMemo(
     () => buildDemoProject(demoDateAnchor),
     [demoDateAnchor],
   );
@@ -730,7 +625,7 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
       id="live-demo"
     >
       <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Interactive example · This is not an open project
+        Fictional interactive project · Signups here are not saved
       </p>
       <div
         ref={demoWindowRef}
@@ -769,7 +664,7 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
             userSignupsData={[]}
             allSignups={[]}
             demoMode
-            demoPublicAttendees={attendees}
+            demoPublicAttendees={[]}
           />
         </div>
         <Button
@@ -900,10 +795,9 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Set shifts and optional waivers, share one sign-up link, and track QR
-          attendance through verified hours and certificates. Add
-          organization-specific tools when your team needs them. Free for
-          organizers and volunteers.
+          Plan shifts and signups, record QR attendance or review a scanned
+          paper roster, then attribute and verify volunteer hours. Keep the
+          record and certificates in one organization workspace.
         </motion.p>
 
         <motion.div

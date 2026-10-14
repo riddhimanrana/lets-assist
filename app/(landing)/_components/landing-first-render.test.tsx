@@ -76,7 +76,7 @@ describe("landing first-response visibility", () => {
       "Track progress",
       "Get a certificate",
       "Certificate of Volunteer Service",
-      "Alex Morgan",
+      "Example Volunteer",
     ]) {
       expect(text).toContain(copy);
     }
@@ -95,10 +95,10 @@ describe("landing first-response visibility", () => {
     const text = readableText(section ?? "");
     for (const copy of [
       "One workspace for your team",
-      "Plan the shifts",
-      "Review real attendance",
-      "Issue service proof",
-      "Add organization tools",
+      "Share one signup",
+      "Record attendance",
+      "Verify the hours",
+      "Use your connections",
       "Interactive organization demo",
     ]) {
       expect(text).toContain(copy);

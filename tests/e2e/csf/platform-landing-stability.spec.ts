@@ -50,7 +50,7 @@ for (const width of [320, 390, 414]) {
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: "Create a volunteer project. Share one link.",
+          name: "A workspace for your volunteer organization.",
         }),
       ).toBeVisible();
       for (const id of sections) {

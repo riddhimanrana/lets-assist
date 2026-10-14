@@ -9,7 +9,6 @@ import { EmailNotification } from "./journey/EmailNotification";
 import { QRScannerPreview } from "./journey/QRScannerPreview";
 import { MiniDashboard } from "./journey/MiniDashboard";
 import { MiniCertificate } from "./journey/MiniCertificate";
-import { AnimatedText } from "./AnimatedText";
 
 const steps = [
   {
@@ -69,7 +68,7 @@ const mockCertificateData = {
   projectName: "Bellingham Square Park Cleanup",
   organizationName: "San Ramon City Alliance",
   hours: 3.0,
-  volunteerName: "Alex Morgan",
+  volunteerName: "Example Volunteer",
 };
 
 export default function VolunteerJourneySection() {
@@ -151,7 +150,7 @@ export default function VolunteerJourneySection() {
             />
           </svg>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText text="From sign-up to certificate" mode="words" />
+            From sign-up to certificate
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
             Volunteers can sign up, record attendance, and see their hours turn

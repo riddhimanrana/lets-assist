@@ -22,7 +22,7 @@ export function readLandingStatic() {
   if (
     headings.length !== 1 ||
     headings[0].querySelector(".sr-only")?.textContent?.trim() !==
-      "Create a volunteer project. Share one link."
+      "A workspace for your volunteer organization."
   )
     return refused("headline");
   if (document.querySelector("#comparison")) return refused("old-section");
