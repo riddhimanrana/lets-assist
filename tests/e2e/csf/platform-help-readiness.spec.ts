@@ -70,6 +70,18 @@ test("signed-out Help satisfies its frozen capture landmarks", async ({
   await expect(
     page.getByRole("heading", { name: "Help center", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Welcome to Let's Assist",
+      exact: true,
+    }),
+  ).toBeVisible();
+  for (const name of ["Quick start", "Key features"]) {
+    await expect(
+      page.getByRole("heading", { level: 3, name, exact: true }),
+    ).toBeVisible();
+  }
   await expectPublicPageSemantics(page);
 });
 
