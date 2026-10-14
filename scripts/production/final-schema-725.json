@@ -3645,7 +3645,7 @@
     },
     {
       "identity": "function:private.project_attendance_slot_window(p_project_id uuid, p_schedule_id text)",
-      "digest": "0e4b09b7f54becb792f9fa6e25abed51"
+      "digest": "047dd5b3cc30a303f21c12c108517af0"
     },
     {
       "identity": "function:private.project_feedback_candidate_end_date(p_event_type text, p_schedule jsonb)",

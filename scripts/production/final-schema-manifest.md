@@ -48,10 +48,14 @@ Local fixture helpers were removed inside a rollback-only transaction before
 capture. Hosted comparison remains a separate release check.
 
 Release724 repairs scheduled platform attendance with one private selected-session
-parser and two replaced canonical worker definitions. The clean PostgreSQL17.11
-replay applies all724 migrations;500 pgTAP files and12,991 assertions pass,
-including45 new attendance/authorization regressions. The inventory capture uses
-the exact local-fixture teardown in a rollback-only transaction. It adds only
+parser and two replaced canonical worker definitions. The pre-alias clean
+PostgreSQL17.11 replay applied all724 migrations;500 pgTAP files and12,991
+assertions passed, including45 attendance/authorization regressions. The current
+alias correction adds six synthetic cases for all stored schedule ID forms; its
+full replay remains a release gate. The pre-alias inventory capture used
+the exact local-fixture teardown in a rollback-only transaction. The revised
+helper fingerprint was recomputed from its PostgreSQL definition, owner and ACL;
+a full inventory comparison is still required. Release724 adds only
 `private.project_attendance_slot_window(uuid,text)` and changes only
 `public.process_automatic_check_ins()` and `public.process_automatic_check_outs()`;
 every other723 object fingerprint remains identical. No attendance, certificate,
@@ -60,8 +64,9 @@ Hosted comparison, the full application/browser gate and Production acceptance
 remain separate requirements.
 
 Release 725 applies the repeatable pending-point claim repair after all 724 v4
-migrations. Its clean isolated PostgreSQL 17.11 replay passes 501 pgTAP files
-and 13,011 assertions. The canonical catalog query returns `1` on that replay.
+migrations. The pre-alias clean isolated PostgreSQL 17.11 replay passed 501 pgTAP
+files and 13,011 assertions. The canonical catalog query returned `1` on that
+replay; the alias correction requires a fresh full replay and catalog check.
 The inventory changes only the point-submission begin function, the activity
 award assertion, and the point-submissions relation/index; it adds or removes
 no catalog object. This is the v4 ledger and relation fingerprint, distinct

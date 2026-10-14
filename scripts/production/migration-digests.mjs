@@ -1457,7 +1457,7 @@ export const migrationDigests = {
   "20261011100000_landing_demo_mode.sql":
     "78707e9e1ba93cf2e69cf8f4922625d29572677ad3d83a1966e10c3133f1a143",
   "20261013010957_repair_scheduled_attendance_windows.sql":
-    "e79805146244e7b7cea595d7bedd24cc3dcac8c2769bccf0ff0df3bf031887eb",
+    "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
   "20261013071100_csf_repeatable_pending_activity_claims.sql":
     "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
 };

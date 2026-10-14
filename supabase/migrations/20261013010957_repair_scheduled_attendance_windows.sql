@@ -27,7 +27,8 @@ BEGIN
     )
   ) THEN RETURN; END IF;
 
-  IF project.event_type = 'oneTime' AND p_schedule_id = 'oneTime' THEN
+  IF project.event_type = 'oneTime'
+    AND p_schedule_id = ANY (ARRAY['oneTime', '0', 'default']) THEN
     session := project.schedule->'oneTime';
   ELSIF project.event_type = 'sameDayMultiArea' THEN
     SELECT role.value || jsonb_build_object('date', project.schedule->'sameDayMultiArea'->>'date')
@@ -35,6 +36,7 @@ BEGIN
     FROM jsonb_array_elements(project.schedule->'sameDayMultiArea'->'roles')
       WITH ORDINALITY AS role(value, ordinal)
     WHERE role.value->>'name' = p_schedule_id
+       OR p_schedule_id = format('role-%s', role.ordinal - 1)
     ORDER BY role.ordinal LIMIT 1;
   ELSIF project.event_type = 'multiDay' THEN
     SELECT slot.value || jsonb_build_object('date', day.value->>'date')
@@ -43,8 +45,12 @@ BEGIN
       WITH ORDINALITY AS day(value, ordinal)
     CROSS JOIN LATERAL jsonb_array_elements(day.value->'slots')
       WITH ORDINALITY AS slot(value, ordinal)
-    WHERE p_schedule_id = format('%s-%s-%s', day.value->>'date', day.ordinal - 1, slot.ordinal - 1)
-       OR p_schedule_id = format('%s-%s', day.value->>'date', slot.ordinal - 1)
+    WHERE p_schedule_id = ANY (ARRAY[
+      format('%s-%s-%s', day.value->>'date', day.ordinal - 1, slot.ordinal - 1),
+      format('%s-%s', day.ordinal - 1, slot.ordinal - 1),
+      format('%s-%s', day.value->>'date', slot.ordinal - 1),
+      format('day-%s-slot-%s', day.ordinal - 1, slot.ordinal - 1)
+    ])
     ORDER BY day.ordinal, slot.ordinal LIMIT 1;
   END IF;
 
