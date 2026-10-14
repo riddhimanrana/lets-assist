@@ -7,6 +7,23 @@ const modes = new Set([
   "desktop-light-reduced",
 ]);
 const states = new Set(["captured-awaiting-pixel-review", "blocked-or-failed"]);
+const capturePhases = new Set([
+  "navigation",
+  "ui-inspection",
+  "loaded-landmarks",
+  "initial-assets",
+  "axe-before-keyboard",
+  "keyboard",
+  "resting-state",
+  "landing-settlement",
+  "axe-after-landing",
+  "fonts-before-png",
+  "landing-static-settlement",
+  "axe-after-static-landing",
+  "dom-before-png",
+  "output-preflight",
+  "png-capture",
+]);
 const faultNames = [
   "pageErrors",
   "consoleErrors",
@@ -104,6 +121,8 @@ export function captureSummary(final, scenes) {
       assertCaptureDomReady(row.dom);
     if (row.image) images++;
     if (row.status === "blocked-or-failed") {
+      if (!capturePhases.has(row.phaseAtFailure))
+        throw Error("Capture failure phase refused");
       const requestRefusals = row.requestRefusals ?? [];
       const externalRefusals = row.externalRefusals ?? [];
       if (
@@ -122,6 +141,7 @@ export function captureSummary(final, scenes) {
       blocked.push({
         id: row.id,
         mode: row.mode,
+        phaseAtFailure: row.phaseAtFailure,
         faults: Object.fromEntries(
           faultNames.map((name) => [name, count(row.faults?.[name])]),
         ),

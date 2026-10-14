@@ -16,6 +16,7 @@ const receipt = () => ({
       id: "home-member",
       mode: "phone-dark",
       status: "blocked-or-failed",
+      phaseAtFailure: "navigation",
       failure: "PRIVATE_TEXT_COOKIE_TOKEN_URL",
       socketRefusals: [{ reason: "PRIVATE_TEXT_COOKIE_TOKEN_URL" }],
       faults: {
@@ -37,9 +38,23 @@ test("CI summary logs only fixed scene/mode/state and bounded counters", () => {
   assert.equal(summary.attempted, 1);
   assert.equal(summary.images, 0);
   assert.equal(summary.blocked[0].faults.blockedMutation, 1);
+  assert.equal(summary.blocked[0].phaseAtFailure, "navigation");
   assert.equal(summary.completeVisualAudit, false);
   assert.equal(summary.pixelsInspected, 0);
   assert(!JSON.stringify(summary).includes("PRIVATE"));
+});
+
+test("failure phase is a fixed diagnostic and cannot disclose private text", () => {
+  const final = receipt();
+  for (const invalid of [undefined, "PRIVATE_TEXT_COOKIE_TOKEN_URL"]) {
+    final.results[0].phaseAtFailure = invalid;
+    assert.throws(() => captureSummary(final, scenes), /phase refused/u);
+  }
+  final.results[0].phaseAtFailure = "loaded-landmarks";
+  assert.equal(
+    captureSummary(final, scenes).blocked[0].phaseAtFailure,
+    "loaded-landmarks",
+  );
 });
 
 test("refused reader requests expose only fixed classifications, never IDs or arguments", () => {

@@ -1160,9 +1160,9 @@
     },
     {
       "id": "csf-overview",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/overview",
+      "route": "/organization/dvhs-csf?tab=csf-overview",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/overview"
+        "/organization/dvhs-csf?tab=csf-overview"
       ],
       "ready": [
         {
@@ -1181,9 +1181,9 @@
     },
     {
       "id": "csf-home",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/home",
+      "route": "/organization/dvhs-csf?tab=csf-home",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/home"
+        "/organization/dvhs-csf?tab=csf-home"
       ],
       "ready": [
         {
@@ -1198,9 +1198,9 @@
     },
     {
       "id": "csf-my-profile",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/my-profile",
+      "route": "/organization/dvhs-csf?tab=csf-profile",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/my-profile"
+        "/organization/dvhs-csf?tab=csf-profile"
       ],
       "ready": [
         {
@@ -1219,9 +1219,9 @@
     },
     {
       "id": "csf-profiles",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/profiles",
+      "route": "/organization/dvhs-csf?tab=csf-members",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/profiles"
+        "/organization/dvhs-csf?tab=csf-members"
       ],
       "ready": [
         {
@@ -1240,9 +1240,9 @@
     },
     {
       "id": "csf-cohorts",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/cohorts",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/cohorts"
+        "/organization/dvhs-csf?tab=csf-cohorts"
       ],
       "ready": [
         {
@@ -1261,9 +1261,9 @@
     },
     {
       "id": "csf-terms",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/terms",
+      "route": "/organization/dvhs-csf?tab=csf-terms",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/terms"
+        "/organization/dvhs-csf?tab=csf-terms"
       ],
       "ready": [
         {
@@ -1277,9 +1277,9 @@
     },
     {
       "id": "csf-meetings",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/meetings",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=meetings",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/meetings"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=meetings"
       ],
       "ready": [
         {
@@ -1298,9 +1298,9 @@
     },
     {
       "id": "csf-applications",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/applications",
+      "route": "/organization/dvhs-csf?tab=csf-applications",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/applications"
+        "/organization/dvhs-csf?tab=csf-applications"
       ],
       "ready": [
         {
@@ -1318,9 +1318,9 @@
     },
     {
       "id": "csf-opportunities",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/opportunities",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=opportunities",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/opportunities"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=opportunities"
       ],
       "ready": [
         {
@@ -1335,9 +1335,9 @@
     },
     {
       "id": "csf-partner-clubs",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=partner-clubs",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=partner-clubs"
       ],
       "ready": [
         {
@@ -1352,9 +1352,9 @@
     },
     {
       "id": "csf-submissions",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/submissions",
+      "route": "/organization/dvhs-csf?tab=csf-submissions",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/submissions"
+        "/organization/dvhs-csf?tab=csf-submissions"
       ],
       "ready": [
         {
@@ -1373,9 +1373,9 @@
     },
     {
       "id": "csf-points",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/points",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=points",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/points"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=points"
       ],
       "ready": [
         {
@@ -1394,9 +1394,9 @@
     },
     {
       "id": "csf-verification",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/verification",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=verification",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/verification"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=verification"
       ],
       "ready": [
         {
@@ -1415,9 +1415,9 @@
     },
     {
       "id": "csf-sheets",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/sheets",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/sheets"
+        "/organization/dvhs-csf?tab=csf-cohorts"
       ],
       "ready": [
         {
@@ -1436,9 +1436,9 @@
     },
     {
       "id": "csf-staff",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/staff",
+      "route": "/organization/dvhs-csf?tab=csf-staff",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/staff"
+        "/organization/dvhs-csf?tab=csf-staff"
       ],
       "ready": [
         {
@@ -1457,9 +1457,9 @@
     },
     {
       "id": "csf-audit",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/audit",
+      "route": "/organization/dvhs-csf?tab=csf-audit",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/audit"
+        "/organization/dvhs-csf?tab=csf-audit"
       ],
       "ready": [
         {
@@ -1477,9 +1477,9 @@
     },
     {
       "id": "csf-communications",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/communications",
+      "route": "/organization/dvhs-csf?tab=csf-communications",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/communications"
+        "/organization/dvhs-csf?tab=csf-communications"
       ],
       "ready": [
         {
@@ -1498,9 +1498,9 @@
     },
     {
       "id": "csf-settings",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/settings",
+      "route": "/organization/dvhs-csf?tab=csf-settings",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/settings"
+        "/organization/dvhs-csf?tab=csf-settings"
       ],
       "ready": [
         {
@@ -1519,9 +1519,9 @@
     },
     {
       "id": "csf-help",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/help",
+      "route": "/organization/dvhs-csf?tab=csf-help",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/help"
+        "/organization/dvhs-csf?tab=csf-help"
       ],
       "ready": [
         {

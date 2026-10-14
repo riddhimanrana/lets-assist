@@ -947,8 +947,8 @@ try {
         capture.image = path.basename(output);
         capture.status = "captured-awaiting-pixel-review";
       } catch {
+        capture.phaseAtFailure = capturePhase;
         if (entry.id === "landing-baseline") {
-          capture.phaseAtFailure = capturePhase;
           capture.failureCategory =
             capture.landingPngStage ?? "readiness-or-guard";
         }

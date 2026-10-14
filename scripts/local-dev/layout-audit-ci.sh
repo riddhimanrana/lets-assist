@@ -21,7 +21,7 @@ git check-ignore "$layout_tool/code-manifest.sha256" "$layout_support/authorizat
 node "$layout_tool/linux-adapters.check.mjs"
 node "$layout_tool/landing-visual-settlement.check.mjs"
 node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"
-node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
+node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/csf-canonical-routes.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
 # Root authorized only reordering the original87 scenes, not altering landmarks.
 node --input-type=module - "$layout_tool" "$layout_support" <<'NODE'
 import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';
