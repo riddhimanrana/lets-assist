@@ -226,7 +226,12 @@ export async function createUserDataExportArchive(
   };
   const zipDate = new Date(payload.metadata.generatedAt);
   const addFile = (name: string, value: unknown) =>
-    zip.file(name, JSON.stringify(value, null, 2), { date: zipDate });
+    // JSZip otherwise creates parent directory entries with the current time,
+    // changing archive bytes even when every exported file is identical.
+    zip.file(name, JSON.stringify(value, null, 2), {
+      date: zipDate,
+      createFolders: false,
+    });
   addFile("manifest.json", manifest);
   addFile("auth/auth.json", payload.auth);
   addFile("counts.json", payload.counts);

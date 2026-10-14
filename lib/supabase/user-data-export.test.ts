@@ -48,6 +48,11 @@ test("archive preserves more than a Data API page and includes verified plugin r
   });
   const zip = await JSZip.loadAsync(archive.zipBuffer);
   expect(
+    Object.values(zip.files).every(
+      (entry) => entry.date.getTime() === Date.parse(value.generatedAt),
+    ),
+  ).toBe(true);
+  expect(
     JSON.parse(
       await zip.file("notifications/notifications.json")!.async("string"),
     ),
