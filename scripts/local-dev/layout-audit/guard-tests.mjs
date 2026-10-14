@@ -24,6 +24,7 @@ import {
   reviewedSourceHashes,
   readActionPolicyFromCompiled,
   readActionRequest,
+  projectRosterReaderRequest,
 } from "./capture-effects-contract.mjs";
 let checks = 0;
 function allow(fn) {
@@ -86,6 +87,50 @@ for (const url of [
   `${app}/organization/join?code=123456`,
 ])
   deny(() => localRequestSafe(url, app, db));
+
+const rosterProjectId = "10000000-0000-4000-8000-000000000020";
+const rosterActorId = randomUUID();
+const rosterRequest = {
+  method: "POST",
+  url: `${db}/rest/v1/rpc/get_public_attendees`,
+  headers: {
+    authorization: "Bearer fictional-access-token",
+    apikey: "fictional-anon-key",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({ p_project_id: rosterProjectId }),
+  actor: { id: rosterActorId, key: "csfAdmin", kind: "baseline" },
+  entry: {
+    id: "project-creator",
+    route: `/projects/${rosterProjectId}`,
+  },
+  apiOrigin: db,
+  anonKey: "fictional-anon-key",
+  accessToken: "fictional-access-token",
+  creatorProjects: new Map([[rosterProjectId, rosterActorId]]),
+};
+allow(() => projectRosterReaderRequest(rosterRequest));
+deny(() => localRequestSafe(rosterRequest.url, app, db));
+for (const change of [
+  { method: "GET" },
+  { url: `${db}/rest/v1/rpc/business_action` },
+  { url: `${db}/rest/v1/rpc/get_public_attendees?select=*` },
+  { url: `https://example.invalid/rest/v1/rpc/get_public_attendees` },
+  { body: JSON.stringify({ p_project_id: rosterProjectId, mutate: true }) },
+  { body: `{ "p_project_id": "${rosterProjectId}" }` },
+  {
+    body: `{"p_project_id":"${randomUUID()}","p_project_id":"${rosterProjectId}"}`,
+  },
+  { body: JSON.stringify({ p_project_id: randomUUID() }) },
+  { actor: { ...rosterRequest.actor, key: "member" } },
+  { entry: { ...rosterRequest.entry, id: "project-volunteer" } },
+  { creatorProjects: new Map() },
+  { accessToken: "other-token" },
+  { headers: { ...rosterRequest.headers, apikey: "other-key" } },
+  { headers: { ...rosterRequest.headers, "content-type": "text/plain" } },
+  { headers: { ...rosterRequest.headers, "content-profile": "private" } },
+])
+  deny(() => projectRosterReaderRequest({ ...rosterRequest, ...change }));
 
 const tmp = fs.realpathSync(
   fs.mkdtempSync(path.join(os.tmpdir(), "layout-contract-offline-")),

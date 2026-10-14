@@ -68,6 +68,7 @@ import {
   profileReaderDiagnostic,
   exactReadActionPolicy,
   readActionRequest,
+  projectRosterReaderRequest,
 } from "./capture-effects-contract.mjs";
 function ownerFile(p, directory = false) {
   const s = fs.lstatSync(p);
@@ -455,14 +456,36 @@ try {
         await context.route("**/*", async (route) => {
           const req = route.request();
           let u;
+          let reviewedRosterRead = false;
           try {
             u = localRequestSafe(req.url(), baseURL, new URL(local.url).origin);
           } catch {
-            faults.blockedExternal++;
-            await route.abort("blockedbyclient");
-            return;
+            try {
+              reviewedRosterRead = projectRosterReaderRequest({
+                method: req.method(),
+                url: req.url(),
+                headers: req.headers(),
+                body: req.postData(),
+                actor,
+                entry,
+                apiOrigin: new URL(local.url).origin,
+                anonKey: local.anonKey,
+                accessToken: profileAccessToken,
+                creatorProjects,
+              });
+              if (++allowedReadActions > 4)
+                fail("Read-action request bound exceeded");
+              u = new URL(req.url());
+            } catch {
+              faults.blockedExternal++;
+              await route.abort("blockedbyclient");
+              return;
+            }
           }
-          if (!["GET", "HEAD", "OPTIONS"].includes(req.method())) {
+          if (
+            !reviewedRosterRead &&
+            !["GET", "HEAD", "OPTIONS"].includes(req.method())
+          ) {
             try {
               const request = {
                 method: req.method(),

@@ -28,6 +28,8 @@ Implemented entrypoints:
 
 The Linux adapter substitutes lazy `/proc` observations and exclusive/fsynced inode provenance for Mac ps/lsof/birthtime assumptions. Exact source-bound Next16.4 title replacement still requires the actual successful canonical spawn witness. The approved image/role/phone/null/corpus/WS/read-action/cache/output/worker checks remain. Cache allowance is limited to the original source-proved non-code root data namespaces; private artifacts are fully frozen. Unknown effects stay blocked.
 
+The creator project scene permits one bounded local `get_public_attendees` projection read for the proved fictional creator and project. The browser client sends this read-only RPC as POST. Its endpoint, headers, token, and JSON argument are checked separately before the general RPC and mutation refusals; other RPCs remain blocked.
+
 `upstream/` contains source-derived original templates/review references, not live evidence. `proof-data/`, authorizations and runtime receipts are generated only in the disposable staged copy after source/stack checks. No saved fixture UUIDs, cookies, sessions or secret values are distributed. `code-manifest.sha256` freezes code/reference bytes; pin its SHA from the final handoff, then verify the actual files before use.
 
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.

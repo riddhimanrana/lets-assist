@@ -338,3 +338,74 @@ export function readActionRequest({
   } else fail("Unknown read action refused");
   return true;
 }
+
+// The creator project loads its attendee projection on mount. Supabase sends
+// this read-only RPC as POST, so the general RPC and mutation guards must still
+// refuse every request except this exact proved fictional creator read.
+export function projectRosterReaderRequest({
+  method,
+  url,
+  headers,
+  body,
+  actor,
+  entry,
+  apiOrigin,
+  anonKey,
+  accessToken,
+  creatorProjects,
+}) {
+  const projectId =
+    typeof entry?.route === "string"
+      ? entry.route.match(/^\/projects\/([0-9a-f-]{36})$/u)?.[1]
+      : null;
+  const api = new URL(apiOrigin);
+  if (
+    method !== "POST" ||
+    entry?.id !== "project-creator" ||
+    !projectId ||
+    !UUID.test(projectId) ||
+    actor?.kind !== "baseline" ||
+    actor.key !== "csfAdmin" ||
+    !UUID.test(actor.id) ||
+    creatorProjects?.get(projectId) !== actor.id ||
+    typeof accessToken !== "string" ||
+    !accessToken ||
+    typeof anonKey !== "string" ||
+    !anonKey ||
+    headers?.authorization !== `Bearer ${accessToken}` ||
+    headers?.apikey !== anonKey ||
+    !/^application\/json(?:;\s*charset=utf-8)?$/iu.test(
+      headers?.["content-type"] ?? "",
+    ) ||
+    (headers?.["content-profile"] !== undefined &&
+      headers["content-profile"] !== "public") ||
+    typeof body !== "string" ||
+    Buffer.byteLength(body) > 128 ||
+    api.protocol !== "http:" ||
+    api.hostname !== "127.0.0.1" ||
+    !api.port ||
+    api.pathname !== "/" ||
+    api.search ||
+    api.hash ||
+    api.username ||
+    api.password
+  )
+    fail("Unreviewed project roster request refused");
+  const expected = new URL("/rest/v1/rpc/get_public_attendees", api);
+  const actual = new URL(url);
+  if (
+    actual.href !== expected.href ||
+    actual.username ||
+    actual.password ||
+    actual.hash
+  )
+    fail("Exact local project roster endpoint required");
+  const args = JSON.parse(body);
+  if (
+    !keys(args, ["p_project_id"]) ||
+    args.p_project_id !== projectId ||
+    body !== JSON.stringify({ p_project_id: projectId })
+  )
+    fail("Exact proved creator project argument required");
+  return true;
+}
