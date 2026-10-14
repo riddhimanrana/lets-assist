@@ -32,7 +32,7 @@ test("the v4 points migration follows all 724 reviewed migrations with unchanged
   );
   assert.equal(
     createHash("sha256").update(sql).digest("hex"),
-    "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
   );
   assert.equal(
     acceptedCatalogQuery("untrusted predecessor", versions),

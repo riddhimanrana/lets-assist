@@ -74,8 +74,9 @@ from the isolated Production 688 path. Hosted Development comparison, full CI,
 and visual acceptance remain separate gates.
 
 Release 727 extends certificates with a validated event timezone and appends
-display timezone fields to the two certificate read-model views. Its owned clean
-PostgreSQL 17.11 replay passed 502 pgTAP files and 13,040 assertions. The
+display timezone fields to the two certificate read-model views. Its initial
+owned clean PostgreSQL 17.11 replay passed 502 pgTAP files and 13,040
+assertions. The
 reviewed 1,441-object inventory adds only
 `private.enforce_certificate_event_timezone()` and changes only
 `public.certificates`, `public.certificate_verification_read_model`, and
@@ -85,6 +86,30 @@ removed. The manifest binds ledger digest
 A second new owned replay returned `1` from the complete isolated release
 catalog query after registration. Hosted Development comparison, full CI, and
 visual acceptance remain separate gates.
+
+Before v4 promotion, the undeployed 725 candidate migration was aligned byte
+for byte with the already deployed Main points repair (SHA-256
+`694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00`).
+Fresh 725 and 727 prefix replays each passed the 33-assertion points regression;
+the 727 prefix also passed its 23-assertion timezone regression. Their
+recaptured manifests changed only the pending-point authority function from
+the earlier candidate fingerprint to Main's `00cb6983044aba50bc99a777acf3c66b`.
+The existing 725 and 727 ledger selectors did not change because the migration
+versions did not change. No deployed migration bytes were modified.
+
+Release 728 rejects `Factory`, which PostgreSQL 17.11 lists as a timezone but
+the pinned Node ECMA-402 formatter rejects. Its forward migration fails for
+existing `Factory` rows pending review rather than modifying stored instants.
+A clean diagnostic replay passed 502 pgTAP files and 13,048 assertions. After
+adding explicit ACL statements to the replaced trigger, a separate exact-byte
+replay passed the 33-assertion points and 26-assertion timezone tests. Its
+reviewed 1,441-object inventory changes only
+`private.enforce_certificate_event_timezone()` from the recaptured 727
+inventory, with no additions or removals. The 728 ledger digest is
+`b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c`.
+A further fresh owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison and full
+integrated CI remain separate gates.
 
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE

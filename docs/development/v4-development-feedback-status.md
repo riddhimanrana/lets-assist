@@ -68,3 +68,13 @@ isolated release catalog returned `1`, including the existing release checks.
 closes the earlier local catalog blocker; hosted short and full CI, Development
 schema/alias acceptance, the unavailable waiver screenshot pixels, and visual
 acceptance are still open. No Production or worker operation was performed.
+
+## Points and timezone review follow-up, October 14
+
+The exact-head short CI [38532071369](https://github.com/riddhimanrana/lets-assist/actions/runs/38532071369) passed on `5beae419`. Two subsequent review findings remain valid. On the old v4 candidate, Main's rollback-only points regression failed at the second otherwise-valid donation because a nullable activity `point_cap` fell back to the per-selection `point_value`. The undeployed 725 candidate file now matches the already deployed Main migration byte for byte (SHA-256 `694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00`), and its regression passes all 33 assertions. No Production migration was changed.
+
+PostgreSQL 17.11 lists 598 timezone names, of which the pinned Node formatter rejected only `Factory`. The 727 trigger accepted that value; the app formatter would silently display it in Pacific time. Forward migration 728 refuses `Factory` on direct writes and fails if existing `Factory` rows need review. It does not rewrite historical instants or invent a timezone for legacy rows. Authenticated INSERT and UPDATE rejection, the PostgreSQL catalog premise, and the app input parser are covered by focused tests.
+
+Clean 725 and 727 prefix replays recaptured their historical manifests; each differs from its previous snapshot only at the reconciled points-function fingerprint. A diagnostic clean 728 replay passed 502 pgTAP files and 13,048 assertions. After explicit ACL statements were added to the replacement trigger, another exact-byte 728 replay passed the 33-assertion points and 26-assertion timezone tests and produced the reviewed 1,441-object manifest. It differs from the recaptured 727 manifest only at the timezone trigger function. A further fresh replay returned `1` from the complete isolated release catalog query. The current 728 ledger digest is `b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c`; `ci:pins` and focused catalog tests pass. All owned stacks were removed with zero residual resources.
+
+The new exact-head short CI and required full integrated-candidate run, hosted Development catalog/permission comparison and alias/journey acceptance, and separate Production compatibility gates remain open. The prior `ci.yml` dispatch was denied before creating a run; no alternate route or permission expansion was used. No Development, Production, worker, participant or legal-agreement record was changed by this review work.

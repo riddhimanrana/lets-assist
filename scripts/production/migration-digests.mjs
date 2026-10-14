@@ -1459,9 +1459,11 @@ export const migrationDigests = {
   "20261013010957_repair_scheduled_attendance_windows.sql":
     "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
   "20261013071100_csf_repeatable_pending_activity_claims.sql":
-    "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
   "20261014050438_preserve_self_reported_certificate_timezone.sql":
     "e5bef0c9cee06d99f6a18aa80a592f35195487a3b938efb53cdf6f03b216e053",
   "20261014060423_validate_and_project_certificate_timezones.sql":
     "17d4b5b3c0f04c3dfb45d62d2ea7e81822ae4aee639e15d74958dcc6371f1a24",
+  "20261014142100_reject_unsupported_certificate_timezone.sql":
+    "83cbf1ed33b166bc9f8a7f2e7ae59d19cb5ce54eb9366ad277b970a1015f34c8",
 };

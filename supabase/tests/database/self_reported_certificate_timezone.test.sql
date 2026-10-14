@@ -1,7 +1,7 @@
 -- New self-reported zones persist without changing certificate ownership.
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(23);
+SELECT extensions.plan(26);
 SELECT extensions.has_column('public', 'certificates', 'event_timezone', 'certificate has an event zone');
 SELECT extensions.col_type_is('public', 'certificates', 'event_timezone', 'text', 'zone uses text');
 INSERT INTO auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data)
@@ -27,6 +27,12 @@ SELECT extensions.throws_ok($$UPDATE public.certificates SET event_timezone=repe
 SELECT extensions.throws_ok($$UPDATE public.certificates SET event_timezone='Mars/Base' WHERE id='ce726100-0000-4000-8000-000000000002'$$,'23514',NULL,'unknown nonblank zone fails authenticated update');
 SELECT extensions.throws_ok($$INSERT INTO public.certificates(project_title,is_certified,event_start,event_end,event_timezone,check_in_method,user_id,creator_id,type)
  VALUES ('Invalid zone',false,'2026-10-12T15:30Z','2026-10-12T16:30Z','Mars/Base','self_report','ce726000-0000-4000-8000-000000000001','ce726000-0000-4000-8000-000000000001','self-reported')$$,'23514',NULL,'unknown nonblank zone fails authenticated insert');
+-- PostgreSQL's catalog accepts Factory, but ECMA-402 rejects it. Direct owner
+-- writes must not store a zone that certificateTimezone silently relabels.
+SELECT extensions.ok(EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names WHERE name='Factory'),'Factory is present in PostgreSQL catalog');
+SELECT extensions.throws_ok($$UPDATE public.certificates SET event_timezone='Factory' WHERE id='ce726100-0000-4000-8000-000000000002'$$,'23514',NULL,'catalog-only zone fails authenticated update');
+SELECT extensions.throws_ok($$INSERT INTO public.certificates(project_title,is_certified,event_start,event_end,event_timezone,check_in_method,user_id,creator_id,type)
+ VALUES ('Invalid formatter zone',false,'2026-10-12T15:30Z','2026-10-12T16:30Z','Factory','self_report','ce726000-0000-4000-8000-000000000001','ce726000-0000-4000-8000-000000000001','self-reported')$$,'23514',NULL,'catalog-only zone fails authenticated insert');
 SELECT extensions.is((SELECT event_timezone FROM public.user_certificate_read_model WHERE id='ce726100-0000-4000-8000-000000000002'),'Asia/Tokyo','owned list projection carries event zone');
 SELECT extensions.is((SELECT event_timezone FROM public.certificate_verification_read_model WHERE id='ce726100-0000-4000-8000-000000000002'),'Asia/Tokyo','certificate projection carries event zone');
 SELECT extensions.is((SELECT project_timezone FROM public.certificate_verification_read_model WHERE id='ce726100-0000-4000-8000-000000000002'),NULL::text,'self-report has no invented project zone');

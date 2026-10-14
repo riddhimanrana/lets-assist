@@ -42,6 +42,7 @@ describe("self-reported hours input", () => {
       { ...input, endTime: "09:00" },
       { ...input, timeZone: undefined },
       { ...input, timeZone: "not-a-zone" },
+      { ...input, timeZone: "Factory" },
       { ...input, date: "2026-03-08", startTime: "02:30" },
     ].map((value) => [value]),
   )("rejects malformed or impossible input %#", (value) => {
