@@ -765,6 +765,101 @@ SELECT extensions.is(
   'approval creates exactly two verified drive points across the two donations'
 );
 
+-- Without an activity pointCap, the semester policy's three-point limit
+-- governs cumulative claims. The two-point quantity ceiling applies only to
+-- one selection and must not prevent a final one-point donation.
+INSERT INTO fixed_results (label, result)
+SELECT 'uncapped-quantity-activity', plugin_data.csf_create_activity(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  NULL,
+  pg_catalog.jsonb_build_object(
+    'status', 'published',
+    'title', 'Policy-capped donation drive',
+    'signupMode', 'none',
+    'requiresPointSubmission', true,
+    'evidencePolicy', 'optional',
+    'earningRules', pg_catalog.jsonb_build_object(
+      'version', 1,
+      'mode', 'quantity',
+      'components', pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('key', 'products', 'label', 'Products', 'category', 'drive', 'kind', 'quantity', 'unitLabel', 'products', 'unitsPerPoint', 3, 'maxPoints', 2)
+      )
+    )
+  ),
+  'fd000000-0000-4000-8000-000000000002',
+  'fd800000-0000-4000-8000-000000000020'
+);
+
+SELECT extensions.ok(
+  (
+    SELECT activity.point_cap IS NULL AND activity.point_value = 2
+    FROM plugin_data.csf_opportunities AS activity
+    WHERE activity.id = (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'uncapped-quantity-activity')
+  ),
+  'omitting pointCap retains a two-point selection ceiling without an activity cap'
+);
+
+INSERT INTO fixed_results (label, result)
+SELECT 'uncapped-quantity-first', plugin_data.csf_begin_point_submission_request_v2(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd400000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'uncapped-quantity-activity'),
+  NULL, 'student', 'Six products.', 2, 'drive', '2099-10-18',
+  'fd000000-0000-4000-8000-000000000001',
+  NULL, NULL, NULL, NULL,
+  'fd600000-0000-4000-8000-000000000020',
+  '{"version":1,"items":[{"key":"products","quantity":6}]}'::jsonb
+);
+
+SELECT extensions.lives_ok(
+  $$ SELECT plugin_data.csf_review_point_submission_request(
+    'fd100000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'submissionId')::uuid FROM fixed_results WHERE label = 'uncapped-quantity-first'),
+    'approved', 2, NULL,
+    'fd000000-0000-4000-8000-000000000002',
+    'fd700000-0000-4000-8000-000000000020'
+  ) $$,
+  'the first uncapped donation awards its two-point selection maximum'
+);
+
+INSERT INTO fixed_results (label, result)
+SELECT 'uncapped-quantity-second', plugin_data.csf_begin_point_submission_request_v2(
+  'fd100000-0000-4000-8000-000000000001',
+  'fd400000-0000-4000-8000-000000000001',
+  'fd300000-0000-4000-8000-000000000001',
+  (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'uncapped-quantity-activity'),
+  NULL, 'student', 'Three more products.', 1, 'drive', '2099-10-19',
+  'fd000000-0000-4000-8000-000000000001',
+  NULL, NULL, NULL, NULL,
+  'fd600000-0000-4000-8000-000000000021',
+  '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+);
+
+SELECT extensions.is(
+  (SELECT result ->> 'status' FROM fixed_results WHERE label = 'uncapped-quantity-second'),
+  'submitted',
+  'the policy permits the final one-point claim after two verified points'
+);
+
+SELECT extensions.throws_ok(
+  $$ SELECT plugin_data.csf_begin_point_submission_request_v2(
+    'fd100000-0000-4000-8000-000000000001',
+    'fd400000-0000-4000-8000-000000000001',
+    'fd300000-0000-4000-8000-000000000001',
+    (SELECT (result ->> 'activityId')::uuid FROM fixed_results WHERE label = 'uncapped-quantity-activity'),
+    NULL, 'student', 'One product claim beyond policy.', 1, 'drive', '2099-10-20',
+    'fd000000-0000-4000-8000-000000000001',
+    NULL, NULL, NULL, NULL,
+    'fd600000-0000-4000-8000-000000000022',
+    '{"version":1,"items":[{"key":"products","quantity":3}]}'::jsonb
+  ) $$,
+  'P0001',
+  'This activity allows at most 3.00 points per person; 3.00 already submitted or verified.',
+  'the policy still refuses claims beyond its three-point activity maximum'
+);
+
 -- ---------------------------------------------------------------------------
 -- shifts: distinct shifts stack, a repeated shift is still refused
 -- Both shifts are worth 1 point so the repeat stays under the 3-point

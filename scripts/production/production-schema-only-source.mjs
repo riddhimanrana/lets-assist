@@ -50,23 +50,23 @@ const reviewedContentSha256 = Object.freeze({
   "scripts/production/csf-repeatable-pending-claims-catalog.test.mjs":
     "7d599aee7820689cdfc9f2cc3f0aafedc0dd08619d1640aac25b5a93073e09ef",
   "scripts/production/final-schema-688.json":
-    "ca7febe3a632eccb658a2dd58722fc74b9967eb2d72290a2aea4e2bd00eeaf98",
+    "f834502758c31f4c0c8a4a4c11c2e29c8b7406322be0ea80144e2ce4636028be",
   "scripts/production/final-schema-manifest.md":
-    "b264abdf1f4ce88714de4a0bc39c17d9b8a95c4efac33c10bc7ca2ea999183ca",
+    "6c24497c28c5b2c2bc0350e2080a37082b2e2c74369868183ea687fa3d1d25ae",
   "scripts/production/forward-migration-allowlist.mjs":
-    "0ee2844e662a296b18e96142a7c3e6fe425cbde4011a65fa7ff37701c78fe328",
+    "0ff99231da470fcd2e9fc86a95a402b95857722650b08f46e6037391f8c4de37",
   "scripts/production/forward-migration-historical-tails.test.mjs":
     "b57e750066da76c19bbcef59716a4c9779cd3e5221aae35ee2c225c01094d5c4",
   "scripts/production/forward-migration-release-fixture.mjs":
     "8513f54ff5cb9580db80ece00c03efd11ec9aee407ea50418372769e06a887ad",
   "scripts/production/migration-digests.mjs":
-    "4b69313e1f28e111f91804cceceb3b2b616cc84e4715e89ffd56c42ea46728b3",
+    "8375555c267b45841a6cf4a2beec60956502e478d8d4513a21824b4f2a1b68b8",
   "scripts/production/production-schema-only-source.test.mjs":
     "b40c9b5e87138c381c5a4c73966ff9902fde94b71109e3eeb9dc7e037a9f1021",
   "supabase/migrations/20261013071100_csf_repeatable_pending_activity_claims.sql":
-    "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
   "supabase/tests/database/csf_fixed_activity_submission_uniqueness.test.sql":
-    "9f179fbb7564dbe01f432059e7f09b7882d7e36d78cabd1b758a4738ba32f2f0",
+    "be080e4c27dea3ba7b5243e3024b55b9442235d01ac11501bd0d8296741f8f97",
 });
 
 export function verifyReviewedPaths(paths) {

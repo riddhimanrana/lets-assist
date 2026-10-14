@@ -140,7 +140,7 @@ jobs:
             'supabase/migrations/20261013071100_csf_repeatable_pending_activity_claims.sql' \
             'supabase/tests/database/csf_fixed_activity_submission_uniqueness.test.sql' > .artifacts/schema-only-reviewed-paths
           cmp -s .artifacts/schema-only-changed-paths .artifacts/schema-only-reviewed-paths
-          SCHEMA_ONLY_VERIFIER_BLOB=20b1da6807faf61d0154459efdd0cd6f8736dcef
+          SCHEMA_ONLY_VERIFIER_BLOB=fc1db5eea780b9e793c7e60ad7aee7aa0199b26e
           [[ "$(git hash-object ../scripts/production/production-schema-only-source.mjs)" == "${SCHEMA_ONLY_VERIFIER_BLOB}" ]]
           [[ "$(sha256sum ../scripts/production/app-release-checks.mjs | cut -d ' ' -f1)" == "64790cb3c0879d0d979ef8bbbac13c4353f293ae6a72e3de90c5bc618acbea65" ]]
           [[ "$(sha256sum ../scripts/production/app-release-catalog.mjs | cut -d ' ' -f1)" == "4dd8f5d74f062f36cd354b6c51e7c1de7b5b34aca76666be8b6afc529d361e59" ]]

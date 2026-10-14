@@ -128,8 +128,10 @@ BEGIN
     -- Reserve every pending claim even if staff switched this activity from
     -- repeatable quantity/per-item to fixed, shifts, assessment, or legacy.
     -- The same lock order serializes requests and officer approvals.
+    -- point_value is the ceiling for one selection, not the total per-person
+    -- activity cap. Without an explicit point_cap, the semester policy applies.
     SELECT least(
-      coalesce(activity.point_cap, nullif(activity.point_value, 0), policy.max_points_per_activity),
+      coalesce(activity.point_cap, policy.max_points_per_activity),
       policy.max_points_per_activity
     )
     INTO v_person_cap

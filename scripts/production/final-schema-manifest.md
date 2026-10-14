@@ -170,3 +170,6 @@ replay changes only those two function digests and the point-submissions relatio
 digest, which includes the revised index predicate. No objects are added or
 removed; synthetic fixture helpers were excluded inside a rolled-back capture
 transaction.
+An activity without an explicit `pointCap` uses the published semester policy's
+per-person activity cap; its `pointValue` limits one selection only. A focused
+regression claims two points, then one more, before rejecting a further claim.

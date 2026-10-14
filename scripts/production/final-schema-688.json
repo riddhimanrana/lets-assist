@@ -593,7 +593,7 @@
     },
     {
       "identity": "function:plugin_data.csf_begin_point_submission_authority_base_20260810(p_organization_id uuid, p_submission_id uuid, p_profile_id uuid, p_term_id uuid, p_opportunity_id uuid, p_partner_club_term_id uuid, p_source text, p_description text, p_claimed_points numeric, p_point_type text, p_activity_date date, p_actor_user_id uuid, p_file_id uuid, p_file_bucket text, p_file_object_path text, p_file_original_filename text, p_file_mime_type text, p_file_size_bytes bigint, p_upload_token uuid, p_correlation_id uuid)",
-      "digest": "bd60acf5559f1004e587e7fe5f6a4a9c"
+      "digest": "00cb6983044aba50bc99a777acf3c66b"
     },
     {
       "identity": "function:plugin_data.csf_begin_point_submission_request(p_organization_id uuid, p_profile_id uuid, p_term_id uuid, p_opportunity_id uuid, p_partner_club_term_id uuid, p_source text, p_description text, p_claimed_points numeric, p_point_type text, p_activity_date date, p_actor_user_id uuid, p_file_original_filename text, p_file_mime_type text, p_file_size_bytes bigint, p_proof_sha256 text, p_request_id uuid)",
