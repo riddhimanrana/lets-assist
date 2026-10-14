@@ -36,7 +36,12 @@ UPDATE public.certificates SET event_timezone='Asia/Tokyo' WHERE id='ce726100-00
 SET LOCAL "request.jwt.claim.sub" = 'ce726000-0000-4000-8000-000000000002';
 SET LOCAL "request.jwt.claims" = '{"sub":"ce726000-0000-4000-8000-000000000002","role":"authenticated"}';
 SELECT extensions.is((SELECT count(*) FROM public.certificates WHERE id='ce726100-0000-4000-8000-000000000002'),0::bigint,'another volunteer cannot read the record');
-SELECT extensions.is((WITH changed AS (UPDATE public.certificates SET event_timezone='UTC' WHERE id='ce726100-0000-4000-8000-000000000002' RETURNING id) SELECT count(*) FROM changed),0::bigint,'another volunteer cannot rewrite the zone');
+WITH changed AS (
+  UPDATE public.certificates SET event_timezone='UTC'
+  WHERE id='ce726100-0000-4000-8000-000000000002'
+  RETURNING id
+)
+SELECT extensions.is((SELECT count(*) FROM changed),0::bigint,'another volunteer cannot rewrite the zone');
 RESET ROLE;
 SELECT extensions.is((SELECT event_timezone FROM public.certificates WHERE id='ce726100-0000-4000-8000-000000000002'),'Asia/Tokyo','refused cross-owner write leaves the zone intact');
 SELECT extensions.ok((SELECT reloptions @> ARRAY['security_invoker=true'] FROM pg_catalog.pg_class WHERE oid='public.certificate_verification_read_model'::regclass),'public verification view keeps invoker boundary');
