@@ -42,7 +42,9 @@ function linkDestination(markup: string, name: string) {
 describe("landing first-response visibility", () => {
   test("the final signup and demo actions are visible in the first response", () => {
     const html = renderToStaticMarkup(createElement(LandingLazySections));
-    expect(linkDestination(html, "Find a project")).toBe("/signup");
+    expect(linkDestination(html, "Create a project")).toBe(
+      "/signup?redirect=%2Fprojects%2Fcreate",
+    );
     expect(readableText(html)).toContain("Play demo video");
     expect(hiddenFirstRenderStyles(html)).toEqual([]);
     expect(html).not.toContain("<iframe");
@@ -91,21 +93,18 @@ describe("landing first-response visibility", () => {
     expect(section).toBeDefined();
     const text = readableText(section ?? "");
     for (const copy of [
-      "A workspace for your volunteer organization",
-      "Google Sheets + Calendar syncing",
-      "Custom plugins",
-      "Analytics dashboards",
+      "Run the whole project from one place",
+      "Slots and one link",
+      "Check-in at the door",
+      "Hours in one place",
       "Interactive organization demo",
     ]) {
       expect(text).toContain(copy);
     }
     expect(section).toMatch(/<h2[\s>]/u);
-    expect(linkDestination(section ?? "", "Contact us for integrations")).toBe(
-      "/contact",
+    expect(linkDestination(section ?? "", "Create a project")).toBe(
+      "/signup?redirect=%2Fprojects%2Fcreate",
     );
-    expect(
-      linkDestination(section ?? "", "Explore connected organizations"),
-    ).toBe("/organization");
     expect(hiddenFirstRenderStyles(section ?? "")).toEqual([]);
   });
 });

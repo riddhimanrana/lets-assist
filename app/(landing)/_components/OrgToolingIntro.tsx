@@ -1,43 +1,28 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BarChart3, FileSpreadsheet, Plug } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { Card, CardContent } from "@/components/ui/card";
 import { AnimatedText } from "./AnimatedText";
 
 const orgFeatures = [
   {
-    icon: FileSpreadsheet,
-    title: "Google Sheets + Calendar syncing",
-    desc: "Keep member hours, project summaries, volunteer slots, and shared calendar reminders connected to the tools your team already uses.",
-    logos: [
-      { src: "/resources/google-sheets-logo-2026.png", alt: "Google Sheets" },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
+    title: "Slots and one link",
+    desc: "Set up the shifts, limit the spots in each one, and share a single sign-up page with your group.",
   },
   {
-    icon: Plug,
-    title: "Custom plugins",
-    desc: "Connect membership rules, school workflows, imports, approvals, paid events, and private operational tools.",
+    title: "Check-in at the door",
+    desc: "Volunteers scan the session's QR code when they arrive, so attendance stays with the event.",
   },
   {
-    icon: BarChart3,
-    title: "Analytics dashboards",
-    desc: "See verified hours, member progress, project turnout, exports, and CSF-ready reporting from one dashboard.",
+    title: "Hours in one place",
+    desc: "Review attendance, verify service hours, and export a record when your group needs it.",
   },
 ];
 
-const ctaClassName = buttonVariants({
-  size: "lg",
-  variant: "outline",
-  className: "gap-2",
-});
+const createHref = "/signup?redirect=%2Fprojects%2Fcreate";
 
 // The heading, features and links have no browser dependencies, so they are
 // in the first response. `children` is the slot for the client-only demo.
@@ -45,85 +30,84 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
   return (
     <section id="org-tooling" className="py-16 sm:py-20">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="text-center mx-auto max-w-3xl">
+        <div className="mx-auto max-w-3xl text-center">
           <div className="mb-6 flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
             Organization
             <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
           </div>
-          <Badge
-            variant="outline"
-            className="mb-3 border-primary/40 bg-primary/10 text-primary"
-          >
-            For organizations · Sample organization
-          </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             <AnimatedText
-              text="A workspace for your volunteer organization"
+              text="Run the whole project from one place"
               mode="words"
             />
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Manage members and roles, verify hours from QR check-ins, issue
-            certificates, and export reports from one dashboard. Made for
-            schools and nonprofits that have to show their volunteer records to
-            someone else.
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+            From the sign-up page to the hours report, keep the details your
+            volunteers and organizers need in one workspace.
           </p>
         </div>
 
+        <div className="mx-auto mt-10 max-w-2xl text-center">
+          <Badge
+            variant="outline"
+            className="border-primary/40 bg-primary/10 text-primary"
+          >
+            Interactive example · Sample organization
+          </Badge>
+        </div>
         {children}
 
-        <div className="mt-12 space-y-10">
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
-            {orgFeatures.map((feat) => (
-              <Card
-                key={feat.title}
-                className="h-full border-border/60 bg-background/90 shadow-xs"
+        <div className="mt-12 grid gap-0 border-y md:grid-cols-3">
+          {orgFeatures.map((feature, index) => (
+            <div
+              key={feature.title}
+              className="flex gap-4 border-b py-6 last:border-b-0 md:border-b-0 md:border-r md:px-6 md:first:pl-0 md:last:border-r-0 md:last:pr-0"
+            >
+              <span
+                aria-hidden="true"
+                className="text-sm font-semibold tabular-nums text-primary"
               >
-                <CardContent className="p-4">
-                  {feat.logos ? (
-                    <div className="mb-2 flex items-center gap-2">
-                      {feat.logos.map((logo) => (
-                        <span
-                          key={logo.src}
-                          className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs"
-                        >
-                          <Image
-                            src={logo.src}
-                            alt={logo.alt}
-                            width={22}
-                            height={22}
-                            className="size-5 object-contain"
-                          />
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-2 text-primary">
-                      <feat.icon className="h-4 w-4" />
-                    </div>
-                  )}
-                  <p className="text-sm font-semibold text-foreground">
-                    {feat.title}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                    {feat.desc}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+                0{index + 1}
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold">{feature.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {feature.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <span>Works with</span>
+            <Image
+              src="/resources/google-sheets-logo-2026.png"
+              alt="Google Sheets"
+              width={24}
+              height={24}
+              className="size-6 object-contain"
+            />
+            <Image
+              src="/resources/google-calendar-logo-2026.png"
+              alt="Google Calendar"
+              width={24}
+              height={24}
+              className="size-6 object-contain"
+            />
+            <span>Sheets and Calendar</span>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Link href="/contact" className={ctaClassName}>
-              Contact us for integrations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/organization" className={ctaClassName}>
-              Explore connected organizations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
+          <Link
+            href={createHref}
+            className={buttonVariants({
+              size: "lg",
+              className: "w-full gap-2 sm:w-auto",
+            })}
+          >
+            Create a project{" "}
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
         </div>
       </div>
     </section>

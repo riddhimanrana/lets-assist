@@ -123,16 +123,16 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 
 const platformHighlights = [
   {
-    title: "Find a project",
-    desc: "Browse public projects or open a link from an organizer.",
+    title: "Create your project",
+    desc: "Set the date, add shifts, and decide how many people you need.",
   },
   {
-    title: "Choose a shift",
-    desc: "See the date, time, and open spots before you sign up.",
+    title: "Share one link",
+    desc: "Give volunteers one place to see the details and choose a spot.",
   },
   {
-    title: "Keep your record",
-    desc: "Check in and see the hours your organizer verifies.",
+    title: "Check in and verify",
+    desc: "Record attendance and keep service hours with the project.",
   },
 ];
 
@@ -900,9 +900,9 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Find a project, sign up for a shift, and keep track of your hours.
-          Organizers can share one clear signup link and verify attendance. Free
-          for volunteers and the groups that run events.
+          Add shifts, share a sign-up link, check volunteers in, and keep their
+          hours together. Built for clubs, schools, and community groups. Free
+          for organizers and volunteers.
         </motion.p>
 
         <motion.div
@@ -911,14 +911,22 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/projects">Find a project</MotionLinkButton>
-          <MotionLinkButton
-            href="/signup?redirect=%2Fprojects%2Fcreate"
-            tone="outline"
-          >
-            Run a volunteer event
+          <MotionLinkButton href="/signup?redirect=%2Fprojects%2Fcreate">
+            Create a project
+          </MotionLinkButton>
+          <MotionLinkButton href="#org-tooling" tone="outline">
+            See how it works
           </MotionLinkButton>
         </motion.div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Want to volunteer?{" "}
+          <Link
+            href="/projects"
+            className="font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+          >
+            Browse upcoming projects
+          </Link>
+        </p>
       </div>
 
       <motion.div
