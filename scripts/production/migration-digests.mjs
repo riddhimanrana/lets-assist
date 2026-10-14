@@ -1462,4 +1462,6 @@ export const migrationDigests = {
     "8c3e879a2ac4e50835049ed170f761af8ca6d96463b6eb0dabaf781845274341",
   "20261014050438_preserve_self_reported_certificate_timezone.sql":
     "e5bef0c9cee06d99f6a18aa80a592f35195487a3b938efb53cdf6f03b216e053",
+  "20261014060423_validate_and_project_certificate_timezones.sql":
+    "17d4b5b3c0f04c3dfb45d62d2ea7e81822ae4aee639e15d74958dcc6371f1a24",
 };

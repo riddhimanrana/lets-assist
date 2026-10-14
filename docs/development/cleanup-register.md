@@ -11340,3 +11340,17 @@ only and open for deployed verification. See the current
 [v4 feedback status](v4-development-feedback-status.md) for exact provider,
 source and test evidence. Production and the separate points release were not
 changed.
+
+### Self-reported timezone review follow-up, October 14
+
+`SELF-REPORTED-TIMEZONE-20261014` remains open for deployment/SQL verification.
+The follow-up corrects two supported gaps: browser-role certificate writes could
+persist a nonblank unknown zone, and detail/individual print pages ignored the
+stored zone. A forward migration validates catalog membership with a private
+security-invoker trigger and appends timezone fields to the existing invoker
+views. The narrow detail props, list, individual and bulk print now carry that
+zone. Focused server and actual-component browser regressions pass; 23 pgTAP
+assertions and the 727 catalog still require the owned replay. Three focused
+synthetic PNGs exist outside source; whole-site and hosted acceptance remain
+pending. Current target and provider/dispatch blockers are in the
+[v4 feedback status](v4-development-feedback-status.md).

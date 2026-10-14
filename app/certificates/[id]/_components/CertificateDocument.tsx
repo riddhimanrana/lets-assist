@@ -18,6 +18,7 @@ export interface CertificateDocumentData {
   is_certified: boolean;
   event_start: string;
   event_end: string;
+  timeZone?: string | null;
   check_in_method: string;
   organization_name: string | null;
   project_id: string | null;
@@ -123,6 +124,7 @@ export function CertificateDocument({
               <TimezoneEventDateRange
                 startDate={data.event_start}
                 endDate={data.event_end}
+                timeZone={data.timeZone}
               />
             </dd>
           </div>
@@ -179,7 +181,8 @@ export function CertificateDocument({
             <TimezoneDateDisplay
               dateString={data.issued_at}
               format="MMM d, yyyy"
-              fallbackText="Loading..."
+              timeZone={data.timeZone}
+              fallbackText="Unknown date"
             />
           </Detail>
           {!isSelfReported ? (
