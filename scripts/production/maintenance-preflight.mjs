@@ -144,8 +144,10 @@ export function validateMaintenanceBinding(projectRef, databaseUrl) {
     /* Refuse below without logging input. */
   }
   let username;
+  let password;
   try {
     username = decodeURIComponent(url?.username ?? "");
+    password = decodeURIComponent(url?.password ?? "");
   } catch {
     /* Refuse below. */
   }
@@ -154,7 +156,11 @@ export function validateMaintenanceBinding(projectRef, databaseUrl) {
     !url ||
     !["postgres:", "postgresql:"].includes(url.protocol) ||
     !username ||
-    !url.password ||
+    !password ||
+    [...(username + password)].some(
+      (character) =>
+        character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    ) ||
     url.hash ||
     url.pathname !== "/postgres" ||
     (url.port && !["5432", "6543"].includes(url.port)) ||
@@ -180,6 +186,16 @@ export function executeMaintenanceQuery(
   sql,
   execute = execFileSync,
 ) {
+  return executeQuery(databaseUrl, sql, execute, false);
+}
+
+// Only the fixed preflight builders below use this path. Bootstrap's reviewed
+// mutation keeps its separate executor; caller/environment SQL is never read.
+function executeReadOnlyQuery(databaseUrl, sql, execute = execFileSync) {
+  return executeQuery(databaseUrl, sql, execute, true);
+}
+
+function executeQuery(databaseUrl, sql, execute, readOnly) {
   try {
     const url = new URL(databaseUrl);
     const username = decodeURIComponent(url.username);
@@ -206,7 +222,7 @@ export function executeMaintenanceQuery(
     return execute("psql", ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"], {
       input: sql,
       encoding: "utf8",
-      timeout: 150_000,
+      timeout: readOnly && sql === quiescenceSql ? 30_000 : 150_000,
       maxBuffer: 1024 * 1024,
       stdio: ["pipe", "pipe", "pipe"],
       // Keep the credential out of argv and exclude inherited PGOPTIONS,
@@ -221,6 +237,12 @@ export function executeMaintenanceQuery(
         PGDATABASE: database,
         PGSSLMODE: sslmode,
         PGCONNECT_TIMEOUT: "15",
+        ...(readOnly
+          ? {
+              PGOPTIONS:
+                "-c default_transaction_read_only=on -c search_path=pg_catalog -c statement_timeout=120000 -c lock_timeout=5000",
+            }
+          : {}),
       },
     }).trim();
   } catch {
@@ -232,7 +254,7 @@ export function executeMaintenanceQuery(
 
 export function verifyMaintenancePreflight(
   config,
-  query = executeMaintenanceQuery,
+  query = executeReadOnlyQuery,
 ) {
   validateMaintenanceBinding(config.projectRef, config.databaseUrl);
   const target = maintenanceTarget(config.cwd);
@@ -255,6 +277,8 @@ export function verifyMaintenancePreflight(
       "Production maintenance preflight did not return its exact receipt.",
     );
   return {
+    ...maintenanceConnectionReceipt(config),
+    transaction: "read-only",
     mode: config.mode,
     migrations: versions.length,
     head: versions.at(-1),
@@ -267,19 +291,88 @@ export function verifyMaintenancePreflight(
   };
 }
 
+export function productionMaintenanceConfig(env, cwd = process.cwd()) {
+  const configured = env.PRODUCTION_READONLY_URL;
+  const config = {
+    cwd,
+    projectRef: env.EXPECTED_SUPABASE_PROJECT_REF,
+    databaseUrl: configured || env.PRODUCTION_BOOTSTRAP_DATABASE_URL,
+    connectionSource: configured
+      ? "production-readonly-url"
+      : "production-bootstrap-database-url",
+  };
+  validateMaintenanceBinding(config.projectRef, config.databaseUrl);
+  if (
+    !configured &&
+    maintenanceConnectionReceipt(config).databaseAuthority !== "owner"
+  )
+    throw new ReleaseCheckError(
+      "Production preflight fallback requires its reviewed owner connection.",
+    );
+  return config;
+}
+
+export function maintenanceConnectionReceipt(config) {
+  validateMaintenanceBinding(config.projectRef, config.databaseUrl);
+  const url = new URL(config.databaseUrl);
+  return {
+    connectionSource: [
+      "production-readonly-url",
+      "production-bootstrap-database-url",
+    ].includes(config.connectionSource)
+      ? config.connectionSource
+      : "explicit-connection",
+    databaseAuthority:
+      decodeURIComponent(url.username) ===
+      (url.hostname === `db.${productionRef}.supabase.co`
+        ? "postgres"
+        : `postgres.${productionRef}`)
+        ? "owner"
+        : "configured-role-unverified",
+    transactionPolicy: "read-only",
+  };
+}
+
+const quiescenceSql = readFileSync(
+  new URL("./verify-cutover-quiescence.sql", import.meta.url),
+  "utf8",
+);
+const quiescenceReceipt = [
+  "PASS Q1: no active pg_cron schedules.",
+  "PASS Q2: no pg_cron execution is still running.",
+  "PASS Q3: the PostgREST maintenance flag is configured. Hook and fresh API verification are separate requirements.",
+].join("\n");
+
+export function verifyMaintenanceQuiescence(
+  config,
+  query = executeReadOnlyQuery,
+) {
+  const receipt = maintenanceConnectionReceipt(config);
+  if (query(config.databaseUrl, quiescenceSql) !== quiescenceReceipt)
+    throw new ReleaseCheckError(
+      "Production quiescence did not return its exact receipt. Raw output was suppressed.",
+    );
+  return { ...receipt, transaction: "read-only", quiescence: "verified" };
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
   try {
+    if (process.argv.length !== 3)
+      throw new ReleaseCheckError(
+        "Production preflight requires one fixed mode.",
+      );
+    const config = productionMaintenanceConfig(process.env);
+    const mode = process.argv[2];
     console.log(
       JSON.stringify(
-        verifyMaintenancePreflight({
-          cwd: process.cwd(),
-          mode: process.argv[2],
-          projectRef: process.env.EXPECTED_SUPABASE_PROJECT_REF,
-          databaseUrl: process.env.PRODUCTION_READONLY_URL,
-        }),
+        mode === "credentials"
+          ? { ...maintenanceConnectionReceipt(config), binding: "validated" }
+          : mode === "quiescence"
+            ? verifyMaintenanceQuiescence(config)
+            : verifyMaintenancePreflight({ ...config, mode }),
       ),
     );
   } catch (error) {

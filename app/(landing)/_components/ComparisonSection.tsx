@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
@@ -34,9 +33,14 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { ComparisonTextFlip } from "./ComparisonTextFlip";
+import { ComparisonSources } from "./ComparisonSources";
 
-// Words that flip in the header
-const flipWords = ["outdated", "limited", "2010s", "cluttered"];
+// Words that flip in the header: the steps Let's Assist keeps in one workflow.
+const flipWords = ["sign-ups", "check-ins", "verified hours", "certificates"];
+
+// Shown where we have not confirmed what the other provider offers. The
+// column never says a feature is missing on our word alone.
+const SEE_PROVIDER_DOCS = "See provider docs";
 
 interface ComparisonFeature {
   name: string;
@@ -52,7 +56,8 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "QR check-in and check-out",
     description: "Contactless attendance verification",
     letsAssist: true,
-    signupGenius: false,
+    // Their overview describes QR attendance scanning for event tickets.
+    signupGenius: "Ticket QR scans",
     highlight: true,
     icon: QrCode,
   },
@@ -60,7 +65,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Hour certificates",
     description: "PDF certificates after verified hours are published",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     highlight: true,
     icon: Award,
   },
@@ -68,7 +73,7 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Verified hours",
     description: "Supervisor-verified time tracking",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     highlight: true,
     icon: Shield,
   },
@@ -76,21 +81,22 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Organization roles",
     description: "Admin, staff, and member permissions",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Users,
   },
   {
     name: "Personal dashboard",
     description: "Track all your volunteer hours",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: BarChart3,
   },
   {
-    name: "CSV exports",
+    name: "Hours CSV exports",
     description: "Export hours for your records",
     letsAssist: true,
-    signupGenius: "Premium only",
+    // Their hours report, with CSV export, is listed for paid plans.
+    signupGenius: "Paid hour reports",
     icon: FileText,
   },
   {
@@ -111,14 +117,14 @@ const comparisonFeatures: ComparisonFeature[] = [
     name: "Multiple event types",
     description: "One-time, multi-day, same-day slots",
     letsAssist: true,
-    signupGenius: "Limited",
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Clock,
   },
   {
-    name: "COPPA compliance",
+    name: "Parental consent",
     description: "Parental consent for minors",
     letsAssist: true,
-    signupGenius: false,
+    signupGenius: SEE_PROVIDER_DOCS,
     icon: Shield,
   },
 ];
@@ -288,6 +294,8 @@ function ModernDashboardMockup() {
             {phase === "BROWSING" && (
               <motion.div
                 key="browsing"
+                data-slot="comparison-demo-phase"
+                data-phase="browsing"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20, scale: 0.95 }}
@@ -313,14 +321,16 @@ function ModernDashboardMockup() {
                   </div>
 
                   {/* Card 2 (Target) */}
-
                   <div className="p-2.5 rounded-lg border border-primary/40 bg-card shadow-sm relative group">
                     <div className="flex justify-between items-start mb-1">
                       <span className="font-medium text-xs sm:text-sm">
                         Community Garden Cleanup
                       </span>
 
-                      <Badge className="text-[9px] h-4 bg-primary text-primary-foreground hover:bg-primary/80 dark:bg-primary/30 dark:text-primary-foreground">
+                      <Badge
+                        variant="neutral"
+                        className="text-[9px] h-4 bg-muted text-foreground hover:bg-muted/80 dark:bg-primary/10 dark:hover:bg-primary/20"
+                      >
                         Open
                       </Badge>
                     </div>
@@ -335,7 +345,10 @@ function ModernDashboardMockup() {
                       </span>
                     </div>
 
-                    <Button size="sm" className="w-full h-7 text-[10px]">
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-[10px] text-foreground dark:text-primary-foreground"
+                    >
                       View details
                     </Button>
                   </div>
@@ -356,6 +369,8 @@ function ModernDashboardMockup() {
             {phase === "DETAILS" && (
               <motion.div
                 key="details"
+                data-slot="comparison-demo-phase"
+                data-phase="details"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, filter: "blur(4px)" }}
@@ -401,7 +416,9 @@ function ModernDashboardMockup() {
                     transition={{ delay: 2.2, duration: 0.3 }}
                     className="w-full"
                   >
-                    <Button className="w-full h-8 text-xs">Sign up now</Button>
+                    <Button className="w-full h-8 text-xs text-foreground dark:text-primary-foreground">
+                      Sign up now
+                    </Button>
                   </motion.div>
                 </div>
               </motion.div>
@@ -411,6 +428,8 @@ function ModernDashboardMockup() {
             {phase === "QR" && (
               <motion.div
                 key="qr"
+                data-slot="comparison-demo-phase"
+                data-phase="qr"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -438,7 +457,7 @@ function ModernDashboardMockup() {
                           repeat: Infinity,
                           ease: "linear",
                         }}
-                        className="absolute left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_1px_rgba(var(--primary),0.5)] z-10"
+                        className="absolute left-0 w-full h-0.5 bg-primary shadow-[0_0_8px_1px_color-mix(in_srgb,var(--primary)_50%,transparent)] z-10"
                       />
                     </div>
                   </div>
@@ -459,7 +478,7 @@ function ModernDashboardMockup() {
                   transition={{ delay: 1.5, type: "spring" }}
                   className="absolute bottom-8 right-8 z-20"
                 >
-                  <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-xl flex items-center gap-2">
+                  <div className="bg-[color-mix(in_srgb,var(--primary)_15%,var(--background))] text-foreground ring-1 ring-primary/30 dark:bg-primary dark:text-primary-foreground dark:ring-0 px-3 py-2 rounded-lg shadow-xl flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" />
                     <span className="font-bold text-xs">Checked in</span>
                   </div>
@@ -472,6 +491,8 @@ function ModernDashboardMockup() {
             {phase === "NOTIFICATION" && (
               <motion.div
                 key="notification"
+                data-slot="comparison-demo-phase"
+                data-phase="notification"
                 className="h-full relative bg-muted/30"
               >
                 {/* Fake Dashboard BG */}
@@ -516,6 +537,8 @@ function ModernDashboardMockup() {
             {phase === "CERTIFICATE" && (
               <motion.div
                 key="certificate"
+                data-slot="comparison-demo-phase"
+                data-phase="certificate"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex items-center justify-center h-full p-4"
@@ -534,7 +557,7 @@ function ModernDashboardMockup() {
                       </div>
 
                       <div className="space-y-1">
-                        <h2 className="font-serif text-lg sm:text-xl font-bold tracking-wider text-primary">
+                        <h2 className="font-serif text-lg sm:text-xl font-bold tracking-wider text-foreground dark:text-primary">
                           CERTIFICATE
                         </h2>
                         <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -575,6 +598,8 @@ function ModernDashboardMockup() {
             {phase === "DASHBOARD" && (
               <motion.div
                 key="dashboard"
+                data-slot="comparison-demo-phase"
+                data-phase="dashboard"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="space-y-4"
@@ -694,7 +719,8 @@ function ModernDashboardMockup() {
   );
 }
 
-// Outdated SignUpGenius mockup
+// An illustrative sign-up sheet for the other provider. It is drawn by hand,
+// labelled as a mock, and makes no claim about what the provider lacks.
 function OutdatedMockup() {
   return (
     <motion.div
@@ -721,11 +747,12 @@ function OutdatedMockup() {
 
         {/* Old-style content */}
         <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 rounded-b-xl  bg-linear-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
-          {/* SignUpGenius logo */}
+          {/* SignUpGenius logo. The name is written beside it, so the image
+              carries no second copy of it. */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Image
               src="/resources/signupgenius-logo.jpg"
-              alt="SignUpGenius"
+              alt=""
               width={32}
               height={32}
               className="rounded opacity-70 w-8 h-8 sm:w-10 sm:h-10"
@@ -735,18 +762,19 @@ function OutdatedMockup() {
                 SignUpGenius
               </div>
               <div className="text-[9px] sm:text-[10px] text-muted-foreground">
-                Founded 2007
+                Sign-up sheet
               </div>
             </div>
           </div>
 
-          {/* Fake Top Banner Ad */}
+          {/* Advert slot. The provider's sign-ups page says paid plans remove
+              ads. */}
           <div className="w-full bg-background border border-border p-1.5 sm:p-2 text-center overflow-hidden relative">
             <div className="text-[10px] leading-none text-muted-foreground absolute top-0.5 right-1">
               AD
             </div>
             <span className="text-xs font-semibold text-foreground">
-              Start Your Free Trial Today! &gt;&gt;
+              Ads show on the free plan
             </span>
           </div>
 
@@ -791,26 +819,14 @@ function OutdatedMockup() {
             </div>
           </div>
 
-          {/* Missing features callout */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            {["No hours", "No certs", "No QR", "Ads"].map((missing, i) => (
-              <motion.div
-                key={missing}
-                initial={false}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.8 + i * 0.1 }}
-                className="flex items-center gap-1.5 text-[10px] sm:text-xs text-muted-foreground"
-              >
-                <X className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-destructive shrink-0" />
-                {missing}
-              </motion.div>
-            ))}
-          </div>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
+            Not a screenshot. See the provider&apos;s site for its current
+            product.
+          </p>
         </div>
       </div>
 
-      {/* "Stuck in 2010" label */}
+      {/* Says what the drawing is */}
       <motion.div
         initial={false}
         whileInView={{ opacity: 1, rotate: -3 }}
@@ -818,7 +834,7 @@ function OutdatedMockup() {
         transition={{ delay: 1.2 }}
         className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 px-2 sm:px-3 py-1 rounded-full border border-warning/50 bg-background text-foreground text-[10px] sm:text-xs font-medium shadow-lg"
       >
-        2010 design
+        Illustrative mock
       </motion.div>
     </motion.div>
   );
@@ -834,7 +850,11 @@ function AnimatedCheck({ delay = 0 }: { delay?: number }) {
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
       className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-primary/15 mx-auto"
     >
-      <Check className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+      <Check
+        aria-hidden="true"
+        className="h-3 w-3 sm:h-4 sm:w-4 text-foreground dark:text-primary"
+      />
+      <span className="sr-only">Included</span>
     </motion.div>
   );
 }
@@ -848,7 +868,11 @@ function AnimatedX({ delay = 0 }: { delay?: number }) {
       transition={{ delay, type: "spring", stiffness: 300, damping: 20 }}
       className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-destructive/10 mx-auto"
     >
-      <X className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
+      <X
+        aria-hidden="true"
+        className="h-3 w-3 sm:h-4 sm:w-4 text-destructive"
+      />
+      <span className="sr-only">Not included</span>
     </motion.div>
   );
 }
@@ -871,34 +895,34 @@ function ComparisonRow({
       transition={{ delay, duration: 0.3 }}
       className={`border-b border-border/50 ${feature.highlight ? "bg-primary/5" : ""}`}
     >
-      <TableCell className="py-3 sm:py-4 px-3 sm:px-4">
+      <TableCell className="py-3 sm:py-4 px-3 sm:px-4 whitespace-normal">
         <div className="flex items-center gap-2 sm:gap-3">
           <div
-            className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
+            className={`rounded-lg p-1 sm:p-1.5 shrink-0 ${feature.highlight ? "bg-primary/15 text-foreground dark:text-primary" : "bg-muted text-muted-foreground"}`}
           >
             <feature.icon className="h-3 w-3 sm:h-4 sm:w-4" />
           </div>
           <div className="min-w-0">
             <div
-              className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight ${feature.highlight ? "text-primary" : "text-foreground"}`}
+              className={`flex flex-wrap items-center gap-1.5 text-xs sm:text-sm font-medium leading-tight text-foreground ${feature.highlight ? "dark:text-primary" : ""}`}
             >
-              <span>{feature.name}</span>
+              <span className="min-w-0 wrap-break-word">{feature.name}</span>
               {feature.highlight && (
                 <Badge
                   variant="outline"
-                  className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-primary"
+                  className="text-[8px] sm:text-[10px] py-0 px-1 sm:px-1.5 border-primary/30 text-foreground dark:text-primary"
                 >
                   Key
                 </Badge>
               )}
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block truncate">
+            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
               {feature.description}
             </p>
           </div>
         </div>
       </TableCell>
-      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center leading-tight whitespace-normal">
         {typeof feature.letsAssist === "boolean" ? (
           feature.letsAssist ? (
             <AnimatedCheck delay={delay + 0.1} />
@@ -911,13 +935,13 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.1 }}
-            className="text-[10px] sm:text-xs font-medium text-primary"
+            className="text-[10px] sm:text-xs font-medium text-foreground dark:text-primary"
           >
             {feature.letsAssist}
           </motion.span>
         )}
       </TableCell>
-      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center">
+      <TableCell className="py-3 sm:py-4 px-2 sm:px-4 text-center leading-tight whitespace-normal">
         {typeof feature.signupGenius === "boolean" ? (
           feature.signupGenius ? (
             <AnimatedCheck delay={delay + 0.15} />
@@ -930,7 +954,7 @@ function ComparisonRow({
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ delay: delay + 0.15 }}
-            className="text-[10px] sm:text-xs text-muted-foreground"
+            className="text-[10px] sm:text-xs text-foreground/80"
           >
             {feature.signupGenius}
           </motion.span>
@@ -965,11 +989,11 @@ export default function ComparisonSection() {
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              SignUpGenius is <ComparisonTextFlip words={flipWords} />
+              One workflow for <ComparisonTextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-primary">
-                Let&apos;s Assist is built for today.
+                Let&apos;s Assist is built for volunteer hours.
               </span>
             </h2>
           </div>
@@ -981,9 +1005,12 @@ export default function ComparisonSection() {
             transition={{ delay: 0.3 }}
             className="mt-4 sm:mt-6 text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto px-4"
           >
-            SignUpGenius was made for potluck lists. Let&apos;s Assist tracks
-            hours, issues certificates, and exports reports, and it is{" "}
-            <span className="text-primary font-medium">free</span>.
+            Let&apos;s Assist takes a volunteer from sign-up to QR check-in,
+            verified hours, and a certificate, and it is{" "}
+            <span className="text-foreground dark:text-primary font-medium">
+              free
+            </span>
+            .
           </motion.p>
         </motion.div>
 
@@ -1038,63 +1065,70 @@ export default function ComparisonSection() {
           className="mx-auto max-w-4xl mb-12 sm:mb-16"
         >
           <Card className="overflow-hidden border-border/60 py-[-2]">
-            <div className="overflow-x-auto">
-              <Table className="w-full min-w-[360px]">
-                <TableHeader>
-                  <TableRow className="border-b border-border bg-muted/30">
-                    <TableHead className="py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground">
-                      Feature comparison
-                    </TableHead>
-                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
-                      <div className="flex flex-col items-center gap-1 sm:gap-1.5">
-                        <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
-                          <Image
-                            src="/logo.png"
-                            alt="Let's Assist"
-                            width={28}
-                            height={28}
-                            className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
-                          />
-                        </div>
-                        <span className="text-[10px] sm:text-sm font-bold text-primary tracking-tight">
-                          Let&apos;s Assist
-                        </span>
-                      </div>
-                    </TableHead>
-                    <TableHead className="py-3 sm:py-5 px-2 sm:px-4 text-center w-20 sm:w-32">
-                      <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
+            {/* A plain table, not the Table primitive: the primitive wraps
+                itself in a horizontal scroll region, and this table is laid
+                out to fit a 320px phone by wrapping instead of scrolling. */}
+            <table
+              aria-label="Let's Assist and SignUpGenius feature comparison"
+              aria-describedby="comparison-sources"
+              className="w-full table-fixed caption-bottom text-sm"
+            >
+              <TableHeader>
+                <TableRow className="border-b border-border bg-muted/30">
+                  <TableHead className="h-auto py-3 sm:py-5 px-3 sm:px-4 text-left text-sm sm:text-base font-bold text-foreground whitespace-normal">
+                    Feature comparison
+                  </TableHead>
+                  <TableHead className="h-auto py-3 sm:py-5 px-2 sm:px-4 text-center w-18 sm:w-32 whitespace-normal">
+                    <div className="flex flex-col items-center gap-1 sm:gap-1.5">
+                      <div className=" rounded-xl bg-primary/20 flex items-center justify-center shadow-sm">
                         <Image
-                          src="/resources/signupgenius-logo.jpg"
-                          alt="SignUpGenius"
+                          src="/logo.png"
+                          alt=""
                           width={28}
                           height={28}
-                          className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
+                          className="opacity-90 w-6 h-6 sm:w-7 sm:h-7"
                         />
-                        <span className="text-[10px] sm:text-sm font-semibold text-muted-foreground tracking-tight">
-                          SignUpGenius
-                        </span>
                       </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleFeatures.map((feature, i) => (
-                    <ComparisonRow
-                      key={feature.name}
-                      feature={feature}
-                      index={i}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      <span className="text-[10px] sm:text-sm font-bold text-foreground dark:text-primary tracking-tight">
+                        Let&apos;s Assist
+                      </span>
+                    </div>
+                  </TableHead>
+                  <TableHead className="h-auto py-3 sm:py-5 px-2 sm:px-4 text-center w-18 sm:w-32 whitespace-normal">
+                    <div className="flex flex-col items-center gap-1 sm:gap-1.5 grayscale opacity-60">
+                      <Image
+                        src="/resources/signupgenius-logo.jpg"
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="rounded-lg w-6 h-6 sm:w-7 sm:h-7"
+                      />
+                      <span className="text-[10px] sm:text-sm leading-tight font-semibold text-muted-foreground tracking-tight">
+                        SignUp
+                        <wbr />
+                        Genius
+                      </span>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleFeatures.map((feature, i) => (
+                  <ComparisonRow
+                    key={feature.name}
+                    feature={feature}
+                    index={i}
+                  />
+                ))}
+              </TableBody>
+            </table>
             {!showAllFeatures && comparisonFeatures.length > 6 && (
               <div className="p-3 sm:p-4 text-center border-t border-border/50 bg-muted/20">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowAllFeatures(true)}
-                  className="text-primary hover:text-primary/80 hover:bg-primary/10 text-xs sm:text-sm"
+                  className="text-foreground hover:text-foreground hover:bg-primary/10 dark:text-primary dark:hover:text-primary/80 text-xs sm:text-sm"
                 >
                   Show all {comparisonFeatures.length} features
                   <ArrowRight className="ml-1 h-3 w-3 sm:h-4 sm:w-4" />
@@ -1102,6 +1136,7 @@ export default function ComparisonSection() {
               </div>
             )}
           </Card>
+          <ComparisonSources />
         </motion.div>
       </div>
     </section>

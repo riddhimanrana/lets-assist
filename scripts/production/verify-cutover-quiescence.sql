@@ -4,9 +4,17 @@
 
 \set ON_ERROR_STOP on
 
-BEGIN READ ONLY;
+BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
+SET LOCAL search_path TO pg_catalog;
 SET LOCAL statement_timeout = '20s';
 SET LOCAL lock_timeout = '5s';
+
+SELECT current_setting('transaction_read_only') = 'on' AS read_only_active
+\gset
+\if :read_only_active
+\else
+  SELECT 1 / 0 AS quiescence_check_failed;
+\endif
 
 SELECT count(*) = 0 AS no_active_pg_cron_jobs
 FROM cron.job
@@ -34,7 +42,7 @@ WHERE status = 'running'
 
 SELECT EXISTS (
   SELECT 1
-  FROM pg_roles
+FROM pg_catalog.pg_roles
   WHERE rolname = 'authenticator'
     AND 'pgrst.app_settings.maintenance_write_block=on' = ANY (
       coalesce(rolconfig, ARRAY[]::text[])

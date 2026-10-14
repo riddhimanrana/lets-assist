@@ -28,7 +28,14 @@ function jobBlock(name: string) {
 
 // Every job that checks out the repository. The remaining jobs only compare the
 // results of these and run no repository code.
-const checkoutJobs = ["static", "unit", "build", "database", "browser"];
+const checkoutJobs = [
+  "static",
+  "unit",
+  "build",
+  "database",
+  "browser",
+  "layout-audit",
+];
 const resultOnlyJobs = ["quality", "db-replay-validation", "ci-gate"];
 
 describe("private plugin CI credential", () => {

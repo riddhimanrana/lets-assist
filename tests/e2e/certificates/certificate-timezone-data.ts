@@ -1,0 +1,27 @@
+export const certificate = {
+  id: "fictional-timezone-certificate",
+  project_title: "Fictional Tokyo volunteering",
+  creator_name: "Fictional supervisor",
+  creator_username: null,
+  is_certified: false,
+  type: "self-reported" as const,
+  event_start: "2026-10-12T15:30:00Z",
+  event_end: "2026-10-12T16:30:00Z",
+  event_timezone: "Asia/Tokyo",
+  timeZone: "Asia/Tokyo",
+  check_in_method: "self_report",
+  organization_name: "Fictional organization",
+  project_id: null,
+  issued_at: "2026-10-12T17:00:00Z",
+  volunteer_name: "Fictional volunteer",
+  project_location: null,
+  description: "Fictional date-boundary regression",
+  volunteer_email: null,
+  schedule_id: null,
+  signup_id: null,
+  hours: 1,
+};
+export const user = {
+  name: "Fictional volunteer",
+  email: "fictional@local.test",
+};

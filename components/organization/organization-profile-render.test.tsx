@@ -190,6 +190,44 @@ describe("landing organization mock", () => {
     expect(usage).toContain("headingLevel={2}");
     expect(usage).not.toContain("compact");
   });
+
+  // The sample organization is not a real record, so it does not borrow a
+  // real domain or the verified mark. The header itself is unchanged.
+  test("uses a reserved example domain and claims no verified status", () => {
+    const section = readFileSync(
+      new URL(
+        "../../app/(landing)/_components/OrgToolingSection.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const start = section.indexOf("const mockOrganization = {");
+    expect(start).toBeGreaterThan(-1);
+    const sample = section.slice(start, section.indexOf("\n};", start));
+
+    expect(sample).toContain('website: "https://sanramon.example/"');
+    expect(sample).toContain("verified: false");
+    expect(sample).not.toContain("verified: true");
+    expect(sample).not.toContain(".gov");
+    // The name, handle and logo are the ones the demo has always shown.
+    expect(sample).toContain('name: "San Ramon City Alliance"');
+    expect(sample).toContain('username: "sanramon"');
+    expect(sample).toContain('logo_url: "/logos/sanramon.jpg"');
+    expect(sample).toContain("this is a mock and is not affiliated");
+  });
+
+  test("the section around it says the organization is a sample", () => {
+    const intro = readFileSync(
+      new URL(
+        "../../app/(landing)/_components/OrgToolingIntro.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(intro).toContain("For organizations · Sample organization");
+    expect(intro).toContain("A workspace for your volunteer organization");
+    expect(intro).not.toContain("SignUpGenius");
+  });
 });
 
 describe("organization overview tab", () => {
@@ -249,6 +287,29 @@ describe("organization overview tab", () => {
     expect(html).toContain("Community hall");
     expect(html).toContain('href="?tab=projects"');
     expect(html).toContain("View all");
+  });
+
+  // Whether a long title reads in full beside the badge at 320 and 390 is a
+  // browser measurement. This holds the classes that allow it.
+  test("a recent project title wraps to two lines on a phone", () => {
+    const html = overview({
+      projects: [project({ title: "Downtown Summer Market Support" })],
+      userRole: null,
+    });
+    const title =
+      /<span class="([^"]*)">Downtown Summer Market Support<\/span>/u.exec(
+        html,
+      );
+    expect(title).not.toBeNull();
+    const names = (title?.[1] ?? "").split(/\s+/u);
+
+    expect(names).toEqual(
+      expect.arrayContaining(["min-w-0", "line-clamp-2", "sm:line-clamp-1"]),
+    );
+    expect(names).not.toContain("truncate");
+    // The row is still a link to the project, with its location under it.
+    expect(html).toContain('href="/projects/project-1"');
+    expect(html).toContain("Community hall");
   });
 
   test("shows an empty state, with New project only for staff and admins", () => {

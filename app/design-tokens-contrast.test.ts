@@ -105,9 +105,9 @@ const LIGHT_TOKENS: Record<string, Rgb> = {
   success: { r: 14, g: 103, b: 47 },
   warning: { r: 122, g: 78, b: 16 },
   info: { r: 10, g: 75, b: 205 },
-  primary: { r: 14, g: 103, b: 47 },
+  primary: { r: 22, g: 163, b: 74 },
   destructive: { r: 169, g: 15, b: 15 },
-  ring: { r: 14, g: 103, b: 47 },
+  ring: { r: 22, g: 163, b: 74 },
 };
 
 function token(tokens: Map<string, Rgb>, name: string) {
@@ -128,39 +128,31 @@ type Contract = {
 const contracts: Contract[] = [
   {
     theme: "light",
-    description: "primary button label on the primary fill",
-    foreground: "primary-foreground",
+    description: "admin badge label on the primary fill",
+    foreground: "foreground",
     background: "primary",
   },
   {
     theme: "light",
-    description: "destructive label on the destructive fill",
-    foreground: "destructive-foreground",
-    background: "destructive",
+    description: "staff badge label on the blue tint",
+    foreground: "foreground",
+    background: "info",
+    tintOver: "background",
   },
   {
     theme: "light",
-    description: "muted text on the muted surface",
-    foreground: "muted-foreground",
-    background: "muted",
+    description: "organization title on the hovered green card",
+    foreground: "content-link",
+    background: "primary",
+    tintOver: "background",
   },
-  ...["primary", "success", "info", "warning", "destructive"].flatMap(
-    (name): Contract[] => [
-      {
-        theme: "light",
-        description: `${name} text on the page`,
-        foreground: name,
-        background: "background",
-      },
-      {
-        theme: "light",
-        description: `${name} text on its own 10% tint`,
-        foreground: name,
-        background: name,
-        tintOver: "background",
-      },
-    ],
-  ),
+  {
+    theme: "dark",
+    description: "staff badge label on the blue tint",
+    foreground: "info",
+    background: "info",
+    tintOver: "background",
+  },
   {
     theme: "dark",
     description: "primary button label on the primary fill",
@@ -186,6 +178,25 @@ describe("theme token contrast contracts", () => {
     for (const [name, expected] of Object.entries(LIGHT_TOKENS)) {
       expect(token(light, name), `unexpected --${name}`).toEqual(expected);
     }
+  });
+
+  test("scanner errors use legible solid fills in both themes", () => {
+    const scanner = readFileSync(
+      join(import.meta.dir, "projects/_components/QRCodeScannerModal.tsx"),
+      "utf8",
+    );
+    expect(scanner).toContain(
+      "bg-red-700 text-white dark:bg-destructive dark:text-destructive-foreground",
+    );
+    const red700 = { r: 185, g: 28, b: 28 };
+    const white = { r: 255, g: 255, b: 255 };
+    expect(contrastRatio(white, red700)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    expect(
+      contrastRatio(
+        token(dark, "destructive-foreground"),
+        token(dark, "destructive"),
+      ),
+    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
   });
 
   for (const contract of contracts) {

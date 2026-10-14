@@ -92,7 +92,8 @@ const FOOTER_STATUS_META: Record<
   degraded: {
     label: "Degraded",
     dotClassName: "bg-warning",
-    badgeClassName: "border-warning/35 bg-warning/10 text-warning",
+    badgeClassName:
+      "border-warning/35 bg-warning/10 text-amber-800 dark:text-warning",
   },
   outage: {
     label: "Outage",
@@ -102,7 +103,8 @@ const FOOTER_STATUS_META: Record<
   unknown: {
     label: "Checking",
     dotClassName: "bg-warning",
-    badgeClassName: "border-warning/35 bg-warning/10 text-warning",
+    badgeClassName:
+      "border-warning/35 bg-warning/10 text-amber-800 dark:text-warning",
   },
 };
 

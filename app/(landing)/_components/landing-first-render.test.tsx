@@ -4,7 +4,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { LandingLazySections } from "../LandingLazySections";
 import ComparisonSection from "./ComparisonSection";
-import { CallToAction } from "./CallToAction";
 import VolunteerJourneySection from "./VolunteerJourneySection";
 
 // The real components render here, with the real motion library, so an
@@ -42,7 +41,7 @@ function linkDestination(markup: string, name: string) {
 
 describe("landing first-response visibility", () => {
   test("the final signup and demo actions are visible in the first response", () => {
-    const html = renderToStaticMarkup(createElement(CallToAction));
+    const html = renderToStaticMarkup(createElement(LandingLazySections));
     expect(linkDestination(html, "Make a difference")).toBe("/signup");
     expect(readableText(html)).toContain("Play demo video");
     expect(hiddenFirstRenderStyles(html)).toEqual([]);
@@ -53,8 +52,8 @@ describe("landing first-response visibility", () => {
     const html = renderToStaticMarkup(createElement(ComparisonSection));
     const text = readableText(html);
     for (const copy of [
-      "SignUpGenius is outdated",
-      "Let's Assist is built for today.",
+      "One workflow for",
+      "Let's Assist is built for volunteer hours.",
       "QR check-in and check-out",
       "Explore opportunities",
       "Volunteer Signup Sheet",
@@ -92,7 +91,7 @@ describe("landing first-response visibility", () => {
     expect(section).toBeDefined();
     const text = readableText(section ?? "");
     for (const copy of [
-      "The workspace SignUpGenius never built",
+      "A workspace for your volunteer organization",
       "Google Sheets + Calendar syncing",
       "Custom plugins",
       "Analytics dashboards",

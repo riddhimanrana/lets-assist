@@ -45,7 +45,16 @@ export interface UseUserProfileReturn {
   pending: "auth" | "profile" | null;
   /** The last read failure for the signed-in account, until a read succeeds. */
   error: Error | null;
+  /**
+   * The read `error` came from. With "settings" the profile read succeeded
+   * and `profile` is current.
+   */
+  errorSource: "profile" | "settings" | null;
   refetch: () => Promise<void>;
+}
+
+function toError(err: unknown) {
+  return err instanceof Error ? err : new Error(String(err));
 }
 
 /**
@@ -58,9 +67,11 @@ export function useUserProfile(): UseUserProfileReturn {
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [loading, setLoading] = useState(true);
   // Kept with the account it belongs to, like the profile and settings rows.
-  const [error, setError] = useState<{ userId: string; error: Error } | null>(
-    null,
-  );
+  const [error, setError] = useState<{
+    userId: string;
+    error: Error;
+    source: "profile" | "settings";
+  } | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const channelNameRef = useRef(
@@ -118,7 +129,9 @@ export function useUserProfile(): UseUserProfileReturn {
     if (authLoading) return;
     const lifecycle = createAuthStateLifecycle({
       resolve: async () => {
-        if (!user?.id) return { profile: null, settings: null };
+        if (!user?.id) {
+          return { profile: null, settings: null, settingsError: null };
+        }
         const [profileResult, settingsResult] = await Promise.all([
           supabase
             .from("profiles")
@@ -134,17 +147,29 @@ export function useUserProfile(): UseUserProfileReturn {
             .maybeSingle(),
         ]);
         if (profileResult.error) throw profileResult.error;
-        if (settingsResult.error) throw settingsResult.error;
+        // A settings failure travels with the profile that was read, so the
+        // lifecycle can still reject both together when the read is stale.
         return {
           profile: profileResult.data as UserProfile | null,
           settings: settingsResult.data as NotificationSettings | null,
+          settingsError: (settingsResult.error ?? null) as unknown,
         };
       },
       onStart: () => setLoading(true),
       onResolved: (data) => {
         setProfile(data.profile);
-        setSettings(data.settings);
-        setError(null);
+        if (!data.settingsError || !user?.id) {
+          setSettings(data.settings);
+          setError(null);
+          return;
+        }
+        // The settings already held stay as they are, fenced to their account.
+        safeConsole.error("[useUserProfile] Fetch error:", data.settingsError);
+        setError({
+          userId: user.id,
+          error: toError(data.settingsError),
+          source: "settings",
+        });
       },
       onSignedOut: () => {
         setProfile(null);
@@ -154,10 +179,7 @@ export function useUserProfile(): UseUserProfileReturn {
       onError: (err) => {
         safeConsole.error("[useUserProfile] Fetch error:", err);
         if (!user?.id) return;
-        setError({
-          userId: user.id,
-          error: err instanceof Error ? err : new Error(String(err)),
-        });
+        setError({ userId: user.id, error: toError(err), source: "profile" });
       },
       onSettled: () => setLoading(false),
     });
@@ -174,12 +196,15 @@ export function useUserProfile(): UseUserProfileReturn {
     await loaderRef.current?.refresh();
   }, []);
 
+  const accountError = user?.id && error?.userId === user.id ? error : null;
+
   return {
     profile: profile?.id === user?.id ? profile : null,
     settings: settings?.user_id === user?.id ? settings : null,
     loading: authLoading || loading,
     pending: authLoading ? "auth" : loading ? "profile" : null,
-    error: user?.id && error?.userId === user.id ? error.error : null,
+    error: accountError?.error ?? null,
+    errorSource: accountError?.source ?? null,
     refetch,
   };
 }

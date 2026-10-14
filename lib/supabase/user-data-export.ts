@@ -227,7 +227,7 @@ export async function createUserDataExportArchive(
   const zipDate = new Date(payload.metadata.generatedAt);
   const addFile = (name: string, value: unknown) => {
     const folder = name.slice(0, name.lastIndexOf("/") + 1);
-    // JSZip's implicit folders use the current clock, breaking snapshot replay.
+    // Explicit folders retain the snapshot time instead of the current clock.
     if (folder && !zip.files[folder])
       zip.file(folder, null, {
         dir: true,

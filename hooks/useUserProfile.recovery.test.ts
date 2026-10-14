@@ -175,6 +175,15 @@ function row(id: string, fullName: string) {
   };
 }
 
+function settingsRow(userId: string) {
+  return {
+    user_id: userId,
+    email_notifications: true,
+    project_updates: true,
+    general: false,
+  };
+}
+
 /** Each read is one profiles query followed by one settings query. */
 async function settleRead(
   index: number,
@@ -227,6 +236,16 @@ test("a failed read is returned as an error for the signed-in account", async ()
   expect(loggedEvents).toEqual(["[useUserProfile] Fetch error:"]);
 });
 
+test("a failed profile read is reported as a profile failure", async () => {
+  render();
+  await settleRead(0, failure, { data: settingsRow("account-a"), error: null });
+  const failed = render();
+  expect(failed.error).toBe(failure.error);
+  expect(failed.errorSource).toBe("profile");
+  expect(failed.profile).toBeNull();
+  expect(failed.settings).toBeNull();
+});
+
 test("a provider error object is returned as an Error", async () => {
   render();
   await settleRead(
@@ -236,7 +255,120 @@ test("a provider error object is returned as an Error", async () => {
   );
   const failed = render();
   expect(failed.error).toBeInstanceOf(Error);
-  expect(failed.profile).toBeNull();
+  expect(failed.errorSource).toBe("settings");
+  expect(failed.profile?.full_name).toBe("Sample Volunteer");
+});
+
+test("a settings failure keeps the profile that was read with it", async () => {
+  render();
+  await settleRead(
+    0,
+    { data: row("account-a", "Sample Volunteer"), error: null },
+    failure,
+  );
+  const partial = render();
+  expect(partial.loading).toBe(false);
+  expect(partial.pending).toBeNull();
+  expect(partial.profile?.full_name).toBe("Sample Volunteer");
+  expect(partial.settings).toBeNull();
+  expect(partial.error).toBe(failure.error);
+  expect(partial.errorSource).toBe("settings");
+  expect(loggedEvents).toEqual(["[useUserProfile] Fetch error:"]);
+
+  // A retry that reads both rows clears the partial failure.
+  const retry = partial.refetch();
+  await settleRead(
+    1,
+    { data: row("account-a", "Sample Volunteer"), error: null },
+    { data: settingsRow("account-a"), error: null },
+  );
+  await retry;
+  const recovered = render();
+  expect(recovered.error).toBeNull();
+  expect(recovered.errorSource).toBeNull();
+  expect(recovered.settings?.user_id).toBe("account-a");
+});
+
+test("a settings failure on refresh takes the fresh profile and keeps the settings already held", async () => {
+  render();
+  await settleRead(
+    0,
+    { data: row("account-a", "Before"), error: null },
+    { data: settingsRow("account-a"), error: null },
+  );
+  const loaded = render();
+  expect(loaded.settings?.user_id).toBe("account-a");
+
+  void loaded.refetch();
+  await settleRead(
+    1,
+    { data: row("account-a", "After"), error: null },
+    failure,
+  );
+  const partial = render();
+  expect(partial.profile?.full_name).toBe("After");
+  expect(partial.settings?.user_id).toBe("account-a");
+  expect(partial.error).toBe(failure.error);
+  expect(partial.errorSource).toBe("settings");
+});
+
+test("a superseded settings failure cannot replace the newer result or report an error", async () => {
+  const first = render();
+  void first.refetch();
+  await settleRead(
+    1,
+    { data: row("account-a", "Current"), error: null },
+    { data: settingsRow("account-a"), error: null },
+  );
+  await settleRead(
+    0,
+    { data: row("account-a", "Superseded"), error: null },
+    failure,
+  );
+  const settled = render();
+  expect(settled.loading).toBe(false);
+  expect(settled.profile?.full_name).toBe("Current");
+  expect(settled.settings?.user_id).toBe("account-a");
+  expect(settled.error).toBeNull();
+  expect(settled.errorSource).toBeNull();
+  expect(loggedEvents).toEqual([]);
+});
+
+test("a settings failure stays with its own account across an account change", async () => {
+  render();
+  auth = { user: { id: "account-b" }, loading: false };
+  render();
+
+  // The first account's read answers late, with its settings read failed.
+  await settleRead(
+    0,
+    { data: row("account-a", "Previous"), error: null },
+    failure,
+  );
+  const stillLoading = render();
+  expect(stillLoading.loading).toBe(true);
+  expect(stillLoading.profile).toBeNull();
+  expect(stillLoading.error).toBeNull();
+  expect(stillLoading.errorSource).toBeNull();
+  expect(loggedEvents).toEqual([]);
+
+  await settleRead(
+    1,
+    { data: row("account-b", "Current"), error: null },
+    failure,
+  );
+  const partial = render();
+  expect(partial.profile?.id).toBe("account-b");
+  expect(partial.error).toBe(failure.error);
+  expect(partial.errorSource).toBe("settings");
+
+  // Back on the first account, the other account's rows and error are gone.
+  auth = { user: { id: "account-a" }, loading: false };
+  const back = render();
+  expect(back.loading).toBe(true);
+  expect(back.profile).toBeNull();
+  expect(back.error).toBeNull();
+  expect(back.errorSource).toBeNull();
 });
 
 test("a read with no rows is a valid empty profile, not an error", async () => {

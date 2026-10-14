@@ -74,11 +74,20 @@ export const HeroVideo = () => {
               </CardContent>
             </Card>
 
-            <DialogContent className="w-[calc(100%-2rem)] max-w-screen-xl sm:max-w-screen-xl border-none bg-transparent p-0 shadow-none [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white">
-              <DialogTitle className="sr-only">
-                Let&apos;s Assist demo video
-              </DialogTitle>
-              <div className="relative aspect-video min-h-[200px] w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10 shadow-2xl">
+            <DialogContent className="w-[calc(100%-2rem)] max-w-screen-xl sm:max-w-screen-xl gap-2 border-none bg-transparent p-0 shadow-none [&>[data-slot=dialog-close]]:top-2.5 [&>[data-slot=dialog-close]]:right-2.5 [&>[data-slot=dialog-close]]:size-11 [&>[data-slot=dialog-close]]:bg-black/70 [&>[data-slot=dialog-close]]:text-white [&>[data-slot=dialog-close]]:hover:bg-black/90 [&>[data-slot=dialog-close]]:hover:text-white [&>[data-slot=dialog-close]]:focus-visible:ring-white [&>[data-slot=dialog-close]]:focus-visible:ring-inset">
+              {/* The close button sits over this bar, never the player. */}
+              <div
+                data-slot="video-dialog-toolbar"
+                className="flex min-h-16 items-center rounded-2xl bg-background py-2.5 pr-16 pl-5 text-foreground"
+              >
+                <DialogTitle className="text-sm font-semibold sm:text-base">
+                  Let&apos;s Assist demo video
+                </DialogTitle>
+              </div>
+              <div
+                data-slot="video-dialog-player"
+                className="relative aspect-video min-h-[200px] w-full overflow-hidden rounded-2xl bg-black ring-1 ring-white/10 shadow-2xl"
+              >
                 {open ? (
                   <iframe
                     className="absolute inset-0 h-full w-full"

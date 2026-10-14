@@ -140,7 +140,15 @@ describe("CSF Production recovery window", () => {
       deployment.indexOf("Require Production recovery credentials"),
     ).toBeLessThan(arm);
     expect(supabaseDeploymentGuide).toContain("- `SUPABASE_SECRET_KEY`");
-    expect(supabaseDeploymentGuide).toContain("- `PRODUCTION_READONLY_URL`");
+    expect(recoveryCredentials).toContain(
+      "PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}",
+    );
+    expect(recoveryCredentials).toContain(
+      "node scripts/production/maintenance-preflight.mjs credentials",
+    );
+    expect(supabaseDeploymentGuide).toContain(
+      "`PRODUCTION_READONLY_URL` when configured",
+    );
     const priorRecoveryStep = stepBlock(
       priorRecovery,
       "Refuse re-runs and unresolved Production recovery",

@@ -148,7 +148,7 @@ VALUES (
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
   verification_method, schedule, require_login, organization_id,
-  can_be_managed_by_staff
+  can_be_managed_by_staff, status
 )
 VALUES (
   'ac200000-0000-4000-8000-000000000001',
@@ -158,7 +158,7 @@ VALUES (
   '{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
   true,
   'ac100000-0000-4000-8000-000000000001',
-  true
+  true, 'upcoming'
 );
 
 INSERT INTO public.project_signups (
@@ -172,6 +172,24 @@ VALUES (
   'approved'
 );
 COMMIT;
+SQL
+
+# Control only this historical fixture. Maintenance may skip a run when another
+# maintenance transaction already holds its advisory lock; the publication and
+# reset scenarios must still deterministically begin with a completed project.
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
+SELECT public.process_projects();
+DO $$
+BEGIN
+  IF (SELECT status FROM public.projects
+      WHERE id = 'ac200000-0000-4000-8000-000000000001') IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'historical publication fixture must begin completed';
+  END IF;
+END;
+$$;
 SQL
 # Exercise the completed state independently of the five-minute cron boundary.
 complete_fixture_project

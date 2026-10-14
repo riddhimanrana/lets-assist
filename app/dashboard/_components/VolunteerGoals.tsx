@@ -528,6 +528,7 @@ function GoalRow({
       </div>
 
       <ProgressCircle
+        label={`${title} progress`}
         value={percentage}
         size={64}
         strokeWidth={5}

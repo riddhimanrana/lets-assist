@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { certificateToDashboardExport } from "@/lib/certificates/dashboard-export";
 
 let authorized = true;
 const inserted: Record<string, unknown>[] = [];
@@ -56,9 +57,39 @@ describe("self-reported hours route", () => {
       user_id: "viewer",
       event_start: "2026-10-06T16:00:00.000Z",
       event_end: "2026-10-06T17:00:00.000Z",
+      event_timezone: "America/Los_Angeles",
       is_certified: false,
       type: "self-reported",
     });
+  });
+  test("retains a New York wall clock and local date through the persisted export row", async () => {
+    const response = await POST(
+      request(
+        JSON.stringify({
+          ...input,
+          date: "2026-10-12",
+          startTime: "23:00",
+          endTime: "23:45",
+          timeZone: "America/New_York",
+          event_timezone: "America/Los_Angeles",
+        }),
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(inserted[0]).toMatchObject({
+      project_id: null,
+      event_timezone: "America/New_York",
+      event_start: "2026-10-13T03:00:00.000Z",
+      event_end: "2026-10-13T03:45:00.000Z",
+    });
+    const row = certificateToDashboardExport(
+      { id: "fictional", ...inserted[0] },
+      "viewer@example.test",
+    );
+    expect(row.date).toBe("2026-10-12");
+    expect(row.startTime).toBe("11:00 PM EDT");
+    expect(row.endTime).toBe("11:45 PM EDT");
+    expect(row.type).toBe("self-reported");
   });
   test("malformed JSON and invalid field types return 400 without a write", async () => {
     expect((await POST(request("invalid json"))).status).toBe(400);

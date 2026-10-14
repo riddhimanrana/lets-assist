@@ -33,8 +33,9 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 23%);
-    /* accent - green, the identity hue at the step that carries small text */
+    --content-link: hsl(142.1 76.2% 23%);
+    --primary: hsl(142.1 76.2% 36.3%);
+    /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
     /* green #16a34a, the identity green for decorative brand washes. It stays
        lighter than --primary on purpose. Decorative only: never put text, an
@@ -93,7 +94,7 @@
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 23%);
+    --ring: hsl(142.1 76.2% 36.3%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
@@ -172,6 +173,7 @@
     /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
+    --content-link: hsl(115 54% 76%);
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);
@@ -280,6 +282,7 @@
   --color-primary-foreground: var(--primary-foreground);
 
   --color-brand: var(--brand);
+  --color-content-link: var(--content-link);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);

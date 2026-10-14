@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import { Bot, Inbox } from "lucide-react";
@@ -49,6 +50,8 @@ interface OverviewTabProps {
   flaggedContent: FlaggedContent[];
   reportPreview: ModerationReport[];
   reportsStats: ReportsStats;
+  /** Page-level controls that belong directly under the page heading. */
+  afterHeader?: ReactNode;
 }
 
 type FlaggedContent = {
@@ -175,6 +178,7 @@ export function OverviewTab({
   flaggedContent,
   reportPreview,
   reportsStats,
+  afterHeader,
 }: OverviewTabProps) {
   const reviewIcon = useAnimatedIcon();
   const data = [
@@ -247,6 +251,8 @@ export function OverviewTab({
           </Link>
         }
       />
+
+      {afterHeader}
 
       <StatStrip
         items={[

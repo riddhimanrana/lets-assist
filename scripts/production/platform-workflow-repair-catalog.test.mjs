@@ -37,7 +37,7 @@ test("the reviewed workflow repair ledger retains every prior object", () => {
     [...before.keys()].filter((id) => before.get(id) !== after.get(id)).length,
     11,
   );
-  assert.deepEqual(maintenanceTarget(root), expectedVersions(root));
+  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
 });
 
 test("the workflow catalog preserves prior guards and binds provider-owned hooks", () => {

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { format } from "date-fns";
+import { Clock, Users } from "lucide-react";
 
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { formatSpotsLeft } from "@/lib/projects/availability";
@@ -23,7 +24,7 @@ export function formatSlotTimeRange(startTime?: string, endTime?: string) {
 
 /**
  * One schedule slot: what it is, when, how many spots are left, and its one
- * action on the right. The action label carries the slot's state. Pass the
+ * action beside the bordered slot, stacking on phones. The action label carries the slot's state. Pass the
  * slot's day as `date` so the timezone badge shows that season's abbreviation.
  */
 export function ProjectSlotRow({
@@ -53,32 +54,40 @@ export function ProjectSlotRow({
   const spotsLead = remaining > 0 ? String(remaining) : spotsLabel;
 
   return (
-    <li className="py-3 first:pt-0 last:pb-0">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="grid min-w-40 flex-1 gap-0.5">
+    <li className="rounded-lg border bg-card/50 p-3 transition-colors hover:bg-card/80 sm:p-4">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div className="grid min-w-0 flex-1 gap-1">
           {title ? (
-            <p className="text-sm font-medium wrap-break-word">{title}</p>
+            <p className="mb-1 text-sm font-semibold wrap-break-word sm:text-base">
+              {title}
+            </p>
           ) : null}
           <p
             className={
               title
-                ? "text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm"
-                : "flex flex-wrap items-center gap-1.5 text-sm font-medium"
+                ? "text-muted-foreground flex flex-wrap items-center gap-1.5 text-xs sm:text-sm"
+                : "flex flex-wrap items-center gap-1.5 text-xs font-medium sm:text-sm"
             }
           >
+            <Clock className="size-3.5 shrink-0" aria-hidden="true" />
             {timeLabel}
             {timezone ? (
               <TimezoneBadge timezone={timezone} date={date} />
             ) : null}
           </p>
-          <p className="text-muted-foreground text-sm">
-            <span className="text-foreground font-medium tabular-nums">
-              {spotsLead}
+          <p className="text-muted-foreground flex items-center gap-1.5 text-xs sm:text-sm">
+            <Users className="size-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="text-foreground font-medium tabular-nums">
+                {spotsLead}
+              </span>
+              {spotsLabel.slice(spotsLead.length)}
             </span>
-            {spotsLabel.slice(spotsLead.length)}
           </p>
         </div>
-        <div className="shrink-0">{action}</div>
+        <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+          {action}
+        </div>
       </div>
       {attendees}
     </li>

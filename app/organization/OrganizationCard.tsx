@@ -96,12 +96,15 @@ export default function OrganizationCard({
         className={cn(
           "h-full transition-colors",
           highlightMembership
-            ? "bg-brand/5 ring-primary/25 group-hover:bg-brand/10 group-hover:ring-primary/40"
+            ? "bg-primary/5 ring-primary/30 group-hover:bg-primary/10 group-hover:ring-primary/40"
             : "group-hover:ring-primary/30",
         )}
       >
         <CardHeader className="flex flex-row items-start gap-3">
-          <Avatar size="lg">
+          <Avatar
+            size="lg"
+            className="size-12 border border-border data-[size=lg]:size-12"
+          >
             <AvatarImage src={org.logo_url || undefined} alt="" />
             <AvatarFallback>
               <NoAvatar fullName={org.name} />
@@ -109,7 +112,7 @@ export default function OrganizationCard({
           </Avatar>
           <div className="grid min-w-0 flex-1 gap-0.5">
             <div className="flex min-w-0 items-start gap-1.5">
-              <CardTitle className="group-hover:text-primary line-clamp-2 font-semibold break-words transition-colors">
+              <CardTitle className="group-hover:text-content-link line-clamp-2 text-base font-semibold leading-tight break-words transition-colors">
                 {org.name}
               </CardTitle>
               {org.verified && (

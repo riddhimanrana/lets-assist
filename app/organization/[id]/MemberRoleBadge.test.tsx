@@ -8,20 +8,20 @@ const badge = (role: string) =>
   renderToStaticMarkup(<MemberRoleBadge role={role} />);
 
 describe("member role badge", () => {
-  test("admin uses the primary green label and its semantic foreground", () => {
+  test("admin keeps a readable foreground on the primary green fill", () => {
     const html = badge("admin");
     expect(html).toContain("Admin");
     expect(html).toContain("bg-primary");
-    expect(html).toContain("text-primary-foreground");
+    expect(html).toContain("text-foreground dark:text-primary-foreground");
     expect(html).not.toContain("bg-secondary");
     expect(html).not.toContain("bg-info");
   });
 
-  test("staff uses the semantic blue tint for the label and icon", () => {
+  test("staff keeps a readable foreground on the semantic blue tint", () => {
     const html = badge("staff");
     expect(html).toContain("Staff");
     expect(html).toContain("border-info/20");
-    expect(html).toContain("text-info");
+    expect(html).toContain("text-foreground dark:text-info");
     expect(html).toContain("bg-info/10");
     expect(html).not.toContain("bg-primary");
   });

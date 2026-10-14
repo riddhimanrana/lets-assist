@@ -62,7 +62,7 @@ export default function FAQPage() {
       <Accordion className="mt-6 w-full" defaultValue={["item-1"]}>
         {faqs.map((faq, index) => (
           <AccordionItem key={faq.question} value={`item-${index + 1}`}>
-            <AccordionTrigger className="py-4 text-base">
+            <AccordionTrigger headingLevel={2} className="py-4 text-base">
               {faq.question}
             </AccordionTrigger>
             <AccordionContent className="text-muted-foreground flex max-w-prose flex-col gap-3 text-sm leading-6">

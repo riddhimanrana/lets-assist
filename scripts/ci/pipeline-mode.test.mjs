@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
+import { YAML } from "bun";
 
 const workflow = readFileSync(
   join(import.meta.dir, "../..", ".github/workflows/ci.yml"),
@@ -38,6 +40,24 @@ function needs(name) {
 }
 
 describe("CI delivery modes", () => {
+  test("manual inputs and reusable trigger belong under on", () => {
+    const parsed = YAML.parse(workflow);
+    expect(Object.keys(parsed.on).sort()).toEqual([
+      "merge_group",
+      "pull_request",
+      "workflow_call",
+      "workflow_dispatch",
+    ]);
+    expect(parsed.on.workflow_dispatch.inputs.layout_audit).toEqual({
+      description: "Capture fictional layouts on one owned isolated stack",
+      type: "boolean",
+      required: false,
+      default: false,
+    });
+    expect(parsed).not.toHaveProperty("workflow_dispatch");
+    expect(parsed).not.toHaveProperty("workflow_call");
+  });
+
   test("the job inventory is the reviewed one", () => {
     expect(jobIds).toEqual([
       "static",
@@ -46,6 +66,7 @@ describe("CI delivery modes", () => {
       "quality",
       "database",
       "browser",
+      "layout-audit",
       "db-replay-validation",
       "ci-gate",
     ]);
@@ -253,6 +274,119 @@ describe("CI delivery modes", () => {
     expect(replay).not.toContain("continue-on-error");
   });
 
+  test("layout capture runs only on explicit manual opt-in and gates its result", () => {
+    const capture = job("layout-audit");
+    const gate = job("ci-gate");
+    expect(capture).toContain(
+      "github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main'",
+    );
+    expect(workflow).toContain("layout_audit:");
+    expect(workflow).toContain("default: false");
+    expect(needs("layout-audit")).toEqual(["database"]);
+    expect(capture).not.toContain("supabase test db");
+    expect(capture).toContain(
+      "Verify the release catalog before loading fixtures",
+    );
+    expect(capture).toContain("persist-credentials: false");
+    expect(capture).toContain("run: bash scripts/local-dev/layout-audit-ci.sh");
+    const driver = readFileSync(
+      join(import.meta.dir, "../..", "scripts/local-dev/layout-audit-ci.sh"),
+      "utf8",
+    );
+    expect(driver).toContain(
+      'node "$layout_tool/landing-visual-settlement.check.mjs"',
+    );
+    expect(
+      driver.indexOf('node "$layout_tool/landing-visual-settlement.check.mjs"'),
+    ).toBeLessThan(
+      driver.indexOf('node "$layout_tool/prepare-linux-binding.mjs"'),
+    );
+    expect(driver).toContain(
+      'node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"',
+    );
+    expect(
+      driver.indexOf('node "$layout_tool/notification-reader.check.mjs"'),
+    ).toBeLessThan(
+      driver.indexOf('node "$layout_tool/prepare-linux-binding.mjs"'),
+    );
+    expect(driver).toContain("binding.live(binding.load())");
+    expect(driver).toContain(
+      "os.hash(fs.readFileSync(identity.path)) !== identity.sha256",
+    );
+    expect(driver).toContain("process.stdout.write(b.node.path)");
+    expect(driver).toContain(
+      '"$layout_node" "$GITHUB_WORKSPACE/scripts/local-dev/run-dvhs-csf-isolated-app.mjs" &',
+    );
+    expect(driver).not.toContain(
+      "node scripts/local-dev/run-dvhs-csf-isolated-app.mjs &",
+    );
+    expect(capture).toContain(
+      "path: ${{ steps.layout-capture.outputs.paths }}",
+    );
+    expect(capture).not.toContain("continue-on-error");
+    expect(gate).toContain(
+      "LAYOUT_AUDIT_REQUESTED: ${{ github.event_name == 'workflow_dispatch' && inputs.layout_audit && github.ref != 'refs/heads/main' }}",
+    );
+    expect(gate).toContain(
+      'if [[ "${LAYOUT_AUDIT_REQUESTED}" == "true" ]]; then',
+    );
+    expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "success" ]]');
+    expect(gate).toContain('[[ "${LAYOUT_AUDIT_RESULT}" == "skipped" ]]');
+  });
+
+  test("layout execution and required result agree for every event/ref/input combination", () => {
+    const parsed = YAML.parse(workflow);
+    const captureCondition = parsed.jobs["layout-audit"].if;
+    const gateCondition =
+      parsed.jobs["ci-gate"].steps[0].env.LAYOUT_AUDIT_REQUESTED;
+    const refusal = parsed.jobs.static.steps[0];
+    expect(refusal.name).toBe("Reject unsupported Main layout capture");
+    expect(refusal.run).toContain("exit 1");
+    expect(refusal.run).toContain("Main layout capture is unsupported");
+    const rejected = spawnSync("/bin/bash", ["-c", refusal.run], {
+      encoding: "utf8",
+    });
+    expect(rejected.status).toBe(1);
+    expect(rejected.stdout).toContain("Main layout capture is unsupported");
+    expect(job("ci-gate")).toContain('[[ "${STATIC_RESULT}" == "success" ]]');
+
+    const evaluate = (condition, event, ref, requested) => {
+      // Evaluate the actual fixed YAML predicates with only synthetic inputs.
+      const expression = condition
+        .replace(/^\$\{\{\s*|\s*\}\}$/gu, "")
+        .replaceAll("github.event_name", JSON.stringify(event))
+        .replaceAll("github.ref", JSON.stringify(ref))
+        .replaceAll("inputs.layout_audit", JSON.stringify(requested));
+      return Function(`return (${expression});`)();
+    };
+    for (const event of [
+      "workflow_dispatch",
+      "workflow_call",
+      "pull_request",
+      "merge_group",
+    ]) {
+      for (const ref of ["refs/heads/main", "refs/heads/candidate"]) {
+        for (const requested of [false, true]) {
+          const supported =
+            event === "workflow_dispatch" &&
+            requested &&
+            ref !== "refs/heads/main";
+          const rejected =
+            event === "workflow_dispatch" &&
+            requested &&
+            ref === "refs/heads/main";
+          expect(evaluate(captureCondition, event, ref, requested)).toBe(
+            supported,
+          );
+          expect(evaluate(gateCondition, event, ref, requested)).toBe(
+            supported,
+          );
+          expect(evaluate(refusal.if, event, ref, requested)).toBe(rejected);
+        }
+      }
+    }
+  });
+
   test("the aggregate gate requires full validation outside pull requests", () => {
     const gate = job("ci-gate");
     expect(gate).toContain("    name: ci-gate\n");
@@ -281,6 +415,7 @@ describe("CI delivery modes", () => {
       quality: "QUALITY_RESULT",
       database: "DATABASE_CHECKS_RESULT",
       browser: "BROWSER_RESULT",
+      "layout-audit": "LAYOUT_AUDIT_RESULT",
       "db-replay-validation": "DATABASE_RESULT",
     };
     expect(Object.keys(variables)).toEqual(needs("ci-gate"));
@@ -316,6 +451,9 @@ describe("CI delivery modes", () => {
       "skipped",
       "skipped",
       "skipped",
+      "skipped",
+      "true",
+      "success",
       "skipped",
     ]);
   });

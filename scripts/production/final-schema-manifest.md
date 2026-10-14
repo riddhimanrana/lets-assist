@@ -47,6 +47,82 @@ The 625 inventory was captured after a clean replay of all candidate migrations.
 Local fixture helpers were removed inside a rollback-only transaction before
 capture. Hosted comparison remains a separate release check.
 
+Release724 repairs scheduled platform attendance with one private selected-session
+parser and two replaced canonical worker definitions. The pre-alias clean
+PostgreSQL17.11 replay applied all724 migrations;500 pgTAP files and12,991
+assertions passed, including45 attendance/authorization regressions. The current
+alias correction adds six synthetic cases for all stored schedule ID forms; its
+full replay remains a release gate. The pre-alias inventory capture used
+the exact local-fixture teardown in a rollback-only transaction. The revised
+helper fingerprint was recomputed from its PostgreSQL definition, owner and ACL;
+a full inventory comparison is still required. Release724 adds only
+`private.project_attendance_slot_window(uuid,text)` and changes only
+`public.process_automatic_check_ins()` and `public.process_automatic_check_outs()`;
+every other723 object fingerprint remains identical. No attendance, certificate,
+point, client-role grant or cron definition is changed by the migration itself.
+Hosted comparison, the full application/browser gate and Production acceptance
+remain separate requirements.
+
+Release 725 applies the repeatable pending-point claim repair after all 724 v4
+migrations. The pre-alias clean isolated PostgreSQL 17.11 replay passed 501 pgTAP
+files and 13,011 assertions. The canonical catalog query returned `1` on that
+replay; the alias correction requires a fresh full replay and catalog check.
+The inventory changes only the point-submission begin function, the activity
+award assertion, and the point-submissions relation/index; it adds or removes
+no catalog object. This is the v4 ledger and relation fingerprint, distinct
+from the isolated Production 688 path. Hosted Development comparison, full CI,
+and visual acceptance remain separate gates.
+
+Release 727 extends certificates with a validated event timezone and appends
+display timezone fields to the two certificate read-model views. Its initial
+owned clean PostgreSQL 17.11 replay passed 502 pgTAP files and 13,040
+assertions. The
+reviewed 1,441-object inventory adds only
+`private.enforce_certificate_event_timezone()` and changes only
+`public.certificates`, `public.certificate_verification_read_model`, and
+`public.user_certificate_read_model` relative to release 725; no object is
+removed. The manifest binds ledger digest
+`41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b`.
+A second new owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison, full CI, and
+visual acceptance remain separate gates.
+
+Before v4 promotion, the undeployed 725 candidate migration was aligned byte
+for byte with the already deployed Main points repair (SHA-256
+`694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00`).
+Fresh 725 and 727 prefix replays each passed the 33-assertion points regression;
+the 727 prefix also passed its 23-assertion timezone regression. Their
+recaptured manifests changed only the pending-point authority function from
+the earlier candidate fingerprint to Main's `00cb6983044aba50bc99a777acf3c66b`.
+The existing 725 and 727 ledger selectors did not change because the migration
+versions did not change. No deployed migration bytes were modified.
+
+Release 728 rejects `Factory`, which PostgreSQL 17.11 lists as a timezone but
+the pinned Node ECMA-402 formatter rejects. Its forward migration fails for
+existing `Factory` rows pending review rather than modifying stored instants.
+A clean diagnostic replay passed 502 pgTAP files and 13,048 assertions. After
+adding explicit ACL statements to the replaced trigger, a separate exact-byte
+replay passed the 33-assertion points and 26-assertion timezone tests. Its
+reviewed 1,441-object inventory changes only
+`private.enforce_certificate_event_timezone()` from the recaptured 727
+inventory, with no additions or removals. The 728 ledger digest is
+`b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c`.
+A further fresh owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison and full
+integrated CI remain separate gates.
+
+Release 729 pins the checked-in certificate formatter timezone set at both the
+API and direct-write boundary. It refuses any preexisting unsupported zone for
+review and never rewrites timestamps. Its 1,441-object expected inventory
+retains every 728 identity and fingerprint except
+`private.enforce_certificate_event_timezone()`. The replacement fingerprint was
+measured in a temporary PostgreSQL 18 catalog after that same catalog reproduced
+the reviewed 728 PostgreSQL 17 fingerprint exactly. Ledger digest
+`5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c`
+selects this candidate manifest. The clean PostgreSQL 17 full replay, pgTAP,
+complete catalog comparison, hosted Development and visual acceptance remain
+release gates; the temporary catalog check is not a substitute for them.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the

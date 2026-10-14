@@ -167,8 +167,8 @@ describe("organization directory cards", () => {
   test("owned cards keep role, type, handle, description and verified cue", () => {
     const { owned, discover } = populatedDirectory();
 
-    expect(owned).toContain("bg-brand/5");
-    expect(discover).not.toContain("bg-brand/5");
+    expect(owned).toContain("bg-primary/5");
+    expect(discover).not.toContain("bg-primary/5");
     expect(owned).toContain("Maple Tutors");
     expect(owned).toContain("@maple-tutors");
     expect(owned).toContain("Educational");
@@ -216,6 +216,12 @@ describe("organization directory cards", () => {
     expect(html).not.toContain("0 members");
   });
 
+  test("organization titles retain readable link color on hover", () => {
+    const { html } = populatedDirectory();
+    expect(html).toContain("group-hover:text-content-link");
+    expect(html).not.toContain("group-hover:text-primary");
+  });
+
   test("signed-in page actions are visible without a More actions menu", () => {
     const untrusted = populatedDirectory().html;
     expect(untrusted).toContain("Verify certificates");
@@ -233,8 +239,8 @@ describe("organization directory cards", () => {
     for (const token of TEXT_LINK_CLASS.split(/\s+/u)) {
       expect(trustedMemberLink).toContain(token);
     }
-    expect(trustedMemberLink).toContain("text-primary");
-    expect(trustedMemberLink).toContain("focus-visible:ring-primary");
+    expect(trustedMemberLink).toContain("text-content-link");
+    expect(trustedMemberLink).toContain("focus-visible:ring-content-link");
     expect(trustedMemberLink).not.toContain("brand");
     expect(untrusted).not.toContain('href="/signup');
 

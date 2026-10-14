@@ -1474,4 +1474,16 @@ export const migrationDigests = {
     "1719230acb414189156e118b159919524469f6c668549b1356a1905670fa4e8c",
   "20261012002404_publish_dvhs_csf_1_2_89.sql":
     "3e954a254470ec7b1eb861af14a80582c3d22f446d6aaaeb00c37779772d15ea",
+  "20261013010957_repair_scheduled_attendance_windows.sql":
+    "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
+  "20261013071100_csf_repeatable_pending_activity_claims.sql":
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
+  "20261014050438_preserve_self_reported_certificate_timezone.sql":
+    "e5bef0c9cee06d99f6a18aa80a592f35195487a3b938efb53cdf6f03b216e053",
+  "20261014060423_validate_and_project_certificate_timezones.sql":
+    "17d4b5b3c0f04c3dfb45d62d2ea7e81822ae4aee639e15d74958dcc6371f1a24",
+  "20261014142100_reject_unsupported_certificate_timezone.sql":
+    "83cbf1ed33b166bc9f8a7f2e7ae59d19cb5ce54eb9366ad277b970a1015f34c8",
+  "20261014162331_enforce_formatter_certificate_timezones.sql":
+    "b5831c1929dc1bf5fe83c3033e05be0699fb7366949a3817b6345f86a2104b21",
 };

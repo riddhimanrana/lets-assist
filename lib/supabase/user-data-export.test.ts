@@ -52,6 +52,11 @@ test("archive preserves more than a Data API page and includes verified plugin r
   for (const entry of folders)
     expect(entry.date.toISOString()).toBe("2026-10-07T00:00:00.000Z");
   expect(
+    Object.values(zip.files).every(
+      (entry) => entry.date.getTime() === Date.parse(value.generatedAt),
+    ),
+  ).toBe(true);
+  expect(
     JSON.parse(
       await zip.file("notifications/notifications.json")!.async("string"),
     ),

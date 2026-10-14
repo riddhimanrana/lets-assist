@@ -341,7 +341,7 @@ export default function EditOrganizationForm({
                     <FieldLabel htmlFor={field.name}>
                       Show members publicly
                     </FieldLabel>
-                    <FieldDescription>
+                    <FieldDescription id="show-members-publicly-description">
                       Allow visitors to see the list of organization members
                     </FieldDescription>
                     {fieldState.invalid && (
@@ -350,6 +350,8 @@ export default function EditOrganizationForm({
                   </FieldContent>
                   <Switch
                     id={field.name}
+                    aria-label="Show members publicly"
+                    aria-describedby="show-members-publicly-description"
                     checked={field.value ?? true}
                     onCheckedChange={field.onChange}
                     aria-invalid={fieldState.invalid}

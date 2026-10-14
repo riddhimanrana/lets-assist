@@ -145,6 +145,7 @@ function hook(overrides: Partial<UseUserProfileReturn>): UseUserProfileReturn {
     loading: false,
     pending: null,
     error: null,
+    errorSource: null,
     refetch: async () => {
       refetchCalls++;
     },
@@ -279,6 +280,40 @@ test("a failed refresh keeps the loaded profile editable and says it may be stal
   expect(text(output)).toContain("Your profile could not be refreshed");
   expect(text(output)).not.toContain("could not be loaded");
   expect(byType(output, ProfileForm)[0].props.profile).toBe(profile);
+  expect(byType(output, VisibilitySection)).toHaveLength(1);
+});
+
+test("a settings-only failure keeps the editors and does not call the profile failed", () => {
+  hookState = hook({
+    profile,
+    error: new Error("private provider detail"),
+    errorSource: "settings",
+  });
+  const output = render();
+  const [notice] = byType(output, Alert);
+  expect(notice.props.variant).toBe("warning");
+  expect(text(output)).toContain(
+    "Your notification settings could not be loaded",
+  );
+  expect(text(output)).toContain("Your profile details below are current.");
+  expect(text(output)).not.toContain("Your profile could not be");
+  expect(text(output)).not.toContain("out of date");
+  expect(text(output)).not.toContain("private provider detail");
+  expect(byType(output, ProfileForm)[0].props.profile).toBe(profile);
+  expect(byType(output, VisibilitySection)).toHaveLength(1);
+
+  press(button(output, "Try again"));
+  expect(refetchCalls).toBe(1);
+});
+
+test("a settings-only failure with no profile row still shows the editors", () => {
+  hookState = hook({
+    error: new Error("private provider detail"),
+    errorSource: "settings",
+  });
+  const output = render();
+  expect(text(output)).not.toContain("Your profile could not be");
+  expect(byType(output, ProfileForm)[0].props.profile).toBeNull();
   expect(byType(output, VisibilitySection)).toHaveLength(1);
 });
 

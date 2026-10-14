@@ -67,9 +67,9 @@ for (const width of [390, 1440]) {
           });
 
           for (const [id, name] of [
-            ["comparison", "Let's Assist is built for today."],
+            ["comparison", "Let's Assist is built for volunteer hours."],
             ["journey", "From sign-up to certificate"],
-            ["org-tooling", "The workspace SignUpGenius never built"],
+            ["org-tooling", "A workspace for your volunteer organization"],
           ]) {
             await expectPainted(
               page
@@ -80,7 +80,7 @@ for (const width of [390, 1440]) {
 
           const comparison = page.locator("#comparison");
           await expectPainted(
-            comparison.getByText("Let's Assist is built for today."),
+            comparison.getByText("Let's Assist is built for volunteer hours."),
           );
           await expectPainted(
             comparison.getByText("QR check-in and check-out", { exact: true }),
@@ -468,7 +468,7 @@ for (const width of [390, 1440]) {
           "signupgenius.com",
           "AD",
           "Volunteer Signup Sheet",
-          "2010 design",
+          "Illustrative mock",
         ]) {
           const node = comparison
             .getByText(label, { exact: true })

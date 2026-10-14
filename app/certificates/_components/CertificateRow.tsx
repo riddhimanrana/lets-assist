@@ -1,6 +1,6 @@
 "use client";
 
-import { format, parseISO } from "date-fns";
+import { formatCertificateDate } from "@/lib/certificates/project-dates";
 import { Trash2 } from "lucide-react";
 import Link from "next/link";
 
@@ -32,7 +32,11 @@ export function CertificateRow({
   const isSelfReported = cert.type === "self-reported";
   const meta = [
     cert.organization_name,
-    format(parseISO(cert.issued_at), "MMM d, yyyy"),
+    formatCertificateDate(
+      cert.issued_at,
+      cert.projects?.project_timezone || cert.event_timezone,
+      "display",
+    ),
     cert.project_location,
   ].filter(Boolean);
 

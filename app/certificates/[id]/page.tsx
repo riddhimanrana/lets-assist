@@ -4,6 +4,7 @@ import { Metadata } from "next";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { differenceInMinutes, parseISO, isValid } from "date-fns";
+import { certificateTimezone } from "@/lib/certificates/project-dates";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ReadLoadError } from "@/components/projects/ReadLoadError";
@@ -22,6 +23,8 @@ interface CertificateData {
   type?: "verified" | "self-reported" | null; // Optional for backward compatibility
   event_start: string; // Assuming ISO string format from Supabase
   event_end: string;
+  event_timezone?: string | null;
+  project_timezone?: string | null;
   credited_minutes?: number | null;
   check_in_method: string;
   organization_name: string | null;
@@ -108,6 +111,8 @@ export default async function VolunteerRecordPage({
       type,
       event_start,
       event_end,
+      event_timezone,
+      project_timezone,
       credited_minutes,
       check_in_method,
       organization_name,
@@ -146,6 +151,9 @@ export default async function VolunteerRecordPage({
 
   // Determine if this is a self-reported certificate (default to verified for backward compatibility)
   const isSelfReported = data.type === "self-reported";
+  const timeZone = certificateTimezone(
+    data.project_timezone || data.event_timezone,
+  );
 
   // Calculate duration (this doesn't need timezone conversion)
   const durationText = formatDuration(
@@ -160,6 +168,7 @@ export default async function VolunteerRecordPage({
     creator_name: data.creator_name,
     is_certified: data.is_certified,
     event_start: data.event_start,
+    timeZone,
     organization_name: data.organization_name,
     issued_at: data.issued_at,
     volunteer_name: data.volunteer_name,
@@ -193,6 +202,7 @@ export default async function VolunteerRecordPage({
           project_id: data.project_id,
           event_start: data.event_start,
           event_end: data.event_end,
+          timeZone,
           issued_at: data.issued_at,
           is_certified: data.is_certified,
           check_in_method: data.check_in_method,

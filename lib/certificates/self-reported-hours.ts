@@ -3,8 +3,8 @@ import { z } from "zod";
 import {
   isStrictCalendarDate,
   isStrictClockTime,
-  isValidIanaTimezone,
 } from "@/lib/projects/schedule-validation";
+import { canonicalCertificateTimezone } from "./formatter-timezones";
 
 const selfReportedHoursSchema = z.object({
   title: z.string().trim().min(1).max(140),
@@ -13,7 +13,10 @@ const selfReportedHoursSchema = z.object({
   date: z.string().refine(isStrictCalendarDate),
   startTime: z.string().refine(isStrictClockTime),
   endTime: z.string().refine(isStrictClockTime),
-  timeZone: z.string().max(100).refine(isValidIanaTimezone),
+  timeZone: z
+    .string()
+    .max(100)
+    .refine((value) => canonicalCertificateTimezone(value) !== null),
   description: z.string().trim().max(5000).nullish(),
 });
 
@@ -132,7 +135,15 @@ export function parseSelfReportedHours(input: unknown) {
         "Invalid hours. Check the required fields, date, times, and time zone.",
     } as const;
   }
-  const data = parsed.data;
+  const timeZone = canonicalCertificateTimezone(parsed.data.timeZone);
+  if (!timeZone) {
+    return {
+      ok: false,
+      error:
+        "Invalid hours. Check the required fields, date, times, and time zone.",
+    } as const;
+  }
+  const data = { ...parsed.data, timeZone };
   const start = localInstant(data.date, data.startTime, data.timeZone);
   const end = localInstant(data.date, data.endTime, data.timeZone);
   if (start.status === "nonexistent" || end.status === "nonexistent") {

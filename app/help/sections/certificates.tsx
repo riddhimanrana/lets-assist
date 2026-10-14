@@ -223,38 +223,37 @@ export function CertificatesSection() {
           <AccordionTrigger>Exporting certificate data</AccordionTrigger>
           <AccordionContent className="space-y-3 text-sm pt-4">
             <p>
-              Export your certificates in various formats for different
-              purposes:
+              Download your certificate records as a CSV file from the volunteer
+              dashboard:
             </p>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <h6 className="font-medium mb-2">From Dashboard:</h6>
-                <ol className="list-decimal pl-5 space-y-1 text-sm">
-                  <li>Go to your Dashboard</li>
-                  <li>Find the &quot;Export certificates&quot; section</li>
-                  <li>Select date range (optional)</li>
-                  <li>Click &quot;Export CSV&quot;</li>
-                  <li>Save the file with all certificate details</li>
-                </ol>
-              </div>
-              <div>
-                <h6 className="font-medium mb-2">From Certificates page:</h6>
-                <ol className="list-decimal pl-5 space-y-1 text-sm">
-                  <li>Visit your Certificates page</li>
-                  <li>Use filter options to select specific certificates</li>
-                  <li>Use the &quot;Print&quot; button for bulk printing</li>
-                  <li>Export summary data for reporting</li>
-                </ol>
-              </div>
+            <div>
+              <h6 className="font-medium mb-2">From the dashboard:</h6>
+              <ol className="list-decimal pl-5 space-y-1 text-sm">
+                <li>Open &quot;Volunteer dashboard&quot; in the navigation</li>
+                <li>Select the &quot;Export&quot; tab</li>
+                <li>
+                  Under &quot;Date range&quot;, pick a time period, or leave it
+                  blank for all-time data
+                </li>
+                <li>
+                  Under &quot;Data types&quot;, choose &quot;Verified
+                  hours&quot;, &quot;Self-reported hours&quot;, or both
+                </li>
+                <li>
+                  Check the entries in &quot;Export preview&quot;, then select
+                  &quot;Export CSV&quot;
+                </li>
+              </ol>
             </div>
             <div className="bg-muted/50 rounded-lg p-3">
               <h6 className="font-medium text-sm mb-1">CSV export includes:</h6>
               <ul className="text-sm space-y-1">
-                <li>• Certificate ID and project details</li>
-                <li>• Organization and verification status</li>
-                <li>• Hours completed and event dates</li>
-                <li>• Location and supervisor information</li>
-                <li>• Summary statistics and totals</li>
+                <li>• Certificate ID, project title, and location</li>
+                <li>• Organization name and project organizer name</li>
+                <li>• Certification status and certificate type</li>
+                <li>• Event start and end dates, and duration</li>
+                <li>• Check-in method and issued date</li>
+                <li>• Volunteer name and email</li>
               </ul>
             </div>
           </AccordionContent>

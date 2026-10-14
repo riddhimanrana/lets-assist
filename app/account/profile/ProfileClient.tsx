@@ -22,6 +22,7 @@ export default function ProfileClient() {
     loading: isProfileLoading,
     pending,
     error,
+    errorSource,
     refetch,
   } = useUserProfile();
   const isDataLoading = isAuthLoading || isProfileLoading;
@@ -46,8 +47,26 @@ export default function ProfileClient() {
   }
 
   const loadFailed = !isDataLoading && error !== null;
+  // A settings-only failure leaves the profile read intact, row or no row.
+  const profileReadFailed = loadFailed && errorSource !== "settings";
   // With no profile to show, an empty form would read as an empty profile.
-  const showEditors = !loadFailed || profile !== null;
+  const showEditors = !profileReadFailed || profile !== null;
+  const failureNotice = !profileReadFailed
+    ? {
+        title: "Your notification settings could not be loaded",
+        description:
+          "Your profile details below are current. Nothing was changed.",
+      }
+    : profile
+      ? {
+          title: "Your profile could not be refreshed",
+          description:
+            "The details below may be out of date. Nothing was changed.",
+        }
+      : {
+          title: "Your profile could not be loaded",
+          description: "Nothing was changed. Try again in a moment.",
+        };
 
   return (
     <>
@@ -91,16 +110,8 @@ export default function ProfileClient() {
       ) : null}
       {loadFailed ? (
         <Alert variant="warning">
-          <AlertTitle>
-            {profile
-              ? "Your profile could not be refreshed"
-              : "Your profile could not be loaded"}
-          </AlertTitle>
-          <AlertDescription>
-            {profile
-              ? "The details below may be out of date. Nothing was changed."
-              : "Nothing was changed. Try again in a moment."}
-          </AlertDescription>
+          <AlertTitle>{failureNotice.title}</AlertTitle>
+          <AlertDescription>{failureNotice.description}</AlertDescription>
           <div className="pt-2">
             <Button variant="outline" size="sm" onClick={retryProfileLoad}>
               Try again

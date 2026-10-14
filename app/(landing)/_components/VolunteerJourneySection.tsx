@@ -171,7 +171,9 @@ export default function VolunteerJourneySection() {
             </div>
             {/*
               Each button is a 32px target around the same 8px pill. The pill
-              is centred, so it sits where the old top margin put it.
+              is centred, so it sits where the old top margin put it. The
+              unpressed pills use an opaque text token, so they still show
+              against the page in both themes.
             */}
             <div className="flex items-center justify-center gap-2">
               {steps.map((step, i) => (
@@ -185,7 +187,7 @@ export default function VolunteerJourneySection() {
                 >
                   <span
                     aria-hidden
-                    className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted/40"}`}
+                    className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted-foreground"}`}
                   />
                 </button>
               ))}

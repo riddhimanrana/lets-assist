@@ -48,9 +48,11 @@ export function ProjectSlotsCard({
 
   return (
     <Card id="volunteer-opportunities" className="scroll-mt-20">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex w-full items-center justify-between gap-2">
-          <CardTitle>Volunteer opportunities</CardTitle>
+          <CardTitle>
+            <h2>Volunteer opportunities</h2>
+          </CardTitle>
           {headerAction}
         </div>
       </CardHeader>
@@ -71,7 +73,7 @@ export function ProjectSlotsCard({
             <h3 className="text-sm font-medium">
               {formatScheduleDay(schedule.oneTime.date)}
             </h3>
-            <ul className="divide-y">
+            <ul className="grid gap-2">
               <ProjectSlotRow
                 timeLabel={formatSlotTimeRange(
                   schedule.oneTime.startTime,
@@ -102,10 +104,7 @@ export function ProjectSlotsCard({
             );
 
             return (
-              <div
-                key={`${day.date}-${dayIndex}`}
-                className="grid gap-2 border-t pt-4 first:border-t-0 first:pt-0"
-              >
+              <div key={`${day.date}-${dayIndex}`} className="grid gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-medium">
                     {formatScheduleDay(day.date)}
@@ -113,7 +112,10 @@ export function ProjectSlotsCard({
                   {allSlotsInDayPast && <Badge variant="neutral">Passed</Badge>}
                 </div>
                 <ul
-                  className={cn("divide-y", allSlotsInDayPast && "opacity-50")}
+                  className={cn(
+                    "grid gap-2",
+                    allSlotsInDayPast && "opacity-50",
+                  )}
                 >
                   {day.slots.map((slot, slotIndex) => {
                     const scheduleId = `${day.date}-${dayIndex}-${slotIndex}`;
@@ -151,7 +153,7 @@ export function ProjectSlotsCard({
               <h3 className="text-sm font-medium">
                 {formatScheduleDay(schedule.sameDayMultiArea.date)}
               </h3>
-              <ul className="divide-y">
+              <ul className="grid gap-2">
                 {schedule.sameDayMultiArea.roles.map((role) => (
                   <ProjectSlotRow
                     key={role.name}

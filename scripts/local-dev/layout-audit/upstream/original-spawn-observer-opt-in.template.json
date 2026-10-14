@@ -1,0 +1,32 @@
+{
+  "schema": "lets-assist-canonical-spawn-observer-opt-in-v1",
+  "template": true,
+  "enabled": false,
+  "allowRuntimeObservation": false,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "rootHead": null,
+  "privateHead": null,
+  "dirtyDiffSha256": null,
+  "workDir": null,
+  "runId": null,
+  "projectId": null,
+  "appPort": null,
+  "apiPort": null,
+  "databasePort": null,
+  "uid": null,
+  "script": {
+    "path": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout/scripts/local-dev/run-dvhs-csf-isolated-app.mjs",
+    "sha256": null
+  },
+  "node": {
+    "path": null,
+    "sha256": null
+  },
+  "observer": {
+    "path": "/private/tmp/lets-assist-layout-audit-20261011/capture-spawn-observer.cjs",
+    "sha256": null
+  },
+  "outputDir": null,
+  "instructions": "DISABLED. Root creates a new owner-only canonical opt-in file and fresh empty owner-only ignored checkout/.artifacts/layout-audit-spawn/<new-id>. Enable only on the exact canonical runner command via per-command NODE_OPTIONS=--require <canonical observer> and LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN=<canonical opt-in>. Do not export these for capture/tests or change child NODE_OPTIONS/egress guard. Observer records only successful exact platform production Next-start spawn, preserving argument/option references and child return value. A missing/failure receipt is a blocker; no current values exist.",
+  "nextTitleSourceProofSha256": null
+}

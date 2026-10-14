@@ -3,6 +3,7 @@
 import React from "react";
 
 interface ProgressCircleProps {
+  label: string;
   value: number; // Value between 0-100
   size?: number; // Size in pixels
   strokeWidth?: number; // Width of the circle's stroke
@@ -18,6 +19,7 @@ interface ProgressCircleProps {
 }
 
 export const ProgressCircle: React.FC<ProgressCircleProps> = ({
+  label,
   value,
   size = 100,
   strokeWidth = 8,
@@ -27,7 +29,9 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
   emptyLabel,
 }) => {
   // Ensure value is between 0 and 100
-  const normalizedValue = Math.min(100, Math.max(0, value));
+  const normalizedValue = Number.isFinite(value)
+    ? Math.min(100, Math.max(0, value))
+    : 0;
 
   // Calculate circle parameters
   const radius = (size - strokeWidth) / 2;
@@ -50,6 +54,7 @@ export const ProgressCircle: React.FC<ProgressCircleProps> = ({
       className="relative inline-flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
       role="progressbar"
+      aria-label={label}
       aria-valuenow={normalizedValue}
       aria-valuemin={0}
       aria-valuemax={100}

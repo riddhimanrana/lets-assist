@@ -30,7 +30,10 @@ import {
   TicketCheck,
   Trash2,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import {
+  certificateTimezone,
+  formatCertificateDate,
+} from "@/lib/certificates/project-dates";
 import Link from "next/link";
 import { TimezoneBadge } from "@/components/shared/TimezoneBadge";
 import { formatHoursDuration } from "@/lib/format/hours";
@@ -54,6 +57,7 @@ interface Certificate {
   type?: "platform" | "self-reported"; // Optional for backward compatibility
   event_start: string;
   event_end: string;
+  event_timezone?: string | null;
   credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
@@ -168,12 +172,16 @@ export function AllHoursSection({ certificates }: AllHoursSectionProps) {
               <div className="flex items-center gap-1.5">
                 <span className="flex items-center gap-1">
                   <Calendar className="size-3" aria-hidden="true" />
-                  {format(parseISO(cert.event_start), "MMM d, yyyy")}
+                  {formatCertificateDate(
+                    cert.event_start,
+                    cert.projects?.project_timezone || cert.event_timezone,
+                    "display",
+                  )}
                 </span>
                 <TimezoneBadge
-                  timezone={
-                    cert.projects?.project_timezone || "America/Los_Angeles"
-                  }
+                  timezone={certificateTimezone(
+                    cert.projects?.project_timezone || cert.event_timezone,
+                  )}
                   date={cert.event_start}
                 />
               </div>

@@ -1,8 +1,11 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-import { certificateExportType, serializeCsv } from "@/lib/certificates/csv";
-import { certificateHours } from "@/lib/projects/certificate-duration";
+import { serializeCsv } from "@/lib/certificates/csv";
+import {
+  certificateToDashboardExport,
+  type CertificateRecord,
+} from "@/lib/certificates/dashboard-export";
 
 import React, { useState, useMemo } from "react";
 import { DownloadIcon, useAnimatedIcon } from "@/components/icons/animated";
@@ -32,45 +35,6 @@ interface ExportSectionProps {
   certificatesData?: CertificateRecord[];
 }
 
-type CertificateRecord = {
-  id: string;
-  project_title?: string | null;
-  title?: string | null;
-  organization_name?: string | null;
-  creator_name?: string | null;
-  volunteer_name?: string | null;
-  volunteer_email?: string | null;
-  event_start?: string | null;
-  event_end?: string | null;
-  credited_minutes?: number | null;
-  hours?: number | string | null;
-  project_location?: string | null;
-  is_certified?: boolean | null;
-  check_in_method?: string | null;
-  issued_at?: string | null;
-  type?: string | null;
-  projects?: { project_timezone?: string | null } | null;
-};
-
-interface ExportData {
-  id: string;
-  projectTitle: string;
-  organizationName: string;
-  volunteerName: string;
-  volunteerEmail: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  duration: string;
-  location: string;
-  supervisorContact: string;
-  isVerified: boolean;
-  type: string;
-  certificationStatus: string;
-  checkInMethod: string;
-  issuedDate: string;
-}
-
 export function ExportSection({
   userEmail,
   verifiedCount: _verifiedCount = 0,
@@ -85,75 +49,11 @@ export function ExportSection({
   const [isExporting, setIsExporting] = useState(false);
   const exportIcon = useAnimatedIcon();
 
-  // Convert certificates data to export format
-  const convertCertificateToExportData = (
-    cert: CertificateRecord,
-  ): ExportData => {
-    const isVerified = certificateExportType(cert.type) === "platform";
-    return {
-      id: cert.id,
-      projectTitle: cert.project_title || cert.title || "Unknown Project",
-      organizationName:
-        cert.organization_name || cert.creator_name || "Unknown Organization",
-      volunteerName: cert.volunteer_name || "Unknown Volunteer",
-      volunteerEmail: cert.volunteer_email || userEmail,
-      date: cert.event_start
-        ? format(new Date(cert.event_start), "yyyy-MM-dd")
-        : "Unknown Date",
-      startTime: cert.event_start
-        ? (() => {
-            const timezone =
-              cert.projects?.project_timezone || "America/Los_Angeles";
-            const timeStr = format(new Date(cert.event_start), "h:mm a");
-            try {
-              const tzAbbr = new Intl.DateTimeFormat("en-US", {
-                timeZone: timezone,
-                timeZoneName: "short",
-              })
-                .formatToParts(new Date(cert.event_start))
-                .find((part) => part.type === "timeZoneName")?.value;
-              return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
-            } catch {
-              return timeStr;
-            }
-          })()
-        : "Unknown",
-      endTime: cert.event_end
-        ? (() => {
-            const timezone =
-              cert.projects?.project_timezone || "America/Los_Angeles";
-            const timeStr = format(new Date(cert.event_end), "h:mm a");
-            try {
-              const tzAbbr = new Intl.DateTimeFormat("en-US", {
-                timeZone: timezone,
-                timeZoneName: "short",
-              })
-                .formatToParts(new Date(cert.event_end))
-                .find((part) => part.type === "timeZoneName")?.value;
-              return tzAbbr ? `${timeStr} ${tzAbbr}` : timeStr;
-            } catch {
-              return timeStr;
-            }
-          })()
-        : "Unknown",
-      duration: certificateHours(cert, () =>
-        Number(cert.hours || 0),
-      ).toString(),
-      location: cert.project_location || "Unknown Location",
-      supervisorContact: cert.creator_name || "Unknown Supervisor",
-      isVerified: isVerified,
-      type: isVerified ? "platform" : "self-reported", // Use lowercase to match DB values
-      certificationStatus: cert.is_certified ? "Certified" : "Participated",
-      checkInMethod: cert.check_in_method || "Unknown",
-      issuedDate: cert.issued_at
-        ? format(new Date(cert.issued_at), "yyyy-MM-dd")
-        : "Unknown Date",
-    };
-  };
-
   // Convert all certificates data to export format
   const allExportData = useMemo(() => {
-    return certificatesData.map(convertCertificateToExportData);
+    return certificatesData.map((cert) =>
+      certificateToDashboardExport(cert, userEmail),
+    );
   }, [certificatesData, userEmail]);
 
   // Calculate actual counts from processed data
@@ -177,9 +77,11 @@ export function ExportSection({
     }
 
     return allExportData.filter((item) => {
-      const itemDate = new Date(item.date);
+      // Picker values are calendar labels; parsing the export day as UTC moves
+      // it to the previous day for a Pacific viewer.
       const inDateRange =
-        itemDate >= dateRange.from! && itemDate <= dateRange.to!;
+        item.date >= format(dateRange.from!, "yyyy-MM-dd") &&
+        item.date <= format(dateRange.to!, "yyyy-MM-dd");
       const typeIncluded =
         (item.isVerified && includeVerified) ||
         (!item.isVerified && includeUnverified);
@@ -222,7 +124,7 @@ export function ExportSection({
         item.certificationStatus, // Certification Status
         item.type, // Certificate Type
         item.date + " " + item.startTime, // Event Start Date with time
-        item.date + " " + item.endTime, // Event End Date with time
+        item.endDate + " " + item.endTime, // Event End Date with time
         item.duration, // Duration
         item.location, // Location
         item.checkInMethod, // Check In Method

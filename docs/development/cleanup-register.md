@@ -1,5 +1,26 @@
 # Repository cleanup register
 
+## PR #873 Development reconciliation — 2026-10-14
+
+The isolated local merge combines current Development `99adfc03` with the
+PR #873 candidate `4b4987c5`. It retains the nine candidate-only migration
+files and six Development-only files unchanged: 738 SQL migrations in the
+combined ledger, digest
+`ac438ba004623343ecb6925cf451dcc31e1f9a868f41d3504e6b0673b774351d`.
+The reviewed 732-candidate and 729-Development ledger digests still pass their
+historical catalog tests. The 738 ledger deliberately has no accepted final
+schema catalog; the protected maintenance target refuses it pending a fresh
+isolated replay and reviewed inventory. No schema was applied.
+
+The candidate pins signed private CSF 1.2.89 at `f1164838`, whose application
+list rechecks authorization after its bounded reads. The older local
+authorization-skip experiment is not incorporated. The signed private commit
+is present on private `main`, but the private repository currently exposes no
+`development` branch, so the strict submodule publication check cannot yet
+prove the required Development ancestry. Hosted Development application p95
+at the unchanged 2,500 ms budget, full exact-tree CI, writer quiescence and
+protected schema/app readback remain open before this merge can be released.
+
 ## Requested design restoration — 2026-10-12
 
 P2 LANDING-VIDEO-PHONE-GUTTER-20261012 and LANDING-VIDEO-REFERRER-20261012
@@ -57,6 +78,143 @@ CSF nested-main finding have source corrections with focused regressions.
 Both-theme phone/desktop rendered inspection is pending. The separate
 CSF-POINT-REVIEW-V51-20261011 finding remains open and unchanged. Local source
 and unit checks do not establish a deployment or complete redesign audit.
+
+## Frontend review candidate — 2026-10-12
+
+P2 DASHBOARD-OPTIONAL-IDENTITY-20261012 is implemented after automatic CI
+38283808673 exposed two route-fallback test failures at `f3d0bc26`. The observed
+failure was the fixture contract; no live-route crash was observed. The loader
+always supplies an identity object, including a fallback when its profile read
+fails. The presentation boundary now explicitly accepts absent/null imagery
+and uses Volunteer initials for missing or blank names, preserving the
+dashboard and export tab without displaying an email address. The old fixture
+is now fully typed instead of casting an incomplete dashboard payload. Four
+regression cases cover absent, null, blank and available identities; both
+original export fallback cases pass. Eighteen focused dashboard/route tests
+pass, including module boundaries and actual avatar fallback rendering.
+
+P2 DASHBOARD-CONTROL-NAMES-20261012, P2 MODERATION-PHONE-OVERFLOW-20261012
+and P2 FOOTER-CHECKING-CONTRAST-20261012 are implemented in this candidate.
+Native Linux run 38271350105 at `87d2f3d4` passed all twelve baseline jobs,
+but stopped at organization invitations after 62 PNGs across fifteen scenes.
+It did not complete the 87-scene audit. Its unnamed dashboard progress/date
+controls, moderation phone overflow and light footer status contrast are
+addressed here. Twenty-one focused UI tests pass. Controlled rendering of the
+actual components and application CSS in Chromium 151 at 1280, 390 and 320px
+in both themes checks page overflow, accessible names, existing image loading
+and resting focus/scroll state; targeted axe checks pass for progress names
+and the Checking badge contrast. This harness substitutes only the moderation
+read, signed-out footer auth state and Next Link/Image adapters. It does not
+prove authenticated route data, native Next rendering or full acceptance.
+
+The member navigation label is Home. Dashboard profile, organization and
+upcoming project imagery uses existing stored image fields, with stable
+initials when absent. Certificate organization logos require an exact snapshot
+name and one organization identity; ambiguous or renamed identities retain
+the fallback. Organization directory cards retain their current join/create
+behavior with clearer image sizing and membership emphasis.
+
+The capture resets focus, pointer and scrolling after recording keyboard
+proof, without sending Escape or disabling accessibility. Native settings
+sidebar and tooltip placement still require fresh resting-state captures.
+The invitation exception permits only the two reviewed initial reads for the
+proved fictional active administrator on the exact invitations route. Source
+hashes, compiled action mappings and an absent staff capability are required.
+The staff-link getter performs the existing get-only RPC branch, including its
+row/advisory locks; it does not change data. Mutating branches and unknown
+traffic remain fatal. Twenty-seven positive/refusal tests cover this boundary.
+
+Global light-theme contrast, missing fixture states, complete old/new pixel
+review and hosted Development acceptance remain open. Production remains at
+schema 687 while Development has 723; the landing objects and request fence
+are absent in Production. Protected credential presence is unconfirmed, and
+writer compatibility/shutdown and recovery gates remain required. Production
+approval is conditional on passing those actual gates.
+
+Cloud source organization, full zero-warning ESLint, agent configuration and
+strict private-pin checks pass. The five affected CI contract modules pass
+47 tests; owned offline checks pass 266 Linux adapters, 568 original guards,
+52 landing-settlement and 65 notification/color checks, plus 48 session,
+summary, invitation and resting-state tests. Full local TypeScript remains
+blocked by the unavailable locked SheetJS tarball (HTTP 403); its ten errors
+are confined to missing xlsx declarations and dependent inferred types.
+Twelve existing replay-harness tests exit 127 because rsync is unavailable.
+Neither limitation is waived: fresh exact-commit hosted CI must pass before
+the candidate can be accepted or deployed.
+
+P2 JOURNEY-INDICATOR-VISIBILITY-20261012 is implemented in this candidate.
+The inactive landing journey pills used a translucent surface token and were
+hard to see in the authentic light-theme capture. The scoped Opus 5.5 change
+uses the existing opaque muted foreground token, preserving the active green,
+native button semantics, keyboard behavior and motion. Twelve owned component
+captures at desktop, 390px and 320px in both themes verify inactive contrast
+of at least 4.83:1, focus and selection, and no horizontal overflow. This is
+component evidence; authenticated route and Production acceptance remain open.
+
+The frontend candidate based on Development `accba0cf` keeps the 723-migration
+ledger and private gitlink `38dc7c7a`. The separate backend release candidate
+`4b4987c5` remains in PR 873; its newer database and private Applications
+changes are outside this frontend release.
+
+P2 LIGHT-TOKEN-CONTRAST-20261011 remains open for this frontend release.
+The exact private gitlink still requires its historical shared palette. Full
+CI 38216164624 and affected CI 38216143025 caught the attempted global palette
+change; the candidate now restores the baseline colors and their existing
+contracts unchanged. The global fix remains preserved in backend PR 873.
+Page-content links use a separate opt-in content-link token with tested 4.5:1
+solid page/card contrast in both themes. This does not attest to global control
+or semantic-status contrast.
+
+P2 ACCOUNT-PROFILE-RECOVERY-20261011 is implemented in this candidate. Slow
+loads offer a retry or auth reload without declaring a timeout failure. Failed
+initial profile reads do not display empty editors; failed refreshes retain the
+previous profile with a stale-data notice. A settings-only failure preserves the
+successful profile and identifies the failed settings read. Sixteen hook tests
+and twelve component tests pass, including stale reads, account switches,
+sign-out, disposal and retry. Controlled real React recovery also passes with local-only query/auth stand-ins
+and labelled editor bodies. Actual provider reads and editable form flows remain
+unverified.
+
+The landing mockup's dark Open badge now has legible semantic text at rest and
+hover; its scan-line glow uses a valid complete color. Help export instructions
+match the retained dashboard exporter and omit unsupported summary totals.
+Organization card hierarchy, signup wording, keyboard content links, hero
+entrance/reduced motion and demo dialog geometry have scoped rendered evidence.
+The external video was intercepted before network: this proves layout and
+origin-only referrer behavior, not actual YouTube playback.
+
+P2 FRONTEND-RUNNER-TEARDOWN-20261012, implemented: affected CI also caught a
+shutdown before a blocking build spawn creates its first child. The queued
+signal cannot run during spawnSync, and a child created afterwards misses the
+group signal. The existing asynchronous owned-build repair from backend
+`4b4987c5` is included in three local runner/fixture/test files. The original
+20-second deadline, claim-release and completed-build assertions remain intact.
+
+The comparison table wraps all columns on narrow screens without nested
+horizontal scroll containers. Native included/excluded cells have explicit screen
+reader status text. Both video dialogs place their visible title and scoped 44px
+close control in a separate toolbar before the iframe, with readable backing and
+an inset focus ring measured over an intercepted bright player.
+
+Route corrections add an MFA heading, OTP label and native Enter submission;
+email/current-password autocomplete preserving existing validation; a direct
+draft edit menu link; the admin header before its landing control; logout failure
+feedback; an export unavailable state; and the Next 16.4 retry error boundary.
+The proposed admin loading module was withdrawn to preserve page-level auth
+redirect timing. Authentication, business actions and provider settings are
+unchanged. Focused tests, formatting, lint and TypeScript pass. Twenty-four
+controlled route-component interaction captures and seventy-eight landing/video
+captures pass; they do not establish full authenticated route acceptance.
+
+Both full Code quality 38218073051 and short 38218062199 passed at committed
+156c121a. Later corrections still require fresh exact-head CI. Independent source
+review found no verified P0–P2 regression in those route corrections. The
+comprehensive old/new screen audit and hosted Development validation remain
+incomplete. Local Docker is unresponsive; an opt-in isolated Linux capture job is
+being integrated. Production is authorized after its release gates, but its last
+verified 687-migration schema differs from the candidate's 723 and the protected
+Production database connection secret names are absent. No Production or
+background job change has been made.
 
 ## Final desktop audit follow-up — 2026-10-11
 
@@ -10997,3 +11155,637 @@ checks. A new regression proves a completed build cannot end or signal the
 subsequent runtime. Existing41 runner cases/271 assertions, TypeScript and
 affected lint pass. Independent source review found no blocker. Current-head
 full CI remains required; no timeout or acceptance assertion was relaxed.
+
+## P2: Settled landing copy and phone layout, October 12
+
+Actual Claude Opus 5.5 reviewed all five settled native landing captures from
+full run 38253378376, including light, dark and reduced motion. The prior blank
+organization reveal, QR image delay and long footer capture were settlement
+artifacts. This is landing evidence, not complete redesigned-screen acceptance.
+
+Findings `LANDING-PROVIDER-CLAIMS-20261012` and
+`LANDING-SAMPLE-IDENTITY-20261012`, P2, are corrected in the frontend candidate.
+The competitor table cites dated official provider pages and no longer asserts
+unverified feature absences. The hand-drawn provider panel is labelled
+illustrative. Hours CSV reports are described specifically, and parental
+consent is not presented as a legal compliance certification. The organization
+preview says Sample organization, uses a reserved example domain and shows no
+verified badge. Permissions, actions, fixture records and private integration
+are unchanged.
+
+Findings `LANDING-TESTIMONIAL-DISCOVERY-20261012` and
+`ORGANIZATION-RECENT-TITLE-WRAP-20261012`, P2, have candidate fixes. Testimonial
+cards use a responsive width and arrow movement follows the measured card;
+Home, End and modifier handling remain. Recent project titles can wrap to two
+lines on phones and remain one line on desktop. Focused tests and component measurements verify keyboard movement and title
+wrapping. The phone render found a 13px blank peek under a 15px scrollbar
+gutter. The revised 96px subtraction shows 33px and part of the quote icon.
+Fresh exact-source rendering and full CI are required before closure.
+
+The scoped orange headline uses orange-700 in light mode and retains
+orange-400 in dark mode. Component rendering measures at least 5.18:1 in light and 7.75:1 in dark.
+This is scoped headline evidence. The existing shared primary token issue
+remains separate. No global palette changes or
+complete accessibility signoff are claimed.
+
+## Cloud continuation and layout capture quota, October 12
+
+The local owner stopped owned watchers, browsers and servers and handed off
+frontend PR874 at `d3b62e82836388680f299f02bfa61c91cf56775d`. Cloud work uses
+that existing branch and exact private gitlink `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`.
+Backend PR873 remains separate and unmerged. No branches were deleted.
+
+Full run [38264156631](https://github.com/riddhimanrana/lets-assist/actions/runs/38264156631)
+passed all 12 baseline jobs, including database replay and four browser shards.
+Layout and the dependent aggregate gate failed. Its validated upload list names
+62 PNGs, including all four home-member modes. This proves retained captures,
+not loaded receipt states or inspected pixels. The cloud artifact download
+returned HTTP403; the precise failed guard and old-versus-new pixel acceptance
+remain unverified. No cause is inferred from filenames alone.
+
+Finding `LAYOUT-AUTH-QUOTA-20261012`, P2: the capture loop repeats password
+sign-in per viewport/theme despite the local 30-per-five-minute quota. The cloud
+repair caches at most 22 exact baseline actor sessions in process memory and
+validates each exact JWT through Auth before every capture. Foreign identities,
+revocation, expiration and quota overflow fail closed. No retry, token refresh,
+sign-out, persisted cookie/session file or broader browser traffic allowance is
+introduced. Twelve focused Node/Bun tests cover 266 capture accesses with 22
+sign-ins and 266 identity checks. A fixed-field summary logs validated receipt
+state counts and failed-scene fault counters without private errors or traffic,
+so diagnosis does not depend solely on artifact transport. Seven adversarial
+summary tests cover privacy, unknown fields and loading-state separation.
+The owned staged package digest, 266 Linux adapter checks, 568 original guards,
+52 settlement checks, 65 notification/privacy checks, changed-file formatting,
+zero-warning lint, agent policy and source organization pass in cloud. The
+broader four-file tooling run reports 52 passes and eight fixture failures;
+an isolated reproduction identifies the missing cloud `rsync` executable
+(exit127). These failures are not credited as a pass or changed to skip.
+
+Fresh cloud read-only metadata confirms Development ledger723 and all landing
+switch objects, and Production ledger687 with all four objects absent.
+Development has four active database cron schedules and no enabled CSF worker
+control rows. Production has six active schedules, one enabled worker-control
+row and no configured application write block. Neither has a running cron row
+or active publication-notification lease at this observation. These checks are
+not the complete catalog, credential capability, external-writer hold or live
+PostgREST enforcement gates. The last READY Development deployment remains
+`accba0cfc2cd2f880b5632f4535cea822947da94`; Production remains
+`fb326cb335e5ccd90244ba304891180d1c5bc4ca`.
+
+Cloud Node24.21.0 and Bun1.4.2 are installed. The frozen dependency installation
+is blocked by HTTP403 from the committed SheetJS archive URL; root typecheck
+reports its missing module and resulting inferred-type errors. The dependency
+URL and lockfile remain unchanged. The cloud GitHub CLI cannot use its supplied
+token for Actions; connected GitHub read tools work. Exact-head full CI,
+receipt/pixel review, remaining fixtures and old-runtime parity, hosted
+Development acceptance and all conditional Production gates remain open. No
+merge, deployment, secret transfer, provider activation or policy bypass occurred.
+
+## Cloud layout corrections and signup restoration, October 12
+
+Full run [38300762442](https://github.com/riddhimanrana/lets-assist/actions/runs/38300762442),
+at `28e791a7b5acc9450f9e20613c2877341759e5c0`, passed all twelve baseline
+jobs and failed layout and the aggregate gate. Its receipt has 67 attempts,
+66 retained PNGs, 64 awaiting pixel review, two loading states and one blocked
+integration scene. Two invitation modes still contain loading markers; four
+retained invitation PNGs do not establish four settled interiors. The integration
+scene refused two initial POSTs. Remaining scenes and native old-versus-new
+acceptance are open.
+
+The consolidated frontend correction restores the source-backed old project
+layout: About, Volunteer opportunities and Project details cards, individual
+slot rows with inline signup and the image inside the right-hand details card.
+Shared ProjectDetails supplies both actual project pages and the embedded
+Santa Cruz Beach Cleanup demo. Current authorization, waiver, status, capacity,
+confirmation and roster behavior remain. Controlled rendering covers 1280px,
+390px and 320px in both themes and the guest authentication dialog. Seven new
+regressions cover slot actions, disabled states, creator behavior and card
+structure. This is component evidence, not native authenticated acceptance.
+
+The member visibility switch has an explicit accessible name and description.
+Phone moderation tabs use two columns so all four labels fit. Resting capture
+requires a continuous quiet period across both tooltip roles and Base UI portal
+slots, including the exit phase after role removal. Invitations and integrations
+must finish visible loading within a fixed twelve-second bound. Unresolved
+loading still fails.
+
+The exact initial integration getters are admitted only for independently
+observed empty fictional configuration, organization bindings and viewer
+connections. Identity-column queries are bounded to the first row; no credential
+columns are selected. Seventeen literal source hashes, compiled manifest bytes,
+exact action IDs, exports, workers, route, actor, body and organization are
+required, with renewed disconnected proof before each mode. Connected getters
+can refresh credentials or probe providers and remain refused, as do owner
+lists and every mutation. Forty-one adversarial tests cover these boundaries.
+
+Public landing capture now observes its live comparison word and demo phase
+before and after each PNG, retries at most three times and rejects transition
+frames. It never freezes animation. Controlled actual HeroHeading and
+PlatformFeaturesSection traces and compositor recordings demonstrate normal
+letter and word movement and reduced-motion still states. Scoped comparison
+button, provider-note and badge colors address measured weak text; shared
+theme tokens are unchanged. Component contrast measurements include explicit
+gradient bounds because axe alone cannot establish those colors. Native
+exact-head motion, full-scene contrast and complete pixel acceptance remain open.
+
+The frozen SheetJS archive still returns HTTP403 in cloud. Typecheck has ten
+missing-xlsx or dependent-inference errors; a landing accessibility module also
+cannot import that dependency. No lockfile substitution or waiver is made.
+Hosted Development and Production have not been changed. Production remains
+ledger687 with the landing objects absent; its real bootstrap, credentials,
+writer holds, recovery capture and schema/application compatibility gates are
+required before the authorized release. PR873 and all feature branches remain
+preserved.
+
+Cloud validation for this correction: the refreshed owned package passes all
+266 Linux adapter checks, 568 original guards, 52 landing settlement checks,
+65 notification/privacy checks and 99 focused capture tests. Four signup UI
+modules pass 14 tests; the isolated member-switch module passes one test.
+Changed component lint, formatting, agent policy, root/private source layout and
+strict private-submodule checks pass. The broader five-module CI tooling run
+passes 76 tests and fails four replay-fixture tests because `rsync` is absent
+(exit127). This is not full CI. Controlled comparison captures settle in all
+four desktop/phone theme modes; all six phone demo phases in both themes show
+no axe contrast violation or conservative gradient-bound failure. Native
+application coverage and release acceptance are still pending.
+
+## Short CI review correction, October 12
+
+Automatic short run
+[38309488545](https://github.com/riddhimanrana/lets-assist/actions/runs/38309488545)
+failed at `c07d407194af421d6f837b2b97f239554dbb939b`: zero-warning lint
+found an unused integration-test import, and two landing markup assertions
+expected the prior badge color and demo title classes. Unit shard2 passed.
+The correction removes that import, requires the Open badge to retain its
+neutral variant with foreground text and no filled gradient, and expects the
+restored bold responsive demo heading while preserving its h2 semantics.
+Product markup is unchanged. The frozen test package and CI digest are refreshed.
+
+Fresh controlled actual-component/CSS measurements at1280px and390px show
+18.10:1 badge contrast in light and9.69:1 in dark, neutral variant and no
+background image, with no axe contrast findings or page errors. Colors are
+composited through the actual ancestor backgrounds; samples are taken only
+while the badge is fully visible. This is scoped contrast evidence, not native
+full-page acceptance.
+
+Full zero-warning lint, formatting and agent policy pass. The owned package
+passes266 Linux checks,568 original guards,52 settlement checks,65 notification
+checks and99 focused tests. The integration suite passes41 tests; actual project
+header/signup suites pass10 tests. Landing accessibility passes52 tests; its
+hero import remains blocked by the locked xlsx archive returning403 in cloud.
+No mock replacement or skip hides that missing dependency. The corrected
+automatic short gate must pass before a full-run request; no full-run trigger
+or deployment occurs for this correction.
+
+## Phone moderation tab height, October 12
+
+Review [4252427910](https://github.com/riddhimanrana/lets-assist/pull/874#discussion_r4252427910)
+identified a height risk at `907b20e40646a590aef45ccc73226b598977e7b6`.
+Fresh actual-component/CSS rendering reproduces it at320px and390px in both
+themes: the shared horizontal list is36px tall with71px of scroll content.
+Confirmed and Dismissed are outside the visible list and fail center hit tests.
+The earlier horizontal-bound checks did not establish vertical visibility.
+Playwright can scroll the list to click those tabs, so click success by itself
+also cannot establish resting visibility.
+
+A scoped list override uses automatic height below sm and retains the shared
+36px single-row height from sm upward. The shared Tabs primitive and moderation
+reads/authorization are unchanged. The controlled browser regression in
+`tests/e2e/moderation/moderation-tabs.browser.ts` fails against the previous
+36px phone list and passes the correction at320px,390px,640px and1280px in both
+themes. It checks actual list/label rectangles, two phone rows or one desktop
+row, unclipped text, center hit targets and all four clicks without hidden-row
+scrolling. The three changed-status callbacks retain the exact fictional
+organization and statuses. Only that read is an explicit stand-in; React, Base
+UI, Tailwind and app CSS remain actual. No external requests or page errors
+occur. Native authenticated acceptance remains separate and pending.
+
+Phone lists now measure71px; desktop/breakpoint lists remain36px. Full
+zero-warning lint and formatting pass. Typecheck remains blocked by the ten
+existing missing-xlsx/dependent-inference errors; the correction introduces no
+additional TypeScript error. No full CI, merge or deployment was triggered.
+The corrective head must pass the automatic short gate before a full-run
+request. The private pin, PR873 and all feature branches remain preserved.
+
+## Bounded landing PNG failure diagnostics, October 12
+
+Full run [38317158161](https://github.com/riddhimanrana/lets-assist/actions/runs/38317158161)
+at `cd7a0b92d580152eab4509516610020af050f4d6` passed all twelve baseline
+jobs and failed the first desktop-light landing capture with no retained PNG.
+The parent receipt review reports HTTP200, zero browser/network/mutation faults,
+no loading markers, broken images, overflow or accessibility findings, settled
+landing/tooltips and a ready comparison word check-ins with demo phase details.
+The suppressed failure leaves the PNG path unresolved; screenshot duration or
+state changes are hypotheses, not an established native cause.
+
+The diagnostic correction records at most three public PNG attempts: fixed
+failure/rejection categories, reviewed before/after words and phases, bounded
+document/viewport dimensions and elapsed milliseconds. Private error strings,
+URLs and unrelated fields are excluded. Output-preflight, capture and exclusive
+write stages distinguish a file/guard failure from the screenshot path. The
+existing three-attempt limit, five-second readiness wait,2.5-second image bound
+and actual readiness predicates remain. Animations run normally; no permission,
+traffic allowance, loader or image-policy change is introduced.
+
+Seven additional adversarial tests cover timing rejection, changed word/phase/
+height, failed screenshot/evaluation/wait, diagnostic privacy and isolation from
+private interiors. Thirteen comparison tests pass; the focused capture package
+passes106 tests. A bounded tall synthetic page runs the exact axe,16-keyboard,
+resting, landing, comparison and PNG helper order with actual HeroHeading,
+ComparisonSection and app CSS. Three desktop timings settle and retain actual
+PNGs. Its phone fixture detects a document-height change during the live word
+flip; that remains an open finding, not a waived or native passed capture.
+The previous native desktop failure is not reproduced by these fixtures.
+No full-run request, merge or deployment is made by this correction.
+
+### October12 full899 landing page-error evidence
+
+Full Code quality38321503995 on899369d8 passes all12 baseline jobs but fails
+layout-audit before its first PNG. The parent receipt records output-preflight,
+one page error and zero other browser/network/mutation faults; landing,
+comparison, assets and accessibility settlement pass. The decoded job log
+retains only the fault count. This is a different observation from the previous
+zero-fault helper failure; the actual exception and its cause remain unproved.
+
+The capture now preserves at most three public page-error diagnostics: fixed
+error kind/category, known capture phase, optional React error number, and a
+bounded line/column in a delivered local Next chunk with a generated filename.
+Messages, arbitrary stack/function/path/query text and actor values are omitted.
+Authenticated interiors still count every error without inspecting its text.
+Every event increments the fatal counter even after the diagnostic limit. No
+traffic, animation, readiness or error allowance is changed. Native reproduction
+through the owned cloud launcher is blocked by PostgreSQL image registration
+running out of Docker storage; no migrations ran. The lockedxlsx0.20.2 archive
+also returnsHTTP403 in this cloud environment. No additional full run or
+deployment is dispatched and the landing failure is not claimed fixed.
+
+A separate disposable PostgreSQL17 function harness checks actual QR generation,
+redemption, check-in and checkout actions, with the current SQL checkout RPC and
+committed row readbacks. Missing/tampered/wrong-project challenges, unauthorized
+checkout, canceled-project redemption and immutable retries pass. Actual typed
+and drawn SignatureCapture interactions at1280/390 light mode pass through
+waiver preparation, atomic signup/evidence SQL, matching project/signup/actor
+readbacks, retry and signed PDF generation. Missing evidence/signers are refused;
+an injected evidence constraint failure rolls back the signup. These use minimal
+fictional test tables and a local transport/storage adapter, not a full Supabase
+ledger/RLS or deployed product route. No real agreement or email is involved.
+
+Repository findings PLATFORM-AUTO-20261012-01/02/03, P2, open: current canonical
+automatic functions omit sameDayMultiArea, filter scheduled checkout to auto
+rather than providing the documented QR fallback, and turn a blank start into
+midnight attendance. The current verbatim function closure reproduces all three
+in disposable PostgreSQL; eight other automatic semantics checks pass. No
+historical migration or backend PR873 file is changed. Add full-stack pgTAP and
+browser regressions before claiming these workflows accepted.
+
+Read-only provider metadata shows zero marked CSF Sheet test workspaces/files in
+Production687 and zero marked workspaces in Development723. Development retains
+onecsf-load-fixture organization, which does not establish Google-write authority.
+Historical copied-workbook connection reports are not current resource proof.
+No live test Calendar/Sheet ID, fresh OAuth or provider write is claimed.
+
+### October12 landing demo calendar hydration correction
+
+The exact899 helper at the failed run's2026-10-12T23:41:01.616Z produces
+November12/13 on a UTC server and November13/14 in Los Angeles. Adding31/32
+local days crosses the daylight-saving change, then toISOString changes the
+calendar dates. This changes the real demo's dates and schedule IDs during
+hydration. A controlled production React reproduction using the source-derived
+factory, actual date formatter and actual ProjectDetailsHeader emits one page
+error, React418, with zero console or external-request errors. Reusing the server
+snapshot emits zero errors. This reproduces a concrete source defect with the
+same failure profile and clock; the original CI exception text was discarded,
+so its precise identity still requires native confirmation.
+
+The server now computes one Pacific calendar anchor and serializes it through
+Hero and HeroContent. Demo dates use UTC calendar arithmetic on that anchor;
+the legacy Saturday preview also formats its anchored calendar date explicitly.
+The corrected factory produces zero page/console errors in the same controlled
+hydration reproduction. Five calendar tests cover the failed instant, UTC/Pacific
+midnight, DST, leap/month/year boundaries and invalid inputs. Two native browser
+regressions compare the rendered demo date range with the server anchor in UTC
+and Pacific contexts and exercise the real demo-scroll toggle. They await the
+full owned runtime gate; no cloud-native Next/Supabase acceptance is claimed.
+
+Cloud validation passes122 capture tests,266 Linux adapter checks and568 original
+guards,52 landing settlement checks,61 notification/color checks, full lint and
+81 focused landing tests. One existing full Hero import test and standalone
+typecheck remain blocked by the unavailable lockedxlsx dependency; the ten
+reported typecheck diagnostics are the existing missing-module/dependent errors.
+No substitute package, waived check, second full dispatch or deployment is used.
+The three automatic-attendance findings above remain open and separate.
+
+### October13 approved Production preflight connection reuse
+
+The user approved reuse of the existing protected bootstrap owner connection
+for fixed Production preflight reads. The schema workflow now prefers a
+configured PRODUCTION_READONLY_URL and otherwise selects
+PRODUCTION_BOOTSTRAP_DATABASE_URL. An invalid configured URL fails without a
+fallback. Project, host, owner fallback, database, port and TLS checks remain;
+no role, credential, persistent grant or duplicate secret is created. Receipts
+label owner authority and read-only execution separately, and never describe
+the owner connection as a restricted login. Binding-only validation does not
+prove live connectivity.
+
+Fixed ledger/catalog/posture/data checks retain their explicit read-only
+transactions. The child session also defaults to read-only with a safe search
+path and bounded timeouts. The quiescence mode uses its reviewed SQL through
+the same secret-suppressing transport, replacing the shell URL argument while
+retaining its30-second process limit. Arbitrary SQL and extra CLI arguments
+are refused. Bootstrap mutation and schema-push paths remain separate. Exact
+source, protected review, application fence, fresh API proof, external-writer
+hold, SHA-bound recovery capture, schema/catalog and acceptance gates remain.
+
+Focused controller/bootstrap/fence tests pass37 checks; release and recovery
+contracts pass30 tests. A disposable PostgreSQL17 owner fixture passes nine
+actual CLI/quiescence checks, including DDL/DML refusal, no committed writes,
+active/running cron refusal and a disabled write-block flag refusal. The fixture
+uses minimal fictional tables and a bounded local transport adapter, proving
+transaction behavior rather than Supabase or saved Production credential
+capability. Its server and files are removed. No Production connection,
+writer change, recovery export, manual CI dispatch, merge or deployment is made.
+The integrated candidate still requires exact-head full CI and hosted
+Development acceptance, followed by the actual Production compatibility and
+recovery gates.
+
+The current PR review identified that a visible landmark could coexist with
+loading markers while the capture still reported success. The output preflight
+now requires an explicit zero visible skeleton/aria-busy count before any PNG
+write. Such incomplete scenes use the existing fatal blocked receipt and stop
+the run. Historical captured-loading-present receipts are no longer accepted
+by upload validation; successful PNG receipts must also prove zero loading
+markers. No time, traffic or mutation allowance is added. Focused regressions
+cover a visible landmark/PNG with a remaining marker and malformed or missing
+counts. Full native scene acceptance remains pending.
+
+Short CI38329529088 on0874a449 fails five new transport tests under Bun1.4.2,
+although their earlier Node execution passed. Bun executes the synthetic psql
+fixture when given --check, adding an unexpected call or triggering its fictional
+error. The syntax-only check now explicitly uses Node and verifies that zero
+transport calls occurred. All37 focused controller/bootstrap/fence tests pass
+under Bun1.4.2 with the repository preload. No Production code or credential
+changes accompany this test repair. The full dispatch was held; new exact-head
+short CI must pass before the parent starts full acceptance.
+
+### October13 scheduled attendance and comparison-cycle repair
+
+The three PLATFORM-AUTO-20261012 findings are source-fixed and locally verified;
+hosted/Production acceptance remains pending. Reproduction temporarily restores
+the exact original worker SQL inside a rollback-only transaction on an owned
+Supabase PostgreSQL17.11 database. A valid published named-role schedule remains
+approved with no attendance; QR arrival10:15 retains no departure after its12:00
+end; a legacy blank start incorrectly records00:00–12:00. The earlier named-role
+fixture lacked required overall times; the corrected valid fixture reproduces
+the omission, so this is a source defect rather than a changed expectation.
+
+Forward migration20261013010957_repair_scheduled_attendance_windows reuses the
+published-schedule validator through a private selected-session parser. Named
+roles and both multi-day ID forms use their exact slot instants. QR checkout
+fills only a missing departure at the scheduled end after a recorded arrival;
+explicit early departures remain unchanged. Blank/missing/invalid times and
+malformed legacy schedules are skipped without inventing midnight credit or
+aborting healthy rows. Started/completed published projects remain eligible
+after the scheduled status worker runs. Draft, cancelled/inactive, unapproved
+and future attendance stays unchanged. Manual attendance remains staff-owned.
+The workers lock project/signup boundaries without waiting on busy rows and
+retain explicit service execution with browser roles denied. They record
+attendance only; certificate publication and CSF points remain separate.
+
+All724 migrations replay successfully. The full existing pgTAP run passes500
+files and12,991 assertions, including45 new worker/window/authorization checks.
+The added two-session lock regression passes four assertions through the normal
+Supabase test runner. Clean catalog capture uses the exact fixture teardown in
+a rollback-only transaction:1440 objects, one new private parser and two changed
+worker definitions, with every other723 fingerprint unchanged. The complete724
+catalog and its prior release-boundary wrappers verify on that replay. No old
+migration or private gitlink is changed. Production remains687; Development723.
+
+ComparisonTextFlip's5ch reservation is independently reproduced as a phone
+rewrap: at390/414px, heading40.8→81.6px changes document height by41px. The live
+word animation keeps its2500ms timing; an aria-hidden grid of the actual phrases
+reserves the largest font-measured footprint. Capture readiness reads only the
+live phrase. Seven controlled Chromium width/theme combinations see every phrase
+and have invariant heading/document height, zero overflow and zero browser
+faults after the fix. This uses the real section, app CSS and Geist with Next
+link/image adapters; full Next route acceptance is separate. Three native phone
+browser regressions await the integrated full run.
+
+The image-registration obstacle is resolved locally by exporting the verified
+official PostgreSQL17.11 filesystem into one cache layer with all runtime
+configuration preserved; provenance is retained outside source. No registry,
+Docker daemon/security or provider setting is changed. Full local app startup
+still fails Auth/Storage health checks, which are not bypassed; the supported
+fresh database-only start supplies the SQL replay evidence above. The lockedxlsx
+archive remains unavailable:52 landing assertions pass while the existing Hero
+import and ten dependency-related type diagnostics remain blocked. No substitute
+or waiver. Exact-candidate short/full CI, full layout/pixel review, Development
+deployment/acceptance and the actual Production compatibility/writer/recovery
+gates remain mandatory.
+
+Short CI38337052343 on843f5f55 passes static checks and the first unit shard,
+but six headline lifecycle scenarios fail: the fixture counts the new hidden
+measurement phrases as live words. The fixture now checks the one invisible,
+aria-hidden measurement ancestor, every expected sizing phrase and its shared
+grid cell, then requires exactly one exposed live phrase. It retains all cycle,
+visibility, reduced-motion, zero/one-word, effect-replay and timer/listener cleanup
+assertions. All12 lifecycle scenarios pass on Bun1.4.2/Node24.21.0, alongside nine
+focused markup/accessibility tests with114 expectations. The product component,
+animation and verified heading geometry are unchanged. Exact-head short/full CI
+and hosted release acceptance remain pending; the full dispatch stays held.
+
+### October12 integrated browser and plugin-reader follow-up
+
+Full CI38338528368 on25242dd2 passes all501 database files/12,995 assertions,
+release/scale/concurrency and633 cron assertions, static/build/all three unit
+shards/full-quality. Browser shard2 fails the three comparison-cycle widths;
+layout stops at the plugin-settings scene after70 images. Neither is accepted
+as a complete UI audit or pixel review; no merge or deployment occurred.
+
+Comparison heading height stays constant through every word, but two document
+heights are recorded. The old test starts before client-only partner tiles,
+organization demo replacement and closing section are required to exist. A
+controlled real-component composition with deliberately delayed lazy regions
+reproduces this exact assertion shape at320/390/414px: organization content and
+inserted sections change page height while the heading remains constant. The
+same native-test measurement callback reports one document height after the
+new bounded presence/font prerequisites. It uses a fixed hero placeholder and
+Next/action/navigation adapters, so it proves the harness phase gap rather than
+the historical full-Next error identity. The native test retains strict all-word,
+one heading height, one page height, no overflow and zero fault assertions.
+Numeric initial presence/dimensions and bounded section-height transitions are
+attached for fresh native diagnosis; both geometry and fault assertions execute.
+
+The plugin-settings component calls getOrganizationPluginSettings on mount,
+but the scene previously declared no reader. Its source path revalidates active
+organization-admin access and only selects plugin catalog/access/install rows,
+with pure registry/release transformations and a STABLE local status getter
+chain. The new policy admits only that exact compiled export/worker, reviewed
+29-file snapshot, fixed fictional developer/admin organization, route and single
+argument. Twenty-five contract tests retain strict mutation/unknown-action/
+wrong-actor/organization/mapping/dependency rejection. All other POSTs remain
+fatal. The scene now uses the existing bounded loading-marker check. Fixed
+request-refusal categories improve future diagnosis without exposing IDs, bodies
+or private console text. The original blocked request/console identity remains
+unproved; fresh full scene coverage is mandatory.
+
+Reviewer finding4254134963 is repaired in dashboard certificate export and hours
+rows. Project wall clocks, dates and abbreviations now use one project timezone
+with the existing Pacific legacy fallback, so a Pacific viewer never sees a
+local time labeled EDT. Overnight CSV rows use the actual project end date.
+Picker date labels compare against project calendar labels without UTC parsing.
+Five formatter/export tests pass under both Pacific and UTC host timezones,
+including spring-forward, repeated fall-back times and cross-midnight dates;
+actual dashboard rendering verifies the New York date beside EDT. Credited
+durations, publication and certificate authorization stay unchanged.
+
+Source changes await exact-head short/full CI, complete layout/pixel review,
+parent-owned Development prepare/merge/complete and hosted acceptance. Production
+remains subject to actual compatibility, writer/fence and recovery gates.
+
+## Current landing PNG timing and historical palette restoration
+
+P2 LANDING-PNG-FRESH-INTERVAL-20261013: fullCI38342965362 on5d98d999
+passes all non-layout jobs, including native320/390/414 comparison journeys and
+DST certificate coverage. Layout fails on its first landing PNG. The retained
+receipt has zero faults, status200, no loading/broken images/axe findings and
+constant7793px document height. All three838–926ms PNG attempts end during a
+live word or demo transition. This is the identified current capture failure;
+it does not establish identities for historical failures.
+
+The capture helper now observes fresh live transitions and an80ms quiet interval
+before each PNG. Source-reviewed phase holds determine conservative capture
+windows; a fifteen-second observation bound and three-attempt limit remain.
+Natural reduced motion preserves its still headline. Same-state, geometry,
+duration, loading and fault guards remain fatal. Controlled real-component
+Chromium first accepts four desktop/mobile light/dark PNGs in423–747ms with
+unchanged public word/phase/height. Longer artificial stress captures remain
+rejected when they cross transitions. Framework/hero/action adapters and one
+controlled console error limit this evidence to timing diagnosis; exact-head
+native layout and full pixel acceptance remain required.
+
+P2 HISTORICAL-PALETTE-RESTORE-20261013: the existing palette contract explicitly
+names historical source d95a0aa9846bc02e611f67f0f9017245c08821d8. Its exact raw
+source and tree were verified remotely. Repository tags/releases do not contain
+an app v1.5 label; the chosen historical source is documented rather than
+inventing a release association. Light palette values already match that source.
+Seven dark tokens had changed in060ea012: background, muted, popover, card,
+border, primary foreground and destructive foreground. They are restored exactly;
+shared tests now lock dark surfaces and semantic colors as well as light values.
+Dark contrast and the private light-palette contract remain passing. Functional
+hydration, geometry, reader, attendance and certificate repairs, the approved
+gloss finish and existing opt-in accessible content-link remain. The active
+landing video has no historical purple glow; a legacy unused Highlight helper
+still contains its historical purple defaults and is not mounted by a route.
+New full route and old-versus-new pixel acceptance must use this palette candidate;
+prior captures do not establish final acceptance.
+
+Controlled palette comparison renders actual HomeHeaderActions, ProjectCard,
+OrganizationHeader and ExportSection with fictional inputs. Eight1280/390px
+before/after captures in both themes have zero page/console/external faults,
+zero server-action calls, no overflow and unchanged1122/1632px heights. Root
+inspected all eight: light white/green surfaces remain stable; dark surfaces and
+borders return to the verified historical levels without wrapping drift. These
+framework-adapted components do not prove complete authenticated route or old
+whole-page acceptance, and no Claude pixel-review receipt is claimed.
+
+## Corrected project scope: preserve Let's Assist palette
+
+The user clarified that the v1.5 color restoration request was for Dicy.
+Let's Assist's palette rollback in70180c3d was based on a misinterpreted project
+scope. Only that rollback is undone: globals.css, its palette-specific root test
+additions and design-system provenance paragraph return exactly to5d98d999.
+The approved prior palette, gloss, content-link and earlier layout/accessibility
+fixes remain. All screenshot fresh-interval, hydration, heading/lifecycle,
+notification/plugin reader, scheduled-attendance and certificate timezone fixes
+remain. Historical palette/component reports are retained as superseded evidence;
+they cannot be final acceptance for the corrected candidate or evidence for Dicy.
+No wrong-palette Development or Production release occurred in this source task.
+Fresh exact-head CI/layout/pixel review and actual release gates remain required.
+
+## Cron history retention test isolation
+
+P2 CRON-HISTORY-TEST-ISOLATION-20261013: full38349434485 on obsolete8c7
+passes all browser/build/static/typecheck/unit jobs but fails one of12995 database
+assertions. At the05:05UTC minute boundary cron_history_retention assertion8
+counts6 total rows while expecting its three retained fixtures. The test replaces
+the whole history relation in a transaction but previously allowed pg_cron's
+independent logging transactions to insert new rows before the final count.
+The identities of the three historical CI rows were not retained and remain
+unproved; all three canonical project/attendance cron schedules are eligible at
+that minute boundary.
+
+A focused owned PostgreSQL17.11/pg_cron1.6.4 database with three real one-second
+noop cron jobs reproduces the same assertion8 failure (12 rows vs3). A bounded
+transaction-scoped SHARE ROW EXCLUSIVE lock before fixture replacement preserves
+all eight original assertions, including the global final count and50000-row
+batch limit. Three delayed concurrent-writer runs and one unchanged-runtime run
+pass32 assertions. pg_locks observes the fixture lock and a queued native cron
+writer; after rollback logging continues, all four scheduled jobs remain active,
+and no negative fixture rows persist. The test changes no cron schedule, worker
+control, production retention command, migration, role, provider or application
+behavior. Focused SQL proof does not replace full exact-head database/layout CI.
+
+The first disposable CLI startup could not create its outside-workspace cache;
+no database or source change resulted. The focused proof instead used the cached
+official PostgreSQL filesystem on a new network-disabled Unix-socket-only
+container. It does not claim full Supabase stack health or application acceptance.
+Let’s Assist retains its pre-rollback palette; the Dicy color task remains separate.
+
+## Frontend acceptance follow-up: Help semantic capture readiness
+
+Full CI38352517704 on80c91ee08e358333c8e9c2f1eb43d07a0f99d881 passed all browser, database/replay, typecheck, build, static, unit and quality jobs. The corrected cron-history fixture passed in the501-file/12,995-assertion database suite. Layout retained114 images and stopped at signed-out Help with HTTP200 and zero fault counters, before axe/keyboard/DOM evidence. Its omitted private error does not prove an individual selector timeout.
+
+Source review identified an independent, reproducible readiness defect: the frozen Help landmark requested a textbox while the real labelled input uses type=search and exposes searchbox. Help center already matches the exact heading case. The template now requires the correct searchbox with the same accessible name. All capture/effect/loading/geometry guards remain unchanged. A native-route browser regression checks the frozen landmarks and search/clear behavior. Controlled Chromium rendering of the actual Help component, with only a Next Link adapter, confirmed old-locator refusal and the visible searchbox in desktop/phone light/dark and reduced motion, with zero page/console/external errors; this is focused semantic proof, not full Next route acceptance.
+
+All21 signed-out scene landmarks were compared with current source names, heading semantics and relevant fictional fixture bindings; no other discrepancy was identified. Fresh exact-head full capture and complete authentic old-versus-new root/Claude pixel review remain required. The114 predecessor PNGs are incomplete evidence, and newly reported accessibility findings still require actionable node evidence and review. No merge, deployment, new credential or palette change accompanies this correction.
+
+## Frontend acceptance follow-up: scoped heading and contrast repairs
+
+The retained80c layout receipts identified12 missing-h1 observations across signup, signup success and email-expired, plus four FAQ heading-order observations. The actual titles were CardTitle divs; route-specific h1 children now expose each title (including staff-invite and invalid-success branches) without changing shared CardTitle. FAQ opts its accordion question headers into h2; other accordion callers keep the h3 default. Focused source-component SSR/Chromium checks reproduced the defects before correction and passed24 heading checks after correction. Title font size, weight, line height, color, width and height were identical before/after in all24 controlled cases. Full Next hydration/native-route acceptance remains required.
+
+The same controlled actual-CSS DOM recheck reproduced the four signup-success instruction nodes and the expired-link notice at4.39:1: muted foreground #71717a on #f4f4f5. Those specific muted surfaces now use foreground at70% opacity. Neutral Badge status text used the same failing combination; its foreground is strengthened for that variant while keeping fill, borders and all global palette tokens unchanged. These measurements do not establish the identity or resolution of every predecessor signed-in contrast finding. The remaining native scene findings require exact-head capture and actual node/pixel review. All fictional captures now retain capped fixed-region/tag and validated hex/ratio diagnostics, never selectors, text, HTML or raw axe payloads; no fault, loading, geometry or accessibility finding is waived.
+
+The manual Main layout request was also inconsistent: capture excluded Main, but the aggregate gate demanded its success. Execution and required-result predicates now agree on explicit non-Main workflow dispatch. The first static step rejects layout_audit=true on Main with a fixed actionable error; a Main request cannot become an accepted skipped audit. The actual rejection exits1 and all16 event/ref/input combinations are covered. Normal Main full validation remains unchanged. Current exact-head short/full CI, complete capture, authentic historical counterparts, root/actual Claude pixel review and all hosted/release compatibility gates are still pending.
+
+## P2: Self-reported volunteer-hour timezone loss, October 14
+
+Finding `SELF-REPORTED-TIMEZONE-20261014`: the hours form sends an IANA zone,
+but POST stored only UTC instants with `project_id = null`. The list and CSV
+therefore relabeled non-Pacific hours using the legacy Pacific fallback.
+The candidate persists `event_timezone`, retains it through dashboard reads,
+and uses it when no project zone exists. New York API-to-export and Tokyo
+render/date-boundary regressions pass. The forward nullable-column migration
+and 12 ownership/storage pgTAP assertions are prepared; schema replay and
+whole-catalog acceptance remain blocked, so this finding is fixed in source
+only and open for deployed verification. See the current
+[v4 feedback status](v4-development-feedback-status.md) for exact provider,
+source and test evidence. Production and the separate points release were not
+changed.
+
+### Self-reported timezone review follow-up, October 14
+
+`SELF-REPORTED-TIMEZONE-20261014` remains open for deployment/SQL verification.
+The follow-up corrects two supported gaps: browser-role certificate writes could
+persist a nonblank unknown zone, and detail/individual print pages ignored the
+stored zone. A forward migration validates catalog membership with a private
+security-invoker trigger and appends timezone fields to the existing invoker
+views. The narrow detail props, list, individual and bulk print now carry that
+zone. Focused server and actual-component browser regressions pass; 23 pgTAP
+assertions and the 727 catalog still require the owned replay. Three focused
+synthetic PNGs exist outside source; whole-site and hosted acceptance remain
+pending. Current target and provider/dispatch blockers are in the
+[v4 feedback status](v4-development-feedback-status.md).
+
+## P2: Incomplete waiver definition passes create-step readiness, October 14
+
+`WAIVER-CREATE-READINESS-20261014`: the client checked only whether a waiver
+definition object existed. Empty or stale objects passed and could fail after
+staging at the server publication gate. The candidate now uses the same
+bounded definition schema as the save action and checks signing placements.
+Synthetic readiness, real settings renders, creation retry and organizer status
+cases pass. Waivers switched off stay unblocked, and participant signature
+metadata is never used to infer configuration readiness or legal consent.
+The user's reference caption/OCR confirms the saved-but-unpublished warning;
+its pixels were denied by the Library transfer proxy, so its exact toggle state
+and linkage to this defect remain unconfirmed. See the current v4 status for
+that blocker and the still-unaccepted 727 catalog. No real records were changed.

@@ -111,13 +111,12 @@ describe("CSF Production release preflight", () => {
     const workflows = [
       {
         source: ciWorkflow,
-        // Five jobs check out code (static, unit, build, database, browser),
-        // each with a root and a private checkout. The database and browser
-        // jobs each start their own stack.
+        // Six jobs check out code, each with root and private checkouts.
+        // Database, browser and the opt-in layout audit own isolated stacks.
         counts: {
-          "actions/checkout": 10,
-          "oven-sh/setup-bun": 5,
-          "supabase/setup-cli": 2,
+          "actions/checkout": 12,
+          "oven-sh/setup-bun": 6,
+          "supabase/setup-cli": 3,
         },
       },
       {
@@ -813,12 +812,12 @@ describe("CSF Production release preflight", () => {
       "Verify Production quiescence receipt and database posture",
     );
     expect(quiescenceStep).toContain(
-      'timeout 30s psql -X "${PRODUCTION_READONLY_URL}"',
+      "scripts/production/maintenance-preflight.mjs quiescence",
     );
     expect(quiescenceStep).toContain(
-      "scripts/production/verify-cutover-quiescence.sql",
+      "PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}",
     );
-    expect(quiescenceStep).toContain("Raw output was suppressed");
+    expect(quiescenceStep).not.toContain("psql");
     expect(deployment).toContain(
       "applicationWritesBlockedConfirmation: $application_writes_blocked_confirmation",
     );
@@ -844,7 +843,9 @@ describe("CSF Production release preflight", () => {
       '.recoveryCaptureSha256 | test("^[0-9a-f]{64}$")',
     );
 
-    expect(productionQuiescenceVerifier).toContain("BEGIN READ ONLY;");
+    expect(productionQuiescenceVerifier).toContain(
+      "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
+    );
     expect(productionQuiescenceVerifier).toContain(
       "SET LOCAL statement_timeout = '20s';",
     );

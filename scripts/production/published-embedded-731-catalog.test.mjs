@@ -28,7 +28,7 @@ test("the exact signed data-only publication is recognized without accepting fut
   ])
     assert.ok(query.includes(value), value);
   assert.ok(!query.includes("untrusted"));
-  assert.deepEqual(maintenanceTarget(root), expectedVersions(root));
+  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
   for (const ledger of [
     [...versions, "20990101000000"],
     [...versions.slice(0, -1), "20261011224035"],
