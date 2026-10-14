@@ -143,11 +143,10 @@ if (scenario === "self-reported") {
   assert.ok(rendered.includes("12:30 AM GMT+9"));
   assert.ok(!rendered.includes("Oct 12, 2026"));
 }
-assert.ok(
-  serialized.includes(
-    scenario === "self-reported" ? record.description : record.project_id,
-  ),
-);
+const displaySnapshot =
+  scenario === "self-reported" ? record.description : record.project_id;
+assert.ok(typeof displaySnapshot === "string");
+assert.ok(serialized.includes(displaySnapshot));
 const metadata = await generateMetadata({ params });
 assert.equal(metadata.title, `${record.project_title} Volunteer Certificate`);
 for (const columns of selections) {

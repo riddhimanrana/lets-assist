@@ -11354,3 +11354,17 @@ assertions and the 727 catalog still require the owned replay. Three focused
 synthetic PNGs exist outside source; whole-site and hosted acceptance remain
 pending. Current target and provider/dispatch blockers are in the
 [v4 feedback status](v4-development-feedback-status.md).
+
+## P2: Incomplete waiver definition passes create-step readiness, October 14
+
+`WAIVER-CREATE-READINESS-20261014`: the client checked only whether a waiver
+definition object existed. Empty or stale objects passed and could fail after
+staging at the server publication gate. The candidate now uses the same
+bounded definition schema as the save action and checks signing placements.
+Synthetic readiness, real settings renders, creation retry and organizer status
+cases pass. Waivers switched off stay unblocked, and participant signature
+metadata is never used to infer configuration readiness or legal consent.
+The user's reference caption/OCR confirms the saved-but-unpublished warning;
+its pixels were denied by the Library transfer proxy, so its exact toggle state
+and linkage to this defect remain unconfirmed. See the current v4 status for
+that blocker and the still-unaccepted 727 catalog. No real records were changed.

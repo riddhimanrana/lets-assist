@@ -8,7 +8,30 @@ import {
   getWaiverStepError,
 } from "./create-blockers";
 
-const definition = { signers: [], fields: [] } as never;
+const definition = {
+  signers: [
+    {
+      roleKey: "participant",
+      label: "Participant",
+      required: true,
+      orderIndex: 0,
+    },
+  ],
+  fields: {
+    detected: {},
+    custom: [
+      {
+        id: "participant-signature",
+        label: "Participant signature",
+        signerRoleKey: "participant",
+        fieldType: "signature" as const,
+        required: true,
+        pageIndex: 0,
+        rect: { x: 10, y: 20, width: 180, height: 50 },
+      },
+    ],
+  },
+};
 const pdf = {} as never;
 
 function waiverState(overrides: Record<string, unknown> = {}) {
@@ -24,6 +47,15 @@ function waiverState(overrides: Record<string, unknown> = {}) {
 describe("what blocks a waiver project on the settings step", () => {
   test("a project without a waiver is never blocked", () => {
     expect(getWaiverStepError(createInitialEventFormState())).toBeNull();
+    expect(
+      getWaiverStepError(
+        waiverState({
+          waiverRequired: false,
+          waiverDefinition: { signers: [], fields: [] },
+          waiverPdfFile: null,
+        }),
+      ),
+    ).toBeNull();
   });
 
   test("a complete waiver setup passes", () => {
@@ -51,6 +83,59 @@ describe("what blocks a waiver project on the settings step", () => {
     expect(getWaiverStepError(waiverState({ waiverDefinition: null }))).toBe(
       WAIVER_DEFINITION_REQUIRED_MESSAGE,
     );
+  });
+
+  test.each([
+    { signers: [], fields: [] },
+    { ...definition, fields: { detected: {}, custom: [] } },
+    {
+      ...definition,
+      fields: {
+        detected: {},
+        custom: [
+          { ...definition.fields.custom[0], signerRoleKey: "stale-role" },
+        ],
+      },
+    },
+    {
+      ...definition,
+      fields: {
+        detected: {},
+        custom: [{ ...definition.fields.custom[0], fieldType: "initial" }],
+      },
+    },
+    {
+      ...definition,
+      signers: [{ ...definition.signers[0], required: false }],
+      fields: { detected: {}, custom: [] },
+    },
+  ])(
+    "incomplete or stale waiver configuration is blocked before staging (%#)",
+    (waiverDefinition) => {
+      expect(getWaiverStepError(waiverState({ waiverDefinition }))).toBe(
+        WAIVER_DEFINITION_REQUIRED_MESSAGE,
+      );
+    },
+  );
+
+  test("a ready project needs configuration, not a participant signature before publication", () => {
+    expect(
+      getWaiverStepError(waiverState({ waiverSignatures: [] })),
+    ).toBeNull();
+    // Old signature metadata never repairs a missing current configuration.
+    expect(
+      getWaiverStepError(
+        waiverState({
+          waiverDefinition: null,
+          waiverSignatures: [
+            {
+              id: "fictional-signed-record",
+              signed_at: "2026-10-01T12:00:00Z",
+            },
+          ],
+        }),
+      ),
+    ).toBe(WAIVER_DEFINITION_REQUIRED_MESSAGE);
   });
 
   test("print and upload alone needs no signature placements", () => {
