@@ -65,7 +65,7 @@ describe("landing first-response visibility", () => {
     expect(hiddenFirstRenderStyles(html)).toEqual([]);
   });
 
-  test("journey heading, first preview and all step cards start visible without JavaScript", () => {
+  test("journey heading, certificate preview and all step cards start visible without JavaScript", () => {
     const html = renderToStaticMarkup(createElement(VolunteerJourneySection));
     const text = readableText(html);
     for (const copy of [
@@ -74,8 +74,9 @@ describe("landing first-response visibility", () => {
       "Sign up & confirm",
       "QR check-in/out",
       "Track progress",
-      "Get certified",
-      "Bellingham Square Park Cleanup",
+      "Get a certificate",
+      "Certificate of Volunteer Service",
+      "Alex Morgan",
     ]) {
       expect(text).toContain(copy);
     }
@@ -93,10 +94,11 @@ describe("landing first-response visibility", () => {
     expect(section).toBeDefined();
     const text = readableText(section ?? "");
     for (const copy of [
-      "Run the whole project from one place",
-      "Slots and one link",
-      "Check-in at the door",
-      "Hours in one place",
+      "One workspace for your team",
+      "Plan the shifts",
+      "Review real attendance",
+      "Issue service proof",
+      "Add organization tools",
       "Interactive organization demo",
     ]) {
       expect(text).toContain(copy);

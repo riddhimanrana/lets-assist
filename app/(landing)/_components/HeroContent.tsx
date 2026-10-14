@@ -123,16 +123,16 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 
 const platformHighlights = [
   {
-    title: "Create your project",
-    desc: "Set the date, add shifts, and decide how many people you need.",
+    title: "Set up the project",
+    desc: "Add sessions, spots, and a waiver when your event requires one.",
   },
   {
-    title: "Share one link",
-    desc: "Give volunteers one place to see the details and choose a spot.",
+    title: "Run the day",
+    desc: "Share one sign-up link and record QR check-ins at each session.",
   },
   {
-    title: "Check in and verify",
-    desc: "Record attendance and keep service hours with the project.",
+    title: "Publish the proof",
+    desc: "Verify hours and give volunteers a service certificate.",
   },
 ];
 
@@ -900,9 +900,10 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Add shifts, share a sign-up link, check volunteers in, and keep their
-          hours together. Built for clubs, schools, and community groups. Free
-          for organizers and volunteers.
+          Set shifts and optional waivers, share one sign-up link, and track QR
+          attendance through verified hours and certificates. Add
+          organization-specific tools when your team needs them. Free for
+          organizers and volunteers.
         </motion.p>
 
         <motion.div

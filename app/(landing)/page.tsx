@@ -31,15 +31,15 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Let's Assist: Connect Volunteers with Opportunities",
+    absolute: "Let's Assist: Create and run volunteer projects",
   },
   description:
-    "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+    "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: "Let's Assist: Connect Volunteers with Opportunities",
+    title: "Let's Assist: Create and run volunteer projects",
     description:
-      "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+      "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
     url: siteUrl,
     siteName: "Let's Assist",
     type: "website",
@@ -48,15 +48,15 @@ export const metadata: Metadata = {
         url: `${siteUrl}/opengraph-image`,
         width: 1200,
         height: 630,
-        alt: "Let's Assist - Connect volunteers with opportunities",
+        alt: "Let's Assist volunteer project tools",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Let's Assist: Connect Volunteers with Opportunities",
+    title: "Let's Assist: Create and run volunteer projects",
     description:
-      "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+      "Create volunteer projects with optional waivers, QR attendance, verified hours, and service certificates. Organization plugins support chapter-specific work.",
     images: [`${siteUrl}/opengraph-image`],
   },
   alternates: {

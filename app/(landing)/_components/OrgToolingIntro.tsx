@@ -9,16 +9,20 @@ import { AnimatedText } from "./AnimatedText";
 
 const orgFeatures = [
   {
-    title: "Slots and one link",
-    desc: "Set up the shifts, limit the spots in each one, and share a single sign-up page with your group.",
+    title: "Plan the shifts",
+    desc: "Set each session's time and capacity, then share one project page with volunteers.",
   },
   {
-    title: "Check-in at the door",
-    desc: "Volunteers scan the session's QR code when they arrive, so attendance stays with the event.",
+    title: "Review real attendance",
+    desc: "Use QR check-in and check-out records to verify hours before you publish them.",
   },
   {
-    title: "Hours in one place",
-    desc: "Review attendance, verify service hours, and export a record when your group needs it.",
+    title: "Issue service proof",
+    desc: "Published, verified hours can become a volunteer certificate and an exportable record.",
+  },
+  {
+    title: "Add organization tools",
+    desc: "Eligible teams can install an organization-scoped plugin for workflows beyond projects.",
   },
 ];
 
@@ -31,20 +35,13 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
     <section id="org-tooling" className="py-16 sm:py-20">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mb-6 flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
-            Organization
-            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
-          </div>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText
-              text="Run the whole project from one place"
-              mode="words"
-            />
+            <AnimatedText text="One workspace for your team" mode="words" />
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            From the sign-up page to the hours report, keep the details your
-            volunteers and organizers need in one workspace.
+            Project signups, attendance, hours, and certificates stay together.
+            Organization plugins can add a workspace for needs specific to your
+            group.
           </p>
         </div>
 
@@ -58,24 +55,16 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
         </div>
         {children}
 
-        <div className="mt-12 grid gap-0 border-y md:grid-cols-3">
-          {orgFeatures.map((feature, index) => (
+        <div className="mt-12 grid gap-x-8 border-y sm:grid-cols-2 lg:grid-cols-4">
+          {orgFeatures.map((feature) => (
             <div
               key={feature.title}
-              className="flex gap-4 border-b py-6 last:border-b-0 md:border-b-0 md:border-r md:px-6 md:first:pl-0 md:last:border-r-0 md:last:pr-0"
+              className="border-b py-6 last:border-b-0 sm:[&:nth-last-child(-n+2)]:border-b-0 lg:border-b-0"
             >
-              <span
-                aria-hidden="true"
-                className="text-sm font-semibold tabular-nums text-primary"
-              >
-                0{index + 1}
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {feature.desc}
-                </p>
-              </div>
+              <h3 className="text-lg font-semibold">{feature.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {feature.desc}
+              </p>
             </div>
           ))}
         </div>
