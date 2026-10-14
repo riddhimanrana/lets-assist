@@ -121,6 +121,26 @@ type Contract = {
 
 const contracts: Contract[] = [
   {
+    theme: "light",
+    description: "admin badge label on the primary fill",
+    foreground: "foreground",
+    background: "primary",
+  },
+  {
+    theme: "light",
+    description: "staff badge label on the blue tint",
+    foreground: "foreground",
+    background: "info",
+    tintOver: "background",
+  },
+  {
+    theme: "dark",
+    description: "staff badge label on the blue tint",
+    foreground: "info",
+    background: "info",
+    tintOver: "background",
+  },
+  {
     theme: "dark",
     description: "primary button label on the primary fill",
     foreground: "primary-foreground",

@@ -12,14 +12,17 @@ export function MemberRoleBadge({ role }: { role: string }) {
   switch (role) {
     case "admin":
       return (
-        <Badge variant="default">
+        <Badge
+          variant="default"
+          className="text-foreground dark:text-primary-foreground"
+        >
           <Shield aria-hidden="true" />
           Admin
         </Badge>
       );
     case "staff":
       return (
-        <Badge variant="info">
+        <Badge variant="info" className="text-foreground dark:text-info">
           <UserRoundCog aria-hidden="true" />
           Staff
         </Badge>
