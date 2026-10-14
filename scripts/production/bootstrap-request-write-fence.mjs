@@ -11,10 +11,13 @@ import {
   validateMaintenanceBinding,
 } from "./maintenance-preflight.mjs";
 import {
+  bootstrapHotfixPlan,
   bootstrapPlan,
   bootstrapMutationSql,
   bootstrapVerificationSql,
+  bootstrapVersion,
 } from "./request-fence-bootstrap-plan.mjs";
+import { exactLedger } from "./production-hotfix-ledger.mjs";
 import { settlePreexistingRequestTransactionsSql } from "./request-write-fence.mjs";
 
 export const productionBootstrapTarget = Object.freeze({
@@ -265,7 +268,26 @@ export async function runProductionBootstrap(config, dependencies = {}) {
   const authority = () =>
     verifyProductionBootstrapAuthority(config, read, now());
   const approval = await authority();
-  const plan = bootstrapPlan(config.cwd);
+  const plans = [bootstrapPlan(config.cwd), bootstrapHotfixPlan(config.cwd)];
+  const readLedger = () => {
+    try {
+      return JSON.parse(query(config.databaseUrl, maintenanceLedgerQuery));
+    } catch {
+      throw new ReleaseCheckError(
+        "Production bootstrap ledger could not be read. Raw output was suppressed.",
+      );
+    }
+  };
+  const observed = readLedger();
+  const plan = plans.find(
+    (candidate) =>
+      exactLedger(observed, candidate.before) ||
+      exactLedger(observed, candidate.after),
+  );
+  requireCondition(
+    plan,
+    "Production bootstrap accepts only the exact 687/688 prefix or verified 687/688 plus the points hotfix.",
+  );
   const receipt = {
     format: 1,
     source: config.source,
@@ -278,7 +300,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     before: ledgerDigest(plan.before),
     after: ledgerDigest(plan.after),
     migration: {
-      version: plan.after.at(-1),
+      version: bootstrapVersion,
       sha256: createHash("sha256").update(plan.sql).digest("hex"),
     },
     phase: "preflight",
@@ -288,19 +310,11 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     record({ ...receipt });
   };
   const ledger = () => {
-    let result;
-    try {
-      result = JSON.parse(query(config.databaseUrl, maintenanceLedgerQuery));
-    } catch {
-      throw new ReleaseCheckError(
-        "Production bootstrap ledger could not be read. Raw output was suppressed.",
-      );
-    }
-    const same = (expected) =>
-      JSON.stringify(result) === JSON.stringify(expected);
+    const result = readLedger();
+    const same = (expected) => exactLedger(result, expected);
     requireCondition(
       same(plan.before) || same(plan.after),
-      "Production bootstrap accepts only exact 687 or 688.",
+      "Production bootstrap ledger changed outside the selected reviewed path.",
     );
     return same(plan.after) ? "after" : "before";
   };
@@ -349,7 +363,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     await probeProductionBootstrapApi(config, dependencies.fetcher, true);
     verify(plan.after);
     await authority();
-    receipt.migrations = 688;
+    receipt.migrations = plan.after.length;
     receipt.head = plan.after.at(-1);
     receipt.requestFence = "installed-disabled";
     receipt.api = "fresh-read-and-zero-row-write";

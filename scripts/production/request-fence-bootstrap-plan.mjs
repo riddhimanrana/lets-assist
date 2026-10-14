@@ -9,6 +9,11 @@ import {
 } from "./maintenance-preflight.mjs";
 import { settlePreexistingRequestTransactionsSql } from "./request-write-fence.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
+import {
+  productionHotfixLedgers,
+  productionHotfixStoredSqlPredicate,
+  productionHotfixVersion,
+} from "./production-hotfix-ledger.mjs";
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const requireCondition = (condition, message) => {
   if (!condition) throw new ReleaseCheckError(message);
@@ -79,11 +84,29 @@ export function bootstrapPlan(cwd, read = readFileSync) {
   return { before, after, sql, body };
 }
 
+export function bootstrapHotfixPlan(cwd, read = readFileSync) {
+  const plan = bootstrapPlan(cwd, read);
+  const versions = expectedVersions(cwd);
+  const hotfix = productionHotfixLedgers(versions);
+  const filename = `${versions[724]}_csf_repeatable_pending_activity_claims.sql`;
+  requireCondition(
+    digest(read(resolve(cwd, "supabase/migrations", filename))) ===
+      migrationDigests[filename],
+    "The Production hotfix migration bytes are not reviewed.",
+  );
+  maintenanceCatalogQuery(hotfix.before);
+  maintenanceCatalogQuery(hotfix.after);
+  return { ...plan, ...hotfix };
+}
+
 export function bootstrapVerificationSql(versions) {
   const catalog = maintenanceCatalogQuery(versions).trim().replace(/;$/u, "");
   return [
     requireSql(`(SELECT array_agg(version::text ORDER BY version) FROM supabase_migrations.schema_migrations)
       IS NOT DISTINCT FROM ARRAY[${versions.map(literal).join(",")}]::text[]`),
+    ...(versions.includes(productionHotfixVersion)
+      ? [requireSql(productionHotfixStoredSqlPredicate)]
+      : []),
     requireSql(`(${catalog})=1`),
     requireSql(
       `(${quiescencePredicate.replace(/ AS valid$/u, "")}) AND (${guardOff})`,

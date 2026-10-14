@@ -82,6 +82,7 @@ import {
 } from "./account-ownership-catalog.mjs";
 import { createHash } from "node:crypto";
 import { ReleaseCheckError } from "./app-release-checks.mjs";
+import { productionHotfixManifest } from "./production-hotfix-catalog.mjs";
 import { officerIdentityAuthorityCatalog } from "./officer-identity-authority-catalog.mjs";
 import {
   classBlockAcceptanceCatalog,
@@ -353,6 +354,23 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  // Production's independently applied migration 725 is accepted only on
+  // these two exact ledgers. The manifests pin every schema object, including
+  // the three objects changed by the hotfix.
+  if (
+    ledgerDigest(versions) ===
+    "264d253f7f9d5f1171b7d6c5edc07e656f8be9914b829702c22686c5556f3eac"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(productionHotfixManifest(versions), versions),
+    );
+  if (
+    ledgerDigest(versions) ===
+    "be6fb4fb7f795cc9efd1b340c18c18c374d0fe247ad1145c57be7770d0ae3488"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(productionHotfixManifest(versions), versions),
+    );
   if (
     ledgerDigest(versions) ===
     "5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c"

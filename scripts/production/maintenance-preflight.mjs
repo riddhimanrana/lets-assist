@@ -14,6 +14,12 @@ import { ledgerDigest } from "./final-schema-manifest.mjs";
 import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
 import { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
+import {
+  exactLedger,
+  productionHotfixLedgers,
+  productionHotfixStoredSqlPredicate,
+  productionHotfixVersion,
+} from "./production-hotfix-ledger.mjs";
 export { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
@@ -63,6 +69,18 @@ export function selectMaintenanceLedger(target, applied, mode) {
     throw new ReleaseCheckError(
       "Production maintenance ledger is not a reviewed prefix.",
     );
+  const hotfix =
+    target[724] === productionHotfixVersion
+      ? productionHotfixLedgers(target)
+      : null;
+  if (
+    mode === "before" &&
+    hotfix &&
+    (exactLedger(applied, hotfix.before) || exactLedger(applied, hotfix.after))
+  ) {
+    acceptedCatalogQuery("", applied);
+    return applied;
+  }
   verifyLedger(
     applied.map((version) => ({ version })),
     target.slice(0, applied.length),
@@ -128,6 +146,13 @@ export function maintenanceVerificationQuery(versions) {
       requireBoolean(`SELECT array_agg(version::text ORDER BY version)
       IS NOT DISTINCT FROM ARRAY[${versions.map(literal).join(",")}]::text[] AS valid
       FROM supabase_migrations.schema_migrations`),
+      ...(versions.includes(productionHotfixVersion) && versions.length < 725
+        ? [
+            requireBoolean(
+              `SELECT ${productionHotfixStoredSqlPredicate} AS valid`,
+            ),
+          ]
+        : []),
       requireBoolean(`SELECT (${catalog}) = 1 AS valid`),
       requireBoolean(maintenancePostureQuery),
       ...maintenanceDataChecks.map(({ query }) => requireBoolean(query)),

@@ -13,11 +13,13 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test, { after } from "node:test";
 import {
+  bootstrapHotfixPlan,
   bootstrapPlan,
   bootstrapMutationSql,
   bootstrapVerificationSql,
   bootstrapFilename,
 } from "./request-fence-bootstrap-plan.mjs";
+import { productionHotfixLedgers } from "./production-hotfix-ledger.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { generateFinalSchemaManifest } from "./generate-final-schema-manifest.mjs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
@@ -113,6 +115,43 @@ test("bootstrap plan pins every real migration and exact new bytes", () => {
   } finally {
     rmSync(extra);
   }
+});
+
+test("hotfix bootstrap preserves migration 725 while atomically installing only the fence", () => {
+  const plan = bootstrapHotfixPlan(repository);
+  const fullVersions = readdirSync(resolve(repository, "supabase/migrations"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .map((name) => name.slice(0, 14));
+  assert.deepEqual(
+    { before: plan.before, after: plan.after },
+    productionHotfixLedgers(fullVersions),
+  );
+  assert.equal(plan.before.length, 688);
+  assert.equal(plan.after.length, 689);
+  const sql = bootstrapMutationSql(plan);
+  assert.match(
+    sql,
+    /VALUES \('20260929051600','application_request_write_fence'/u,
+  );
+  assert.doesNotMatch(sql, /VALUES \('20261013071100'/u);
+  assert.match(bootstrapVerificationSql(plan.before), /20261013071100/u);
+  assert.match(bootstrapVerificationSql(plan.after), /20261013071100/u);
+  assert.match(
+    bootstrapVerificationSql(plan.before),
+    /694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00/u,
+  );
+  assert.throws(
+    () =>
+      bootstrapHotfixPlan(repository, (path, ...args) =>
+        path.endsWith(
+          "20261013071100_csf_repeatable_pending_activity_claims.sql",
+        )
+          ? readFileSync(path, ...args) + "\n-- changed"
+          : readFileSync(path, ...args),
+      ),
+    /not reviewed/u,
+  );
 });
 
 test("atomic bootstrap locks and verifies before installing one ledger row", () => {

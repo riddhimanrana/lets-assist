@@ -582,7 +582,7 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           echo "Migrations to be applied:"
-          supabase db push --linked --dry-run
+          supabase db push --linked --include-all --dry-run
 
       - name: Stage static Production maintenance page
         id: deploy-maintenance
@@ -876,10 +876,10 @@ jobs:
           echo "Pushing migrations to production..."
           echo "⚠️  This will modify the production database - ensure all checks passed above"
           echo ""
-          supabase db push --linked --dry-run
+          supabase db push --linked --include-all --dry-run
           echo "✓ Dry-run successful, proceeding with deployment..."
 
-          supabase db push --linked --yes 2>&1 | tee deploy.log
+          supabase db push --linked --include-all --yes 2>&1 | tee deploy.log
 
           echo ""
           echo "✓ Deployment to production completed successfully"

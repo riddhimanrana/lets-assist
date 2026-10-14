@@ -13,6 +13,7 @@ import {
   verifyProductionBootstrapAuthority,
 } from "./bootstrap-request-write-fence.mjs";
 import {
+  bootstrapHotfixPlan,
   bootstrapPlan,
   bootstrapMutationSql,
 } from "./request-fence-bootstrap-plan.mjs";
@@ -294,10 +295,9 @@ test("authority reader uses only fixed GitHub origin and suppresses response dat
   );
 });
 
-function controllerFixture() {
+function controllerFixture(plan = bootstrapPlan(cwd)) {
   // The real accepted plan and generated SQL are mandatory. Unknown catalog
   // versions cannot become accepted through a test-only migration fixture.
-  const plan = bootstrapPlan(cwd);
   const fixture = authorityFixture();
   const state = {
     applied: plan.before,
@@ -378,6 +378,31 @@ function controllerFixture() {
   };
   return { plan, fixture, state, dependencies };
 }
+
+test("controller selects only the pinned Production hotfix path and preserves its ledger row", async () => {
+  const { plan, state, dependencies } = controllerFixture(
+    bootstrapHotfixPlan(cwd),
+  );
+  const receipt = await runProductionBootstrap(config(), dependencies);
+  assert.equal(state.writes, 1);
+  assert.deepEqual(state.applied, plan.after);
+  assert.equal(receipt.migrations, 689);
+  assert.equal(receipt.head, "20261013071100");
+  assert.equal(receipt.migration.version, "20260929051600");
+  assert.equal(receipt.phase, "verified");
+  const already = controllerFixture(bootstrapHotfixPlan(cwd));
+  already.state.applied = already.plan.after;
+  const existing = await runProductionBootstrap(config(), already.dependencies);
+  assert.equal(already.state.writes, 0);
+  assert.equal(existing.mutation, "already-applied");
+  const drift = controllerFixture(bootstrapHotfixPlan(cwd));
+  drift.state.applied = [...drift.plan.before, "20261013071200"];
+  await assert.rejects(
+    runProductionBootstrap(config(), drift.dependencies),
+    /only the exact 687\/688 prefix or verified 687\/688 plus the points hotfix/u,
+  );
+  assert.equal(drift.state.writes, 0);
+});
 
 test("controller applies only the real atomic bootstrap and proves open API state", async () => {
   const { state, dependencies } = controllerFixture();
