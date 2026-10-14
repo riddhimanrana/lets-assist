@@ -1,4 +1,4 @@
-// Offline contracts for the two explicitly reviewed local capture exceptions.
+// Offline contracts for the explicitly reviewed local capture readers.
 // Never return or log WebSocket frames, JWTs, action request bodies or encryption keys.
 import fs from "node:fs";
 import path from "node:path";
@@ -156,6 +156,12 @@ export function profileReaderDiagnostic(frame, actor, accessToken) {
 
 export const READ_ACTION_SPECS = [
   {
+    exportedName: "getLinkedIdentitiesAction",
+    sourceFile: "app/account/email-actions.ts",
+    worker: "app/account/profile/page",
+    route: "/account/profile",
+  },
+  {
     exportedName: "getDataExportJobs",
     sourceFile: "app/account/security/actions.ts",
     worker: "app/account/security/page",
@@ -169,6 +175,10 @@ export const READ_ACTION_SPECS = [
   },
 ];
 export const REVIEWED_SOURCE_FILES = [
+  "app/account/email-actions.ts",
+  "app/account/profile/page.tsx",
+  "app/account/profile/ProfileClient.tsx",
+  "app/account/profile/EmailAddressesSection.tsx",
   "app/account/security/actions.ts",
   "app/account/security/data-export-actions.ts",
   "app/projects/[id]/signups/actions.ts",
@@ -177,6 +187,7 @@ export const REVIEWED_SOURCE_FILES = [
   "lib/supabase/auth-helpers.ts",
   "lib/supabase/admin.ts",
   "lib/supabase/server.ts",
+  "utils/auth/account-management.ts",
 ];
 export function reviewedSourceHashes(repo) {
   return Object.fromEntries(
@@ -298,7 +309,16 @@ export function readActionRequest({
     fail("Unreviewed action identity refused");
   const args = JSON.parse(body);
   if (!Array.isArray(args)) fail("Exact read-action arguments required");
-  if (action.exportedName === "getDataExportJobs") {
+  if (action.exportedName === "getLinkedIdentitiesAction") {
+    if (
+      u.pathname !== "/account/profile" ||
+      entry.id !== "account-profile" ||
+      entry.route !== "/account/profile" ||
+      actor.key !== "member" ||
+      args.length !== 0
+    )
+      fail("Exact own linked-email read required");
+  } else if (action.exportedName === "getDataExportJobs") {
     if (
       u.pathname !== "/account/security" ||
       entry.route !== "/account/security" ||

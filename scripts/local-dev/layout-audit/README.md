@@ -17,7 +17,7 @@ Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in th
 
 Implemented entrypoints:
 
-- `linux-adapters.check.mjs`: offline parsers, missing/forged receipt and source corpus refusals, plus all568 original guards.
+- `linux-adapters.check.mjs`: offline parsers, missing/forged receipt and source corpus refusals, plus all584 current guards.
 - `prepare-linux-binding.mjs`: actual clean source/stack marker binding and root-reviewed source proof regeneration.
 - `seal-fixture-password.mjs`: explicit exclusive run-scoped local credential, never printed.
 - `collect-fixture-proof.mjs`: read-only loopback collection of exactly22 ordinary seeded actors and2 project ownership mappings; Hours0.
@@ -32,7 +32,7 @@ The Linux adapter substitutes lazy `/proc` observations and exclusive/fsynced in
 
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.
 
-The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. Its147+568 body passed during external preparation before this stage preflight was added; the full staged positive execution remains root-owned.
+The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. The staged suite currently reports267 Linux checks and584 guards. Those checks use fictional inputs and do not establish live capture acceptance.
 
 ## October 12 cloud correction
 
@@ -77,3 +77,13 @@ CI38338528368 stopped after70 captured scenes and one blocked plugin-settings
 scene; its actual request identity and private console cause were not retained
 in the readable summary. This source-backed policy repair is not a claim that
 those historical identities were proved, nor that the full audit passed.
+
+The account-profile scene permits only the member's initial
+`getLinkedIdentitiesAction` with no arguments, bound to the exact compiled
+action ID, profile-page worker, account route and reviewed source hashes. Its
+getter selects that account's verified alias rows without synchronizing or
+changing primary email state. Explicit primary-email and confirmation flows
+still perform their existing synchronization. Unknown actions and profile or
+alias mutations remain fatal. The blocked request in CI38491262261 had no
+retained action identity, so this source-backed repair still needs a fresh
+full capture and pixel review.

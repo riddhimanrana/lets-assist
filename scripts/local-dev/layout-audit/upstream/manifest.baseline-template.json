@@ -416,6 +416,9 @@
     },
     {
       "id": "account-profile",
+      "readActions": [
+        "getLinkedIdentitiesAction"
+      ],
       "route": "/account/profile",
       "expectedRoutes": [
         "/account/profile"
@@ -432,7 +435,7 @@
       ],
       "actorKey": "member",
       "captureReducedMotion": false,
-      "coverageClaim": "template only; actual source landmark must load and pixels must be inspected"
+      "coverageClaim": "Own linked-email rows read only; profile and alias changes remain blocked; pixels must be inspected"
     },
     {
       "id": "account-calendar",

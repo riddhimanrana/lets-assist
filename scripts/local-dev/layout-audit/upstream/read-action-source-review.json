@@ -3,14 +3,19 @@
   "sourceOnly": true,
   "actionsInvoked": 0,
   "sourceHashes": {
+    "app/account/email-actions.ts": "c9eb8b5b39a10f39ead65d2b5c02a4aebbeb4de58ec93968b6f5a160a923be39",
+    "app/account/profile/EmailAddressesSection.tsx": "ce553bc97903a3bca6b2787f5a0196a845ad91773dfdb1e144fbb7ad522d499a",
+    "app/account/profile/ProfileClient.tsx": "ec17b3bfe1f29549b3311739ee5b08d1d7d74d54606cf9aba3e6c6b866106024",
+    "app/account/profile/page.tsx": "680c7ba2e770b174f9861809320b2eeede85aacacba7618d6585cbae33b509cc",
     "app/account/security/actions.ts": "95438a03fa1d0a2ee622b6b94b99d72ff36cd7d98d4e57a7b5577a979a30d3e4",
     "app/account/security/data-export-actions.ts": "648a4f5dfc856e3484c52a6d668f16e9d5b1ff4192666c4f227088c6dfa22634",
     "app/projects/[id]/signups/actions.ts": "25e36743ac88c12dbce95c276b9ead76ceba47785e78dac49ddb456853746db5",
     "lib/projects/management-access.ts": "ac9eb96422be2f6e8cbfc859e93f7c6493ede415f7e1b3441a4e54067ac65c62",
-    "lib/waiver/signature-preview.ts": "672c6c3a33a6ae3c752a7f7a05185c5794282af4ec62562240b887cc332cafe0",
-    "lib/supabase/auth-helpers.ts": "dd76b397455e7ecea380dbcdac913be5703b1a5714b2c0a109da569a64cb6a93",
     "lib/supabase/admin.ts": "c0c47cff0b65bfc041a1c5aaeb8636799aa5c757b94fcc34dc9e5ddd7cdd5e83",
-    "lib/supabase/server.ts": "8add4e79df8c1aef46c0dca72086d67b2e98eb1366f780ef7124505ee565a52a"
+    "lib/supabase/auth-helpers.ts": "dd76b397455e7ecea380dbcdac913be5703b1a5714b2c0a109da569a64cb6a93",
+    "lib/supabase/server.ts": "8add4e79df8c1aef46c0dca72086d67b2e98eb1366f780ef7124505ee565a52a",
+    "lib/waiver/signature-preview.ts": "672c6c3a33a6ae3c752a7f7a05185c5794282af4ec62562240b887cc332cafe0",
+    "utils/auth/account-management.ts": "3b007eadd3c914f713f38877e7db641ba3f4bfbd7a5a4a7097643d053b3450da"
   },
   "profileReaderSourceHashes": {
     "hooks/useUserProfile.ts": "86dd4e904ec0f2864bafce97486b461f449f99e8c85d023b20f41d3f5346ecfc",
@@ -20,6 +25,7 @@
     "node_modules/@supabase/realtime-js/src/lib/constants.ts": "30514d237a8ae137d538e64c5d3d4101cf330c25afa961b89f29b2eeb59b41ba"
   },
   "readActions": [
+    "getLinkedIdentitiesAction",
     "getDataExportJobs",
     "getOrganizerSignupsWithWaiverStatus"
   ],

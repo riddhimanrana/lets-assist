@@ -60,13 +60,28 @@ const rpc = mock(async (name: string) => {
     return { data: null, error: null };
   throw new Error("Unexpected RPC in fixture");
 });
+const aliasRows = [
+  {
+    id: "synthetic-alias",
+    user_id: "synthetic-user",
+    email: "alias@example.test",
+    is_primary: false,
+    verified_at: "2026-01-01T00:00:00.000Z",
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+];
+const aliasOrder = mock(async () => ({ data: aliasRows, error: null }));
+const aliasEq = mock(() => ({ order: aliasOrder }));
+const aliasSelect = mock(() => ({ eq: aliasEq }));
+const aliasFrom = mock(() => ({ select: aliasSelect }));
 const getAuthUser = mock(async () => ({
   user: { id: "synthetic-user" },
   error: null,
 }));
 mock.module("server-only", () => ({}));
 mock.module("@/lib/supabase/admin", () => ({
-  getAdminClient: () => ({ rpc }),
+  getAdminClient: () => ({ rpc, from: aliasFrom }),
 }));
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({}),
@@ -90,17 +105,35 @@ mock.module("@/emails/email-verification-code", () => ({
 }));
 mock.module("@/emails/certificate-published", () => ({ default: () => null }));
 
-const { sendVerificationEmail } = await import("./email-actions");
+const { getLinkedIdentitiesAction, sendVerificationEmail } =
+  await import("./email-actions");
 const { sendCertificatePublishedEmails } =
   await import("../projects/[id]/hours/certificate-issuance");
 
 beforeEach(() => {
   rpc.mockClear();
+  aliasOrder.mockClear();
+  aliasEq.mockClear();
+  aliasSelect.mockClear();
+  aliasFrom.mockClear();
   sendEmail.mockClear();
   getAuthUser.mockClear();
   sendEmail.mockImplementation(async () => accepted);
 });
 afterAll(() => mock.restore());
+
+test("loading linked emails only reads the authenticated account", async () => {
+  expect(await getLinkedIdentitiesAction()).toEqual({
+    success: true,
+    emails: aliasRows,
+  });
+  expect(aliasFrom).toHaveBeenCalledWith("user_emails");
+  expect(aliasEq).toHaveBeenCalledWith("user_id", "synthetic-user");
+  expect(aliasOrder).toHaveBeenCalledWith("is_primary", {
+    ascending: false,
+  });
+  expect(rpc).not.toHaveBeenCalled();
+});
 
 describe("mail callers require provider acceptance", () => {
   for (const outcome of outcomes) {

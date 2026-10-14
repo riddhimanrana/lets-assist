@@ -1169,7 +1169,7 @@ try {
   process.stdout.write(
     JSON.stringify({
       linuxOfflineChecks: checks,
-      legacyGuards: 568,
+      legacyGuards: 584,
       actualLinuxObserved: false,
       networkRequests: 0,
       stackStarts: 0,

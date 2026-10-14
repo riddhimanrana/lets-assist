@@ -427,10 +427,16 @@ for (const frame of [
   deny(() => profileReaderFrame(frame, actor, token));
 const aId = "1".repeat(40),
   sId = "2".repeat(40),
+  pId = "4".repeat(40),
   sources = reviewedSourceHashes(REPO);
 const compiled = {
   encryptionKey: "offline-secret-never-returned",
   node: {
+    [pId]: {
+      exportedName: "getLinkedIdentitiesAction",
+      filename: path.join(REPO, "app/account/email-actions.ts"),
+      workers: { "app/account/profile/page": { moduleId: "p", async: true } },
+    },
     [aId]: {
       exportedName: "getDataExportJobs",
       filename: path.join(REPO, "app/account/security/actions.ts"),
@@ -457,11 +463,15 @@ allow(() =>
   assert.equal(JSON.stringify(policy).includes(compiled.encryptionKey), false),
 );
 for (const mutate of [
+  (c) => delete c.node[pId],
+  (c) => (c.node[pId].exportedName = "setPrimaryEmailAction"),
+  (c) => (c.node[pId].filename = "outside/actions.ts"),
+  (c) => (c.node[pId].workers = {}),
   (c) => delete c.node[sId],
   (c) => (c.node[aId].exportedName = "requestDataExport"),
   (c) => (c.node[aId].filename = "outside/actions.ts"),
   (c) => (c.node[aId].workers = {}),
-  (c) => (c.node["4".repeat(40)] = c.node[aId]),
+  (c) => (c.node["5".repeat(40)] = c.node[aId]),
 ]) {
   const c = structuredClone(compiled);
   mutate(c);
@@ -473,6 +483,38 @@ deny(() =>
     "lib/supabase/admin.ts": "0".repeat(64),
   }),
 );
+const profileActor = contracts.find((a) => a.key === "member");
+const profileRead = {
+  method: "POST",
+  url: `${app}/account/profile`,
+  contentType: "text/plain;charset=UTF-8",
+  actionId: pId,
+  body: "[]",
+  actor: profileActor,
+  entry: {
+    id: "account-profile",
+    route: "/account/profile",
+    readActions: ["getLinkedIdentitiesAction"],
+  },
+  baseURL: app,
+  approvedActions: policy.approvedActions,
+  creatorProjects: new Map(),
+};
+allow(() => readActionRequest(profileRead));
+for (const change of [
+  { method: "GET" },
+  { url: `${app}/account/profile?other=x` },
+  { url: `${app}/account/security` },
+  { contentType: "application/json" },
+  { body: "[1]" },
+  { body: "not-json" },
+  { actionId: aId },
+  { actor: { ...profileActor, key: "developer" } },
+  { entry: { ...profileRead.entry, id: "account-security" } },
+  { entry: { ...profileRead.entry, route: "/account/security" } },
+  { entry: { ...profileRead.entry, readActions: [] } },
+])
+  deny(() => readActionRequest({ ...profileRead, ...change }));
 const request = {
   method: "POST",
   url: `${app}/account/security`,

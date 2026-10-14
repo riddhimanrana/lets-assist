@@ -248,7 +248,8 @@ export function EmailAddressesSection({
         </div>
       ) : emails.length === 0 ? (
         <p className="text-muted-foreground text-sm">
-          No email addresses linked yet.
+          No additional email addresses linked yet. Your sign-in email is
+          managed under Sign-in &amp; security.
         </p>
       ) : (
         <ItemGroup className="gap-0">
