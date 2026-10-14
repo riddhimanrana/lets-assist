@@ -224,8 +224,8 @@ describe("landing organization mock", () => {
       ),
       "utf8",
     );
-    expect(intro).toContain("For organizations · Sample organization");
-    expect(intro).toContain("A workspace for your volunteer organization");
+    expect(intro).toContain("Interactive example · Sample organization");
+    expect(intro).toContain("One workspace for your team");
     expect(intro).not.toContain("SignUpGenius");
   });
 });

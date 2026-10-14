@@ -23,6 +23,40 @@ const requestRefusalCategories = new Set([
   "reviewed-plugin-reader-refused",
   "unreviewed-request",
 ]);
+const externalRefusalCategories = new Set([
+  "local-image-optimizer",
+  "remote-image-optimizer",
+  "app-origin",
+  "isolated-api",
+  "alternate-loopback",
+  "production-api",
+  "video",
+  "vercel-script",
+  "other-external",
+  "invalid-url",
+]);
+export function externalRequestCategory(value, baseURL, supabaseOrigin) {
+  try {
+    const url = new URL(value);
+    if (url.origin === baseURL) {
+      if (url.pathname === "/_next/image")
+        return url.searchParams.get("url")?.startsWith("/")
+          ? "local-image-optimizer"
+          : "remote-image-optimizer";
+      return "app-origin";
+    }
+    if (url.origin === supabaseOrigin) return "isolated-api";
+    if (["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))
+      return "alternate-loopback";
+    if (url.hostname === "api.lets-assist.com") return "production-api";
+    if (["www.youtube.com", "img.youtube.com"].includes(url.hostname))
+      return "video";
+    if (url.hostname === "va.vercel-scripts.com") return "vercel-script";
+    return "other-external";
+  } catch {
+    return "invalid-url";
+  }
+}
 export function readRequestRefusalCategory(actionId, groups) {
   for (const [name, actions] of [
     ["platform", groups.platform],
@@ -71,11 +105,17 @@ export function captureSummary(final, scenes) {
     if (row.image) images++;
     if (row.status === "blocked-or-failed") {
       const requestRefusals = row.requestRefusals ?? [];
+      const externalRefusals = row.externalRefusals ?? [];
       if (
         !Array.isArray(requestRefusals) ||
         requestRefusals.length > 4 ||
         requestRefusals.some(
           (category) => !requestRefusalCategories.has(category),
+        ) ||
+        !Array.isArray(externalRefusals) ||
+        externalRefusals.length > 4 ||
+        externalRefusals.some(
+          (category) => !externalRefusalCategories.has(category),
         )
       )
         throw Error("Capture request refusal category refused");
@@ -86,6 +126,7 @@ export function captureSummary(final, scenes) {
           faultNames.map((name) => [name, count(row.faults?.[name])]),
         ),
         requestRefusals,
+        externalRefusals,
       });
     }
   }

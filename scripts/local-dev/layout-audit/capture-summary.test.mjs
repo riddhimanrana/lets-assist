@@ -4,6 +4,7 @@ import {
   assertCaptureDomReady,
   captureSummary,
   readRequestRefusalCategory,
+  externalRequestCategory,
 } from "./capture-summary.mjs";
 
 const scenes = new Map([["home-member", {}]]);
@@ -66,6 +67,50 @@ test("refused reader requests expose only fixed classifications, never IDs or ar
     "PRIVATE_TEXT",
   ]) {
     final.results[0].requestRefusals = invalid;
+    assert.throws(() => captureSummary(final, scenes));
+  }
+});
+
+test("refused browser requests expose bounded categories without URLs", () => {
+  const app = "http://127.0.0.1:3000";
+  const api = "http://127.0.0.1:25321";
+  assert.equal(
+    externalRequestCategory(
+      `${app}/_next/image?url=%2Fdemo%2Fasset.png`,
+      app,
+      api,
+    ),
+    "local-image-optimizer",
+  );
+  assert.equal(
+    externalRequestCategory(
+      `${app}/_next/image?url=https%3A%2F%2Fsecret.test`,
+      app,
+      api,
+    ),
+    "remote-image-optimizer",
+  );
+  assert.equal(
+    externalRequestCategory(
+      "https://api.lets-assist.com/PRIVATE_COOKIE",
+      app,
+      api,
+    ),
+    "production-api",
+  );
+  assert.equal(
+    externalRequestCategory("https://private.example/PRIVATE_COOKIE", app, api),
+    "other-external",
+  );
+  const final = receipt();
+  final.results[0].externalRefusals = ["local-image-optimizer"];
+  const summary = captureSummary(final, scenes);
+  assert.deepEqual(summary.blocked[0].externalRefusals, [
+    "local-image-optimizer",
+  ]);
+  assert(!JSON.stringify(summary).includes("PRIVATE"));
+  for (const invalid of [["PRIVATE_URL"], Array(5).fill("app-origin")]) {
+    final.results[0].externalRefusals = invalid;
     assert.throws(() => captureSummary(final, scenes));
   }
 });
