@@ -245,7 +245,9 @@ describe("CSF Production release preflight", () => {
       "scripts/production/verify-vercel-alias.sh",
       1,
     );
-    const schemaPush = deployment.indexOf("supabase db push --linked --yes");
+    const schemaPush = deployment.indexOf(
+      "supabase db push --linked --include-all --yes",
+    );
     const schemaParity = deployment.indexOf(
       "verify-supabase-migration-parity.mjs",
     );
@@ -568,7 +570,9 @@ describe("CSF Production release preflight", () => {
     const preflight = deployment.indexOf(
       "scripts/production/maintenance-preflight.mjs before",
     );
-    const dryRun = deployment.indexOf("supabase db push --linked --dry-run");
+    const dryRun = deployment.indexOf(
+      "supabase db push --linked --include-all --dry-run",
+    );
     const maintenanceDeploy = deployment.indexOf(
       "Stage static Production maintenance page",
     );
@@ -583,7 +587,9 @@ describe("CSF Production release preflight", () => {
       "scripts/production/maintenance-preflight.mjs before",
       2,
     );
-    const push = deployment.indexOf("supabase db push --linked --yes");
+    const push = deployment.indexOf(
+      "supabase db push --linked --include-all --yes",
+    );
     for (const index of [
       preflight,
       dryRun,
@@ -698,7 +704,9 @@ describe("CSF Production release preflight", () => {
 
   test("rechecks the full target and disabled CSF worker posture before promotion", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
-    const schemaPush = deployment.indexOf("supabase db push --linked --yes");
+    const schemaPush = deployment.indexOf(
+      "supabase db push --linked --include-all --yes",
+    );
     const fullPreflight = deployment.indexOf(
       "scripts/production/maintenance-preflight.mjs target",
     );
@@ -765,7 +773,9 @@ describe("CSF Production release preflight", () => {
       "vercel@59.3.0 promote",
       1,
     );
-    const schemaPush = deployment.indexOf("supabase db push --linked --yes");
+    const schemaPush = deployment.indexOf(
+      "supabase db push --linked --include-all --yes",
+    );
 
     expect(deploymentWorkflow).toContain("external_writers_confirmation:");
     expect(deploymentWorkflow).toContain(

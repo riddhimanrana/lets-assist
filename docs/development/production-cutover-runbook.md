@@ -27,7 +27,7 @@ URL fails rather than selecting the fallback. Then run:
 node scripts/production/maintenance-preflight.mjs before
 ```
 
-The `before` mode accepts only an exact catalogued prefix at or after migration 687. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
+The `before` mode accepts an exact catalogued prefix at or after migration 687, or the two reviewed 687/688-plus-`20261013071100` points-hotfix ledgers. The latter preserve the hotfix while the missing migrations are filled in order. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
 catalog drift, enabled workers, active or running cron jobs, conflicting
 request-guard configuration and failed integrity checks. The helper checks the
 configured write-block state. The workflow's separate fresh PostgREST probe
@@ -41,7 +41,7 @@ the committed flag after waiting. The hook refuses REPEATABLE READ and
 SERIALIZABLE writes even when maintenance is off. Read-only requests remain
 available, including those using stronger isolation.
 
-After the workflow applies migrations, it requires the complete accepted target:
+The schema workflow uses `supabase db push --include-all` so migrations missing before the already-applied hotfix are included. The CLI skips applied versions; the dry run, full parity check and target catalog verify that the hotfix remains applied and no migration is omitted. After the workflow applies migrations, it requires the complete accepted target:
 
 ```bash
 node scripts/production/maintenance-preflight.mjs target

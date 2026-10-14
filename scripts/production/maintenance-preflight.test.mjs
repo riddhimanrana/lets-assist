@@ -5,6 +5,7 @@ import test, { after } from "node:test";
 import { expectedVersions, productionRef } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
+import { productionHotfixLedgers } from "./production-hotfix-ledger.mjs";
 import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
 import {
   executeMaintenanceQuery,
@@ -91,6 +92,36 @@ test("before accepts only exact catalogued prefixes at or after the reviewed bas
     ["bad"],
   ])
     assert.throws(() => selectMaintenanceLedger(target, applied, "before"));
+});
+
+test("before accepts only the two exact Production points-hotfix ledgers", () => {
+  const hotfix = productionHotfixLedgers(
+    expectedVersions(resolve(import.meta.dirname, "../..")),
+  );
+  const fullTarget = expectedVersions(resolve(import.meta.dirname, "../.."));
+  for (const applied of [hotfix.before, hotfix.after]) {
+    assert.deepEqual(
+      selectMaintenanceLedger(fullTarget, applied, "before"),
+      applied,
+    );
+    assert.ok(
+      maintenanceVerificationQuery(applied).includes(
+        maintenanceCatalogQuery(applied).replace(/;$/u, ""),
+      ),
+    );
+    assert.match(
+      maintenanceVerificationQuery(applied),
+      /694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00/u,
+    );
+    assert.throws(() => selectMaintenanceLedger(fullTarget, applied, "target"));
+  }
+  for (const applied of [
+    [...hotfix.before, "20261013071100"],
+    [...hotfix.before.slice(0, -1), "20261013071000"],
+    [...hotfix.before.slice(0, -1), "20261013071100", "20261013071200"],
+    [...hotfix.after.slice(0, -2), ...hotfix.after.slice(-2).reverse()],
+  ])
+    assert.throws(() => selectMaintenanceLedger(fullTarget, applied, "before"));
 });
 
 test("target mode refuses a valid preceding catalog and requires the entire ledger", () => {
