@@ -6,6 +6,7 @@ import { ArrowRight, BarChart3, FileSpreadsheet, Plug } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
+import { AnimatedText } from "./AnimatedText";
 
 const orgFeatures = [
   {
@@ -45,6 +46,11 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
     <section id="org-tooling" className="py-16 sm:py-20">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="text-center mx-auto max-w-3xl">
+          <div className="mb-6 flex items-center justify-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
+            Organization
+            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
+          </div>
           <Badge
             variant="outline"
             className="mb-3 border-primary/40 bg-primary/10 text-primary"
@@ -52,7 +58,10 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
             For organizations · Sample organization
           </Badge>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            A workspace for your volunteer organization
+            <AnimatedText
+              text="A workspace for your volunteer organization"
+              mode="words"
+            />
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
             Manage members and roles, verify hours from QR check-ins, issue

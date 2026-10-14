@@ -1,4 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { AnimatedText } from "./AnimatedText";
 import {
   Tooltip,
   TooltipContent,
@@ -34,8 +37,16 @@ export default function BayAreaExamples() {
     <section id="partners" className="border-y bg-muted/20 py-12 sm:py-16">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
+          <div className="flex items-center gap-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
+            Organization
+            <span aria-hidden="true" className="h-px w-12 bg-border sm:w-20" />
+          </div>
           <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Built for clubs, schools, and community teams
+            <AnimatedText
+              text="Built for clubs, schools, and community teams"
+              mode="words"
+            />
           </h3>
           <p className="max-w-xl font-sans text-sm leading-6 text-muted-foreground">
             Schools and groups running pilots with Let&apos;s Assist.
@@ -75,6 +86,13 @@ export default function BayAreaExamples() {
             ))}
           </ul>
         </TooltipProvider>
+        <Link
+          href="/organization"
+          className="mx-auto mt-7 flex w-fit items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+        >
+          Explore organization profiles{" "}
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
       </div>
     </section>
   );

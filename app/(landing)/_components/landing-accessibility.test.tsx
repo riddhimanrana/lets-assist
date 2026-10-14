@@ -1042,14 +1042,16 @@ describe("hero first render", () => {
     const copy = all.filter(
       (node) =>
         node.tag === "p" &&
-        collapse(allText(node)).startsWith("Sign up from one link"),
+        collapse(allText(node)).startsWith(
+          "Find a project, sign up for a shift",
+        ),
     );
     expect(copy).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(copy[0])).toEqual([]);
 
     for (const [name, href] of [
-      ["Run a volunteer event", "/signup"],
-      ["Contact us", "/contact"],
+      ["Find a project", "/projects"],
+      ["Run a volunteer event", "/signup?redirect=%2Fprojects%2Fcreate"],
     ]) {
       const links = all.filter(
         (node) => node.tag === "a" && collapse(exposedText(node)) === name,
@@ -1091,10 +1093,9 @@ describe("hero first render", () => {
       "sm:text-3xl",
     ]);
 
-    // The highlight cards under the demo share the same first render.
+    // The three steps under the demo share the same first render.
     const highlight = all.filter(
-      (node) =>
-        node.tag === "h3" && ownText(node) === "QR code check-in at events",
+      (node) => node.tag === "h2" && ownText(node) === "Choose a shift",
     );
     expect(highlight).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(highlight[0])).toEqual([]);

@@ -20,7 +20,7 @@ describe("landing headline entrance", () => {
   ];
 
   test("the h1 gives assistive technology its full text exactly once", () => {
-    expect(HERO_HEADLINE_TEXT).toBe("The modern way to do volunteering");
+    expect(HERO_HEADLINE_TEXT).toBe("Find a project. Make your hours count.");
     expect(html.match(/<h1\b/gu)).toHaveLength(1);
     expect(html).toStartWith(
       `<h1 class="fixture"><span class="sr-only">${HERO_HEADLINE_TEXT}</span>`,

@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  BadgeCheck,
   CheckCircle2,
   Clock,
   FileText,
@@ -124,29 +123,16 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 
 const platformHighlights = [
   {
-    icon: QrCode,
-    title: "QR code check-in at events",
-    desc: "Check volunteers in on-site and keep attendance tied to the project record.",
+    title: "Find a project",
+    desc: "Browse public projects or open a link from an organizer.",
   },
   {
-    icon: BadgeCheck,
-    title: "Track all your volunteer hours in one place",
-    desc: "Verified, pending, and self-reported service hours stay organized together.",
+    title: "Choose a shift",
+    desc: "See the date, time, and open spots before you sign up.",
   },
   {
-    icon: null,
-    title: "Google Sheets and Calendar sync",
-    desc: "Push project rosters and dates into the tools your organization already uses.",
-    logos: [
-      {
-        src: "/resources/google-sheets-logo-2026.png",
-        alt: "Google Sheets",
-      },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
+    title: "Keep your record",
+    desc: "Check in and see the hours your organizer verifies.",
   },
 ];
 
@@ -743,6 +729,9 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
       className="relative mx-auto w-full max-w-6xl"
       id="live-demo"
     >
+      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Interactive example · This is not an open project
+      </p>
       <div
         ref={demoWindowRef}
         className="relative overflow-hidden rounded-[1.75rem] border bg-background shadow-(--card-shadow)"
@@ -911,9 +900,9 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Sign up from one link, check in with a QR code, and get hours your
-          school or club can verify. Free for volunteers and the groups that run
-          events.
+          Find a project, sign up for a shift, and keep track of your hours.
+          Organizers can share one clear signup link and verify attendance. Free
+          for volunteers and the groups that run events.
         </motion.p>
 
         <motion.div
@@ -922,11 +911,12 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/signup">
+          <MotionLinkButton href="/projects">Find a project</MotionLinkButton>
+          <MotionLinkButton
+            href="/signup?redirect=%2Fprojects%2Fcreate"
+            tone="outline"
+          >
             Run a volunteer event
-          </MotionLinkButton>
-          <MotionLinkButton href="/contact" tone="outline">
-            Contact us
           </MotionLinkButton>
         </motion.div>
       </div>
@@ -940,47 +930,29 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
         <RealProjectDemoWindow demoDateAnchor={demoDateAnchor} />
       </motion.div>
 
-      <motion.div
+      <motion.ol
         initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
+        className="mx-auto mt-8 grid w-full max-w-6xl gap-6 border-t pt-6 text-left sm:grid-cols-3 sm:gap-8"
       >
-        {platformHighlights.map((item) => (
-          <Card key={item.title}>
-            <CardContent className="p-4">
-              <div className="mb-4 flex h-10 items-center">
-                {item.logos ? (
-                  <div className="flex items-center gap-2">
-                    {item.logos.map((logo) => (
-                      <span
-                        key={logo.src}
-                        className="flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs"
-                      >
-                        <Image
-                          src={logo.src}
-                          alt={logo.alt}
-                          width={24}
-                          height={24}
-                          className="size-6 object-contain"
-                        />
-                      </span>
-                    ))}
-                  </div>
-                ) : item.icon ? (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <item.icon className="size-5" />
-                  </div>
-                ) : null}
-              </div>
-              <h3 className="text-sm font-semibold">{item.title}</h3>
+        {platformHighlights.map((item, index) => (
+          <li key={item.title} className="flex gap-4">
+            <span
+              aria-hidden="true"
+              className="pt-0.5 text-sm font-semibold tabular-nums text-muted-foreground"
+            >
+              0{index + 1}
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">{item.title}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {item.desc}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </li>
         ))}
-      </motion.div>
+      </motion.ol>
     </section>
   );
 };

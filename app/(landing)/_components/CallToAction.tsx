@@ -44,7 +44,7 @@ export const CallToAction = () => {
             </h2>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Button asChild size="lg" className="rounded-full px-6">
-                <Link href="/signup">Make a difference</Link>
+                <Link href="/signup">Find a project</Link>
               </Button>
 
               <Dialog open={open} onOpenChange={setOpen}>
@@ -93,8 +93,8 @@ export const CallToAction = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Every small act of kindness creates ripples of change in our
-            community. Start your volunteering journey today.
+            Choose a shift, sign up, and keep your service record in one place.
+            Have a group to organize? Start a project and invite volunteers.
           </p>
         </motion.div>
       </div>
