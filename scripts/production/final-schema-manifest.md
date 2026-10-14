@@ -73,6 +73,19 @@ no catalog object. This is the v4 ledger and relation fingerprint, distinct
 from the isolated Production 688 path. Hosted Development comparison, full CI,
 and visual acceptance remain separate gates.
 
+Release 727 extends certificates with a validated event timezone and appends
+display timezone fields to the two certificate read-model views. Its owned clean
+PostgreSQL 17.11 replay passed 502 pgTAP files and 13,040 assertions. The
+reviewed 1,441-object inventory adds only
+`private.enforce_certificate_event_timezone()` and changes only
+`public.certificates`, `public.certificate_verification_read_model`, and
+`public.user_certificate_read_model` relative to release 725; no object is
+removed. The manifest binds ledger digest
+`41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b`.
+A second new owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison, full CI, and
+visual acceptance remain separate gates.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the

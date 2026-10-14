@@ -49,3 +49,22 @@ Independent source reproduction found a concrete readiness defect: `getWaiverSte
 Synthetic coverage passed: 29 definition/readiness tests; 29 isolated server creation/idempotency tests (including disabling a previously staged waiver); five create-flow contracts; three organizer-table renders for no-waiver, empty signature join and an existing fictional signed row; two actual settings-component renders with the unopened PDF editor stubbed. No real participant, waiver, signature, legal agreement or provider record was written. The signed fixture is display-test metadata only.
 
 [Short CI 38521328135](https://github.com/riddhimanrana/lets-assist/actions/runs/38521328135) on `c42cab22` finished failed. Static checks found one nullable-string assertion in the certificate test fixture; its runtime assertion now narrows the display snapshot correctly and the native projection tests pass again. A new local typecheck reports only the known missing `xlsx` imports and resulting inferred-type errors. The missing 727 catalog remains a separate unresolved gate. The pixel-unavailable waiver screenshot must still be inspected on an authorized host before claiming its exact reported state is reproduced.
+
+## Reviewed 727 catalog registration, October 14
+
+The exact `1e105e34` candidate replayed all 727 migrations on a fresh owned
+PostgreSQL 17.11 volume. Its 502 pgTAP files passed 13,040 assertions. The
+reviewed clean inventory has 1,441 objects: compared with the accepted 725
+inventory, only `private.enforce_certificate_event_timezone()` was added and
+only `public.certificates`, `public.certificate_verification_read_model`, and
+`public.user_certificate_read_model` changed. No object was removed. The reviewed
+manifest is now registered for exact ledger digest
+`41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b`;
+the 725 historical tests remain bound to their 725 prefix.
+
+A separate new owned volume replayed the same 727 source and the complete
+isolated release catalog returned `1`, including the existing release checks.
+`ci:pins`, migration file validation, and 74 focused catalog tests pass. This
+closes the earlier local catalog blocker; hosted short and full CI, Development
+schema/alias acceptance, the unavailable waiver screenshot pixels, and visual
+acceptance are still open. No Production or worker operation was performed.
