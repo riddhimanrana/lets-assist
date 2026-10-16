@@ -47,9 +47,9 @@ export async function GET(
       .eq("id", certificateId)
       .single();
 
-    // Empty/unreadable rows retain the same privacy-preserving response. A
-    // backend failure cannot truthfully establish that a certificate is absent.
-    if (certError && !["PGRST116", "42501"].includes(certError.code)) {
+    // Empty, unreadable and malformed identifiers retain the same private
+    // response. A backend failure cannot establish that a certificate is absent.
+    if (certError && !["PGRST116", "42501", "22P02"].includes(certError.code)) {
       safeConsole.error("Certificate verification read failed:", certError);
       return NextResponse.json(
         {

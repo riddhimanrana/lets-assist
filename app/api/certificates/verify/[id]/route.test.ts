@@ -192,6 +192,33 @@ describe("certificate verification contract", () => {
     });
   }
 
+  for (const method of ["GET", "POST"]) {
+    test(`${method} treats a malformed UUID as absent without a retry hint`, async () => {
+      returnedError = {
+        code: "22P02",
+        message: "Synthetic invalid UUID abc123",
+      };
+      const malformedParams = { params: Promise.resolve({ id: "abc123" }) };
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const response =
+          method === "GET"
+            ? await GET(request(), malformedParams)
+            : await POST(request({ expectedData }), malformedParams);
+        expect(response.status).toBe(404);
+        expect(response.headers.get("Retry-After")).toBeNull();
+        expect(await response.json()).toEqual({
+          error: "Certificate not found",
+          valid: false,
+          exists: false,
+        });
+      } finally {
+        console.error = originalError;
+      }
+    });
+  }
+
   test("an empty result without an error stays a private 404", async () => {
     missing = true;
 

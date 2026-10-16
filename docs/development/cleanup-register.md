@@ -11789,3 +11789,14 @@ The user's reference caption/OCR confirms the saved-but-unpublished warning;
 its pixels were denied by the Library transfer proxy, so its exact toggle state
 and linkage to this defect remain unconfirmed. See the current v4 status for
 that blocker and the still-unaccepted 727 catalog. No real records were changed.
+
+### Certificate verification review follow-up, October 16
+
+`CERTIFICATE-VERIFY-TRUTH-20261011`, P2, source correction for review
+5546206114: the verification API classified SQLSTATE `22P02` from a malformed
+UUID such as `abc123` as a retryable backend outage. The actual GET and POST
+handlers reproduced 503 with Retry-After 5. They now return the same private 404
+as the certificate page, without a retry hint. Connection failures retain 503.
+Focused returned-error regressions cover both methods. This is a source fix;
+hosted deployment verification remains open. No migration or provider write
+was needed.

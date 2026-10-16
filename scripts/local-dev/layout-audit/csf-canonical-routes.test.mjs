@@ -78,6 +78,38 @@ test("Connect captures only the verified fixture's linked terminal state", () =>
   assert.equal(connect.actorKey, "csfApplicant");
   assert.deepEqual(connect.ready, [
     { role: "heading", name: "Your CSF record is linked" },
-    { role: "link", name: "Go to My CSF" },
+    { role: "button", name: "Go to My CSF" },
+  ]);
+});
+
+// Cached organization tabs retain inert markup with duplicate section IDs.
+// Accessible roles select the open roster; Base UI gives the import anchor
+// button semantics even though its navigation target is a Link.
+test("review scenes require accessible loaded roster controls", () => {
+  const applications = captures.find(
+    (capture) => capture.id === "csf-applications",
+  );
+  assert.deepEqual(applications.ready, [
+    { role: "textbox", name: "Search by name" },
+    { role: "button", name: "Link Google Sheet" },
+  ]);
+  const verification = captures.find(
+    (capture) => capture.id === "csf-verification",
+  );
+  assert.deepEqual(verification.ready, [
+    { role: "textbox", name: "Search by name" },
+  ]);
+  for (const scene of [applications, verification]) {
+    assert.equal(scene.actorKey, "csfAdmin");
+    assert.equal(scene.group, "private-candidate");
+  }
+});
+
+test("Help requires the loaded member guide and its accessible replay button", () => {
+  const help = captures.find((capture) => capture.id === "csf-help");
+  assert.deepEqual(help.ready, [
+    { role: "textbox", name: "Search CSF help" },
+    { text: "Member guide" },
+    { role: "button", name: "Replay tour" },
   ]);
 });

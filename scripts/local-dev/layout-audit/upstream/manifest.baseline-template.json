@@ -1306,10 +1306,11 @@
       ],
       "ready": [
         {
-          "selector": "#applications input[aria-label=\"Search by name\"]"
+          "role": "textbox",
+          "name": "Search by name"
         },
         {
-          "role": "link",
+          "role": "button",
           "name": "Link Google Sheet"
         }
       ],
@@ -1406,7 +1407,8 @@
       ],
       "ready": [
         {
-          "selector": "#verification input[aria-label=\"Search by name\"]"
+          "role": "textbox",
+          "name": "Search by name"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1532,7 +1534,7 @@
           "text": "Member guide"
         },
         {
-          "role": "link",
+          "role": "button",
           "name": "Replay tour"
         }
       ],
@@ -1554,7 +1556,7 @@
           "name": "Your CSF record is linked"
         },
         {
-          "role": "link",
+          "role": "button",
           "name": "Go to My CSF"
         }
       ],
