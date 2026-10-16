@@ -96,7 +96,7 @@ full capture and pixel review.
 The CSF Settings scene admits only its initial Google status, Sheet workspace
 and semester-worklist getters. Every admitted request rechecks metadata-only
 fixture evidence for the exact seeded administrator and organization, active
-admin membership, enabled current install and runtime access, and absent Google
+admin membership, the enabled seeded install contract and runtime access, and absent Google
 connections, bindings, export destinations and test workspace. The compiled
 implementation, worker, route, arguments and reviewed source hashes must match.
 The normal fixture cannot invoke test-copy recovery, credential refresh, direct
@@ -105,3 +105,11 @@ Loaded disconnected and empty-workspace content is required before capture.
 CI run 38889998282 stopped after 340 images at Settings with two unreviewed requests;
 those historical action IDs were not retained. This source review does not
 claim their identity or successful new capture and pixel acceptance.
+
+The canonical seeder installs contract 1.1.0 while preserving the migrated
+catalog release 1.2.89. The Settings proof requires that exact pair and refuses
+a forced minimum above the installed contract. Full run 38897405700 passed all
+ordinary gates but stopped at this metadata proof before producing a PNG.
+The seed-definition regression reproduces the previous incorrect requirement
+that the installed contract equal the catalog release. No fixture, provider
+permission or application runtime behavior changes with this correction.

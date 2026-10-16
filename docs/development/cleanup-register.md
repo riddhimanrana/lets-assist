@@ -11840,3 +11840,14 @@ traffic remain refused. The original four-request bound and all capture
 guards remain. Historical refused action IDs were not retained, so their
 identity is not inferred from this source correction. Fresh exact-head capture
 and visual acceptance remain required. No hosted data or setting changed.
+
+`LAYOUT-CSF-SEEDED-CONTRACT-20261016`, P2: run 38897405700 passed the build,
+unit, database and four browser shards, then stopped before any PNG at the
+new Settings metadata proof. The canonical platform seed installs contract
+1.1.0 while retaining the migrated catalog release 1.2.89. The proof incorrectly
+required both versions to be 1.2.89. A regression using the actual seed
+definitions reproduces the refusal. The corrected proof requires the exact
+seeded pair and rejects a forced minimum above 1.1.0. Unknown installs and all
+existing connected-provider/write refusals remain rejected. This changes no
+seed, runtime, private gitlink, migration or provider setting. Fresh capture
+and visual acceptance are still required.

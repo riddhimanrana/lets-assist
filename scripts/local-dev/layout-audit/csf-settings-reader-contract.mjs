@@ -98,7 +98,10 @@ function acceptedMinimumVersion(value) {
     return false;
   const parts = value.split(".").map(Number);
   if (!parts.every(Number.isSafeInteger)) return false;
-  const current = [1, 2, 89];
+  // The canonical seeder installs its original contract while retaining the
+  // migrated catalog release. Runtime access compares the minimum to that
+  // installed contract, not to the newer code loaded by the host.
+  const current = [1, 1, 0];
   for (let i = 0; i < 3; i++)
     if (parts[i] !== current[i]) return parts[i] < current[i];
   return true;
@@ -157,7 +160,7 @@ export function csfSettingsFixtureFromRows(actor, organizationId, rows) {
     install.organization_id !== organizationId ||
     install.plugin_key !== "dvhs-csf" ||
     install.enabled !== true ||
-    install.installed_version !== "1.2.89" ||
+    install.installed_version !== "1.1.0" ||
     access.organization_id !== organizationId ||
     access.plugin_key !== "dvhs-csf" ||
     access.is_accessible !== true ||
@@ -182,7 +185,7 @@ export function csfSettingsFixtureFromRows(actor, organizationId, rows) {
     role: "admin",
     status: "active",
     pluginKey: "dvhs-csf",
-    installedVersion: "1.2.89",
+    installedVersion: "1.1.0",
     entitled: true,
     runtimeAccessible: true,
     installed: true,
@@ -217,7 +220,7 @@ export function verifyCsfSettingsFixture(proof, actor, organizationId) {
         organization_id: organizationId,
         plugin_key: "dvhs-csf",
         enabled: true,
-        installed_version: "1.2.89",
+        installed_version: "1.1.0",
       },
     ],
     runtimeAccess: [

@@ -5,6 +5,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import {
   CSF_SETTINGS_ROUTE,
   CSF_SETTINGS_SOURCE_HASHES,
@@ -57,7 +58,7 @@ function rows() {
         organization_id: organizationId,
         plugin_key: "dvhs-csf",
         enabled: true,
-        installed_version: "1.2.89",
+        installed_version: "1.1.0",
       },
     ],
     organizationBindings: [],
@@ -179,6 +180,30 @@ test("metadata reads prove the exact active disconnected normal fixture", async 
   assert.equal(
     admin.queries.filter((q) => q.schema === "plugin_data").length,
     2,
+  );
+});
+test("the canonical platform seeder preserves the legacy install contract", async () => {
+  const { buildSeedFixtureSets, preserveMigratedPluginVersions } = await import(
+    pathToFileURL(
+      path.join(repo, "scripts/local-dev/seed-platform-fixtures.mjs"),
+    ).href
+  );
+  const seeded = buildSeedFixtureSets(true).seededPluginCatalogRows;
+  const migrated = preserveMigratedPluginVersions(seeded, [
+    { key: "dvhs-csf", latest_version: "1.2.89" },
+  ]);
+  const data = rows();
+  data.installs[0].installed_version = seeded.find(
+    (plugin) => plugin.key === "dvhs-csf",
+  ).latest_version;
+  data.runtimeAccess[0].latest_version = migrated.find(
+    (plugin) => plugin.key === "dvhs-csf",
+  ).latest_version;
+  assert.equal(data.installs[0].installed_version, "1.1.0");
+  assert.equal(data.runtimeAccess[0].latest_version, "1.2.89");
+  assert.deepEqual(
+    csfSettingsFixtureFromRows(actor, organizationId, data),
+    fixtureProof,
   );
 });
 for (const name of Object.keys(rows()))
@@ -378,14 +403,31 @@ test("test-copy recovery and neighboring writes are never approved", async () =>
   assert.equal(admin.queries.length, 0);
 });
 
-test("a current install may satisfy an earlier reviewed minimum version", () => {
+test("the seeded install satisfies an equal minimum contract", () => {
   const data = rows();
-  data.runtimeAccess[0].force_update_version = "1.2.70";
+  data.runtimeAccess[0].force_update_version = "1.1.0";
   assert.deepEqual(
     csfSettingsFixtureFromRows(actor, organizationId, data),
     fixtureProof,
   );
 });
+for (const minimum of [
+  "1.1.1",
+  "1.2.70",
+  "1.2.89",
+  "",
+  "01.1.0",
+  "1.1.0-beta",
+  undefined,
+  110,
+])
+  test(`an unmet or malformed minimum ${String(minimum)} refuses the seeded install`, () => {
+    const data = rows();
+    data.runtimeAccess[0].force_update_version = minimum;
+    assert.throws(() =>
+      csfSettingsFixtureFromRows(actor, organizationId, data),
+    );
+  });
 
 test("the real SDK collector emits only bounded metadata GETs on the owned loopback origin", async () => {
   const require = createRequire(path.join(repo, "package.json"));
