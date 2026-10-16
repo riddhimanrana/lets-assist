@@ -23,6 +23,12 @@ export const isSha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
 export const digest = (bytes) =>
   createHash("sha256").update(bytes).digest("hex");
 
+export function cutoverFailureMessage(error) {
+  return error instanceof ReleaseCheckError
+    ? error.message
+    : "Development cutover failed. Raw output was suppressed.";
+}
+
 export function cutoverConfig(env) {
   const config = {
     phase: env.CUTOVER_PHASE,
@@ -41,6 +47,11 @@ export function cutoverConfig(env) {
     bypass: env.VERCEL_AUTOMATION_BYPASS_SECRET,
     cwd: process.cwd(),
   };
+  requireCondition(
+    env.SUPABASE_PROJECT_ID === target.database &&
+      env.SUPABASE_URL === `https://${target.database}.supabase.co`,
+    "Development Supabase project or canonical URL does not match the fixed target.",
+  );
   requireCondition(
     ["bootstrap", "prepare", "complete", "recover"].includes(config.phase) &&
       isSha(config.candidate) &&
@@ -90,6 +101,20 @@ export function cutoverConfig(env) {
 }
 
 export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
+  const provider = url.startsWith("https://api.github.com/")
+    ? "GitHub"
+    : url.startsWith("https://api.vercel.com/")
+      ? "Vercel"
+      : "Provider";
+  const operation = url.includes("/environments/")
+    ? "environment policy"
+    : url.includes("/collaborators/")
+      ? "actor permission"
+      : url.includes("/approvals")
+        ? "environment review"
+        : url.includes("/v9/projects/") && !url.includes("/domains")
+          ? "root project"
+          : "provider operation";
   let response;
   try {
     response = await fetcher(url, {
@@ -102,14 +127,20 @@ export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
         ...options.headers,
       },
     });
-    requireCondition(
-      response.ok,
-      "Provider request refused. Reconcile any unknown mutation before retrying.",
+  } catch {
+    throw new ReleaseCheckError(
+      `${provider} request transport failed during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
+  }
+  requireCondition(
+    response.ok,
+    `${provider} request refused (HTTP ${response.status}) during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
+  );
+  try {
     return await response.json();
   } catch {
     throw new ReleaseCheckError(
-      "Provider request failed. Raw responses and credentials were suppressed.",
+      `${provider} returned invalid JSON during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
   }
 }
