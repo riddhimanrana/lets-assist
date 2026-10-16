@@ -30,8 +30,8 @@ export const platformWorkflowStorageTriggers = [
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 
-export function platformWorkflowRepairCatalog(catalog) {
-  const rows = platformWorkflowStorageTriggers
+function workflowCatalog(catalog, triggers) {
+  const rows = triggers
     .map((row) => `(${row.map(literal).join(",")})`)
     .join(",\n");
   return `SELECT CASE WHEN (${catalog.replace(/;\s*$/u, "")}) = 1
@@ -44,7 +44,9 @@ AND EXISTS (
     AND coalesce(pg_catalog.to_jsonb(c)->>'colllocale',
       pg_catalog.to_jsonb(c)->>'colliculocale')='und'
 )
-AND NOT EXISTS (
+${
+  rows
+    ? `AND NOT EXISTS (
   SELECT 1 FROM (VALUES ${rows}) expected(name, function_signature, definition)
   WHERE NOT EXISTS (
     SELECT 1 FROM pg_catalog.pg_trigger t
@@ -54,6 +56,20 @@ AND NOT EXISTS (
       AND t.tgenabled='O' AND NOT t.tgisinternal
       AND pg_catalog.pg_get_triggerdef(t.oid)=expected.definition
   )
-)
+)`
+    : ""
+}
 THEN 1 ELSE 0 END AS csf_target_schema_verified;`;
+}
+
+export function platformWorkflowCollationCatalog(catalog) {
+  return workflowCatalog(catalog, []);
+}
+
+export function platformWorkflowAssetsCatalog(catalog) {
+  return workflowCatalog(catalog, platformWorkflowStorageTriggers.slice(0, 4));
+}
+
+export function platformWorkflowRepairCatalog(catalog) {
+  return workflowCatalog(catalog, platformWorkflowStorageTriggers);
 }

@@ -1,0 +1,3561 @@
+{
+  "format": 1,
+  "sourceBaseline": "415b8060d2466924bbb7e9567920f57455dc0aa1",
+  "sourceCandidate": "e8104749cb37dc4240bda33ca9caf050ad1bb8c9",
+  "baseline": {
+    "versions": [
+      "20260325181408",
+      "20260325193000",
+      "20260325200500",
+      "20260325221500",
+      "20260325233000",
+      "20260325235500",
+      "20260326000000",
+      "20260326120000",
+      "20260404010400",
+      "20260404030000",
+      "20260407162000",
+      "20260408022044",
+      "20260411090000",
+      "20260411120000",
+      "20260411173000",
+      "20260411200000",
+      "20260411213000",
+      "20260411223000",
+      "20260411230000",
+      "20260411235500",
+      "20260412000001",
+      "20260412000002",
+      "20260412000003",
+      "20260412000004",
+      "20260412000005",
+      "20260412000006",
+      "20260412000007",
+      "20260412001000",
+      "20260412034647",
+      "20260412053000",
+      "20260412103000",
+      "20260412220000",
+      "20260412230000",
+      "20260412230500",
+      "20260412231000",
+      "20260413000000",
+      "20260413231741",
+      "20260414000000",
+      "20260415000000",
+      "20260416000000",
+      "20260513000000",
+      "20260520000000",
+      "20260520002000",
+      "20260602000000",
+      "20260602001000",
+      "20260602002000",
+      "20260602003000",
+      "20260603035734",
+      "20260621193526",
+      "20260621210000",
+      "20260701040027",
+      "20260701041238",
+      "20260701042331",
+      "20260701044135",
+      "20260701045444",
+      "20260701050435",
+      "20260701050524",
+      "20260701051022",
+      "20260701052148",
+      "20260701052824",
+      "20260701054111",
+      "20260701055524",
+      "20260701055714",
+      "20260701180752",
+      "20260701193000",
+      "20260701202252",
+      "20260701202940",
+      "20260702015355",
+      "20260702034458",
+      "20260702173448",
+      "20260703002340",
+      "20260703055743",
+      "20260707213119",
+      "20260710041519",
+      "20260710043317",
+      "20260710044736",
+      "20260710050346",
+      "20260710052353",
+      "20260712005625",
+      "20260712005626",
+      "20260712010009",
+      "20260712010012",
+      "20260712010014",
+      "20260712010016",
+      "20260712010018",
+      "20260712010020",
+      "20260712010023",
+      "20260712010025",
+      "20260712010027",
+      "20260712010029",
+      "20260712010030",
+      "20260712010032",
+      "20260712010034",
+      "20260712010036",
+      "20260712010038",
+      "20260712010040",
+      "20260712010042",
+      "20260712010044",
+      "20260712010046",
+      "20260712010048",
+      "20260712010050",
+      "20260712010051",
+      "20260712010053",
+      "20260712010055",
+      "20260712010057",
+      "20260712010059",
+      "20260712010101",
+      "20260712010103",
+      "20260712010105",
+      "20260712010106",
+      "20260712010108",
+      "20260712010110",
+      "20260712010112",
+      "20260712010114",
+      "20260712010116",
+      "20260712010118",
+      "20260712010120",
+      "20260712010121",
+      "20260712010124",
+      "20260712010126",
+      "20260712010652",
+      "20260712010654",
+      "20260712011038",
+      "20260712011155",
+      "20260712011156",
+      "20260712011157",
+      "20260712011512",
+      "20260712012500",
+      "20260712013000",
+      "20260712013100",
+      "20260712013200",
+      "20260712013300",
+      "20260712013400",
+      "20260712013500",
+      "20260712013600",
+      "20260712013601",
+      "20260712013700",
+      "20260712013900",
+      "20260712014139",
+      "20260712014200",
+      "20260712014203",
+      "20260712014223",
+      "20260712014300",
+      "20260712014400",
+      "20260712014700",
+      "20260712014800",
+      "20260712015854",
+      "20260712020512",
+      "20260712021055",
+      "20260712021110",
+      "20260712022509",
+      "20260712024700",
+      "20260712030000",
+      "20260712032000",
+      "20260714235236",
+      "20260715001830",
+      "20260715003820",
+      "20260715005340",
+      "20260715005407",
+      "20260715010232",
+      "20260715010505",
+      "20260715013000",
+      "20260715013410",
+      "20260716032057",
+      "20260716044050",
+      "20260716044620",
+      "20260716050923",
+      "20260716051441",
+      "20260716051834",
+      "20260716053000",
+      "20260716201712",
+      "20260716213000",
+      "20260716223000",
+      "20260716223500",
+      "20260716224500",
+      "20260716225000",
+      "20260716225500",
+      "20260716230000",
+      "20260716230500",
+      "20260716231000",
+      "20260716231500",
+      "20260716232000",
+      "20260716232500",
+      "20260716233000",
+      "20260717032312",
+      "20260721071359",
+      "20260721071854",
+      "20260721095945",
+      "20260723020219",
+      "20260723025954",
+      "20260730001001",
+      "20260730001002",
+      "20260730001003",
+      "20260730001004",
+      "20260801222404",
+      "20260801223711",
+      "20260801223804",
+      "20260801230447",
+      "20260801230913",
+      "20260801232231",
+      "20260801233200",
+      "20260801233343",
+      "20260801234028",
+      "20260801234509",
+      "20260801235515",
+      "20260801235714",
+      "20260802002941",
+      "20260802003517",
+      "20260802004041",
+      "20260802010000",
+      "20260802010500",
+      "20260802195500",
+      "20260803010000",
+      "20260803010500",
+      "20260806220000",
+      "20260806231500",
+      "20260807090000",
+      "20260807223600",
+      "20260809211732",
+      "20260809212049",
+      "20260809212324",
+      "20260809212833",
+      "20260809230155",
+      "20260810000028",
+      "20260810002428",
+      "20260810004500",
+      "20260810013000",
+      "20260810014500",
+      "20260810015500",
+      "20260810021019",
+      "20260810220100",
+      "20260810220200",
+      "20260810220300",
+      "20260810220400",
+      "20260810220500",
+      "20260811001500",
+      "20260811063522",
+      "20260811073000",
+      "20260811074518",
+      "20260811081506",
+      "20260811085048",
+      "20260811100000",
+      "20260811110000",
+      "20260811120000",
+      "20260811132454",
+      "20260811160000",
+      "20260811161000",
+      "20260811170000",
+      "20260811180000",
+      "20260811233646",
+      "20260812010529",
+      "20260812030000",
+      "20260812065621",
+      "20260812071500",
+      "20260812072357",
+      "20260812073000",
+      "20260812100000",
+      "20260812100100",
+      "20260812100200",
+      "20260812100300",
+      "20260812100400",
+      "20260812100500",
+      "20260812100600",
+      "20260812100700",
+      "20260812100800",
+      "20260812100900",
+      "20260812101000",
+      "20260812101100",
+      "20260812104754",
+      "20260812114638",
+      "20260812115556",
+      "20260812132725",
+      "20260812152300",
+      "20260812161500",
+      "20260812185500",
+      "20260812193329",
+      "20260812193400",
+      "20260812203000",
+      "20260812203500",
+      "20260812220000",
+      "20260813010000",
+      "20260813012206",
+      "20260813013000",
+      "20260813013100",
+      "20260813013200",
+      "20260813013300",
+      "20260813020000",
+      "20260813085442",
+      "20260813091801",
+      "20260814001123",
+      "20260814051720",
+      "20260815100500",
+      "20260815110000",
+      "20260815120000",
+      "20260815130000",
+      "20260816083000",
+      "20260816185321",
+      "20260816190000",
+      "20260816190454",
+      "20260816230000",
+      "20260816233000",
+      "20260817010000",
+      "20260817020000",
+      "20260817021000",
+      "20260817022000",
+      "20260817030000",
+      "20260817040000",
+      "20260817050000",
+      "20260817100000",
+      "20260817110500",
+      "20260817114700",
+      "20260817120000",
+      "20260817121000",
+      "20260817130000",
+      "20260817131000",
+      "20260817132000",
+      "20260817133000",
+      "20260818040246",
+      "20260818064000",
+      "20260818074500",
+      "20260818092855",
+      "20260818115000",
+      "20260818134000",
+      "20260818150000",
+      "20260818160000",
+      "20260818170000",
+      "20260818180000",
+      "20260818223637",
+      "20260818232541",
+      "20260819002500",
+      "20260819020000",
+      "20260819030000",
+      "20260819050728",
+      "20260820090000",
+      "20260820100000",
+      "20260820110000",
+      "20260820120000",
+      "20260820130000",
+      "20260821005258",
+      "20260821024024",
+      "20260821041738",
+      "20260821044815",
+      "20260821052000",
+      "20260821232923",
+      "20260821233000",
+      "20260822000923",
+      "20260822032423",
+      "20260822044742",
+      "20260822060000",
+      "20260822070000",
+      "20260822075815",
+      "20260822084356",
+      "20260822134710",
+      "20260822151500",
+      "20260822154500",
+      "20260822224500",
+      "20260822231000",
+      "20260822233000",
+      "20260822234500",
+      "20260823040000",
+      "20260823100349",
+      "20260823102458",
+      "20260823200804",
+      "20260823210000",
+      "20260823211000",
+      "20260823214000",
+      "20260823220000",
+      "20260823221000",
+      "20260823222000",
+      "20260824001000",
+      "20260824002008",
+      "20260824003000",
+      "20260824040000",
+      "20260824050000",
+      "20260824065333",
+      "20260824084735",
+      "20260824092128",
+      "20260824123000",
+      "20260824123001",
+      "20260825023556",
+      "20260825041422",
+      "20260825045100",
+      "20260825053600",
+      "20260825063639",
+      "20260825153000",
+      "20260825160000",
+      "20260825170000",
+      "20260826021508",
+      "20260826032500",
+      "20260826033554",
+      "20260826055241",
+      "20260826061500",
+      "20260826074500",
+      "20260826081841",
+      "20260827010310",
+      "20260827015240",
+      "20260827020000",
+      "20260827044256",
+      "20260827055807",
+      "20260827063258",
+      "20260827065000",
+      "20260827073223",
+      "20260827082349",
+      "20260827233941",
+      "20260828070641",
+      "20260828143000",
+      "20260828151000",
+      "20260828170000",
+      "20260828173500",
+      "20260828183000",
+      "20260829010000",
+      "20260829020011",
+      "20260829025224",
+      "20260829092823",
+      "20260830100000",
+      "20260830110000",
+      "20260830120000",
+      "20260830130000",
+      "20260830140000",
+      "20260831000000",
+      "20260831010000",
+      "20260831122035",
+      "20260831234952",
+      "20260901023000",
+      "20260901035129",
+      "20260901043613",
+      "20260901052000",
+      "20260901060000",
+      "20260901070000",
+      "20260901103347",
+      "20260901120000",
+      "20260901230000",
+      "20260902010000",
+      "20260902020000",
+      "20260902030000",
+      "20260902040000",
+      "20260902050000",
+      "20260902060000",
+      "20260902201108",
+      "20260902201618",
+      "20260903032246",
+      "20260903032631",
+      "20260903043000",
+      "20260903050000",
+      "20260904010000",
+      "20260905003409",
+      "20260905075711",
+      "20260905080459",
+      "20260905202837",
+      "20260905205847",
+      "20260905212822",
+      "20260906013133",
+      "20260906024707",
+      "20260906025852",
+      "20260906041507",
+      "20260906044753",
+      "20260906053114",
+      "20260906062954",
+      "20260906073357",
+      "20260906085350",
+      "20260907000344",
+      "20260908020559",
+      "20260908075029",
+      "20260908081328",
+      "20260908084338",
+      "20260908090508",
+      "20260908135756",
+      "20260908141739",
+      "20260909090522",
+      "20260909090944",
+      "20260909161331",
+      "20260909163547",
+      "20260909171733",
+      "20260909173201",
+      "20260909193538",
+      "20260909193835",
+      "20260909231613",
+      "20260910004059",
+      "20260910043037",
+      "20260910043106",
+      "20260910045040",
+      "20260910090800",
+      "20260910232532",
+      "20260911101007",
+      "20260911130443",
+      "20260911143923",
+      "20260911184253",
+      "20260911192954",
+      "20260911195446",
+      "20260911201640",
+      "20260911203901",
+      "20260911210549",
+      "20260911211201",
+      "20260911212627",
+      "20260911223137",
+      "20260911223138",
+      "20260911231213",
+      "20260912002546",
+      "20260912015112",
+      "20260912015608",
+      "20260912033551",
+      "20260912064503",
+      "20260913012424",
+      "20260913015059",
+      "20260913031445",
+      "20260913053412",
+      "20260913061610",
+      "20260913070513",
+      "20260913175928",
+      "20260913191541",
+      "20260913200500",
+      "20260913202237",
+      "20260914030902",
+      "20260914033117",
+      "20260914044610",
+      "20260914062207",
+      "20260914072729",
+      "20260914080000",
+      "20260914120000",
+      "20260914130000",
+      "20260914150000",
+      "20260914160000",
+      "20260914170000",
+      "20260915015213",
+      "20260915032757",
+      "20260915050000",
+      "20260915051000",
+      "20260915051713",
+      "20260915054936",
+      "20260915060928",
+      "20260915152825",
+      "20260915153055",
+      "20260915161000",
+      "20260915161001",
+      "20260915161554",
+      "20260915183410",
+      "20260915195501",
+      "20260916000000",
+      "20260916010000",
+      "20260916040000",
+      "20260916050000",
+      "20260916055000",
+      "20260916060000",
+      "20260916070000",
+      "20260916080000",
+      "20260916090000",
+      "20260917010000",
+      "20260917010100",
+      "20260917010200",
+      "20260917010300",
+      "20260917020000",
+      "20260917020100",
+      "20260917030000",
+      "20260917030100",
+      "20260917040000",
+      "20260917050000",
+      "20260917060000",
+      "20260917070000",
+      "20260917080000",
+      "20260917090000",
+      "20260917100000",
+      "20260917110000",
+      "20260917130000",
+      "20260917140000",
+      "20260917150000",
+      "20260917160000",
+      "20260917170000",
+      "20260917180000",
+      "20260917190000",
+      "20260917200000",
+      "20260917210000",
+      "20260917220000",
+      "20260917230000",
+      "20260918000000",
+      "20260918010000",
+      "20260918011000",
+      "20260918012000",
+      "20260918013000",
+      "20260918014000",
+      "20260918015000",
+      "20260918016000",
+      "20260918020000",
+      "20260918030000",
+      "20260918040000",
+      "20260918050000",
+      "20260918060000",
+      "20260918070000",
+      "20260918080000",
+      "20260918090000",
+      "20260918100000",
+      "20260918110000",
+      "20260918120000",
+      "20260918130000",
+      "20260918140000",
+      "20260918150000",
+      "20260918160000",
+      "20260918170000",
+      "20260918180000",
+      "20260918183000",
+      "20260918235900",
+      "20260919010000",
+      "20260919020000",
+      "20260919091727",
+      "20260919095826",
+      "20260919103635",
+      "20260919114409",
+      "20260919133902",
+      "20260919143851",
+      "20260919145700",
+      "20260919155040",
+      "20260919161514",
+      "20260919161824",
+      "20260919161847",
+      "20260919172947",
+      "20260919190000",
+      "20260919200000",
+      "20260919203000",
+      "20260919210000",
+      "20260919220000",
+      "20260919230000",
+      "20260919230001",
+      "20260920010000",
+      "20260920020000",
+      "20260920030000",
+      "20260920030001",
+      "20260920042000",
+      "20260920062528",
+      "20260920080000",
+      "20260920180915",
+      "20260920181255",
+      "20260920181754",
+      "20260920214013",
+      "20260920233000",
+      "20260920233100",
+      "20260920233200",
+      "20260921015005",
+      "20260921020000",
+      "20260921020100",
+      "20260921051524",
+      "20260921065123",
+      "20260921073532",
+      "20260921074528",
+      "20260921074847",
+      "20260921235401",
+      "20260922003000",
+      "20260922030507",
+      "20260922032811",
+      "20260922054000",
+      "20260922054001",
+      "20260922081309",
+      "20260922094708",
+      "20260922105553",
+      "20260922112314",
+      "20260922124643",
+      "20260922135905",
+      "20260922181458",
+      "20260922232103",
+      "20260923001620",
+      "20260923005225",
+      "20260923011054",
+      "20260923011212",
+      "20260923013334",
+      "20260923033000",
+      "20260923033010",
+      "20260923033020",
+      "20260923044405",
+      "20260923200000",
+      "20260923202633",
+      "20260924033800",
+      "20260924034832",
+      "20260924034956",
+      "20260924050011",
+      "20260924075152",
+      "20260924083054",
+      "20260924095624",
+      "20260924103737",
+      "20260926000900",
+      "20260928025013",
+      "20260928225322",
+      "20260928234812",
+      "20260929001956",
+      "20260929003720",
+      "20260929031000",
+      "20260929044000",
+      "20260929044100",
+      "20260929044725",
+      "20260929051500",
+      "20261013071100"
+    ],
+    "ledger": "264d253f7f9d5f1171b7d6c5edc07e656f8be9914b829702c22686c5556f3eac",
+    "manifestSha256": "f834502758c31f4c0c8a4a4c11c2e29c8b7406322be0ea80144e2ce4636028be"
+  },
+  "target": {
+    "count": 739,
+    "ledger": "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4",
+    "manifestSha256": "7789c4442aad99f6bedf91bda3cde33a9b0b49ac6b50690803c3d198bd8a89cb"
+  },
+  "inventory": "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd",
+  "steps": [
+    {
+      "migration": "20260929051600_application_request_write_fence.sql",
+      "version": "20260929051600",
+      "sha256": "81aa76285c8b317a0f9a9b7e21f7079bb75daa2b8d431d277a51a0d6524439f6",
+      "count": 689,
+      "ledger": "be6fb4fb7f795cc9efd1b340c18c18c374d0fe247ad1145c57be7770d0ae3488",
+      "manifestSha256": "187bb2cfce85c15f68d1affce80b0aa10abeb507e57b05a3f165ad69f5c1a7e7",
+      "changed": [
+        {
+          "identity": "function:public.enforce_application_request_write_fence()",
+          "digest": "934abdd096c3b83b11a1f26b12d72211"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007034144_preserve_reference_scope_on_deletion.sql",
+      "version": "20261007034144",
+      "sha256": "221fd0044551e8c4798b2dcdb84549d74c475bb5bb7687b5948cc7814b96801e",
+      "count": 690,
+      "ledger": "7e1e5de852b1b9a9718ed2b91b77a3fa95bfbd02a01129121fb0ea2799c4b6a8",
+      "manifestSha256": "d4aa1f2266bc110bf880204b1a6a4f2591ee588a1804d4ea22732f3af1216302",
+      "changed": [
+        {
+          "identity": "function:private.anonymous_signup_retention_eligible(p_anonymous_id uuid)",
+          "digest": "cc312ec16c03e6fb5d0641917acd1044"
+        },
+        {
+          "identity": "function:public.archive_anonymous_signups_for_cleanup(p_anonymous_ids uuid[])",
+          "digest": "fd70f3d900e5ca8370759f376f21d258"
+        },
+        {
+          "identity": "function:public.delete_old_anonymous_signups()",
+          "digest": "9b78ce4d0b63e45131cb0d325da72136"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_stages",
+          "digest": "f3306b58bbd6bc89cd247c13e7116965"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_sync_rows",
+          "digest": "2b37dc62ef4703fdc777d617cecc4039"
+        },
+        {
+          "identity": "relation:plugin_data.csf_class_join_codes",
+          "digest": "a04788cfc7c8a7391fb4fe1a1f5c923a"
+        },
+        {
+          "identity": "relation:public.organization_sheet_syncs",
+          "digest": "10c9b4bfec0ccc69aea2706bf40e6d8a"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_rows",
+          "digest": "cecbc62ccc6a43a314ddd5529df026b8"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007035204_bounded_project_occupancy.sql",
+      "version": "20261007035204",
+      "sha256": "50879cea65568381df6e9e85f47d9e6fcd8b1725e4a7a96208d90e91f2e305dc",
+      "count": 691,
+      "ledger": "4ef485a5a9800b548429f731737278d392faec1c06dc22d3cb5df2637bdd5aff",
+      "manifestSha256": "bd7d240118f879eeaa308b9d632a9167e09b790bdba25a516cded54921ed8c53",
+      "changed": [
+        {
+          "identity": "function:public.project_occupancy_for_visible_projects(p_project_ids uuid[], p_viewer_id uuid, p_organization_id uuid)",
+          "digest": "8eb4eca3ffdec6bbe54f4c68a32658f2"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007040314_durable_account_deletion.sql",
+      "version": "20261007040314",
+      "sha256": "ccc6638445748a359a60005d668268350df68e5ddc6d70e75b01dd216342c4d7",
+      "count": 692,
+      "ledger": "24403971ec24ab984841b0d2bd5e88c8e5c0ba4909c0c7350fa3f3eef9c6b202",
+      "manifestSha256": "b2f162090a0603e1af53ca3cffaf4cf6381a685ccae7b0236b60dba3371e73ce",
+      "changed": [
+        {
+          "identity": "function:app_private.account_deletion_actor_is_active(p_user_id uuid)",
+          "digest": "84fbdce34a3ac27f6a0acb399935d211"
+        },
+        {
+          "identity": "function:app_private.account_deletion_authorize(p_actor uuid, p_target uuid, p_mode text)",
+          "digest": "b8aa5e5fad54a55b138e45eddf9b7ce8"
+        },
+        {
+          "identity": "function:app_private.account_deletion_blockers(p_target uuid, p_delete_projects boolean)",
+          "digest": "ed4ae66d1ff29149586ad840e7c4197a"
+        },
+        {
+          "identity": "function:app_private.account_deletion_personal_object(p_user uuid, p_bucket text, p_name text)",
+          "digest": "fc15ed5ed4ffe4f70509221039e9fa05"
+        },
+        {
+          "identity": "function:app_private.account_deletion_storage_fence()",
+          "digest": "0bf80af9dcecd568a71ba60ff1a24790"
+        },
+        {
+          "identity": "function:app_private.guard_account_deletion_reference()",
+          "digest": "54243338d7aac8cd6bf7bdd42290cb21"
+        },
+        {
+          "identity": "function:app_private.guard_account_deletion_write()",
+          "digest": "5ecf95b1a1eb5ec5fa3c49e9698fac1a"
+        },
+        {
+          "identity": "function:private.organization_has_other_active_admin(p_organization uuid, p_membership uuid)",
+          "digest": "777415f810785db7e6896856710b8d25"
+        },
+        {
+          "identity": "function:private.protect_organization_membership_identity()",
+          "digest": "a7c13596746b29d1f808f89dfa9c5ec3"
+        },
+        {
+          "identity": "function:public.account_deletion_pending()",
+          "digest": "f060210dace92e60ec4667b28d242da4"
+        },
+        {
+          "identity": "function:public.advance_account_deletion_cleanup(p_operation uuid, p_claim uuid, p_step text, p_object_ids uuid[])",
+          "digest": "71d867a11d5cc497efab6a26ba50c2fb"
+        },
+        {
+          "identity": "function:public.begin_account_deletion(p_actor uuid, p_target uuid, p_mode text, p_delete_projects boolean, p_reason text)",
+          "digest": "ae0bd09e6d7e94175ca998378ab35357"
+        },
+        {
+          "identity": "function:public.claim_account_deletion_cleanup(p_operation uuid)",
+          "digest": "81def58f6e27b2f71d15bcc6ee9222bf"
+        },
+        {
+          "identity": "function:public.preflight_account_deletion(p_actor uuid, p_target uuid, p_mode text, p_delete_projects boolean)",
+          "digest": "641e8e649fa6af368ce1150609acf640"
+        },
+        {
+          "identity": "relation:app_private.account_deletion_operations",
+          "digest": "9c501ceef72ed020a3818fc6cf8965b5"
+        },
+        {
+          "identity": "relation:app_private.account_deletion_storage_objects",
+          "digest": "87a3baa29df0957a07bd83b0dae2a42f"
+        },
+        {
+          "identity": "relation:app_private.google_oauth_attempts",
+          "digest": "1ea5efcc36219c63427c4e685b9731fb"
+        },
+        {
+          "identity": "relation:plugin_data.ai_usage_log",
+          "digest": "276817ff5cf62b59072c735e0c97db79"
+        },
+        {
+          "identity": "relation:plugin_data.billing_events",
+          "digest": "1fc59513fe3b7637e1609d361b5417ef"
+        },
+        {
+          "identity": "relation:plugin_data.csf_activity_layouts",
+          "digest": "fd8e894f12a9274e186ae7a58d2ae61c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_activity_sections",
+          "digest": "5b58a7a808cfe16305c2babaa7d7ffc8"
+        },
+        {
+          "identity": "relation:plugin_data.csf_admin_audit_events",
+          "digest": "6f09f9de1924f7d2326fcc376909e4a3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_announcement_attachments",
+          "digest": "b6101e24831c7ea5f1d07b43df559b27"
+        },
+        {
+          "identity": "relation:plugin_data.csf_announcement_link_previews",
+          "digest": "3d6cf98e5709a103e8045b2e53844fee"
+        },
+        {
+          "identity": "relation:plugin_data.csf_announcement_replies",
+          "digest": "ba1aeae92fe5d258413872c507eabf4c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_announcements",
+          "digest": "800c7e5fa524074c9217dab4b75f5913"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_checks",
+          "digest": "66ef7f961770e5f2595ef66ad0400381"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_correction_requests",
+          "digest": "fef4ac1df1f9635dcd0b835a9361cee7"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_course_corrections",
+          "digest": "2ba4f69d51782af4299205c662384609"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_course_entries",
+          "digest": "094123c81e6a5ffe22fdd3020d53bed7"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_mappings",
+          "digest": "7ef567809f547e225f9427c784187a32"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_releases",
+          "digest": "dec7c74af2e7c4b67c6360ac0f7a0687"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_stages",
+          "digest": "7e858135b9b835e75e8a7a6ece263990"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_sync_rows",
+          "digest": "43e701dc1cb375a0376b79bff5ae42b1"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_sync_runs",
+          "digest": "d8a8305066afd99b4e7ae94e239981df"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_sync_sources",
+          "digest": "f56175e376602b5e9ff8c58100295321"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_files",
+          "digest": "33038a333f10ebce366848f1947cf078"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_private_notes",
+          "digest": "1336286248f1842fe25152ee33054111"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_status_events",
+          "digest": "55f442284b90ed0f4ca4c64a8a1e3016"
+        },
+        {
+          "identity": "relation:plugin_data.csf_attachment_restore_preparations",
+          "digest": "e29bc7588ded32c914361eadc702f331"
+        },
+        {
+          "identity": "relation:plugin_data.csf_automatic_import_approval_rows",
+          "digest": "dbeaeb5a6ddcf1f11853d5f3dce63614"
+        },
+        {
+          "identity": "relation:plugin_data.csf_automatic_import_approvals",
+          "digest": "c3196cffe0fab52213b19ecaf58f313c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_class_join_codes",
+          "digest": "a811c9851d025942d045b8273c28d961"
+        },
+        {
+          "identity": "relation:plugin_data.csf_class_workbook_refresh_jobs",
+          "digest": "22f0af9e0ab021a6f558fea694ea2e5b"
+        },
+        {
+          "identity": "relation:plugin_data.csf_class_workbooks",
+          "digest": "8412e501ebcaa37ab3afe48a56ecfe43"
+        },
+        {
+          "identity": "relation:plugin_data.csf_cohort_terms",
+          "digest": "9263a93ba0afd67a696e1aeae830e46e"
+        },
+        {
+          "identity": "relation:plugin_data.csf_cohorts",
+          "digest": "790b92ec632991d2ecd50d69d0f36324"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_address_safety",
+          "digest": "410f37635a72baedb3e398bf3c8a84b3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_address_safety_events",
+          "digest": "dc98e793b54e34058d9aa674d0d1301f"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_broadcast_preferences",
+          "digest": "c16f81014a835e5b77dcef19f4864787"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_campaigns",
+          "digest": "d7af5806128fe03af77005128d4b327e"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_deliveries",
+          "digest": "3425c1cd92957d0a787288ce69c2337c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_dispatch_attempts",
+          "digest": "6190662791caa2df77b6a8c44c5e967c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_preference_events",
+          "digest": "7ee1c96eee216836346ab53c960d3f54"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_provider_events",
+          "digest": "34219b113d985f603a3a765f2741cb98"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_recipient_snapshots",
+          "digest": "e3bf7bfc5cf3f47844d428a9602d43a4"
+        },
+        {
+          "identity": "relation:plugin_data.csf_communication_webhook_quarantine",
+          "digest": "a16246e0c0fba2c95eb12330395d8cd2"
+        },
+        {
+          "identity": "relation:plugin_data.csf_credit_records",
+          "digest": "17c9657146fa3e6625d978dfe6463a64"
+        },
+        {
+          "identity": "relation:plugin_data.csf_dues_records",
+          "digest": "c8b43d70f817f161613c41a7bf40b713"
+        },
+        {
+          "identity": "relation:plugin_data.csf_experience_prompts",
+          "digest": "9b40411382677ce5205b4a7101b42e80"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_approval_batch_items",
+          "digest": "c2d5a102a828b52e4d113808c6ae3c4a"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_approval_batches",
+          "digest": "ef06c0bd0a88e7ce0694af504e388475"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_cleanup_recovery",
+          "digest": "7e5e972ea55031aeb2d8a6e2891959ae"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_commit_queue",
+          "digest": "61d651dd5f41643925be83b51ae61e5c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_row_batch_outcomes",
+          "digest": "bf24f32a96fd753be314491cb7770d96"
+        },
+        {
+          "identity": "relation:plugin_data.csf_import_row_batches",
+          "digest": "fe340f13570d8e5c2581ecf3a64f8092"
+        },
+        {
+          "identity": "relation:plugin_data.csf_meeting_attendance",
+          "digest": "ff92a162b46a69b5232025eb6121ac54"
+        },
+        {
+          "identity": "relation:plugin_data.csf_meeting_sessions",
+          "digest": "73d8b9a1c1faad9fcccfdcc7a7da4d2a"
+        },
+        {
+          "identity": "relation:plugin_data.csf_meetings",
+          "digest": "fce3e715a051d0914bf4fb19bef03ba7"
+        },
+        {
+          "identity": "relation:plugin_data.csf_member_reports",
+          "digest": "9299ccd6dfba4388550d32c75be6aa69"
+        },
+        {
+          "identity": "relation:plugin_data.csf_member_submission_deletion_paths",
+          "digest": "f88299a652eaee64eac9499b76acecb6"
+        },
+        {
+          "identity": "relation:plugin_data.csf_member_submission_deletions",
+          "digest": "3d5009fd64f4e3e2e8bbd61655e09eac"
+        },
+        {
+          "identity": "relation:plugin_data.csf_opportunities",
+          "digest": "768afd0e8adb3f5cf63c458c1f47d3da"
+        },
+        {
+          "identity": "relation:plugin_data.csf_opportunity_signups",
+          "digest": "edaa7e5e66e1d58e74e5c768870eb227"
+        },
+        {
+          "identity": "relation:plugin_data.csf_partner_club_aliases",
+          "digest": "82a3ecc673ec118c2ffbaf438e58ffe6"
+        },
+        {
+          "identity": "relation:plugin_data.csf_partner_club_term_events",
+          "digest": "51c5fc030a6fdadaee27a4b42d69a5aa"
+        },
+        {
+          "identity": "relation:plugin_data.csf_partner_club_terms",
+          "digest": "e915eb6090634cb2d4808c5d62b67494"
+        },
+        {
+          "identity": "relation:plugin_data.csf_partner_clubs",
+          "digest": "9ba7cf018cd5dc16c6c795c63aea603d"
+        },
+        {
+          "identity": "relation:plugin_data.csf_personal_calendar_bindings",
+          "digest": "475176ca7db6c7aca06db67859c84d47"
+        },
+        {
+          "identity": "relation:plugin_data.csf_personal_calendar_destination_operations",
+          "digest": "e15102133e2b279aac6414db9e764059"
+        },
+        {
+          "identity": "relation:plugin_data.csf_personal_calendar_destinations",
+          "digest": "78846e0331ffb7789ea8e0db8c9f7016"
+        },
+        {
+          "identity": "relation:plugin_data.csf_personal_calendar_operations",
+          "digest": "45f439b9dfa9a885510ad0c89b1a190c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_point_appeals",
+          "digest": "a75763f370b3625bd1d3d723d59e98a0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_point_categories",
+          "digest": "5d7c399a5d7d48b0d91a932fa75b187a"
+        },
+        {
+          "identity": "relation:plugin_data.csf_point_submissions",
+          "digest": "ce5e929a488db7565b6a8ac4b87234cf"
+        },
+        {
+          "identity": "relation:plugin_data.csf_post_publication_requests",
+          "digest": "4e9b5fe0a85c1bc772e7d0575e9cf1b6"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_accounts",
+          "digest": "a0b605d7f6895e0ccf7396584c95768f"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_activity_events",
+          "digest": "d04649a638026da46fb1887a6c5cb709"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_cohort_memberships",
+          "digest": "44738529febdc4668afa34944f12cfa0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_link_requests",
+          "digest": "585d9aa566d5bafe57d9cb1637cfbc13"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_merge_meeting_attendance_consolidations",
+          "digest": "293d0b78bf2f64fa37fcb5cdfd01d25f"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_merge_reviews",
+          "digest": "9d6ef6dad2d3625a95bb63af714364cd"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_merge_term_membership_consolidations",
+          "digest": "cffff809234b3681a0fb401c1142d850"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_notes",
+          "digest": "5d881a4a34972af66e9fb039faba20e3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_restrictions",
+          "digest": "cf41d238a294aa7372de79fc8a4d90a0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profiles",
+          "digest": "d6a3f983c47eda96e9075e562f88f2f0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_publication_events",
+          "digest": "d74fa13fa81fdb496f153a835851f1b0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_publication_notification_deliveries",
+          "digest": "445002fb6b3b8199849665e487958dd4"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_identity_inventory",
+          "digest": "ed00dce6411f8d68276b18fab9fbecb2"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_preview_profiles",
+          "digest": "8ea6819242dcc2d2d56a82b5f06a6f2b"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_profile_tombstones",
+          "digest": "5166be3a896c9a80ad01ebf9eb005429"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_reference_policy",
+          "digest": "dba42fe0709968c28f8906bd17cf5e07"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_retired_cohorts",
+          "digest": "1aaa8f8ce60c7ce54d405d9508443e42"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_runs",
+          "digest": "e052f616d26c9865665e321118749820"
+        },
+        {
+          "identity": "relation:plugin_data.csf_retention_source_tombstones",
+          "digest": "e4730b14559eebbbd5ae9c1cc6f96dc3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_review_assignments",
+          "digest": "af9f0c158839fce071ea56457c6dde2a"
+        },
+        {
+          "identity": "relation:plugin_data.csf_review_decisions",
+          "digest": "0e28e9214f84de739a152d7ab391c64a"
+        },
+        {
+          "identity": "relation:plugin_data.csf_review_notes",
+          "digest": "ff7e45e6e766f2f30b4287c7807520d7"
+        },
+        {
+          "identity": "relation:plugin_data.csf_review_periods",
+          "digest": "667f3c50e1ba4bfe294d4b5fb889ca19"
+        },
+        {
+          "identity": "relation:plugin_data.csf_reviewed_workbook_profile_links",
+          "digest": "3f43e60f653266d187ed7290185baa6f"
+        },
+        {
+          "identity": "relation:plugin_data.csf_role_permissions",
+          "digest": "481afcd6bb341f42c262460042575cea"
+        },
+        {
+          "identity": "relation:plugin_data.csf_roles",
+          "digest": "d3a84d630ac0a5f4c64abab72a91ae2d"
+        },
+        {
+          "identity": "relation:plugin_data.csf_scheduler_state",
+          "digest": "42edf953acc8be3f6dfde98fa586f6e8"
+        },
+        {
+          "identity": "relation:plugin_data.csf_scoped_application_imports",
+          "digest": "4b0c85d9c37a066f76fb166e385fa9d3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_automatic_update_authorizations",
+          "digest": "c932d26f839f740154a0eb0893b4dd55"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_import_commit_attempts",
+          "digest": "ca301bfbb8cf862ae9eb38da27fbe11e"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_import_jobs",
+          "digest": "78c46864452105d3bfa8554ad5f2626b"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_import_rows",
+          "digest": "c15023a51f83d761c63e2022ca0a14b0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_import_staging_claims",
+          "digest": "66a3fc4ca35aeaaf25e52c38b7d90b42"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_import_staging_objects",
+          "digest": "24a1f7a468bf2c819ab4eca5b0269242"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_semester_ledger_mappings",
+          "digest": "e0bc30eaf8991ea884191b87a6dc69dd"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_semester_ledger_writes",
+          "digest": "38a75f7ba1257bee6293552dbd020d40"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_source_evidence_tokens",
+          "digest": "ccfa0cc880a24203e296a8e5468772cd"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sources",
+          "digest": "2c388902c8171a14baea69c88b6a7d97"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_acceptances",
+          "digest": "d59a658848464263cdefa7d99059acb6"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_bindings",
+          "digest": "0f7d000488e28ccf5005bebbb28b49d9"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_changes",
+          "digest": "3068ba9e508e8456d9484f2d299ac904"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_comments",
+          "digest": "f92cc9a563966754ed192444aa5e0fbb"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_destinations",
+          "digest": "bf6c19674beaacc810d5cc33d43971ff"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_local_messages",
+          "digest": "6ea001f148654b41359122de6f4d2435"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_logs",
+          "digest": "e191390e082d0f1d7326bfbb21ea9bc4"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_test_copy_requests",
+          "digest": "6f06718ae45610d31136608e97285ed0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_test_files",
+          "digest": "d968b1a6101e0d4b107b1ac3385f6455"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_sync_test_workspaces",
+          "digest": "70e39782e3d3cd1130e8a20866fefef0"
+        },
+        {
+          "identity": "relation:plugin_data.csf_sheet_writeback_ledger",
+          "digest": "9bed16d55efe4fecaa8261647ddf18fb"
+        },
+        {
+          "identity": "relation:plugin_data.csf_staff_position_history",
+          "digest": "0d0c53f6386495c61de2c746ee041897"
+        },
+        {
+          "identity": "relation:plugin_data.csf_staff_positions",
+          "digest": "4815b4abeb19a47be5d117676f6ecbf3"
+        },
+        {
+          "identity": "relation:plugin_data.csf_staff_view_preferences",
+          "digest": "1324fe4c282c3c303523f9cafe30b2c8"
+        },
+        {
+          "identity": "relation:plugin_data.csf_storage_deletion_queue",
+          "digest": "d12230228ad488af89c50c03b1b2768e"
+        },
+        {
+          "identity": "relation:plugin_data.csf_storage_deletion_receipts",
+          "digest": "e4536e9d2855b29da9aefc7df44b2d8c"
+        },
+        {
+          "identity": "relation:plugin_data.csf_submission_edit_requests",
+          "digest": "1d492b58ed35bcde72a4a71104fb3e31"
+        },
+        {
+          "identity": "relation:plugin_data.csf_submission_files",
+          "digest": "f54a56f5728cf0fb5b83d5eaefc4a8eb"
+        },
+        {
+          "identity": "relation:plugin_data.csf_submission_reviews",
+          "digest": "f5561561c5c462c690e89fc0324ddcc7"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_applications",
+          "digest": "7dd7198a41d53e45b86d1717400f41dd"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_close_authorizations",
+          "digest": "4b1db114d36b17df96644aea3ddeef09"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_closures",
+          "digest": "2daa8f3cde8536219e461dddb005c6ae"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_deadlines",
+          "digest": "b723bc09bfcd794a3ec73e7d35027fe1"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_meetings",
+          "digest": "9cab945caf4fadabd360c2a248cc38f1"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_membership_outcomes",
+          "digest": "8450cd206a1714dc3fc07adec87aa414"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_memberships",
+          "digest": "7c34c559a7b64cc7298cc9c2c49c9a57"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_point_rules",
+          "digest": "6d410b1690e2bf3158031850c1e3aeb6"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_policies",
+          "digest": "88094b2e227cf63f230c24be5b427172"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_policy_drafts",
+          "digest": "c2d98c13e044b19ec972184096633b49"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_reopen_authorizations",
+          "digest": "e530f99d9ea4824cb821a605ff2ebbf4"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_reopen_events",
+          "digest": "ef4372886ddc61c1c21789a1f6cfa713"
+        },
+        {
+          "identity": "relation:plugin_data.csf_terms",
+          "digest": "71aa6ebc6a005ae12cde1d7c41b80350"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_allocation_drafts",
+          "digest": "3fea9171a713abfb66ff1f4d1cc9c5c4"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_audit_events",
+          "digest": "be40f2c220a145c2477d48420f3aec44"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_communication_deliveries",
+          "digest": "c3e2f21410a206a26c225a5b002067a3"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_communication_jobs",
+          "digest": "99f4828e424ed5700f3b9f7cc8b3deb5"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_family_service_accounts",
+          "digest": "ee0eba4aca3e9f95d3e7c7dbf16b5f64"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_family_service_ledger",
+          "digest": "1029514a8a8e4896db5eb0cfd0bd0b23"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_guardian_action_tokens",
+          "digest": "5b8a7b2898e17688f3eb6aee08a761e2"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_guardians",
+          "digest": "0811d4a85d76f0c39ea7604dcd869939"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_household_guardians",
+          "digest": "fc7054796f4b3f021b997efa349cdce2"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_household_students",
+          "digest": "f6aca85f203b3896e0d3b9454e7326df"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_households",
+          "digest": "855837bd3239fc8ab92e87efbdba024c"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_judge_assignments",
+          "digest": "6aee51579b65d17d46629a622cf6a82a"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_judge_assignments_v2",
+          "digest": "ca9b020e1774806232b72415244e5369"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_judge_availability",
+          "digest": "8353770fdbda3d48ac4955233fd1efa7"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_judge_conflicts",
+          "digest": "4b855aeb8adf8cb9897c7254edb75975"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_judges",
+          "digest": "d18e7b50ce998bc1cb64c02f50d5fa44"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_meeting_attendance",
+          "digest": "ea6d7858351aca6101a092bf82c98c69"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_meetings",
+          "digest": "dc334b15b00e5749dd28870859700a71"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_membership_requirements",
+          "digest": "65f69721eabba9256b7c6a7dcae5a5fc"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_memberships",
+          "digest": "d11480cd3087b6afaf1e10409eeb2a7d"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_parent_profiles",
+          "digest": "7a3462819ea26c1798725ebdc93f1c60"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_parent_student_links",
+          "digest": "cf0624abb4a0c3c6b44bf0d6bf445608"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_profile_activity_log",
+          "digest": "dc8554a92c88da7054c88112f507d92a"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_profile_links",
+          "digest": "06766f4e2c346be9cf0232e5fc4c47fe"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_registration_entries",
+          "digest": "374e5b0c077c7fb90787ee18b11ed0b0"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_seasonal_memberships",
+          "digest": "1d4b812c000c4c873eabd6dbd5a931d0"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_sheet_sync_configs",
+          "digest": "6c9f90bf5837c35114103d52cbaa6ea0"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_signup_forms",
+          "digest": "0d9ab884de10bfced7f2ddaa83b65531"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_signup_questions",
+          "digest": "e4f8d4495bf09de8e22bc1a74ce96e3a"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_signup_submissions",
+          "digest": "db8258f970ce8a86e5ae0d28bffaa761"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_student_profiles",
+          "digest": "efa630ea2cf7e765c94209082bc97bc2"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_students",
+          "digest": "8e1f46897e021e74b569d808ae7883f6"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_submission_answers",
+          "digest": "273d0607905237fa5c05e6770a0644a9"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tabroom_links",
+          "digest": "91d8901498572629f9e4c60b5ad11b25"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tabroom_snapshots",
+          "digest": "7f4e3cf6c3a2b6486c53bec5d3ab746d"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tabroom_sync_runs",
+          "digest": "6fa14f147191f9c8b21ec6e2269b80a6"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_teachers",
+          "digest": "70f4370061f5c35923267a482367af88"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tournament_entries",
+          "digest": "830a75525dbbec96d4e44cb9ac2ef5b5"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tournament_registrations",
+          "digest": "066ff4406ef52560f40e0643fe1fd032"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_tournaments",
+          "digest": "9c24f4f7abda9f4f26cc3d5b98ef1104"
+        },
+        {
+          "identity": "relation:plugin_data.org_billing_accounts",
+          "digest": "ea7e3df31584c14833ee1cd5c82884bb"
+        },
+        {
+          "identity": "relation:plugin_data.org_form_definitions",
+          "digest": "fab463b54f89db7b35f1fe04d25ac0d2"
+        },
+        {
+          "identity": "relation:plugin_data.org_form_submissions",
+          "digest": "ea7e8036cb4ad989a79cb36b84ee7f1c"
+        },
+        {
+          "identity": "relation:plugin_data.org_member_profiles",
+          "digest": "16342eee6b171c978d046b6b79ba1495"
+        },
+        {
+          "identity": "relation:plugin_data.org_seasons",
+          "digest": "d7f10ad5b18f55ec03a1b14f293ecb5d"
+        },
+        {
+          "identity": "relation:plugin_data.payment_requests",
+          "digest": "b11d7a0cfad1ad8ea8ba4f97ce5c96ef"
+        },
+        {
+          "identity": "relation:private.google_cap_event_receipts",
+          "digest": "dca2cffb49105a52948f19adc8bdc588"
+        },
+        {
+          "identity": "relation:private.plugin_application_runtime_leases",
+          "digest": "6e75e641def4ea164f9698fd9e6991bb"
+        },
+        {
+          "identity": "relation:public.account_data_export_audit_logs",
+          "digest": "810aafea9a09b09015bfdc8160067a2c"
+        },
+        {
+          "identity": "relation:public.account_data_export_jobs",
+          "digest": "e19d557170dea88a7549986a61ed0363"
+        },
+        {
+          "identity": "relation:public.anonymous_signups",
+          "digest": "bb409a254a662b34a6b5ee4bf3e8d582"
+        },
+        {
+          "identity": "relation:public.api_rate_limit_receipts",
+          "digest": "da5aa509a6bfd26c0d01fea5a324ab2c"
+        },
+        {
+          "identity": "relation:public.api_rate_limits",
+          "digest": "da5f1e2adfd996a3ab7d8eefd63695f6"
+        },
+        {
+          "identity": "relation:public.banned_emails",
+          "digest": "598ca7e730f5a0c7ef62b606312f47c8"
+        },
+        {
+          "identity": "relation:public.certificates",
+          "digest": "e7fb6245753ddb2727cc79f96efa78e6"
+        },
+        {
+          "identity": "relation:public.content_flags",
+          "digest": "6608c778829dac7f307fefd8b8c3f948"
+        },
+        {
+          "identity": "relation:public.content_reports",
+          "digest": "46f4329923f309426164d64403b06310"
+        },
+        {
+          "identity": "relation:public.email_alias_verification_challenges",
+          "digest": "7e837b641b59fd002214c2d84c528d7f"
+        },
+        {
+          "identity": "relation:public.feedback",
+          "digest": "439b0f56dfc161d97685a35303ea2724"
+        },
+        {
+          "identity": "relation:public.hours_publication_email_outbox",
+          "digest": "4ae05a73c30051b7580f17b1dd0c4f44"
+        },
+        {
+          "identity": "relation:public.hours_publication_receipts",
+          "digest": "844ba62fe6a8852ed72c106be0c757ec"
+        },
+        {
+          "identity": "relation:public.notification_settings",
+          "digest": "318a15e0c8f9c018bb8deaa91b701de2"
+        },
+        {
+          "identity": "relation:public.notifications",
+          "digest": "4b0afeeafa6283b85efa2598f0a774f4"
+        },
+        {
+          "identity": "relation:public.organization_autojoin_suppressions",
+          "digest": "bc7f103513a24a36a619e0156f12da1f"
+        },
+        {
+          "identity": "relation:public.organization_calendar_events",
+          "digest": "b043a92e98151e626730e69ab19d2ab5"
+        },
+        {
+          "identity": "relation:public.organization_calendar_syncs",
+          "digest": "47898127d412cb83c83f7c15e81017f3"
+        },
+        {
+          "identity": "relation:public.organization_contact_import_jobs",
+          "digest": "596f31fc6cd1644e24daa4163912b3da"
+        },
+        {
+          "identity": "relation:public.organization_contact_import_rows",
+          "digest": "f72d24c0ff320c5b48a45066405daf05"
+        },
+        {
+          "identity": "relation:public.organization_data_isolation_profiles",
+          "digest": "f091e2b4d200c4b306a6223fd4d1cdc1"
+        },
+        {
+          "identity": "relation:public.organization_invitations",
+          "digest": "8d571a3a8782240c74af4d160b35ec02"
+        },
+        {
+          "identity": "relation:public.organization_members",
+          "digest": "09550d0ca0328082beadf3635ca302a1"
+        },
+        {
+          "identity": "relation:public.organization_plugin_data_boundaries",
+          "digest": "8ca2a3c0103da6fbd0dc0644525d1e9f"
+        },
+        {
+          "identity": "relation:public.organization_plugin_entitlements",
+          "digest": "287dd6a97335e7024881dd85be54f0bf"
+        },
+        {
+          "identity": "relation:public.organization_plugin_feature_flags",
+          "digest": "64b87e1714db98f507023baacfa4e145"
+        },
+        {
+          "identity": "relation:public.organization_plugin_installs",
+          "digest": "ad429c46d3b674724f76adabcc155648"
+        },
+        {
+          "identity": "relation:public.organization_plugin_routes",
+          "digest": "4be27b9a5f0c3178f02d712701cc995a"
+        },
+        {
+          "identity": "relation:public.organization_sheet_syncs",
+          "digest": "997d5ec4121da88e25caa5a7617a1d85"
+        },
+        {
+          "identity": "relation:public.organizations",
+          "digest": "4de9ed2f322314bd5b6d2b45bff54c69"
+        },
+        {
+          "identity": "relation:public.paper_scan_storage_deletion_queue",
+          "digest": "109d69dec3cbe52019bc9fa6be9eba14"
+        },
+        {
+          "identity": "relation:public.paper_signup_notification_outbox",
+          "digest": "52bc76f8ecf864c4aa450e618e7b6afa"
+        },
+        {
+          "identity": "relation:public.plugin_audit_logs",
+          "digest": "1dde4f2b49e1b7505e1394b0213b29a5"
+        },
+        {
+          "identity": "relation:public.plugin_runtime_contracts",
+          "digest": "63227df2230f1a7631dd50915748a87b"
+        },
+        {
+          "identity": "relation:public.plugin_versions",
+          "digest": "fa188fe66b9adcd54f5b14b5aeae1908"
+        },
+        {
+          "identity": "relation:public.plugins",
+          "digest": "adeeba53edc16ee2aa9b6764761f3934"
+        },
+        {
+          "identity": "relation:public.profiles",
+          "digest": "65d5fdfd48df7e04fc11f84b04b04503"
+        },
+        {
+          "identity": "relation:public.project_cancellation_deliveries",
+          "digest": "ea57a38e116f4d9c7424b4a70ce1ca24"
+        },
+        {
+          "identity": "relation:public.project_cancellation_jobs",
+          "digest": "47acf1cab3fdd8b0f6e9245dab01cdfd"
+        },
+        {
+          "identity": "relation:public.project_drafts",
+          "digest": "248ea3409f8b3f777d1f165e8e47f19b"
+        },
+        {
+          "identity": "relation:public.project_feedback",
+          "digest": "981dcf235ee20c6c69f34ecbd6fa6e8e"
+        },
+        {
+          "identity": "relation:public.project_feedback_requests",
+          "digest": "176d9e902dfc04bf377574995e8032a4"
+        },
+        {
+          "identity": "relation:public.project_paper_roster_entries",
+          "digest": "5b2e5ef181c634901582d6556ea93702"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_batches",
+          "digest": "19290890bce003e253cdf3de52a97416"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_images",
+          "digest": "afeb4b1677e2f95529f51ef6a8e7b7b3"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_rows",
+          "digest": "778a763f068b516f77a1b980d83485fd"
+        },
+        {
+          "identity": "relation:public.project_signups",
+          "digest": "c6e62f29373895a866bc667651f92e73"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "37be776ce4552de033ffb19f5b338070"
+        },
+        {
+          "identity": "relation:public.reporter_references",
+          "digest": "6cc1a02aa1f717a6fb4cfcdf35cada0e"
+        },
+        {
+          "identity": "relation:public.system_banners",
+          "digest": "448667951e754ab4d5d5b95c8b74a42c"
+        },
+        {
+          "identity": "relation:public.trusted_member",
+          "digest": "9dcf9eb082525cc4c164a9d540412b7a"
+        },
+        {
+          "identity": "relation:public.user_calendar_connections",
+          "digest": "0ccf36a024db2130fac19062cbba07d5"
+        },
+        {
+          "identity": "relation:public.user_emails",
+          "digest": "367c9be51b000218239f08cb6e5fd2a9"
+        },
+        {
+          "identity": "relation:public.user_google_oauth_connection_bindings",
+          "digest": "7d2b445301db6f20160b76ef1fe20309"
+        },
+        {
+          "identity": "relation:public.user_plugin_display_preferences",
+          "digest": "e31678222a05531ceb4d7060af716b07"
+        },
+        {
+          "identity": "relation:public.waiver_definitions",
+          "digest": "55e17cdf51e06376bbea2c49f1011d09"
+        },
+        {
+          "identity": "relation:public.waiver_signatures",
+          "digest": "87a0dd21e7ee76c95147adcdf3768ff7"
+        },
+        {
+          "identity": "relation:public.waiver_storage_deletion_queue",
+          "digest": "0ce39ab44f966a9d6619d18b9edbf170"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007043000_organization_suppression_cascade.sql",
+      "version": "20261007043000",
+      "sha256": "02ac18723b2cea4cbabda727f57da3c6ccbc6015a6d9c376cd6e942c0f3d7666",
+      "count": 693,
+      "ledger": "a1f862a25cbcf5ad94aa0a7e472859dd090199b3438122408867efd9193cddf0",
+      "manifestSha256": "0776c223c755cdc44dd6ebe6a0d9ea7c9e4040f436af505435d54415ebe4c3f9",
+      "changed": [
+        {
+          "identity": "function:private.record_organization_autojoin_suppression()",
+          "digest": "4f91751aa30ece02308f4c09ac4c487f"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007044000_project_schedule_health.sql",
+      "version": "20261007044000",
+      "sha256": "6ab649bdd994d670406e02e62cf031743c8f4da8d35c3af27306e24417f74f56",
+      "count": 694,
+      "ledger": "9f193bdcb58733eec48da83b9e56085fcc49d94b6121c13f66896cf8ae9866fe",
+      "manifestSha256": "7d6b61c9eea67a99551e3784131371b1a2332ddd7efcc9f19228184d589d21ed",
+      "changed": [
+        {
+          "identity": "function:private.guard_published_project_schedule()",
+          "digest": "907f10f1a480c77f449ea785a7729d7d"
+        },
+        {
+          "identity": "function:public.get_project_schedule_health(p_actor_id uuid, p_limit integer)",
+          "digest": "bf6ed95bdd303f45085a3ea58a869110"
+        },
+        {
+          "identity": "function:public.process_projects()",
+          "digest": "00f3c3c3870a54f4493257ae011c2664"
+        },
+        {
+          "identity": "relation:app_private.project_schedule_health",
+          "digest": "5d988731175841386f098cb2720887c5"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "617d33f987426bb66712620a7af7ec30"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007045000_csf_sheet_scope_observation.sql",
+      "version": "20261007045000",
+      "sha256": "b40d1db3a851715373379606c5b599416ae1e73718a92b21c3a9ab6ff01e3609",
+      "count": 695,
+      "ledger": "d0ba89d9a2d753ab573e2a4aec6949bf06e911e8f3f0bf65aaf126d150057f45",
+      "manifestSha256": "0666272f153ae6e4f11e84b7d034d2e12e60c9fd15d1569a97c0375508475476",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_sheet_sync_destination_snapshot_with_discussions(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid)",
+          "digest": "d8ba0b5fede98133671ec3fbaad9b8a7"
+        },
+        {
+          "identity": "function:plugin_data.csf_sheet_sync_scope_statuses(p_organization_id uuid, p_destination_id uuid, p_records jsonb)",
+          "digest": "b7ebc6c8a0743adde885819327661609"
+        },
+        {
+          "identity": "function:plugin_data.csf_sheet_sync_scope_statuses_internal(p_organization_id uuid, p_destination plugin_data.csf_sheet_sync_destinations, p_records jsonb)",
+          "digest": "182de4799f139b74c6ef5ec0691d1fcb"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007050000_personal_calendar_sync_receipts.sql",
+      "version": "20261007050000",
+      "sha256": "756bfa649dfaa51d671bbbbfb24c8e3e4c77a3a946af2ffe41c69535463965b3",
+      "count": 696,
+      "ledger": "1bb06e2ee7fec0c28aefa258d0e7c200c3c5abcd969db397ebfa9313df9290ba",
+      "manifestSha256": "793c8ce9b7a052104bbcdb60d116dd6aa9e37dcd5378070b25044c2fc5b2d8dc",
+      "changed": [
+        {
+          "identity": "function:public.adopt_verified_personal_calendar_destination(p_user_id uuid, p_connection_id uuid, p_calendar_id text)",
+          "digest": "257b2bae15c25af3c1f853b8d35538a4"
+        },
+        {
+          "identity": "function:public.advance_personal_calendar_sync(p_actor_user_id uuid, p_source_kind text, p_source_id uuid, p_claim_token uuid, p_step text, p_payload jsonb)",
+          "digest": "33196cb9d2132a921e77100f3d27b294"
+        },
+        {
+          "identity": "function:public.claim_personal_calendar_sync(p_actor_user_id uuid, p_source_kind text, p_source_id uuid, p_operation text, p_schedule_id text, p_expected_event_id text)",
+          "digest": "7175f8fc893264ce568c1acf5741f1b5"
+        },
+        {
+          "identity": "function:public.csf_begin_personal_calendar_destination_provision(p_user_id uuid, p_connection_id uuid, p_request_id uuid, p_replace_calendar_id text, p_allow_create boolean)",
+          "digest": "ae4d6968b241022778aa3e1ad094db9c"
+        },
+        {
+          "identity": "function:public.csf_complete_personal_calendar_destination_provision(p_operation_id uuid, p_user_id uuid, p_outcome text, p_calendar_id text, p_outcome_code text)",
+          "digest": "061bad5637cbf1368004b0ab330e2fa8"
+        },
+        {
+          "identity": "function:public.list_personal_calendar_cleanup(p_actor_user_id uuid)",
+          "digest": "741820ac7fbba25474605b798d58d5b0"
+        },
+        {
+          "identity": "relation:app_private.personal_calendar_sync_receipts",
+          "digest": "934f541a3d56c1628f96b4046a722c94"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007050200_organization_calendar_destination.sql",
+      "version": "20261007050200",
+      "sha256": "cbbd63fb2bb2d2a973e4c59f7e730afe6681c826443cdc8636860f229d906095",
+      "count": 697,
+      "ledger": "0baaba731c9fb7e08c9e743b450573784639741400709aa5406b56d10ee7bcc7",
+      "manifestSha256": "283819222b292e7c53e93841b7fc533c8b65ad5a5383c93c51c14acd13c669f7",
+      "changed": [
+        {
+          "identity": "function:app_private.authorize_organization_calendar_provider(p_actor uuid, p_organization uuid)",
+          "digest": "62766ca587ec7250a3877c97c90b8155"
+        },
+        {
+          "identity": "function:app_private.organization_calendar_source_is_publishable(p_org uuid, p_kind text, p_source uuid, p_occurrence text)",
+          "digest": "6aea878139474e3113abf8764925d3b7"
+        },
+        {
+          "identity": "function:public.advance_organization_calendar_sync(p_actor uuid, p_organization uuid, p_claim uuid, p_step text, p_payload jsonb)",
+          "digest": "5e3aafd4090083c586a7de78d048b687"
+        },
+        {
+          "identity": "function:public.claim_organization_calendar_destination(p_actor uuid, p_organization uuid, p_allow_create boolean, p_replace_calendar_id text, p_verified_calendar_id text)",
+          "digest": "e5fd60f4e46809dc59a865949ea42a53"
+        },
+        {
+          "identity": "function:public.claim_organization_calendar_sync(p_actor uuid, p_organization uuid, p_calendar_id text)",
+          "digest": "fd00c0aff15a870a533ad72d4a97fa98"
+        },
+        {
+          "identity": "function:public.complete_organization_calendar_destination(p_actor uuid, p_organization uuid, p_operation uuid, p_outcome text, p_calendar_id text)",
+          "digest": "d01366d2a09ab7d25034dffa1b6694b6"
+        },
+        {
+          "identity": "relation:app_private.organization_calendar_destinations",
+          "digest": "83e5ad9f73a6c0709cbaf170db0ca058"
+        },
+        {
+          "identity": "relation:app_private.organization_calendar_event_receipts",
+          "digest": "6d0aeb4bfb23b1643870f2659e1ac419"
+        },
+        {
+          "identity": "relation:app_private.organization_calendar_sync_leases",
+          "digest": "ea6628c4b7445077755f98763a06f4b0"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007050600_account_export_snapshot.sql",
+      "version": "20261007050600",
+      "sha256": "345eea7aee0c367749672564668cb843f6ba97ba718177a9b21968135322a7e7",
+      "count": 698,
+      "ledger": "406c7021c6fcb8078f54bbe620db7434be2af2b8bbcfc327270d760885912f27",
+      "manifestSha256": "1b2625cdd3a6f428ce0dd5eff0a5342768ca955bc02f59ecdbb925cbb1b578ff",
+      "changed": [
+        {
+          "identity": "function:app_private.client_relation_grant_catalog()",
+          "digest": "0abb39899b5b6decc27e222fc53a8ce3"
+        },
+        {
+          "identity": "function:public.account_data_export_snapshot(p_user_id uuid)",
+          "digest": "1a8e376aa58a87c94751975821319bea"
+        },
+        {
+          "identity": "function:public.advance_account_data_export(p_job_id uuid, p_lease uuid, p_step text, p_data jsonb)",
+          "digest": "71fa09538c02b414c7fc87a4d024f956"
+        },
+        {
+          "identity": "function:public.claim_account_data_export_jobs(p_limit integer)",
+          "digest": "cd1f870d1bb739b2cfe913e6a4b4eb5a"
+        },
+        {
+          "identity": "function:public.confirm_account_export_artifact_removed(p_path text)",
+          "digest": "b719efbe76d8fa78dd265af52e7b1819"
+        },
+        {
+          "identity": "function:public.expired_account_export_artifacts(p_limit integer)",
+          "digest": "cc04dcd8bfc992cef5a40ea16e80eef1"
+        },
+        {
+          "identity": "function:public.request_account_data_export(p_user_id uuid)",
+          "digest": "f61f1487fe7205d4ac4b63cbbd62f6ad"
+        },
+        {
+          "identity": "relation:app_private.account_export_artifacts",
+          "digest": "89abed1dea2d5a99bb5c368d4c24d80a"
+        },
+        {
+          "identity": "relation:public.account_data_export_jobs",
+          "digest": "72c691918dec857655bab53a9f196724"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007051000_worker_run_health_receipts.sql",
+      "version": "20261007051000",
+      "sha256": "37863f1fa9262b33ac944296a396d8a5331b79da147505e4d8e1f6ef0163bdea",
+      "count": 699,
+      "ledger": "bcfcd9892dedb4582003a5a2678903d006266e1b39da5d6b7c35d51117e16571",
+      "manifestSha256": "250072904057685c4c118b08adbee4ee2d143e3b15bde7cbb833fd3cb67a22d4",
+      "changed": [
+        {
+          "identity": "function:public.finish_worker_run_receipt(p_run_id uuid, p_worker_key text, p_environment text, p_result jsonb)",
+          "digest": "f1f46310bbf69c565093fa2fb6ece1bd"
+        },
+        {
+          "identity": "function:public.read_worker_run_receipts(p_worker_key text, p_environment text)",
+          "digest": "7922efa30d2f916efff4d05f50d5ded4"
+        },
+        {
+          "identity": "function:public.start_worker_run_receipt(p_run_id uuid, p_worker_key text, p_environment text, p_source_sha text)",
+          "digest": "144f71ba2571a3ed91874fdab4a89e58"
+        },
+        {
+          "identity": "relation:app_private.worker_run_receipts",
+          "digest": "b94b7cf901a214fb685dd0b45b5a69c2"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007052000_csf_decision_receipt_run_index.sql",
+      "version": "20261007052000",
+      "sha256": "f1670cfa9bbd4f97b0ba5b2718569ee206e19d1f1dc026025aaccdbe31326e3e",
+      "count": 700,
+      "ledger": "07148761782fca934bc6c928a5873ed9078db76e2251b678f55b3fe72d69be64",
+      "manifestSha256": "c003b7b96c26d353d6162b517c4520c24d45f68523c5b093906930a26031817c",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_sheet_application_decision_run_receipt(p_organization_id uuid, p_run_id uuid)",
+          "digest": "fb67c76cbf68ba62e4af66f655a222a8"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_sync_rows",
+          "digest": "fc416c953104194215aeafe5bb3c48f7"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007200000_dv_atomic_membership_application.sql",
+      "version": "20261007200000",
+      "sha256": "c702cfaa4af34dac3ee935f88e7b26b1cae2d29a1dc843cb51b2806cc5522ab4",
+      "count": 701,
+      "ledger": "0df323a40d70c750d8e97ad8f34964ffbf576f8626240044469f745117807dbb",
+      "manifestSha256": "cd0dee22eba2a9c2233c74acd650bc39c7453d5b29b6945af6346581e16129d0",
+      "changed": [
+        {
+          "identity": "function:plugin_data.review_dv_membership_application(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_input jsonb)",
+          "digest": "d920b32342a3e473f271e7a3080341c9"
+        },
+        {
+          "identity": "function:plugin_data.save_dv_membership_application(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_input jsonb, p_submit boolean)",
+          "digest": "ad44aed17f939023da25f41863b3b382"
+        },
+        {
+          "identity": "relation:plugin_data.dv_sd_membership_write_receipts",
+          "digest": "67904492fae30ad823d4ef625f058688"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007210000_service_only_google_oauth_credentials.sql",
+      "version": "20261007210000",
+      "sha256": "9db378fd836c7f8a4d196200eba8152f2718533c573b3de9aa8df24a9498988f",
+      "count": 702,
+      "ledger": "2567e97f9c0c8ed6b279161bee68229dfcbc770f6832579cfa097989ffcfba94",
+      "manifestSha256": "bcc486cac1d77b64790b54c4737fb70b608abef2c734d06ef65dd91d380e38c0",
+      "changed": [
+        {
+          "identity": "function:app_private.client_relation_grant_catalog()",
+          "digest": "39422f9abaeac61d4848ec44a9ace415"
+        },
+        {
+          "identity": "relation:public.user_calendar_connections",
+          "digest": "72eece473b0c8e1a9ad29acbc3d881ad"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007220000_prepare_personal_calendar_disconnect.sql",
+      "version": "20261007220000",
+      "sha256": "fa734e21002b3fed8cee9c43137395844aa7dd4cf5cd6f09fa7513ee75633f68",
+      "count": 703,
+      "ledger": "14d153de30df953062eeb24106b5388177f18595435858b68688484304db1620",
+      "manifestSha256": "baa30d4ef7673690a61bf5ecb2d9cf54a69675b82faab1a4591754214264093e",
+      "changed": [
+        {
+          "identity": "function:public.prepare_personal_calendar_disconnect(p_actor_user_id uuid, p_connection_id uuid, p_expected_updated_at timestamp with time zone)",
+          "digest": "2bc2816150dd4f08edd8c72a6e696f35"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261007230000_project_client_read_columns.sql",
+      "version": "20261007230000",
+      "sha256": "b2422616e826bcd85f9577757e19a0c6c0d6eb1fd2440c7a48284f8990fed42e",
+      "count": 704,
+      "ledger": "1c256f19681bbd9b7bc49886e33d28f7c2c292af3e3e6e5ec617dfb5cab2f8f9",
+      "manifestSha256": "7ba750b6689902f37bc1c7705d1befff52fbddfddcbb503027fc8f0f4f2d6935",
+      "changed": [
+        {
+          "identity": "function:app_private.client_relation_grant_catalog()",
+          "digest": "24ca06b92f966a746d9a284d563905a8"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "fc0ccdbec58dea170a857b77c04b221e"
+        },
+        {
+          "identity": "relation:public.projects_with_creator",
+          "digest": "f268be9276e289f5d66b3758c059b439"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261008000000_extend_worker_observation_scope.sql",
+      "version": "20261008000000",
+      "sha256": "21483b39b32b05d95c42e6ad05e6b28be165455b33e8842cd6530db3c8787cf3",
+      "count": 705,
+      "ledger": "6118ec3777a170ba75ae5bc23e255542904366092805706b2b86b7648329c208",
+      "manifestSha256": "f480399ee06eeac5142634f89ea8db7bdcb273c35aaf8b6fe879851325a3a6d5",
+      "changed": [
+        {
+          "identity": "function:public.read_worker_run_receipts(p_worker_key text, p_environment text)",
+          "digest": "7403859eb992054a4b5b641e2e9d57cc"
+        },
+        {
+          "identity": "relation:app_private.worker_run_receipts",
+          "digest": "9a1093af58bda9ae15a49f91e70b6d18"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261008010000_public_image_cleanup_outbox.sql",
+      "version": "20261008010000",
+      "sha256": "5dfa583225eaba89f444476891c1ce13f06318a0bffa1342c9ff5eeb443e274d",
+      "count": 706,
+      "ledger": "40e707874ff406200de9312d9fc695a67f059a26670d05f801e529277c507751",
+      "manifestSha256": "8c763962777b1ec8134233361f5cdd69b8919b43a0d6ef3b2794f4b330de3c5a",
+      "changed": [
+        {
+          "identity": "function:app_private.fence_retired_public_image_upload()",
+          "digest": "e2d5da7662e08bf9f90c740311c2efb7"
+        },
+        {
+          "identity": "function:app_private.public_image_is_referenced(p_key text)",
+          "digest": "36642b7a0efcaa497c0eb293440cb2c2"
+        },
+        {
+          "identity": "function:app_private.public_image_object_key(p_bucket text, p_name text)",
+          "digest": "e0d4848a8195907c5bb46f703a5b6b16"
+        },
+        {
+          "identity": "function:app_private.public_image_reference_key(p_url text)",
+          "digest": "1d3bdf83e33ff3a977c0ec7e32607a22"
+        },
+        {
+          "identity": "function:app_private.track_public_image_references()",
+          "digest": "c349e7ce8b9fb7cad13afb17055a09f4"
+        },
+        {
+          "identity": "function:public.claim_public_image_cleanup(p_limit integer)",
+          "digest": "209ab31fc58a5596195ba35fcbac3501"
+        },
+        {
+          "identity": "function:public.finish_public_image_cleanup(p_id uuid, p_claim uuid, p_removed boolean)",
+          "digest": "aad11dc4ceb1818bcb5255f760a9d614"
+        },
+        {
+          "identity": "function:public.reserve_public_image_cleanup(p_actor uuid, p_bucket text, p_owner uuid, p_previous_url text, p_previous_path text, p_candidate_path text)",
+          "digest": "0c1e42932b9fe327fcaaf6e9242f27c7"
+        },
+        {
+          "identity": "relation:app_private.auth_public_image_references",
+          "digest": "1399d1e4f4498b5db84a7348be96d78d"
+        },
+        {
+          "identity": "relation:app_private.public_image_cleanup_objects",
+          "digest": "0cf4cfde2b720daf7e4e8d585f0f8ee6"
+        },
+        {
+          "identity": "relation:public.organizations",
+          "digest": "ced9383506f615a3c6eb5f9d137898c0"
+        },
+        {
+          "identity": "relation:public.profiles",
+          "digest": "755d13206f5372f20c282dab713369da"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261008020000_business_conflict_http_status.sql",
+      "version": "20261008020000",
+      "sha256": "55f8e50707d662e2a97775fe13dc1debfd589f0bc3a2bb7c44ecad35902fb3e0",
+      "count": 707,
+      "ledger": "d6dd791442ef47aaeaba57a5631cf8a48ebd5c1b383fb02ff51b9c71790dabae",
+      "manifestSha256": "23c60f96aabde7b22c96d0a15ae8a41f257a516625b8a2d1244471d051eb94a5",
+      "changed": [
+        {
+          "identity": "function:app_private.block_entitlement_write_during_plugin_transition()",
+          "digest": "274edfbb5603a14995fb1b68d4cf0b03"
+        },
+        {
+          "identity": "function:app_private.guard_paper_scan_registration_during_cleanup()",
+          "digest": "2fad78f06564a0c9aaa19a2db4bbe9ce"
+        },
+        {
+          "identity": "function:app_private.set_csf_release_worker_control(p_release_sha text, p_worker text, p_enabled boolean, p_expected_revision bigint, p_request_id uuid, p_actor text, p_reason text)",
+          "digest": "a4f15c9d44b60e6a1ea19c23defab8b2"
+        },
+        {
+          "identity": "function:plugin_data.csf_authorize_publication_notification(p_organization_id uuid, p_delivery_id uuid, p_lease_token uuid)",
+          "digest": "2d2427fc83cfbc2db66a838a8ed34fcb"
+        },
+        {
+          "identity": "function:plugin_data.csf_begin_submission_edit(p_organization_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_request_id uuid, p_expected_revision bigint, p_intent jsonb, p_proof jsonb)",
+          "digest": "6b355efb3aca12cf6d84135033f52399"
+        },
+        {
+          "identity": "function:plugin_data.csf_commit_submission_edit(p_organization_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_request_id uuid, p_verified_sha256 text)",
+          "digest": "006e0c91a751450444609fc9041009ca"
+        },
+        {
+          "identity": "function:plugin_data.csf_confirm_workbook_profile_link(p_organization_id uuid, p_row_id uuid, p_profile_id uuid, p_actor_user_id uuid, p_request_id uuid, p_reason text)",
+          "digest": "e524016420ab7d340311c6c93965c290"
+        },
+        {
+          "identity": "function:plugin_data.csf_consume_sheet_source_evidence(p_organization_id uuid, p_source_id uuid, p_actor_user_id uuid, p_evidence_token uuid, p_preview_job_id uuid)",
+          "digest": "ff85e58983d1d852192ef1ba9789f023"
+        },
+        {
+          "identity": "function:plugin_data.csf_edit_activity_layout(p_organization_id uuid, p_term_id uuid, p_actor_user_id uuid, p_request_id uuid, p_expected_revision bigint, p_operation text, p_payload jsonb)",
+          "digest": "b00278ac402fa8cb48c1c509a55cea44"
+        },
+        {
+          "identity": "function:plugin_data.csf_enforce_sheet_source_mapping_version()",
+          "digest": "ebf7f60088fbc98827fe4e64924fb1c0"
+        },
+        {
+          "identity": "function:plugin_data.csf_finish_publication_notification(p_organization_id uuid, p_delivery_id uuid, p_lease_token uuid, p_outcome text)",
+          "digest": "b18efc0a0688c0f39f53069e3e78ed52"
+        },
+        {
+          "identity": "function:plugin_data.csf_merge_profiles(p_organization_id uuid, p_source_profile_id uuid, p_target_profile_id uuid, p_reason text, p_actor_user_id uuid)",
+          "digest": "b90f38b1cec7b9436e3e312103bdd895"
+        },
+        {
+          "identity": "function:plugin_data.csf_merge_profiles_decision_stages_base(p_organization_id uuid, p_source_profile_id uuid, p_target_profile_id uuid, p_reason text, p_actor_user_id uuid)",
+          "digest": "817e085eefe681f6ac1bf9488dc26686"
+        },
+        {
+          "identity": "function:plugin_data.csf_prepare_announcement_attachment_restore(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_announcement_id uuid, p_bucket text, p_object_path text)",
+          "digest": "1fbbaf3476f83198116ea844c0d57fc9"
+        },
+        {
+          "identity": "function:plugin_data.csf_prepare_application_source_review_periods(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_expected_mapping_version integer)",
+          "digest": "e5309995cd1b2588f65fe5fea3b4d75c"
+        },
+        {
+          "identity": "function:plugin_data.csf_queue_sheet_sync_record_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid)",
+          "digest": "a2d47293c0fd74c3ab3e31eeb96d72ea"
+        },
+        {
+          "identity": "function:plugin_data.csf_queue_sheet_sync_snapshot_internal(p_organization_id uuid, p_destination_id uuid, p_record_kind text, p_record_id uuid, p_snapshot jsonb)",
+          "digest": "4610f5fc24f1b4208ae16baa95a3e798"
+        },
+        {
+          "identity": "function:plugin_data.csf_reconcile_attachment_restore_cleanup()",
+          "digest": "33a6c0ac50b51a2793b049f14ea90586"
+        },
+        {
+          "identity": "function:plugin_data.csf_record_communication_provider_event(p_organization_id uuid, p_provider_event_id text, p_event_type text, p_provider_message_id text, p_occurred_at timestamp with time zone, p_raw_body_hash text, p_signature_verified boolean, p_signature_scheme text, p_signature_key_id text, p_metadata jsonb, p_attempt_id uuid, p_campaign_id uuid)",
+          "digest": "926c3bc46027ac3bdf53696005c942e9"
+        },
+        {
+          "identity": "function:plugin_data.csf_refresh_sheet_source_drive_metadata(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_expected_provider text, p_expected_file_id text, p_provider_file_id text, p_metadata jsonb)",
+          "digest": "13a5566742cd0de28487c2aac04e4487"
+        },
+        {
+          "identity": "function:plugin_data.csf_refresh_sheet_source_evidence(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_preview_job_id uuid, p_expected_generation bigint, p_provider_file_id text, p_mime_type text, p_modified_time timestamp with time zone, p_provider_version text, p_trashed boolean, p_access_state text, p_file_name text)",
+          "digest": "4951568d492c32aa62b3e41addc8f2c1"
+        },
+        {
+          "identity": "function:plugin_data.csf_register_sheet_source(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_source_type text, p_registration jsonb)",
+          "digest": "459c4c56dacfbeb14ca4705d37bf3a7e"
+        },
+        {
+          "identity": "function:plugin_data.csf_replace_post_attachments(p_organization_id uuid, p_announcement_id uuid, p_actor_user_id uuid, p_attachments jsonb, p_request_id uuid)",
+          "digest": "2d8fa6c84210914fb4cd843b315676aa"
+        },
+        {
+          "identity": "function:plugin_data.csf_resolve_post_publication_completion(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_announcement_id uuid)",
+          "digest": "1631d73b5b8cc5cb8da8db9e0bbd15f0"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_point_submission_revision_request(p_organization_id uuid, p_submission_id uuid, p_action text, p_awarded_points numeric, p_review_notes text, p_actor_user_id uuid, p_request_id uuid, p_expected_revision bigint, p_awarded_point_type text)",
+          "digest": "f65bf222479b0d7502fa52fdf61dac42"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_application_decision_mapping(p_organization_id uuid, p_actor_user_id uuid, p_source_id uuid, p_mapping jsonb, p_expected_version integer)",
+          "digest": "f769976f7ef8b4fcfeb5716af8c17a27"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_sheet_automatic_update_authorization_tab_base(p_organization_id uuid, p_source_id uuid, p_actor_user_id uuid, p_expected_mapping_version integer, p_mode text, p_request_id uuid, p_reviewed_preview_job_id uuid)",
+          "digest": "dfc0b797856a869626d53dfe41eeeea0"
+        },
+        {
+          "identity": "function:plugin_data.csf_validate_attachment_restore_preparation(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_announcement_id uuid, p_bucket text, p_object_path text)",
+          "digest": "da5dddd8047f5aef997f0e94ff3e30b4"
+        },
+        {
+          "identity": "function:plugin_data.csf_validate_submission_edit(p_organization_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_expected_revision bigint, p_intent jsonb, p_has_replacement boolean)",
+          "digest": "4fb498911307e0ec4ac228b67121dae2"
+        },
+        {
+          "identity": "function:plugin_data.review_dv_membership_application(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_input jsonb)",
+          "digest": "c655633244b7b0fc20ddbb53c597cd12"
+        },
+        {
+          "identity": "function:plugin_data.save_dv_membership_application(p_organization_id uuid, p_actor_user_id uuid, p_request_id uuid, p_input jsonb, p_submit boolean)",
+          "digest": "a8709a7e5dac8c5d569c1339b3021dc2"
+        },
+        {
+          "identity": "function:private.cancel_project_transactional_legacy_status_fallback(p_project_id uuid, p_cancellation_reason text)",
+          "digest": "4b5795c0dd2703a93329e55d02855c68"
+        },
+        {
+          "identity": "function:private.end_recurring_project_series_transactional()",
+          "digest": "f0c56dd99b5822278da1afd9a0f6c006"
+        },
+        {
+          "identity": "function:private.end_recurring_project_series_transactional(p_project_id uuid, p_updates jsonb)",
+          "digest": "a58b4090fb44680a4fe27c99c260b38a"
+        },
+        {
+          "identity": "function:private.reject_project_signup(p_signup_id uuid)",
+          "digest": "0f0b1813986a7877df55e60f4b62bc62"
+        },
+        {
+          "identity": "function:private.transition_project_status_transactional(p_project_id uuid, p_status text)",
+          "digest": "0a48d6d0b4f4a336dd38a5d15cb77f45"
+        },
+        {
+          "identity": "function:public.begin_plugin_update_operation(p_organization_id uuid, p_plugin_key text, p_idempotency_key text, p_lock_token uuid, p_actor_id uuid, p_actor_type text, p_from_version text, p_target_version text, p_preflight jsonb)",
+          "digest": "2bd8d7c70e676687e57b44262934d107"
+        },
+        {
+          "identity": "function:public.complete_plugin_update_operation(p_operation_id uuid, p_lock_token uuid, p_status text, p_outcome jsonb, p_redacted_error text)",
+          "digest": "8972f32203f0d9d63244375ad7539af7"
+        },
+        {
+          "identity": "function:public.set_plugin_application_runtime(p_organization_id uuid, p_plugin_key text, p_target_version text, p_environment text, p_enabled boolean, p_actor_id uuid, p_request_id uuid, p_expected_enabled boolean, p_expected_version text)",
+          "digest": "f7c3faae5b04fc2c471d29a2c039f323"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261008030000_organization_profile_write_authorization.sql",
+      "version": "20261008030000",
+      "sha256": "dd2803db7c27c46f706e095e5d4195484ae089a71e883ec63c6170fd1d223763",
+      "count": 708,
+      "ledger": "9acbec4625f9354592f132139d722460635096b7c9ccffdcceaf8076565e64c3",
+      "manifestSha256": "35b9349bc48a8362741943f979021d8c0f08e99b521b5db676fb4e2a90e746a0",
+      "changed": [
+        {
+          "identity": "function:private.guard_organization_profile_write()",
+          "digest": "d7d56cca3d28d726865e8a14bf63574b"
+        },
+        {
+          "identity": "function:public.manage_organization_staff_invite(p_actor uuid, p_organization uuid, p_operation text, p_expires_days integer)",
+          "digest": "9aef7d20a7722f627bf6338e373f7e0c"
+        },
+        {
+          "identity": "relation:public.organizations",
+          "digest": "f55bbdebb8d7ade171b43016879b53dc"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261008040000_public_image_server_writes.sql",
+      "version": "20261008040000",
+      "sha256": "1881e138bc06520999393634f6176df35bd80e733d250969e864607ddbf999d8",
+      "count": 709,
+      "ledger": "14158f7ef4d18ca0daece9ba717963a525fe1c82128a0023e128568ee6cf42a9",
+      "manifestSha256": "4fd24cba82c18dd857314cdee861e0e32adb266d943821b75056994a6e47cd66",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261009010000_reviewed_attendance_intervals.sql",
+      "version": "20261009010000",
+      "sha256": "9df5cedc6fce967690d21cd626be2bc58a9d7e084a327b0cc0586fc5432234a8",
+      "count": 710,
+      "ledger": "0a1a51b70b9a72a0164f73bfba86d329fa72a81f85193bb98d4e721625545c08",
+      "manifestSha256": "3bfa92f246530f540723259d7c2dd26f71372d6657781cf7851b959d9950b45b",
+      "changed": [
+        {
+          "identity": "function:app_private.guard_hours_publication_completeness()",
+          "digest": "d26e7bec9c71da1988435c6703800513"
+        },
+        {
+          "identity": "function:app_private.issue_verified_certificate_for_late_attendance()",
+          "digest": "02b9a68b47932116a6e0f18ad4fd6697"
+        },
+        {
+          "identity": "function:private.assert_attendance_not_future(p_intervals jsonb)",
+          "digest": "f5ebae883b3ca015b64444324398e7e3"
+        },
+        {
+          "identity": "function:private.assert_attendance_session_ended(p_project_id uuid, p_schedule_id text)",
+          "digest": "213e8e7aef7e7c3beb921efa36051fa6"
+        },
+        {
+          "identity": "function:private.assert_no_unlinked_platform_award(p_signup_id uuid)",
+          "digest": "7fc50cdedf33d670efd96683fee01806"
+        },
+        {
+          "identity": "function:private.attendance_interval_minutes(p_intervals jsonb)",
+          "digest": "d66aa1f11a1c3b34e348b235fa2f9825"
+        },
+        {
+          "identity": "function:private.guard_reviewed_attendance_envelope()",
+          "digest": "80e8f2f96de65c9a5fb86be534314ae8"
+        },
+        {
+          "identity": "function:private.hours_publication_result(p_receipt_id uuid, p_outcome text)",
+          "digest": "eff24d2f6311d4950db892b7fb0f60ec"
+        },
+        {
+          "identity": "function:private.lock_attendance_management(p_project_id uuid, p_actor_id uuid)",
+          "digest": "15307841f540185dd714da5d46aad641"
+        },
+        {
+          "identity": "function:private.lock_paper_attendance_account(p_user_id uuid)",
+          "digest": "d8c3e0165ad9f797401a62559ef6ff55"
+        },
+        {
+          "identity": "function:private.normalize_attendance_intervals(p_intervals jsonb)",
+          "digest": "9c46640bca1f9974f36f8881da870c6a"
+        },
+        {
+          "identity": "function:private.paper_attendance_row_consumed(p_project_id uuid, p_batch_id uuid, p_row_id uuid)",
+          "digest": "5776924ed6ebb2884e05b419cd0bf368"
+        },
+        {
+          "identity": "function:private.protect_legacy_platform_award()",
+          "digest": "b9fcafa85f7543e79c098af1862c3f89"
+        },
+        {
+          "identity": "function:private.publish_volunteer_hours_transactional(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
+          "digest": "e2dfaaeeb7cf42f99e3fb505f6a91e1e"
+        },
+        {
+          "identity": "function:private.publish_volunteer_hours_transactional_legacy_status_fallback(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
+          "digest": "2a4ee474a1e8c7a2fe29d6c44d3bf27e"
+        },
+        {
+          "identity": "function:private.set_project_attendance_intervals(p_signup_id uuid, p_intervals jsonb, p_exception_reason text)",
+          "digest": "96cd9680373480853c2f34a231676b3e"
+        },
+        {
+          "identity": "function:private.signup_attendance_intervals(p_signup_id uuid)",
+          "digest": "9ff910c0f81cec6b235b395fca2e88e0"
+        },
+        {
+          "identity": "function:private.stamp_certificate_attendance()",
+          "digest": "3d3784bf499306eb790e6437605f5661"
+        },
+        {
+          "identity": "function:public.add_paper_attendance_row(p_project_id uuid, p_batch_id uuid, p_actor_id uuid, p_request_id uuid)",
+          "digest": "f73cdd523618ebeac3eaf2913c524520"
+        },
+        {
+          "identity": "function:public.combine_paper_attendance_rows(p_project_id uuid, p_batch_id uuid, p_actor_id uuid, p_target_row_id uuid, p_source_row_ids uuid[], p_request_id uuid)",
+          "digest": "893da3921a5298718a2becd786d6c369"
+        },
+        {
+          "identity": "function:public.commit_paper_signup_batch(p_batch_id uuid, p_actor_id uuid, p_row_ids uuid[], p_allow_over_capacity boolean, p_idempotency_key uuid)",
+          "digest": "694042f05a303a92f31086a30f174270"
+        },
+        {
+          "identity": "function:public.correct_project_attendance(p_signup_id uuid, p_expected_revision integer, p_reason text, p_intervals jsonb, p_request_id uuid, p_actor_id uuid)",
+          "digest": "0412df444fb3a67cab5fc94989ecc843"
+        },
+        {
+          "identity": "function:public.create_manual_attendance_batch(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_request_id uuid)",
+          "digest": "3ff2baecf75f193bdba2db7404d3e28a"
+        },
+        {
+          "identity": "function:public.discard_paper_scan_batch(p_batch_id uuid, p_project_id uuid, p_actor_id uuid)",
+          "digest": "add966cb3c5002f16064794b393c65e2"
+        },
+        {
+          "identity": "function:public.issue_supplemental_verified_certificates(p_project_id uuid, p_schedule_id text, p_signup_ids uuid[], p_actor_id uuid)",
+          "digest": "14a1dd385939ec3ecb61b18c76a72450"
+        },
+        {
+          "identity": "function:public.purge_expired_paper_scan_batches(p_limit integer)",
+          "digest": "e3203ff219d92ba8388226f22eb2483f"
+        },
+        {
+          "identity": "function:public.record_project_attendance(p_signup_id uuid, p_expected_revision integer, p_reason text, p_intervals jsonb, p_request_id uuid, p_actor_id uuid)",
+          "digest": "55cfdf2346836d0514b2f60fbbddab4f"
+        },
+        {
+          "identity": "function:public.update_paper_scan_review_row(p_batch_id uuid, p_project_id uuid, p_row_id uuid, p_actor_id uuid, p_patch jsonb)",
+          "digest": "e5d9d18216c6a849bf448bc0e975e1e2"
+        },
+        {
+          "identity": "relation:private.paper_attendance_commit_receipts",
+          "digest": "1bd5264dfefd709864caf926356caab2"
+        },
+        {
+          "identity": "relation:private.paper_attendance_review_operations",
+          "digest": "1f7c63567f9d1609cd213fe86d317fb9"
+        },
+        {
+          "identity": "relation:private.project_attendance_changes",
+          "digest": "3a0dfbffcbc54736b8eb239a2ed4a82a"
+        },
+        {
+          "identity": "relation:public.certificate_verification_read_model",
+          "digest": "d7b1d11c6ec6f1da7d7866f79abd4816"
+        },
+        {
+          "identity": "relation:public.certificates",
+          "digest": "d445338c40739e28498e195eaf3b9a5d"
+        },
+        {
+          "identity": "relation:public.project_attendance_intervals",
+          "digest": "bc9787d75692c74d47fe3ae5fa97017b"
+        },
+        {
+          "identity": "relation:public.project_paper_roster_entries",
+          "digest": "b523fbeda73a0c63259e84447bb59179"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_batches",
+          "digest": "3e3d3ddff47b79d74a0eb871b1ff97d5"
+        },
+        {
+          "identity": "relation:public.project_paper_scan_rows",
+          "digest": "d2e88ab0969247f0d6c8084e1705cbb6"
+        },
+        {
+          "identity": "relation:public.project_signups",
+          "digest": "7c73472903f3893f3a0cb6becf25dc7c"
+        },
+        {
+          "identity": "relation:public.user_certificate_read_model",
+          "digest": "514b0eeac37cabb6cf2e9f28f956a805"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009010001_attendance_print_manifests.sql",
+      "version": "20261009010001",
+      "sha256": "9f884c45f75bbcc1eb2bf0125a8224ce32b545fc7ae49f30268a9b9b82bef4cd",
+      "count": 711,
+      "ledger": "5301045a9fbab17acfe4e9b07325afecdcba9d5991b3baac02c49bbe6229d30c",
+      "manifestSha256": "cb764244328c1e86f5041481ebad814bd742168310e067d6f74b814de190b1f2",
+      "changed": [
+        {
+          "identity": "function:public.create_attendance_print_sheet(p_project_id uuid, p_schedule_id text, p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer)",
+          "digest": "9a1ab01cd2274d9029144e84165d96a9"
+        },
+        {
+          "identity": "function:public.create_attendance_print_sheets(p_project_id uuid, p_schedule_ids text[], p_actor_id uuid, p_blank_rows integer, p_continuation_rows integer, p_request_id uuid)",
+          "digest": "7c544a88312cbb31ef3168e880497b96"
+        },
+        {
+          "identity": "relation:private.attendance_print_requests",
+          "digest": "600166a86222413f7545ebe488b24962"
+        },
+        {
+          "identity": "relation:public.project_attendance_print_rows",
+          "digest": "86035244980a848357c3c7ec831f37b9"
+        },
+        {
+          "identity": "relation:public.project_attendance_print_sheets",
+          "digest": "aa0a07bec711d10e050922fe99b6de33"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009010002_corrected_certificate_delivery.sql",
+      "version": "20261009010002",
+      "sha256": "addb925b46310d308468c83e49cf8341291fe18e8738ccafde1476781bd90510",
+      "count": 712,
+      "ledger": "2abf751e07e345bf897702155bc61076f311dbe1db934a2e6ad4afdb7e490c4e",
+      "manifestSha256": "f4bbb1135d3514533dcfab8e59bed99fdd0e23a0ea361c6e4284e72abe2bb437",
+      "changed": [
+        {
+          "identity": "function:app_private.issue_verified_certificate_for_late_attendance()",
+          "digest": "7e3793b8fdd169aab141c55a087958c4"
+        },
+        {
+          "identity": "function:private.hours_publication_result(p_receipt_id uuid, p_outcome text)",
+          "digest": "47ff941dff57961840574609b84b764d"
+        },
+        {
+          "identity": "function:private.protect_corrected_certificate_snapshot()",
+          "digest": "320b367acf07e5260db3fdb3dc7ffe26"
+        },
+        {
+          "identity": "function:private.publish_volunteer_hours_transactional_legacy_status_fallback(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
+          "digest": "c8ce1a7619ce7c56efefbe039d768f50"
+        },
+        {
+          "identity": "function:public.prepare_hours_publication_email_delivery(p_delivery_id uuid, p_sender text, p_subject text, p_html text)",
+          "digest": "12f31f0e6744f6f28a9645d38edbc215"
+        },
+        {
+          "identity": "function:public.project_corrected_certificate_ids(p_project_id uuid, p_actor_id uuid)",
+          "digest": "033a10f6c838bd93a071bf4650436049"
+        },
+        {
+          "identity": "function:public.request_corrected_certificate_delivery(p_project_id uuid, p_certificate_id uuid, p_expected_revision integer, p_request_id uuid, p_actor_id uuid)",
+          "digest": "fd6d9d1531962b12b601ae620ee2422d"
+        },
+        {
+          "identity": "relation:private.corrected_certificate_delivery_requests",
+          "digest": "3bf936ee8f27ec23ab0d1287b203d9b0"
+        },
+        {
+          "identity": "relation:public.hours_publication_email_outbox",
+          "digest": "a5c471278d6dd9adf3861f4647abcea7"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009010003_atomic_guest_account_link.sql",
+      "version": "20261009010003",
+      "sha256": "4d4e8cbda896a7dee5f491646ac5fc8187def76ff53290794afa1f13b4c1255a",
+      "count": 713,
+      "ledger": "3fdb5e49e56165d128d89b7b82bb6aa74dbe6ba16153d1e52e79920d8aae2de5",
+      "manifestSha256": "f956c2c7a20fba542ae55069c46508bdbe9a0d44cce90cbb522de91322423bda",
+      "changed": [
+        {
+          "identity": "function:public.link_guest_attendance_account(p_anonymous_id uuid, p_user_id uuid, p_token text)",
+          "digest": "2161fd2c8cf4c0c135e80c2defd69d98"
+        },
+        {
+          "identity": "relation:private.anonymous_account_links",
+          "digest": "bccd74f4455cd9d3e0ca4868a566341d"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009020000_csf_individual_officer_approval.sql",
+      "version": "20261009020000",
+      "sha256": "0176ade7c60225e3bac4bd85f17d8ef115964f73f59fbe4cba6bce4d5ebe16b9",
+      "count": 714,
+      "ledger": "5fb0f78cf135a93947fdd635acf294e4cc9a2452ef98f09783abc3745798a979",
+      "manifestSha256": "c779153c98138c7c14325ce2130360cddb5a940fd096c4ccb108943d5bfde401",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_approve_individual_term_application(p_organization_id uuid, p_actor_user_id uuid, p_profile_id uuid, p_term_id uuid, p_application_id uuid, p_expected_updated_at timestamp with time zone, p_reason text, p_request_id uuid)",
+          "digest": "0275f58fa6851a9364ab3e1999bdd94b"
+        },
+        {
+          "identity": "function:plugin_data.csf_preserve_individual_application_approval()",
+          "digest": "ddff3f4d52e7f7260fb80521e201984f"
+        },
+        {
+          "identity": "relation:plugin_data.csf_application_decision_stages",
+          "digest": "caf5b811021e3efcac39a0bb83413d92"
+        },
+        {
+          "identity": "relation:plugin_data.csf_individual_application_approvals",
+          "digest": "ce3a80e7562997b8c0bcde7ee11087d6"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009030000_csf_partner_projects_attendance_submissions.sql",
+      "version": "20261009030000",
+      "sha256": "187c912ddcbe6bffcdeec6d6e6f786d0b0ceb042d719d6b459024dc10f8d5093",
+      "count": 715,
+      "ledger": "e3cbb908d28ca5073c99c84b7278d057d2ad43508c5b5afa656bb81a31ac26f8",
+      "manifestSha256": "88fb4312d037aee50e73aafd98bb30ef0a760348cd2907ab96f58a1fdbfb0034",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_assert_point_submission_eligibility(p_organization_id uuid, p_profile_id uuid, p_term_id uuid, p_opportunity_id uuid, p_partner_club_term_id uuid, p_source text, p_points numeric, p_point_type text, p_has_proof boolean, p_allow_closed_activity boolean, p_allow_legacy_manual boolean)",
+          "digest": "749e567a2d741d6b2978b11cd8a4261c"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_claim_calculation(p_organization_id uuid, p_profile_id uuid, p_opportunity_id uuid, p_submission_id uuid, p_rules jsonb, p_keys text[])",
+          "digest": "84f7f376f06d921b6bf012337680c51f"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_claim_is_system_only(p_submission plugin_data.csf_point_submissions)",
+          "digest": "7e44091dedc011abe6895c8a059afe2e"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_claim_valid_evidence(p_organization_id uuid, p_submission_id uuid)",
+          "digest": "015a546b7e5b2749be6edaf612b89e6f"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_correlation_id(p_parts text[])",
+          "digest": "f527ab90693b7141bc49a9d69759ab3a"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_evidence_is_current(p_evidence plugin_data.csf_attendance_evidence)",
+          "digest": "2bd1260ab6cffe2b317e34b6b4843618"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_shift_key(p_rules jsonb, p_window tstzrange)",
+          "digest": "0cbbe47a4833a66ef7a57018751dcbd0"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_slot_window(p_event_type text, p_schedule jsonb, p_timezone text, p_publish_key text)",
+          "digest": "ed4987ecb2c572dde308c2eabda1e55c"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_source_revision(p_certificate_id uuid, p_signup_id uuid, p_project_id uuid, p_publish_key text, p_user_id uuid, p_event_start timestamp with time zone, p_event_end timestamp with time zone)",
+          "digest": "1bad62f9b39fb54fc7adbc2a590d246f"
+        },
+        {
+          "identity": "function:plugin_data.csf_attendance_submission_provenance(p_organization_id uuid, p_submission_id uuid)",
+          "digest": "a10fd1462cc94796b05bfe56451d43ed"
+        },
+        {
+          "identity": "function:plugin_data.csf_certificates_attendance_projection()",
+          "digest": "62985635832c71df348419551913f092"
+        },
+        {
+          "identity": "function:plugin_data.csf_create_activity(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_activity jsonb, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "f8a8110e5523bf1d3befd44b2bfc7335"
+        },
+        {
+          "identity": "function:plugin_data.csf_create_activity_locked_impl(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_activity jsonb, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "d3e26d6144ab33e62eb1fd4e2db15c79"
+        },
+        {
+          "identity": "function:plugin_data.csf_delete_member_point_submission_request(p_organization_id uuid, p_profile_id uuid, p_submission_id uuid, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "1bd2ce875c1787edde180be5d04aa626"
+        },
+        {
+          "identity": "function:plugin_data.csf_invalidate_activity_attendance_evidence(p_organization_id uuid, p_opportunity_id uuid, p_reason text, p_keep_project_id uuid)",
+          "digest": "1f35881193cce9774892b1a05ec0a9ce"
+        },
+        {
+          "identity": "function:plugin_data.csf_invalidate_attendance_evidence(p_organization_id uuid, p_evidence_ids uuid[], p_reason text)",
+          "digest": "c9cac3ab9e84f90d85b65a6449bbb333"
+        },
+        {
+          "identity": "function:plugin_data.csf_link_activity_project(p_organization_id uuid, p_activity_id uuid, p_project_id uuid, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "fb335e56881bfebb8fedf6d15d5c441b"
+        },
+        {
+          "identity": "function:plugin_data.csf_link_activity_project_locked_impl(p_organization_id uuid, p_activity_id uuid, p_project_id uuid, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "d6b5b0a437ab9004541b4e2621965397"
+        },
+        {
+          "identity": "function:plugin_data.csf_linked_project_attendance_summary(p_organization_id uuid, p_opportunity_id uuid)",
+          "digest": "af06283993a65d564acbee348333832f"
+        },
+        {
+          "identity": "function:plugin_data.csf_lock_attendance_certificate_account()",
+          "digest": "e6027e24d4d193fa493bacbfd34e5f23"
+        },
+        {
+          "identity": "function:plugin_data.csf_lock_attendance_wrapper(p_organization_id uuid, p_opportunity_id uuid, p_actor_user_id uuid, p_permissions text[])",
+          "digest": "da6263ff990ddcfd806af7b7f5e022b5"
+        },
+        {
+          "identity": "function:plugin_data.csf_lock_current_attendance_term(p_organization_id uuid)",
+          "digest": "5c2e53131c747739f884a90a8bc05d3a"
+        },
+        {
+          "identity": "function:plugin_data.csf_project_attendance_inline(p_organization_id uuid, p_project_id uuid, p_certificate_ids uuid[], p_guest_certificate_ids uuid[], p_deadline timestamp with time zone)",
+          "digest": "b073438fb16bd34ddc366288cc1a927b"
+        },
+        {
+          "identity": "function:plugin_data.csf_project_attendance_run(p_organization_id uuid, p_project_id uuid, p_certificate_ids uuid[], p_inline boolean, p_guest_certificate_ids uuid[])",
+          "digest": "94b60522117c09337fb98ee4e446d789"
+        },
+        {
+          "identity": "function:plugin_data.csf_project_attendance_sources(p_organization_id uuid, p_project_id uuid, p_certificate_ids uuid[])",
+          "digest": "a31ba918784284dddda65c4f57ca5cf2"
+        },
+        {
+          "identity": "function:plugin_data.csf_project_is_linkable(p_organization_id uuid, p_project_id uuid)",
+          "digest": "87163408fb1aedff7f1fe2a65bd610c1"
+        },
+        {
+          "identity": "function:plugin_data.csf_record_attendance_failure(p_organization_id uuid, p_project_id uuid, p_certificate_ids uuid[], p_sqlstate text, p_outcome text, p_guest_certificate_ids uuid[])",
+          "digest": "4ca23a84dfe28384485c2080aace732b"
+        },
+        {
+          "identity": "function:plugin_data.csf_record_attendance_outcome(p_organization_id uuid, p_certificate_id uuid, p_project_id uuid, p_opportunity_id uuid, p_submission_id uuid, p_evidence_id uuid, p_outcome text, p_sqlstate text, p_source_revision text, p_guest_claim boolean)",
+          "digest": "bdda2ff6ca6affe92a0e167b468a63df"
+        },
+        {
+          "identity": "function:plugin_data.csf_redrive_attendance_after_review(p_organization_id uuid, p_submission_id uuid, p_action text)",
+          "digest": "083c92339e1c46546f2ca2aa2eac778c"
+        },
+        {
+          "identity": "function:plugin_data.csf_release_attendance_evidence_on_delete()",
+          "digest": "22cb53aec579aba2e5c46a40dcd469c4"
+        },
+        {
+          "identity": "function:plugin_data.csf_retry_activity_attendance_sync(p_organization_id uuid, p_opportunity_id uuid, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "9124591bee9f871acd61a82ed7d3674b"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_point_appeal(p_organization_id uuid, p_appeal_id uuid, p_decision text, p_resolution_notes text, p_actor_user_id uuid, p_correlation_id uuid)",
+          "digest": "2697544cd9d84e2f318be8cde9f68edc"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_point_submission_v2(p_organization_id uuid, p_submission_id uuid, p_action text, p_awarded_points numeric, p_review_notes text, p_actor_user_id uuid)",
+          "digest": "7425744b293650f9f7f569b7d691b11f"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_activity_attendance_submissions(p_organization_id uuid, p_opportunity_id uuid, p_mode text, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "b7f8c436e02e26e9957985c3c62bb545"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_activity_status(p_organization_id uuid, p_activity_id uuid, p_status text, p_reason text, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "a4c84c4e19841406aab9eb77e9cb2185"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_activity_status_locked_impl(p_organization_id uuid, p_activity_id uuid, p_status text, p_reason text, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "20ed554f9ca480089bf9153dd732a2ec"
+        },
+        {
+          "identity": "function:plugin_data.csf_set_activity_status_with_email(p_organization_id uuid, p_activity_id uuid, p_status text, p_reason text, p_actor_user_id uuid, p_request_id uuid, p_email_requested boolean, p_email_topic jsonb)",
+          "digest": "7c3eb8f8acba92e9151f59209fd1ae45"
+        },
+        {
+          "identity": "function:plugin_data.csf_settle_attendance_claim(p_organization_id uuid, p_submission_id uuid)",
+          "digest": "855c0a065e438b8e25f4fbbe6ee965ab"
+        },
+        {
+          "identity": "function:plugin_data.csf_stale_attendance_evidence_for_account()",
+          "digest": "43373235eb1b26b66c97911e5d411407"
+        },
+        {
+          "identity": "function:plugin_data.csf_stale_attendance_evidence_for_membership()",
+          "digest": "68a9064bb8e8fdac0915a706cf924c48"
+        },
+        {
+          "identity": "function:plugin_data.csf_update_activity(p_organization_id uuid, p_activity_id uuid, p_term_id uuid, p_cohort_id uuid, p_activity jsonb, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "add40425ad489539992f430680435ac4"
+        },
+        {
+          "identity": "function:plugin_data.csf_update_activity_locked_impl(p_organization_id uuid, p_activity_id uuid, p_term_id uuid, p_cohort_id uuid, p_activity jsonb, p_actor_user_id uuid, p_request_id uuid)",
+          "digest": "fb98a946080057fc20a2610fd131d2c5"
+        },
+        {
+          "identity": "relation:plugin_data.csf_admin_audit_events",
+          "digest": "e05e42ce373a0e5ffdf5d70fa87aa6ea"
+        },
+        {
+          "identity": "relation:plugin_data.csf_attendance_evidence",
+          "digest": "a41997a31cda2c287fdf2af5abedd983"
+        },
+        {
+          "identity": "relation:plugin_data.csf_attendance_projection_outcomes",
+          "digest": "6b35486e32cc31cf6f3bf762065c9613"
+        },
+        {
+          "identity": "relation:plugin_data.csf_opportunities",
+          "digest": "15782d3794c43654b47cd38e72aa9032"
+        },
+        {
+          "identity": "relation:plugin_data.csf_profile_accounts",
+          "digest": "d51499a96e19ec60ddea2bccd848d6b8"
+        },
+        {
+          "identity": "relation:plugin_data.csf_term_memberships",
+          "digest": "04c75b86aa41d7fc2603f5526e4fd8eb"
+        },
+        {
+          "identity": "relation:public.certificates",
+          "digest": "8cbe860dc44d5d3aeb2925cab1b20941"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009040000_platform_experience_in_app_prompts.sql",
+      "version": "20261009040000",
+      "sha256": "fff696c593622e0fe5b7ae843cc56111aa841460cd5c0c77cedf289f74c75bed",
+      "count": 716,
+      "ledger": "48d01c3fb0837933c0b8b93544d50862c49c6d6092d37aaab9e303afb14ba144",
+      "manifestSha256": "681e4b1b74a1c36792d71faeb82373f7b188fa0ce24cd279193dc11dba5408c8",
+      "changed": [
+        {
+          "identity": "function:app_private.platform_experience_context_eligible(p_user_id uuid, p_context_kind text, p_context_id uuid)",
+          "digest": "2c7981d08b2a7c143a3d6ca3d5a1916e"
+        },
+        {
+          "identity": "function:app_private.save_platform_experience_feedback(p_user_id uuid, p_anonymous_id uuid, p_context_kind text, p_context_id uuid, p_rating smallint, p_comment text, p_update_comment boolean)",
+          "digest": "2a071a57e2393dfa7721fb95c52ce559"
+        },
+        {
+          "identity": "function:public.get_platform_experience_prompt_state(p_user_id uuid, p_context_kind text, p_context_id uuid)",
+          "digest": "44a156924842be8c504706398ad8129e"
+        },
+        {
+          "identity": "function:public.save_platform_experience_for_user(p_user_id uuid, p_context_kind text, p_context_id uuid, p_rating smallint, p_comment text, p_update_comment boolean)",
+          "digest": "71062ab638944eddf9f9bdbac93f52aa"
+        },
+        {
+          "identity": "relation:public.feedback",
+          "digest": "a2d3467776637d7f68b52439e8a82144"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009050000_preserve_csf_activity_restore_email_guard.sql",
+      "version": "20261009050000",
+      "sha256": "2b5cfbce90ea2007046c7f8b16aee0bccd37d2c944c22792a5a91cddd1d2ca7a",
+      "count": 717,
+      "ledger": "7b0fcfcfb962d80e210dd627cf551ade31cbb0654ca94abfba31ffab9957a09f",
+      "manifestSha256": "b47e4def0719fb9d1ff7bcbca203ad4f01ba5bfd6481de325d866683a75dc49b",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_set_activity_status_with_email(p_organization_id uuid, p_activity_id uuid, p_status text, p_reason text, p_actor_user_id uuid, p_request_id uuid, p_email_requested boolean, p_email_topic jsonb)",
+          "digest": "7fb67084b02170bacfccc5f59690c525"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009060000_account_export_ratings_attendance.sql",
+      "version": "20261009060000",
+      "sha256": "b72f60fe9c28f7847f33d44758935f9e28f790167c1e2dd6311f9375a4e895bd",
+      "count": 718,
+      "ledger": "98e2218d333d74633a08a45009abba595e804ee54be9d6b98805cff0abbaacdd",
+      "manifestSha256": "099de296d96ff05daa74afcb381a033408fa80c1958b41304506257ae6e74f7d",
+      "changed": [
+        {
+          "identity": "function:public.account_data_export_snapshot(p_user_id uuid)",
+          "digest": "6604b56910a2ffd65f500b81f5993378"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009070000_pause_speech_debate_offering.sql",
+      "version": "20261009070000",
+      "sha256": "6ab3b35219ada95ed223a4a37aa5bae6ffeddfb58b26c11a93983d8b0044a30b",
+      "count": 719,
+      "ledger": "8940ae1815b37b02990da08c4cbb38ff5cba823b4bfadffa29cf63ed5556998e",
+      "manifestSha256": "5ae35d296160b516739d108916f908d6f27dde2df44a7c5a6b8fe9151ff0a359",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261009070001_publish_private_plugin_batch.sql",
+      "version": "20261009070001",
+      "sha256": "bc73b0911d4566b65109b1e1f74ba2459e755737a8ddce38e57457ab41cd584e",
+      "count": 720,
+      "ledger": "929fbf064272e666d892afeb873855c6ef5eca99103b8bd6a397641e109a1153",
+      "manifestSha256": "30db97cf55a5384a7c0606597b7297409f6d9d03e29c0f4a4df53616b2b34f13",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261009080000_retain_attendance_corrections_after_account_deletion.sql",
+      "version": "20261009080000",
+      "sha256": "d332f9fd6d77b2b79977152ce8e99001a4c84f9041b89c31abc583188c5296b0",
+      "count": 721,
+      "ledger": "c19b4411515246d2676a4a0b9f098c8ce538ce3966a22b621042f98f5ba7a1b9",
+      "manifestSha256": "f4ca88ea6b00dbd8e298091f6ada32a3d4c895c63258b5bccb8e5670d11f7179",
+      "changed": [
+        {
+          "identity": "relation:private.project_attendance_changes",
+          "digest": "dcc0a1c8be38d932f12fd114c376c4ad"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261009080001_publish_dvhs_csf_1_2_87.sql",
+      "version": "20261009080001",
+      "sha256": "2bb1b3bf2610d0580cb52222c09a30842243f511c054a551ddfc0d1446815bb8",
+      "count": 722,
+      "ledger": "8202cc8a6efa6b9ce3c7f68ad9c2567e996f89c0cf365d776132125e3089ee17",
+      "manifestSha256": "7bb5e376fdcf1c6b891567261472760abd893bdafe938871d6f1559ecaf307f0",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261009090000_schedule_project_status_maintenance.sql",
+      "version": "20261009090000",
+      "sha256": "5eddf6a9c4d05c9371e66a6bf669f4f388d8c5e3132346113d7ab55a98c6d288",
+      "count": 723,
+      "ledger": "ff148151e76d55ff11cbed2ed49c5e1a999d6883fce5fd499167d345c1dfc089",
+      "manifestSha256": "12dfddd103aa1003b8b9a34c9fcc71aa48a149e86db8a6f157b902aba27034f7",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261011100000_landing_demo_mode.sql",
+      "version": "20261011100000",
+      "sha256": "78707e9e1ba93cf2e69cf8f4922625d29572677ad3d83a1966e10c3133f1a143",
+      "count": 724,
+      "ledger": "315db403cdc964242a7eaecb8f73b85b9bded7ed5249d95854980bf7169ef0f6",
+      "manifestSha256": "a32430291fc910a999a2bf3f8db689222f980da547056695de28d918985b5289",
+      "changed": [
+        {
+          "identity": "function:public.get_landing_demo_mode()",
+          "digest": "034be833deda6c33eb32ae831ae884dc"
+        },
+        {
+          "identity": "function:public.set_landing_demo_mode(p_enabled boolean, p_expected boolean, p_actor_id uuid)",
+          "digest": "d1bdcc920a18c7553533d83d5318d2f4"
+        },
+        {
+          "identity": "relation:app_private.landing_demo_events",
+          "digest": "a04ffd348a4233326048fd03ad2523e6"
+        },
+        {
+          "identity": "relation:app_private.landing_demo_events_id_seq",
+          "digest": "d28cb518f0824d93d54d06133865ebdc"
+        },
+        {
+          "identity": "relation:app_private.landing_demo_setting",
+          "digest": "5940955c6fe7aec086f869a218a1c766"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011104000_active_project_membership_boundaries.sql",
+      "version": "20261011104000",
+      "sha256": "82407e1b0cc63f08f84ca3816c6b9fbb15f96733b1c8fe5bf4fac0f5ee2f95e3",
+      "count": 725,
+      "ledger": "36bf2cf5452845848d8c767a7e7b4ab068f6b1bf0d1555b9ee8997cb3e35e308",
+      "manifestSha256": "2748f30902faeaee272e1230fac95c6737ee8cc4504abc26c06ce0ee78ffd278",
+      "changed": [
+        {
+          "identity": "function:app_private.can_insert_project(p_user uuid, p_visibility text, p_organization_id uuid)",
+          "digest": "6713c1d169a6d282647e0ebecddace4f"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "007406c9140a92c63aee12c50473b8cf"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011105000_hours_publication_recovery.sql",
+      "version": "20261011105000",
+      "sha256": "0175d8e78bad552dfead737e5b097a0b459c7c016ce94352e63e24be2fa71c57",
+      "count": 726,
+      "ledger": "153683df71dbc5932cbb54121e921b57727a36079a8635347f352fa37e3f2ee9",
+      "manifestSha256": "b39355c0ebe9c5c3a25b5950ba97bdcf21df6acb23352997557dd387bd093323",
+      "changed": [
+        {
+          "identity": "function:private.hours_attendance_row_state(p_status text, p_check_in timestamp with time zone, p_check_out timestamp with time zone)",
+          "digest": "1f35af1ef90f10dfc2b3d36c12cfae55"
+        },
+        {
+          "identity": "function:public.claim_due_hours_publications(p_approved_from timestamp with time zone, p_limit integer)",
+          "digest": "de544e9223a06ac0e1e2a7270a0d5ba7"
+        },
+        {
+          "identity": "function:public.claim_hours_publication_email_recovery(p_limit integer)",
+          "digest": "35cab0e7105bb40ae38b2360d40e1822"
+        },
+        {
+          "identity": "function:public.publish_claimed_volunteer_hours_automatic(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
+          "digest": "245b253ed749c7ccc6a01fc8fd10beae"
+        },
+        {
+          "identity": "function:public.publish_volunteer_hours_transactional_automatic(p_actor_id uuid, p_project_id uuid, p_schedule_id text, p_entries jsonb, p_request_key text)",
+          "digest": "39fa7c9f84542f1f3fddd10339e31204"
+        },
+        {
+          "identity": "function:public.recover_supplemental_verified_certificates(p_project_id uuid, p_schedule_id text, p_signup_ids uuid[], p_actor_id uuid)",
+          "digest": "cf5de85ff270c0f19e7c346ff99434d6"
+        },
+        {
+          "identity": "relation:app_private.hours_publication_discovery_attempts",
+          "digest": "97c8d5d6d4235bc6532aea5a3274b642"
+        },
+        {
+          "identity": "relation:public.hours_publication_email_outbox",
+          "digest": "867516ce36a08ef6f1170755da876104"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011105500_personal_calendar_reconciliation.sql",
+      "version": "20261011105500",
+      "sha256": "865a01b7fe9814669967268fbf9b3b0ab5e07bac174acde6b1cbb2a2a33d06b9",
+      "count": 727,
+      "ledger": "4397244e916cdca38f0b2c26778fe5bc014bc7d542d7ba5ef034662cf6b8b0fc",
+      "manifestSha256": "4302da64fe6970445c1dc52257d471c7eb1f2ca76d4eb06bfea30cdafefd82b8",
+      "changed": [
+        {
+          "identity": "function:app_private.personal_calendar_connection_revision(p_user_id uuid, p_connection_id uuid)",
+          "digest": "cdfed11ffdf94e1a9d96418ce9c8a3ca"
+        },
+        {
+          "identity": "function:app_private.personal_calendar_project_source(p_project_id uuid, p_creator_id uuid)",
+          "digest": "2cd99360ec6b9d640c18fc33ea9631cd"
+        },
+        {
+          "identity": "function:public.advance_personal_calendar_sync(p_actor_user_id uuid, p_source_kind text, p_source_id uuid, p_claim_token uuid, p_step text, p_payload jsonb)",
+          "digest": "c10cacbcd06a860551f054edf2e35c98"
+        },
+        {
+          "identity": "function:public.claim_personal_calendar_sync(p_actor_user_id uuid, p_source_kind text, p_source_id uuid, p_operation text, p_schedule_id text, p_expected_event_id text)",
+          "digest": "69fb7af63b9223dcee9d7c7280055e7f"
+        },
+        {
+          "identity": "function:public.claim_personal_calendar_update(p_actor_user_id uuid, p_project_id uuid, p_expected_source jsonb)",
+          "digest": "f99632ed6cac49f3f815c3070cef8cf4"
+        },
+        {
+          "identity": "function:public.find_personal_calendar_receipt_event(p_actor_user_id uuid, p_source_kind text, p_source_id uuid)",
+          "digest": "6391c917464cb857b9b73ac3c426caca"
+        },
+        {
+          "identity": "relation:app_private.personal_calendar_sync_receipts",
+          "digest": "443876acbada71573cceb69f5fb60d97"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011110000_csf_review_application_roster_paging.sql",
+      "version": "20261011110000",
+      "sha256": "49770537de18414b68071b20b10085d94b20ce660bae85a4d6b0ca49aecdb62c",
+      "count": 728,
+      "ledger": "be6d88027a44ddbbd1a08db255fcd4f5cce2808ff79ad4a2624b68f98fcdb862",
+      "manifestSha256": "e290a684e3cf657f3d8f01371c9ae50db2c5595eb8ab977a507ddeb019bf52ea",
+      "changed": [
+        {
+          "identity": "function:plugin_data.csf_review_application_roster_matches(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_pending_only boolean, p_query text, p_sheet_review boolean, p_sheet_filter text, p_keep_application_id uuid)",
+          "digest": "4625eea5f3185b9b53a295d9f7143c8a"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_application_roster_page(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_pending_only boolean, p_query text, p_sheet_review boolean, p_sheet_filter text, p_cursor_rank integer, p_cursor_last text, p_cursor_first text, p_cursor_id uuid, p_direction text, p_limit integer)",
+          "digest": "86091d9609c205e1a8d621819058b3a8"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_application_roster_queue(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid, p_pending_only boolean, p_query text, p_sheet_review boolean, p_sheet_filter text, p_keep_application_id uuid, p_splittable_only boolean, p_max_subjects integer)",
+          "digest": "10d68cdadd139f80818efcb9f57cd95c"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_application_roster_rows(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid)",
+          "digest": "b0edbc7bb39c1f1396456afa8c2ce8a3"
+        },
+        {
+          "identity": "function:plugin_data.csf_review_application_roster_scope(p_organization_id uuid, p_term_id uuid, p_cohort_id uuid)",
+          "digest": "956ea5afc5f84707301fbb1a020c878c"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011112000_organization_sync_run_boundaries.sql",
+      "version": "20261011112000",
+      "sha256": "7ca81a8d620930c4e78d70d9266b6191f1eae12407cd3468e8b632122130cb69",
+      "count": 729,
+      "ledger": "82ea35d1ecbd071131b556d2815afaaff7176eaa0f5012f6b38a09c044c8a8d1",
+      "manifestSha256": "7639896180093ff3a0e5ccb7c30eda1989659203c64489dd791cb5d647abec7f",
+      "changed": [
+        {
+          "identity": "function:app_private.authorize_organization_sheet_sync(p_actor uuid, p_organization uuid)",
+          "digest": "90f496e409709a786b96494ae903de90"
+        },
+        {
+          "identity": "function:app_private.claim_organization_sync_discovery_batch(p_worker text, p_limit integer, p_run_started_at timestamp with time zone)",
+          "digest": "c2d73f07fcf45d22ae257d5ea322b42e"
+        },
+        {
+          "identity": "function:app_private.guard_organization_sheet_sync_run_delete()",
+          "digest": "28a6de3acc60fa0903970fe8b5cbdfd2"
+        },
+        {
+          "identity": "function:app_private.organization_sheet_sync_config_identity(p_config organization_sheet_syncs)",
+          "digest": "ef946658f23f0fcc487153534e19a5be"
+        },
+        {
+          "identity": "function:app_private.organization_sheet_sync_trim(p_value text)",
+          "digest": "b29f171e8da379a65a5f6fb57b7b1d7e"
+        },
+        {
+          "identity": "function:app_private.purge_completed_organization_sheet_sync_runs(p_except uuid)",
+          "digest": "8fb2559ae994a92f78cda8be88f3a691"
+        },
+        {
+          "identity": "function:public.advance_organization_sheet_sync_run(p_actor uuid, p_organization uuid, p_claim uuid, p_step text, p_payload jsonb)",
+          "digest": "01b7a9b7542ef97726d5a8ff74fa4a44"
+        },
+        {
+          "identity": "function:public.claim_organization_calendar_sync_batch(p_limit integer, p_run_started_at timestamp with time zone)",
+          "digest": "cda479e8cbeade41b394aab5323dbf11"
+        },
+        {
+          "identity": "function:public.claim_organization_sheet_sync_batch(p_limit integer, p_run_started_at timestamp with time zone)",
+          "digest": "4e841266957381cd4610d7a2ea4e77b0"
+        },
+        {
+          "identity": "function:public.claim_organization_sheet_sync_run(p_actor uuid, p_organization uuid, p_sheet_id text, p_config_updated_at timestamp with time zone)",
+          "digest": "c825887f481e48737234a50b411d0faf"
+        },
+        {
+          "identity": "relation:app_private.organization_sheet_sync_runs",
+          "digest": "c7040db0dabfa5ddd893731057cac927"
+        },
+        {
+          "identity": "relation:app_private.organization_sync_discovery_cursors",
+          "digest": "9d1daf22c963f327f437f88df90867bc"
+        },
+        {
+          "identity": "relation:public.organizations",
+          "digest": "e589d016518b589863324fc19d31f725"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011112500_project_asset_lifecycle.sql",
+      "version": "20261011112500",
+      "sha256": "8c56f8c6857d3c3535602aa8d8ecf41e58dbbc31755a11f018188b828b1d33de",
+      "count": 730,
+      "ledger": "91682d49882cd3a14cebc8cb35181520290075098f41dfdb432e32b4c1721edb",
+      "manifestSha256": "f30f90cb09afa2421086735c75daec3bfbdd7a610fa1bc8993aab9d3a7f4433f",
+      "changed": [
+        {
+          "identity": "function:app_private.fence_deleting_project_waiver_signature()",
+          "digest": "1577064bc61d751941f147349a2025a4"
+        },
+        {
+          "identity": "function:app_private.fence_project_asset_object_write()",
+          "digest": "ff3831a76e63a3d94a9a3c3016e5cde4"
+        },
+        {
+          "identity": "function:app_private.guard_project_asset_object_delete()",
+          "digest": "0a6b9971226e7f80d496342b1ad6e7a3"
+        },
+        {
+          "identity": "function:app_private.project_asset_name_project(p_name text)",
+          "digest": "1a1828d359c088058cb6e57d2c1b1a22"
+        },
+        {
+          "identity": "function:app_private.project_asset_reference(p_url text)",
+          "digest": "98b8d11a344415d843d8de5db7ebd04b"
+        },
+        {
+          "identity": "function:app_private.project_asset_references_of(p_cover_image_url text, p_documents jsonb)",
+          "digest": "f0fca0b9851850723d4b5f9fc2f5b09a"
+        },
+        {
+          "identity": "function:app_private.project_deletion_candidates(p_project_id uuid)",
+          "digest": "2e2d5580065f82b0ac3677608b4df7bb"
+        },
+        {
+          "identity": "function:app_private.project_deletion_refusal(p_project_id uuid, p_actor_id uuid)",
+          "digest": "20db72548a5ea839a1971e904d3402ac"
+        },
+        {
+          "identity": "function:app_private.register_project_asset_object()",
+          "digest": "762f7d7563978312597695ad28405d7d"
+        },
+        {
+          "identity": "function:app_private.track_project_asset_references()",
+          "digest": "f6eddfe3e20c3577c990f863790b398e"
+        },
+        {
+          "identity": "function:public.finalize_project_deletion(p_operation_id uuid, p_project_id uuid, p_actor_id uuid)",
+          "digest": "62cb7fa3359ba0721702a96ad5d2c487"
+        },
+        {
+          "identity": "function:public.prepare_project_deletion(p_project_id uuid, p_actor_id uuid, p_replay_only boolean)",
+          "digest": "5fcff413690d89bb61eb62f4a9175984"
+        },
+        {
+          "identity": "relation:app_private.project_asset_objects",
+          "digest": "48d073a50eca7be8d00229eb243f61ab"
+        },
+        {
+          "identity": "relation:app_private.project_asset_references",
+          "digest": "f894bccae7440e18c219054338b9b8cf"
+        },
+        {
+          "identity": "relation:app_private.project_deletion_operations",
+          "digest": "ea815a2a40b64fd9e092bda906ac8d89"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "be01740c7871fbca1ab8e763e7535e0a"
+        },
+        {
+          "identity": "relation:public.waiver_signatures",
+          "digest": "95964f00411fdd266a2c56c851c4baf0"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011113000_waiver_geometry_boundary.sql",
+      "version": "20261011113000",
+      "sha256": "10e28f08e51f6741828570918a6e237f6f78e26d076d78f7cb3cb0ca7c430213",
+      "count": 731,
+      "ledger": "ce87abdf9305cc2a0c5998a73f1a1077fb16f7525fc1131d1e791812e560130f",
+      "manifestSha256": "68c3b426555fee62057e8effc35dc58649950b42b80f58b28fd91ce2a21d2145",
+      "changed": [
+        {
+          "identity": "function:private.freeze_waiver_definition_rendering_inputs()",
+          "digest": "64cda2f981a7dbbb8d102fa3abfc619d"
+        },
+        {
+          "identity": "function:private.lock_waiver_source_object(p_object_path text)",
+          "digest": "e3393fbaa3c5e3044ce45637e8a30e99"
+        },
+        {
+          "identity": "function:private.pin_waiver_definition_source()",
+          "digest": "e4ef5fcc344fbe23b3f3b4dd718bed13"
+        },
+        {
+          "identity": "function:private.protect_referenced_waiver_source_object()",
+          "digest": "4dba075fe854cef3a0fc5faf27de16e3"
+        },
+        {
+          "identity": "function:private.queue_detached_waiver_source()",
+          "digest": "e5f940c869041731fb560a59d98d61fc"
+        },
+        {
+          "identity": "function:private.reject_stale_waiver_evidence()",
+          "digest": "9c705df363805cee481e64dde1e6d375"
+        },
+        {
+          "identity": "function:private.sorted_distinct_uuids(p_ids uuid[])",
+          "digest": "e095af5a6a89b79fc3d7333be1a93a12"
+        },
+        {
+          "identity": "function:private.waiver_source_path_is_referenced(p_object_path text)",
+          "digest": "e154b408b2a739567fbf74f2031d1e9c"
+        },
+        {
+          "identity": "function:private.waiver_source_path_project_id(p_object_path text)",
+          "digest": "a68ab2f9ebf8b3f464ca12728e001a6a"
+        },
+        {
+          "identity": "function:public.confirm_anonymous_signup_with_capacity_checked(p_anonymous_id uuid, p_checked_signup_ids uuid[], p_checked_waiver_signup_ids uuid[], p_checked_signature_ids uuid[])",
+          "digest": "7686b57bafb1fdf2c1eb6e8777cea0e0"
+        },
+        {
+          "identity": "function:public.save_project_waiver_definition_version_checked(p_project_id uuid, p_actor_id uuid, p_title text, p_signers jsonb, p_fields jsonb, p_expected_storage_path text, p_expected_public_url text, p_expected_definition_id uuid)",
+          "digest": "749a3dab2062de331690bb9210a7d21b"
+        },
+        {
+          "identity": "relation:public.projects",
+          "digest": "ec5ef36c849980532013d5c331c60ad0"
+        },
+        {
+          "identity": "relation:public.waiver_definitions",
+          "digest": "85f4136f7750392a75ece87b15016501"
+        },
+        {
+          "identity": "relation:public.waiver_signatures",
+          "digest": "647f1fe793eebefcc36e12ee1ee062bd"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261011224034_publish_dvhs_csf_1_2_88.sql",
+      "version": "20261011224034",
+      "sha256": "1719230acb414189156e118b159919524469f6c668549b1356a1905670fa4e8c",
+      "count": 732,
+      "ledger": "2aafeb4863312cff08f7630a9d9fbe209b439a3b3f6926ec6e655d7f7999648e",
+      "manifestSha256": "55f2e9efba0f113797514879e3b8407d28a7ab963b86ab4c34222f740e8f834d",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261012002404_publish_dvhs_csf_1_2_89.sql",
+      "version": "20261012002404",
+      "sha256": "3e954a254470ec7b1eb861af14a80582c3d22f446d6aaaeb00c37779772d15ea",
+      "count": 733,
+      "ledger": "30f8d76fc1b9f41e512eb28316861a4b455ad3da7ec7f69cf2db90220a8d120b",
+      "manifestSha256": "48c7e87632c8c7fd1b6c12b9b0543d7663c4350358c6472b64fe19de602d53f3",
+      "changed": [],
+      "removed": []
+    },
+    {
+      "migration": "20261013010957_repair_scheduled_attendance_windows.sql",
+      "version": "20261013010957",
+      "sha256": "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
+      "count": 734,
+      "ledger": "af0192629ab6cae2019ab99c13c755ef7615d3eba3069951a4c7879b288030bc",
+      "manifestSha256": "f1575248d57840c75085b1690d56dbe7947581f388adb2c0c7196a303a2f3d32",
+      "changed": [
+        {
+          "identity": "function:private.project_attendance_slot_window(p_project_id uuid, p_schedule_id text)",
+          "digest": "047dd5b3cc30a303f21c12c108517af0"
+        },
+        {
+          "identity": "function:public.process_automatic_check_ins()",
+          "digest": "c7bd697f53d80900b63fc8844fad694f"
+        },
+        {
+          "identity": "function:public.process_automatic_check_outs()",
+          "digest": "b36d3afac5cd99a7a081847f308b931c"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261014050438_preserve_self_reported_certificate_timezone.sql",
+      "version": "20261014050438",
+      "sha256": "e5bef0c9cee06d99f6a18aa80a592f35195487a3b938efb53cdf6f03b216e053",
+      "count": 735,
+      "ledger": "d8116219aacbd818df78c95a009bbb6449646336bf1a6c383ce749074283a847",
+      "manifestSha256": "adc25e758e45679a2503a2b9458e32d5e69845bbb4a3a6f92cd32dd06b4f4016",
+      "changed": [
+        {
+          "identity": "relation:public.certificates",
+          "digest": "3550dafc7d820dbc9daacca570f964f3"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261014060423_validate_and_project_certificate_timezones.sql",
+      "version": "20261014060423",
+      "sha256": "17d4b5b3c0f04c3dfb45d62d2ea7e81822ae4aee639e15d74958dcc6371f1a24",
+      "count": 736,
+      "ledger": "21e573be9269528b16634ab273d309982a50a6a27ea69ec595c86fc2977274fe",
+      "manifestSha256": "17e244c1ee04e1a679499c172a8a355e9c4e58a71c04110ef3f3bcecef72f958",
+      "changed": [
+        {
+          "identity": "function:private.enforce_certificate_event_timezone()",
+          "digest": "a054de3f32829f46de1e5c0600bbf0b3"
+        },
+        {
+          "identity": "relation:public.certificate_verification_read_model",
+          "digest": "9c8e34a87e707c05fddead8fd7b336d7"
+        },
+        {
+          "identity": "relation:public.certificates",
+          "digest": "6191b41e0cdfd36fdba9ed101c836bd6"
+        },
+        {
+          "identity": "relation:public.user_certificate_read_model",
+          "digest": "8a71c97001b32b3ccef629554c6ca7b4"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261014142100_reject_unsupported_certificate_timezone.sql",
+      "version": "20261014142100",
+      "sha256": "83cbf1ed33b166bc9f8a7f2e7ae59d19cb5ce54eb9366ad277b970a1015f34c8",
+      "count": 737,
+      "ledger": "ed13eadb1b262c16efbb30382969f7349e62d65270119931de6e807ce6cda529",
+      "manifestSha256": "62647b779a362e2fb63da9af0bf70b400e7c1b736287a697eb0e6e72787b4273",
+      "changed": [
+        {
+          "identity": "function:private.enforce_certificate_event_timezone()",
+          "digest": "b520f15da8cfc5bf9b9818037c27d135"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261014162331_enforce_formatter_certificate_timezones.sql",
+      "version": "20261014162331",
+      "sha256": "b5831c1929dc1bf5fe83c3033e05be0699fb7366949a3817b6345f86a2104b21",
+      "count": 738,
+      "ledger": "ac438ba004623343ecb6925cf451dcc31e1f9a868f41d3504e6b0673b774351d",
+      "manifestSha256": "d811ecddaca2d073d7a14397a8216de9d54574814362bccb87e0e74e95688642",
+      "changed": [
+        {
+          "identity": "function:private.enforce_certificate_event_timezone()",
+          "digest": "c2f9b2b11906d1ebae71a02742b2c30e"
+        }
+      ],
+      "removed": []
+    },
+    {
+      "migration": "20261016063427_prioritize_named_attendance_role.sql",
+      "version": "20261016063427",
+      "sha256": "f4f3254fe0c1aa4600b204ef167ef5c4164df64cc500a9a7813d291abe617fa4",
+      "count": 739,
+      "ledger": "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4",
+      "manifestSha256": "7789c4442aad99f6bedf91bda3cde33a9b0b49ac6b50690803c3d198bd8a89cb",
+      "changed": [
+        {
+          "identity": "function:private.project_attendance_slot_window(p_project_id uuid, p_schedule_id text)",
+          "digest": "a53e4c0431156f61babefc46853a4ccb"
+        }
+      ],
+      "removed": []
+    }
+  ]
+}

@@ -264,8 +264,18 @@ describe("db-replay-validation CI job contract", () => {
       expect(each, name).toContain("- name: Seed fictional platform fixtures");
       const stop = each.indexOf("- name: Stop isolated Let’s Assist Supabase");
       expect(stop, name).toBeGreaterThan(-1);
-      // The stop is the last step and runs whatever happened before it.
-      expect(each.indexOf("\n      - name:", stop + 1), name).toBe(-1);
+      // Browser teardown stays last. The database runner stops its ordinary
+      // stack before the separate controller rehearsal owns a fresh stack.
+      const next = each.indexOf("\n      - name:", stop + 1);
+      if (name === "database") {
+        expect(each.slice(next)).toStartWith(
+          "\n      - name: Rehearse the bounded points-first Production controller",
+        );
+        expect(each.slice(next)).toContain("timeout-minutes: 25");
+        expect(each.slice(next)).toContain(
+          "run: node scripts/production/rehearse-points-first-rollout.mjs",
+        );
+      } else expect(next, name).toBe(-1);
       expect(each.slice(stop), name).toContain("        if: always()\n");
       expect(
         each.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length,
@@ -380,9 +390,21 @@ describe("db-replay-validation CI job contract", () => {
     expect(layoutAudit).toContain("retention-days: 7");
     expect(layoutAudit).not.toContain("path: .artifacts/");
     const database = workflowJob("database");
-    expect(database.split("uses: actions/upload-artifact@").length - 1).toBe(1);
+    expect(database.split("uses: actions/upload-artifact@").length - 1).toBe(2);
+    const rehearsalUpload = database.slice(
+      database.indexOf(
+        "- name: Retain sanitized points-first controller rehearsal",
+      ),
+    );
+    expect(rehearsalUpload).toContain(
+      ".artifacts/points-first-controller-rehearsal/*/result.json",
+    );
+    expect(rehearsalUpload).toContain(
+      ".artifacts/points-first-controller-rehearsal/*/receipt.json",
+    );
+    expect(rehearsalUpload).not.toContain("private-");
     expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
-      3,
+      4,
     );
     expect(playwrightConfig).toContain(
       'process.env.CSF_E2E_RUN_ID ?? "playwright-local"',

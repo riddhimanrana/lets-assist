@@ -58,9 +58,12 @@ for (const width of [320, 390, 414]) {
         await section.scrollIntoViewIfNeeded();
         await expect(section).toBeVisible();
       }
-      await expect(
-        page.locator("#org-tooling .relative.mx-auto.mt-12.w-full.max-w-6xl"),
-      ).toBeVisible();
+      const organizationDemo = page.locator(
+        "#org-tooling .relative.mx-auto.mt-12.w-full.max-w-6xl",
+      );
+      await organizationDemo.scrollIntoViewIfNeeded();
+      await expect(organizationDemo).toBeVisible();
+      await expect(organizationDemo).toHaveCSS("opacity", "1");
       await page.evaluate(async () => {
         await document.fonts.ready;
         window.scrollTo({ top: 0, left: 0, behavior: "instant" });

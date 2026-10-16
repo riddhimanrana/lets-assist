@@ -1166,8 +1166,7 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Home"
+          "selector": "section[data-tour-id=\"csf-officer-tasks\"]"
         },
         {
           "role": "heading",
@@ -1204,12 +1203,15 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "My CSF"
+          "role": "region",
+          "name": "CSF member profile"
         },
         {
-          "role": "region",
-          "name": "Current semester status"
+          "role": "tablist",
+          "name": "Member semesters"
+        },
+        {
+          "selector": "[role=\"tabpanel\"] [aria-label=\"Selected semester status and progress\"]"
         }
       ],
       "actorKey": "csfMember",
@@ -1246,8 +1248,8 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Classes"
+          "role": "region",
+          "name": "Your classes"
         },
         {
           "role": "heading",
@@ -1304,11 +1306,11 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Applications"
+          "selector": "#applications input[aria-label=\"Search by name\"]"
         },
         {
-          "text": "Link Google Sheet"
+          "role": "link",
+          "name": "Link Google Sheet"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1380,11 +1382,15 @@
       "ready": [
         {
           "role": "heading",
-          "name": "Submissions"
+          "name": "Point submissions"
         },
         {
           "role": "region",
           "name": "Current semester point policy"
+        },
+        {
+          "role": "tablist",
+          "name": "Point submission views"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1400,12 +1406,7 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Submissions"
-        },
-        {
-          "role": "textbox",
-          "name": "Search by name"
+          "selector": "#verification input[aria-label=\"Search by name\"]"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1421,8 +1422,8 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Classes"
+          "role": "region",
+          "name": "Your classes"
         },
         {
           "role": "heading",
@@ -1442,8 +1443,8 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Officers & access"
+          "role": "region",
+          "name": "Officer roster"
         },
         {
           "role": "heading",
@@ -1463,11 +1464,10 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Change history"
+          "selector": "[data-slot=\"card\"]:has([data-slot=\"card-title\"]:text-is(\"Change history\"))"
         },
         {
-          "text": "Change history"
+          "text": "Immutable records for staff assignments, activities, imports, reviews, and other consequential CSF actions."
         }
       ],
       "actorKey": "csfAdmin",
@@ -1525,8 +1525,15 @@
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "DVHS CSF Help"
+          "role": "textbox",
+          "name": "Search CSF help"
+        },
+        {
+          "text": "Member guide"
+        },
+        {
+          "role": "link",
+          "name": "Replay tour"
         }
       ],
       "actorKey": "csfMember",
@@ -1538,12 +1545,17 @@
       "id": "csf-connect",
       "route": "/organization/dvhs-csf/plugins/dvhs-csf/connect",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/connect"
+        "/organization/dvhs-csf/plugins/dvhs-csf/connect",
+        "/organization/dvhs-csf/plugins/dvhs-csf/connect?connected=1"
       ],
       "ready": [
         {
           "role": "heading",
-          "name": "Connect CSF Profile"
+          "name": "Your CSF record is linked"
+        },
+        {
+          "role": "link",
+          "name": "Go to My CSF"
         }
       ],
       "actorKey": "csfApplicant",

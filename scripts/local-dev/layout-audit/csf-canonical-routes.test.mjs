@@ -55,15 +55,29 @@ test("private CSF scenes capture the canonical organization tabs", () => {
       scene.route,
       `/organization/dvhs-csf/plugins/dvhs-csf/${id.slice(4)}`,
     );
-    assert.deepEqual(scene.expectedRoutes, [scene.route]);
+    assert.deepEqual(
+      scene.expectedRoutes,
+      id === "csf-connect"
+        ? [scene.route, `${scene.route}?connected=1`]
+        : [scene.route],
+    );
   }
 });
 
-test("canonical CSF overview still requires both loaded headings", () => {
+test("canonical CSF overview requires the loaded officer tasks interior", () => {
   const overview = captures.find((capture) => capture.id === "csf-overview");
   assert.deepEqual(overview.ready, [
-    { role: "heading", name: "Home" },
+    { selector: 'section[data-tour-id="csf-officer-tasks"]' },
     { role: "heading", name: "Your tasks" },
   ]);
   assert.equal(overview.actorKey, "csfAdmin");
+});
+
+test("Connect captures only the verified fixture's linked terminal state", () => {
+  const connect = captures.find((capture) => capture.id === "csf-connect");
+  assert.equal(connect.actorKey, "csfApplicant");
+  assert.deepEqual(connect.ready, [
+    { role: "heading", name: "Your CSF record is linked" },
+    { role: "link", name: "Go to My CSF" },
+  ]);
 });

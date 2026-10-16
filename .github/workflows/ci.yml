@@ -391,7 +391,7 @@ jobs:
   database:
     name: database-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 65
     # Full database, scale, and worker validation belongs to a manual candidate
     # rehearsal or the reusable Production preflight, not each pull request or
     # queued merge. These checks run once, on their own isolated stack.
@@ -639,6 +639,21 @@ jobs:
               --delete-workdir \
               "${CSF_ISOLATED_WORK_DIR}"
           fi
+
+      - name: Rehearse the bounded points-first Production controller
+        timeout-minutes: 25
+        run: node scripts/production/rehearse-points-first-rollout.mjs
+
+      - name: Retain sanitized points-first controller rehearsal
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: points-first-controller-rehearsal-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .artifacts/points-first-controller-rehearsal/*/result.json
+            .artifacts/points-first-controller-rehearsal/*/receipt.json
+          if-no-files-found: warn
+          retention-days: 7
 
   browser:
     name: csf-browser (${{ matrix.shard }}/${{ strategy.job-total }})
@@ -903,7 +918,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "7f14d30db514cb58bf4c98ad221fd9babc9cd0bcc5a583e2a7b6efdac35047ec"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "30fcc4318e84e4321c406285b6c49aebc8834fc3e16f40fba870a1a9e5948f5d"
     steps:
       - name: Require private submodule access
         env:

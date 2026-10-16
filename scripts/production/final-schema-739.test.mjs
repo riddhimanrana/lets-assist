@@ -4,7 +4,10 @@ import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { ledgerDigest } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
+import {
+  maintenanceTarget,
+  selectMaintenanceLedger,
+} from "./maintenance-preflight.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
 const versions = expectedVersions(root);
@@ -30,7 +33,9 @@ test("739 accepts only the reviewed migration ledger and preserved release guard
   ])
     assert.ok(query.includes(guard), guard);
   assert.ok(!query.includes("untrusted predecessor"));
-  assert.throws(() => acceptedCatalogQuery("", versions.slice(0, -1)));
+  assert.throws(() =>
+    selectMaintenanceLedger(versions, versions.slice(0, -1), "target"),
+  );
   assert.throws(() =>
     acceptedCatalogQuery("", [...versions, "20990101000000"]),
   );

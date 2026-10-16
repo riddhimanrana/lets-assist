@@ -1,4 +1,5 @@
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
+import { pointsFirstCatalogQuery } from "./points-first-rollout-catalog.mjs";
 import { platformWorkflowRepairCatalog } from "./platform-workflow-repair-catalog.mjs";
 import { publishedEmbedded732Catalog } from "./published-embedded-732-catalog.mjs";
 import { publishedEmbedded731Catalog } from "./published-embedded-731-catalog.mjs";
@@ -356,6 +357,8 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 }
 
 export function acceptedCatalogQuery(source, versions) {
+  const pointsFirst = pointsFirstCatalogQuery(versions);
+  if (pointsFirst) return pointsFirst;
   if (
     ledgerDigest(versions) ===
     "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4"

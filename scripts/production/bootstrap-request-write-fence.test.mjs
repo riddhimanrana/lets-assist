@@ -17,6 +17,7 @@ import {
   bootstrapMutationSql,
 } from "./request-fence-bootstrap-plan.mjs";
 import { maintenanceLedgerQuery } from "./maintenance-preflight.mjs";
+import { pointsFirstRolloutStates } from "./points-first-rollout-catalog.mjs";
 
 const source = "a".repeat(40);
 const now = Date.parse("2026-10-07T12:00:00Z");
@@ -65,7 +66,9 @@ function authorityFixture() {
       protection_rules: [
         {
           type: "required_reviewers",
-          reviewers: [{ type: "User", reviewer: { login: "reviewer" } }],
+          reviewers: [
+            { type: "User", reviewer: { id: 202, login: "reviewer" } },
+          ],
         },
       ],
     },
@@ -78,15 +81,15 @@ function authorityFixture() {
       head_branch: "main",
       run_attempt: 1,
       status: "in_progress",
-      actor: { login: "operator" },
-      triggering_actor: { login: "operator" },
+      actor: { id: 101, login: "operator" },
+      triggering_actor: { id: 101, login: "operator" },
       created_at: new Date(now - 60_000).toISOString(),
     },
     "/collaborators/operator/permission": { permission: "write" },
     "/actions/runs/456/approvals": [
       {
         state: "approved",
-        user: { login: "reviewer" },
+        user: { id: 202, login: "reviewer" },
         environments: [{ id: 7, name: "production" }],
       },
     ],
@@ -227,6 +230,54 @@ test("authority refresh refuses a revoked review after a previously approved rea
   );
 });
 
+test("authority preserves Production identity casing and the current independent-review rule", async () => {
+  const fixture = authorityFixture();
+  fixture["/environments/production"].name = "Production";
+  fixture["/actions/runs/456/approvals"][0].environments[0].name = "Production";
+  const rule = fixture["/environments/production"].protection_rules[0];
+  rule.prevent_self_review = false;
+  rule.reviewers.push({
+    type: "User",
+    reviewer: { id: 101, login: "operator" },
+  });
+  fixture["/actions/runs/456/approvals"][0].user = {
+    id: 101,
+    login: "operator",
+  };
+  await verifyProductionBootstrapAuthority(
+    config(),
+    async (key) => fixture[key],
+    now,
+  );
+  rule.prevent_self_review = true;
+  await assert.rejects(
+    verifyProductionBootstrapAuthority(
+      config(),
+      async (key) => fixture[key],
+      now,
+    ),
+    /independent reviewer/u,
+  );
+  fixture["/actions/runs/456/approvals"][0].user = {
+    id: 202,
+    login: "reviewer",
+  };
+  await verifyProductionBootstrapAuthority(
+    config(),
+    async (key) => fixture[key],
+    now,
+  );
+  fixture["/actions/runs/456/approvals"][0].environments[0].name =
+    "development";
+  await assert.rejects(
+    verifyProductionBootstrapAuthority(
+      config(),
+      async (key) => fixture[key],
+      now,
+    ),
+  );
+});
+
 test("API probes use fixed origin, contradictory zero-row filters and no redirects", async () => {
   for (const write of [false, true]) {
     let calls = 0;
@@ -294,10 +345,14 @@ test("authority reader uses only fixed GitHub origin and suppresses response dat
   );
 });
 
-function controllerFixture() {
+function controllerFixture({ pointsFirst = false } = {}) {
   // The real accepted plan and generated SQL are mandatory. Unknown catalog
   // versions cannot become accepted through a test-only migration fixture.
-  const plan = bootstrapPlan(cwd);
+  const plan = bootstrapPlan(
+    cwd,
+    readFileSync,
+    pointsFirst ? pointsFirstRolloutStates[0].versions : undefined,
+  );
   const fixture = authorityFixture();
   const state = {
     applied: plan.before,
@@ -410,6 +465,25 @@ test("controller reconciles applied688 without writes and lost responses without
       result.mutation,
       already ? "already-applied" : "verified-after-unknown-response",
     );
+  }
+});
+
+test("points-first controller names the fence and reconciles only its exact 689 state", async () => {
+  for (const mode of ["apply", "already", "unknown-response"]) {
+    const { plan, state, dependencies } = controllerFixture({
+      pointsFirst: true,
+    });
+    if (mode === "already") state.applied = plan.after;
+    if (mode === "unknown-response") state.lost = true;
+    const receipt = await runProductionBootstrap(config(), dependencies);
+    assert.equal(state.writes, mode === "already" ? 0 : 1);
+    assert.equal(receipt.phase, "verified");
+    assert.equal(receipt.bootstrapPath, "points-first-688-to-689");
+    assert.equal(receipt.migrations, 689);
+    assert.equal(receipt.migration.version, "20260929051600");
+    assert.equal(receipt.head, "20261013071100");
+    assert.equal(state.barriers, 1);
+    assert.deepEqual(state.probes, ["GET", "GET", "PATCH"]);
   }
 });
 

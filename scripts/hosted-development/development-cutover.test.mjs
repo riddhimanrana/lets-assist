@@ -46,6 +46,29 @@ test("configured same-owner environment approval permits preparation", async () 
   assert.equal((await verifyAuthority(f.config, f.github)).base, base);
 });
 
+test("an independent reviewer satisfies the current policy without relaxing it", async () => {
+  const f = controllerFixture();
+  const read = async (path) => {
+    const result = await f.github(path);
+    if (path === "/environments/development")
+      return {
+        ...result,
+        protection_rules: result.protection_rules.map((rule) => ({
+          ...rule,
+          prevent_self_review: true,
+          reviewers: [{ type: "User", reviewer: { login: "reviewer" } }],
+        })),
+      };
+    if (path === "/actions/runs/100/approvals")
+      return result.map((review) => ({
+        ...review,
+        user: { login: "reviewer" },
+      }));
+    return result;
+  };
+  assert.equal((await verifyAuthority(f.config, read)).base, base);
+});
+
 test("an unreviewed migration is rejected before controller provider access", async () => {
   const f = controllerFixture();
   const cwd = mkdtempSync(join(tmpdir(), "lets-assist-unreviewed-cutover-"));
@@ -97,6 +120,17 @@ for (const [name, path, change] of [
     "no environment reviewers",
     "/environments/development",
     (r) => ({ ...r, protection_rules: [] }),
+  ],
+  [
+    "same-owner review after independent review becomes required",
+    "/environments/development",
+    (r) => ({
+      ...r,
+      protection_rules: r.protection_rules.map((rule) => ({
+        ...rule,
+        prevent_self_review: true,
+      })),
+    }),
   ],
   [
     "completed run replay",

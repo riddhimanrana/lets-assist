@@ -188,8 +188,17 @@ export async function verifyAuthority(
   requireCondition(
     reviews.length === 1 &&
       reviews[0].state === "approved" &&
-      reviews[0].user?.login,
+      typeof reviews[0].user?.login === "string" &&
+      reviews[0].user.login,
     "This workflow run has no unambiguous approved Development environment review.",
+  );
+  const reviewerRule = environment.protection_rules.find(
+    (rule) => rule.type === "required_reviewers",
+  );
+  requireCondition(
+    reviewerRule.prevent_self_review !== true ||
+      reviews[0].user.login.toLowerCase() !== config.actor.toLowerCase(),
+    "The current Development policy requires an independent reviewer.",
   );
   requireCondition(
     pr.number === config.pr &&
