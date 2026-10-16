@@ -193,3 +193,12 @@ for (const [name, alter] of [
     alter(final.results[0]);
     assert.throws(() => captureSummary(final, scenes));
   });
+
+test("CSF Settings reader refusals expose only a fixed category", () => {
+  assert.equal(
+    readRequestRefusalCategory("private-action", {
+      csfSettings: [{ actionId: "private-action" }],
+    }),
+    "reviewed-csf-settings-reader-refused",
+  );
+});

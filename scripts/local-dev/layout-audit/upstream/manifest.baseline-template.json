@@ -1512,12 +1512,21 @@
         {
           "role": "heading",
           "name": "Connected Google account"
+        },
+        {
+          "role": "region",
+          "name": "Google Drive connection"
         }
       ],
       "actorKey": "csfAdmin",
       "captureReducedMotion": false,
       "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
-      "group": "private-candidate"
+      "group": "private-candidate",
+      "readActions": [
+        "getCsfSheetsConnectionStatusAction",
+        "getCsfSheetSyncWorkspaceAction",
+        "getCsfSheetSemesterLedgerWorklistAction"
+      ]
     },
     {
       "id": "csf-help",

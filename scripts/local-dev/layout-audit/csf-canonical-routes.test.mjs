@@ -113,3 +113,18 @@ test("Help requires the loaded member guide and its accessible replay button", (
     { role: "button", name: "Replay tour" },
   ]);
 });
+
+test("CSF Settings requires loaded disconnected content and only its three initial reads", () => {
+  const settings = captures.find((c) => c.id === "csf-settings");
+  assert.deepEqual(settings.readActions, [
+    "getCsfSheetsConnectionStatusAction",
+    "getCsfSheetSyncWorkspaceAction",
+    "getCsfSheetSemesterLedgerWorklistAction",
+  ]);
+  assert(
+    settings.ready.some(
+      (r) => r.role === "region" && r.name === "Google Drive connection",
+    ),
+  );
+  assert(settings.ready.every((r) => r.role));
+});

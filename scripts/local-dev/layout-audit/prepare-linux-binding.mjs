@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Future GitHub-only setup: source facts and proof files, never stack/fixture writes.
+import { CSF_SETTINGS_SOURCE_HASHES } from "./csf-settings-reader-contract.mjs";
 import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
 import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
@@ -147,6 +148,12 @@ review.integrationReaderSourceHashes = Object.fromEntries(
 );
 review.pluginReaderSourceHashes = Object.fromEntries(
   Object.entries(PLUGIN_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.csfSettingsReaderSourceHashes = Object.fromEntries(
+  Object.entries(CSF_SETTINGS_SOURCE_HASHES).map(([file, sha]) => [
     file,
     authorizedHash(file, sha),
   ]),

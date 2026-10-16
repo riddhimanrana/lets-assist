@@ -21,7 +21,7 @@ git check-ignore "$layout_tool/code-manifest.sha256" "$layout_support/authorizat
 node "$layout_tool/linux-adapters.check.mjs"
 node "$layout_tool/landing-visual-settlement.check.mjs"
 node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"
-node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/csf-canonical-routes.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
+node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/csf-canonical-routes.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/csf-settings-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
 # Keep the 87 scene identities, actors and guards from the reviewed template;
 # ordering below does not alter its source-backed loaded landmarks.
 node --input-type=module - "$layout_tool" "$layout_support" <<'NODE'

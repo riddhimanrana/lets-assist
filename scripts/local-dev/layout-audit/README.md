@@ -1,14 +1,12 @@
 # Let's Assist owned Linux layout capture support
 
-Runnable support code for the existing approved capture policies. No live Linux process, stack, fixture, build or browser has been observed during preparation. The 87 candidates / 348 four-mode captures are planned, and zero pixels have been inspected here.
+Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
 The combined release source binding is now exact private `f1164838` and 739
 migration objects, retaining the unchanged 723-object prefix. This source
-binding does not accept a database catalog. The officer overview requires
-`Your tasks` and `Your classes`, the two distinct h2 sections rendered by
-`CsfOfficerHome` for the seeded administrator with classes; `Home` is a
-navigation label. Missing classes, loading, route drift or runtime faults still
-fail capture. These source checks do not establish runtime or pixel acceptance.
+binding does not accept a database catalog. The officer overview requires the loaded officer-task section and its
+`Your tasks` heading; `Home` is a navigation label. Loading, route drift or
+runtime faults still fail capture. These source checks do not establish runtime or pixel acceptance.
 
 The signed-out Help landmark uses the labelled `searchbox` exposed by the actual
 `type="search"` input. Its exact heading and accessible name remain required;
@@ -44,7 +42,7 @@ The volunteer project scene permits only the signed-in fictional member's `getMy
 
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.
 
-The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. The staged suite currently reports267 Linux checks and584 guards. Those checks use fictional inputs and do not establish live capture acceptance.
+The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. The staged suite currently reports 270 Linux checks and 584 guards. Those checks use fictional inputs and do not establish live capture acceptance.
 
 ## October 12 cloud correction
 
@@ -94,3 +92,16 @@ still perform their existing synchronization. Unknown actions and profile or
 alias mutations remain fatal. The blocked request in CI38491262261 had no
 retained action identity, so this source-backed repair still needs a fresh
 full capture and pixel review.
+
+The CSF Settings scene admits only its initial Google status, Sheet workspace
+and semester-worklist getters. Every admitted request rechecks metadata-only
+fixture evidence for the exact seeded administrator and organization, active
+admin membership, enabled current install and runtime access, and absent Google
+connections, bindings, export destinations and test workspace. The compiled
+implementation, worker, route, arguments and reviewed source hashes must match.
+The normal fixture cannot invoke test-copy recovery, credential refresh, direct
+RPCs or neighboring write actions. The existing request bound remains four.
+Loaded disconnected and empty-workspace content is required before capture.
+CI run 38889998282 stopped after 340 images at Settings with two unreviewed requests;
+those historical action IDs were not retained. This source review does not
+claim their identity or successful new capture and pixel acceptance.

@@ -4,6 +4,11 @@ import {
   exactPluginPolicy,
   pluginReaderRequest,
 } from "./plugin-reader-contract.mjs";
+import {
+  collectCsfSettingsFixture,
+  exactCsfSettingsPolicy,
+  csfSettingsReaderRequest,
+} from "./csf-settings-reader-contract.mjs";
 import { settleLandingVisual } from "./landing-visual-settlement.mjs";
 import { recordPageError } from "./page-error-diagnostics.mjs";
 import {
@@ -159,6 +164,11 @@ const pluginActions = exactPluginPolicy(
   REPO,
   buildDirectory,
   m.pluginReadPolicy,
+);
+const csfSettingsActions = exactCsfSettingsPolicy(
+  REPO,
+  buildDirectory,
+  m.csfSettingsReadPolicy,
 );
 if (
   !Number.isInteger(m.appPort) ||
@@ -414,6 +424,20 @@ try {
         )
           fail("Disconnected integration fixture changed");
       }
+      if (entry.id === "csf-settings") {
+        if (csfSettingsActions.length !== 3)
+          fail("Reviewed CSF Settings policy required");
+        const observed = await collectCsfSettingsFixture(
+          admin,
+          actor,
+          seed.IDS.csfOrg,
+        );
+        if (
+          JSON.stringify(observed) !==
+          JSON.stringify(fixtureProof.csfSettingsReader)
+        )
+          fail("Disconnected CSF Settings fixture changed");
+      }
       const context = await browser.newContext({
         baseURL,
         viewport: { width: mode.width, height: mode.height },
@@ -529,12 +553,22 @@ try {
                       integrationProof: fixtureProof.integrationReader,
                     });
                   } catch {
-                    pluginReaderRequest({
-                      ...request,
-                      approvedActions: pluginActions,
-                      organizationProof:
-                        fixtureProof.invitationReaderOrganization,
-                    });
+                    try {
+                      pluginReaderRequest({
+                        ...request,
+                        approvedActions: pluginActions,
+                        organizationProof:
+                          fixtureProof.invitationReaderOrganization,
+                      });
+                    } catch {
+                      await csfSettingsReaderRequest({
+                        admin,
+                        ...request,
+                        approvedActions: csfSettingsActions,
+                        fixtureProof: fixtureProof.csfSettingsReader,
+                        organizationId: seed.IDS.csfOrg,
+                      });
+                    }
                   }
                 }
               }
@@ -549,6 +583,7 @@ try {
                     invitation: invitationActions,
                     integration: integrationActions,
                     plugin: pluginActions,
+                    csfSettings: csfSettingsActions,
                   }),
                 );
               await route.abort("blockedbyclient");
@@ -758,6 +793,7 @@ try {
             "organization-settings-invitations",
             "organization-settings-integrations",
             "organization-settings-plugins",
+            "csf-settings",
           ].includes(entry.id)
         )
           capture.settingsReadiness = await settleSettingsReadiness(

@@ -38,6 +38,7 @@ const requestRefusalCategories = new Set([
   "reviewed-invitation-reader-refused",
   "reviewed-integration-reader-refused",
   "reviewed-plugin-reader-refused",
+  "reviewed-csf-settings-reader-refused",
   "unreviewed-request",
 ]);
 const externalRefusalCategories = new Set([
@@ -80,6 +81,7 @@ export function readRequestRefusalCategory(actionId, groups) {
     ["invitation", groups.invitation],
     ["integration", groups.integration],
     ["plugin", groups.plugin],
+    ["csf-settings", groups.csfSettings],
   ])
     if (
       typeof actionId === "string" &&

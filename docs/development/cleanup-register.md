@@ -11823,3 +11823,20 @@ all widths. Its returned-error regression exercises navigation, and the native
 375 px browser case checks visibility, viewport fit and successful navigation
 after a failed fetch. These source corrections still require exact-head CI
 and hosted verification; no real project or provider data was changed.
+
+### CSF Settings capture contract follow-up, October 16
+
+`LAYOUT-CSF-SETTINGS-READER-20261016`, P2: full CI run 38889998282 captured
+340 fictional layouts, then stopped at Settings with two refused mount
+requests. The private runtime source mounts a Google status getter and Sheet
+workspace getter, followed by a semester worklist in the normal fixture.
+Their exact compiled actions are admitted only after successful independent
+metadata reads prove the current fictional administrator, active membership,
+install/runtime access, and absent Google connections, bindings, export
+destinations and test workspace. These facts are rechecked before each
+request. The connected Google getter can refresh credentials and remains
+outside this contract. Test-copy recovery, writes, direct RPCs and provider
+traffic remain refused. The original four-request bound and all capture
+guards remain. Historical refused action IDs were not retained, so their
+identity is not inferred from this source correction. Fresh exact-head capture
+and visual acceptance remain required. No hosted data or setting changed.
