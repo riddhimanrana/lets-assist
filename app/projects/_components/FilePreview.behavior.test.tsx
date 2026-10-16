@@ -291,6 +291,15 @@ test("a network download failure is readable and a later retry succeeds", async 
   );
   expect(downloads).toEqual([]);
   expect(openedUrls).toEqual([]);
+  const open = elements(failed).find(
+    ({ props }) => props["aria-label"] === "Open in new tab",
+  );
+  expect(open).toBeDefined();
+  expect(String(open!.props.className ?? "").split(" ")).not.toContain(
+    "hidden",
+  );
+  (open!.props.onClick as () => void)();
+  expect(openedUrls).toEqual([defaultProps.url]);
   rejectFetch = false;
   await download(failed);
   expect(downloads).toHaveLength(1);

@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(44);
+SELECT extensions.plan(47);
 SELECT extensions.ok((SELECT relrowsecurity AND relforcerowsecurity FROM pg_class WHERE oid = 'app_private.personal_calendar_sync_receipts'::regclass), 'receipts force RLS');
 SELECT extensions.ok(NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'app_private' AND tablename = 'personal_calendar_sync_receipts'), 'receipts have no browser policies');
 SELECT extensions.ok(NOT has_table_privilege('authenticated', 'app_private.personal_calendar_sync_receipts', 'SELECT') AND NOT has_table_privilege('anon', 'app_private.personal_calendar_sync_receipts', 'SELECT'), 'browser roles cannot read provider plans');
@@ -68,9 +68,14 @@ SELECT extensions.lives_ok($$SELECT public.claim_personal_calendar_sync('fc00000
 UPDATE public.projects SET creator_calendar_event_id='legacyevent' WHERE id='fc100000-0000-4000-8000-000000000002';
 INSERT INTO receipt_results VALUES ('legacy', public.claim_personal_calendar_sync('fc000000-0000-4000-8000-000000000001','project',NULL,'remove',NULL,'legacyevent'));
 SELECT extensions.throws_ok($$SELECT pg_temp.advance_receipt('legacy','finish')$$, '55000', NULL, 'legacy event cannot be cleared without provider confirmation');
-SELECT extensions.lives_ok($$SELECT pg_temp.advance_receipt('legacy','plan','{"calendar_id":"legacy@example.test","events":[{"id":"legacyevent","event":null}]}')$$, 'legacy removal pins its single known identity');
+DO $$BEGIN PERFORM pg_temp.advance_receipt('legacy','release'); END$$;
+SELECT extensions.ok((SELECT claim_token IS NULL AND phase='removing' AND legacy_event_id='legacyevent' AND events='[]'::jsonb FROM app_private.personal_calendar_sync_receipts WHERE source_id='fc100000-0000-4000-8000-000000000002'), 'deletion retains the legacy identity without provider planning or removal');
 DELETE FROM public.projects WHERE id='fc100000-0000-4000-8000-000000000002';
 SELECT extensions.is((SELECT count(*) FROM app_private.personal_calendar_sync_receipts WHERE source_id='fc100000-0000-4000-8000-000000000002'), 1::bigint, 'source deletion cannot erase external cleanup state');
+SELECT extensions.is((SELECT count(*) FROM public.list_personal_calendar_cleanup('fc000000-0000-4000-8000-000000000001') WHERE source_id='fc100000-0000-4000-8000-000000000002' AND event_id='legacyevent'), 1::bigint, 'the creator can discover the retained deleted-source cleanup');
+SELECT extensions.is((SELECT count(*) FROM public.list_personal_calendar_cleanup('fc000000-0000-4000-8000-000000000002') WHERE source_id='fc100000-0000-4000-8000-000000000002'), 0::bigint, 'retained cleanup is not assigned to another account');
+UPDATE receipt_results SET data=public.claim_personal_calendar_sync('fc000000-0000-4000-8000-000000000001','project','fc100000-0000-4000-8000-000000000002','remove',NULL,'legacyevent') WHERE label='legacy';
+SELECT extensions.lives_ok($$SELECT pg_temp.advance_receipt('legacy','plan','{"calendar_id":"legacy@example.test","events":[{"id":"legacyevent","event":null}]}')$$, 'the creator can plan retained legacy removal after source deletion');
 DO $$BEGIN PERFORM pg_temp.advance_receipt('legacy','confirm','{"event_id":"legacyevent"}'); END$$;
 SELECT extensions.is(pg_temp.advance_receipt('legacy','finish')->>'phase', 'removed', 'owned cleanup can finish after source deletion');
 UPDATE public.projects SET creator_calendar_event_id='duplicatelegacy' WHERE id IN ('fc100000-0000-4000-8000-000000000003','fc100000-0000-4000-8000-000000000004');

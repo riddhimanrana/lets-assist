@@ -127,7 +127,6 @@ export default function FilePreview({
             <Button
               variant="ghost"
               size="icon"
-              className="hidden sm:flex"
               onClick={() => window.open(url, "_blank")}
               title="Open in new tab"
               aria-label="Open in new tab"

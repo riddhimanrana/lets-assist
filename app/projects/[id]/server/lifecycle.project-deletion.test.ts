@@ -45,7 +45,19 @@ mock.module("@/lib/plugins/resolve-org-plugins", () => ({
 mock.module("@/utils/calendar-helpers", () => ({
   removeCalendarEventForProject: async (projectId: string) => {
     db.calendarCalls.push(projectId);
-    return { success: !db.calendarFails };
+    return {
+      success:
+        !db.calendarFails &&
+        db.projects.get(projectId)?.creator_id === db.viewer?.id,
+    };
+  },
+}));
+let calendarRetentionFails = false;
+const retainedCalendarCalls: unknown[] = [];
+mock.module("@/services/personal-calendar/retain-project-cleanup", () => ({
+  retainProjectCalendarCleanup: async (input: unknown) => {
+    retainedCalendarCalls.push(input);
+    if (calendarRetentionFails) throw new Error("Synthetic receipt failure");
   },
 }));
 mock.module("@/lib/supabase/server", () => ({
@@ -88,6 +100,10 @@ function rpcNames() {
 }
 
 beforeEach(resetModel);
+beforeEach(() => {
+  calendarRetentionFails = false;
+  retainedCalendarCalls.length = 0;
+});
 
 describe("files shared with a clone outlive either project", () => {
   test("deleting the source keeps the files its clone links and removes the rest", async () => {
@@ -879,6 +895,47 @@ describe("the removal itself rechecks the actor carrying the deletion", () => {
     expect(db.calendarCalls).toEqual([]);
     expect(rpcNames()).toEqual(["prepare_project_deletion"]);
   }
+
+  test("an admin retains creator-owned calendar cleanup and completes deletion", async () => {
+    const project = organizationProject();
+    const row = db.projects.get(project.id)!;
+    db.projects.set(project.id, {
+      ...row,
+      creator_calendar_event_id: "calendar-event-1",
+    });
+
+    expect(await deleteProject(project.id)).toEqual({ success: true });
+    expect(retainedCalendarCalls).toEqual([
+      {
+        userId: CREATOR_ID,
+        projectId: project.id,
+        expectedEventId: "calendar-event-1",
+      },
+    ]);
+    expect(db.calendarCalls).toEqual([]);
+    expect(db.projects.has(project.id)).toBe(false);
+    expect(db.stored.size).toBe(0);
+    expect(db.operations.get(project.id)?.phase).toBe("completed");
+  });
+
+  test("failed calendar retention stops an admin before any asset removal", async () => {
+    const project = organizationProject();
+    db.projects.set(project.id, {
+      ...db.projects.get(project.id),
+      creator_calendar_event_id: "calendar-event-1",
+    });
+    calendarRetentionFails = true;
+    expect(await deleteProject(project.id)).toEqual({
+      error: "Failed to retain the project calendar cleanup",
+    });
+    expectNothingRemoved(project);
+    expect(db.removalCalls).toEqual([]);
+
+    calendarRetentionFails = false;
+    expect(await deleteProject(project.id)).toEqual({ success: true });
+    expect(db.calendarCalls).toEqual([]);
+    expect(db.projects.has(project.id)).toBe(false);
+  });
 
   test("an administrator revoked after prepare removes no file, and the creator can finish", async () => {
     const project = organizationProject();

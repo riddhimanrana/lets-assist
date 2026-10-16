@@ -7,6 +7,7 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import type { createClient } from "@/lib/supabase/server";
 import type { Project } from "@/types";
 import { removeCalendarEventForProject } from "@/utils/calendar-helpers";
+import { retainProjectCalendarCleanup } from "@/services/personal-calendar/retain-project-cleanup";
 
 type AdminClient = ReturnType<typeof getAdminClient>;
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -381,6 +382,21 @@ export async function deleteProjectForActor({
   // A completed receipt here means the database already finished this actor's
   // deletion; there is nothing left to remove.
   if (!("completed" in preparation)) {
+    const creatorOwnsCalendar = project.creator_id === actorId;
+    if (project.creator_calendar_event_id && !creatorOwnsCalendar) {
+      // An organization admin can delete the project, but cannot use their
+      // credentials for its creator's personal calendar. Retain the exact
+      // creator-owned receipt before removing any assets or the source row.
+      try {
+        await retainProjectCalendarCleanup({
+          userId: project.creator_id,
+          projectId,
+          expectedEventId: project.creator_calendar_event_id,
+        });
+      } catch {
+        return { error: "Failed to retain the project calendar cleanup" };
+      }
+    }
     const failedBucket = await removeClaimedProjectAssets(
       serviceSupabase,
       preparation.prepared,
@@ -395,7 +411,7 @@ export async function deleteProjectForActor({
     }
 
     // The project row still exists here, so calendar cleanup keeps its anchor.
-    if (project.creator_calendar_event_id) {
+    if (project.creator_calendar_event_id && creatorOwnsCalendar) {
       const calendarResult = await removeCalendarEventForProject(projectId, {
         userId: actorId,
         calendarEventId: project.creator_calendar_event_id,

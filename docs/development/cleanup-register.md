@@ -11800,3 +11800,26 @@ as the certificate page, without a retry hint. Connection failures retain 503.
 Focused returned-error regressions cover both methods. This is a source fix;
 hosted deployment verification remains open. No migration or provider write
 was needed.
+
+### Project deletion and mobile file recovery review follow-up, October 16
+
+`PROJECT-ADMIN-CALENDAR-RETENTION-20261016`, P2, source correction for
+review 5545155793: an organization admin deleting another creator's project
+passed their own actor identity to creator-only calendar cleanup. It failed
+after Storage cleanup and could not reach finalization. The deletion path now
+retains the exact creator-owned removal receipt before removing files, then
+finishes the authorized project deletion. The creator's calendar settings can
+discover and finish that retained cleanup. No Google request or credential
+lookup runs as the admin, and an unconfirmed receipt stops before asset
+removal. Creator-initiated inline cleanup keeps its existing behavior. This
+uses the existing service-only SQL and keeps the 739-migration ledger unchanged.
+Focused helper, deletion-boundary and pgTAP cases cover ownership, plan
+retention, discovery after deletion and failed retention.
+
+`FILE-PREVIEW-FALLBACK-20261011`, P2, source correction for review
+5544404947: a failed download told phone users to open a new tab while hiding
+that action below the small breakpoint. The explicit action is now visible at
+all widths. Its returned-error regression exercises navigation, and the native
+375 px browser case checks visibility, viewport fit and successful navigation
+after a failed fetch. These source corrections still require exact-head CI
+and hosted verification; no real project or provider data was changed.
