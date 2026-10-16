@@ -9,7 +9,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after } from "node:test";
 import { expectedVersions } from "../production/app-release-checks.mjs";
 import { reviewedDevelopmentVersions } from "../production/reconciliation-ledgers.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
@@ -41,7 +40,11 @@ cpSync(
   join(fixtureCwd, "scripts/production/maintenance-output"),
   { recursive: true },
 );
-after(() => rmSync(fixtureCwd, { recursive: true, force: true }));
+// Bun shares this imported module across test files. Keep its owned fixture for
+// the same process lifetime rather than deleting it after the first importer.
+process.once("exit", () =>
+  rmSync(fixtureCwd, { recursive: true, force: true }),
+);
 
 export function environment(phase = "prepare") {
   const database = new URL(
