@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
 import { INVITATION_SOURCE_HASHES } from "./invitation-reader-contract.mjs";
 import { INTEGRATION_SOURCE_HASHES } from "./integration-reader-contract.mjs";
+import { PLUGIN_SOURCE_HASHES } from "./plugin-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -140,6 +141,12 @@ review.invitationReaderSourceHashes = Object.fromEntries(
 );
 review.integrationReaderSourceHashes = Object.fromEntries(
   Object.entries(INTEGRATION_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.pluginReaderSourceHashes = Object.fromEntries(
+  Object.entries(PLUGIN_SOURCE_HASHES).map(([file, sha]) => [
     file,
     authorizedHash(file, sha),
   ]),
