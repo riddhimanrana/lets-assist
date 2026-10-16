@@ -379,8 +379,10 @@ describe("db-replay-validation CI job contract", () => {
     expect(layoutAudit).toContain("if-no-files-found: error");
     expect(layoutAudit).toContain("retention-days: 7");
     expect(layoutAudit).not.toContain("path: .artifacts/");
+    const database = workflowJob("database");
+    expect(database.split("uses: actions/upload-artifact@").length - 1).toBe(1);
     expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
-      2,
+      3,
     );
     expect(playwrightConfig).toContain(
       'process.env.CSF_E2E_RUN_ID ?? "playwright-local"',
@@ -389,6 +391,45 @@ describe("db-replay-validation CI job contract", () => {
     expect(ciWorkflow).toContain("retention-days: 7");
     expect(traceValidationStep).toBeLessThan(uploadStep);
     expect(teardownStep).toBeGreaterThan(uploadStep);
+  });
+
+  test("retains only unreviewed schema metadata before the unchanged catalog gate", () => {
+    const database = workflowJob("database");
+    const capture = database.indexOf(
+      "- name: Capture unreviewed schema metadata from the owned replay",
+    );
+    const upload = database.indexOf(
+      "- name: Retain unreviewed schema metadata for source review",
+    );
+    const acceptance = database.indexOf(
+      "- name: Verify the release catalog before loading fixtures",
+    );
+    expect(capture).toBeGreaterThan(-1);
+    expect(upload).toBeGreaterThan(capture);
+    expect(acceptance).toBeGreaterThan(upload);
+    const metadata = database.slice(capture, acceptance);
+    expect(metadata).toContain("umask 077");
+    expect(metadata).toContain(
+      "node scripts/production/capture-isolated-release-inventory.mjs > .artifacts/release-schema/unreviewed-schema.json",
+    );
+    expect(metadata).toContain(
+      "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    );
+    expect(metadata).toContain(
+      "name: unreviewed-release-schema-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}\n",
+    );
+    expect(metadata).toContain(
+      "path: .artifacts/release-schema/unreviewed-schema.json\n",
+    );
+    expect(metadata).toContain("if-no-files-found: error");
+    expect(metadata).toContain("retention-days: 7");
+    expect(metadata).not.toContain("if: always()");
+    expect(database.slice(acceptance)).toContain(
+      'if [[ "${catalog_result}" != "1" ]]; then',
+    );
+    expect(database.slice(acceptance)).toContain(
+      "The isolated schema does not match the reviewed release catalog.",
+    );
   });
 });
 
