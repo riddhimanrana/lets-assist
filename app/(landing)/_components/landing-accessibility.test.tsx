@@ -865,7 +865,7 @@ describe("journey pagination", () => {
     "Sign up & confirm",
     "QR check-in/out",
     "Track progress",
-    "Get certified",
+    "Get a certificate",
   ];
 
   test("each pill is a labelled toggle inside a 32px target", () => {
@@ -880,11 +880,11 @@ describe("journey pagination", () => {
       stepLabels.map((label, index) => `Show step ${index + 1} of 5: ${label}`),
     );
     expect(pills.map((pill) => pill.attributes["aria-pressed"])).toEqual([
+      "false",
+      "false",
+      "false",
+      "false",
       "true",
-      "false",
-      "false",
-      "false",
-      "false",
     ]);
 
     for (const pill of pills) {
@@ -919,11 +919,11 @@ describe("journey pagination", () => {
     // is drawn at full strength in both themes. This checks the markup only,
     // not the rendered contrast.
     expect(fills).toEqual([
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
+      ["bg-muted-foreground"],
       ["bg-primary"],
-      ["bg-muted-foreground"],
-      ["bg-muted-foreground"],
-      ["bg-muted-foreground"],
-      ["bg-muted-foreground"],
     ]);
 
     for (const pill of pills) {
@@ -1042,14 +1042,14 @@ describe("hero first render", () => {
     const copy = all.filter(
       (node) =>
         node.tag === "p" &&
-        collapse(allText(node)).startsWith("Sign up from one link"),
+        collapse(allText(node)).startsWith("Plan shifts and signups"),
     );
     expect(copy).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(copy[0])).toEqual([]);
 
     for (const [name, href] of [
-      ["Run a volunteer event", "/signup"],
-      ["Contact us", "/contact"],
+      ["Create a project", "/signup?redirect=%2Fprojects%2Fcreate"],
+      ["See how it works", "#org-tooling"],
     ]) {
       const links = all.filter(
         (node) => node.tag === "a" && collapse(exposedText(node)) === name,
@@ -1091,10 +1091,9 @@ describe("hero first render", () => {
       "sm:text-3xl",
     ]);
 
-    // The highlight cards under the demo share the same first render.
+    // The three steps under the demo share the same first render.
     const highlight = all.filter(
-      (node) =>
-        node.tag === "h3" && ownText(node) === "QR code check-in at events",
+      (node) => node.tag === "h2" && ownText(node) === "Run the day",
     );
     expect(highlight).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(highlight[0])).toEqual([]);
@@ -1159,14 +1158,15 @@ describe("server-rendered static sections", () => {
 
     expect(second).toBe(first);
     for (const copy of [
-      "This is what check-in looks like",
-      "scan the printed code",
-      "Each session gets its own code.",
-      "The check-in time is recorded right away.",
+      "From the waiver to the last check-in",
+      "Waivers at signup",
+      "QR attendance on site",
+      "Product settings shown with a fictional waiver.",
+      "Frames from the Let's Assist check-in demo.",
     ]) {
       expect(text).toContain(copy);
     }
-    expect(elements(root).filter((node) => node.tag === "img")).toHaveLength(3);
+    expect(elements(root).filter((node) => node.tag === "img")).toHaveLength(4);
     expect(hiddenFirstRenderStyles(root)).toEqual([]);
   });
 

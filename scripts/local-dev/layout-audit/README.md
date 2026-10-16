@@ -13,7 +13,7 @@ landing: fixed region/tag, validated hex colors and finite contrast ratios, with
 at most eight nodes per violation. HTML, selectors, text and raw axe payloads
 remain excluded. These measurements support review; they never waive a finding.
 
-Integrate this directory unchanged under `scripts/local-dev/layout-audit/` in the same frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix are immutable anchors. The reviewed attendance and points migrations extend the candidate to the exact725 ledger, which still requires fresh database/application acceptance. No new credentials, provider settings or spend is needed.
+Keep this reviewed directory under `scripts/local-dev/layout-audit/` in the frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix remain immutable anchors. Six reviewed Development migrations extend that prefix to the exact729 ledger: scheduled attendance, repeatable points, and four certificate-timezone changes. The 729 Git-object-list digest is pinned in `baseline-policy.json`; unknown migration additions, ordering or bytes are refused. This source update does not establish fresh database/application or captured-pixel acceptance. No new credentials, provider settings or spend is needed.
 
 Implemented entrypoints:
 
@@ -49,18 +49,13 @@ all mutations remain fatal. Invitations and integrations must finish loading
 within twelve seconds; unresolved loading is refused.
 
 Resting capture observes both tooltip roles and Base UI portal slots for a
-continuous quiet period. Public landing capture observes the live comparison
-word and demo phase before and after each PNG, with at most three attempts.
-Each attempt first observes actual word and demo-phase changes, then requires an
-80ms quiet interval with unchanged dimensions and fully visible live states.
-Observation is bounded to fifteen seconds; an opaque interval already underway
-does not establish freshness. Word age is at most700ms. Phase-age windows follow
-the reviewed2500–4000ms holds and reserve500ms for an outgoing frame plus1200ms
-for PNG work: browsing1800ms, details/QR/certificate1300ms, notification800ms and
-dashboard2300ms. Natural reduced motion may keep its word still but still requires
-a fresh demo phase. The screenshot retains the same ready state, word, phase and
-document-height checks and the2500ms duration rejection. It does not freeze
-animations or accept transparent transition frames. These
+continuous quiet period. The public landing no longer mounts the animated
+comparison. Its capture requires the reviewed headline and five visible sections
+in order, loaded fonts and images, no horizontal overflow, and a resting viewport.
+Readiness is bounded to five seconds and must hold across two frames 180ms apart.
+The PNG capture checks the live state and document dimensions before and after
+each attempt, rejecting captures lasting five seconds or more and retrying at
+most three times. It does not freeze animations or accept hidden sections. These
 helpers and their adversarial tests are part of the frozen package manifest.
 Controlled component renders supplement, but do not replace, native exact-head
 CI, the complete 87-scene fixture audit or old-versus-new pixel review.

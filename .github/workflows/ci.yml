@@ -547,6 +547,21 @@ jobs:
           # project, base port, and recorded database volume to agree.
           node scripts/local-dev/dv-local-env.mjs --csf-health
 
+      - name: Capture unreviewed schema metadata from the owned replay
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p .artifacts/release-schema
+          node scripts/production/capture-isolated-release-inventory.mjs > .artifacts/release-schema/unreviewed-schema.json
+
+      - name: Retain unreviewed schema metadata for source review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unreviewed-release-schema-${{ github.sha }}
+          path: .artifacts/release-schema/unreviewed-schema.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify the release catalog before loading fixtures
         run: |
           set -euo pipefail
@@ -888,7 +903,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "e402621d59594b391226953de81fe9a9b5e30df24b486887def4d0688334ad30"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "bb6c31930e91e253fd08c4834dedae11717a462581e9083ec53677eb6a4d9867"
     steps:
       - name: Require private submodule access
         env:

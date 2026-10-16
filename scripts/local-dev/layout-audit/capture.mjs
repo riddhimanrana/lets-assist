@@ -9,6 +9,7 @@ import { recordPageError } from "./page-error-diagnostics.mjs";
 import {
   assertCaptureDomReady,
   readRequestRefusalCategory,
+  externalRequestCategory,
 } from "./capture-summary.mjs";
 import {
   verifyNotificationReaderProof,
@@ -21,9 +22,9 @@ import { createCaptureSessions } from "./capture-sessions.mjs";
 import { restoreCaptureRestingState } from "./capture-resting-state.mjs";
 import { settleSettingsReadiness } from "./settings-readiness.mjs";
 import {
-  settleLandingComparison,
+  settleLandingStatic,
   captureSettledPixels,
-} from "./landing-comparison-readiness.mjs";
+} from "./landing-static-readiness.mjs";
 import {
   exactIntegrationPolicy,
   integrationReaderRequest,
@@ -445,6 +446,7 @@ try {
         faults,
         socketRefusals: [],
         requestRefusals: [],
+        externalRefusals: [],
       };
       let capturePhase = "navigation";
       const deliveredScriptURLs = new Set();
@@ -478,6 +480,14 @@ try {
               u = new URL(req.url());
             } catch {
               faults.blockedExternal++;
+              if (capture.externalRefusals.length < 4)
+                capture.externalRefusals.push(
+                  externalRequestCategory(
+                    req.url(),
+                    baseURL,
+                    new URL(local.url).origin,
+                  ),
+                );
               await route.abort("blockedbyclient");
               return;
             }
@@ -822,11 +832,11 @@ try {
           );
         });
         if (entry.id === "landing-baseline") {
-          capturePhase = "comparison-settlement";
-          capture.comparisonRestingState = await settleLandingComparison(page);
-          capturePhase = "axe-after-comparison";
+          capturePhase = "landing-static-settlement";
+          capture.landingRestingState = await settleLandingStatic(page);
+          capturePhase = "axe-after-static-landing";
           capture.axe = await readAxeResult();
-          capture.axeSamplePhase = "after-comparison-settlement";
+          capture.axeSamplePhase = "after-static-landing-settlement";
         }
         capturePhase = "dom-before-png";
         capture.dom = await page.evaluate(() => {
@@ -919,8 +929,8 @@ try {
         );
         const pixels = screenshot.pixels;
         if (entry.id === "landing-baseline") {
-          capture.comparisonRestingState = screenshot.comparisonState;
-          capture.comparisonCaptureAttempts = screenshot.attempts;
+          capture.landingRestingState = screenshot.landingState;
+          capture.landingCaptureAttempts = screenshot.attempts;
           capture.dom.documentHeight = screenshot.documentHeight;
         }
         if (entry.id === "landing-baseline")
@@ -937,8 +947,8 @@ try {
         capture.image = path.basename(output);
         capture.status = "captured-awaiting-pixel-review";
       } catch {
+        capture.phaseAtFailure = capturePhase;
         if (entry.id === "landing-baseline") {
-          capture.phaseAtFailure = capturePhase;
           capture.failureCategory =
             capture.landingPngStage ?? "readiness-or-guard";
         }
