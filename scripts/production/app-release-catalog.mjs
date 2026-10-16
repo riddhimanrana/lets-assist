@@ -358,6 +358,33 @@ function reconcileCsf620SupersededStorageChecks(catalog) {
 export function acceptedCatalogQuery(source, versions) {
   if (
     ledgerDigest(versions) ===
+    "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4"
+  )
+    return platformWorkflowRepairCatalog(
+      projectStatusCronCatalog(
+        publishedEmbedded732Catalog(
+          pausedSpeechDebateCatalog(
+            publicImageStorageCatalog(
+              accountDeletionStorageCatalog(
+                csfSubmissionDeletionCatalog(
+                  finalSchemaCatalog(
+                    JSON.parse(
+                      readFileSync(
+                        new URL("./final-schema-739.json", import.meta.url),
+                        "utf8",
+                      ),
+                    ),
+                    versions,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
     "30474c44971426ef8a8fdabaef1981113bb85791b6abce595c3a3181e8dd0f6a"
   )
     return platformWorkflowRepairCatalog(

@@ -5,7 +5,6 @@ import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
@@ -30,7 +29,6 @@ const previous = JSON.parse(
 test("the 728 target binds the reviewed forward timezone guard", () => {
   assert.equal(versions.length, 728);
   assert.equal(versions.at(-1), "20261014142100");
-  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
   assert.equal(
     ledgerDigest(versions),
     "b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c",

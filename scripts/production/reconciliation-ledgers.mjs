@@ -1,6 +1,6 @@
 // The two already-reviewed histories meet in PR #873's Development merge.
 // Keep their exact versions distinct so their prior catalog evidence remains
-// testable while the combined ledger waits for its own database replay.
+// testable after forward migrations extend the combined ledger.
 export const candidateOnlyVersions = [
   "20261011104000",
   "20261011105000",

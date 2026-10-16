@@ -1486,4 +1486,6 @@ export const migrationDigests = {
     "83cbf1ed33b166bc9f8a7f2e7ae59d19cb5ce54eb9366ad277b970a1015f34c8",
   "20261014162331_enforce_formatter_certificate_timezones.sql":
     "b5831c1929dc1bf5fe83c3033e05be0699fb7366949a3817b6345f86a2104b21",
+  "20261016063427_prioritize_named_attendance_role.sql":
+    "f4f3254fe0c1aa4600b204ef167ef5c4164df64cc500a9a7813d291abe617fa4",
 };

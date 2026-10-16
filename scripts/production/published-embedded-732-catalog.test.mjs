@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 const root = new URL("../../", import.meta.url).pathname;
 const versions = expectedVersions(root).filter(
   (version) => version <= "20261012002404",
@@ -28,7 +27,6 @@ test("the exact signed data-only publication is recognized without accepting fut
   ])
     assert.ok(query.includes(value), value);
   assert.ok(!query.includes("untrusted"));
-  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
   for (const ledger of [
     [...versions, "20990101000000"],
     [...versions.slice(0, -1), "20261012002405"],

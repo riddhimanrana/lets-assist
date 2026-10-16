@@ -6,7 +6,6 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
@@ -27,7 +26,6 @@ const after = read("./final-schema-725.json");
 test("the v4 points migration follows all 724 reviewed migrations with unchanged SQL bytes", () => {
   assert.equal(versions.length, 725);
   assert.equal(versions.at(-1), "20261013071100");
-  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
   const sql = readFileSync(
     new URL(
       "../../supabase/migrations/20261013071100_csf_repeatable_pending_activity_claims.sql",

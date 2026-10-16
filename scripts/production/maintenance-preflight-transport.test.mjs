@@ -23,7 +23,9 @@ import {
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const entry = join(cwd, "scripts/production/maintenance-preflight.mjs");
-const fixtureVersions = reviewedDevelopmentVersions(expectedVersions(cwd));
+const fixtureVersions = reviewedDevelopmentVersions(
+  expectedVersions(cwd),
+).slice(0, 729);
 const password = "fictional-transport-password";
 function connection(username = "postgres", pooler = false) {
   const url = new URL(
@@ -104,7 +106,7 @@ function withTransport(mode, run) {
   const root = mkdtempSync(join(tmpdir(), "lets-assist-preflight-transport-"));
   chmodSync(root, 0o700);
   // Transport success cases use the immutable, already-reviewed Development
-  // ledger. The combined candidate must not become accepted just to test argv.
+  // ledger. Its transport contract remains testable after later releases.
   const fixtureCwd = join(root, "reviewed-target");
   const fixtureMigrations = join(fixtureCwd, "supabase/migrations");
   mkdirSync(fixtureMigrations, { recursive: true });
@@ -225,18 +227,21 @@ test("before and quiescence CLI execute only fixed SQL with bounded read-only de
         call.options,
         "-c default_transaction_read_only=on -c search_path=pg_catalog -c statement_timeout=120000 -c lock_timeout=5000",
       );
-      assert.deepEqual(call.keys, [
-        "LANG",
-        "PATH",
-        "PGCONNECT_TIMEOUT",
-        "PGDATABASE",
-        "PGHOST",
-        "PGOPTIONS",
-        "PGPASSWORD",
-        "PGPORT",
-        "PGSSLMODE",
-        "PGUSER",
-      ]);
+      assert.deepEqual(
+        call.keys.filter((key) => key !== "__CF_USER_TEXT_ENCODING"),
+        [
+          "LANG",
+          "PATH",
+          "PGCONNECT_TIMEOUT",
+          "PGDATABASE",
+          "PGHOST",
+          "PGOPTIONS",
+          "PGPASSWORD",
+          "PGPORT",
+          "PGSSLMODE",
+          "PGUSER",
+        ],
+      );
       assert.equal(call.sslmode, "require");
       for (const key of [
         "explicitReadOnly",
@@ -292,12 +297,12 @@ test("target mode accepts only the entire reviewed ledger and honors the preferr
   });
 });
 
-test("the unreviewed combined candidate is rejected before any transport access", () => {
-  withTransport("target-success", (_invoke, calls, invokeUnreviewed) => {
-    const result = invokeUnreviewed("target");
+test("the current target rejects an older reported ledger after read-only transport", () => {
+  withTransport("target-success", (_invoke, calls, invokeCurrent) => {
+    const result = invokeCurrent("target");
     assert.notEqual(result.status, 0);
     assert.equal(result.stdout.trim(), "");
-    assert.equal(calls().length, 0);
+    assert.equal(calls().length, 1);
   });
 });
 

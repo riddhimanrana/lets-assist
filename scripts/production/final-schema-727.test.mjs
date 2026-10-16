@@ -6,7 +6,6 @@ import { expectedVersions } from "./app-release-checks.mjs";
 import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
@@ -33,7 +32,6 @@ test("the 727 target binds the reviewed clean replay and unchanged migration byt
     ledgerDigest(versions),
     "41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b",
   );
-  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
   assert.equal(
     createHash("sha256").update(manifestBytes).digest("hex"),
     "71609fa0fafcd592377d9ad85e5e40f52fba9eee5db8b43f491d787e35a24962",

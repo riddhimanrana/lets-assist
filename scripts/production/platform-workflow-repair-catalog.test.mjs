@@ -4,7 +4,6 @@ import test from "node:test";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 import { applyForwardMigrations } from "./forward-migration-release.mjs";
 import { platformWorkflowStorageTriggers } from "./platform-workflow-repair-catalog.mjs";
 
@@ -37,7 +36,6 @@ test("the reviewed workflow repair ledger retains every prior object", () => {
     [...before.keys()].filter((id) => before.get(id) !== after.get(id)).length,
     11,
   );
-  assert.throws(() => maintenanceTarget(root), /explicit release review/u);
 });
 
 test("the workflow catalog preserves prior guards and binds provider-owned hooks", () => {
