@@ -1,4 +1,5 @@
 // Only validated scene IDs, fixed states and bounded counters enter CI logs.
+import { restingFailureDiagnostic } from "./capture-resting-state.mjs";
 const modes = new Set([
   "desktop-light",
   "desktop-dark",
@@ -140,6 +141,12 @@ export function captureSummary(final, scenes) {
         )
       )
         throw Error("Capture request refusal category refused");
+      const restingFailure =
+        row.restingFailure === undefined
+          ? undefined
+          : restingFailureDiagnostic(row.restingFailure);
+      if (restingFailure && row.phaseAtFailure !== "resting-state")
+        throw Error("Resting diagnostic phase refused");
       blocked.push({
         id: row.id,
         mode: row.mode,
@@ -149,6 +156,7 @@ export function captureSummary(final, scenes) {
         ),
         requestRefusals,
         externalRefusals,
+        ...(restingFailure ? { restingFailure } : {}),
       });
     }
   }

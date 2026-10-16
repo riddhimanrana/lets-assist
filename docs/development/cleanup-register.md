@@ -11862,6 +11862,40 @@ project-timezone attendance window helper for all three schedule kinds and
 formats its start label in that same zone. Invalid schedules stay closed.
 Focused boundary tests cover exact opening time, legacy defaults, invalid
 dates and zones, daylight-saving gaps, and a project date crossing UTC
-midnight. A native phone browser case uses a Tokyo viewer timezone. The page
+midnight. A native phone browser case uses a Tokyo viewer timezone and creates
+its own project two years ahead, then removes only that owned row. This avoids
+requiring the fixed December 2026 seed to remain in the future. The page
 availability check remains presentation logic; server write authorization and
 challenge windows are unchanged. Exact-head CI and hosted proof remain open.
+
+`PROJECT-HOURS-MOBILE-ROSTER-20261016`, P2: the fictional Hours phone captures
+showed the session heading and summary clipped after keyboard traversal. The
+table wrapper was a grid item with its automatic content minimum, so focusing
+an offscreen row action could scroll the enclosing clipped card. The wrapper
+now permits shrinking so horizontal scrolling stays inside the existing
+table region. A native 375 px regression checks keyboard focus, local table
+scroll, heading bounds, card scroll position and document width. Browser
+verification remains pending. The Hours header also names the stored project
+timezone instead of today's abbreviation, which labelled December attendance
+as PDT in the October capture. No attendance, hours or certificate write was
+performed by these layout checks.
+
+`PROJECT-EDIT-PRISTINE-STATE-20261016`, P2: an untouched fictional project
+showed an unsaved-changes warning and enabled Save. Initialization supplied
+fallback location metadata but change detection compared it with the missing
+stored metadata. The forced backup-upload default could also differ from a
+legacy stored flag. Initialization and both change detectors now use the
+same canonical form defaults. Focused cases preserve real field changes and
+recognize reversion; a phone browser case edits and reverts a title without
+saving. Schedule and recurrence comparison and server save/publication checks
+are unchanged. Native browser and hosted verification remain pending.
+
+`LAYOUT-RESTING-DIAGNOSTICS-20261016`, P2: full CI38900770343 passed ordinary
+gates and the controller rehearsal, then stopped at dark CSF Home resting
+state after277 PNGs. No runtime or request-refusal fault was recorded, but
+the receipt omitted which resting condition failed. The guard now retains
+only fixed booleans for viewport position, tooltip visibility and skip-link
+focus on a deadline failure. Unknown fields and non-boolean values are
+refused before CI summary output. The three-second deadline, 400 ms quiet
+period and stop-on-failure behavior are unchanged. The original cause remains
+unknown and a fresh capture is required; this is no waiver or claim of repair.

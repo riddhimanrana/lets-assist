@@ -57,6 +57,30 @@ test("failure phase is a fixed diagnostic and cannot disclose private text", () 
   );
 });
 
+test("resting timeout summary accepts only the three reviewed boolean flags", () => {
+  const final = receipt();
+  const row = final.results[0];
+  row.phaseAtFailure = "resting-state";
+  row.restingFailure = {
+    state: "unsettled",
+    viewportAtTop: true,
+    tooltipVisible: true,
+    skipLinkFocused: false,
+  };
+  assert.deepEqual(
+    captureSummary(final, scenes).blocked[0].restingFailure,
+    row.restingFailure,
+  );
+  row.restingFailure.privateText = "PRIVATE_COOKIE_URL";
+  assert.throws(() => captureSummary(final, scenes), /diagnostic refused/);
+  delete row.restingFailure.privateText;
+  row.phaseAtFailure = "navigation";
+  assert.throws(
+    () => captureSummary(final, scenes),
+    /diagnostic phase refused/,
+  );
+});
+
 test("refused reader requests expose only fixed classifications, never IDs or arguments", () => {
   const knownId = "a".repeat(40);
   const groups = { plugin: [{ actionId: knownId }] };

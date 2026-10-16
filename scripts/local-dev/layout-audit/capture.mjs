@@ -843,7 +843,12 @@ try {
           );
         }
         capturePhase = "resting-state";
-        capture.restingState = await restoreCaptureRestingState(page);
+        capture.restingState = await restoreCaptureRestingState(
+          page,
+          (diagnostic) => {
+            capture.restingFailure = diagnostic;
+          },
+        );
         if (entry.id === "landing-baseline") {
           if (actor)
             fail("Public landing settlement requires signed-out fixture");

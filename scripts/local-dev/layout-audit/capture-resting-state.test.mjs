@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import vm from "node:vm";
-import { restoreCaptureRestingState } from "./capture-resting-state.mjs";
+import {
+  restoreCaptureRestingState,
+  restingFailureDiagnostic,
+} from "./capture-resting-state.mjs";
 
-function browserStandIn(visibleAt = () => false) {
+function browserStandIn(visibleAt = () => false, options = {}) {
   let now = 0,
     deadline,
     frameId = 0;
@@ -16,7 +19,7 @@ function browserStandIn(visibleAt = () => false) {
   const popup = { getClientRects: () => (visibleAt(now) ? [{}] : []) };
   const document = {
     activeElement: new Element(),
-    querySelector: () => null,
+    querySelector: () => (options.skipLinkFocused ? {} : null),
     querySelectorAll(selector) {
       assert.equal(selector, '[role="tooltip"],[data-slot="tooltip-content"]');
       return [popup];
@@ -24,9 +27,9 @@ function browserStandIn(visibleAt = () => false) {
   };
   const window = {
     scrollY: 100,
-    scrollTo(options) {
-      assert.equal(options.top, 0);
-      this.scrollY = 0;
+    scrollTo(scrollOptions) {
+      assert.equal(scrollOptions.top, 0);
+      if (!options.viewportAwayFromTop) this.scrollY = 0;
       calls.push("scroll");
     },
     setTimeout(fn) {
@@ -96,4 +99,47 @@ test("an undismissed popup fails within the fixed deadline", async () => {
     /did not settle/,
   );
   assert.equal(fixture.now(), 3000);
+});
+
+for (const scenario of ["tooltip", "viewport", "skip-link"]) {
+  test(`an unsettled ${scenario} retains only fixed diagnostic flags`, async () => {
+    const fixture = browserStandIn(() => scenario === "tooltip", {
+      viewportAwayFromTop: scenario === "viewport",
+      skipLinkFocused: scenario === "skip-link",
+    });
+    const diagnostics = [];
+    await assert.rejects(
+      restoreCaptureRestingState(fixture.page, (value) =>
+        diagnostics.push(value),
+      ),
+      /did not settle/,
+    );
+    assert.deepEqual(diagnostics, [
+      {
+        state: "unsettled",
+        viewportAtTop: scenario !== "viewport",
+        tooltipVisible: scenario === "tooltip",
+        skipLinkFocused: scenario === "skip-link",
+      },
+    ]);
+    assert.equal(fixture.now(), 3000);
+  });
+}
+
+test("resting failure diagnostics refuse unknown fields and non-boolean flags", () => {
+  const valid = {
+    state: "unsettled",
+    viewportAtTop: true,
+    tooltipVisible: false,
+    skipLinkFocused: false,
+  };
+  assert.deepEqual(restingFailureDiagnostic(valid), valid);
+  for (const value of [
+    { ...valid, privateText: "PRIVATE_COOKIE_URL" },
+    { ...valid, state: "PRIVATE_COOKIE_URL" },
+    { ...valid, tooltipVisible: "PRIVATE_COOKIE_URL" },
+    null,
+    {},
+  ])
+    assert.throws(() => restingFailureDiagnostic(value), /diagnostic refused/);
 });

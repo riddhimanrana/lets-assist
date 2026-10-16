@@ -63,6 +63,11 @@ The PNG capture checks the live state and document dimensions before and after
 each attempt, rejecting captures lasting five seconds or more and retrying at
 most three times. It does not freeze animations or accept hidden sections. These
 helpers and their adversarial tests are part of the frozen package manifest.
+An unsettled resting-state deadline now retains only three boolean flags:
+viewport at the top, visible tooltip, and focused skip link. The deadline and
+quiet period remain three seconds and 400 ms. CI38900770343 stopped at dark
+CSF Home after277 PNGs without these cause flags; its exact cause is unknown.
+The diagnostic addition neither dismisses dialogs nor accepts an unsettled UI.
 Controlled component renders supplement, but do not replace, native exact-head
 CI, the complete 87-scene fixture audit or old-versus-new pixel review.
 

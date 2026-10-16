@@ -171,14 +171,15 @@ export function runProfileDiagnosticChecks(effects, captureSource) {
     ),
     keyboardStart = captureSource.indexOf("capture.keyboard = []"),
     restingStart = captureSource.indexOf(
-      "capture.restingState = await restoreCaptureRestingState(page)",
+      "capture.restingState = await restoreCaptureRestingState(",
     ),
     screenshotStart = captureSource.indexOf(
       "const screenshot = await captureSettledPixels(",
     );
   pass(() =>
     assert(
-      restingStart > keyboardStart &&
+      captureSource.includes("capture.restingFailure = diagnostic") &&
+        restingStart > keyboardStart &&
         snapshotStart > restingStart &&
         snapshotStart < screenshotStart,
     ),
