@@ -11864,7 +11864,10 @@ Focused boundary tests cover exact opening time, legacy defaults, invalid
 dates and zones, daylight-saving gaps, and a project date crossing UTC
 midnight. A native phone browser case uses a Tokyo viewer timezone and creates
 its own project two years ahead, then removes only that owned row. This avoids
-requiring the fixed December 2026 seed to remain in the future. The page
+requiring the fixed December 2026 seed to remain in the future. CI38907032269
+then exposed a fixture mismatch: the first organization admin need not be the
+named login actor. The owned project now uses that exact fictional login
+actor as creator and cleanup owner; application permissions are unchanged. The page
 availability check remains presentation logic; server write authorization and
 challenge windows are unchanged. Exact-head CI and hosted proof remain open.
 
@@ -11874,8 +11877,9 @@ table wrapper was a grid item with its automatic content minimum, so focusing
 an offscreen row action could scroll the enclosing clipped card. The wrapper
 now permits shrinking so horizontal scrolling stays inside the existing
 table region. A native 375 px regression checks keyboard focus, local table
-scroll, heading bounds, card scroll position and document width. Browser
-verification remains pending. The Hours header also names the stored project
+scroll, heading bounds, card scroll position and document width. That native
+case passed on e4fff0fc in CI38907032269. Hosted verification remains pending.
+The Hours header also names the stored project
 timezone instead of today's abbreviation, which labelled December attendance
 as PDT in the October capture. No attendance, hours or certificate write was
 performed by these layout checks.
@@ -11888,7 +11892,8 @@ legacy stored flag. Initialization and both change detectors now use the
 same canonical form defaults. Focused cases preserve real field changes and
 recognize reversion; a phone browser case edits and reverts a title without
 saving. Schedule and recurrence comparison and server save/publication checks
-are unchanged. Native browser and hosted verification remain pending.
+are unchanged. The native pristine/edit/revert and attendee-switch focus case
+passed on e4fff0fc in CI38907032269. Hosted verification remains pending.
 
 `LAYOUT-RESTING-DIAGNOSTICS-20261016`, P2: full CI38900770343 passed ordinary
 gates and the controller rehearsal, then stopped at dark CSF Home resting
@@ -11899,3 +11904,25 @@ focus on a deadline failure. Unknown fields and non-boolean values are
 refused before CI summary output. The three-second deadline, 400 ms quiet
 period and stop-on-failure behavior are unchanged. The original cause remains
 unknown and a fresh capture is required; this is no waiver or claim of repair.
+
+`PROJECT-CREATE-FOCUS-OCCLUSION-20261016`, P2: CI38907032269 focused the
+Project timezone control by phone keyboard, but its center was obscured on
+both attempts. The retained failure screenshot confirms the floating action
+bar covers it. Project creation controls now reserve vertical scroll margins
+for focus-driven scrolling, preserving the existing action bar. The original
+native regression remains unchanged and must pass on the corrected candidate.
+
+`ADMIN-PLUGINS-MOBILE-OVERFLOW-20261016`, P2: retained phone captures clipped
+the whole plugin console after keyboard traversal. Its Tabs root retained a
+grid item's automatic content minimum, expanding beyond the page width. The
+root now permits shrinking so the existing horizontal tab strip owns its
+overflow. A native phone regression checks heading bounds, focus, local tab
+scroll, document width and the admin content scroll position. Native proof
+remains pending; no entitlement or plugin setting was changed.
+
+`ATTENDANCE-PRINT-SESSION-TIMEZONE-20261016`, P2: retained December print
+setup captures labelled a Pacific session PDT because the abbreviation came
+from the current date. Each session now supplies its own start timestamp to
+the zone formatter. A behavioral render case checks winter PST and summer
+PDT together, independent of today's season. No print preparation, attendance
+or roster write is part of this correction. Native CI proof remains pending.

@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { loadCsfFeedFixture } from "./feed-fixtures";
 import {
   expectNoBrowserFailures,
+  localActors,
   loginAs,
   watchBrowserFailures,
 } from "./helpers";
@@ -14,12 +15,21 @@ test("attendance keeps the Pacific project start in a different browser timezone
 }) => {
   const failures = watchBrowserFailures(page);
   const fixture = await loadCsfFeedFixture();
+  const users = await fixture.admin.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  expect(users.error).toBeNull();
+  const owner = users.data.users.find(
+    (user) => user.email === localActors.admin.email,
+  );
+  if (!owner) throw new Error("The local attendance actor is missing.");
   const projectId = randomUUID();
   const year = new Date().getUTCFullYear() + 2;
   try {
     const seeded = await fixture.admin.from("projects").insert({
       id: projectId,
-      creator_id: fixture.organizationAdminUserId,
+      creator_id: owner.id,
       title: `E2E attendance timezone ${projectId}`,
       description: "Fictional future Pacific attendance fixture.",
       location: "Local fixture venue",
@@ -56,13 +66,23 @@ test("attendance keeps the Pacific project start in a different browser timezone
         exact: true,
       }),
     ).toBeVisible();
+    await page.goto(`/projects/${projectId}/attendance-sheet`);
+    await expect(
+      page.getByRole("heading", {
+        name: "Print attendance sheets",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(`Dec 5, ${year}, 9:00 AM PST`, { exact: true }),
+    ).toBeVisible();
     expectNoBrowserFailures(failures);
   } finally {
     const cleaned = await fixture.admin
       .from("projects")
       .delete()
       .eq("id", projectId)
-      .eq("creator_id", fixture.organizationAdminUserId);
+      .eq("creator_id", owner.id);
     expect(cleaned.error).toBeNull();
   }
 });
