@@ -11869,7 +11869,11 @@ then exposed a fixture mismatch: the first organization admin need not be the
 named login actor. The owned project now uses that exact fictional login
 actor as creator and cleanup owner; application permissions are unchanged. The page
 availability check remains presentation logic; server write authorization and
-challenge windows are unchanged. Exact-head CI and hosted proof remain open.
+challenge windows are unchanged. CI38913356358 reached the closed page and
+passed its Pacific start-label assertion, then exposed an incorrect heading
+locator for the existing div-based empty-state title. The locator now requires
+the exact visible text without changing that component's semantics. The
+remaining native print-page assertion and hosted proof remain open.
 
 `PROJECT-HOURS-MOBILE-ROSTER-20261016`, P2: the fictional Hours phone captures
 showed the session heading and summary clipped after keyboard traversal. The
@@ -11910,29 +11914,32 @@ Project timezone control by phone keyboard, but its center was obscured on
 both attempts. The retained failure screenshot confirms the floating action
 bar covers it. Project creation controls now reserve vertical scroll margins
 for focus-driven scrolling, preserving the existing action bar. The original
-native regression remains unchanged and must pass on the corrected candidate.
+native regression passed unchanged on 2d82e236 in CI38913356358.
 
 `ADMIN-PLUGINS-MOBILE-OVERFLOW-20261016`, P2: retained phone captures clipped
 the whole plugin console after keyboard traversal. Its Tabs root retained a
 grid item's automatic content minimum, expanding beyond the page width. The
 root now permits shrinking so the existing horizontal tab strip owns its
 overflow. A native phone regression checks heading bounds, focus, local tab
-scroll, document width and the admin content scroll position. Native proof
-remains pending; no entitlement or plugin setting was changed.
+scroll, document width and the admin content scroll position. The native case
+passed on 2d82e236 in CI38913356358; no entitlement or plugin setting was changed.
 
 `ATTENDANCE-PRINT-SESSION-TIMEZONE-20261016`, P2: retained December print
 setup captures labelled a Pacific session PDT because the abbreviation came
 from the current date. Each session now supplies its own start timestamp to
 the zone formatter. A behavioral render case checks winter PST and summer
-PDT together, independent of today's season. No print preparation, attendance
-or roster write is part of this correction. Native CI proof remains pending.
+PDT together, independent of today's season. All five print-preview behavior
+cases passed native Bun on 2d82e236 in CI38913356358. The Tokyo-viewer native
+print-page assertion remains pending. No print preparation, attendance or
+roster write is part of this correction.
 
 `POLICY-MOBILE-LONG-TOKEN-20261016`, P2: both retained phone privacy frames
 expanded to 493 px because a long Google permission URL could not wrap inside
 the reading column. The shared prose wrapper now permits long tokens to break
 within the available width. Native phone cases in both color schemes inspect
-the actual permission text rectangles and document width. Policy wording and
-link destinations are unchanged; native verification remains pending.
+the actual permission text rectangles and document width. Both native cases
+passed on 2d82e236 in CI38913356358. Policy wording and link destinations are
+unchanged.
 
 `LAYOUT-LATE-VIEWPORT-DRIFT-20261016`, P2: CI38907032269 stopped after279
 PNGs on phone-dark CSF Home. Its fixed diagnostic flags prove the viewport
@@ -11942,4 +11949,5 @@ late smooth scroll after its identity read. Capture now allows one additional
 real restoration to zero, then requires a new 400 ms quiet interval under the
 same three-second deadline. Continued drift still fails and tours remain open.
 Focused adversarial and native browser cases cover one delayed scroll and
-continued movement; fresh exact-head capture remains required.
+continued movement. Both native cases passed on 2d82e236 in CI38913356358;
+fresh exact-head capture remains required.

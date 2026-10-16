@@ -61,8 +61,7 @@ test("attendance keeps the Pacific project start in a different browser timezone
       ),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: "Attendance management not yet available",
+      page.getByText("Attendance management not yet available", {
         exact: true,
       }),
     ).toBeVisible();
