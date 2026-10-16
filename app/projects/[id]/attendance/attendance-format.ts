@@ -22,6 +22,25 @@ export type Attendance = {
   };
 };
 
+export function formatAttendanceStartTime(
+  instant: Date,
+  timezone?: string | null,
+): string | null {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone || "America/Los_Angeles",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    }).format(instant);
+  } catch {
+    return null;
+  }
+}
+
 const formatTimeTo12Hour = (time: string) => {
   if (!time) return "";
   const [hours, minutes] = time.split(":").map(Number);

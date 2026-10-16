@@ -11851,3 +11851,17 @@ seeded pair and rejects a forced minimum above 1.1.0. Unknown installs and all
 existing connected-provider/write refusals remain rejected. This changes no
 seed, runtime, private gitlink, migration or provider setting. Fresh capture
 and visual acceptance are still required.
+
+### Project attendance timezone review follow-up, October 16
+
+`PROJECT-ATTENDANCE-TIMEZONE-20261016`, P2: native fictional layout frames
+showed a 9:00 AM Pacific project as starting at 1:00 AM on its Attendance
+page. The page constructed schedule instants in the server timezone, opening
+its UI eight hours early on a UTC server. The corrected page uses the existing
+project-timezone attendance window helper for all three schedule kinds and
+formats its start label in that same zone. Invalid schedules stay closed.
+Focused boundary tests cover exact opening time, legacy defaults, invalid
+dates and zones, daylight-saving gaps, and a project date crossing UTC
+midnight. A native phone browser case uses a Tokyo viewer timezone. The page
+availability check remains presentation logic; server write authorization and
+challenge windows are unchanged. Exact-head CI and hosted proof remain open.
