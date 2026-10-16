@@ -2,6 +2,14 @@
 
 Runnable support code for the existing approved capture policies. No live Linux process, stack, fixture, build or browser has been observed during preparation. The 87 candidates / 348 four-mode captures are planned, and zero pixels have been inspected here.
 
+The combined release source binding is now exact private `f1164838` and 738
+migration objects, retaining the unchanged 723-object prefix. This source
+binding does not accept a database catalog. The officer overview requires
+`Your tasks` and `Your classes`, the two distinct h2 sections rendered by
+`CsfOfficerHome` for the seeded administrator with classes; `Home` is a
+navigation label. Missing classes, loading, route drift or runtime faults still
+fail capture. These source checks do not establish runtime or pixel acceptance.
+
 The signed-out Help landmark uses the labelled `searchbox` exposed by the actual
 `type="search"` input. Its exact heading and accessible name remain required;
 `platform-help-readiness.spec.ts` checks those frozen landmarks against the native

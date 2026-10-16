@@ -24,7 +24,7 @@ if (
   a.template !== false ||
   a.reviewed !== true ||
   a.rootHead !== process.env.GITHUB_SHA ||
-  a.privateHead !== "38dc7c7aff6fd101c87f92eebfae822d1726f2b4" ||
+  a.privateHead !== "f116483844d8bfc04c99899c1e38d501a01be191" ||
   a.repoRoot !== fs.realpathSync(process.env.GITHUB_WORKSPACE ?? "") ||
   !a.reviewedSourceHashes ||
   process.versions.node !== "24.21.0"
@@ -46,6 +46,7 @@ const git = (args, cwd = a.repoRoot) =>
 const baseline = JSON.parse(
   fs.readFileSync(new URL("./baseline-policy.json", import.meta.url)),
 );
+if (baseline.targetPrivateGitlink !== a.privateHead) os.deny();
 execFileSync(
   "/usr/bin/git",
   ["merge-base", "--is-ancestor", baseline.rootHead, a.rootHead],

@@ -22,7 +22,8 @@ node "$layout_tool/linux-adapters.check.mjs"
 node "$layout_tool/landing-visual-settlement.check.mjs"
 node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"
 node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/csf-canonical-routes.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
-# Root authorized only reordering the original87 scenes, not altering landmarks.
+# Keep the 87 scene identities, actors and guards from the reviewed template;
+# ordering below does not alter its source-backed loaded landmarks.
 node --input-type=module - "$layout_tool" "$layout_support" <<'NODE'
 import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';
 const [tool,support]=process.argv.slice(2),digest=b=>createHash('sha256').update(b).digest('hex');
@@ -30,7 +31,7 @@ const source=JSON.parse(fs.readFileSync(path.join(tool,'upstream/manifest.baseli
 const rank=e=>e.id==='landing-baseline'?0:e.id==='home-member'?1:e.id.startsWith('dashboard-')?2:e.id.startsWith('organization')?3:4;
 source.captures=source.captures.map((entry,index)=>({entry,index})).sort((a,b)=>rank(a.entry)-rank(b.entry)||a.index-b.index).map(v=>v.entry);
 const file=path.join(support,'ordered-scene-template.json'),bytes=JSON.stringify(source,null,2)+'\n';fs.writeFileSync(file,bytes,{mode:0o600,flag:'wx'});
-const authorization={schema:'lets-assist-layout-linux-authorization-v1',template:false,reviewed:true,rootHead:process.env.GITHUB_SHA,privateHead:'38dc7c7aff6fd101c87f92eebfae822d1726f2b4',repoRoot:process.env.GITHUB_WORKSPACE,workDir:process.env.CSF_ISOLATED_WORK_DIR,codeManifestSha256:process.env.LAYOUT_AUDIT_CODE_MANIFEST_SHA256,reviewedSourceHashes:{'hooks/useUserProfile.ts':'aa7837619294779965a8fcac375f7e6fba8923e6e4a412854c1fd055f23252ce','components/layout/Navbar.tsx':'8c9ca8fa2754a923a92870a985a6d4f7a256e5ea310acb8871ec3f5c61f18808'},captureTemplateFile:file,reviewedCaptureTemplateSha256:digest(Buffer.from(bytes))};
+const authorization={schema:'lets-assist-layout-linux-authorization-v1',template:false,reviewed:true,rootHead:process.env.GITHUB_SHA,privateHead:'f116483844d8bfc04c99899c1e38d501a01be191',repoRoot:process.env.GITHUB_WORKSPACE,workDir:process.env.CSF_ISOLATED_WORK_DIR,codeManifestSha256:process.env.LAYOUT_AUDIT_CODE_MANIFEST_SHA256,reviewedSourceHashes:{'hooks/useUserProfile.ts':'aa7837619294779965a8fcac375f7e6fba8923e6e4a412854c1fd055f23252ce','components/layout/Navbar.tsx':'8c9ca8fa2754a923a92870a985a6d4f7a256e5ea310acb8871ec3f5c61f18808'},captureTemplateFile:file,reviewedCaptureTemplateSha256:digest(Buffer.from(bytes))};
 fs.writeFileSync(path.join(support,'authorization.json'),JSON.stringify(authorization)+'\n',{mode:0o600,flag:'wx'});
 NODE
 node "$layout_tool/prepare-linux-binding.mjs" "$layout_support/authorization.json" "$layout_support/linux-binding.json"

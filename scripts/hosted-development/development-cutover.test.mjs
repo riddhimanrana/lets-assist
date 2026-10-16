@@ -37,6 +37,17 @@ test("configured same-owner environment approval permits preparation", async () 
   assert.equal((await verifyAuthority(f.config, f.github)).base, base);
 });
 
+test("the unreviewed combined catalog is rejected before controller provider access", async () => {
+  const f = controllerFixture();
+  f.config.cwd = process.cwd();
+  await assert.rejects(
+    runDevelopmentCutover(f.config, f.dependencies),
+    /explicit release review/u,
+  );
+  assert.deepEqual(f.state.writes, []);
+  assert.deepEqual(f.state.reads, []);
+});
+
 for (const [key, value] of Object.entries({
   GITHUB_REPOSITORY: "elsewhere/repo",
   GITHUB_REPOSITORY_ID: "1",

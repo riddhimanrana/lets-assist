@@ -1,6 +1,6 @@
 # Owned Linux capture integration
 
-The support code is implemented. Passing offline checks is not runtime acceptance. The final frontend SHA is a parameter; preserve private `38dc7c7aff6fd101c87f92eebfae822d1726f2b4` and the immutable 723-migration prefix anchored at `accba0cfc2cd2f880b5632f4535cea822947da94`. The reviewed scheduled-attendance, repeatable-points and four certificate-timezone migrations extend the candidate to 729. Capture requires that exact reviewed729 ledger and Git-object-list hash; the original prefix is still checked separately. Unknown additions or changes to either portion fail. The new digest was measured from both merged Development `99adfc03` and this frontend branch, which have identical migration object lists. It does not approve a future 738-migration reconciliation.
+The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `f116483844d8bfc04c99899c1e38d501a01be191` (CSF 1.2.89) and exactly 738 migration objects: the historical prefix plus the fifteen joined forward migrations whose bytes are checked by the reconciliation tests. The source object-list digest is `e2027ba074ac313f20891880f0445cb1ef7f743d7690f9d3774093bb867c5a4f`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not accept the unknown 738 database catalog, replace a clean replay, or establish runtime/browser/pixel proof.
 
 ## Source integration and job boundary
 
@@ -42,7 +42,7 @@ Place an owner-only, new `$layout_support/authorization.json` containing these f
   "template": false,
   "reviewed": true,
   "rootHead": "<exact final GITHUB_SHA>",
-  "privateHead": "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
+  "privateHead": "f116483844d8bfc04c99899c1e38d501a01be191",
   "repoRoot": "<real GITHUB_WORKSPACE>",
   "workDir": "<exact canonical owned CSF_ISOLATED_WORK_DIR>",
   "codeManifestSha256": "<reviewed portable/code-manifest.sha256 SHA256>",

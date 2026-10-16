@@ -6,7 +6,7 @@ import test from "node:test";
 import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
 
 const rows = Array.from(
-  { length: 729 },
+  { length: 738 },
   (_, index) =>
     `100644 blob ${String(index).padStart(40, "0")}\tsupabase/migrations/${String(index).padStart(14, "0")}_fictional.sql`,
 );
@@ -16,7 +16,7 @@ const digest = (values) =>
     .digest("hex");
 const policy = {
   ledgerCount: 723,
-  targetLedgerCount: 729,
+  targetLedgerCount: 738,
   ledgerGitObjectListSha256: digest(rows.slice(0, 723)),
   targetLedgerGitObjectListSha256: digest(rows),
 };
@@ -38,6 +38,8 @@ test("the old ledger and unknown additions, suffix bytes or ordering cannot acqu
     rows.slice(0, 723),
     rows.slice(0, 725),
     rows.slice(0, 728),
+    rows.slice(0, 729),
+    rows.slice(0, 732),
     [...rows, rows[0]],
     [...rows].reverse(),
     null,
@@ -49,14 +51,14 @@ test("the old ledger and unknown additions, suffix bytes or ordering cannot acqu
     assert.throws(() => verifyCaptureLedger(policy, altered));
   }
   assert.throws(() =>
-    verifyCaptureLedger({ ...policy, targetLedgerCount: 730 }, rows),
+    verifyCaptureLedger({ ...policy, targetLedgerCount: 739 }, rows),
   );
   assert.throws(() =>
     verifyCaptureLedger({ ...policy, ledgerCount: 722 }, rows),
   );
 });
 
-test("the committed migration objects match the reviewed 723 plus 6 policy", () => {
+test("the committed migration objects match the reviewed 723 plus 15 source policy", () => {
   const reviewed = JSON.parse(
     readFileSync(new URL("./baseline-policy.json", import.meta.url), "utf8"),
   );
@@ -68,6 +70,14 @@ test("the committed migration objects match the reviewed 723 plus 6 policy", () 
     .trim()
     .split("\n")
     .filter((row) => row.endsWith(".sql"));
-  assert.equal(committed.length, 729);
+  assert.equal(
+    reviewed.privateGitlink,
+    "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
+  );
+  assert.equal(
+    reviewed.targetPrivateGitlink,
+    "f116483844d8bfc04c99899c1e38d501a01be191",
+  );
+  assert.equal(committed.length, 738);
   assert.doesNotThrow(() => verifyCaptureLedger(reviewed, committed));
 });

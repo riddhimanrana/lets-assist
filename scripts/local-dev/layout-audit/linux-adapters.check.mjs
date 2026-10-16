@@ -36,8 +36,8 @@ const cfg = {
   testOnly: true,
   repoRoot: root,
   rootHead: "1".repeat(40),
-  privateHead: "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
-  ledgerCount: 729,
+  privateHead: "f116483844d8bfc04c99899c1e38d501a01be191",
+  ledgerCount: 738,
   codeManifestSha256: "2".repeat(64),
   dirtyDiffSha256: os.hash(Buffer.from("\n--private--\n")),
   capturePaths: ["/"],
@@ -69,6 +69,13 @@ try {
   delete process.env.LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN;
   pass(() => binding.shape(cfg));
   deny(() => binding.shape({ ...cfg, ledgerCount: 728 }));
+  deny(() => binding.shape({ ...cfg, ledgerCount: 729 }));
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
+    }),
+  );
   for (const key of Object.keys(cfg)) {
     const c = structuredClone(cfg);
     delete c[key];
