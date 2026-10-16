@@ -11926,3 +11926,10 @@ from the current date. Each session now supplies its own start timestamp to
 the zone formatter. A behavioral render case checks winter PST and summer
 PDT together, independent of today's season. No print preparation, attendance
 or roster write is part of this correction. Native CI proof remains pending.
+
+`POLICY-MOBILE-LONG-TOKEN-20261016`, P2: both retained phone privacy frames
+expanded to 493 px because a long Google permission URL could not wrap inside
+the reading column. The shared prose wrapper now permits long tokens to break
+within the available width. Native phone cases in both color schemes inspect
+the actual permission text rectangles and document width. Policy wording and
+link destinations are unchanged; native verification remains pending.

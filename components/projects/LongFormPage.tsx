@@ -15,7 +15,7 @@ export function LongFormPage({
   children: ReactNode;
 }) {
   return (
-    <article className="mx-auto w-full max-w-prose px-4 py-12 sm:px-6">
+    <article className="mx-auto w-full max-w-prose px-4 py-12 [overflow-wrap:anywhere] sm:px-6">
       <header className="grid gap-2 border-b pb-6">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {meta ? <p className="text-muted-foreground text-sm">{meta}</p> : null}
