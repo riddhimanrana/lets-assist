@@ -2,13 +2,9 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import {
-  certificateExportType,
-  parseCsv,
-  serializeCsv,
-} from "@/lib/certificates/csv";
+import { parseCsv, serializeCsv } from "@/lib/certificates/csv";
 import { certificateVerification } from "@/lib/certificates/verification";
-import { certificateHours } from "@/lib/projects/certificate-duration";
+import { certificateToDashboardExport } from "@/lib/certificates/dashboard-export";
 
 import {
   parseCertificateCsv,
@@ -53,30 +49,26 @@ function storedCertificate(
 
 /**
  * The cells the dashboard export writes for a certificate, in column order.
- * Mirrors app/dashboard/_components/ExportSection.tsx. The date cells are not
- * compared with the record; they are written in ISO form here so the tests do
- * not depend on how the runtime parses the export's local date format.
+ * Uses the dashboard's actual formatter. The date cells are not compared with
+ * the record, but must still be accepted by the upload parser.
  */
 function exportedCells(certificate: StoredCertificate): string[] {
+  const row = certificateToDashboardExport(certificate, ACCOUNT_EMAIL);
   return [
-    certificate.id,
-    certificate.project_title || "Unknown Project",
-    certificate.organization_name ||
-      certificate.creator_name ||
-      "Unknown Organization",
-    certificate.creator_name || "Unknown Supervisor",
-    certificate.is_certified ? "Certified" : "Participated",
-    certificateExportType(certificate.type),
-    certificate.event_start,
-    "2026-10-06T17:15:00Z",
-    certificateHours(certificate, () =>
-      Number(certificate.hours || 0),
-    ).toString(),
-    certificate.project_location || "Unknown Location",
-    certificate.check_in_method || "Unknown",
-    certificate.volunteer_name || "Unknown Volunteer",
-    certificate.volunteer_email || ACCOUNT_EMAIL,
-    "2026-10-07",
+    row.id,
+    row.projectTitle,
+    row.organizationName,
+    row.supervisorContact,
+    row.certificationStatus,
+    row.type,
+    row.date + " " + row.startTime,
+    row.endDate + " " + row.endTime,
+    row.duration,
+    row.location,
+    row.checkInMethod,
+    row.volunteerName,
+    row.volunteerEmail,
+    row.issuedDate,
   ];
 }
 
@@ -235,6 +227,10 @@ describe("an unmodified dashboard export verifies", () => {
       join(process.cwd(), "app/dashboard/_components/ExportSection.tsx"),
       "utf8",
     );
+    const formatter = readFileSync(
+      join(process.cwd(), "lib/certificates/dashboard-export.ts"),
+      "utf8",
+    );
     for (const contract of [
       'cert.organization_name || cert.creator_name || "Unknown Organization"',
       'cert.creator_name || "Unknown Supervisor"',
@@ -242,11 +238,12 @@ describe("an unmodified dashboard export verifies", () => {
       'cert.project_location || "Unknown Location"',
       '"Unknown Project"',
       "certificateHours(cert, () =>",
-      "serializeCsv([headers, ...rows])",
       'certificateExportType(cert.type) === "platform"',
     ]) {
-      expect(exporter).toContain(contract);
+      expect(formatter).toContain(contract);
     }
+    expect(exporter).toContain("certificateToDashboardExport(cert, userEmail)");
+    expect(exporter).toContain("serializeCsv([headers, ...rows])");
     // Fields are never wrapped in quotes by hand again.
     expect(exporter).not.toMatch(/`"\$\{field\}"`/u);
   });

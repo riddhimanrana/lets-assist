@@ -34,7 +34,7 @@
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
     --content-link: hsl(142.1 76.2% 23%);
-    --primary: hsl(142.1 76.2% 36.3%);
+    --primary: hsl(142.1 76.2% 23%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
     /* green #16a34a, the identity green for decorative brand washes. It stays
@@ -94,7 +94,7 @@
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 36.3%);
+    --ring: hsl(142.1 76.2% 23%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);

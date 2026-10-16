@@ -105,9 +105,9 @@ const LIGHT_TOKENS: Record<string, Rgb> = {
   success: { r: 14, g: 103, b: 47 },
   warning: { r: 122, g: 78, b: 16 },
   info: { r: 10, g: 75, b: 205 },
-  primary: { r: 22, g: 163, b: 74 },
+  primary: { r: 14, g: 103, b: 47 },
   destructive: { r: 169, g: 15, b: 15 },
-  ring: { r: 22, g: 163, b: 74 },
+  ring: { r: 14, g: 103, b: 47 },
 };
 
 function token(tokens: Map<string, Rgb>, name: string) {
@@ -128,8 +128,8 @@ type Contract = {
 const contracts: Contract[] = [
   {
     theme: "light",
-    description: "admin badge label on the primary fill",
-    foreground: "foreground",
+    description: "default badge label on the primary fill",
+    foreground: "primary-foreground",
     background: "primary",
   },
   {
@@ -174,6 +174,16 @@ const contracts: Contract[] = [
 ];
 
 describe("theme token contrast contracts", () => {
+  test("the filled badge uses the foreground modeled by the contrast contract", () => {
+    const source = readFileSync(
+      join(import.meta.dir, "../components/ui/badge.tsx"),
+      "utf8",
+    );
+    expect(source).toMatch(
+      /default:\s*"bg-primary [^"]*text-primary-foreground/u,
+    );
+  });
+
   test("light mode keeps the identity green and the accessible semantic steps", () => {
     for (const [name, expected] of Object.entries(LIGHT_TOKENS)) {
       expect(token(light, name), `unexpected --${name}`).toEqual(expected);
