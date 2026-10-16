@@ -50,6 +50,11 @@ function browserStandIn(visibleAt = () => false, options = {}) {
           done();
           return;
         }
+        if (
+          now === options.lateScrollAt ||
+          (options.continuedDrift && now >= 300)
+        )
+          window.scrollY = 100;
         fn(now);
       });
       return id;
@@ -85,7 +90,28 @@ test("resting capture clears focus/scroll and requires a quiet portal interval",
   assert.equal(result.focusState, "resting-after-keyboard-proof");
   assert.equal(result.tooltipProbe, "role-and-component-portal");
   assert.equal(result.quietPeriodMs, 400);
+  assert.equal(result.scrollRestorations, 1);
   assert.equal(fixture.now(), 500);
+});
+test("one late viewport movement is restored before a new quiet interval", async () => {
+  const fixture = browserStandIn(() => false, { lateScrollAt: 300 });
+  const result = await restoreCaptureRestingState(fixture.page);
+  assert.equal(result.scrollRestorations, 2);
+  assert.deepEqual(fixture.calls, ["blur", "scroll", "pointer", "scroll"]);
+  assert.equal(fixture.now(), 800);
+});
+test("continued viewport drift is never hidden by repeated restoration", async () => {
+  const fixture = browserStandIn(() => false, { continuedDrift: true });
+  const diagnostics = [];
+  await assert.rejects(
+    restoreCaptureRestingState(fixture.page, (value) =>
+      diagnostics.push(value),
+    ),
+    /did not settle/,
+  );
+  assert.equal(fixture.calls.filter((call) => call === "scroll").length, 2);
+  assert.equal(fixture.now(), 3000);
+  assert.equal(diagnostics[0].viewportAtTop, false);
 });
 test("a delayed portal with no tooltip role restarts the quiet interval", async () => {
   const fixture = browserStandIn((now) => now >= 300 && now <= 500);

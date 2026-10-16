@@ -68,6 +68,13 @@ viewport at the top, visible tooltip, and focused skip link. The deadline and
 quiet period remain three seconds and 400 ms. CI38900770343 stopped at dark
 CSF Home after277 PNGs without these cause flags; its exact cause is unknown.
 The diagnostic addition neither dismisses dialogs nor accepts an unsettled UI.
+CI38907032269 retained the failed condition on phone-dark CSF Home after279
+PNGs: viewport away from the top, with no tooltip or focused skip link. A late
+scroll may now receive one additional real restoration to the top. Capture
+still requires a new continuous 400 ms quiet interval at zero within the same
+three-second deadline. The receipt counts restorations; continued drift fails
+instead of triggering an unbounded scroll loop. Tours remain open, and their
+obscured contents are not accepted as an unobscured-page review.
 Controlled component renders supplement, but do not replace, native exact-head
 CI, the complete 87-scene fixture audit or old-versus-new pixel review.
 

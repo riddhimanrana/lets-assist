@@ -15,6 +15,10 @@ export function restingFailureDiagnostic(value) {
   };
 }
 
+/**
+ * @param {*} page
+ * @param {(diagnostic: object) => void} [onFailure]
+ */
 export async function restoreCaptureRestingState(page, onFailure = () => {}) {
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement)
@@ -42,6 +46,7 @@ export async function restoreCaptureRestingState(page, onFailure = () => {}) {
     });
     return new Promise((resolve) => {
       let quietSince = null;
+      let scrollRestorations = 1;
       let frame;
       const deadline = window.setTimeout(() => {
         window.cancelAnimationFrame(frame);
@@ -55,6 +60,13 @@ export async function restoreCaptureRestingState(page, onFailure = () => {}) {
         // Base UI removes a popup's role while its portal can still paint
         // an exit animation. Observe both identities through a quiet period.
         const diagnostic = sample();
+        // A late focus/tour scroll can follow the initial restoration. Allow
+        // one more real scroll, then prove the actual viewport stays at zero.
+        // Continued drift still fails within the original deadline.
+        if (!diagnostic.viewportAtTop && scrollRestorations < 2) {
+          scrollRestorations++;
+          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        }
         const settled =
           diagnostic.viewportAtTop &&
           !diagnostic.tooltipVisible &&
@@ -69,6 +81,7 @@ export async function restoreCaptureRestingState(page, onFailure = () => {}) {
             tooltipsVisible: 0,
             tooltipProbe: "role-and-component-portal",
             quietPeriodMs: 400,
+            scrollRestorations,
           });
           return;
         }

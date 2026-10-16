@@ -11933,3 +11933,13 @@ the reading column. The shared prose wrapper now permits long tokens to break
 within the available width. Native phone cases in both color schemes inspect
 the actual permission text rectangles and document width. Policy wording and
 link destinations are unchanged; native verification remains pending.
+
+`LAYOUT-LATE-VIEWPORT-DRIFT-20261016`, P2: CI38907032269 stopped after279
+PNGs on phone-dark CSF Home. Its fixed diagnostic flags prove the viewport
+was away from the top, with no tooltip or focused skip link; the exact
+initiating callback is not proved. The tour implementation can initiate a
+late smooth scroll after its identity read. Capture now allows one additional
+real restoration to zero, then requires a new 400 ms quiet interval under the
+same three-second deadline. Continued drift still fails and tours remain open.
+Focused adversarial and native browser cases cover one delayed scroll and
+continued movement; fresh exact-head capture remains required.
