@@ -6,7 +6,7 @@ import test from "node:test";
 import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
 
 const rows = Array.from(
-  { length: 738 },
+  { length: 739 },
   (_, index) =>
     `100644 blob ${String(index).padStart(40, "0")}\tsupabase/migrations/${String(index).padStart(14, "0")}_fictional.sql`,
 );
@@ -16,7 +16,7 @@ const digest = (values) =>
     .digest("hex");
 const policy = {
   ledgerCount: 723,
-  targetLedgerCount: 738,
+  targetLedgerCount: 739,
   ledgerGitObjectListSha256: digest(rows.slice(0, 723)),
   targetLedgerGitObjectListSha256: digest(rows),
 };
@@ -51,14 +51,14 @@ test("the old ledger and unknown additions, suffix bytes or ordering cannot acqu
     assert.throws(() => verifyCaptureLedger(policy, altered));
   }
   assert.throws(() =>
-    verifyCaptureLedger({ ...policy, targetLedgerCount: 739 }, rows),
+    verifyCaptureLedger({ ...policy, targetLedgerCount: 740 }, rows),
   );
   assert.throws(() =>
     verifyCaptureLedger({ ...policy, ledgerCount: 722 }, rows),
   );
 });
 
-test("the committed migration objects match the reviewed 723 plus 15 source policy", () => {
+test("the committed migration objects match the reviewed 723 plus 16 source policy", () => {
   const reviewed = JSON.parse(
     readFileSync(new URL("./baseline-policy.json", import.meta.url), "utf8"),
   );
@@ -78,6 +78,6 @@ test("the committed migration objects match the reviewed 723 plus 15 source poli
     reviewed.targetPrivateGitlink,
     "f116483844d8bfc04c99899c1e38d501a01be191",
   );
-  assert.equal(committed.length, 738);
+  assert.equal(committed.length, 739);
   assert.doesNotThrow(() => verifyCaptureLedger(reviewed, committed));
 });

@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   cutoverConfig,
@@ -37,15 +46,28 @@ test("configured same-owner environment approval permits preparation", async () 
   assert.equal((await verifyAuthority(f.config, f.github)).base, base);
 });
 
-test("the unreviewed combined catalog is rejected before controller provider access", async () => {
+test("an unreviewed migration is rejected before controller provider access", async () => {
   const f = controllerFixture();
-  f.config.cwd = process.cwd();
-  await assert.rejects(
-    runDevelopmentCutover(f.config, f.dependencies),
-    /explicit release review/u,
-  );
-  assert.deepEqual(f.state.writes, []);
-  assert.deepEqual(f.state.reads, []);
+  const cwd = mkdtempSync(join(tmpdir(), "lets-assist-unreviewed-cutover-"));
+  try {
+    mkdirSync(join(cwd, "supabase"));
+    cpSync("supabase/migrations", join(cwd, "supabase/migrations"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(cwd, "supabase/migrations/20990101000000_unreviewed.sql"),
+      "select 1;\n",
+    );
+    f.config.cwd = cwd;
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      /not reviewed|explicit release review/u,
+    );
+    assert.deepEqual(f.state.writes, []);
+    assert.deepEqual(f.state.reads, []);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 for (const [key, value] of Object.entries({

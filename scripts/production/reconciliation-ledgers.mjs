@@ -22,13 +22,17 @@ export const developmentOnlyVersions = [
   "20261014162331",
 ];
 
+// Added after the reviewed candidate and Development histories were joined.
+// Neither historical fixture may silently absorb this integration migration.
+export const integrationOnlyVersions = ["20261016063427"];
+
 const without = (versions, excluded) => {
   const excludedSet = new Set(excluded);
   return versions.filter((version) => !excludedSet.has(version));
 };
 
 export const reviewedCandidateVersions = (combined) =>
-  without(combined, developmentOnlyVersions);
+  without(combined, [...developmentOnlyVersions, ...integrationOnlyVersions]);
 
 export const reviewedDevelopmentVersions = (combined) =>
-  without(combined, candidateOnlyVersions);
+  without(combined, [...candidateOnlyVersions, ...integrationOnlyVersions]);

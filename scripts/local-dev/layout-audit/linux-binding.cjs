@@ -12,7 +12,7 @@ function shape(b) {
     !path.isAbsolute(b.repoRoot) ||
     !/^[a-f0-9]{40}$/u.test(b.rootHead ?? "") ||
     b.privateHead !== "f116483844d8bfc04c99899c1e38d501a01be191" ||
-    b.ledgerCount !== 738 ||
+    b.ledgerCount !== 739 ||
     !os.SHA.test(b.codeManifestSha256 ?? "") ||
     !os.SHA.test(b.dirtyDiffSha256 ?? "") ||
     !Array.isArray(b.capturePaths) ||

@@ -14,7 +14,10 @@ import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.
 import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const versions = reviewedDevelopmentVersions(expectedVersions(root)).slice(0, 729);
+const versions = reviewedDevelopmentVersions(expectedVersions(root)).slice(
+  0,
+  729,
+);
 const manifestBytes = readFileSync(
   new URL("./final-schema-729.json", import.meta.url),
 );

@@ -8,20 +8,27 @@ import { migrationDigests } from "./migration-digests.mjs";
 import {
   candidateOnlyVersions,
   developmentOnlyVersions,
+  integrationOnlyVersions,
   reviewedCandidateVersions,
   reviewedDevelopmentVersions,
 } from "./reconciliation-ledgers.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const combined = expectedVersions(root).slice(0, 738);
+const combined = expectedVersions(root);
+const joined = combined.slice(0, 738);
 const candidate = reviewedCandidateVersions(combined);
 const development = reviewedDevelopmentVersions(combined);
 
 test("the exact Development and PR #873 histories survive the combined ledger", () => {
-  assert.equal(combined.length, 738);
+  assert.equal(combined.length, 739);
+  assert.equal(joined.length, 738);
+  assert.equal(
+    ledgerDigest(joined),
+    "ac438ba004623343ecb6925cf451dcc31e1f9a868f41d3504e6b0673b774351d",
+  );
   assert.equal(
     ledgerDigest(combined),
-    "ac438ba004623343ecb6925cf451dcc31e1f9a868f41d3504e6b0673b774351d",
+    "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4",
   );
   assert.equal(candidate.length, 732);
   assert.equal(
@@ -35,21 +42,22 @@ test("the exact Development and PR #873 histories survive the combined ledger", 
   );
   assert.deepEqual(
     combined.filter((version) => !development.includes(version)),
-    candidateOnlyVersions,
+    [...candidateOnlyVersions, ...integrationOnlyVersions],
   );
   assert.deepEqual(
     combined.filter((version) => !candidate.includes(version)),
-    developmentOnlyVersions,
+    [...developmentOnlyVersions, ...integrationOnlyVersions],
   );
 });
 
-test("all fifteen newly joined migration files retain their reviewed bytes", () => {
+test("all sixteen joined and integration migration files retain their reviewed bytes", () => {
   const names = readdirSync(
     new URL("../../supabase/migrations/", import.meta.url),
   );
   for (const version of [
     ...candidateOnlyVersions,
     ...developmentOnlyVersions,
+    ...integrationOnlyVersions,
   ]) {
     const matches = names.filter((name) => name.startsWith(`${version}_`));
     assert.equal(matches.length, 1, version);
