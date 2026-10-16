@@ -1,70 +1,95 @@
 import Image from "next/image";
 
-import { Scribble, ScribbleArrow } from "./Scribble";
-
 export function RealCheckIn() {
   return (
     <section id="check-in" className="border-y bg-muted/20 py-16 sm:py-24">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-        <div className="mx-auto max-w-2xl text-center">
+        <div className="max-w-3xl">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            This is what check-in looks like
+            From the waiver to the last check-in
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            The organizer prints one page. Volunteers point their phone camera
-            at it, and the time they arrived is saved to the event. These frames
-            are from our own demo recording.
+          <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+            The signup requirements and attendance record belong to the same
+            project. Set a waiver when your event needs one, then let volunteers
+            scan the session&apos;s QR code when they arrive and leave.
           </p>
         </div>
 
-        <div className="mt-10 grid items-end gap-6 md:grid-cols-[1.9fr_0.8fr_0.8fr]">
-          <figure className="m-0">
-            <div className="relative aspect-[985/640] overflow-hidden rounded-2xl border bg-muted">
-              <Image
-                src="/images/landing/qr-scan-event.jpg"
-                alt="A volunteer outdoors holding a phone over a printed QR code sheet"
-                fill
-                sizes="(min-width: 768px) 620px, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <figcaption className="mt-3 flex items-start gap-2">
-              <ScribbleArrow className="-scale-y-100 rotate-180" />
-              <Scribble className="-rotate-2 pt-3">
-                scan the printed code
-              </Scribble>
-            </figcaption>
-          </figure>
+        <div className="mt-10 grid gap-10 lg:grid-cols-2 lg:gap-12">
+          <article className="min-w-0 border-t pt-5">
+            <h3 className="text-xl font-semibold">Waivers at signup</h3>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Add your organization&apos;s PDF and configure who signs it.
+              Volunteers complete the required waiver as part of signup, with
+              e-signing or print-and-upload available.
+            </p>
+            <figure className="mt-6">
+              <div
+                className="relative overflow-hidden rounded-2xl border bg-background"
+                style={{ aspectRatio: "720 / 680" }}
+              >
+                <Image
+                  src="/images/landing/waiver-settings-preview.png"
+                  alt="Let's Assist project setup showing a required waiver, an uploaded PDF, and e-signature settings"
+                  fill
+                  sizes="(min-width: 1024px) 540px, 100vw"
+                  className="object-cover object-top"
+                />
+              </div>
+              <figcaption className="mt-3 text-xs leading-5 text-muted-foreground">
+                Product settings shown with a fictional waiver.
+              </figcaption>
+            </figure>
+          </article>
 
-          <figure className="m-0">
-            <div className="relative aspect-[347/475] overflow-hidden rounded-2xl border bg-muted">
-              <Image
-                src="/images/landing/qr-scan-phone.jpg"
-                alt="Phone camera view of a printed Let's Assist QR code for a beach cleanup session"
-                fill
-                sizes="(min-width: 768px) 260px, 100vw"
-                className="object-cover"
-              />
-            </div>
-            <figcaption className="mt-3 text-sm text-muted-foreground">
-              Each session gets its own code.
-            </figcaption>
-          </figure>
-
-          <figure className="m-0">
-            <div className="relative aspect-[320/395] overflow-hidden rounded-2xl border bg-muted">
-              <Image
-                src="/images/landing/qr-check-in-success.jpg"
-                alt="Let's Assist check-in successful screen showing the project, session, date, and check-in time"
-                fill
-                sizes="(min-width: 768px) 260px, 100vw"
-                className="object-cover object-top"
-              />
-            </div>
-            <figcaption className="mt-3 text-sm text-muted-foreground">
-              The check-in time is recorded right away.
-            </figcaption>
-          </figure>
+          <article className="min-w-0 border-t pt-5">
+            <h3 className="text-xl font-semibold">QR attendance on site</h3>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Print the session code. Volunteers scan it with a phone to record
+              check-in and check-out times; organizers can review attendance
+              before publishing service hours.
+            </p>
+            <figure className="mt-6">
+              <div className="relative aspect-[985/640] overflow-hidden rounded-2xl border bg-muted">
+                <Image
+                  src="/images/landing/qr-scan-event.jpg"
+                  alt="A volunteer outdoors scanning a printed event QR code"
+                  fill
+                  sizes="(min-width: 1024px) 540px, 100vw"
+                  className="object-cover"
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div
+                  className="relative overflow-hidden rounded-xl border bg-muted"
+                  style={{ aspectRatio: "347 / 275" }}
+                >
+                  <Image
+                    src="/images/landing/qr-scan-phone.jpg"
+                    alt="Phone camera pointed at an event code"
+                    fill
+                    sizes="(min-width: 1024px) 260px, 50vw"
+                    className="object-cover object-top"
+                  />
+                </div>
+                <div
+                  className="relative overflow-hidden rounded-xl border bg-muted"
+                  style={{ aspectRatio: "320 / 275" }}
+                >
+                  <Image
+                    src="/images/landing/qr-check-in-success.jpg"
+                    alt="Successful check-in screen with the event and recorded time"
+                    fill
+                    sizes="(min-width: 1024px) 260px, 50vw"
+                    className="object-cover object-top"
+                  />
+                </div>
+              </div>
+              <figcaption className="mt-3 text-xs leading-5 text-muted-foreground">
+                Frames from the Let&apos;s Assist check-in demo.
+              </figcaption>
+            </figure>
+          </article>
         </div>
       </div>
     </section>

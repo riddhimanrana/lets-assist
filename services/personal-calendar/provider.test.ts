@@ -283,9 +283,13 @@ test.each([false, true])(
       });
       if (owned) {
         expect(await result).toEqual({ phase: "removed", eventId: id });
+        // The second renew of each pair runs after the ownership lookup,
+        // immediately before the DELETE.
         expect(steps).toEqual([
           "renew",
+          "renew",
           "confirm",
+          "renew",
           "renew",
           "confirm",
           "finish",

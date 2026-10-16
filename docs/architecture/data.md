@@ -214,6 +214,132 @@ Deploying this code does not reconcile historical untracked events or remove
 previously exported content from Google. Those are separate provider rollout
 checks.
 
+## Organization sheet sync runs
+
+The manual "Sync now" action and the scheduled worker share one export per
+organization. `app_private.organization_sheet_sync_runs` holds that export: the
+claim, the saved report rows and ranges, and a begin and acknowledge receipt for
+each Sheets mutation. No role has table privileges, including `service_role`.
+The two service-only functions `claim_organization_sheet_sync_run` and
+`advance_organization_sheet_sync_run` are the whole interface. They never
+receive token material. Both belong in the reviewed service RPC catalog with
+the two batch functions described under scheduled worker discovery.
+
+A run claims the organization before it refreshes a token, reads the
+spreadsheet or builds the report. A second caller is refused while that claim
+is held, so it cannot rotate the credential the first run has pinned. Every
+new plan, mutation begin and initial completion takes the account write fence,
+then the organization lock, and rechecks the active admin, the active
+`organization_sheets` connection binding, and every saved configuration column.
+
+The report is saved once, before the first mutation. It holds at most 10,000
+rows, 100,000 cells and 8 MiB of plain text and numbers, written as `RAW`. The
+database accepts it only for the saved tab, the saved range, and one to three
+closed ranges on one tab. A retry replays that saved report to its saved
+ranges and never rebuilds it. A new configuration starts a new run only when
+no mutation is uncertain.
+
+Completion stamps `last_synced_at` with the time the report was built. The
+same transaction clears the actor, the connection, the configuration, the
+ranges and the cells. It keeps a receipt with the spreadsheet ID, the
+configuration revision and the sync time, and the claim token that reads it.
+A finalize whose answer was lost is sent again with the same claim, at most
+twice, and returns that receipt. It sends nothing to Google and stamps nothing
+again. If no answer arrives, the sync reports that completion was not
+confirmed. Release does not remove the receipt. The next run for the
+organization replaces the token, and the old claim can read nothing.
+
+Each mutation is recorded before it is sent. A 2xx answer acknowledges it as
+completed. A 400, 401, 403, 404 or 429 acknowledges it as rejected, and the
+saved report stays for the next run. A timeout, a transport failure, any other
+status, or an acknowledgement that could not be saved leaves the mutation
+open. The run then becomes `outcome_unknown` and every later sync for that
+organization returns `sync_outcome_unknown`, for any configuration. A lease
+that expires with a mutation open is not taken over. No code path clears this
+state, and no reviewed operator procedure for it exists yet.
+
+An unresolved run holds a restrictive reference to its actor, so account
+deletion preflight reports it with the other retained references. An
+organization cannot be deleted while its run is `planned` or
+`outcome_unknown`, or while a claim is held. A claim that saved nothing is
+removed on release. A finished run leaves with its organization. A later claim
+removes receipts older than 30 days, at most 200 per call. It never removes an
+unresolved run. A `planned` run whose sync settings were removed therefore
+keeps blocking both deletions. No reviewed procedure resolves that yet.
+
+## Organization report sources
+
+A report reads projects, certificates, attended signups and reviewed intervals
+in primary-key pages of at most 500 rows. The API returns at most 1,000 rows
+per response, so an unpaged read would drop the rest. Each request names at
+most 200 project or signup IDs. One report loads at most 10,000 projects,
+100,000 certificates and attended signups together, and 100,000 intervals.
+
+The first page of each project, certificate and attended-signup read asks for
+an exact count. The report fails
+when a request fails, a page is out of order, the first page carries no exact
+count, or the rows read differ from the count. Reviewed intervals are read
+for at most 200 signups at a time, with only those signups' projects named,
+until a page comes back empty. It never returns part of an organization's
+records. These pages are separate requests and not one database snapshot. A
+change between pages is caught only when it changes a total, so a report is
+not a view of the source at a single instant. The sheet sync saves the built
+report once, under the organization's claim, before it writes.
+
+## Scheduled organization worker discovery
+
+The calendar and sheet workers each make one call to a service-only function:
+`claim_organization_calendar_sync_batch(limit, run_started_at)` or
+`claim_organization_sheet_sync_batch(limit, run_started_at)`. Each returns
+`due_count`, the exact number of due organizations, and `organization_ids`,
+the batch for this run. Both come from one statement, so they describe the
+same rows. The limit is 1 to 200, and the run start must be within 15 minutes
+behind and 5 minutes ahead of the database clock. The caller sends nothing
+else: no destination, scope or worker name.
+
+A calendar is due when automatic sync is on and it last synced at least 60
+minutes before the run started, or never. A sheet is due by its own saved
+interval. An interval under 15 minutes is read as 15, and a missing or
+non-positive one as 1,440.
+
+A batch continues in organization ID order after the worker's last one and
+wraps once. `app_private.organization_sync_discovery_cursors` holds that
+position in one row per worker. The two workers have separate rows and
+separate advisory locks, so neither waits for or moves the other. A cursor
+moves when a batch is selected, whatever the syncs then do. Organizations that
+keep failing, or many that are not due, cannot hide the ones behind them. A
+cursor records what was selected. It never shows that a sync ran or succeeded,
+and the functions change no sync row and no provider state.
+
+The sheet worker then loads the selected configurations by ID in one request
+of at most 200. The load must return exactly the selected organizations, each
+once, with its owner, spreadsheet and revision. Otherwise the pass attempts
+nothing. Each sync's own claim then pins the owner, destination and revision
+that were loaded, so a configuration that changed after selection is refused
+there. A configuration switched off after selection is not attempted.
+
+One calendar run attempts at most 25 organizations by default
+(`ORG_CALENDAR_SYNC_MAX_PER_RUN`, at most 200) and gives each at most 30
+seconds. One sheet run attempts at most 25 (`ORG_SHEET_SYNC_MAX_PER_RUN`, at
+most 200) and gives each 20 seconds by default, at most 30. Both start none in
+the last five seconds of a 50 second budget, and every discovery call ends
+with that budget.
+
+Both responses always report `deferredOrganizations`, `discoveryCounted` and
+`discoveryIncomplete`. Deferred work is the due count less the organizations
+attempted, so it includes those past the cap and those not started before the
+deadline. Deferred work or a failed organization makes the pass unhealthy
+(503). An empty pass is healthy only when the count was read and is zero. A
+batch answer that could not be read, or whose IDs are malformed, repeated or
+do not match the count, answers 500 with zero deferred and
+`discoveryCounted: false`. A sheet pass whose selected configurations did not
+load exactly answers 500 with the counted backlog and
+`discoveryIncomplete: true`. Neither is ever a healthy empty queue.
+
+The calendar worker's per-organization deadline is checked before each load,
+before provisioning, before every provider mutation and before the completion
+stamp. A request Google already received is not undone by that deadline.
+
 ## Sensitive data
 
 Do not commit real member/student workbooks, contact exports, OAuth tokens, browser state, traces, or provider payloads. Local fixtures use fictional identities and reserved domains. Curated evidence is manually reviewed and lives only under `docs/csf/evidence/`.

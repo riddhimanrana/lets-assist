@@ -62,5 +62,15 @@ test("both delivery paths forward canonical totals while prepared durable payloa
     /if \(!delivery\.payloadPrepared\) \{[\s\S]*?html = await render/,
   );
   assert.match(supplemental, /creditedMinutes: cert\.credited_minutes/);
-  assert.match(supplemental, /credited_minutes: cert\.credited_minutes/);
+  assert.match(supplemental, /await recoverSupplementalCertificates\(/);
+  assert.match(
+    supplemental,
+    /await drainPublicationEmails\(recovery\.publication\)/,
+  );
+  assert.doesNotMatch(
+    supplemental.slice(
+      supplemental.indexOf("export async function issueCertificatesForSignups"),
+    ),
+    /sendEmail\(/,
+  );
 });

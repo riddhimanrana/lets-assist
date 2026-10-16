@@ -20,6 +20,15 @@ const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const maintenanceRequiredVersions = new Set([
   "20261007210000",
   "20261007230000",
+  // These repairs depend on paired application changes and enforce write
+  // fences. Keep them behind a drained, verified maintenance cutover.
+  "20261011104000",
+  "20261011105000",
+  "20261011105500",
+  "20261011110000",
+  "20261011112000",
+  "20261011112500",
+  "20261011113000",
 ]);
 const ledgerQuery =
   "SELECT version::text FROM supabase_migrations.schema_migrations ORDER BY version;";

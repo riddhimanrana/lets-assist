@@ -48,7 +48,13 @@ test("signatures snapshot source paths and definition saves are version-on-write
     ),
     /\.from\("waiver_definitions"\)\s*\n\s*\.update\(/u,
   );
-  assert.match(actions, /Failed to verify waiver source retention references/u);
+  // A removed source is never deleted inline. The durable queue rechecks every
+  // project, definition, and signature reference before anything is deleted.
+  assert.match(actions, /enqueue_superseded_waiver_source/u);
+  assert.doesNotMatch(
+    actions,
+    /\.from\(WAIVER_UPLOAD_BUCKET\)\s*\n?\s*\.remove\(\[project\./u,
+  );
 });
 
 test("database source-path constraints use exact project prefixes", () => {

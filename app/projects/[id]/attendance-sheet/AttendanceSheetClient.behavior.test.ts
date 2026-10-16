@@ -1,6 +1,9 @@
 import { beforeEach, expect, mock, test } from "bun:test";
 import * as React from "react";
-import type { AttendancePrintSheet } from "@/lib/attendance/print-types";
+import type {
+  AttendancePrintSession,
+  AttendancePrintSheet,
+} from "@/lib/attendance/print-types";
 
 let states: unknown[] = [];
 let cursor = 0;
@@ -41,13 +44,18 @@ mock.module("./actions", () => ({
 }));
 const { AttendanceSheetClient } = await import("./AttendanceSheetClient");
 type Element = { props: Record<string, unknown> };
-function render() {
+function render(
+  options: {
+    timezone?: string;
+    sessions?: AttendancePrintSession[];
+  } = {},
+) {
   cursor = 0;
   const tree = AttendanceSheetClient({
     projectId: "fictional-project",
     projectTitle: "Fictional project",
-    timezone: "UTC",
-    sessions: [
+    timezone: options.timezone ?? "UTC",
+    sessions: options.sessions ?? [
       {
         id: "oneTime",
         label: "Main session",
@@ -80,6 +88,33 @@ beforeEach(() => {
   requests.length = 0;
   fail = true;
   loseResponse = false;
+});
+
+test("each print session uses its own daylight-saving abbreviation", () => {
+  const elements = render({
+    timezone: "America/Los_Angeles",
+    sessions: [
+      {
+        id: "winter",
+        label: "Winter session",
+        startsAt: Date.parse("2026-12-05T17:00:00Z"),
+        endsAt: Date.parse("2026-12-05T20:00:00Z"),
+      },
+      {
+        id: "summer",
+        label: "Summer session",
+        startsAt: Date.parse("2026-07-04T16:00:00Z"),
+        endsAt: Date.parse("2026-07-04T19:00:00Z"),
+      },
+    ],
+  });
+  const descriptions = elements.flatMap(({ props }) =>
+    Array.isArray(props.children)
+      ? [props.children.filter((child) => typeof child === "string").join("")]
+      : [],
+  );
+  expect(descriptions).toContain("Dec 5, 2026, 9:00 AM PST");
+  expect(descriptions).toContain("Jul 4, 2026, 9:00 AM PDT");
 });
 
 test("a failed preparation keeps its request key until recovery succeeds", async () => {

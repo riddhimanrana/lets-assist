@@ -136,22 +136,30 @@ test("the auto-publisher uses the atomic publication and durable email protocols
     "async function processExpiredSessions",
   );
   const processSource = autoPublishSource.slice(processStart, processEnd);
-  const transactionIndex = processSource.indexOf(
-    "publishVolunteerHoursTransaction",
+  const publishSource = processSource.slice(
+    0,
+    processSource.indexOf("async function claimDueSessions"),
   );
-  const emailDrainIndex = processSource.indexOf("drainPublicationEmails");
 
   assert.ok(processStart >= 0 && processEnd > processStart);
-  assert.ok(transactionIndex >= 0 && transactionIndex < emailDrainIndex);
-  assert.match(processSource, /actorId: project\.creator_id/u);
-  assert.match(processSource, /autoPublicationRequestKey/u);
-  assert.match(processSource, /origin: "automatic"/u);
-  assert.doesNotMatch(processSource, /\.from\("certificates"\)\.insert/u);
-  assert.doesNotMatch(processSource, /\.from\("projects"\)\.update/u);
-  assert.doesNotMatch(processSource, /sendCertificatePublishedEmails/u);
-  assert.match(autoPublishSource, /completeSessionSignups/u);
-  assert.match(autoPublishSource, /complete_session_snapshot_unavailable/u);
-  assert.match(autoPublishSource, /getPublishStateKey/u);
+  assert.match(publishSource, /publishVolunteerHoursTransaction/u);
+  assert.match(publishSource, /actorId: project\.creator_id/u);
+  assert.match(publishSource, /autoPublicationRequestKey/u);
+  assert.match(publishSource, /origin: "automatic"/u);
+  assert.match(publishSource, /claimedSnapshot: true/u);
+  // Publication commits durable email work. It never sends inline.
+  assert.doesNotMatch(publishSource, /drainPublicationEmails\(/u);
+  assert.doesNotMatch(autoPublishSource, /sendCertificatePublishedEmails/u);
+  assert.doesNotMatch(autoPublishSource, /sendEmail/u);
+  // Discovery and recovery are database claims. The worker reads no table,
+  // so no Data API row cap can shorten a session snapshot.
+  assert.doesNotMatch(autoPublishSource, /\.from\(/u);
+  assert.match(autoPublishSource, /"claim_due_hours_publications"/u);
+  assert.match(autoPublishSource, /"claim_hours_publication_email_recovery"/u);
+  assert.match(
+    publicationServiceSource,
+    /publish_claimed_volunteer_hours_automatic/u,
+  );
   assert.match(publicationEmailServiceSource, /\[Auto-Published\]/u);
   assert.match(
     publicationEmailServiceSource,
@@ -166,7 +174,17 @@ test("supplemental issuance delegates conflict arbitration to one database state
   const issuanceSource = certificateIssuanceSource.slice(issuanceStart);
 
   assert.ok(issuanceStart >= 0);
-  assert.match(issuanceSource, /issue_supplemental_verified_certificates/u);
+  assert.match(issuanceSource, /recoverSupplementalCertificates/u);
+  assert.match(
+    publicationServiceSource,
+    /"recover_supplemental_verified_certificates"/u,
+  );
   assert.doesNotMatch(issuanceSource, /\.from\("certificates"\)\.insert/u);
   assert.doesNotMatch(issuanceSource, /alreadyIssued/u);
+  // Awards and their email work commit together, and delivery goes through
+  // the ledger. This path never inserts a notification or sends directly.
+  assert.match(issuanceSource, /drainPublicationEmails/u);
+  assert.doesNotMatch(issuanceSource, /sendCertificatePublishedEmails/u);
+  assert.doesNotMatch(issuanceSource, /sendEmail\(/u);
+  assert.doesNotMatch(issuanceSource, /\.from\("notifications"\)/u);
 });

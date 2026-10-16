@@ -1,5 +1,16 @@
 import assert from "node:assert/strict";
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expectedVersions } from "../production/app-release-checks.mjs";
+import { reviewedDevelopmentVersions } from "../production/reconciliation-ledgers.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
 import { cutoverConfig, target } from "./cutover-authority.mjs";
 
@@ -8,7 +19,32 @@ export const base = "b".repeat(40);
 export const merged = "c".repeat(40);
 export const tree = "d".repeat(40);
 export const clock = 1_800_000_000_000;
-export const versions = expectedVersions(process.cwd());
+// Model controller success against the immutable, accepted Development ledger.
+// An unreviewed checkout must not gain catalog approval through a unit fixture.
+export const versions = reviewedDevelopmentVersions(
+  expectedVersions(process.cwd()),
+);
+const fixtureCwd = mkdtempSync(join(tmpdir(), "lets-assist-reviewed-cutover-"));
+const fixtureMigrations = join(fixtureCwd, "supabase/migrations");
+mkdirSync(fixtureMigrations, { recursive: true, mode: 0o700 });
+const fixtureSet = new Set(versions);
+for (const name of readdirSync("supabase/migrations")) {
+  if (name.endsWith(".sql") && fixtureSet.has(name.slice(0, 14)))
+    copyFileSync(
+      join("supabase/migrations", name),
+      join(fixtureMigrations, name),
+    );
+}
+cpSync(
+  "scripts/production/maintenance-output",
+  join(fixtureCwd, "scripts/production/maintenance-output"),
+  { recursive: true },
+);
+// Bun shares this imported module across test files. Keep its owned fixture for
+// the same process lifetime rather than deleting it after the first importer.
+process.once("exit", () =>
+  rmSync(fixtureCwd, { recursive: true, force: true }),
+);
 
 export function environment(phase = "prepare") {
   const database = new URL(
@@ -78,7 +114,7 @@ export function preparedReceipt() {
 }
 
 export function controllerFixture(phase = "prepare") {
-  const config = cutoverConfig(environment(phase));
+  const config = { ...cutoverConfig(environment(phase)), cwd: fixtureCwd };
   const receipt = preparedReceipt();
   const state = {
     domain: ["bootstrap", "prepare"].includes(phase)

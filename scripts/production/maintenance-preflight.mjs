@@ -13,6 +13,10 @@ import {
 import { ledgerDigest } from "./final-schema-manifest.mjs";
 import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
+import {
+  pointsFirstRolloutState,
+  pointsFirstRolloutTarget,
+} from "./points-first-rollout-catalog.mjs";
 import { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 export { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 
@@ -63,10 +67,20 @@ export function selectMaintenanceLedger(target, applied, mode) {
     throw new ReleaseCheckError(
       "Production maintenance ledger is not a reviewed prefix.",
     );
-  verifyLedger(
-    applied.map((version) => ({ version })),
-    target.slice(0, applied.length),
-  );
+  const pointsFirst = pointsFirstRolloutState(applied);
+  if (pointsFirst) {
+    if (
+      target.length !== pointsFirstRolloutTarget.count ||
+      ledgerDigest(target) !== pointsFirstRolloutTarget.ledger
+    )
+      throw new ReleaseCheckError(
+        "The points-first history is bound to its exact reviewed 739 target.",
+      );
+  } else
+    verifyLedger(
+      applied.map((version) => ({ version })),
+      target.slice(0, applied.length),
+    );
   if (mode === "target" && applied.length !== target.length)
     throw new ReleaseCheckError(
       "Production maintenance target is not fully applied.",
@@ -81,9 +95,7 @@ const requireBoolean = (query) => `${query.trim().replace(/;$/u, "")}\n\\gset
   SELECT 1 / 0 AS maintenance_check_failed;
 \\endif`;
 
-export const maintenancePostureQuery = `SELECT
-  current_setting('transaction_read_only') = 'on'
-  AND (${applicationRequestWriteFenceQuery.replace(/ AS valid$/u, "")})
+const maintenancePostureConditions = `(${applicationRequestWriteFenceQuery.replace(/ AS valid$/u, "")})
   AND EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'authenticator'
     AND 'pgrst.app_settings.maintenance_write_block=on' = ANY(coalesce(rolconfig, ARRAY[]::text[])))
   AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_db_role_setting setting
@@ -97,7 +109,10 @@ export const maintenancePostureQuery = `SELECT
       OR communications IS NOT FALSE OR scheduled_post_publisher IS NOT FALSE
       OR publication_notifications IS NOT FALSE)
   AND NOT EXISTS (SELECT 1 FROM plugin_data.csf_publication_notification_deliveries
-    WHERE status = 'processing' AND lease_expires_at > now()) AS valid`;
+    WHERE status = 'processing' AND lease_expires_at > now())`;
+export const maintenancePostureQuery = `SELECT
+  current_setting('transaction_read_only') = 'on'
+  AND ${maintenancePostureConditions} AS valid`;
 
 export function maintenanceCatalogQuery(
   versions,
@@ -119,21 +134,31 @@ export function maintenanceCatalogQuery(
   );
 }
 
-export function maintenanceVerificationQuery(versions) {
+function verificationChecks(versions, writable) {
   const catalog = maintenanceCatalogQuery(versions).trim().replace(/;$/u, "");
-  return transaction(
-    [
-      // Re-read within the same snapshot as the catalog. A ledger change after
-      // the first connection must fail before any schema-dependent check.
-      requireBoolean(`SELECT array_agg(version::text ORDER BY version)
+  return [
+    requireBoolean(`SELECT array_agg(version::text ORDER BY version)
       IS NOT DISTINCT FROM ARRAY[${versions.map(literal).join(",")}]::text[] AS valid
       FROM supabase_migrations.schema_migrations`),
-      requireBoolean(`SELECT (${catalog}) = 1 AS valid`),
-      requireBoolean(maintenancePostureQuery),
-      ...maintenanceDataChecks.map(({ query }) => requireBoolean(query)),
-      "SELECT 'maintenance-preflight-verified';",
-    ].join("\n"),
-  );
+    requireBoolean(`SELECT (${catalog}) = 1 AS valid`),
+    requireBoolean(
+      writable
+        ? `SELECT ${maintenancePostureConditions} AS valid`
+        : maintenancePostureQuery,
+    ),
+    ...maintenanceDataChecks.map(({ query }) => requireBoolean(query)),
+  ].join("\n");
+}
+
+// Only the reviewed migration transaction uses the writable variant. It retains
+// every guard, catalog and data check; only transaction_read_only differs.
+export function maintenanceMutationVerificationSql(versions) {
+  return verificationChecks(versions, true);
+}
+
+export function maintenanceVerificationQuery(versions) {
+  return transaction(`${verificationChecks(versions, false)}
+SELECT 'maintenance-preflight-verified';`);
 }
 
 export function validateMaintenanceBinding(projectRef, databaseUrl) {

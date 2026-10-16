@@ -14,7 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Project } from "@/types";
-import { format, addHours } from "date-fns";
+import { addHours } from "date-fns";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { StatStrip } from "@/components/layout/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,11 @@ import {
   checkOutParticipant,
 } from "@/app/projects/[id]/actions";
 import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
-import { formatSessionName, type Attendance } from "./attendance-format";
+import {
+  formatAttendanceStartTime,
+  formatSessionName,
+  type Attendance,
+} from "./attendance-format";
 import { printAttendance as printAttendanceRecords } from "./attendance-print";
 import {
   AttendanceTable,
@@ -324,6 +328,12 @@ export function AttendanceClient({
   );
 
   if (!isAttendanceActive) {
+    const sessionStartLabel = earliestSessionTime
+      ? formatAttendanceStartTime(
+          earliestSessionTime,
+          project?.project_timezone,
+        )
+      : null;
     return (
       <div className="container mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6">
         <PageHeader
@@ -340,11 +350,11 @@ export function AttendanceClient({
             <EmptyDescription>
               Attendance records will be available 2 hours before the event
               starts.
-              {earliestSessionTime && timeUntilOpen && (
+              {sessionStartLabel && timeUntilOpen && (
                 <>
                   {" "}
                   Attendance will open in {timeUntilOpen}. First session starts
-                  at: {format(earliestSessionTime, "MMMM d, yyyy 'at' h:mm a")}
+                  at: {sessionStartLabel}
                 </>
               )}
             </EmptyDescription>

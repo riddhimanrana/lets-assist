@@ -53,6 +53,15 @@ SELECT ('fb970000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
  ('fb950000-0000-4000-8000-'||lpad((CASE WHEN n=12 THEN 5 WHEN n=13 THEN 3 ELSE n END)::text,12,'0'))::uuid,id,'oneTime','pending'
 FROM retention_cases WHERE n IN(1,4,5,8,12,13);
 SELECT extensions.is(private.anonymous_signup_retention_eligible(id),expected,label) FROM retention_cases ORDER BY n;
+-- New evidence names its project's current source document, which exists.
+INSERT INTO storage.objects(bucket_id,name) VALUES
+ ('waiver-uploads','project_waivers/fb950000-0000-4000-8000-000000000001/retention-source.pdf'),
+ ('waiver-uploads','project_waivers/fb950000-0000-4000-8000-000000000001/rollback-source.pdf'),
+ ('waiver-uploads','project_waivers/fb950000-0000-4000-8000-000000000005/shared-source.pdf'),
+ ('waiver-uploads','project_waivers/fb950000-0000-4000-8000-000000000008/shared-source.pdf');
+UPDATE public.projects SET waiver_pdf_storage_path='project_waivers/'||id::text||
+ CASE WHEN id='fb950000-0000-4000-8000-000000000001' THEN '/retention-source.pdf' ELSE '/shared-source.pdf' END
+ WHERE id IN('fb950000-0000-4000-8000-000000000001','fb950000-0000-4000-8000-000000000005','fb950000-0000-4000-8000-000000000008');
 INSERT INTO public.waiver_signatures(id,project_id,signup_id,anonymous_id,signer_name,signer_email,
  signature_type,signature_storage_path,upload_storage_path,signature_payload,waiver_pdf_storage_path) VALUES
  ('fb980000-0000-4000-8000-000000000001','fb950000-0000-4000-8000-000000000001',
@@ -71,6 +80,9 @@ SELECT ('fb980000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,
  'retention-'||n||'@local.test','typed','Synthetic participant',
  'project_waivers/fb950000-0000-4000-8000-'||lpad((CASE WHEN n=12 THEN 5 ELSE n END)::text,12,'0')||'/shared-source.pdf'
  FROM retention_cases WHERE n IN(5,8,12);
+-- Two projects later dropped their waiver document. Their signatures keep it.
+UPDATE public.projects SET waiver_pdf_storage_path=NULL
+ WHERE id IN('fb950000-0000-4000-8000-000000000001','fb950000-0000-4000-8000-000000000005');
 UPDATE public.projects SET waiver_pdf_storage_path=
  'project_waivers/fb950000-0000-4000-8000-000000000008/shared-source.pdf'
  WHERE id='fb950000-0000-4000-8000-000000000008';
@@ -127,11 +139,15 @@ INSERT INTO public.anonymous_signups(id,project_id,email,name,created_at) VALUES
 INSERT INTO public.project_signups(id,project_id,anonymous_id,schedule_id,status) VALUES
  ('fb970000-0000-4000-8000-000000000021','fb950000-0000-4000-8000-000000000001',
  'fb960000-0000-4000-8000-000000000021','oneTime','pending');
+UPDATE public.projects SET waiver_pdf_storage_path=
+ 'project_waivers/fb950000-0000-4000-8000-000000000001/rollback-source.pdf'
+ WHERE id='fb950000-0000-4000-8000-000000000001';
 INSERT INTO public.waiver_signatures(id,project_id,signup_id,anonymous_id,signer_name,signer_email,signature_type,signature_storage_path,waiver_pdf_storage_path)
 VALUES('fb980000-0000-4000-8000-000000000021','fb950000-0000-4000-8000-000000000001',
  'fb970000-0000-4000-8000-000000000021','fb960000-0000-4000-8000-000000000021',
  'Synthetic waiver','rollback-waiver@local.test','draw','fixtures/retention-rollback.png',
  'project_waivers/fb950000-0000-4000-8000-000000000001/rollback-source.pdf');
+UPDATE public.projects SET waiver_pdf_storage_path=NULL WHERE id='fb950000-0000-4000-8000-000000000001';
 ALTER TABLE public.waiver_storage_deletion_queue ADD CONSTRAINT synthetic_retention_failure
  CHECK(object_path<>'project_waivers/fb950000-0000-4000-8000-000000000001/rollback-source.pdf') NOT VALID;
 SELECT extensions.throws_ok($$SELECT public.archive_anonymous_signups_for_cleanup(ARRAY[

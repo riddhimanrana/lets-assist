@@ -137,7 +137,7 @@ export function HoursSessionCard({
           )}
         </div>
         {session.visibleAttendees.length ? (
-          <div className="rounded-lg border">
+          <div className="min-w-0 rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>

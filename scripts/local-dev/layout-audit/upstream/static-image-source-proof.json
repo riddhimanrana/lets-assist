@@ -45,6 +45,11 @@
       "sha256": "5fc4b342a7e6322aaa53c0b3973dc2ccf49e8dc8aff21e05375170e3d7673a5b"
     },
     {
+      "route": "/images/landing/csf-point-review-preview.png",
+      "sourceFile": "public/images/landing/csf-point-review-preview.png",
+      "sha256": "13271817ed257e8880a77e0458fad6620bba34416801fb1251bbd16041567d2d"
+    },
+    {
       "route": "/images/landing/qr-check-in-success.jpg",
       "sourceFile": "public/images/landing/qr-check-in-success.jpg",
       "sha256": "a0b9d3357e21aed7223fcae12b68c253633feb1d60e8eab450921b2552e01e0a"
@@ -58,6 +63,11 @@
       "route": "/images/landing/qr-scan-phone.jpg",
       "sourceFile": "public/images/landing/qr-scan-phone.jpg",
       "sha256": "2adaa3a3fa03b4b56810d646d287846d0c2e71b364b28689ca5016b735cfb397"
+    },
+    {
+      "route": "/images/landing/waiver-settings-preview.png",
+      "sourceFile": "public/images/landing/waiver-settings-preview.png",
+      "sha256": "ae4fcce3c236d334466e2d354f19dc11cc374a2e9dbbc521ab02e2b3c0668da2"
     },
     {
       "route": "/logo.png",

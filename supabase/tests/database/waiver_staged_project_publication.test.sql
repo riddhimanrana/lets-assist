@@ -214,11 +214,28 @@ SELECT extensions.is(
   'a definition pinned to a different PDF blocks publication'
 );
 
+-- A saved definition is immutable, so each correction is a new version row
+-- that the project is repointed at, exactly as the versioning RPC does it.
 UPDATE public.waiver_definitions
-SET pdf_storage_path =
-  'project_waivers/d2000000-0000-4000-8000-000000000001/source.pdf',
-    fields = '[{"field_key":"name","field_type":"name","page_index":0}]'::jsonb
+SET active = false
 WHERE id = 'd3000000-0000-4000-8000-000000000001';
+
+INSERT INTO public.waiver_definitions (
+  id, scope, project_id, title, version, active,
+  pdf_storage_path, source, created_by, signers, fields
+)
+VALUES (
+  'd3000000-0000-4000-8000-000000000002', 'project',
+  'd2000000-0000-4000-8000-000000000001', 'Unsignable Definition', 2, true,
+  'project_waivers/d2000000-0000-4000-8000-000000000001/source.pdf',
+  'project_pdf', 'd1000000-0000-4000-8000-000000000001',
+  '[{"role_key":"volunteer","label":"Volunteer","order_index":0}]'::jsonb,
+  '[{"field_key":"name","field_type":"name","page_index":0}]'::jsonb
+);
+
+UPDATE public.projects
+SET waiver_definition_id = 'd3000000-0000-4000-8000-000000000002'
+WHERE id = 'd2000000-0000-4000-8000-000000000001';
 
 SELECT extensions.is(
   pg_temp.publish('d2000000-0000-4000-8000-000000000001'),
@@ -227,8 +244,25 @@ SELECT extensions.is(
 );
 
 UPDATE public.waiver_definitions
-SET fields = '[{"field_key":"sig","field_type":"signature","page_index":0}]'::jsonb
-WHERE id = 'd3000000-0000-4000-8000-000000000001';
+SET active = false
+WHERE id = 'd3000000-0000-4000-8000-000000000002';
+
+INSERT INTO public.waiver_definitions (
+  id, scope, project_id, title, version, active,
+  pdf_storage_path, source, created_by, signers, fields
+)
+VALUES (
+  'd3000000-0000-4000-8000-000000000003', 'project',
+  'd2000000-0000-4000-8000-000000000001', 'Signable Definition', 3, true,
+  'project_waivers/d2000000-0000-4000-8000-000000000001/source.pdf',
+  'project_pdf', 'd1000000-0000-4000-8000-000000000001',
+  '[{"role_key":"volunteer","label":"Volunteer","order_index":0}]'::jsonb,
+  '[{"field_key":"sig","field_type":"signature","page_index":0}]'::jsonb
+);
+
+UPDATE public.projects
+SET waiver_definition_id = 'd3000000-0000-4000-8000-000000000003'
+WHERE id = 'd2000000-0000-4000-8000-000000000001';
 
 SELECT extensions.is(
   pg_temp.publish('d2000000-0000-4000-8000-000000000001'),
@@ -320,7 +354,8 @@ SELECT extensions.is(
       'd2000000-0000-4000-8000-000000000001', 'oneTime',
       'd1000000-0000-4000-8000-000000000002', NULL, 'approved',
       NULL, NULL,
-      '{"signer_name":"Allowed","signer_email":"allowed@local.test","signature_type":"typed"}'::jsonb,
+      -- Evidence names the project's current definition and source document.
+      '{"signer_name":"Allowed","signer_email":"allowed@local.test","signature_type":"typed","waiver_definition_id":"d3000000-0000-4000-8000-000000000003","waiver_pdf_storage_path":"project_waivers/d2000000-0000-4000-8000-000000000001/source.pdf"}'::jsonb,
       NULL
     )
   ),

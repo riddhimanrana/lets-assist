@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Actual owned loopback reads only. Never seeds, signs in or logs raw rows.
 import fs from "node:fs";
+import { collectCsfSettingsFixture } from "./csf-settings-reader-contract.mjs";
 import { collectDisconnectedIntegrationFixture } from "./integration-reader-contract.mjs";
 import {
   invitationFixtureFromRows,
@@ -189,6 +190,11 @@ export async function main(output) {
         "/rest/v1/projects",
         "/rest/v1/organizations",
         "/rest/v1/organization_members",
+        "/rest/v1/organization_plugin_entitlements",
+        "/rest/v1/organization_plugin_installs",
+        "/rest/v1/organization_plugin_access",
+        "/rest/v1/csf_sheet_sync_test_workspaces",
+        "/rest/v1/csf_sheet_sync_destinations",
         "/rest/v1/organization_calendar_syncs",
         "/rest/v1/organization_sheet_syncs",
         "/rest/v1/user_google_oauth_connection_bindings",
@@ -291,6 +297,14 @@ export async function main(output) {
   );
   requireLiveBinding();
   dv.getCsfIsolatedSupabaseEnv();
+  const csfAdmin = proof.baselineActors.find(
+    (actor) => actor.key === "csfAdmin",
+  );
+  proof.csfSettingsReader = await collectCsfSettingsFixture(
+    admin,
+    { kind: "baseline", key: "csfAdmin", id: csfAdmin?.userId },
+    seed.IDS.csfOrg,
+  );
   os.exclusiveJSON(output, proof);
   process.stdout.write(
     JSON.stringify({

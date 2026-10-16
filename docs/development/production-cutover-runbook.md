@@ -27,7 +27,10 @@ URL fails rather than selecting the fallback. Then run:
 node scripts/production/maintenance-preflight.mjs before
 ```
 
-The `before` mode accepts only an exact catalogued prefix at or after migration 687. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
+The `before` mode accepts an exact catalogued prefix at or after migration 687,
+or one of the 52 recorded points-first states bound to the exact 739 target.
+The points-first baseline contains the first 687 migrations plus the already
+applied `20261013071100` hotfix. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
 catalog drift, enabled workers, active or running cron jobs, conflicting
 request-guard configuration and failed integrity checks. The helper checks the
 configured write-block state. The workflow's separate fresh PostgREST probe
@@ -63,6 +66,55 @@ deployment and the write block. After permission contractions, an older app may
 issue forbidden queries; do not restore it as an application rollback. Cached
 browser tabs may need a reload. Preserve the database and fix forward if the
 accepted application cannot serve the new schema.
+
+## Bounded points-first rollout
+
+The current `deploy-schema.yml` release uses
+`node scripts/production/points-first-rollout.mjs plan` and `apply` instead of
+plain `db push`. This controller is restricted to the captured points-first
+688-to-739 path. Install the request fence through the separate bootstrap first;
+`apply` requires the exact 689-or-later captured state. Other histories need a
+reviewed path and are refused. The preflight's retained historical catalogs do
+not make those histories writable through this controller.
+
+The source pins every migration byte, the original 688 catalog, all 51 catalog
+changes and the final 739 catalog. Planning verifies the live catalog and full
+maintenance posture, then lists the exact remaining hashed files without writes.
+Application stays in the existing single protected Production job. It rechecks
+current Main, the clean checkout, dispatch age, actor permission, the actual
+Production approval and current reviewer policy before each file.
+The supported policy names direct User reviewers by immutable ID and login;
+other reviewer topologies fail closed pending review. It also
+requires this run's successful prior-recovery gate. No new credential,
+permission, environment setting or reviewer topology is introduced.
+
+Each file runs once in a transaction holding both release advisory locks, the
+ledger lock and the worker/publication locks. The transaction verifies exact
+before and after ledgers, complete catalogs and all applicable data checks.
+All maintenance posture checks remain enforced; the migration transaction alone
+is writable. The one reviewed project-status cron creation is paused in its
+creating transaction. Other active or running jobs fail verification. The
+retention inventory normalization does not permit active cron rows.
+
+The controller verifies committed state again through a read-only snapshot. A
+lost response stops the invocation even if exact readback proves that file
+committed. No next file, rollback or automatic retry follows. The existing
+trusted recovery workflow must reconcile the failed attempt before a fresh
+protected run can continue from a captured state. Unknown ledgers, catalog drift
+or stale authority stay blocked. An eight-minute write budget and twelve-minute database deadline leave time
+for authority readback and the existing recovery hold within the step's
+fifteen-minute timeout.
+
+The sanitized artifact is `production-points-first-rollout-<run>-<attempt>`.
+It records source, reviewer, recovery-capture digest, per-file hashes, exact
+ledger transitions and outcome. It contains no database URLs, credentials,
+provider responses or application rows. Full CI rehearses the actual controller SQL against a separate unseeded,
+launcher-owned baseline after stopping its ordinary database test stack. The
+rehearsal uses mocked GitHub responses and a fixed Docker executor; it cannot
+connect to the hosted URL in its fictional configuration. Only sanitized result
+and progress receipts are uploaded. This proves local schema/data guards on
+fictional data. It does not establish hosted approval, a restored live-data
+recovery capture or hosted Development acceptance.
 
 For current workflow prerequisites and failure handling, use
 [Supabase deployment](supabase-deployment.md) and

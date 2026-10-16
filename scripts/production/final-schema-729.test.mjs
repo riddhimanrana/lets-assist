@@ -5,16 +5,19 @@ import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
-import { maintenanceTarget } from "./maintenance-preflight.mjs";
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
 import { publishedEmbedded721Catalog } from "./published-embedded-721-catalog.mjs";
 import { pausedSpeechDebateCatalog } from "./paused-speech-debate-catalog.mjs";
 import { publicImageStorageCatalog } from "./public-image-storage-catalog.mjs";
 import { accountDeletionStorageCatalog } from "./account-deletion-storage-catalog.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
+import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(root);
+const versions = reviewedDevelopmentVersions(expectedVersions(root)).slice(
+  0,
+  729,
+);
 const manifestBytes = readFileSync(
   new URL("./final-schema-729.json", import.meta.url),
 );
@@ -26,7 +29,6 @@ const previous = JSON.parse(
 test("the 729 target binds the reviewed shared formatter zone guard", () => {
   assert.equal(versions.length, 729);
   assert.equal(versions.at(-1), "20261014162331");
-  assert.deepEqual(maintenanceTarget(root), versions);
   assert.equal(
     ledgerDigest(versions),
     "5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c",

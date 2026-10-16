@@ -28,6 +28,16 @@ import type {
   VolunteerSummary,
 } from "@/lib/organization/report/types";
 import {
+  chunkReportSourceIds,
+  createReportSourceBudget,
+  readReportSourcePages,
+  REPORT_SOURCE_MAX_INTERVALS,
+  REPORT_SOURCE_MAX_PROJECTS,
+  REPORT_SOURCE_MAX_RECORDS,
+  ReportSourceError,
+  type ReportSourcePage,
+} from "@/lib/organization/report/source-pages";
+import {
   buildMonthlyHoursSeed,
   buildReportFilename,
   resolveReportWindow,
@@ -52,6 +62,12 @@ const calculateHours = (start?: string | null, end?: string | null): number => {
   }
 };
 
+/** Names an oversized source. Every other failure keeps its own message. */
+const reportSourceFailure = (error: unknown, fallback: string) =>
+  error instanceof ReportSourceError && error.reason === "too_large"
+    ? "This organization has more records than one report can load."
+    : fallback;
+
 async function buildReportDataForOrg(
   supabase: Awaited<ReturnType<typeof createClient>>,
   organizationId: string,
@@ -60,19 +76,28 @@ async function buildReportDataForOrg(
   try {
     const reportWindow = resolveReportWindow(dateRange);
 
-    const { data: projects, error: projectsError } = (await supabase
-      .from("projects")
-      .select("id, title, status, workflow_status, created_at")
-      .eq("organization_id", organizationId)) as {
-      data: ProjectRow[] | null;
-      error: { message: string } | null;
-    };
-
-    if (projectsError) {
-      return { error: "Failed to load projects" };
+    // Every source below is read whole, in primary-key pages, or the report
+    // fails. The API caps one response at 1,000 rows, so a single unpaged
+    // read would silently drop the rest of a large organization.
+    let projectList: ProjectRow[];
+    try {
+      projectList = await readReportSourcePages<ProjectRow>((after, limit) => {
+        let query = supabase
+          .from("projects")
+          .select(
+            "id, title, status, workflow_status, created_at",
+            after === null ? { count: "exact" } : undefined,
+          )
+          .eq("organization_id", organizationId)
+          .order("id", { ascending: true })
+          .limit(limit);
+        if (after !== null) query = query.gt("id", after);
+        return query as unknown as PromiseLike<ReportSourcePage<ProjectRow>>;
+      }, createReportSourceBudget(REPORT_SOURCE_MAX_PROJECTS));
+    } catch (error) {
+      return { error: reportSourceFailure(error, "Failed to load projects") };
     }
 
-    const projectList = projects || [];
     const projectById = new Map(
       projectList.map((project) => [project.id, project]),
     );
@@ -100,88 +125,112 @@ async function buildReportDataForOrg(
       };
     }
 
-    let certificatesQuery = supabase
-      .from("certificates")
-      .select(
-        "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, credited_minutes, signup_id",
-      )
-      .in("project_id", projectIds);
+    const windowFrom = startOfDay(
+      new Date(reportWindow.queryRange.from),
+    ).toISOString();
+    const windowTo = endOfDay(
+      new Date(reportWindow.queryRange.to),
+    ).toISOString();
+    // Each request names at most 200 projects, and certificates and attended
+    // signups share one bound on how many records a report may load.
+    const projectChunks = chunkReportSourceIds(projectIds);
+    const recordBudget = createReportSourceBudget(REPORT_SOURCE_MAX_RECORDS);
 
-    certificatesQuery = certificatesQuery
-      .gte(
-        "issued_at",
-        startOfDay(new Date(reportWindow.queryRange.from)).toISOString(),
-      )
-      .lte(
-        "issued_at",
-        endOfDay(new Date(reportWindow.queryRange.to)).toISOString(),
-      );
-
-    const { data: certificates, error: certificatesError } =
-      (await certificatesQuery) as {
-        data: CertificateRow[] | null;
-        error: { message: string } | null;
+    const certificates: CertificateRow[] = [];
+    try {
+      for (const chunk of projectChunks) {
+        const rows = await readReportSourcePages<CertificateRow>(
+          (after, limit) => {
+            let query = supabase
+              .from("certificates")
+              .select(
+                "id, user_id, volunteer_name, volunteer_email, is_certified, type, issued_at, project_id, project_title, event_start, event_end, credited_minutes, signup_id",
+                after === null ? { count: "exact" } : undefined,
+              )
+              .in("project_id", chunk)
+              .gte("issued_at", windowFrom)
+              .lte("issued_at", windowTo)
+              .order("id", { ascending: true })
+              .limit(limit);
+            if (after !== null) query = query.gt("id", after);
+            return query as unknown as PromiseLike<
+              ReportSourcePage<CertificateRow>
+            >;
+          },
+          recordBudget,
+        );
+        for (const row of rows) certificates.push(row);
+      }
+    } catch (error) {
+      safeConsole.error("Failed to fetch certificates:", error);
+      return {
+        error: reportSourceFailure(error, "Failed to load certificate hours"),
       };
-    if (certificatesError) {
-      safeConsole.error("Failed to fetch certificates:", certificatesError);
-      return { error: "Failed to load certificate hours" };
     }
 
-    let attendanceQuery = supabase
-      .from("project_signups")
-      .select(
-        `id, user_id, anonymous_id, check_in_time, check_out_time, project_id, schedule_id,
+    const signups: SignupRow[] = [];
+    try {
+      for (const chunk of projectChunks) {
+        const rows = await readReportSourcePages<SignupRow>((after, limit) => {
+          let query = supabase
+            .from("project_signups")
+            .select(
+              `id, user_id, anonymous_id, check_in_time, check_out_time, project_id, schedule_id,
         profiles:user_id (id, full_name, email),
         anonymous_signup:anonymous_id (id, name, email)`,
-      )
-      .in("project_id", projectIds)
-      .not("check_in_time", "is", null)
-      .not("check_out_time", "is", null);
-
-    attendanceQuery = attendanceQuery
-      .gte(
-        "check_in_time",
-        startOfDay(new Date(reportWindow.queryRange.from)).toISOString(),
-      )
-      .lte(
-        "check_in_time",
-        endOfDay(new Date(reportWindow.queryRange.to)).toISOString(),
-      );
-
-    const { data: signups, error: attendanceError } =
-      (await attendanceQuery) as {
-        data: SignupRow[] | null;
-        error: { message: string } | null;
+              after === null ? { count: "exact" } : undefined,
+            )
+            .in("project_id", chunk)
+            .not("check_in_time", "is", null)
+            .not("check_out_time", "is", null)
+            .gte("check_in_time", windowFrom)
+            .lte("check_in_time", windowTo)
+            .order("id", { ascending: true })
+            .limit(limit);
+          if (after !== null) query = query.gt("id", after);
+          return query as unknown as PromiseLike<ReportSourcePage<SignupRow>>;
+        }, recordBudget);
+        for (const row of rows) signups.push(row);
+      }
+    } catch (error) {
+      safeConsole.error("Failed to fetch attendance:", error);
+      return {
+        error: reportSourceFailure(error, "Failed to load attendance hours"),
       };
-    if (attendanceError) {
-      safeConsole.error("Failed to fetch attendance:", attendanceError);
-      return { error: "Failed to load attendance hours" };
     }
 
     const certificateSignupIds = new Set(
-      (certificates || [])
+      certificates
         .map((cert) => cert.signup_id)
         .filter((id): id is string => !!id),
     );
 
-    const attendanceWithoutCertificates = (signups || []).filter(
+    const attendanceWithoutCertificates = signups.filter(
       (signup) => !certificateSignupIds.has(signup.id),
     );
 
     if (attendanceWithoutCertificates.length) {
       const admin = getAdminClient();
+      const intervalBudget = createReportSourceBudget(
+        REPORT_SOURCE_MAX_INTERVALS,
+      );
       const intervalsBySignup = new Map<
         string,
         NonNullable<SignupRow["project_attendance_intervals"]>
       >();
-      for (
-        let offset = 0;
-        offset < attendanceWithoutCertificates.length;
-        offset += 200
-      ) {
-        const signupIds = attendanceWithoutCertificates
-          .slice(offset, offset + 200)
-          .map((signup) => signup.id);
+      for (const signupChunk of chunkReportSourceIds(
+        attendanceWithoutCertificates,
+      )) {
+        const signupIds = signupChunk.map((signup) => signup.id);
+        // Only the projects these signups belong to, each of which was read
+        // for this organization above. That keeps the request small too.
+        const signupProjectIds = Array.from(
+          new Set(
+            signupChunk
+              .map((signup) => signup.project_id)
+              .filter((id): id is string => !!id),
+          ),
+        );
         const intervals = await readAllExportPages<{
           id: string;
           signup_id: string;
@@ -191,13 +240,14 @@ async function buildReportDataForOrg(
           let query = admin
             .from("project_attendance_intervals")
             .select("id, signup_id, check_in_time, check_out_time")
-            .in("project_id", projectIds)
+            .in("project_id", signupProjectIds)
             .in("signup_id", signupIds)
             .order("id")
             .limit(limit);
           if (after) query = query.gt("id", after);
           return await query;
         }, signupIds.length * 50);
+        intervalBudget.reserve(intervals.length);
         for (const interval of intervals) {
           const existing = intervalsBySignup.get(interval.signup_id) ?? [];
           existing.push(interval);
@@ -280,7 +330,7 @@ async function buildReportDataForOrg(
       projectVolunteerMap.get(projectId)!.add(volunteerKey);
     };
 
-    for (const cert of certificates || []) {
+    for (const cert of certificates) {
       const hours = certificateHours(cert, () =>
         roundHours(calculateHours(cert.event_start, cert.event_end)),
       );
@@ -458,7 +508,9 @@ async function buildReportDataForOrg(
     };
   } catch (error) {
     safeConsole.error("Error generating report data:", error);
-    return { error: "Failed to generate report data" };
+    return {
+      error: reportSourceFailure(error, "Failed to generate report data"),
+    };
   }
 }
 

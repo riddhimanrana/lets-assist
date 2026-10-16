@@ -4,6 +4,12 @@ let allowed = true;
 let rpcError: { code: string; message: string } | null = null;
 let rpcData: unknown = "updated";
 let scanRows: Array<{ committed_signup_id: string; outcome: string }> = [];
+let issuanceResult: {
+  issued: number;
+  emailsSent: number;
+  errors: string[];
+  deliveryDurable: boolean;
+};
 const issuanceCalls: unknown[] = [];
 const certificateReads: string[][] = [];
 const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
@@ -88,7 +94,7 @@ mock.module("../hours/certificate-issuance", () => ({
   getPublishStateKey: () => "oneTime",
   issueCertificatesForSignups: async (input: unknown) => {
     issuanceCalls.push(input);
-    return { issued: 1, errors: [] };
+    return issuanceResult;
   },
 }));
 const { updatePaperScanRow, commitPaperScanBatch, retryPaperScanCertificates } =
@@ -105,6 +111,12 @@ beforeEach(() => {
   rpcError = null;
   rpcData = "updated";
   scanRows = [];
+  issuanceResult = {
+    issued: 1,
+    emailsSent: 1,
+    errors: [],
+    deliveryDurable: true,
+  };
   issuanceCalls.length = 0;
   certificateReads.length = 0;
   calls.length = 0;
@@ -241,6 +253,69 @@ test("certificate retries include primary attendance and omit reconciled referen
       actorId: "fictional-organizer",
     },
   ]);
+});
+
+test("a tracked replay that issues nothing new is a completed retry, not a failure", async () => {
+  scanRows = [
+    { committed_signup_id: "primary-signup", outcome: "signup_updated" },
+  ];
+  issuanceResult = {
+    issued: 0,
+    emailsSent: 1,
+    errors: [],
+    deliveryDurable: true,
+  };
+  expect(
+    await retryPaperScanCertificates({
+      projectId: input.projectId,
+      batchId: input.batchId,
+    }),
+  ).toEqual({ success: true, certificatesIssued: 0, certificateErrors: [] });
+});
+
+test("a replay with no delivery ledger keeps the operator on the explicit resend path", async () => {
+  scanRows = [
+    { committed_signup_id: "primary-signup", outcome: "signup_updated" },
+  ];
+  issuanceResult = {
+    issued: 0,
+    emailsSent: 0,
+    errors: [],
+    deliveryDurable: false,
+  };
+  expect(
+    await retryPaperScanCertificates({
+      projectId: input.projectId,
+      batchId: input.batchId,
+    }),
+  ).toEqual({
+    success: true,
+    certificatesIssued: 0,
+    certificateErrors: ["certificate_delivery_retry_required"],
+  });
+});
+
+test("an untracked historical award stays an explicit review error beside new awards", async () => {
+  scanRows = [
+    { committed_signup_id: "primary-signup", outcome: "signup_updated" },
+    { committed_signup_id: "legacy-signup", outcome: "signup_created" },
+  ];
+  issuanceResult = {
+    issued: 1,
+    emailsSent: 1,
+    errors: ["certificate_delivery_review_required"],
+    deliveryDurable: false,
+  };
+  expect(
+    await retryPaperScanCertificates({
+      projectId: input.projectId,
+      batchId: input.batchId,
+    }),
+  ).toEqual({
+    success: true,
+    certificatesIssued: 1,
+    certificateErrors: ["certificate_delivery_review_required"],
+  });
 });
 
 test("a mixed batch reports the unresolved historical award without losing the valid result", async () => {

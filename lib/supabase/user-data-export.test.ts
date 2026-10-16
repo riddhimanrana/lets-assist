@@ -47,6 +47,10 @@ test("archive preserves more than a Data API page and includes verified plugin r
     readSnapshot: async () => value,
   });
   const zip = await JSZip.loadAsync(archive.zipBuffer);
+  const folders = Object.values(zip.files).filter((entry) => entry.dir);
+  expect(folders.length).toBeGreaterThan(0);
+  for (const entry of folders)
+    expect(entry.date.toISOString()).toBe("2026-10-07T00:00:00.000Z");
   expect(
     Object.values(zip.files).every(
       (entry) => entry.date.getTime() === Date.parse(value.generatedAt),

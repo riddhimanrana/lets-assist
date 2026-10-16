@@ -74,3 +74,27 @@ external collection is enabled there. The private plugin import migration must
 land before adding the final `server-only` logging guard. This source change does
 not remove historical provider data or establish alert ownership and source-map
 coverage.
+
+## AI metadata
+
+`lib/ai/posthog-telemetry.ts` accepts only eleven reviewed operation names.
+It derives feature, gateway scope and the optional static plugin key from that
+catalog. It never reads arbitrary caller metadata or exports user or organization
+identifiers. Unknown operations have telemetry disabled and their function name
+replaced with a fixed category. Local and Preview calls also disable AI telemetry.
+`recordInputs` and `recordOutputs` remain false for every operation.
+
+The restricted usage ledger and AI Gateway accounting are separate. They retain
+their existing authorization and identity contracts. This patch changes only
+PostHog telemetry options and does not change AI calls, billing, credentials or
+exporter setup. Run the metadata and accounting tests in separate Bun processes
+because the accounting test uses module mocks.
+
+These source checks do not prove that the deployed SDK sends sanitized spans.
+The project pins `@posthog/ai` 8.6.7 and AI SDK 6.0.244; current PostHog
+documentation describes a newer integration. A version-compatible exporter and
+synthetic served-payload check needs a separate reviewed change before claiming
+live AI observability coverage. Do not upgrade dependencies or inspect real
+prompts, outputs or recordings to establish this evidence.
+
+See [the analytics audit and proposed aggregate metrics](analytics-audit.md).

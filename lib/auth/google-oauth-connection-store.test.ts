@@ -49,6 +49,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     const sheetsWorker = readSource(
       "app/api/cron/organization-sheet-sync/route.ts",
     );
+    const sheetsAuthority = readSource(
+      "lib/google-sheets/organization-sync-authority.ts",
+    );
 
     expect(service).not.toContain("matchesGoogleOAuthConnectionBinding");
     expect(service).toContain(
@@ -60,8 +63,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     expect(orgSheets).toContain(
       "organizationSheetsGoogleBinding(organizationId)",
     );
-    expect(sheetsWorker).toContain(
-      "organizationSheetsGoogleBinding(row.organization_id)",
+    expect(sheetsWorker).toContain("await runOrganizationSheetSync({");
+    expect(sheetsAuthority).toContain(
+      "organizationSheetsGoogleBinding(config.organization_id)",
     );
   });
 

@@ -391,7 +391,7 @@ jobs:
   database:
     name: database-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 65
     # Full database, scale, and worker validation belongs to a manual candidate
     # rehearsal or the reusable Production preflight, not each pull request or
     # queued merge. These checks run once, on their own isolated stack.
@@ -547,6 +547,21 @@ jobs:
           # project, base port, and recorded database volume to agree.
           node scripts/local-dev/dv-local-env.mjs --csf-health
 
+      - name: Capture unreviewed schema metadata from the owned replay
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p .artifacts/release-schema
+          node scripts/production/capture-isolated-release-inventory.mjs > .artifacts/release-schema/unreviewed-schema.json
+
+      - name: Retain unreviewed schema metadata for source review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unreviewed-release-schema-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/release-schema/unreviewed-schema.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Verify the release catalog before loading fixtures
         run: |
           set -euo pipefail
@@ -624,6 +639,21 @@ jobs:
               --delete-workdir \
               "${CSF_ISOLATED_WORK_DIR}"
           fi
+
+      - name: Rehearse the bounded points-first Production controller
+        timeout-minutes: 25
+        run: node scripts/production/rehearse-points-first-rollout.mjs
+
+      - name: Retain sanitized points-first controller rehearsal
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: points-first-controller-rehearsal-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .artifacts/points-first-controller-rehearsal/*/result.json
+            .artifacts/points-first-controller-rehearsal/*/receipt.json
+          if-no-files-found: warn
+          retention-days: 7
 
   browser:
     name: csf-browser (${{ matrix.shard }}/${{ strategy.job-total }})
@@ -888,7 +918,7 @@ jobs:
       contents: read
     env:
       CSF_ISOLATED_BASE_PORT: "25320"
-      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "e402621d59594b391226953de81fe9a9b5e30df24b486887def4d0688334ad30"
+      LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "1f03585fee2ec92d7e6aee7946d678cc443bfa61e5e06f108025db126aaa07fe"
     steps:
       - name: Require private submodule access
         env:

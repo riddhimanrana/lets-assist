@@ -17,6 +17,8 @@ let insertError: unknown = null;
 /** Whether the staged-row update still finds a draft to write to. */
 let stagedUpdateMatches = true;
 let stagedUpdateError: unknown = null;
+/** The actor's one organization membership row, if any. */
+let membership: Record<string, unknown> | null = null;
 
 function nextAttemptLookup(): Record<string, unknown> | null {
   const row = attemptLookups[attemptLookupCount] ?? null;
@@ -49,6 +51,20 @@ function makeClient() {
 
       if (table === "profiles") {
         return { data: { trusted_member: true }, error: null };
+      }
+
+      if (table === "organization_members") {
+        // Behaves like the table: the row is returned only when every
+        // equality filter the action applied matches it.
+        const row = membership;
+        const visible =
+          row !== null &&
+          ops
+            .filter((op) => op.method === "eq")
+            .every((op) => row[op.args[0] as string] === op.args[1]);
+        return visible
+          ? { data: row, error: null }
+          : { data: null, error: { code: "PGRST116" } };
       }
 
       if (table === "projects") {
@@ -171,6 +187,7 @@ beforeEach(() => {
   insertError = null;
   stagedUpdateMatches = true;
   stagedUpdateError = null;
+  membership = null;
 });
 
 function stagedUpdates() {
@@ -469,6 +486,109 @@ function plainProject(overrides: Record<string, unknown> = {}) {
     ...overrides,
   });
 }
+
+const ORGANIZATION_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+
+function organizationProject() {
+  return plainProject({
+    basicInfo: {
+      title: "Beach cleanup",
+      location: "Local",
+      description: "<p>Bring gloves.</p>",
+      organizationId: ORGANIZATION_ID,
+      projectTimezone: "America/Los_Angeles",
+    },
+  });
+}
+
+function memberRow(role: string, status: string | null) {
+  return {
+    organization_id: ORGANIZATION_ID,
+    user_id: ACTOR.id,
+    role,
+    status,
+  };
+}
+
+describe("only an active admin or staff membership creates organization projects", () => {
+  for (const role of ["admin", "staff"]) {
+    test(`an active ${role} creates the project for the organization`, async () => {
+      membership = memberRow(role, "active");
+
+      const result = await createBasicProject(organizationProject());
+
+      expect(result).toMatchObject({ success: true, id: NEW_PROJECT_ID });
+      expect(projectInsertPayloads()).toHaveLength(1);
+      expect(projectInsertPayloads()[0]).toMatchObject({
+        creator_id: ACTOR.id,
+        organization_id: ORGANIZATION_ID,
+      });
+    });
+  }
+
+  for (const [role, status] of [
+    ["admin", "inactive"],
+    ["staff", "inactive"],
+    ["staff", "pending"],
+    ["admin", "suspended"],
+    ["admin", null],
+  ] as const) {
+    test(`a ${role} whose membership status is ${status} is refused and nothing is inserted`, async () => {
+      membership = memberRow(role, status);
+
+      const result = await createBasicProject(organizationProject());
+
+      expect(result).toEqual({
+        error:
+          "You don't have permission to create projects for this organization",
+      });
+      expect(projectInsertPayloads()).toHaveLength(0);
+    });
+  }
+
+  test("an active plain member is refused and nothing is inserted", async () => {
+    membership = memberRow("member", "active");
+
+    const result = await createBasicProject(organizationProject());
+
+    expect(result).toEqual({
+      error: "Only organization admins and staff can create projects",
+    });
+    expect(projectInsertPayloads()).toHaveLength(0);
+  });
+
+  test("an active role in another organization grants nothing here", async () => {
+    membership = {
+      ...memberRow("admin", "active"),
+      organization_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    };
+
+    const result = await createBasicProject(organizationProject());
+
+    expect(result.error).toMatch(/don't have permission/u);
+    expect(projectInsertPayloads()).toHaveLength(0);
+  });
+
+  test("the membership check is scoped to the organization, the actor, and active status", async () => {
+    membership = memberRow("staff", "active");
+
+    await createBasicProject(organizationProject());
+
+    const membershipReads = tableCalls.filter(
+      (call) => call.table === "organization_members",
+    );
+    expect(membershipReads.length).toBeGreaterThan(0);
+    for (const read of membershipReads) {
+      expect(
+        read.ops.filter((op) => op.method === "eq").map((op) => op.args),
+      ).toEqual([
+        ["organization_id", ORGANIZATION_ID],
+        ["user_id", ACTOR.id],
+        ["status", "active"],
+      ]);
+    }
+  });
+});
 
 const RECURRING = {
   enabled: true,

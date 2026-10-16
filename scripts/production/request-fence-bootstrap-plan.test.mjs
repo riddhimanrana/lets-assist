@@ -23,6 +23,7 @@ import { generateFinalSchemaManifest } from "./generate-final-schema-manifest.mj
 import { finalSchemaCatalog, ledgerDigest } from "./final-schema-manifest.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
+import { pointsFirstRolloutStates } from "./points-first-rollout-catalog.mjs";
 const repository = resolve(import.meta.dirname, "../..");
 const cwd = mkdtempSync(resolve(tmpdir(), "request-fence-bootstrap-"));
 mkdirSync(resolve(cwd, "supabase/migrations"), { recursive: true });
@@ -113,6 +114,33 @@ test("bootstrap plan pins every real migration and exact new bytes", () => {
   } finally {
     rmSync(extra);
   }
+});
+
+test("points-first bootstrap adds only the fence and preserves the highest hotfix", () => {
+  const before = pointsFirstRolloutStates[0].versions;
+  const after = pointsFirstRolloutStates[1].versions;
+  const plan = bootstrapPlan(repository, readFileSync, before);
+  assert.deepEqual(plan.before, before);
+  assert.deepEqual(plan.after, after);
+  assert.equal(plan.before.length, 688);
+  assert.equal(plan.after.length, 689);
+  assert.equal(plan.version, "20260929051600");
+  assert.equal(plan.after.at(-1), "20261013071100");
+  assert.deepEqual(bootstrapPlan(repository, readFileSync, after), plan);
+  assert.throws(() =>
+    bootstrapPlan(repository, readFileSync, [...after, "20990101000000"]),
+  );
+  assert.throws(() => bootstrapPlan(cwd, readFileSync, before));
+  assert.throws(() =>
+    bootstrapPlan(
+      repository,
+      (file, ...args) =>
+        file.includes("20261013071100_")
+          ? `${readFileSync(file, ...args)}\n-- changed`
+          : readFileSync(file, ...args),
+      before,
+    ),
+  );
 });
 
 test("atomic bootstrap locks and verifies before installing one ledger row", () => {

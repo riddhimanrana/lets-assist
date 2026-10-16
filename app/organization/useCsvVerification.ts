@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 import {
   formatHours,
-  parseCsvLine,
-  validateCertificateRow,
+  parseCertificateCsv,
+  summarizeVerifiedHours,
   verifyCertificateId,
 } from "./csv-verification-logic";
 import type {
@@ -59,80 +59,29 @@ export function useCsvVerification() {
 
     try {
       const text = await file.text();
-      const lines = text.split("\n").filter((line) => line.trim());
+      const parsed = parseCertificateCsv(text);
 
-      if (lines.length < 2) {
-        setError(
-          "CSV file must contain at least a header row and one data row",
-        );
+      if (!("rows" in parsed)) {
+        setError(parsed.error);
         return;
       }
 
-      const headers = parseCsvLine(lines[0]);
-      const expectedHeaders = [
-        "certificate id",
-        "project title",
-        "organization name",
-        "project organizer name",
-        "certification status",
-        "certificate type",
-        "event start date",
-        "event end date",
-        "duration",
-        "location",
-        "check in method",
-        "volunteer name",
-        "volunteer email",
-        "issued date",
-      ];
-
-      // Check if required headers are present (case insensitive)
-      const hasRequiredHeaders = expectedHeaders.every((expected) =>
-        headers.some((header) => header.toLowerCase().includes(expected)),
-      );
-
-      if (!hasRequiredHeaders) {
-        setError(
-          "CSV must contain the expected certificate columns: Certificate ID, Project Title, Organization Name, Project Organizer Name, Certification Status, Certificate Type, Event Start Date, Event End Date, Duration, Location, Check In Method, Volunteer Name, Volunteer Email, Issued Date",
-        );
-        return;
-      }
-
-      const processedResults: CertificateRow[] = [];
+      const processedResults = parsed.rows;
       const seenCertificateIds = new Set<string>();
       const duplicateIds = new Set<string>();
 
-      // Process rows until we hit the summary section
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        // Stop processing when we hit the summary section
-        if (
-          line.includes("=== SUMMARY ===") ||
-          line.includes("===SUMMARY===")
-        ) {
-          break;
-        }
-
-        const row = parseCsvLine(line);
-        if (row.some((cell) => cell.trim())) {
-          // Skip empty rows
-          const result = validateCertificateRow(row, headers);
-
-          // Check for duplicates based on certificate ID
-          if (result.certificateId) {
-            const certificateId = result.certificateId.toLowerCase().trim();
-            if (seenCertificateIds.has(certificateId)) {
-              duplicateIds.add(certificateId);
-              // Mark this row as invalid due to duplicate
-              result.valid = false;
-              result.issues.push("Duplicate certificate ID found in CSV");
-            } else {
-              seenCertificateIds.add(certificateId);
-            }
+      for (const result of processedResults) {
+        // Check for duplicates based on certificate ID
+        if (result.certificateId) {
+          const certificateId = result.certificateId.toLowerCase().trim();
+          if (seenCertificateIds.has(certificateId)) {
+            duplicateIds.add(certificateId);
+            // Mark this row as invalid due to duplicate
+            result.valid = false;
+            result.issues.push("Duplicate certificate ID found in CSV");
+          } else {
+            seenCertificateIds.add(certificateId);
           }
-
-          processedResults.push(result);
         }
       }
 
@@ -182,14 +131,9 @@ export function useCsvVerification() {
       const validRows = processedResults.filter(
         (row) => row.valid && row.certificateId,
       );
-      let certifiedHours = 0; // Let's Assist OFFICIAL (from verified orgs)
-      let verifiedHours = 0; // Let's Assist PLATFORM (from Let's Assist projects)
-      let selfReportedHours = 0; // Self-Reported
-      let totalHours = 0;
+      const updatedResults = [...processedResults];
 
       if (validRows.length > 0) {
-        const updatedResults = [...processedResults];
-
         for (let i = 0; i < validRows.length; i++) {
           setCurrentVerifyIndex(i);
           const row = validRows[i];
@@ -214,35 +158,6 @@ export function useCsvVerification() {
             if (verifiedRow) {
               updatedResults[index] = verifiedRow;
               setResults([...updatedResults]);
-
-              // Update verification stats and categorize hours
-              if (verifiedRow.isVerified) {
-                const hours = verifiedRow.duration
-                  ? parseFloat(verifiedRow.duration)
-                  : 0;
-                if (!isNaN(hours)) {
-                  // Categorize based on certificate type and certified status
-                  // Handle backward compatibility: treat "verified" as equivalent to "platform"
-                  const rawCertType =
-                    verifiedRow.verificationResult?.certificate?.type ||
-                    "platform";
-                  const certType =
-                    rawCertType === "verified" ? "platform" : rawCertType;
-                  const isCertified =
-                    verifiedRow.verificationResult?.certificate?.certified ||
-                    false;
-
-                  if (certType === "platform" && isCertified) {
-                    certifiedHours += hours; // Let's Assist OFFICIAL (from verified orgs)
-                  } else if (certType === "platform") {
-                    verifiedHours += hours; // Let's Assist PLATFORM (from Let's Assist projects)
-                  } else if (certType === "self-reported") {
-                    selfReportedHours += hours; // Self-Reported
-                  }
-
-                  totalHours += hours;
-                }
-              }
             }
           }
 
@@ -254,6 +169,14 @@ export function useCsvVerification() {
 
         setResults(updatedResults);
       }
+
+      // Hours come from the certificate records of fully verified rows, never
+      // from the uploaded cells.
+      const { certifiedHours, verifiedHours, selfReportedHours, totalHours } =
+        summarizeVerifiedHours(updatedResults);
+      const unavailableCount = updatedResults.filter(
+        (r) => r.verificationStatus === "unavailable",
+      ).length;
 
       setSummary({
         total: processedResults.length,
@@ -267,6 +190,10 @@ export function useCsvVerification() {
       if (processedResults.filter((r) => !r.valid).length > 0) {
         toast.error("Format issues found", {
           description: `${processedResults.filter((r) => !r.valid).length} records have format issues. Check the details below.`,
+        });
+      } else if (unavailableCount > 0) {
+        toast.warning("Verification incomplete", {
+          description: `${unavailableCount} of ${processedResults.length} records could not be checked. Run the verification again.`,
         });
       } else {
         toast.success("Verification complete", {

@@ -41,7 +41,9 @@ export const PLUGIN_SOURCE_HASHES = Object.freeze({
   "lib/plugins/published-releases.ts":
     "fdafaad31daacc55fee485452b89dead2de82952f006435797ab4399fed00f68",
   "lib/plugins/published-releases.json":
-    "bfeab347daa2dfed0e81b0d70fcec9c7e8d6eee9f55b0dbf43041da1667ba64c",
+    // Signed CSF 1.2.89 metadata at exact source f1164838; the getter and
+    // runtime-status read sources remain unchanged and independently pinned.
+    "2d8287fb9f4e3e1f62a3803d75cd2e7ce82a6dc327d598e65a2c5c03963cf01d",
   "lib/plugins/organization-plugin-settings.ts":
     "78c3b8983aaa531dff483e408a6879260194fe0871d9d9a5230c0264aa0d2c9a",
   "lib/plugins/plugin-uninstall-impact.ts":

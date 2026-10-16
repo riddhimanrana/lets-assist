@@ -355,3 +355,42 @@ with each mutation rolled back. Both ordinary and enabled display states pass.
 The owned stack and temporary directory were removed after verification.
 Hosted Development
 comparison and acceptance remain separate gates before promotion.
+
+Release 730 was captured from a fresh owned local replay at source
+`e04544b34dfb8b84a29977f06eb7ed9d9d0ed0da` after all 730 migrations and
+13,578 pgTAP assertions across 510 files passed. The seven unpublished repair
+migrations add 46 functions and six private relations and change five functions
+and six relations. All 1,439 preceding identities remain present; every addition
+and change is explained by those migrations. Historical manifests retain their
+exact bytes. The capture removed only the authoritative local fixture helpers
+inside a rolled-back transaction.
+
+The inventory excludes provider-owned Storage relations and ICU collations.
+The additional workflow repair wrapper therefore requires the five exact,
+enabled project-asset and immutable waiver-source Storage hooks and the
+postgres-owned nondeterministic ICU `und` roster collation. Existing publication,
+Auth/Storage, retention, paused Speech and Debate and project-status cron guards
+remain required. Eleven deliberate live faults (disabled or missing Storage
+hooks, changed hook definition, renamed or wrong-owner collation, widened RPC
+execution and disabled private-run RLS) each return zero; every rolled-back
+baseline returns one. The historical online migration allowlist remains unchanged;
+this application/schema pair requires the guarded maintenance cutover. This
+catalog proves the SQL contract only. Signed plugin publication, real local
+workflow and browser acceptance, and hosted Development acceptance remain
+separate release requirements.
+
+Release 739 joins the reviewed 732 publication history with Development's
+attendance, repeatable CSF claim, and certificate timezone migrations. A clean
+owned replay passed all 739 migrations, 515 pgTAP files, and 13,712 assertions.
+Its captured 1,493-object inventory adds only the private attendance-window
+and certificate timezone functions. Eight fingerprints change: the two public
+automatic attendance functions, the two CSF point functions and point-submission
+relation, and the certificates relation and two certificate read models. No
+identity is removed. The forward 739 migration gives an exact role name
+precedence over a positional alias when both read as `role-0`; the regression
+checks automatic and QR attendance. The exact ledger digest is
+`ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4`.
+A second clean replay returned one for the complete catalog after rolling back
+local fixture-helper removal. Ten point-trigger and permission drifts returned
+zero, with each probe rolled back. Hosted Development comparison, full CI, and
+visual acceptance remain release gates.

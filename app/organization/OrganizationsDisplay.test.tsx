@@ -258,7 +258,7 @@ describe("organization directory cards", () => {
     });
 
     expect(owned).toBe("");
-    expect(discover).not.toContain("bg-primary/5");
+    expect(discover).not.toContain("bg-brand/5");
     expect(occurrences(discover, 'href="/organization/')).toBe(4);
     expect(occurrences(html, SIGN_UP_LINK)).toBe(1);
     expect(html).toContain('href="/login?redirect=/organization"');

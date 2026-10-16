@@ -1,6 +1,7 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
+import { serializeCsv } from "@/lib/certificates/csv";
 import {
   certificateToDashboardExport,
   type CertificateRecord,
@@ -132,10 +133,9 @@ export function ExportSection({
         item.issuedDate, // Issued Date
       ]);
 
-      // Generate CSV
-      const csvContent = [headers, ...rows]
-        .map((row) => row.map((field) => `"${field}"`).join(","))
-        .join("\n");
+      // Generate CSV. The serializer escapes quotes, so names with commas,
+      // quotes, or line breaks read back exactly in the verification modal.
+      const csvContent = serializeCsv([headers, ...rows]);
 
       // Download file
       const blob = new Blob([csvContent], { type: "text/csv" });

@@ -28,9 +28,15 @@ type Rpc = (
 type Dependencies = {
   rpc: Rpc;
   write: typeof writeOrganizationCalendarEvent;
-  remove: ReturnType<typeof createPersonalCalendarEventRemover>;
+  remove: (
+    accessToken: string,
+    calendarId: string,
+    id: string,
+    beforeWrite?: () => Promise<unknown>,
+  ) => Promise<boolean>;
   now: () => number;
 };
+const renewalSchema = z.object({}).strict();
 export type DurableOrganizationCalendarSyncResult =
   | {
       success: true;
@@ -48,6 +54,11 @@ export async function reconcileOrganizationCalendar(
     accessToken: string;
     sourceKinds: OrganizationCalendarProjection["source_kind"][];
     load: () => Promise<OrganizationCalendarProjection[]>;
+    /**
+     * The caller's deadline. Once it passes, no source load, plan or provider
+     * mutation starts. A request already sent is not cancelled or undone.
+     */
+    signal?: AbortSignal;
   },
   dependencies?: Dependencies,
 ): Promise<DurableOrganizationCalendarSyncResult> {
@@ -75,7 +86,25 @@ export async function reconcileOrganizationCalendar(
       );
     return result.data;
   };
+  const stopAtDeadline = () => {
+    if (options.signal?.aborted)
+      throw new Error(
+        "Calendar sync stopped at its deadline. Saved progress continues on the next run.",
+      );
+  };
+  // Runs immediately before each provider mutation, so the deadline is
+  // checked on both sides of the renewal.
+  const renew = async () => {
+    stopAtDeadline();
+    const renewed = await advance("renew");
+    if (!renewalSchema.safeParse(renewed).success)
+      throw new Error(
+        "Calendar lease renewal was not confirmed. Retry to continue.",
+      );
+    stopAtDeadline();
+  };
   try {
+    stopAtDeadline();
     const result = await deps.rpc("claim_organization_calendar_sync", {
       ...actor,
       p_calendar_id: options.calendarId,
@@ -88,7 +117,9 @@ export async function reconcileOrganizationCalendar(
           "Calendar sync is unavailable or already running. Retry shortly.",
       };
     claim = parsedClaim.data;
+    stopAtDeadline();
     const projections = await options.load();
+    stopAtDeadline();
     await advance("plan", {
       source_kinds: options.sourceKinds,
       events: projections,
@@ -100,6 +131,8 @@ export async function reconcileOrganizationCalendar(
         throw new Error(
           "Calendar progress is saved. Retry to continue the remaining events.",
         );
+      // A confirmed write above is still recorded. Nothing new starts here.
+      stopAtDeadline();
       const next = await advance("next");
       if (next === null) {
         await advance("finish");
@@ -119,6 +152,7 @@ export async function reconcileOrganizationCalendar(
             options.accessToken,
             receipt.calendar_id,
             receipt.event_id,
+            renew,
           ))
         )
           throw new Error(
@@ -137,7 +171,7 @@ export async function reconcileOrganizationCalendar(
         receiptId: receipt.id,
         create: receipt.phase === "pending_create",
         event: receipt.event_payload,
-        beforeWrite: () => advance("renew"),
+        beforeWrite: renew,
       });
       if (written === "unconfirmed")
         throw new Error(

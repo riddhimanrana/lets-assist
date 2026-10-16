@@ -25,11 +25,18 @@ import {
   getExactRecurringSeriesEndReceipt,
 } from "./lifecycle-receipts";
 import { getExactProjectStatusTransitionReceipt } from "./status-transition-receipt";
+import { deleteProjectForActor } from "./lifecycle-assets";
 import {
   validateRecurrenceRule,
   validateProjectSchedule,
   validateProjectTimezone,
 } from "@/lib/projects/schedule-validation";
+
+/** Raised by the database when a project links a file a deletion has claimed. */
+const CLONE_ASSET_FENCE_MESSAGES: readonly string[] = [
+  "project_asset_unavailable",
+  "project_deletion_in_progress",
+];
 
 /**
  * Applies the waiver switches through the sanctioned service-role RPC.
@@ -77,11 +84,29 @@ async function getProjectForMutation(
     .eq("id", projectId)
     .maybeSingle();
 
-  if (error || !project || project.id !== projectId) {
-    return { project: null, error: error ?? new Error("Project not found") };
+  if (error) {
+    return { project: null, error, absent: false };
   }
 
-  return { project: project as Project, error: null };
+  // No row is different from the wrong row: only the first means the project
+  // may simply be gone.
+  if (!project) {
+    return {
+      project: null,
+      error: new Error("Project not found"),
+      absent: true,
+    };
+  }
+
+  if (project.id !== projectId) {
+    return {
+      project: null,
+      error: new Error("Project read returned a different project"),
+      absent: false,
+    };
+  }
+
+  return { project: project as Project, error: null, absent: false };
 }
 
 export async function updateProjectStatus(
@@ -317,6 +342,18 @@ export async function cloneProject(projectId: string) {
     .single();
 
   if (insertError) {
+    // The database refuses a copy that would link a file already claimed by a
+    // deletion of the source project, so a clone never points at a file that
+    // is about to disappear.
+    if (
+      insertError.code === "23514" &&
+      CLONE_ASSET_FENCE_MESSAGES.includes(insertError.message)
+    ) {
+      return {
+        error:
+          "A file on this project is being removed, so it cannot be copied right now.",
+      };
+    }
     safeConsole.error("Error creating clone:", insertError);
     return { error: `Failed to create clone: ${insertError.message}` };
   }
@@ -378,135 +415,15 @@ export async function deleteProject(projectId: string) {
     return { error: "You must be logged in to delete a project" };
   }
 
-  const { project, error: projectError } = await getProjectForMutation(
+  // The workflow lives in lifecycle-assets.ts. It reads the project through
+  // this module's own mutation read, so that read is neither duplicated nor
+  // exposed as an action.
+  return deleteProjectForActor({
     supabase,
     projectId,
-  );
-
-  if (!project || projectError) {
-    return { error: "Project not found" };
-  }
-
-  let hasPermission = project.creator_id === user.id;
-  if (project.organization_id && !hasPermission) {
-    const { data: orgMember, error: orgMemberError } = await supabase
-      .from("organization_members")
-      .select("role, status")
-      .eq("organization_id", project.organization_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (orgMemberError) {
-      return { error: "Failed to verify project permissions" };
-    }
-
-    if ((orgMember?.status ?? "active") === "active" && orgMember?.role) {
-      hasPermission = orgMember.role === "admin"; // Only admins can delete projects
-    }
-  }
-
-  if (!hasPermission) {
-    return { error: "You don't have permission to delete this project" };
-  }
-
-  const serviceSupabase = getAdminClient();
-  const { count: signedWaiverCount, error: signedWaiverError } =
-    await serviceSupabase
-      .from("waiver_signatures")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", projectId);
-
-  if (signedWaiverError || signedWaiverCount === null) {
-    return { error: "Unable to verify the project's waiver-retention state" };
-  }
-
-  if (signedWaiverCount > 0) {
-    return {
-      error:
-        "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",
-    };
-  }
-
-  // Keep the project row (and therefore its retry/authorization anchor) until
-  // every external cleanup step has settled. The service client is required
-  // because user Storage policies intentionally depend on that project row.
-  if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData, error: storageListError } =
-      await serviceSupabase.storage.from("project-documents").list();
-
-    if (storageListError) {
-      safeConsole.error("Error listing project documents:", storageListError);
-      return { error: "Failed to clean up project documents" };
-    } else if (storageData) {
-      const projectFiles = storageData.filter((file) =>
-        file.name.startsWith(`project_${projectId}`),
-      );
-
-      if (projectFiles.length > 0) {
-        const { error: documentRemovalError } = await serviceSupabase.storage
-          .from("project-documents")
-          .remove(projectFiles.map((file) => file.name));
-
-        if (documentRemovalError) {
-          safeConsole.error(
-            "Error removing project documents:",
-            documentRemovalError,
-          );
-          return { error: "Failed to clean up project documents" };
-        }
-      }
-    }
-  }
-
-  if (project.cover_image_url) {
-    const fileName = project.cover_image_url.split("/").pop();
-    if (fileName) {
-      const { error: coverRemovalError } = await serviceSupabase.storage
-        .from("project-images")
-        .remove([fileName]);
-
-      if (coverRemovalError) {
-        safeConsole.error(
-          "Error removing project cover image:",
-          coverRemovalError,
-        );
-        return { error: "Failed to clean up the project cover image" };
-      }
-    }
-  }
-
-  if (project.creator_calendar_event_id) {
-    const calendarResult = await removeCalendarEventForProject(projectId, {
-      userId: user.id,
-      calendarEventId: project.creator_calendar_event_id,
-    });
-    if (!calendarResult.success) {
-      return { error: "Failed to clean up the project calendar event" };
-    }
-  }
-
-  const { data: deletedProject, error: deleteError } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId)
-    .select("id")
-    .maybeSingle();
-
-  if (deleteError) {
-    safeConsole.error("Error deleting project:", deleteError);
-    return { error: "Failed to delete project" };
-  }
-
-  if (!deletedProject || deletedProject.id !== projectId) {
-    return { error: "Failed to delete project" };
-  }
-
-  revalidatePath("/home");
-  if (project.organization_id) {
-    revalidatePath(`/organization/${project.organization_id}`);
-  }
-
-  return { success: true };
+    actorId: user.id,
+    readProject: () => getProjectForMutation(supabase, projectId),
+  });
 }
 
 export async function updateProject(

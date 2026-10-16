@@ -103,6 +103,13 @@ VALUES (
   'e1000000-0000-4000-8000-000000000001'
 );
 
+-- New evidence must name a source document that really exists.
+INSERT INTO storage.objects (bucket_id, name)
+VALUES (
+  'waiver-uploads',
+  'project_waivers/e2000000-0000-4000-8000-000000000001/source.pdf'
+);
+
 INSERT INTO public.waiver_signatures (
   id,
   project_id,

@@ -12,6 +12,7 @@ import {
 } from "./cutover-bootstrap.mjs";
 import {
   cutoverConfig,
+  cutoverFailureMessage,
   githubReader,
   loadPreparation,
   requireCondition,
@@ -389,9 +390,9 @@ if (
         automaticDomainAssignment: result.automaticDomainAssignment,
       }),
     );
-  } catch {
+  } catch (error) {
     console.error(
-      "Development cutover stopped. Inspect the sanitized run receipt; reconcile unknown operations before retrying. Raw provider output was suppressed.",
+      `Development cutover stopped: ${cutoverFailureMessage(error)} Inspect any sanitized run receipt; reconcile unknown operations before retrying.`,
     );
     process.exitCode = 1;
   }

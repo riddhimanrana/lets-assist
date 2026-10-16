@@ -7,9 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Eraser, PenTool, Type, Upload } from "lucide-react";
 import { WaiverDefinitionSigner, SignerData } from "@/types/waiver-definitions";
+import { signatureImageUploadProblem } from "@/lib/waiver/upload-limits";
 
 const SIGNATURE_CANVAS_HEIGHT = 160;
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 interface SignatureCaptureProps {
@@ -198,14 +198,9 @@ export function SignatureCapture({
       return;
     }
 
-    // Phase 1: Only accept image types for signature upload
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setUploadError("Please upload an image (PNG, JPG) for your signature.");
-      return;
-    }
-
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError("File is too large. Maximum size is 10 MB.");
+    const problem = signatureImageUploadProblem(file);
+    if (problem) {
+      setUploadError(problem);
       return;
     }
 
@@ -340,7 +335,7 @@ export function SignatureCapture({
                 </div>
               )}
               <p className="text-xs text-muted-foreground">
-                Upload a PNG or JPG image of your signature. Max size 10MB.
+                Upload a PNG or JPG image of your signature. Max size 2 MB.
               </p>
             </div>
           </TabsContent>

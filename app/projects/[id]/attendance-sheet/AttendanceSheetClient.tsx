@@ -58,13 +58,10 @@ export function AttendanceSheetClient({
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const zone =
-    new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      timeZoneName: "short",
-    })
-      .formatToParts(new Date())
-      .find((part) => part.type === "timeZoneName")?.value ?? timezone;
+  const zoneFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    timeZoneName: "short",
+  });
 
   async function prepare() {
     setBusy(true);
@@ -153,6 +150,11 @@ export function AttendanceSheetClient({
                 <div className="grid gap-2 sm:grid-cols-2">
                   {sessions.map((session) => {
                     const checkboxId = `print-session-${session.id}`;
+                    const zone =
+                      zoneFormatter
+                        .formatToParts(session.startsAt)
+                        .find((part) => part.type === "timeZoneName")?.value ??
+                      timezone;
                     return (
                       <FieldLabel key={session.id} htmlFor={checkboxId}>
                         <Field orientation="horizontal">

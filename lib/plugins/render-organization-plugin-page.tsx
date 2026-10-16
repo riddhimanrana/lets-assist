@@ -86,16 +86,47 @@ function routeRowToDefinition(
   };
 }
 
+type PluginPageSearchParams = Record<string, string | string[] | undefined>;
+
+/**
+ * The request's query, re-serialized as a suffix for a path this module built.
+ *
+ * It is only ever appended after a fixed internal path, and every key and
+ * value is percent-encoded by `URLSearchParams`, so nothing in it can end the
+ * path, add a host or start a fragment. Repeated keys keep their order.
+ */
+function serializePluginPageQuery(
+  searchParams: PluginPageSearchParams | undefined,
+) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    for (const entry of Array.isArray(value) ? value : [value]) {
+      if (typeof entry === "string") query.append(key, entry);
+    }
+  }
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
 export async function renderOrganizationPluginPage(options: {
   organizationIdentifier: string;
   pluginKey: string;
   routePath?: string | null;
+  /**
+   * The request's query, untrusted. It is carried across this module's own
+   * redirects and handed to the plugin's renderer as given. It takes no part
+   * in any access decision here.
+   */
+  searchParams?: PluginPageSearchParams;
 }): Promise<React.ReactElement> {
   const { organizationIdentifier, pluginKey, routePath = null } = options;
   const supabase = await createClient();
-  const targetPath = routePath
-    ? `/organization/${organizationIdentifier}/plugins/${pluginKey}/${routePath}`
-    : `/organization/${organizationIdentifier}/plugins/${pluginKey}`;
+  const requestQuery = serializePluginPageQuery(options.searchParams);
+  const targetPath = `${
+    routePath
+      ? `/organization/${organizationIdentifier}/plugins/${pluginKey}/${routePath}`
+      : `/organization/${organizationIdentifier}/plugins/${pluginKey}`
+  }${requestQuery}`;
   const { user } = await getAuthUser();
 
   const isUUID =
@@ -121,7 +152,8 @@ export async function renderOrganizationPluginPage(options: {
     const slugPath = routePath
       ? `/organization/${organization.username}/plugins/${pluginKey}/${routePath}`
       : `/organization/${organization.username}/plugins/${pluginKey}`;
-    redirect(slugPath);
+    // The canonical address keeps the query the officer arrived with.
+    redirect(`${slugPath}${requestQuery}`);
   }
 
   const definition = getRegisteredPlugin(pluginKey);
@@ -223,6 +255,7 @@ export async function renderOrganizationPluginPage(options: {
         organizationName: organization.name,
         userRole: effectiveUserRole,
         configuration: resolvedPlugin.configuration,
+        searchParams: options.searchParams,
       })) ?? null;
   } else if (renderOrganizationPage) {
     pluginContent = await renderOrganizationPage({
@@ -231,6 +264,7 @@ export async function renderOrganizationPluginPage(options: {
       organizationName: organization.name,
       userRole: effectiveUserRole,
       configuration: resolvedPlugin.configuration,
+      searchParams: options.searchParams,
     });
   }
 

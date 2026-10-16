@@ -1,6 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { productionRef, ReleaseCheckError } from "./app-release-checks.mjs";
@@ -15,6 +14,11 @@ import {
   bootstrapMutationSql,
   bootstrapVerificationSql,
 } from "./request-fence-bootstrap-plan.mjs";
+import {
+  productionRunReader,
+  verifyProductionRunAuthority,
+  verifyProductionCheckout,
+} from "./production-run-authority.mjs";
 import { settlePreexistingRequestTransactionsSql } from "./request-write-fence.mjs";
 
 export const productionBootstrapTarget = Object.freeze({
@@ -74,111 +78,18 @@ export function productionBootstrapConfig(env, cwd = process.cwd()) {
   return config;
 }
 
-export function productionBootstrapReader(config, fetcher = fetch) {
-  return async (path) => {
-    try {
-      const response = await fetcher(
-        `https://api.github.com/repos/${productionBootstrapTarget.repository}${path}`,
-        {
-          headers: {
-            Authorization: `Bearer ${config.githubToken}`,
-            Accept: "application/vnd.github+json",
-          },
-          redirect: "error",
-          cache: "no-store",
-          signal: AbortSignal.timeout(30_000),
-        },
-      );
-      requireCondition(response.ok, "GitHub read refused.");
-      return await response.json();
-    } catch {
-      throw new ReleaseCheckError(
-        "Production bootstrap authority could not be read. Raw output was suppressed.",
-      );
-    }
-  };
-}
-
-export async function verifyProductionBootstrapAuthority(
+export const productionBootstrapReader = productionRunReader;
+export const verifyProductionBootstrapAuthority = (
   config,
   read,
   now = Date.now(),
-) {
-  const [repository, main, environment, run, actor, approvals] =
-    await Promise.all([
-      read(""),
-      read("/git/ref/heads/main"),
-      read("/environments/production"),
-      read(`/actions/runs/${config.run}`),
-      read(`/collaborators/${config.actor}/permission`),
-      read(`/actions/runs/${config.run}/approvals`),
-    ]);
-  const started = Date.parse(run.created_at);
-  requireCondition(
-    repository.id === productionBootstrapTarget.repositoryId &&
-      repository.full_name === productionBootstrapTarget.repository &&
-      repository.default_branch === "main" &&
-      main.object?.sha === config.source &&
-      run.id === Number(config.run) &&
-      run.repository?.id === productionBootstrapTarget.repositoryId &&
-      run.event === "workflow_dispatch" &&
-      run.path === productionBootstrapTarget.workflow &&
-      run.head_sha === config.source &&
-      run.head_branch === "main" &&
-      run.run_attempt === 1 &&
-      run.status === "in_progress" &&
-      run.actor?.login === config.actor &&
-      run.triggering_actor?.login === config.actor &&
-      Number.isFinite(started) &&
-      started <= now &&
-      now - started <= 4 * 60 * 60 * 1000 &&
-      ["write", "maintain", "admin"].includes(actor.permission),
-    "Production bootstrap source, current run or actor authority changed.",
+) =>
+  verifyProductionRunAuthority(
+    config,
+    read,
+    now,
+    productionBootstrapTarget.workflow,
   );
-  requireCondition(
-    environment.name === "production" &&
-      Number.isSafeInteger(environment.id) &&
-      environment.protection_rules?.some(
-        (rule) =>
-          rule.type === "required_reviewers" && rule.reviewers?.length > 0,
-      ),
-    "Production bootstrap requires configured environment reviewers.",
-  );
-  const reviews = Array.isArray(approvals)
-    ? approvals.filter((review) =>
-        review.environments?.some(
-          (entry) => entry.id === environment.id && entry.name === "production",
-        ),
-      )
-    : [];
-  requireCondition(
-    reviews.length === 1 &&
-      reviews[0].state === "approved" &&
-      typeof reviews[0].user?.login === "string" &&
-      reviews[0].user.login,
-    "This exact workflow run lacks an unambiguous approved Production review.",
-  );
-  return { reviewedBy: reviews[0].user.login, environmentId: environment.id };
-}
-
-function verifyCheckout(config, execute = execFileSync) {
-  try {
-    const options = {
-      cwd: config.cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    };
-    requireCondition(
-      execute("git", ["rev-parse", "HEAD"], options).trim() === config.source,
-      "Checkout changed.",
-    );
-    execute("git", ["diff", "--exit-code", "HEAD", "--"], options);
-  } catch {
-    throw new ReleaseCheckError(
-      "Production bootstrap requires the clean exact main checkout.",
-    );
-  }
-}
 
 export function productionBootstrapVerificationSql(versions) {
   return `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
@@ -261,11 +172,11 @@ export async function runProductionBootstrap(config, dependencies = {}) {
   const record = dependencies.record || receiptWriter(config.cwd);
   const now = dependencies.now || Date.now;
   validateMaintenanceBinding(productionRef, config.databaseUrl);
-  verifyCheckout(config, dependencies.execute);
+  verifyProductionCheckout(config, dependencies.execute);
   const authority = () =>
     verifyProductionBootstrapAuthority(config, read, now());
   const approval = await authority();
-  const plan = bootstrapPlan(config.cwd);
+  let plan = bootstrapPlan(config.cwd);
   const receipt = {
     format: 1,
     source: config.source,
@@ -275,10 +186,11 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     database: productionRef,
     createdAt: now(),
     externalWriters: "operator-attested-stopped-in-protected-environment",
-    before: ledgerDigest(plan.before),
-    after: ledgerDigest(plan.after),
+    before: null,
+    after: null,
+    bootstrapPath: "unselected",
     migration: {
-      version: plan.after.at(-1),
+      version: plan.version,
       sha256: createHash("sha256").update(plan.sql).digest("hex"),
     },
     phase: "preflight",
@@ -287,7 +199,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     receipt.phase = phase;
     record({ ...receipt });
   };
-  const ledger = () => {
+  const readLedger = () => {
     let result;
     try {
       result = JSON.parse(query(config.databaseUrl, maintenanceLedgerQuery));
@@ -296,11 +208,15 @@ export async function runProductionBootstrap(config, dependencies = {}) {
         "Production bootstrap ledger could not be read. Raw output was suppressed.",
       );
     }
+    return result;
+  };
+  const ledger = () => {
+    const result = readLedger();
     const same = (expected) =>
       JSON.stringify(result) === JSON.stringify(expected);
     requireCondition(
       same(plan.before) || same(plan.after),
-      "Production bootstrap accepts only exact 687 or 688.",
+      "Production bootstrap accepts only its exact reviewed before or after ledger.",
     );
     return same(plan.after) ? "after" : "before";
   };
@@ -313,13 +229,22 @@ export async function runProductionBootstrap(config, dependencies = {}) {
       "Production bootstrap catalog, quiescence or open flag did not verify.",
     );
   try {
-    const applied = ledger();
+    const observed = readLedger();
+    plan = bootstrapPlan(config.cwd, readFileSync, observed);
+    receipt.before = ledgerDigest(plan.before);
+    receipt.after = ledgerDigest(plan.after);
+    receipt.bootstrapPath =
+      plan.before.length === 687 ? "687-to-688" : "points-first-688-to-689";
+    const applied =
+      JSON.stringify(observed) === JSON.stringify(plan.after)
+        ? "after"
+        : "before";
     verify(plan[applied]);
     // Bind the server key to a harmless read before any database mutation.
     await probeProductionBootstrapApi(config, dependencies.fetcher);
     await authority();
     if (applied === "before") {
-      verifyCheckout(config, dependencies.execute);
+      verifyProductionCheckout(config, dependencies.execute);
       persist("mutation-started");
       let acknowledged = false;
       try {
@@ -349,7 +274,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     await probeProductionBootstrapApi(config, dependencies.fetcher, true);
     verify(plan.after);
     await authority();
-    receipt.migrations = 688;
+    receipt.migrations = plan.after.length;
     receipt.head = plan.after.at(-1);
     receipt.requestFence = "installed-disabled";
     receipt.api = "fresh-read-and-zero-row-write";

@@ -5,62 +5,25 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { type WaiverSignatureInput } from "@/types";
 import {
-  SIGNED_WAIVER_UPLOAD_MAX_BYTES,
-  SIGNED_WAIVER_UPLOAD_TYPES,
-  signedWaiverUploadFailureMessage,
-} from "@/lib/waiver/upload-limits";
-import {
-  MAX_WAIVER_SIGNATURE_BYTES,
   WAIVER_SIGNATURE_BUCKET,
   type WaiverSignatureRecord,
   getRequestMetadata,
   isMissingWaiverDisableEsignatureColumnError,
-  parseDataUrl,
 } from "./shared";
 import { buildWaiverEvidencePath } from "@/lib/waiver/evidence-path";
+import {
+  WAIVER_SIGNING_REFUSALS,
+  currentEvidenceSource,
+  findEvidencePlacementProblem,
+  sameWaiverSource,
+  waiverSourceSnapshot,
+  type StoredWaiverDefinition,
+} from "@/lib/waiver/source-boundary";
+import { storeWaiverSignatureAssets } from "./waiver-evidence-assets";
 
-export async function uploadWaiverAsset(params: {
-  bucket: string;
-  dataUrl: string;
-  fileName: string;
-  maxBytes: number;
-  allowedTypes?: string[];
-}) {
-  const parsed = parseDataUrl(params.dataUrl);
-  if (!parsed) {
-    return { error: "Invalid file data.", reason: "invalid" as const };
-  }
-
-  if (
-    params.allowedTypes &&
-    !params.allowedTypes.includes(parsed.contentType)
-  ) {
-    return { error: "Unsupported file type.", reason: "type" as const };
-  }
-
-  if (parsed.size > params.maxBytes) {
-    return { error: "File is too large.", reason: "size" as const };
-  }
-
-  const serviceSupabase = getAdminClient();
-  const { error: uploadError } = await serviceSupabase.storage
-    .from(params.bucket)
-    .upload(params.fileName, parsed.buffer, {
-      contentType: parsed.contentType,
-      cacheControl: "3600",
-      upsert: false,
-    });
-
-  if (uploadError) {
-    safeConsole.error("Error uploading waiver asset:", uploadError);
-    return {
-      error: "Failed to upload waiver file.",
-      reason: "storage" as const,
-    };
-  }
-
-  return { path: params.fileName, contentType: parsed.contentType };
-}
+// Storage of signature assets lives in its own module. The upload helper stays
+// importable from here for its existing callers.
+export { uploadWaiverAsset } from "./waiver-evidence-assets";
 
 export async function getCurrentSignups(
   projectId: string,
@@ -101,7 +64,7 @@ export async function prepareWaiverSignatureRecord(params: {
   let { data: project } = await serviceSupabase
     .from("projects")
     .select(
-      "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_disable_esignature, waiver_definition_id",
+      "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_disable_esignature, waiver_definition_id, project_timezone",
     )
     .eq("id", params.projectId)
     .maybeSingle();
@@ -111,7 +74,7 @@ export async function prepareWaiverSignatureRecord(params: {
       await serviceSupabase
         .from("projects")
         .select(
-          "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_definition_id",
+          "waiver_pdf_url, waiver_pdf_storage_path, waiver_allow_upload, waiver_definition_id, project_timezone",
         )
         .eq("id", params.projectId)
         .maybeSingle();
@@ -151,6 +114,12 @@ export async function prepareWaiverSignatureRecord(params: {
     ? true
     : (project?.waiver_allow_upload ?? true);
 
+  // A full signed copy uploaded by the volunteer is its own document. Every
+  // other type is stamped onto the source PDF later.
+  const signatureType = params.waiverSignature.signatureType;
+  const isSignedCopyUpload = signatureType === "upload";
+  let storedDefinition: StoredWaiverDefinition | null = null;
+
   // New system: waiver_definitions are the canonical waiver source (PDF + placements).
   if (waiverDefinitionId) {
     if (project.waiver_definition_id !== waiverDefinitionId) {
@@ -162,7 +131,7 @@ export async function prepareWaiverSignatureRecord(params: {
 
     const { data: definition, error: defError } = await serviceSupabase
       .from("waiver_definitions")
-      .select("id, pdf_public_url, pdf_storage_path")
+      .select("id, pdf_public_url, pdf_storage_path, signers, fields")
       .eq("id", waiverDefinitionId)
       .eq("project_id", params.projectId)
       .limit(1)
@@ -178,212 +147,84 @@ export async function prepareWaiverSignatureRecord(params: {
       return { error: "Invalid waiver definition.", uploadedPaths: [] };
     }
 
-    // A definition is the immutable source used by historical signatures.
-    waiverPdfUrl = definition.pdf_public_url || waiverPdfUrl;
-    waiverPdfStoragePath = definition.pdf_storage_path || waiverPdfStoragePath;
+    // A definition is the immutable source used by historical signatures. Its
+    // placements only mean something on the PDF it was saved against, so an
+    // e-signature is refused while the project points at a different one.
+    const definitionSource = waiverSourceSnapshot(
+      definition.pdf_storage_path,
+      definition.pdf_public_url,
+    );
+    const projectSource = waiverSourceSnapshot(
+      waiverPdfStoragePath,
+      waiverPdfUrl,
+    );
+    if (
+      !isSignedCopyUpload &&
+      !sameWaiverSource(params.projectId, definitionSource, projectSource)
+    ) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS.stale_waiver,
+        uploadedPaths: [],
+      };
+    }
+    // The snapshot the database requires of every new evidence row.
+    const evidenceSource = currentEvidenceSource(
+      params.projectId,
+      projectSource,
+      definitionSource,
+    );
+    waiverPdfUrl = evidenceSource.publicUrl;
+    waiverPdfStoragePath = evidenceSource.storagePath;
+    storedDefinition = definition;
   }
 
   // No global waiver fallback - projects must have custom waivers
 
+  // The placement of an e-signature is proven against the actual bytes of the
+  // source PDF before any signature asset is stored. Nothing the browser
+  // reports about the document is trusted, and no placement is moved.
+  if (!isSignedCopyUpload) {
+    const placementProblem = await findEvidencePlacementProblem({
+      projectId: params.projectId,
+      source: waiverSourceSnapshot(waiverPdfStoragePath, waiverPdfUrl),
+      definition: storedDefinition,
+      evidence: {
+        signaturePayload:
+          signatureType === "multi-signer"
+            ? (params.waiverSignature.payload ?? null)
+            : null,
+        hasDrawnSignature: signatureType === "draw",
+        typedSignatureText:
+          signatureType === "typed"
+            ? (params.waiverSignature.signatureText ?? null)
+            : null,
+        signedAt: null,
+      },
+      // Measured in the project's zone, as the signed-copy routes stamp it.
+      timeZone: project.project_timezone ?? null,
+      adminClient: serviceSupabase,
+    });
+    if (placementProblem) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS[placementProblem],
+        uploadedPaths: [],
+      };
+    }
+  }
+
   const { ipAddress, userAgent } = await getRequestMetadata();
-  let signaturePayload: Record<string, unknown> | null = null;
-  let signatureStoragePath: string | null = null;
-  let uploadStoragePath: string | null = null;
-  const uploadedSignaturePaths: string[] = [];
-
-  const removeUploadedSignatureAssets = async () => {
-    if (uploadedSignaturePaths.length === 0) return;
-
-    const { error } = await serviceSupabase.storage
-      .from(WAIVER_SIGNATURE_BUCKET)
-      .remove(uploadedSignaturePaths);
-
-    if (error) {
-      safeConsole.error("Failed to roll back uploaded waiver assets:", error);
-    }
-  };
-
-  // Handle Multi-Signer Payload (Phase 4)
-  if (
-    params.waiverSignature.signatureType === "multi-signer" &&
-    params.waiverSignature.payload
-  ) {
-    const rawPayload = params.waiverSignature.payload;
-    const processedSigners = [];
-
-    // Phase 1: Validate upload permissions for multi-signer flow
-    for (const signer of rawPayload.signers) {
-      if (signer.method === "upload" && !waiverAllowUpload) {
-        return {
-          error: "Signature upload is not allowed for this project.",
-          uploadedPaths: uploadedSignaturePaths,
-        };
-      }
-    }
-
-    // Process each signer (upload assets)
-    for (const signer of rawPayload.signers) {
-      // Checked here for every project, with or without a waiver definition.
-      // A signer whose method is not one of these would keep its `data` as
-      // sent, and that value is later read as a storage path.
-      if (
-        signer.method !== "draw" &&
-        signer.method !== "typed" &&
-        signer.method !== "upload"
-      ) {
-        await removeUploadedSignatureAssets();
-        return {
-          error: "One of the waiver signatures is not in a supported format.",
-          uploadedPaths: uploadedSignaturePaths,
-        };
-      }
-      const processedSigner = { ...signer };
-
-      if (
-        signer.data &&
-        (signer.method === "draw" || signer.method === "upload")
-      ) {
-        // Phase 1: Multi-signer signatures are ONLY images, never full PDFs
-        // The "upload" method here refers to uploading a signature image, not a full waiver PDF
-        const bucket = WAIVER_SIGNATURE_BUCKET; // Always use signature bucket for multi-signer assets
-        const maxBytes = MAX_WAIVER_SIGNATURE_BYTES;
-        const allowedTypes = ["image/png", "image/jpeg", "image/jpg"]; // Images only
-
-        // Detect file extension from data URL for proper storage
-        const parsed = parseDataUrl(signer.data);
-        let fileExt = "png"; // default
-        if (
-          parsed?.contentType === "image/jpeg" ||
-          parsed?.contentType === "image/jpg"
-        ) {
-          fileExt = "jpg";
-        }
-
-        const fileName = buildWaiverEvidencePath({
-          folder: "signatures",
-          projectId: params.projectId,
-          evidenceKey: params.evidenceKey,
-          extension: fileExt,
-        });
-
-        // Upload asset
-        const uploadResult = await uploadWaiverAsset({
-          bucket,
-          dataUrl: signer.data,
-          fileName,
-          maxBytes,
-          allowedTypes,
-        });
-
-        if (uploadResult.error) {
-          await removeUploadedSignatureAssets();
-          safeConsole.error("Error uploading signer asset", {
-            signerRoleKey: signer.role_key,
-            uploadError: uploadResult.error,
-          });
-          return {
-            error: "Failed to upload one of the required signature assets.",
-            uploadedPaths: uploadedSignaturePaths,
-          };
-        }
-
-        // Replace data with storage path
-        processedSigner.data = uploadResult.path || "";
-        if (uploadResult.path) uploadedSignaturePaths.push(uploadResult.path);
-      }
-      processedSigners.push(processedSigner);
-    }
-
-    signaturePayload = {
-      ...rawPayload,
-      signers: processedSigners,
-    };
-  }
-
-  if (params.waiverSignature.signatureType === "draw") {
-    const drawContentType = parseDataUrl(
-      params.waiverSignature.signatureImageDataUrl ?? "",
-    )?.contentType;
-    const extension =
-      drawContentType === "image/jpeg" || drawContentType === "image/jpg"
-        ? "jpg"
-        : "png";
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_SIGNATURE_BUCKET,
-      dataUrl: params.waiverSignature.signatureImageDataUrl ?? "",
-      fileName: buildWaiverEvidencePath({
-        folder: "signatures",
-        projectId: params.projectId,
-        evidenceKey: params.evidenceKey,
-        extension,
-      }),
-      maxBytes: MAX_WAIVER_SIGNATURE_BYTES,
-      allowedTypes: ["image/png", "image/jpeg", "image/jpg"],
-    });
-
-    if (uploadResult.error || !uploadResult.path) {
-      return {
-        error: "Failed to store the drawn signature.",
-        uploadedPaths: uploadedSignaturePaths,
-      };
-    }
-
-    signatureStoragePath = uploadResult.path;
-    uploadedSignaturePaths.push(uploadResult.path);
-  }
-
-  if (params.waiverSignature.signatureType === "upload") {
-    if (!waiverAllowUpload) {
-      await removeUploadedSignatureAssets();
-      return {
-        error: "Signed waiver uploads are not allowed for this project.",
-        uploadedPaths: uploadedSignaturePaths,
-      };
-    }
-
-    if (!waiverPdfStoragePath && !waiverPdfUrl) {
-      await removeUploadedSignatureAssets();
-      return {
-        error:
-          "A configured waiver document is required before uploading a signed copy.",
-        uploadedPaths: uploadedSignaturePaths,
-      };
-    }
-
-    const contentType = parseDataUrl(
-      params.waiverSignature.uploadFileDataUrl ?? "",
-    )?.contentType;
-    const extension =
-      contentType === "application/pdf"
-        ? "pdf"
-        : contentType === "image/jpeg" || contentType === "image/jpg"
-          ? "jpg"
-          : "png";
-    const uploadResult = await uploadWaiverAsset({
-      bucket: WAIVER_SIGNATURE_BUCKET,
-      dataUrl: params.waiverSignature.uploadFileDataUrl ?? "",
-      fileName: buildWaiverEvidencePath({
-        folder: "signed-waivers",
-        projectId: params.projectId,
-        evidenceKey: params.evidenceKey,
-        extension,
-      }),
-      maxBytes: SIGNED_WAIVER_UPLOAD_MAX_BYTES,
-      allowedTypes: [...SIGNED_WAIVER_UPLOAD_TYPES, "image/jpg"],
-    });
-
-    if (uploadResult.error || !uploadResult.path) {
-      await removeUploadedSignatureAssets();
-      return {
-        // Say which rule the file broke, so the volunteer can fix it.
-        error: signedWaiverUploadFailureMessage(uploadResult.reason),
-        uploadedPaths: uploadedSignaturePaths,
-      };
-    }
-
-    uploadStoragePath = uploadResult.path;
-    uploadedSignaturePaths.push(uploadResult.path);
-  }
+  // Only reached once the placement above has passed.
+  const storedAssets = await storeWaiverSignatureAssets({
+    projectId: params.projectId,
+    evidenceKey: params.evidenceKey,
+    waiverSignature: params.waiverSignature,
+    waiverAllowUpload,
+    hasWaiverSource: Boolean(waiverPdfStoragePath || waiverPdfUrl),
+    adminClient: serviceSupabase,
+  });
+  if ("error" in storedAssets) return storedAssets;
+  const { signaturePayload, signatureStoragePath, uploadStoragePath } =
+    storedAssets;
 
   return {
     record: {
@@ -404,7 +245,7 @@ export async function prepareWaiverSignatureRecord(params: {
       ip_address: ipAddress,
       user_agent: userAgent,
     },
-    uploadedPaths: uploadedSignaturePaths,
+    uploadedPaths: storedAssets.uploadedPaths,
   };
 }
 
@@ -459,6 +300,88 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
       error: "No existing waiver signature found for this anonymous profile.",
       uploadedPaths: [],
     };
+  }
+
+  // Reused evidence is new evidence for a new signup. It is only copied while
+  // it still describes the project's current waiver, and nothing is copied
+  // before that is known.
+  const { data: currentProject, error: currentProjectError } =
+    await serviceSupabase
+      .from("projects")
+      .select(
+        "waiver_pdf_url, waiver_pdf_storage_path, waiver_definition_id, project_timezone",
+      )
+      .eq("id", params.projectId)
+      .maybeSingle();
+
+  if (currentProjectError || !currentProject) {
+    return {
+      error: "Failed to reuse existing waiver signature.",
+      uploadedPaths: [],
+    };
+  }
+
+  const reusedSource = waiverSourceSnapshot(
+    latestSignature.waiver_pdf_storage_path,
+    latestSignature.waiver_pdf_url,
+  );
+  const projectSource = waiverSourceSnapshot(
+    currentProject.waiver_pdf_storage_path,
+    currentProject.waiver_pdf_url,
+  );
+  const reusedDefinitionId = latestSignature.waiver_definition_id ?? null;
+  if (
+    reusedDefinitionId !== (currentProject.waiver_definition_id ?? null) ||
+    !sameWaiverSource(params.projectId, reusedSource, projectSource)
+  ) {
+    return { error: WAIVER_SIGNING_REFUSALS.stale_waiver, uploadedPaths: [] };
+  }
+
+  let reusedDefinition: StoredWaiverDefinition | null = null;
+  if (reusedDefinitionId) {
+    const { data: definition, error: definitionError } = await serviceSupabase
+      .from("waiver_definitions")
+      .select("id, pdf_public_url, pdf_storage_path, signers, fields")
+      .eq("id", reusedDefinitionId)
+      .eq("project_id", params.projectId)
+      .maybeSingle();
+
+    if (definitionError || !definition) {
+      return { error: WAIVER_SIGNING_REFUSALS.stale_waiver, uploadedPaths: [] };
+    }
+    reusedDefinition = definition;
+  }
+  // The new row carries the current snapshot, as freshly signed evidence does.
+  const clonedSource = currentEvidenceSource(
+    params.projectId,
+    projectSource,
+    reusedDefinition &&
+      waiverSourceSnapshot(
+        reusedDefinition.pdf_storage_path,
+        reusedDefinition.pdf_public_url,
+      ),
+  );
+
+  if (!latestSignature.upload_storage_path) {
+    const placementProblem = await findEvidencePlacementProblem({
+      projectId: params.projectId,
+      source: clonedSource,
+      definition: reusedDefinition,
+      evidence: {
+        signaturePayload: latestSignature.signature_payload,
+        hasDrawnSignature: Boolean(latestSignature.signature_storage_path),
+        typedSignatureText: latestSignature.signature_text,
+        signedAt: null,
+      },
+      timeZone: currentProject.project_timezone ?? null,
+      adminClient: serviceSupabase,
+    });
+    if (placementProblem) {
+      return {
+        error: WAIVER_SIGNING_REFUSALS[placementProblem],
+        uploadedPaths: [],
+      };
+    }
   }
 
   const copiedPaths: string[] = [];
@@ -580,6 +503,8 @@ export async function prepareClonedAnonymousWaiverRecord(params: {
   return {
     record: {
       ...latestSignature,
+      waiver_pdf_url: clonedSource.publicUrl,
+      waiver_pdf_storage_path: clonedSource.storagePath,
       signature_storage_path: clonedSignatureStoragePath,
       upload_storage_path: clonedUploadStoragePath,
       signature_payload: clonedSignaturePayload,

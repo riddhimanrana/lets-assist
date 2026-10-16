@@ -180,9 +180,14 @@ export default function DraftsSidebar({
       if ("error" in result && result.error) {
         toast.error(result.error);
       } else if ("success" in result && result.success && result.id) {
-        toast.success("Project published successfully!");
-        // Update local state
-        setRemovedDraftIds((ids) => [...ids, draftId]);
+        if ("draftRetained" in result && result.draftRetained) {
+          // The draft is still saved, so it stays in the list.
+          toast.warning(result.message);
+        } else {
+          toast.success("Project published successfully!");
+          // Update local state
+          setRemovedDraftIds((ids) => [...ids, draftId]);
+        }
         router.push(`/projects/${result.id}`);
       }
     } catch (error) {

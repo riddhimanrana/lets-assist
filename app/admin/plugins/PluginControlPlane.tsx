@@ -56,7 +56,7 @@ export default function PluginControlPlane({ data }: PluginControlPlaneProps) {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="w-full gap-6"
+        className="w-full min-w-0 gap-6"
       >
         <TabsList variant="line" className="border-b">
           <TabsTrigger value="overview" className="flex-none">

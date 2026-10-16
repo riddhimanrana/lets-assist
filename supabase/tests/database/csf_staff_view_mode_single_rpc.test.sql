@@ -1,7 +1,7 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(11);
+SELECT extensions.plan(17);
 
 SELECT extensions.has_function(
   'public',
@@ -165,5 +165,77 @@ SELECT extensions.throws_ok(
 );
 
 RESET ROLE;
+-- Advisor warning: authenticated EXECUTE is intentional only while the
+-- SECURITY DEFINER body keeps this preference caller- and organization-scoped.
+SELECT set_config('request.jwt.claim.sub', '', true);
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok(
+  $$SELECT public.set_csf_staff_view_mode(
+    'fd100000-0000-4000-8000-000000000001', 'officer'
+  )$$,
+  '42501', 'Authentication is required.',
+  'an authenticated role without an actor cannot store a preference'
+);
+RESET ROLE;
+
+INSERT INTO public.organizations (id, name, username, type, join_code)
+VALUES (
+  'fd100000-0000-4000-8000-000000000002',
+  'Other View Mode Organization', 'other-view-mode-rpc-test', 'school', '983402'
+);
+SELECT set_config(
+  'request.jwt.claim.sub', 'fd000000-0000-4000-8000-000000000001', true
+);
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok(
+  $$SELECT public.set_csf_staff_view_mode(
+    'fd100000-0000-4000-8000-000000000002', 'officer'
+  )$$,
+  '42501', 'Active organization staff access is required.',
+  'staff cannot store a preference for another organization'
+);
+RESET ROLE;
+
+UPDATE public.organization_members SET status = 'inactive'
+WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
+  AND user_id = 'fd000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT extensions.throws_ok(
+  $$SELECT public.set_csf_staff_view_mode(
+    'fd100000-0000-4000-8000-000000000001', 'officer'
+  )$$,
+  '42501', 'Active organization staff access is required.',
+  'inactive staff cannot update an existing preference'
+);
+RESET ROLE;
+
+SELECT set_config('request.jwt.claim.sub', '', true);
+SET LOCAL ROLE anon;
+SELECT extensions.throws_ok(
+  $$SELECT public.set_csf_staff_view_mode(
+    'fd100000-0000-4000-8000-000000000001', 'officer'
+  )$$,
+  '42501', NULL,
+  'anonymous callers cannot execute the privileged preference operation'
+);
+RESET ROLE;
+
+SELECT extensions.is(
+  (SELECT count(*)::integer FROM plugin_data.csf_staff_view_preferences
+   WHERE organization_id IN (
+     'fd100000-0000-4000-8000-000000000001',
+     'fd100000-0000-4000-8000-000000000002'
+   )),
+  1,
+  'refused callers create no additional preference rows'
+);
+SELECT extensions.is(
+  (SELECT view_mode FROM plugin_data.csf_staff_view_preferences
+   WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
+     AND user_id = 'fd000000-0000-4000-8000-000000000001'),
+  'member',
+  'refused callers leave the accepted caller preference unchanged'
+);
+
 SELECT extensions.finish();
 ROLLBACK;

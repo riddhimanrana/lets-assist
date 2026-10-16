@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { landingDemoAssets } from "./landing-demo-assets";
+import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
 
 describe("landing demo assets", () => {
   test("uses repository assets for every supported loopback Supabase host", () => {
@@ -23,5 +26,16 @@ describe("landing demo assets", () => {
     expect(assets.projectId).toBe("7b3e75d0-78d6-4857-9b21-4bcbf3b744d3");
     expect(assets.projectImage).toStartWith("https://api.lets-assist.com/");
     expect(assets.coordinatorImage).toStartWith("https://api.lets-assist.com/");
+  });
+
+  test("shows a UUID-shaped demo address as text, without a live project link", () => {
+    const address = `lets-assist.com/projects/${landingDemoAssets(undefined).projectId}`;
+    const html = renderToStaticMarkup(
+      createElement(LandingDemoWindowChrome, { displayUrl: address }),
+    );
+    expect(html).toContain(address);
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain("Sample project");
+    expect(html).not.toContain("santa-cruz-beach-cleanup");
   });
 });

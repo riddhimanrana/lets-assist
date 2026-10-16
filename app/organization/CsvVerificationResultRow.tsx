@@ -12,18 +12,28 @@ import {
   CertificateStatusBadge,
   CertificateTypeBadge,
 } from "./CsvVerificationBadges";
-import { formatHours } from "./csv-verification-logic";
+import { formatHours, parseStrictHours } from "./csv-verification-logic";
 import type { CertificateRow } from "./csv-verification-types";
 import { cn } from "@/lib/utils";
 
 const MATCH_LABELS: Record<string, string> = {
   certificateId: "Certificate ID",
   title: "Project title",
+  organization: "Organization name",
   organizer: "Organizer name",
+  recipientName: "Volunteer name",
+  recipientEmail: "Volunteer email",
   hours: "Duration/hours",
   status: "Certification status",
   type: "Certificate type",
+  location: "Location",
 };
+
+/** The duration cell as hours, or nothing when it is not a plain number. */
+function durationLabel(duration: string | undefined) {
+  const hours = parseStrictHours(duration);
+  return hours === null ? null : formatHours(hours);
+}
 
 function Detail({
   label,
@@ -47,6 +57,9 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
     : undefined;
   const canView = Boolean(row.certificateId && row.isVerified);
   const certificateHref = `/certificates/${row.certificateId}`;
+  const duration = durationLabel(row.duration);
+  const emailNotOnRecord =
+    !row.verificationResult?.certificate?.recipient?.email?.trim();
 
   return (
     <Collapsible render={<li />}>
@@ -62,7 +75,7 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
             </span>
             <span className="text-muted-foreground truncate text-xs">
               {row.organizationName || "N/A"}
-              {row.duration ? `, ${formatHours(parseFloat(row.duration))}` : ""}
+              {duration ? `, ${duration}` : ""}
             </span>
           </span>
           <span className="hidden shrink-0 sm:block">
@@ -105,11 +118,7 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
             <Detail label="Type">
               <CertificateTypeBadge row={row} />
             </Detail>
-            {row.duration ? (
-              <Detail label="Duration">
-                {formatHours(parseFloat(row.duration))}
-              </Detail>
-            ) : null}
+            {duration ? <Detail label="Duration">{duration}</Detail> : null}
           </dl>
 
           {row.issues.length > 0 ? (
@@ -147,6 +156,9 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
                     <span>
                       {MATCH_LABELS[key] ??
                         key.replace(/([A-Z])/g, " $1").trim()}
+                      {key === "recipientEmail" && emailNotOnRecord
+                        ? " (no email on record, so it cannot be confirmed)"
+                        : ""}
                     </span>
                     <span className="sr-only">
                       {value ? "matches" : "does not match"}
@@ -189,12 +201,26 @@ export function CsvVerificationResultRow({ row }: { row: CertificateRow }) {
 
           {row.verificationStatus === "failed" ? (
             <Alert variant="destructive">
-              <AlertTitle>Certificate not found in our database</AlertTitle>
+              <AlertTitle>
+                {row.verificationResult?.exists === false
+                  ? "Certificate not found in our database"
+                  : "This certificate could not be verified"}
+              </AlertTitle>
               {row.verificationResult?.error ? (
                 <AlertDescription>
                   Error: {row.verificationResult.error}
                 </AlertDescription>
               ) : null}
+            </Alert>
+          ) : null}
+
+          {row.verificationStatus === "unavailable" ? (
+            <Alert variant="warning">
+              <AlertTitle>Verification unavailable</AlertTitle>
+              <AlertDescription>
+                We could not check this certificate, so it is neither confirmed
+                nor missing. Run the verification again.
+              </AlertDescription>
             </Alert>
           ) : null}
         </div>

@@ -1,5 +1,6 @@
 import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { workerHeartbeatOwner } from "@/lib/cron/worker-heartbeat";
 import { NextRequest, NextResponse } from "next/server";
 import {
   mapWithConcurrency,
@@ -9,18 +10,13 @@ import { getAdminClient } from "@/lib/supabase/admin";
 import {
   ORGANIZATION_SHEET_SYNC_COLUMNS,
   runOrganizationSheetSync,
+  type OrganizationSheetSyncConfig,
 } from "@/lib/google-sheets/organization-report-sync";
 import {
-  isSheetSyncDue,
-  ORGANIZATION_SHEET_SYNC_MIN_INTERVAL_MINUTES,
-  selectSheetSyncBatch,
-  sheetSyncWindowCursor,
+  discoverDueSheetSyncs,
+  type SheetSyncQueueClient,
 } from "@/lib/google-sheets/organization-sync-queue";
 import { logError, logInfo, logWarn } from "@/lib/logger";
-import {
-  getGoogleAccessTokenForSheetsForUser,
-  organizationSheetsGoogleBinding,
-} from "@/services/calendar";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
@@ -41,10 +37,8 @@ const MAX_ORGANIZATIONS_PER_RUN = readPositiveInteger(
   25,
   200,
 );
-// The query cannot compare a row's own interval with its last sync, so it
-// loads a bounded window of candidates and the exact check runs here.
-const CANDIDATE_WINDOW = MAX_ORGANIZATIONS_PER_RUN * 4;
-// No organization starts once the run is this close to the function limit.
+// No query runs and no organization starts once the run is this close to the
+// function limit.
 const RUN_BUDGET_MS = maxDuration * 1000 - 10_000;
 // One organization gets this long, so a slow or very large sheet for one
 // tenant cannot use up the run for the others.
@@ -57,6 +51,13 @@ const MINIMUM_START_BUDGET_MS = Math.min(5_000, ORGANIZATION_BUDGET_MS);
 // How long a slot waits for a timed-out organization's work to end before
 // the next organization may use it.
 const SETTLE_GRACE_MS = Math.min(2_000, ORGANIZATION_BUDGET_MS);
+
+/** A selected configuration as loaded: the sync's columns and its schedule. */
+type SheetSyncRow = OrganizationSheetSyncConfig & {
+  auto_sync: boolean;
+  sync_interval_minutes: number;
+  last_synced_at: string | null;
+};
 
 type SheetSyncRunResult =
   | { organizationId: string; success: true }
@@ -108,8 +109,8 @@ export async function POST(request: NextRequest) {
 
   if (!WORKER_ENABLED) {
     return NextResponse.json(
-      { message: "Sheet sync worker disabled" },
-      { status: 200 },
+      { enabled: false, message: "Sheet sync worker disabled" },
+      { status: 503 },
     );
   }
 
@@ -119,69 +120,41 @@ export async function POST(request: NextRequest) {
     async () => {
       const supabase = getAdminClient();
       const startedAt = Date.now();
-      const earliestDue = new Date(
-        startedAt - ORGANIZATION_SHEET_SYNC_MIN_INTERVAL_MINUTES * 60 * 1000,
-      ).toISOString();
-      // The window starts at a point in the id space that moves with the run
-      // time and wraps around. Ordering by last sync alone would let the
-      // organizations that never succeed fill the window on every run and
-      // keep the ones behind them from ever being loaded.
-      const cursor = sheetSyncWindowCursor(startedAt);
-      const loadWindow = (side: "from" | "before", count: number) => {
-        const query = supabase
-          .from("organization_sheet_syncs")
-          .select(
-            `${ORGANIZATION_SHEET_SYNC_COLUMNS}, auto_sync, sync_interval_minutes, last_synced_at`,
-          )
-          .eq("auto_sync", true)
-          .or(`last_synced_at.is.null,last_synced_at.lte.${earliestDue}`);
-        return (
-          side === "from"
-            ? query.gte("organization_id", cursor)
-            : query.lt("organization_id", cursor)
-        )
-          .order("organization_id", { ascending: true })
-          .limit(count);
-      };
-
-      const first = await loadWindow("from", CANDIDATE_WINDOW);
-      if (first.error) {
+      // Both discovery calls end with the run's budget.
+      const discovery = await discoverDueSheetSyncs<SheetSyncRow>({
+        supabase: supabase as unknown as SheetSyncQueueClient,
+        columns: `${ORGANIZATION_SHEET_SYNC_COLUMNS}, auto_sync, sync_interval_minutes, last_synced_at`,
+        maxOrganizations: MAX_ORGANIZATIONS_PER_RUN,
+        startedAt,
+        signal: AbortSignal.timeout(RUN_BUDGET_MS),
+      });
+      if (discovery.status !== "selected") {
+        // Captured, so an unread queue is recorded as blocked instead of as a
+        // healthy empty pass. An unknown count is not turned into a backlog.
+        const body = {
+          processed: 0,
+          results: [],
+          deferredOrganizations:
+            discovery.status === "unloaded" ? discovery.dueCount : 0,
+          discoveryCounted: discovery.status === "unloaded",
+          discoveryIncomplete: true,
+        };
+        summary.capture(body);
+        logWarn("Organization sheet sync discovery failed", {
+          discovery: discovery.status,
+        });
         return NextResponse.json(
-          { error: first.error.message },
+          { error: "Sheet sync discovery failed", ...body },
           { status: 500 },
         );
       }
-      const firstRows = first.data || [];
-      let syncRows = firstRows;
-      if (firstRows.length < CANDIDATE_WINDOW) {
-        const wrapped = await loadWindow(
-          "before",
-          CANDIDATE_WINDOW - firstRows.length,
-        );
-        if (wrapped.error) {
-          return NextResponse.json(
-            { error: wrapped.error.message },
-            { status: 500 },
-          );
-        }
-        syncRows = [...firstRows, ...(wrapped.data || [])];
-      }
-
-      const dueRows = (syncRows || []).filter((row) =>
-        isSheetSyncDue(
-          row.last_synced_at,
-          row.sync_interval_minutes || 1440,
-          startedAt,
-        ),
-      );
-      const selectedRows = selectSheetSyncBatch(
-        dueRows,
-        MAX_ORGANIZATIONS_PER_RUN,
-        startedAt,
-      );
+      const { dueCount } = discovery;
+      // A configuration switched off since it was selected is not attempted.
+      // It stays in this pass's deferred count, so the pass is not healthy.
+      const selectedRows = discovery.rows.filter((row) => row.auto_sync);
 
       const syncOrganization = async (
-        row: (typeof selectedRows)[number],
+        row: SheetSyncRow,
         signal: AbortSignal,
       ): Promise<SheetSyncRunResult> => {
         const ownerAuthorization =
@@ -203,24 +176,12 @@ export async function POST(request: NextRequest) {
             // since changed the owner or the spreadsheet, leave theirs alone.
             .eq("organization_id", row.organization_id)
             .eq("created_by", row.created_by)
-            .eq("sheet_id", row.sheet_id);
+            .eq("sheet_id", row.sheet_id)
+            .eq("updated_at", row.updated_at);
           return failed(
             row.organization_id,
             "owner_not_admin",
             "Sync owner no longer has active organization admin access",
-          );
-        }
-
-        const accessToken = await getGoogleAccessTokenForSheetsForUser(
-          row.created_by,
-          true,
-          organizationSheetsGoogleBinding(row.organization_id),
-        );
-        if (!accessToken) {
-          return failed(
-            row.organization_id,
-            "no_google_token",
-            "No Google token",
           );
         }
 
@@ -229,7 +190,6 @@ export async function POST(request: NextRequest) {
         const result = await runOrganizationSheetSync({
           supabase,
           config: row,
-          accessToken,
           signal,
         });
         return result.success
@@ -283,7 +243,9 @@ export async function POST(request: NextRequest) {
       const results = outcomes.filter(
         (outcome): outcome is SheetSyncRunResult => outcome !== null,
       );
-      const deferred = dueRows.length - results.length;
+      // Everything due at the start that was not attempted: past the cap, not
+      // started because the run was near its deadline, or switched off since.
+      const deferred = Math.max(0, dueCount - results.length);
       if (deferred > 0) {
         logInfo("Organization sheet sync deferred organizations", {
           deferred,
@@ -291,13 +253,22 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      summary.capture({ processed: results.length, results });
-      return NextResponse.json(
-        { processed: results.length, results },
-        { status: 200 },
-      );
+      const body = {
+        processed: results.length,
+        results,
+        deferredOrganizations: deferred,
+        discoveryCounted: true,
+        discoveryIncomplete: false,
+      };
+      summary.capture(body);
+      return NextResponse.json(body, {
+        status:
+          deferred > 0 || results.some((result) => !result.success) ? 503 : 200,
+      });
     },
     summary,
+    undefined,
+    { heartbeatOwner: workerHeartbeatOwner(request) },
   );
 }
 
