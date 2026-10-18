@@ -394,3 +394,24 @@ A second clean replay returned one for the complete catalog after rolling back
 local fixture-helper removal. Ten point-trigger and permission drifts returned
 zero, with each probe rolled back. Hosted Development comparison, full CI, and
 visual acceptance remain release gates.
+
+The separate Production points-first 688 baseline is retained in
+`final-schema-points-first-688.json`. It contains the first 687 migrations plus
+`20261013071100`, with no request fence. It differs from the historical
+fence-first `final-schema-688.json`; both exact ledgers remain separately checked.
+This Production baseline permits multiple pending quantity and per-item activity claims while
+retaining the fixed and legacy one-claim guard and the shift and assessment
+one-unfinished-claim guard.
+The begin function writes the locked activity-rule snapshot on the initial
+insert, before the partial unique index evaluates the row. Both the begin and
+award assertions reserve pending plus verified points under the activity lock,
+including when staff changes the activity mode after a claim starts. The begin
+function also blocks a cross-mode sibling when a fixed or unfinished-claim
+guard would otherwise be hidden by the partial index. The clean
+replay changes only those two function digests and the point-submissions relation
+digest, which includes the revised index predicate. No objects are added or
+removed; synthetic fixture helpers were excluded inside a rolled-back capture
+transaction.
+An activity without an explicit `pointCap` uses the published semester policy's
+per-person activity cap; its `pointValue` limits one selection only. A focused
+regression claims two points, then one more, before rejecting a further claim.

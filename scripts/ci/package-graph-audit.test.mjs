@@ -58,6 +58,58 @@ function fixture() {
 }
 
 describe("independent dependency audits", () => {
+  test("the exact vendored glob dependency remains in the root audit, without skipping other vendor graphs", () => {
+    const data = fixture();
+    const directory = "vendor/fast-glob-compat";
+    mkdirSync(join(data.root, directory), { recursive: true });
+    writeFileSync(
+      join(data.root, directory, "package.json"),
+      JSON.stringify({
+        name: "fast-glob",
+        version: "3.3.3-lets-assist.1",
+        dependencies: { tinyglobby: "0.2.17" },
+      }),
+    );
+    data.files.get(data.root).push(`${directory}/package.json`);
+    writeFileSync(
+      join(data.root, "package.json"),
+      JSON.stringify({
+        packageManager: "bun@1.3.14",
+        overrides: { "fast-glob": "file:./vendor/fast-glob-compat" },
+      }),
+    );
+    writeFileSync(
+      join(data.root, "bun.lock"),
+      JSON.stringify({
+        packages: {
+          "fast-glob": ["fast-glob@file:vendor/fast-glob-compat"],
+          tinyglobby: ["tinyglobby@0.2.17"],
+        },
+      }),
+    );
+    expect(
+      discoverPackageGraphs(data.root, data.list).map((graph) => graph.label),
+    ).toEqual([
+      ".",
+      "packages/plugin-sdk",
+      "lib/plugins/private/apps/one",
+      "lib/plugins/private/apps/two",
+    ]);
+    writeFileSync(join(data.root, "bun.lock"), "{}");
+    expect(() => discoverPackageGraphs(data.root, data.list)).toThrow(
+      "covered by the root lockfile",
+    );
+    data.files.get(data.root).pop();
+    mkdirSync(join(data.root, "vendor/other"), { recursive: true });
+    writeFileSync(
+      join(data.root, "vendor/other/package.json"),
+      JSON.stringify({ packageManager: "bun@1.3.14" }),
+    );
+    data.files.get(data.root).push("vendor/other/package.json");
+    expect(() => discoverPackageGraphs(data.root, data.list)).toThrow(
+      "exactly one tracked Bun lockfile",
+    );
+  });
   test("discovers the SDK and every private application graph", () => {
     const data = fixture();
     expect(

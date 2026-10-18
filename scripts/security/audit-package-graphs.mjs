@@ -48,9 +48,10 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
   if (!lstatSync(join(root, "package.json")).isFile()) {
     throw new Error("Root package metadata must be a regular file.");
   }
-  const expectedManager = JSON.parse(
+  const rootManifest = JSON.parse(
     readFileSync(join(root, "package.json"), "utf8"),
-  ).packageManager;
+  );
+  const expectedManager = rootManifest.packageManager;
   const graphs = [];
   for (const repository of [root, privateRoot]) {
     const tracked = new Set(listFiles(repository));
@@ -68,6 +69,28 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
         .map((name) => (directory === "." ? name : `${directory}/${name}`))
         .filter((file) => tracked.has(file));
       const label = relative(root, join(repository, directory)) || ".";
+      // This exact local compatibility package is installed and audited through
+      // the root graph. It has no independently owned lockfile or release.
+      if (repository === root && directory === "vendor/fast-glob-compat") {
+        const rootLock = readFileSync(join(root, "bun.lock"), "utf8");
+        if (
+          rootManifest.overrides?.["fast-glob"] !==
+            "file:./vendor/fast-glob-compat" ||
+          manifest.name !== "fast-glob" ||
+          manifest.version !== "3.3.3-lets-assist.1" ||
+          JSON.stringify(manifest.dependencies) !==
+            JSON.stringify({ tinyglobby: "0.2.17" }) ||
+          lockfiles.length !== 0 ||
+          !/"fast-glob@file:(?:\.\/)?vendor\/fast-glob-compat"/u.test(
+            rootLock,
+          ) ||
+          !rootLock.includes('"tinyglobby@0.2.17"')
+        )
+          throw new Error(
+            "The vendored fast-glob dependency must remain covered by the root lockfile.",
+          );
+        continue;
+      }
       if (
         manifest.packageManager !== expectedManager ||
         !/^bun@\d+\.\d+\.\d+$/u.test(expectedManager)

@@ -845,6 +845,21 @@ export function acceptedCatalogQuery(source, versions) {
     );
   if (
     ledgerDigest(versions) ===
+    "264d253f7f9d5f1171b7d6c5edc07e656f8be9914b829702c22686c5556f3eac"
+  )
+    return csfSubmissionDeletionCatalog(
+      finalSchemaCatalog(
+        JSON.parse(
+          readFileSync(
+            new URL("./final-schema-points-first-688.json", import.meta.url),
+            "utf8",
+          ),
+        ),
+        versions,
+      ),
+    );
+  if (
+    ledgerDigest(versions) ===
     "d13565c216eb0c1c9085e9eacd736a6d6ce1a922b3c2ed7cebf9a089380ca425"
   )
     return csfSubmissionDeletionCatalog(

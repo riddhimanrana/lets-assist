@@ -47,6 +47,41 @@ be reachable from `main`, contain the accepted SHA, and have the identical Git
 tree. A workflow-only update does not require another application build in
 Development when these application bytes have already passed acceptance.
 
+For the isolated dependency security repair, `Deploy accepted Production app`
+also supports a security-only source gate. Set `production_app_sha` to the full
+SHA currently served on `lets-assist.com`, leave `hosted_development_sha` and
+all waiver fields empty, and enter
+`security-only:<Production app SHA>:<release SHA>` as
+`security_only_confirmation`. Keep the ordinary
+`deploy-app-only:<release SHA>` confirmation. The release SHA must be the
+reviewed `main` workflow commit. This path is restricted to the reviewed
+dependency, vendored glob replacement, and release-tooling files; application
+source, database migrations, private gitlink, and environment settings cannot
+change through it. The controller also checks the exact reviewed bytes of the
+dependency repair and release workflow. The workflow independently checks the
+verifier's exact Git blob before executing it. A later change to an allowed
+filename requires its own review; the filename alone does not extend this
+exception.
+
+The controller proves the current Production alias points to the exact ready
+Git-connected application commit, verifies the Vercel project and GitHub
+binding, and requires a successful full CI run on the release SHA. The baseline
+must carry a `gitSource` repository ID and commit SHA; a CLI deployment with
+only GitHub-looking metadata fails this gate. Full CI
+includes the dependency audit, isolated database/browser checks, and the
+Production-schema catalog tests. The existing app-only workflow then checks
+the live schema, stages the exact security build, verifies its SHA and deep
+status/login/protected-route behavior, and promotes only after the old alias
+still matches the reviewed baseline. It verifies the public alias and rolls
+back to the prior deployment if promotion fails to settle. This alternative
+does not claim the authenticated hosted Development journeys or CSF load test
+passed; those remain a distinct evidence boundary. No Development history is
+reset, and no waiver or local-validation override is accepted in this mode.
+The new release SHA starts with CSF workers off. Before a later forward
+migration, disable any still-enabled controls on the prior SHA as well as the
+new SHA and verify publication leases are drained; the migration transaction
+checks every release-control row, not just the publicly served SHA.
+
 Both `deploy-app-only.yml` and `deploy-forward-migrations.yml` allow an explicit
 release-owner waiver of hosted performance acceptance. Leave the waiver inputs
 empty for the normal gate. For a waiver, enter

@@ -1,0 +1,10 @@
+{
+  "name": "fast-glob",
+  "version": "3.3.3-lets-assist.1",
+  "private": true,
+  "main": "index.cjs",
+  "types": "index.d.ts",
+  "dependencies": {
+    "tinyglobby": "0.2.17"
+  }
+}

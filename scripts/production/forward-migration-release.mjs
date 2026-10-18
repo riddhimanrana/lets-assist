@@ -13,7 +13,10 @@ import {
   verifySchema,
 } from "./app-release-checks.mjs";
 
-import { approvedMigrations } from "./forward-migration-allowlist.mjs";
+import {
+  approvedMigrations,
+  pointsFirstApprovedMigrations,
+} from "./forward-migration-allowlist.mjs";
 export { approvedMigrations } from "./forward-migration-allowlist.mjs";
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
@@ -35,9 +38,14 @@ const ledgerQuery =
 
 export function prepareMigration(cwd, read = readFileSync, appliedVersions) {
   const versions = expectedVersions(cwd);
-  const tail = approvedMigrations.map(([name]) => name.slice(0, 14));
-  if (JSON.stringify(versions.slice(-tail.length)) !== JSON.stringify(tail))
+  const selected = [approvedMigrations, pointsFirstApprovedMigrations].find(
+    (migrations) =>
+      JSON.stringify(versions.slice(-migrations.length)) ===
+      JSON.stringify(migrations.map(([name]) => name.slice(0, 14))),
+  );
+  if (!selected)
     throw new ReleaseCheckError("The accepted migration tail is not approved.");
+  const tail = selected.map(([name]) => name.slice(0, 14));
   const minimumPrefix = versions.slice(0, -tail.length);
   const prefix = appliedVersions ?? minimumPrefix;
   if (prefix.length < minimumPrefix.length || prefix.length > versions.length)
@@ -48,7 +56,7 @@ export function prepareMigration(cwd, read = readFileSync, appliedVersions) {
     prefix.map((version) => ({ version })),
     versions.slice(0, prefix.length),
   );
-  const statements = approvedMigrations.map(([name, hash]) => {
+  const statements = selected.map(([name, hash]) => {
     const sql = read(
       resolve(cwd, "supabase/migrations", `${name}.sql`),
       "utf8",

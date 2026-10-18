@@ -58,11 +58,13 @@ not arbitrary contents of a file matched by an ordinary glob. The
 [upstream report](https://github.com/micromatch/braces/issues/70) recommends a
 small nesting bound or a smaller maximum pattern length until a fix exists.
 
-Both the platform and private application retain the vulnerable package through
-`fast-glob` and `micromatch`. Root importers include microfrontends configuration
-discovery, Next ESLint, next-sitemap, the shadcn development CLI, and repository
-inventory/test scripts. The private app includes microfrontends and Next ESLint.
-The SDK graph does not contain `braces`.
+The platform now preserves the Production dependency hotfix: its reviewed
+`fast-glob` compatibility package uses `tinyglobby` and removes `braces` and
+`micromatch` from the root graph. Compatibility tests cover microfrontends config
+discovery, sitemap paths, directory results and depth limits. The private
+application still retains `braces` through microfrontends and Next ESLint; the
+existing exception is narrowed to that unchanged graph. The SDK graph does not
+contain `braces`.
 
 Repository-owned patterns are constants in `scripts/run-tests.mjs`,
 `scripts/generate-audit-surface-inventory.mjs`, and `next-sitemap.config.js`.
@@ -77,7 +79,7 @@ The repository owner accepted this specific build-tool denial-of-service risk
 until **2026-10-21 00:00 UTC**. The gate still prints the high-severity advisory
 and an accepted-risk result. It does not describe this package as patched or the
 scan as clean. `scripts/security/braces-exception.mjs` limits acceptance to this
-advisory, `braces@3.0.3`, the exact reviewed root and private application lockfiles,
+advisory, `braces@3.0.3`, the exact reviewed package-graph lockfiles,
 and the unchanged inventory including the clean SDK graph. New advisories,
 versions, graph changes, expired acceptance, malformed JSON, and registry errors
 fail the gate. There is no severity-wide or package-wide ignore.
