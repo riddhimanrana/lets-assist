@@ -63,6 +63,41 @@ describe("project attendance availability", () => {
     ).toEqual({ isActive: true, earliestTime: "2026-12-05T17:00:00.000Z" });
   });
 
+  test("a literal role-0 starting first takes precedence over the first role alias", () => {
+    const row = project("sameDayMultiArea", {
+      schedule: {
+        sameDayMultiArea: {
+          date: "2026-12-05",
+          overallStart: "09:00",
+          overallEnd: "15:00",
+          roles: [
+            {
+              name: "Setup",
+              startTime: "13:00",
+              endTime: "15:00",
+              volunteers: 5,
+            },
+            {
+              name: "role-0",
+              startTime: "09:00",
+              endTime: "11:00",
+              volunteers: 5,
+            },
+          ],
+        },
+      },
+    });
+    expect(
+      getProjectAttendanceAvailability(
+        row,
+        new Date("2026-12-05T14:59:59.999Z"),
+      ),
+    ).toEqual({ isActive: false, earliestTime: "2026-12-05T17:00:00.000Z" });
+    expect(
+      getProjectAttendanceAvailability(row, new Date("2026-12-05T15:00Z")),
+    ).toEqual({ isActive: true, earliestTime: "2026-12-05T17:00:00.000Z" });
+  });
+
   test("uses the project summer offset and preserves a date across UTC midnight", () => {
     const row = project("oneTime", {
       project_timezone: "Pacific/Auckland",

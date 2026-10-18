@@ -20,6 +20,27 @@ Before an operator runs it:
 
 The October 12 names-only provider readback confirms that the Development environment requires review by `riddhimanrana`, permits that owner to review their own run, and contains `DEVELOPMENT_DATABASE_URL`. Presence does not prove that the credential is valid or can access the fixed database. The database readback has four active cron jobs, disabled CSF controls and no active notification lease; it is not yet quiescent. Credential capability, external-writer shutdown and an approved workflow run remain required before cutover. Local controller tests do not establish those prerequisites or a hosted cutover. Production remains held until the user reviews the revised Development deployment.
 
+## Inspect before maintenance
+
+Before opening a maintenance window, dispatch the same protected workflow from
+the exact reviewed candidate with `cutover_phase=inspect`, its full SHA and PR
+number, and `confirmation=cutover-development:inspect:<candidate SHA>`. Leave
+the receipt-run and external-writer confirmation empty. Inspection retains the
+configured environment review and exact source checks. It only reads the fixed
+Vercel project, domain, current application, Development database catalog and
+worker counts, then makes a zero-row Data API GET. It changes no Vercel or
+database state and does not claim an external writer hold. Its retained
+`inspected` or `inspection-stopped` receipt cannot authorize preparation,
+completion or a merge. Use this result to diagnose current project/team or
+credential capability before pausing jobs.
+
+The Development coordinator also recognizes the exact reviewed 729-migration
+Development history before the combined 739 target. Both ordered ledger digests
+and the accepted catalog remain mandatory. That history is not an ordered
+prefix of the combined tree; this Development-only recognition changes no
+Production ledger selection or maintenance posture check. Target verification
+still requires the complete combined ledger.
+
 ## Install the request guard before preparation
 
 Dispatch the registered workflow from the exact reviewed `codex/` candidate branch with `development_sha` set to its full SHA, `cutover_phase=bootstrap`, the existing root PR number, and `confirmation=cutover-development:bootstrap:<candidate SHA>`. Supply the external writer confirmation and leave `cutover_receipt_run` empty. This is a separate protected operation from preparation.

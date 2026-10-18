@@ -11951,3 +11951,24 @@ same three-second deadline. Continued drift still fails and tours remain open.
 Focused adversarial and native browser cases cover one delayed scroll and
 continued movement. Both native cases passed on 2d82e236 in CI38913356358;
 fresh exact-head capture remains required.
+
+`ATTENDANCE-NAMED-ROLE-AVAILABILITY-20261018`, P2: a later role named
+`role-0` collided with the first role's positional alias. Availability read
+the first role twice and could open four hours late in the focused fixture.
+Attendance session resolution now gives exact stored names precedence over
+positional aliases, matching migration `20261016063427`. Regressions cover the
+two-hour opening boundary, the literal name, the remaining positional alias
+and the other role's separate window. The existing hours-publication identity
+contract is unchanged. All 74 focused attendance, alias and print tests pass
+locally; exact-candidate CI and hosted release acceptance remain pending.
+
+`DEVELOPMENT-RECONCILED-PREFLIGHT-20261018`, P2: local reproduction shows
+the combined 739 controller rejecting Development's already reviewed 729
+history because it is not a simple prefix. The Development selector now binds
+that exact ordered history to its exact 739 target and accepted catalog;
+Production selection and full maintenance-posture checks are unchanged.
+Protected read-only inspection retains source/reviewer checks and records
+provider/database identity failures before a maintenance window is opened.
+Its receipt cannot authorize a merge or consume a preparation/recovery path.
+Focused refusal and read-only transport tests cover these boundaries; hosted
+inspection and release results remain separate.

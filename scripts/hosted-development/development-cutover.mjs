@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { maintenanceTarget } from "../production/maintenance-preflight.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
 import { pauseBootstrapCron } from "./cutover-cron.mjs";
+import { runDevelopmentInspection } from "./cutover-inspection.mjs";
 import {
   bootstrapPlan,
   bootstrapWriteFence,
@@ -69,6 +70,15 @@ export async function runDevelopmentCutover(config, dependencies = {}) {
       ? bootstrapPlan(config.cwd).after
       : maintenanceTarget(config.cwd),
   );
+  if (config.phase === "inspect")
+    return runDevelopmentInspection(config, {
+      github,
+      vercel,
+      query,
+      record,
+      now,
+      fetcher,
+    });
   let receipt = ["bootstrap", "prepare"].includes(config.phase)
     ? undefined
     : await (dependencies.loadReceipt || loadPreparation)(

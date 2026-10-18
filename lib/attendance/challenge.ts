@@ -305,7 +305,19 @@ export function getAttendanceScheduleWindow(
   project: Pick<Project, "event_type" | "schedule" | "project_timezone">,
   incomingScheduleId: string,
 ): AttendanceScheduleWindow | null {
-  const [knownId] = getScheduleIdAliases(project, incomingScheduleId);
+  if (!incomingScheduleId.trim() || incomingScheduleId.length > 200)
+    return null;
+  const roles =
+    project.event_type === "sameDayMultiArea"
+      ? project.schedule.sameDayMultiArea?.roles
+      : undefined;
+  // Match the attendance SQL parser: a stored name wins over role-N aliases.
+  const knownId = roles
+    ? (
+        roles.find((role) => role?.name === incomingScheduleId) ??
+        roles.find((_, index) => incomingScheduleId === `role-${index}`)
+      )?.name
+    : getScheduleIdAliases(project, incomingScheduleId)[0];
   if (!knownId) return null;
   const scheduleId = resolveScheduleId(project, knownId);
   const timezone = project.project_timezone || DEFAULT_PROJECT_TIMEZONE;
@@ -329,7 +341,7 @@ export function getAttendanceScheduleWindow(
     project.schedule.sameDayMultiArea
   ) {
     const role = project.schedule.sameDayMultiArea.roles.find(
-      (candidate) => candidate.name === scheduleId,
+      (candidate) => candidate?.name === scheduleId,
     );
     if (!role) return null;
     date = project.schedule.sameDayMultiArea.date;

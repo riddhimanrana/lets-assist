@@ -11,11 +11,11 @@ on:
         required: true
         type: string
       cutover_phase:
-        description: "Development maintenance cutover. Parent merges only after prepare succeeds"
+        description: "Inspect is read-only. Parent merges only after protected prepare succeeds"
         type: choice
         required: false
         default: none
-        options: [none, bootstrap, prepare, complete, recover]
+        options: [none, inspect, bootstrap, prepare, complete, recover]
       cutover_pr_number:
         description: "Existing root pull request for the exact cutover candidate"
         required: false

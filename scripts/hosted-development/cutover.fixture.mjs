@@ -47,6 +47,7 @@ process.once("exit", () =>
 );
 
 export function environment(phase = "prepare") {
+  const candidatePhase = ["inspect", "bootstrap", "prepare"].includes(phase);
   const database = new URL(
     `postgres://db.${target.database}.supabase.co/postgres`,
   );
@@ -55,23 +56,22 @@ export function environment(phase = "prepare") {
   return {
     CUTOVER_PHASE: phase,
     ACCEPTED_SHA: candidate,
-    GITHUB_SHA: ["bootstrap", "prepare"].includes(phase) ? candidate : merged,
+    GITHUB_SHA: candidatePhase ? candidate : merged,
     GITHUB_ACTIONS: "true",
     GITHUB_EVENT_NAME: "workflow_dispatch",
     GITHUB_RUN_ATTEMPT: "1",
     GITHUB_REPOSITORY: target.repository,
     GITHUB_REPOSITORY_ID: String(target.repositoryId),
-    GITHUB_REF: ["bootstrap", "prepare"].includes(phase)
+    GITHUB_REF: candidatePhase
       ? "refs/heads/codex/reviewed-fixture"
       : "refs/heads/development",
-    GITHUB_RUN_ID: ["bootstrap", "prepare"].includes(phase) ? "100" : "101",
+    GITHUB_RUN_ID: candidatePhase ? "100" : "101",
     GITHUB_ACTOR: "fixture-owner",
     CUTOVER_PR_NUMBER: "867",
-    CUTOVER_PREPARE_RUN_ID: ["bootstrap", "prepare"].includes(phase)
-      ? ""
-      : "100",
+    CUTOVER_PREPARE_RUN_ID: candidatePhase ? "" : "100",
     CONFIRMATION: `cutover-development:${phase}:${candidate}`,
-    EXTERNAL_WRITERS_CONFIRMATION: `external-writers-stopped:${candidate}`,
+    EXTERNAL_WRITERS_CONFIRMATION:
+      phase === "inspect" ? "" : `external-writers-stopped:${candidate}`,
     SUPABASE_PROJECT_ID: target.database,
     SUPABASE_URL: `https://${target.database}.supabase.co`,
     DEVELOPMENT_DATABASE_URL: database.href,
@@ -114,17 +114,14 @@ export function preparedReceipt() {
 }
 
 export function controllerFixture(phase = "prepare") {
+  const candidatePhase = ["inspect", "bootstrap", "prepare"].includes(phase);
   const config = { ...cutoverConfig(environment(phase)), cwd: fixtureCwd };
   const receipt = preparedReceipt();
   const state = {
-    domain: ["bootstrap", "prepare"].includes(phase)
-      ? target.branch
-      : target.holdBranch,
-    alias: ["bootstrap", "prepare"].includes(phase)
-      ? "dpl_Prior"
-      : "dpl_Maintenance",
-    current: ["bootstrap", "prepare"].includes(phase) ? base : merged,
-    blocked: !["bootstrap", "prepare"].includes(phase),
+    domain: candidatePhase ? target.branch : target.holdBranch,
+    alias: candidatePhase ? "dpl_Prior" : "dpl_Maintenance",
+    current: candidatePhase ? base : merged,
+    blocked: !candidatePhase,
     retention: false,
     records: [],
     writes: [],
@@ -289,6 +286,15 @@ export function controllerFixture(phase = "prepare") {
     throw new Error(`Unexpected Vercel fixture path ${path}`);
   };
   const query = (_url, sql) => {
+    if (sql.includes("'inspectionCatalog'"))
+      return JSON.stringify({
+        inspectionLedger: true,
+        inspectionCatalog: true,
+        activeCron: 4,
+        runningCron: 0,
+        enabledControlRows: 0,
+        publicationLeases: 0,
+      });
     if (sql.includes("SELECT 'development-bootstrap-cron-paused'")) {
       state.writes.push({ kind: "cron-pause", sql });
       return "development-bootstrap-cron-paused";

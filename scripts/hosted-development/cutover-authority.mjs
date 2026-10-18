@@ -53,7 +53,9 @@ export function cutoverConfig(env) {
     "Development Supabase project or canonical URL does not match the fixed target.",
   );
   requireCondition(
-    ["bootstrap", "prepare", "complete", "recover"].includes(config.phase) &&
+    ["inspect", "bootstrap", "prepare", "complete", "recover"].includes(
+      config.phase,
+    ) &&
       isSha(config.candidate) &&
       isSha(config.controller) &&
       env.GITHUB_ACTIONS === "true" &&
@@ -61,7 +63,7 @@ export function cutoverConfig(env) {
       env.GITHUB_RUN_ATTEMPT === "1" &&
       env.GITHUB_REPOSITORY === target.repository &&
       env.GITHUB_REPOSITORY_ID === String(target.repositoryId) &&
-      (["bootstrap", "prepare"].includes(config.phase)
+      (["inspect", "bootstrap", "prepare"].includes(config.phase)
         ? config.controller === config.candidate &&
           config.ref?.startsWith("refs/heads/codex/")
         : config.ref === "refs/heads/development" ||
@@ -89,11 +91,13 @@ export function cutoverConfig(env) {
     "Development cutover authority or credentials are incomplete.",
   );
   requireCondition(
-    ["bootstrap", "prepare"].includes(config.phase)
-      ? !config.prepareRun &&
+    config.phase === "inspect"
+      ? !config.prepareRun && !env.EXTERNAL_WRITERS_CONFIRMATION
+      : ["bootstrap", "prepare"].includes(config.phase)
+        ? !config.prepareRun &&
           env.EXTERNAL_WRITERS_CONFIRMATION ===
             `external-writers-stopped:${config.candidate}`
-      : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
+        : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
           config.prepareRun !== config.run,
     "A candidate-bound external writer hold or prior preparation run is required.",
   );
@@ -248,7 +252,7 @@ export async function verifyAuthority(
     Array.isArray(heldRefs) && heldRefs.length === 0,
     "The reserved maintenance branch must not exist.",
   );
-  if (["bootstrap", "prepare"].includes(config.phase) && !recovery) {
+  if (["inspect", "bootstrap", "prepare"].includes(config.phase) && !recovery) {
     requireCondition(
       pr.state === "open" &&
         pr.merged === false &&
