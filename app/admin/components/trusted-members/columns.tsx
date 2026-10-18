@@ -8,6 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { updateTrustedMemberStatus } from "../../actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -135,7 +136,9 @@ export const columns: ColumnDef<TrustedMember>[] = [
     cell: ({ row }) => {
       return (
         <span className="text-sm text-muted-foreground">
-          {format(new Date(row.original.created_at), "MMM d, yyyy")}
+          {format(new Date(row.original.created_at), "MMM d, yyyy", {
+            in: tz("UTC"),
+          })}
         </span>
       );
     },

@@ -370,5 +370,5 @@ function DateField({
 }
 
 function formatWindow(startsAt: string | null, endsAt: string | null) {
-  return `${startsAt ? new Date(startsAt).toLocaleDateString() : "Any time"} to ${endsAt ? new Date(endsAt).toLocaleDateString() : "No expiry"}`;
+  return `${startsAt ? new Date(startsAt).toLocaleDateString("en-US", { timeZone: "UTC" }) : "Any time"} to ${endsAt ? new Date(endsAt).toLocaleDateString("en-US", { timeZone: "UTC" }) : "No expiry"}`;
 }

@@ -5,6 +5,7 @@ import { ArrowUpDown, Sparkles, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
 import {
   Tooltip,
@@ -127,7 +128,9 @@ export const getReportColumns = (
             <span aria-hidden="true">·</span>
             <span>
               {report.created_at
-                ? format(new Date(report.created_at), "MMM d")
+                ? format(new Date(report.created_at), "MMM d", {
+                    in: tz("UTC"),
+                  })
                 : "-"}
             </span>
           </div>
@@ -253,7 +256,9 @@ export const getFlaggedColumns = (
             )}
             <span aria-hidden="true">·</span>
             <span>
-              {item.created_at ? format(new Date(item.created_at), "PPP") : "-"}
+              {item.created_at
+                ? format(new Date(item.created_at), "PPP", { in: tz("UTC") })
+                : "-"}
             </span>
           </div>
         </div>

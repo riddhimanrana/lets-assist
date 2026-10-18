@@ -10,6 +10,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 
 import { NoAvatar } from "@/components/shared/NoAvatar";
 import { ProfileHoverCard } from "@/components/shared/ProfileHoverCard";
@@ -107,7 +108,9 @@ export function FeedbackDetail({
               </Badge>
             </div>
             <span className="text-muted-foreground text-xs">
-              {selectedDate ? format(selectedDate, "PPP p") : "Unknown date"}
+              {selectedDate
+                ? format(selectedDate, "PPP p", { in: tz("UTC") })
+                : "Unknown date"}
             </span>
           </div>
 
@@ -160,7 +163,9 @@ export function FeedbackDetail({
           {selectedModerationDate ? (
             <div className="flex items-start justify-between gap-3 py-2.5">
               <dt className="text-muted-foreground">Last reviewed</dt>
-              <dd>{format(selectedModerationDate, "PPP p")}</dd>
+              <dd>
+                {format(selectedModerationDate, "PPP p", { in: tz("UTC") })}
+              </dd>
             </div>
           ) : null}
         </dl>

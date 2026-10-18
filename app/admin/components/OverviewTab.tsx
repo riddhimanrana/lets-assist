@@ -509,9 +509,10 @@ function formatPriority(priority?: string | null) {
 function formatShortDate(value?: string) {
   if (!value) return "";
   try {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat("en-US", {
       month: "short",
       day: "numeric",
+      timeZone: "UTC",
     }).format(new Date(value));
   } catch {
     return "";

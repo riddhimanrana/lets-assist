@@ -198,7 +198,7 @@ function BannerScopeForm({ scope, banner }: BannerScopeFormProps) {
         >
           <p className="text-muted-foreground text-sm">
             {banner
-              ? `Last updated ${new Date(banner.updated_at).toLocaleString()} · ${savedTypeLabel}`
+              ? `Last updated ${new Date(banner.updated_at).toLocaleString("en-US", { timeZone: "UTC" })} · ${savedTypeLabel}`
               : "No banner configured for this scope yet."}
           </p>
 

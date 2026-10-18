@@ -11982,3 +11982,15 @@ while retaining its existing short date format. Regression renders run in
 isolated subprocesses for all three timezones, with actions mocked to refuse
 mutations. The capture fault guard and private-error privacy boundary remain
 unchanged. Fresh candidate CI and hosted acceptance are still required.
+
+`ADMIN-SERVER-TIMESTAMP-HYDRATION-20261018`, P2: CI39090134861 captured
+all four organization modes without faults, then stopped at the trusted-member
+table's equivalent runtime-local date label. A batch of rendered UTC, Pacific
+and Tokyo probes reproduced different calendar days or clock times in trusted
+applications, report and flag columns, overview queues, feedback details,
+waiver definitions, plugin grant windows and saved banner timestamps. Those
+server-rendered metadata labels now pin UTC and English formatting while
+retaining their existing date/time shapes. Client-only access-state formatting
+and date-entry controls are unchanged. Probes use fictional values, isolated
+processes and mutation-refusing action mocks; capture guards and private error
+handling remain unchanged. Fresh CI and hosted acceptance remain required.
