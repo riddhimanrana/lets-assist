@@ -11972,3 +11972,13 @@ provider/database identity failures before a maintenance window is opened.
 Its receipt cannot authorize a merge or consume a preparation/recovery path.
 Focused refusal and read-only transport tests cover these boundaries; hosted
 inspection and release results remain separate.
+
+`ADMIN-ORGANIZATION-DATE-HYDRATION-20261018`, P2: CI39087826464 stopped
+layout capture on a page error at `/admin/organizations`. The component's
+creation-date label used the runtime timezone. A focused render of the same
+fictional timestamp reproduced October 18 in UTC and October 17 in Pacific
+time; a late UTC timestamp became October 19 in Tokyo. The label now pins UTC
+while retaining its existing short date format. Regression renders run in
+isolated subprocesses for all three timezones, with actions mocked to refuse
+mutations. The capture fault guard and private-error privacy boundary remain
+unchanged. Fresh candidate CI and hosted acceptance are still required.

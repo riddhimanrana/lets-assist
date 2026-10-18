@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import {
   executeMaintenanceQuery,
   maintenanceLedgerQuery,
@@ -15,14 +16,23 @@ import {
   settlePreexistingRequestTransactionsSql,
 } from "../production/request-write-fence.mjs";
 import { requireCondition, target } from "./cutover-authority.mjs";
+import { databaseFailureCategory } from "./cutover-database-errors.mjs";
 
-export function developmentQuery(url, sql) {
+export function developmentQuery(url, sql, execute = execFileSync) {
+  let category;
   try {
-    return executeMaintenanceQuery(url, sql);
+    return executeMaintenanceQuery(url, sql, (file, args, options) => {
+      try {
+        return execute(file, args, options);
+      } catch (error) {
+        category = databaseFailureCategory(error);
+        throw error;
+      }
+    });
   } catch {
     requireCondition(
       false,
-      "Development database operation failed. Raw output was suppressed.",
+      `Development database operation failed${category ? ` (${category})` : ""}. Raw output was suppressed.`,
     );
   }
 }
