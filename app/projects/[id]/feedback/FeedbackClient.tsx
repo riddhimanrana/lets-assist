@@ -165,6 +165,7 @@ export function FeedbackClient({
                     <span className="text-muted-foreground text-sm">
                       {new Date(entry.createdAt).toLocaleDateString("en-US", {
                         dateStyle: "medium",
+                        timeZone: "UTC",
                       })}
                     </span>
                   </ItemHeader>

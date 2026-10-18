@@ -1,6 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { ArrowUpDown } from "lucide-react";
 import Link from "next/link";
 
@@ -87,7 +88,8 @@ function SortableHeader({
   );
 }
 
-const formatDay = (value: string) => format(new Date(value), "MMM d, yyyy");
+const formatDay = (value: string) =>
+  format(new Date(value), "MMM d, yyyy", { in: tz("UTC") });
 
 const ROLE_ORDER = { admin: 3, staff: 2, member: 1 } as const;
 

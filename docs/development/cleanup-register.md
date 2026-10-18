@@ -11994,3 +11994,20 @@ retaining their existing date/time shapes. Client-only access-state formatting
 and date-entry controls are unchanged. Probes use fictional values, isolated
 processes and mutation-refusing action mocks; capture guards and private error
 handling remain unchanged. Fresh CI and hosted acceptance remain required.
+
+`SERVER-INITIALIZED-TIMESTAMP-LABELS-20261018`, P2: proactive render
+probes beyond the admin capture found the same server/browser timezone
+mismatch in saved drafts, project feedback, organization member dates and
+moderation, calendar connection dates, timed calendar rows and populated
+date/time pickers. Metadata labels now use UTC. Browser-local calendar times
+and picker labels use the existing hydration snapshot before showing their
+unchanged local format; their stored values and callbacks are unchanged.
+Regression probes cover UTC, Pacific and Tokyo server snapshots and ready
+client labels. They also retain the same all-day calendar and draft schedule
+days, and refuse any render-time action or network request. Feedback queue
+labels show a stable UTC date during the server snapshot, then retain their
+relative labels after hydration. Controlled clock probes cover a minute
+boundary and invalid dates. Server-only text, client-fetched panels and
+project-timezone displays were inspected separately;
+this is not a claim of complete timestamp coverage. Fresh integrated CI and
+hosted acceptance remain required.

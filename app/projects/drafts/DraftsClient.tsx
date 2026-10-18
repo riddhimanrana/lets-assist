@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, isValid, parse } from "date-fns";
+import { tz } from "@date-fns/tz";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
@@ -279,7 +280,9 @@ export default function DraftsClient({
                     <div className="flex items-center gap-1">
                       <Clock className="size-4" aria-hidden="true" />
                       Saved{" "}
-                      {format(new Date(draft.created_at), DRAFT_DATE_FORMAT)}
+                      {format(new Date(draft.created_at), DRAFT_DATE_FORMAT, {
+                        in: tz("UTC"),
+                      })}
                     </div>
                   </div>
 
