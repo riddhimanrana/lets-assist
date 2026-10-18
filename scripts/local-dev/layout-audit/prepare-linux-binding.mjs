@@ -26,7 +26,7 @@ if (
   a.template !== false ||
   a.reviewed !== true ||
   a.rootHead !== process.env.GITHUB_SHA ||
-  a.privateHead !== "f116483844d8bfc04c99899c1e38d501a01be191" ||
+  a.privateHead !== "b575074c2bb018943bf07c16bbdf6e4da33ac4ea" ||
   a.repoRoot !== fs.realpathSync(process.env.GITHUB_WORKSPACE ?? "") ||
   !a.reviewedSourceHashes ||
   process.versions.node !== "24.21.0"

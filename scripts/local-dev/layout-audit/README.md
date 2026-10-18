@@ -2,9 +2,13 @@
 
 Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
-The combined release source binding is now exact private `f1164838` and 739
+The combined release source binding is now exact private `b575074c` and 739
 migration objects, retaining the unchanged 723-object prefix. This source
-binding does not accept a database catalog. The officer overview requires the loaded officer-task section and its
+binding does not accept a database catalog. Relative to the previous reviewed
+private source `f1164838`, the candidate changes only the membership-only status
+and default-term presentation, their fictional regression tests, and the private
+CI host-pairing metadata. It adds no reader, action, provider call or SQL. The
+exact private pin and all capture guards remain required. The officer overview requires the loaded officer-task section and its
 `Your tasks` heading; `Home` is a navigation label. Loading, route drift or
 runtime faults still fail capture. These source checks do not establish runtime or pixel acceptance.
 

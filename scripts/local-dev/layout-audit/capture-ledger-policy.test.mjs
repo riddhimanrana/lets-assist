@@ -76,7 +76,14 @@ test("the committed migration objects match the reviewed 723 plus 16 source poli
   );
   assert.equal(
     reviewed.targetPrivateGitlink,
-    "f116483844d8bfc04c99899c1e38d501a01be191",
+    "b575074c2bb018943bf07c16bbdf6e4da33ac4ea",
+  );
+  assert.equal(
+    reviewed.targetPrivateGitlink,
+    execFileSync("git", ["rev-parse", "HEAD:lib/plugins/private"], {
+      encoding: "utf8",
+    }).trim(),
+    "capture authorization must match the candidate's exact private gitlink",
   );
   assert.equal(committed.length, 739);
   assert.doesNotThrow(() => verifyCaptureLedger(reviewed, committed));

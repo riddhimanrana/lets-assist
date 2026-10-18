@@ -11,7 +11,7 @@ function shape(b) {
     typeof b.repoRoot !== "string" ||
     !path.isAbsolute(b.repoRoot) ||
     !/^[a-f0-9]{40}$/u.test(b.rootHead ?? "") ||
-    b.privateHead !== "f116483844d8bfc04c99899c1e38d501a01be191" ||
+    b.privateHead !== "b575074c2bb018943bf07c16bbdf6e4da33ac4ea" ||
     b.ledgerCount !== 739 ||
     !os.SHA.test(b.codeManifestSha256 ?? "") ||
     !os.SHA.test(b.dirtyDiffSha256 ?? "") ||
