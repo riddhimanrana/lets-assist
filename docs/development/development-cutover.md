@@ -22,6 +22,14 @@ The October 12 names-only provider readback confirms that the Development enviro
 
 ## Inspect before maintenance
 
+The fixed Development coordinator selects the shared Session pooler before any
+SQL when the configured URI names its direct database endpoint. Supabase Connect
+verified `aws-0-us-west-1.pooler.supabase.com:5432` for this branch on October 19, 2026. The tenant username is `postgres.ocbuygudvarsuxijxhau`. The job retains the
+existing password and TLS mode inside its original protected environment. No
+stored credential, permission or provider setting changes. Already configured
+pooler URIs remain unchanged. Transport selection does not retry SQL and retains
+the fixed project, source, review, catalog and maintenance gates.
+
 Before opening a maintenance window, dispatch the same protected workflow from
 the exact reviewed candidate with `cutover_phase=inspect`, its full SHA and PR
 number, and `confirmation=cutover-development:inspect:<candidate SHA>`. Leave

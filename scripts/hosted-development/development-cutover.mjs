@@ -21,11 +21,11 @@ import {
   verifyAuthority,
 } from "./cutover-authority.mjs";
 import {
+  developmentDatabaseTransport,
   probeWriteBlock,
   setRetentionJob,
   setWriteBlock,
   settlePreexistingRequests,
-  validateDatabaseUrl,
   verifyDevelopmentMaintenance,
   verifyQuiescence,
 } from "./cutover-database.mjs";
@@ -58,13 +58,16 @@ export function receiptWriter(cwd) {
 }
 
 export async function runDevelopmentCutover(config, dependencies = {}) {
+  config = {
+    ...config,
+    databaseUrl: developmentDatabaseTransport(config.databaseUrl),
+  };
   const fetcher = dependencies.fetcher || fetch;
   const github = dependencies.github || githubReader(config, fetcher);
   const vercel = dependencies.vercel || vercelReader(config, fetcher);
   const record = dependencies.record || receiptWriter(config.cwd);
   const query = dependencies.query;
   const now = dependencies.now || Date.now;
-  validateDatabaseUrl(config.databaseUrl);
   const expectedDigest = ledgerDigest(
     config.phase === "bootstrap"
       ? bootstrapPlan(config.cwd).after

@@ -27,6 +27,11 @@ test("inspection reads the actual project and database with active jobs and no m
       return f.vercel(path);
     },
     query: (url, sql) => {
+      const connection = new URL(url);
+      assert.equal(connection.hostname, "aws-0-us-west-1.pooler.supabase.com");
+      assert.equal(connection.port, "5432");
+      assert.equal(connection.username, "postgres.ocbuygudvarsuxijxhau");
+      assert.equal(connection.password, "test-password");
       assert.match(
         sql,
         /^BEGIN(?: ISOLATION LEVEL REPEATABLE READ)? READ ONLY;/u,
@@ -45,6 +50,10 @@ test("inspection reads the actual project and database with active jobs and no m
   assert.equal(result.schema.posture.activeCron, 4);
   assert.equal(result.schema.databaseQuiescent, false);
   assert.deepEqual(f.state.writes, []);
+  assert.doesNotMatch(
+    JSON.stringify([result, f.state.records]),
+    /test-password|postgres:\/\//u,
+  );
   for (const phase of ["complete", "recover"])
     assert.throws(() =>
       validateReceipt(result, { ...f.config, phase, prepareRun: f.config.run }),

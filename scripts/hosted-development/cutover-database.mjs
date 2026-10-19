@@ -67,6 +67,18 @@ export function validateDatabaseUrl(value) {
   );
 }
 
+export function developmentDatabaseTransport(value) {
+  validateDatabaseUrl(value);
+  const url = new URL(value);
+  if (url.hostname !== `db.${target.database}.supabase.co`) return value;
+  // Development Connect verified this Session endpoint on 2026-10-19.
+  // Select it before SQL; a failed operation must never acquire an implicit retry.
+  url.hostname = "aws-0-us-west-1.pooler.supabase.com";
+  url.port = "5432";
+  url.username = `postgres.${target.database}`;
+  return url.href;
+}
+
 const quiescenceStart =
   "  AND NOT EXISTS (SELECT 1 FROM cron.job WHERE active)";
 requireCondition(
