@@ -1,6 +1,6 @@
 # Repository cleanup register
 
-## PR #873 Development reconciliation — 2026-10-14
+## Historical PR #873 Development reconciliation — 2026-10-14
 
 The isolated local merge combines current Development `99adfc03` with the
 PR #873 candidate `4b4987c5`. It retains the nine candidate-only migration

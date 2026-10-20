@@ -33,6 +33,33 @@ test("the reviewed suffix preserves and separately verifies the immutable prefix
   );
 });
 
+test("the CI wrapper and frozen helper manifest bind the same reviewed private source", () => {
+  const policy = JSON.parse(
+    readFileSync(new URL("./baseline-policy.json", import.meta.url), "utf8"),
+  );
+  const wrapper = readFileSync(
+    new URL("../layout-audit-ci.sh", import.meta.url),
+    "utf8",
+  );
+  const privatePins = [
+    ...wrapper.matchAll(/privateHead:'([a-f0-9]{40})'/gu),
+  ].map((match) => match[1]);
+  assert.deepEqual(privatePins, [policy.targetPrivateGitlink]);
+  const workflow = readFileSync(
+    new URL("../../../.github/workflows/ci.yml", import.meta.url),
+    "utf8",
+  );
+  const manifestPin = workflow.match(
+    /LAYOUT_AUDIT_CODE_MANIFEST_SHA256: "([a-f0-9]{64})"/u,
+  )?.[1];
+  assert.equal(
+    manifestPin,
+    createHash("sha256")
+      .update(readFileSync(new URL("./code-manifest.sha256", import.meta.url)))
+      .digest("hex"),
+  );
+});
+
 test("the old ledger and unknown additions, suffix bytes or ordering cannot acquire capture approval", () => {
   for (const altered of [
     rows.slice(0, 723),
