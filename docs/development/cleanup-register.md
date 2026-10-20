@@ -12011,3 +12011,23 @@ boundary and invalid dates. Server-only text, client-fetched panels and
 project-timezone displays were inspected separately;
 this is not a claim of complete timestamp coverage. Fresh integrated CI and
 hosted acceptance remain required.
+
+`DEVELOPMENT-729-CRON-CONTROL-20261020`, P2: the legacy bootstrap cron
+shutdown accepts only the 687/688 inventory and cannot pause Development's
+reviewed 729 four-job history. A separate candidate-bound protected pause and
+abort-restoration path now validates that exact ledger, catalog and job
+inventory, uses the supported `cron.alter_job` function, records original flags
+before mutation and verifies fresh readback. Unknown outcomes never retry.
+Restoration refuses a changed application, alias, request fence or job state.
+All 138 focused controller tests pass locally. Hosted SQL execution, changed
+candidate CI and the factual external-writer hold remain pending; no live job
+has been paused by this change.
+
+`MEMBER-HISTORICAL-COMPLETION-LABEL-20261020`, P2: a past active membership
+with attendance could display "In progress" without a completion result. A
+private-plugin correction displays "Completion not recorded" for a historical
+record without a settled outcome. Explicit semester results and application
+decisions keep their precedence, and current progress labels remain intact.
+The focused profile suite passes 49 tests and 216 assertions with fictional
+data. Private publication, root integration and hosted verification remain
+pending. No membership, credits, eligibility or report records changed.

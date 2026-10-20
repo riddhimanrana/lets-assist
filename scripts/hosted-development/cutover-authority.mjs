@@ -53,9 +53,15 @@ export function cutoverConfig(env) {
     "Development Supabase project or canonical URL does not match the fixed target.",
   );
   requireCondition(
-    ["inspect", "bootstrap", "prepare", "complete", "recover"].includes(
-      config.phase,
-    ) &&
+    [
+      "inspect",
+      "bootstrap",
+      "pause-cron",
+      "resume-cron",
+      "prepare",
+      "complete",
+      "recover",
+    ].includes(config.phase) &&
       isSha(config.candidate) &&
       isSha(config.controller) &&
       env.GITHUB_ACTIONS === "true" &&
@@ -63,7 +69,13 @@ export function cutoverConfig(env) {
       env.GITHUB_RUN_ATTEMPT === "1" &&
       env.GITHUB_REPOSITORY === target.repository &&
       env.GITHUB_REPOSITORY_ID === String(target.repositoryId) &&
-      (["inspect", "bootstrap", "prepare"].includes(config.phase)
+      ([
+        "inspect",
+        "bootstrap",
+        "pause-cron",
+        "resume-cron",
+        "prepare",
+      ].includes(config.phase)
         ? config.controller === config.candidate &&
           config.ref?.startsWith("refs/heads/codex/")
         : config.ref === "refs/heads/development" ||
@@ -93,12 +105,15 @@ export function cutoverConfig(env) {
   requireCondition(
     config.phase === "inspect"
       ? !config.prepareRun && !env.EXTERNAL_WRITERS_CONFIRMATION
-      : ["bootstrap", "prepare"].includes(config.phase)
+      : ["bootstrap", "pause-cron", "prepare"].includes(config.phase)
         ? !config.prepareRun &&
           env.EXTERNAL_WRITERS_CONFIRMATION ===
             `external-writers-stopped:${config.candidate}`
         : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
-          config.prepareRun !== config.run,
+          config.prepareRun !== config.run &&
+          (config.phase !== "resume-cron" ||
+            env.EXTERNAL_WRITERS_CONFIRMATION ===
+              `external-writers-stopped:${config.candidate}`),
     "A candidate-bound external writer hold or prior preparation run is required.",
   );
   return config;
@@ -252,7 +267,12 @@ export async function verifyAuthority(
     Array.isArray(heldRefs) && heldRefs.length === 0,
     "The reserved maintenance branch must not exist.",
   );
-  if (["inspect", "bootstrap", "prepare"].includes(config.phase) && !recovery) {
+  if (
+    ["inspect", "bootstrap", "pause-cron", "resume-cron", "prepare"].includes(
+      config.phase,
+    ) &&
+    !recovery
+  ) {
     requireCondition(
       pr.state === "open" &&
         pr.merged === false &&
@@ -308,6 +328,7 @@ export async function loadPreparation(
   read,
   fetcher = fetch,
   now = Date.now(),
+  validate = validateReceipt,
 ) {
   const run = await read(`/actions/runs/${config.prepareRun}`);
   requireCondition(
@@ -317,7 +338,8 @@ export async function loadPreparation(
       run.run_attempt === 1 &&
       run.status === "completed" &&
       run.repository?.id === target.repositoryId &&
-      (config.phase === "recover" || run.conclusion === "success"),
+      (["recover", "resume-cron"].includes(config.phase) ||
+        run.conclusion === "success"),
     "The preparation must be an immutable completed run of this candidate workflow.",
   );
   const listing = await read(
@@ -407,7 +429,7 @@ export async function loadPreparation(
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-  validateReceipt(receipt, config, now);
+  validate(receipt, config, now);
   requireCondition(
     run.head_sha === receipt.controller &&
       (receipt.controller === receipt.candidate ||

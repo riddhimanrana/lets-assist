@@ -6,6 +6,7 @@ import { maintenanceTarget } from "../production/maintenance-preflight.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
 import { pauseBootstrapCron } from "./cutover-cron.mjs";
 import { runDevelopmentInspection } from "./cutover-inspection.mjs";
+import { runDevelopmentCronControl } from "./cutover-cron-control.mjs";
 import {
   bootstrapPlan,
   bootstrapWriteFence,
@@ -81,6 +82,17 @@ export async function runDevelopmentCutover(config, dependencies = {}) {
       record,
       now,
       fetcher,
+    });
+  if (["pause-cron", "resume-cron"].includes(config.phase))
+    return runDevelopmentCronControl(config, {
+      github,
+      vercel,
+      query,
+      record,
+      now,
+      fetcher,
+      loadReceipt: dependencies.loadReceipt,
+      wait: dependencies.wait,
     });
   let receipt = ["bootstrap", "prepare"].includes(config.phase)
     ? undefined

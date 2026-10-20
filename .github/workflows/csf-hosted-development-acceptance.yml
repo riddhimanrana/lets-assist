@@ -15,17 +15,27 @@ on:
         type: choice
         required: false
         default: none
-        options: [none, inspect, bootstrap, prepare, complete, recover]
+        options:
+          [
+            none,
+            inspect,
+            bootstrap,
+            pause-cron,
+            resume-cron,
+            prepare,
+            complete,
+            recover,
+          ]
       cutover_pr_number:
         description: "Existing root pull request for the exact cutover candidate"
         required: false
         type: string
       cutover_receipt_run:
-        description: "Completed preparation run, or latest mutating run for recovery"
+        description: "Preparation/recovery run; resume-cron uses its original pause-cron run"
         required: false
         type: string
       external_writers_confirmation:
-        description: "Bootstrap/prepare: external-writers-stopped:<candidate SHA>. Includes Auth, Storage and external schedulers"
+        description: "Bootstrap/pause-cron/resume-cron/prepare: external-writers-stopped:<candidate SHA>, including Auth, Storage and external schedulers"
         required: false
         type: string
       build_current_revision:

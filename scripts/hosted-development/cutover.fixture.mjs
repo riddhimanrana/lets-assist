@@ -47,7 +47,13 @@ process.once("exit", () =>
 );
 
 export function environment(phase = "prepare") {
-  const candidatePhase = ["inspect", "bootstrap", "prepare"].includes(phase);
+  const candidatePhase = [
+    "inspect",
+    "bootstrap",
+    "pause-cron",
+    "resume-cron",
+    "prepare",
+  ].includes(phase);
   const database = new URL(
     `postgres://db.${target.database}.supabase.co/postgres`,
   );
@@ -68,7 +74,8 @@ export function environment(phase = "prepare") {
     GITHUB_RUN_ID: candidatePhase ? "100" : "101",
     GITHUB_ACTOR: "fixture-owner",
     CUTOVER_PR_NUMBER: "867",
-    CUTOVER_PREPARE_RUN_ID: candidatePhase ? "" : "100",
+    CUTOVER_PREPARE_RUN_ID:
+      phase === "resume-cron" ? "99" : candidatePhase ? "" : "100",
     CONFIRMATION: `cutover-development:${phase}:${candidate}`,
     EXTERNAL_WRITERS_CONFIRMATION:
       phase === "inspect" ? "" : `external-writers-stopped:${candidate}`,
@@ -114,7 +121,13 @@ export function preparedReceipt() {
 }
 
 export function controllerFixture(phase = "prepare") {
-  const candidatePhase = ["inspect", "bootstrap", "prepare"].includes(phase);
+  const candidatePhase = [
+    "inspect",
+    "bootstrap",
+    "pause-cron",
+    "resume-cron",
+    "prepare",
+  ].includes(phase);
   const config = { ...cutoverConfig(environment(phase)), cwd: fixtureCwd };
   const receipt = preparedReceipt();
   const state = {

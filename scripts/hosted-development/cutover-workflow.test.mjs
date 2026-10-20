@@ -20,6 +20,12 @@ test("registered workflow routes optional cutover without changing ordinary acce
       "inspect",
     ),
   );
+  for (const phase of ["pause-cron", "resume-cron"])
+    assert.ok(
+      workflow.on.workflow_dispatch.inputs.cutover_phase.options.includes(
+        phase,
+      ),
+    );
   assert.ok(Object.keys(workflow.on.workflow_dispatch.inputs).length <= 10);
   assert.ok(
     workflow.jobs["release-selection"].if.includes(
