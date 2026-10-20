@@ -12028,6 +12028,9 @@ with attendance could display "In progress" without a completion result. A
 private-plugin correction displays "Completion not recorded" for a historical
 record without a settled outcome. Explicit semester results and application
 decisions keep their precedence, and current progress labels remain intact.
-The focused profile suite passes 49 tests and 216 assertions with fictional
-data. Private publication, root integration and hosted verification remain
-pending. No membership, credits, eligibility or report records changed.
+The member ledger now carries lifecycle state into its term records, and closure
+takes precedence even while a semester remains marked current. The focused
+profile/ledger suite passes 60 tests and 262 assertions with fictional data;
+private quality runs 39359984129 and 39359984550 pass for the reviewed source.
+Root integration and hosted verification remain pending. No membership,
+credits, eligibility or report records changed.
