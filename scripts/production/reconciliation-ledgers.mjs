@@ -24,7 +24,7 @@ export const developmentOnlyVersions = [
 
 // Added after the reviewed candidate and Development histories were joined.
 // Neither historical fixture may silently absorb this integration migration.
-export const integrationOnlyVersions = ["20261016063427"];
+export const integrationOnlyVersions = ["20261016063427", "20261020031605"];
 
 const without = (versions, excluded) => {
   const excludedSet = new Set(excluded);

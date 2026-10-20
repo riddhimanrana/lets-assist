@@ -1488,4 +1488,6 @@ export const migrationDigests = {
     "b5831c1929dc1bf5fe83c3033e05be0699fb7366949a3817b6345f86a2104b21",
   "20261016063427_prioritize_named_attendance_role.sql":
     "f4f3254fe0c1aa4600b204ef167ef5c4164df64cc500a9a7813d291abe617fa4",
+  "20261020031605_project_calendar_deletion_fence.sql":
+    "33f971e40a211fa12a4adb1249f0605cb857fc71545d33e53c168da4f5af0c26",
 };

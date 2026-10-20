@@ -21,7 +21,7 @@ const baseline = readFileSync(
 );
 
 test("every committed points-first state reconstructs its captured catalog", () => {
-  assert.equal(pointsFirstRolloutStates.length, 52);
+  assert.equal(pointsFirstRolloutStates.length, 53);
   for (const descriptor of pointsFirstRolloutStates) {
     const state = pointsFirstRolloutState(descriptor.versions);
     assert.equal(state.count, descriptor.count);
@@ -35,7 +35,7 @@ test("every committed points-first state reconstructs its captured catalog", () 
   );
   assert.equal(
     sha256(`${JSON.stringify(target.manifest, null, 2)}\n`),
-    sha256(readFileSync(new URL("./final-schema-739.json", import.meta.url))),
+    sha256(readFileSync(new URL("./final-schema-740.json", import.meta.url))),
   );
 });
 
@@ -56,7 +56,7 @@ test("maintenance accepts known states only for the exact target and mode", () =
       selectMaintenanceLedger(target, state.versions, "before"),
       state.versions,
     );
-    if (state.count < 739)
+    if (state.count < 740)
       assert.throws(() =>
         selectMaintenanceLedger(target, state.versions, "target"),
       );
@@ -101,7 +101,7 @@ test("partial stages retain their applicable Storage and data guards", () => {
 
 test("only the exact remaining migration bytes belong to each state", () => {
   const before = pointsFirstRolloutStates[0];
-  assert.equal(pointsFirstRemainingMigrations(before.versions).length, 51);
+  assert.equal(pointsFirstRemainingMigrations(before.versions).length, 52);
   assert.equal(
     pointsFirstRemainingMigrations(before.versions)[0].version,
     "20260929051600",
@@ -112,7 +112,7 @@ test("only the exact remaining migration bytes belong to each state", () => {
     ),
   );
   const joined = pointsFirstRolloutStates.find((state) => state.count === 734);
-  assert.equal(pointsFirstRemainingMigrations(joined.versions).length, 5);
+  assert.equal(pointsFirstRemainingMigrations(joined.versions).length, 6);
   assert.deepEqual(
     pointsFirstRemainingMigrations(pointsFirstRolloutStates.at(-1).versions),
     [],

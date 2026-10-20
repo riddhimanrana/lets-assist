@@ -37,7 +37,7 @@ const cfg = {
   repoRoot: root,
   rootHead: "1".repeat(40),
   privateHead: "8f4948f5d56ea66c1ad2937dd2c03866e41ff62b",
-  ledgerCount: 739,
+  ledgerCount: 740,
   codeManifestSha256: "2".repeat(64),
   dirtyDiffSha256: os.hash(Buffer.from("\n--private--\n")),
   capturePaths: ["/"],

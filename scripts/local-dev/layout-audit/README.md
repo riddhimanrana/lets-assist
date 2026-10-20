@@ -2,11 +2,12 @@
 
 Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
-The combined release source binding is now exact private `b575074c` and 739
+The combined release source binding is now exact private `8f4948f5` and 740
 migration objects, retaining the unchanged 723-object prefix. This source
 binding does not accept a database catalog. Relative to the previous reviewed
-private source `f1164838`, the candidate changes only the membership-only status
-and default-term presentation, their fictional regression tests, and the private
+private source `f1164838`, the candidate changes only membership status and
+default-term presentation, historical and closed-term status labels, lifecycle
+propagation to the member ledger, their fictional regression tests, and private
 CI host-pairing metadata. It adds no reader, action, provider call or SQL. The
 exact private pin and all capture guards remain required. The officer overview requires the loaded officer-task section and its
 `Your tasks` heading; `Home` is a navigation label. Loading, route drift or
@@ -23,7 +24,7 @@ landing: fixed region/tag, validated hex colors and finite contrast ratios, with
 at most eight nodes per violation. HTML, selectors, text and raw axe payloads
 remain excluded. These measurements support review; they never waive a finding.
 
-Keep this reviewed directory under `scripts/local-dev/layout-audit/` in the frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix remain immutable anchors. Six reviewed Development migrations extend that prefix to the exact729 ledger: scheduled attendance, repeatable points, and four certificate-timezone changes. The joined release adds nine candidate migrations and one reviewed integration migration. The resulting 739-object Git-list digest is pinned in `baseline-policy.json`; unknown migration additions, ordering or bytes are refused. This source update does not establish fresh database/application or captured-pixel acceptance. No new credentials, provider settings or spend is needed.
+Keep this reviewed directory under `scripts/local-dev/layout-audit/` in the frontend PR. Follow [integration-commands.md](integration-commands.md), including staging into a new ignored owner-only directory before generating proof data. The exact final clean frontend SHA is supplied by the root job; private38dc and the original ledger723 prefix remain immutable anchors. Six reviewed Development migrations extend that prefix to the exact729 ledger: scheduled attendance, repeatable points, and four certificate-timezone changes. The joined release adds nine candidate migrations, one reviewed integration migration and the calendar deletion fence. The resulting 740-object Git-list digest is pinned in `baseline-policy.json`; unknown migration additions, ordering or bytes are refused. This source update does not establish fresh database/application or captured-pixel acceptance. No new credentials, provider settings or spend is needed.
 
 Implemented entrypoints:
 

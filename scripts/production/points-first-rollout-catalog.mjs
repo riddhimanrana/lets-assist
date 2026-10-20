@@ -23,6 +23,9 @@ import {
 const planBytes = readFileSync(
   new URL("./points-first-688-to-739-catalog.json", import.meta.url),
 );
+const extensionBytes = readFileSync(
+  new URL("./project-calendar-deletion-740-catalog.json", import.meta.url),
+);
 const baselineBytes = readFileSync(
   new URL("./final-schema-points-first-688.json", import.meta.url),
 );
@@ -32,7 +35,9 @@ const reviewedPlanSha256 =
 const reviewedBaselineSha256 =
   "f834502758c31f4c0c8a4a4c11c2e29c8b7406322be0ea80144e2ce4636028be";
 const reviewedTargetSha256 =
-  "7789c4442aad99f6bedf91bda3cde33a9b0b49ac6b50690803c3d198bd8a89cb";
+  "43ade8b15f325a5c6272138b6d0e18c0c7f037f19605109b09077e9c9309ecb2";
+const reviewedExtensionSha256 =
+  "b897f698a0eca2319b532f0cf6aefacf5d5dcd01bc93642ee19bb5ce1ce70d07";
 const fail = () => {
   throw new Error("The exact points-first rollout catalog was not verified.");
 };
@@ -49,19 +54,32 @@ const freeze = (value) => {
 export function loadReviewedPointsFirstCatalog(
   input = planBytes,
   baselineInput = baselineBytes,
+  extensionInput = extensionBytes,
 ) {
   if (
     sha256(input) !== reviewedPlanSha256 ||
-    sha256(baselineInput) !== reviewedBaselineSha256
+    sha256(baselineInput) !== reviewedBaselineSha256 ||
+    sha256(extensionInput) !== reviewedExtensionSha256
   )
     fail();
   const plan = JSON.parse(input),
     baseline = JSON.parse(baselineInput);
+  const extension = JSON.parse(extensionInput);
+  if (
+    extension.format !== 1 ||
+    JSON.stringify(plan.target) !== JSON.stringify(extension.previousTarget) ||
+    extension.step.version !== "20261020031605" ||
+    extension.step.count !== 740
+  )
+    fail();
+  // Preserve every historical state; append only the reviewed five-object delta.
+  plan.steps.push(extension.step);
+  plan.target = extension.target;
   if (
     plan.format !== 1 ||
     plan.baseline.versions.length !== 688 ||
-    plan.steps.length !== 51 ||
-    plan.target.count !== 739 ||
+    plan.steps.length !== 52 ||
+    plan.target.count !== 740 ||
     plan.baseline.manifestSha256 !== reviewedBaselineSha256 ||
     plan.target.manifestSha256 !== reviewedTargetSha256 ||
     plan.inventory !== baseline.inventory ||
@@ -116,7 +134,7 @@ export function loadReviewedPointsFirstCatalog(
   if (ledgerDigest(versions) !== plan.target.ledger) fail();
   const byLedger = new Map(descriptors.map((entry) => [entry.ledger, entry])),
     cache = new Map();
-  if (byLedger.size !== 52) fail();
+  if (byLedger.size !== 53) fail();
   freeze(descriptors);
   freeze(plan);
 

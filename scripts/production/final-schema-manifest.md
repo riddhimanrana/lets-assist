@@ -415,3 +415,17 @@ transaction.
 An activity without an explicit `pointCap` uses the published semester policy's
 per-person activity cap; its `pointValue` limits one selection only. A focused
 regression claims two points, then one more, before rejecting a further claim.
+
+Release 740 appends `20261020031605_project_calendar_deletion_fence.sql`.
+Its reviewed delta changes only the two calendar claim functions and the two
+project deletion functions, and adds one service-only private boolean helper.
+The 739 manifest and points-first rollout states retain their original bytes.
+An owned PostgreSQL 18.6 function replay matched all four historical definition,
+owner and ACL digests against the accepted 739 inventory before applying the
+migration. The resulting five-object metadata delta produces 1,494 objects.
+No records, grants on existing tables, Storage hooks or CSF objects change.
+The local concurrent regression passed 29 assertions using a small assertion
+shim. It is not full Supabase or pgTAP acceptance. The complete clean CI replay
+must match the new catalog and pass the committed pgTAP test before deployment.
+The 740 ledger digest is
+`073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7`.

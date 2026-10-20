@@ -252,7 +252,7 @@ test("the plan lists only exact remaining bytes and performs no write", async ()
   );
   assert.equal(state.writes, 0);
   assert.equal(receipt.phase, "planned");
-  assert.equal(receipt.remaining.length, 3);
+  assert.equal(receipt.remaining.length, 4);
   assert.equal(
     receipt.remaining[0].migration,
     preparePointsFirstMigration(cwd, state.versions).migration.migration,
@@ -266,10 +266,10 @@ test("the controller applies each exact file once, verifies readback and retains
     "apply",
     dependencies,
   );
-  assert.equal(state.writes, 3);
+  assert.equal(state.writes, 4);
   assert.equal(receipt.phase, "verified");
-  assert.equal(receipt.targetMigrations, 739);
-  assert.equal(receipt.migrations.length, 3);
+  assert.equal(receipt.targetMigrations, 740);
+  assert.equal(receipt.migrations.length, 4);
   assert.ok(
     receipt.migrations.every(
       (entry) => entry.outcome === "acknowledged-and-verified",
@@ -287,7 +287,7 @@ test("the controller applies each exact file once, verifies readback and retains
 });
 
 test("an already verified target performs no write", async () => {
-  const { state, dependencies } = fixture(739);
+  const { state, dependencies } = fixture(740);
   assert.equal(
     (await runProductionPointsFirst(config(), "apply", dependencies)).phase,
     "verified",

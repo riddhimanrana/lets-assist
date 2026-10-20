@@ -48,6 +48,7 @@ export type ProjectDeletionRefusal =
   | "signed_waivers"
   | "project_not_found"
   | "asset_limit"
+  | "calendar_in_progress"
   | "objects_remaining"
   | "failed";
 
@@ -56,6 +57,7 @@ const KNOWN_REFUSALS: readonly string[] = [
   "signed_waivers",
   "project_not_found",
   "asset_limit",
+  "calendar_in_progress",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -247,6 +249,7 @@ export async function finalizeProjectDeletion(
 
   if (!isRecord(data)) return "failed";
   if (data.outcome === "objects_remaining") return "objects_remaining";
+  if (data.outcome === "calendar_in_progress") return "calendar_in_progress";
   if (data.outcome !== "completed") return refusalFrom(data);
 
   return sameUuid(data.operationId, prepared.operationId) &&
@@ -257,6 +260,8 @@ export async function finalizeProjectDeletion(
 }
 
 const PROJECT_DELETION_ERRORS: Record<ProjectDeletionRefusal, string> = {
+  calendar_in_progress:
+    "Finish or remove the calendar sync before deleting this project.",
   forbidden: "You don't have permission to delete this project",
   signed_waivers:
     "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",

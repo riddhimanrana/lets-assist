@@ -1,5 +1,27 @@
 # Repository cleanup register
 
+## Release blocker found during current merge review — 2026-10-20
+
+`PROJECT-DELETION-CALENDAR-RESYNC-20261020`, P2, implemented, release validation pending.
+Migration `20261020031605` serializes sync/update claims and deletion through the
+project row lock. Claims recheck the pending deletion marker before creating
+provider intent. Preparation and finalization refuse live leases or unfinished
+stored create/update plans, including expired plans. An expired never-planned
+create cannot write a provider event and may be abandoned. Cleanup/removal
+receipts remain usable and survive project deletion. A server-only boolean
+helper preserves owner-only access to deletion records. No existing table grants, records, membership decisions, awards or provider
+state are changed by the migration.
+
+The unchanged 739 function reproduced the race in an owned fictional
+PostgreSQL 18.6 fixture. The correction passed 29 SQL assertions with actual
+concurrent sessions, including both claim/deletion orders, update claims,
+signup parent fencing and the service-role refusal. That local run used an
+assertion shim, not a full Supabase/pgTAP replay. The deletion action passed
+67 tests and 357 assertions. CI owns the complete migration, pgTAP and browser
+proof before the thread can be resolved or the release accepted. The reviewed
+740 catalog preserves all preceding objects and changes only the four functions
+plus the private helper. Hosted Development and Production remain separate gates.
+
 ## Historical PR #873 Development reconciliation — 2026-10-14
 
 The isolated local merge combines current Development `99adfc03` with the
@@ -56,13 +78,16 @@ is held for the user's subsequent Development review.
 
 ## Integrated source checkpoint — 2026-10-11
 
-P2 CSF-REVIEW-QUEUE-SCOPE-20261011 is open in the unpublished candidate.
-Private PR650 review and an independent executable hook-host reproduction
-show that a frozen queue and a deferred queue response can outlive a browser
-history change of semester/class scope. The old application then appears with
-the new period context. This is a workflow/context defect; no authorization
-bypass was demonstrated. Scope identity, first-render suppression and stale
-response cancellation are being corrected before private integration.
+P2 CSF-REVIEW-QUEUE-SCOPE-20261011 is fixed in reviewed private source
+`8f4948f5`. The original PR650 hook-host reproduction showed a frozen queue
+and deferred response surviving a semester/class history change. The current
+queue binds organization, viewer, period, campaign, semester, class, filters
+and visit identity; it suppresses prior-scope records in the first render and
+rejects stale responses and callbacks. The focused queue-scope/hook-host suite
+passes 55 tests and 222 assertions, including scope changes, revisits and
+delayed responses. This is executable hook-host evidence, not DOM/browser or
+hosted acceptance. No authorization bypass was demonstrated by the original
+finding.
 
 The later source corrections supersede the untested-source status in the
 historical desktop entry below. Applications now passes final independent

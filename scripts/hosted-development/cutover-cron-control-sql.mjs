@@ -122,12 +122,12 @@ export function reviewedDevelopmentCronLedger(
     "before",
   );
   requireCondition(
-    target.length === 739 &&
+    target.length === 740 &&
       ledgerDigest(target) ===
-        "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4" &&
+        "073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7" &&
       versions.length === 729 &&
       ledgerDigest(versions) === development729Digest,
-    "The four-job operation accepts only the exact reviewed Development 729 history and 739 target.",
+    "The four-job operation accepts only the exact reviewed Development 729 history and 740 target.",
   );
   return versions;
 }

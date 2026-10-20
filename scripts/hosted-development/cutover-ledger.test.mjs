@@ -14,7 +14,7 @@ import { controllerFixture } from "./cutover.fixture.mjs";
 const target = maintenanceTarget(process.cwd());
 const development = reviewedDevelopmentVersions(target);
 
-test("Development accepts only its exact reviewed 729 history before the bound 739 target", () => {
+test("Development accepts only its exact reviewed 729 history before the bound 740 target", () => {
   assert.equal(development.length, 729);
   assert.deepEqual(
     selectDevelopmentMaintenanceLedger(target, development, "before"),

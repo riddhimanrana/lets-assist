@@ -106,9 +106,9 @@ export function selectDevelopmentMaintenanceLedger(
 ) {
   if (
     mode === "before" &&
-    targetVersions.length === 739 &&
+    targetVersions.length === 740 &&
     ledgerDigest(targetVersions) ===
-      "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4" &&
+      "073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7" &&
     Array.isArray(applied) &&
     applied.length === 729 &&
     ledgerDigest(applied) ===

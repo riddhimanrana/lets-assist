@@ -24,7 +24,7 @@ export function verifyPointsFirstSource(cwd, read = readFileSync) {
   requireCondition(
     versions.length === pointsFirstRolloutTarget.count &&
       ledgerDigest(versions) === pointsFirstRolloutTarget.ledger,
-    "The bounded Production rollout requires its exact reviewed 739 source.",
+    "The bounded Production rollout requires its exact reviewed 740 source.",
   );
 }
 

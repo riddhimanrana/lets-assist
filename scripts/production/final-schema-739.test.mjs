@@ -10,7 +10,8 @@ import {
 } from "./maintenance-preflight.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(root);
+const targetVersions = expectedVersions(root);
+const versions = targetVersions.slice(0, 739);
 const current = JSON.parse(
   readFileSync(new URL("./final-schema-739.json", import.meta.url), "utf8"),
 );
@@ -22,7 +23,7 @@ test("739 accepts only the reviewed migration ledger and preserved release guard
   assert.equal(versions.length, 739);
   assert.equal(versions.at(-1), "20261016063427");
   assert.equal(current.ledger, ledgerDigest(versions));
-  assert.deepEqual(maintenanceTarget(root), versions);
+  assert.deepEqual(maintenanceTarget(root), targetVersions);
   const query = acceptedCatalogQuery("untrusted predecessor", versions);
   for (const guard of [
     "FULL JOIN expected",

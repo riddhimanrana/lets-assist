@@ -1138,6 +1138,19 @@ describe("authorization and retention fail closed before any removal", () => {
     expectNothingTouched();
   });
 
+  test("an unfinished calendar operation stops deletion before external cleanup", async () => {
+    const project = seedProjectWithFiles();
+    db.prepareOverride = {
+      data: { outcome: "calendar_in_progress" },
+      error: null,
+    };
+    expect(await deleteProject(project.id)).toEqual({
+      error: "Finish or remove the calendar sync before deleting this project.",
+    });
+    expectNothingTouched();
+    expect(db.calendarCalls).toEqual([]);
+  });
+
   test("signed waivers block every removal", async () => {
     const project = seedProjectWithFiles();
     db.signedWaivers.set(project.id, 1);

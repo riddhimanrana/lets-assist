@@ -74,7 +74,7 @@ export function selectMaintenanceLedger(target, applied, mode) {
       ledgerDigest(target) !== pointsFirstRolloutTarget.ledger
     )
       throw new ReleaseCheckError(
-        "The points-first history is bound to its exact reviewed 739 target.",
+        "The points-first history is bound to its exact reviewed 740 target.",
       );
   } else
     verifyLedger(

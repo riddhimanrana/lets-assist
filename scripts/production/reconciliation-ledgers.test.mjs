@@ -20,7 +20,7 @@ const candidate = reviewedCandidateVersions(combined);
 const development = reviewedDevelopmentVersions(combined);
 
 test("the exact Development and PR #873 histories survive the combined ledger", () => {
-  assert.equal(combined.length, 739);
+  assert.equal(combined.length, 740);
   assert.equal(joined.length, 738);
   assert.equal(
     ledgerDigest(joined),
@@ -28,7 +28,7 @@ test("the exact Development and PR #873 histories survive the combined ledger", 
   );
   assert.equal(
     ledgerDigest(combined),
-    "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4",
+    "073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7",
   );
   assert.equal(candidate.length, 732);
   assert.equal(
@@ -50,7 +50,7 @@ test("the exact Development and PR #873 histories survive the combined ledger", 
   );
 });
 
-test("all sixteen joined and integration migration files retain their reviewed bytes", () => {
+test("all seventeen joined and integration migration files retain their reviewed bytes", () => {
   const names = readdirSync(
     new URL("../../supabase/migrations/", import.meta.url),
   );
