@@ -1,6 +1,6 @@
 # Owned Linux capture integration
 
-The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `b575074c2bb018943bf07c16bbdf6e4da33ac4ea` (CSF 1.2.89) and exactly 739 migration objects: the historical prefix, fifteen joined forward migrations, and the reviewed integration migration 739. The source object-list digest is `78d3261fdec8206776a1f73a2d35f6d251a73064ad3ee333f786bdd095deb5b8`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not replace the accepted 739 database catalog, a clean replay, or runtime/browser/pixel proof.
+The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `8f4948f5d56ea66c1ad2937dd2c03866e41ff62b` (CSF 1.2.89) and exactly 739 migration objects: the historical prefix, fifteen joined forward migrations, and the reviewed integration migration 739. The source object-list digest is `78d3261fdec8206776a1f73a2d35f6d251a73064ad3ee333f786bdd095deb5b8`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not replace the accepted 739 database catalog, a clean replay, or runtime/browser/pixel proof.
 
 ## Source integration and job boundary
 
@@ -42,7 +42,7 @@ Place an owner-only, new `$layout_support/authorization.json` containing these f
   "template": false,
   "reviewed": true,
   "rootHead": "<exact final GITHUB_SHA>",
-  "privateHead": "b575074c2bb018943bf07c16bbdf6e4da33ac4ea",
+  "privateHead": "8f4948f5d56ea66c1ad2937dd2c03866e41ff62b",
   "repoRoot": "<real GITHUB_WORKSPACE>",
   "workDir": "<exact canonical owned CSF_ISOLATED_WORK_DIR>",
   "codeManifestSha256": "<reviewed portable/code-manifest.sha256 SHA256>",
