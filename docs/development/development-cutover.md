@@ -36,14 +36,18 @@ number, and `confirmation=cutover-development:inspect:<candidate SHA>`. Leave
 the receipt-run and external-writer confirmation empty. Inspection retains the
 configured environment review and exact source checks. It only reads the fixed
 Vercel project, domain, current application, Development database catalog and
-worker counts, then makes a zero-row Data API GET. It changes no Vercel or
+worker counts, reads the current application worker mode and eleven effective
+boolean flags through an authenticated status GET, then makes a zero-row Data
+API GET. The status read uses the already configured protected credential and
+retains only source/mode/flag metadata. Enabled flags remain visible; inspection
+does not claim a hold or change worker state. It changes no Vercel or
 database state and does not claim an external writer hold. Its retained
 `inspected` or `inspection-stopped` receipt cannot authorize preparation,
 completion or a merge. Use this result to diagnose current project/team or
 credential capability before pausing jobs.
 
 The Development coordinator also recognizes the exact reviewed 729-migration
-Development history before the combined 739 target. Both ordered ledger digests
+Development history before the combined 740 target. Both ordered ledger digests
 and the accepted catalog remain mandatory. That history is not an ordered
 prefix of the combined tree; this Development-only recognition changes no
 Production ledger selection or maintenance posture check. Target verification
@@ -59,7 +63,7 @@ and `external_writers_confirmation=external-writers-stopped:<candidate SHA>`.
 Leave the receipt-run input empty. This confirmation must describe a real
 operator hold, not a planned hold.
 
-The operation binds the accepted 729 ledger and complete 739 target, verifies
+The operation binds the accepted 729 ledger and complete 740 target, verifies
 the unchanged Development application and inactive request fence, and records
 every original job ID and active flag before mutation. Exactly four job names,
 owners, databases, schedules and command hashes must match. Only

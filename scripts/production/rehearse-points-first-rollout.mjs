@@ -10,7 +10,11 @@ import {
   bootstrapMutationSql,
 } from "./request-fence-bootstrap-plan.mjs";
 import { applicationRequestWriteFlagSql } from "./request-write-fence.mjs";
-import { pointsFirstRolloutStates } from "./points-first-rollout-catalog.mjs";
+import {
+  pointsFirstRemainingMigrations,
+  pointsFirstRolloutStates,
+  pointsFirstRolloutTarget,
+} from "./points-first-rollout-catalog.mjs";
 import { verifyPointsFirstSource } from "./points-first-rollout-plan.mjs";
 import {
   productionPointsFirstConfig,
@@ -347,8 +351,17 @@ try {
     "plan",
     dependencies,
   );
+  const expectedRemaining = pointsFirstRemainingMigrations(
+    pointsFirstRolloutStates[1].versions,
+  );
   requireCondition(
-    plan.remaining.length === 50,
+    JSON.stringify(plan.remaining) ===
+      JSON.stringify(
+        expectedRemaining.map(({ migration, sha256 }) => ({
+          migration,
+          sha256,
+        })),
+      ),
     "The local rollout plan changed.",
   );
   const receipt = await runProductionPointsFirst(
@@ -358,11 +371,11 @@ try {
   );
   requireCondition(
     receipt.phase === "verified" &&
-      receipt.targetMigrations === 739 &&
-      receipt.migrations.length === 50,
+      receipt.targetMigrations === pointsFirstRolloutTarget.count &&
+      receipt.migrations.length === expectedRemaining.length,
     "The controller did not reach its exact target.",
   );
-  result.status = "exact-target-739";
+  result.status = `exact-target-${pointsFirstRolloutTarget.count}`;
   result.migrations = receipt.migrations.length;
   result.ledger = receipt.after;
 } catch {

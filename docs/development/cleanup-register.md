@@ -22,6 +22,21 @@ proof before the thread can be resolved or the release accepted. The reviewed
 740 catalog preserves all preceding objects and changes only the four functions
 plus the private helper. Hosted Development and Production remain separate gates.
 
+## Release controller rehearsal target correction — 2026-10-20
+
+`CI-POINTS-REHEARSAL-TARGET-20261020`, P2, implemented, full CI pending.
+Run `39364921301` passed the accepted 740 catalog and all 516 pgTAP files,
+13,744 assertions, including the 29 concurrent calendar deletion assertions.
+All four browser shards, build and unit/static gates passed. The later bounded
+controller rehearsal stopped at its plan assertion because it still expected
+50 remaining migrations and target 739. Its retained receipt had the exact
+51-file plan and owner-verified cleanup. The harness now compares the complete
+reviewed remaining filename/hash list and derives its target from the pinned
+catalog. No Production authority, SQL retry, migration bytes or permission guard
+was changed. The protected Development inspection also reports the current
+application's exact worker mode and eleven boolean flags through a GET-only
+status read, without retaining arbitrary response fields or claiming a hold.
+
 ## Historical PR #873 Development reconciliation — 2026-10-14
 
 The isolated local merge combines current Development `99adfc03` with the

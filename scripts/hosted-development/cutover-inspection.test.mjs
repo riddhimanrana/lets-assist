@@ -49,6 +49,12 @@ test("inspection reads the actual project and database with active jobs and no m
   assert.equal(result.externalWriters, "not-attested");
   assert.equal(result.schema.posture.activeCron, 4);
   assert.equal(result.schema.databaseQuiescent, false);
+  assert.equal(result.applicationWorkerPosture.controlMode, "database");
+  assert.equal(result.applicationWorkerPosture.version, result.base);
+  assert.equal(
+    result.applicationWorkerPosture.workers.csfCommunications,
+    false,
+  );
   assert.deepEqual(f.state.writes, []);
   assert.doesNotMatch(
     JSON.stringify([result, f.state.records]),
@@ -59,6 +65,71 @@ test("inspection reads the actual project and database with active jobs and no m
       validateReceipt(result, { ...f.config, phase, prepareRun: f.config.run }),
     );
 });
+
+test("inspection reports effective enabled/environment controls without claiming a hold or retaining arbitrary fields", async () => {
+  const f = controllerFixture("inspect");
+  const result = await runDevelopmentCutover(f.config, {
+    ...f.dependencies,
+    fetcher: async (url, settings) => {
+      assert.equal(settings.method, "GET");
+      const response = await f.fetcher(url, settings);
+      if (!String(url).endsWith("/api/status?deep=0")) return response;
+      assert.equal(
+        settings.headers["x-vercel-protection-bypass"],
+        f.config.bypass,
+      );
+      const body = await response.json();
+      body.checks[0].details.csfControlMode = "environment";
+      body.checks[0].details.organizationCalendarSync = true;
+      body.checks[0].details.untrustedExtra = "fictional-secret-field";
+      return Response.json(body);
+    },
+  });
+  assert.equal(result.applicationWorkerPosture.controlMode, "environment");
+  assert.equal(
+    result.applicationWorkerPosture.workers.organizationCalendarSync,
+    true,
+  );
+  assert.equal(Object.keys(result.applicationWorkerPosture.workers).length, 11);
+  assert.equal(result.maintenanceReady, false);
+  assert.equal(result.externalWriters, "not-attested");
+  assert.doesNotMatch(
+    JSON.stringify(f.state.records),
+    /fictional-secret-field/u,
+  );
+  assert.deepEqual(f.state.writes, []);
+});
+
+for (const fault of [
+  "wrong-source",
+  "missing-flag",
+  "untyped-flag",
+  "redirect",
+])
+  test(`inspection refuses ${fault} rather than inventing effective worker posture`, async () => {
+    const f = controllerFixture("inspect");
+    await assert.rejects(
+      runDevelopmentCutover(f.config, {
+        ...f.dependencies,
+        fetcher: async (url, settings) => {
+          const response = await f.fetcher(url, settings);
+          if (!String(url).endsWith("/api/status?deep=0")) return response;
+          if (fault === "redirect") return new Response(null, { status: 302 });
+          const body = await response.json();
+          if (fault === "wrong-source") body.version = "f".repeat(40);
+          if (fault === "missing-flag")
+            delete body.checks[0].details.csfCommunications;
+          if (fault === "untyped-flag")
+            body.checks[0].details.csfCommunications = "false";
+          return Response.json(body);
+        },
+      }),
+      /worker status is unverified/u,
+    );
+    assert.equal(f.state.records.at(-1).phase, "inspection-stopped");
+    assert.equal(f.state.records.at(-1).applicationWorkerPosture, undefined);
+    assert.deepEqual(f.state.writes, []);
+  });
 
 test("failed inspection retains only sanitized diagnostic evidence", async () => {
   const f = controllerFixture("inspect");

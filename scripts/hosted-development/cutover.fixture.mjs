@@ -377,7 +377,7 @@ export function controllerFixture(phase = "prepare") {
       return Response.json({
         service: "lets-assist",
         environment: "preview",
-        version: merged,
+        version: phase === "inspect" ? base : merged,
         deep: false,
         checks: [
           {
