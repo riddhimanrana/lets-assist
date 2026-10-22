@@ -3676,6 +3676,15 @@ exception's source/input review. All three lockfile hashes remain unchanged.
 The `braces` advisory still has no upstream fix; its acceptance expires October
 21, 2026 at 00:00 UTC. This review does not bypass the final exact-gitlink audit.
 
+October 22 dependency repair: private PR661 removes both registry fast-glob
+resolutions and their braces/micromatch chain, using a private-owned copy of the
+host's reviewed compatibility package. It also pins follow-redirects 1.16.1.
+The full child audit, lint, typecheck, tests, build and fresh production-only
+caller check pass. The root keeps the CSF owner graph audited while allowing
+only that exact local dependency to share its owner's lockfile. Orphaned,
+changed or unrelated vendor packages fail. No advisory exception is extended;
+exact integrated CI and hosted acceptance remain pending.
+
 | Finding        | Priority                             | Current repository result                                                                                                                                                                                                                                                         | Remaining acceptance or work                                                                                                                                                                                                                                                                                                                                                             |
 | -------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | APP-01         | P2                                   | Calendar operations validate owned provider identifiers and paths.                                                                                                                                                                                                                | Exercise provider failures and read back real owned event identities after approved rollout.                                                                                                                                                                                                                                                                                             |
@@ -12074,3 +12083,23 @@ profile/ledger suite passes 60 tests and 262 assertions with fictional data;
 private quality runs 39359984129 and 39359984550 pass for the reviewed source.
 Root integration and hosted verification remain pending. No membership,
 credits, eligibility or report records changed.
+
+`PRIVATE-CSF-DEPENDENCY-GRAPH-20261022`, P1: the integrated audit refused the
+expired braces exception in the private CSF application graph. Private PR661
+replaces both fast-glob parser paths with the application's own exact local
+compatibility package and updates follow-redirects to 1.16.1. The application
+remains an audited graph; its local compatibility package is covered by that
+owner's tracked lockfile. No advisory is waived or exception extended. Local
+full dependency audit, application tests, lint, typecheck and production build
+pass; private hosted quality passed. Exact root CI and release acceptance remain
+required.
+
+`NEXT-RELATIVE-GLOBSTAR-ROOT-20261022`, P2: private promotion review reproduced
+the compatibility shim retaining the container directory for `./apps/**`.
+Normalize both comparison paths in both shim copies while preserving returned
+paths. Actual Next resolver tests cover leading-dot and repeated-separator
+forms; a Windows path-adapter regression also reproduces and fixes a UNC root
+leak without claiming native Windows execution. The six private caller tests
+and eight root compatibility tests pass. Private PR663 merged to Development
+after its hosted quality checks passed; source promotion PR662 and exact root
+integration remain separate. No runtime authorization or provider state changes.

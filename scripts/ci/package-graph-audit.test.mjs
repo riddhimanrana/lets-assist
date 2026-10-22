@@ -53,11 +53,135 @@ function fixture() {
     root,
     privateRoot,
     files,
+    add,
     list: (repository) => files.get(repository),
   };
 }
 
 describe("independent dependency audits", () => {
+  function csfVendor() {
+    const data = fixture();
+    data.add(data.privateRoot, "apps/csf");
+    const owner = join(data.privateRoot, "apps/csf");
+    const vendor = join(owner, "vendor/fast-glob-compat");
+    mkdirSync(vendor, { recursive: true });
+    const manifest = {
+      name: "fast-glob",
+      version: "3.3.3-lets-assist.1",
+      dependencies: { tinyglobby: "0.2.17" },
+    };
+    const ownerManifest = {
+      packageManager: "bun@1.3.14",
+      overrides: { "fast-glob": "file:./vendor/fast-glob-compat" },
+    };
+    writeFileSync(join(vendor, "package.json"), JSON.stringify(manifest));
+    writeFileSync(join(owner, "package.json"), JSON.stringify(ownerManifest));
+    writeFileSync(
+      join(owner, "bun.lock"),
+      JSON.stringify({
+        packages: {
+          "@vercel/microfrontends/fast-glob": [
+            "fast-glob@file:./vendor/fast-glob-compat",
+          ],
+          tinyglobby: ["tinyglobby@0.2.17"],
+        },
+      }),
+    );
+    data.files
+      .get(data.privateRoot)
+      .push("apps/csf/vendor/fast-glob-compat/package.json");
+    return { ...data, owner, vendor, manifest, ownerManifest };
+  }
+
+  test("the exact private compatibility package remains covered by its audited owner", () => {
+    const data = csfVendor();
+    const graphs = discoverPackageGraphs(data.root, data.list);
+    expect(graphs.map((graph) => graph.label)).toEqual([
+      ".",
+      "packages/plugin-sdk",
+      "lib/plugins/private/apps/csf",
+      "lib/plugins/private/apps/one",
+      "lib/plugins/private/apps/two",
+    ]);
+    const audited = [];
+    expect(() =>
+      auditPackageGraphs(graphs, {
+        log: () => {},
+        acceptFinding: () => false,
+        spawn(_command, _args, options) {
+          audited.push(options.cwd);
+          return options.cwd === data.owner
+            ? {
+                status: 1,
+                stdout: JSON.stringify({
+                  braces: [
+                    {
+                      id: 1,
+                      title: "Fictional advisory",
+                      url: "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+                      severity: "high",
+                      vulnerable_versions: "<=3.0.3",
+                    },
+                  ],
+                }),
+              }
+            : { status: 0, stdout: "{}" };
+        },
+      }),
+    ).toThrow("Dependency audit failed: lib/plugins/private/apps/csf");
+    expect(audited).toContain(data.owner);
+  });
+  for (const mutation of [
+    "override",
+    "manifest",
+    "lock",
+    "standalone-lock",
+    "orphan",
+  ]) {
+    test("refuses unbound private compatibility package: " + mutation, () => {
+      const data = csfVendor();
+      if (mutation === "override") {
+        delete data.ownerManifest.overrides;
+        writeFileSync(
+          join(data.owner, "package.json"),
+          JSON.stringify(data.ownerManifest),
+        );
+      } else if (mutation === "manifest") {
+        data.manifest.dependencies.tinyglobby = "0.2.18";
+        writeFileSync(
+          join(data.vendor, "package.json"),
+          JSON.stringify(data.manifest),
+        );
+      } else if (mutation === "lock")
+        writeFileSync(join(data.owner, "bun.lock"), "{}");
+      else if (mutation === "standalone-lock") {
+        writeFileSync(join(data.vendor, "bun.lock"), "{}");
+        data.files
+          .get(data.privateRoot)
+          .push("apps/csf/vendor/fast-glob-compat/bun.lock");
+      } else
+        data.files.set(
+          data.privateRoot,
+          data.files
+            .get(data.privateRoot)
+            .filter((file) => file !== "apps/csf/package.json"),
+        );
+      expect(() => discoverPackageGraphs(data.root, data.list)).toThrow();
+    });
+  }
+  test("another private vendor package cannot inherit owner coverage", () => {
+    const data = csfVendor();
+    const path = "apps/csf/vendor/other/package.json";
+    mkdirSync(join(data.privateRoot, "apps/csf/vendor/other"));
+    writeFileSync(
+      join(data.privateRoot, path),
+      JSON.stringify({ packageManager: "bun@1.3.14" }),
+    );
+    data.files.get(data.privateRoot).push(path);
+    expect(() => discoverPackageGraphs(data.root, data.list)).toThrow(
+      "exactly one tracked Bun lockfile",
+    );
+  });
   test("the exact vendored glob dependency remains in the root audit, without skipping other vendor graphs", () => {
     const data = fixture();
     const directory = "vendor/fast-glob-compat";

@@ -69,12 +69,35 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
         .map((name) => (directory === "." ? name : `${directory}/${name}`))
         .filter((file) => tracked.has(file));
       const label = relative(root, join(repository, directory)) || ".";
-      // This exact local compatibility package is installed and audited through
-      // the root graph. It has no independently owned lockfile or release.
-      if (repository === root && directory === "vendor/fast-glob-compat") {
-        const rootLock = readFileSync(join(root, "bun.lock"), "utf8");
+      // Each exact local compatibility package belongs to its application's
+      // audited lockfile. Other vendor packages remain independent graphs.
+      const compatibilityOwner =
+        repository === root && directory === "vendor/fast-glob-compat"
+          ? ""
+          : repository === privateRoot &&
+              directory === "apps/csf/vendor/fast-glob-compat"
+            ? "apps/csf"
+            : null;
+      if (compatibilityOwner !== null) {
+        const ownerPrefix = compatibilityOwner ? `${compatibilityOwner}/` : "";
+        const refusal =
+          "The vendored fast-glob dependency must remain covered by the " +
+          (compatibilityOwner ? "CSF application" : "root") +
+          " lockfile.";
         if (
-          rootManifest.overrides?.["fast-glob"] !==
+          !tracked.has(`${ownerPrefix}package.json`) ||
+          !tracked.has(`${ownerPrefix}bun.lock`)
+        )
+          throw new Error(refusal);
+        const ownerManifest = JSON.parse(
+          readFileSync(join(repository, ownerPrefix, "package.json"), "utf8"),
+        );
+        const ownerLock = readFileSync(
+          join(repository, ownerPrefix, "bun.lock"),
+          "utf8",
+        );
+        if (
+          ownerManifest.overrides?.["fast-glob"] !==
             "file:./vendor/fast-glob-compat" ||
           manifest.name !== "fast-glob" ||
           manifest.version !== "3.3.3-lets-assist.1" ||
@@ -82,13 +105,11 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
             JSON.stringify({ tinyglobby: "0.2.17" }) ||
           lockfiles.length !== 0 ||
           !/"fast-glob@file:(?:\.\/)?vendor\/fast-glob-compat"/u.test(
-            rootLock,
+            ownerLock,
           ) ||
-          !rootLock.includes('"tinyglobby@0.2.17"')
+          !ownerLock.includes('"tinyglobby@0.2.17"')
         )
-          throw new Error(
-            "The vendored fast-glob dependency must remain covered by the root lockfile.",
-          );
+          throw new Error(refusal);
         continue;
       }
       if (

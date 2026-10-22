@@ -2,13 +2,16 @@
 
 Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
-The combined release source binding is now exact private `8f4948f5` and 740
+The combined release source binding is now exact private `ca8a2a00` and 740
 migration objects, retaining the unchanged 723-object prefix. This source
 binding does not accept a database catalog. Relative to the previous reviewed
 private source `f1164838`, the candidate changes only membership status and
 default-term presentation, historical and closed-term status labels, lifecycle
 propagation to the member ledger, their fictional regression tests, and private
-CI host-pairing metadata. It adds no reader, action, provider call or SQL. The
+CI host-pairing metadata. The application package also replaces the vulnerable
+glob dependency paths with its private-owned compatibility package and pins the
+reviewed follow-redirects repair. Embedded plugin trees are unchanged by that
+dependency repair. It adds no reader, action, provider call or SQL. The
 exact private pin and all capture guards remain required. The officer overview requires the loaded officer-task section and its
 `Your tasks` heading; `Home` is a navigation label. Loading, route drift or
 runtime faults still fail capture. These source checks do not establish runtime or pixel acceptance.
@@ -47,7 +50,7 @@ The volunteer project scene permits only the signed-in fictional member's `getMy
 
 Known remaining scope: actual reviewed final source hashes/loaded landmarks, real job materialization, exact missing MFA/AAL2/certificate/draft/token/QR/demo-state fixtures and authentic pixel inspection. A failed/redirect/loading capture is not a loaded interior, and no comparison to an old screenshot is inferred.
 
-The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. The staged suite currently reports 270 Linux checks and 584 guards. Those checks use fictional inputs and do not establish live capture acceptance.
+The offline suite is an explicit `.check.mjs` script and refuses to create scratch/proof data outside the canonical owned Git-ignored staging directory. Run it before proof materialization, from the root checkout with its staged path. The staged suite currently reports 274 Linux checks and 584 guards. Those checks use fictional inputs and do not establish live capture acceptance.
 
 ## October 12 cloud correction
 
