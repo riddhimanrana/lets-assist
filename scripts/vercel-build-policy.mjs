@@ -7,7 +7,7 @@ function normalizeOptional(value) {
   return normalized ? normalized : undefined;
 }
 
-/** @param {{ branch?: string, commitMessage?: string, environment?: string, commitSha?: string, explicitReleaseSha?: string, explicitDevelopmentSha?: string }} input */
+/** @param {{ branch?: string, commitMessage?: string, environment?: string, commitSha?: string, explicitReleaseSha?: string, explicitDevelopmentSha?: string, explicitMembershipSha?: string }} input */
 export function shouldRunVercelBuild({
   branch,
   commitMessage,
@@ -15,6 +15,7 @@ export function shouldRunVercelBuild({
   commitSha = undefined,
   explicitReleaseSha = undefined,
   explicitDevelopmentSha = undefined,
+  explicitMembershipSha = undefined,
 }) {
   // Only the staged release request supplies this per-deployment override.
   if (
@@ -24,6 +25,15 @@ export function shouldRunVercelBuild({
   )
     return true;
   const normalizedBranch = normalizeOptional(branch);
+  // The protected, scope-checked display-hotfix workflow creates an immutable
+  // Preview from Main without assigning either shared domain.
+  if (
+    environment === "preview" &&
+    normalizedBranch === "main" &&
+    /^[0-9a-f]{40}$/u.test(explicitMembershipSha ?? "") &&
+    explicitMembershipSha === commitSha
+  )
+    return true;
   // An operator can request this exact Preview revision without changing shared settings.
   if (
     environment === "preview" &&
@@ -57,6 +67,7 @@ if (import.meta.main) {
     commitSha: process.env.VERCEL_GIT_COMMIT_SHA,
     explicitReleaseSha: process.env.LETS_ASSIST_EXPLICIT_RELEASE_SHA,
     explicitDevelopmentSha: process.env.LETS_ASSIST_EXPLICIT_DEVELOPMENT_SHA,
+    explicitMembershipSha: process.env.LETS_ASSIST_EXPLICIT_MEMBERSHIP_SHA,
   });
 
   if (shouldBuild) {
