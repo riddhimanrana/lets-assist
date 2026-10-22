@@ -61,7 +61,10 @@ available. When it is absent, the same pinned read-only query can use the
 existing `DEVELOPMENT_DATABASE_URL`. This is an owner-authority connection in
 an explicit read-only transaction, not a new read-only role. Direct and session
 pooler connections are restricted to the fixed Development project, database
-`postgres`, port5432 and required TLS. Credentials stay out of command arguments
+`postgres`, port5432 and hostname-verified TLS (`verify-full`). The public
+Development CA is an explicit reviewed repository file; an absent or untrusted
+CA refuses the connection. Existing URI `require`/`verify-ca` modes are upgraded,
+never passed through. Credentials stay out of command arguments
 and Vercel configuration. A denied Management API read does not fall through to
 another transport. Missing credentials, a failed query or unknown output remain
 fatal before Preview creation. The sanitized failure phase distinguishes initial

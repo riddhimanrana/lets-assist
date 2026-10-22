@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, X509Certificate } from "node:crypto";
 import {
   appendFileSync,
   lstatSync,
@@ -21,6 +21,8 @@ const inventorySha =
   "50d25e20102baa344f625914423b07f414daf1204214f9bd6cc7b9e6fe2c0efd";
 const developmentManifestSha =
   "f95a2ae9957dc404299278670beab482f0d3a3484a9e49a5de99f01305866b61";
+const developmentCaFile =
+  "scripts/hosted-development/membership-display-development-ca.pem";
 const fail = () => {
   throw new Error("Membership-display Preview proof refused.");
 };
@@ -74,16 +76,61 @@ export function membershipPreviewConfig(env) {
 
 // Existing protected Development credentials only. This is an owner-authority
 // connection constrained to the pinned read-only catalog query, not a new role.
+export function verifyMembershipDevelopmentCa(
+  cwd,
+  {
+    stat = lstatSync,
+    realpath = realpathSync,
+    read = readFileSync,
+    execute = execFileSync,
+  } = {},
+) {
+  try {
+    const file = resolve(cwd, developmentCaFile),
+      st = stat(file);
+    if (
+      !st.isFile() ||
+      st.isSymbolicLink() ||
+      st.nlink !== 1 ||
+      st.uid !== process.getuid() ||
+      (st.mode & 0o022) !== 0 ||
+      realpath(file) !== file
+    )
+      fail();
+    const bytes = read(file);
+    const committed = execute("git", ["show", "HEAD:" + developmentCaFile], {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 10000,
+      maxBuffer: 16384,
+    });
+    const pem = bytes.toString("utf8");
+    if (
+      bytes.length > 16384 ||
+      hash(bytes) !== hash(committed) ||
+      !/^-----BEGIN CERTIFICATE-----\r?\n(?:[A-Za-z0-9+/=]+\r?\n)+-----END CERTIFICATE-----\r?\n?$/u.test(
+        pem,
+      ) ||
+      new X509Certificate(bytes).ca !== true
+    )
+      fail();
+    return file;
+  } catch {
+    fail();
+  }
+}
+
 export function readMembershipDevelopmentCatalog(
   databaseUrl,
   cwd,
   execute = execFileSync,
+  verifyCa = verifyMembershipDevelopmentCa,
 ) {
   try {
     const url = new URL(databaseUrl);
     const username = decodeURIComponent(url.username);
     const password = decodeURIComponent(url.password);
-    const sslmode = url.searchParams.get("sslmode") ?? "require";
+    const requestedSslmode = url.searchParams.get("sslmode");
     const direct =
       url.hostname === `db.${membershipPolicy.database}.supabase.co`;
     const pooler = /^aws-[0-9]+-[a-z0-9-]+\.pooler\.supabase\.com$/u.test(
@@ -108,9 +155,11 @@ export function readMembershipDevelopmentCatalog(
       ) ||
       [...url.searchParams.keys()].some((key) => key !== "sslmode") ||
       url.searchParams.getAll("sslmode").length > 1 ||
-      !["require", "verify-ca", "verify-full"].includes(sslmode)
+      (requestedSslmode !== null &&
+        !["require", "verify-ca", "verify-full"].includes(requestedSslmode))
     )
       fail();
+    const caPath = verifyCa(cwd);
     const result = execute(
       "psql",
       ["-X", "-w", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"],
@@ -128,7 +177,11 @@ export function readMembershipDevelopmentCatalog(
           PGDATABASE: "postgres",
           PGUSER: username,
           PGPASSWORD: password,
-          PGSSLMODE: sslmode,
+          // Never inherit weaker TLS modes from an existing connection URI.
+          // The public provider CA must land in the reviewed source before
+          // publication. An absent/untrusted CA fails libpq verification.
+          PGSSLMODE: "verify-full",
+          PGSSLROOTCERT: caPath,
           PGCONNECT_TIMEOUT: "15",
           PGOPTIONS:
             "-c default_transaction_read_only=on -c search_path=pg_catalog -c statement_timeout=120000 -c lock_timeout=5000",
@@ -407,9 +460,14 @@ async function aliases(config, fetcher) {
   return { priorProduction: production, priorDevelopment: dev.deploymentId };
 }
 
-async function verifyBackend(config, cwd, fetcher, execute) {
+async function verifyBackend(config, cwd, fetcher, execute, verifyCa) {
   if (!config.accessToken) {
-    readMembershipDevelopmentCatalog(config.databaseUrl, cwd, execute);
+    readMembershipDevelopmentCatalog(
+      config.databaseUrl,
+      cwd,
+      execute,
+      verifyCa,
+    );
     return;
   }
   const response = await fetcher(
@@ -441,9 +499,10 @@ export async function createMembershipPreview(
     pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     cwd = process.cwd(),
     execute = execFileSync,
+    verifyCa = verifyMembershipDevelopmentCa,
   },
 ) {
-  await verifyBackend(config, cwd, fetcher, execute);
+  await verifyBackend(config, cwd, fetcher, execute, verifyCa);
   const prior = await aliases(config, fetcher);
   const project = await request(
     config,
@@ -485,7 +544,12 @@ export async function createMembershipPreview(
     if (deployment.readyState === "READY") {
       receipt = { ...receipt, readiness: "READY" };
       record(receipt);
-      await checkMembershipPreview(config, receipt, { fetcher, cwd, execute });
+      await checkMembershipPreview(config, receipt, {
+        fetcher,
+        cwd,
+        execute,
+        verifyCa,
+      });
       return receipt;
     }
     if (!["QUEUED", "INITIALIZING", "BUILDING"].includes(deployment.readyState))
@@ -498,7 +562,12 @@ export async function createMembershipPreview(
 export async function checkMembershipPreview(
   config,
   receipt,
-  { fetcher = fetch, cwd = process.cwd(), execute = execFileSync } = {},
+  {
+    fetcher = fetch,
+    cwd = process.cwd(),
+    execute = execFileSync,
+    verifyCa = verifyMembershipDevelopmentCa,
+  } = {},
 ) {
   verifyPreviewReceipt(receipt, config);
   const prior = await aliases(config, fetcher);
@@ -507,7 +576,7 @@ export async function checkMembershipPreview(
     prior.priorDevelopment !== receipt.priorDevelopment
   )
     fail();
-  await verifyBackend(config, cwd, fetcher, execute);
+  await verifyBackend(config, cwd, fetcher, execute, verifyCa);
   const deployment = await request(
     config,
     "/v13/deployments/" + receipt.deploymentId + "?withGitRepoInfo=true",

@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { rootCertificates } from "node:tls";
 import { membershipPolicy as p } from "../production/membership-display-source.mjs";
 import {
   createMembershipPreview,
@@ -23,7 +24,8 @@ import {
   developmentCatalogQuery,
   verifyMembershipPreviewStatus,
   membershipPreviewConfig,
-  readMembershipDevelopmentCatalog,
+  readMembershipDevelopmentCatalog as readCatalogImplementation,
+  verifyMembershipDevelopmentCa,
 } from "./membership-display-preview.mjs";
 import { shouldRunVercelBuild } from "../vercel-build-policy.mjs";
 import {
@@ -232,6 +234,72 @@ test("catalog builder refuses altered committed baseline bytes", () =>
   assert.throws(() => developmentCatalogQuery("/unused", () => "{}")));
 
 const databaseUrl = `postgresql://postgres:fictional-password@db.${p.database}.supabase.co:5432/postgres`;
+const reviewedCa = (cwd) =>
+  resolve(
+    cwd,
+    "scripts/hosted-development/membership-display-development-ca.pem",
+  );
+// The transport tests inject only the CA check; the actual committed-CA
+// verifier is exercised independently below with public Node trust roots.
+function readMembershipDevelopmentCatalog(uri, cwd, execute) {
+  return readCatalogImplementation(uri, cwd, execute, reviewedCa);
+}
+test("the real CA verifier binds a single public CA to an owned regular committed file", () => {
+  const bytes = Buffer.from(rootCertificates[0].trim() + "\n");
+  const file = reviewedCa(process.cwd());
+  const options = {
+    stat: () => ({
+      isFile: () => true,
+      isSymbolicLink: () => false,
+      nlink: 1,
+      uid: process.getuid(),
+      mode: 0o644,
+    }),
+    realpath: () => file,
+    read: () => bytes,
+    execute: (command, args, opts) => {
+      assert.equal(command, "git");
+      assert.deepEqual(args, [
+        "show",
+        "HEAD:scripts/hosted-development/membership-display-development-ca.pem",
+      ]);
+      assert.equal(opts.cwd, process.cwd());
+      return bytes;
+    },
+  };
+  assert.equal(verifyMembershipDevelopmentCa(process.cwd(), options), file);
+  for (const change of [
+    { read: () => Buffer.from("untrusted") },
+    { execute: () => Buffer.from("different committed public certificate") },
+    { realpath: () => "/tmp/unreviewed-ca.pem" },
+    { stat: () => ({ ...options.stat(), isSymbolicLink: () => true }) },
+    { stat: () => ({ ...options.stat(), nlink: 2 }) },
+    { stat: () => ({ ...options.stat(), uid: process.getuid() + 1 }) },
+    { stat: () => ({ ...options.stat(), mode: 0o666 }) },
+    {
+      read: () => {
+        throw new Error("missing public certificate");
+      },
+    },
+  ])
+    assert.throws(() =>
+      verifyMembershipDevelopmentCa(process.cwd(), { ...options, ...change }),
+    );
+});
+test("missing reviewed provider CA fails before any real client execution", () => {
+  let calls = 0;
+  assert.throws(() =>
+    readCatalogImplementation(
+      databaseUrl,
+      "/nonexistent/membership-ca-fixture",
+      () => {
+        calls++;
+        return "t";
+      },
+    ),
+  );
+  assert.equal(calls, 0);
+});
 test("missing Management token can use only the existing protected Development URL", () => {
   const env = {
     GITHUB_ACTIONS: "true",
@@ -292,6 +360,14 @@ test("direct and session-pooler readers pin Development and pass secrets only in
         assert.equal(options.input, developmentCatalogQuery(process.cwd()));
         assert.equal(options.env.PGPASSWORD, "fictional-password");
         assert.equal(options.env.PGDATABASE, "postgres");
+        assert.equal(options.env.PGSSLMODE, "verify-full");
+        assert.equal(
+          options.env.PGSSLROOTCERT,
+          resolve(
+            process.cwd(),
+            "scripts/hosted-development/membership-display-development-ca.pem",
+          ),
+        );
         assert.match(
           options.env.PGOPTIONS,
           /default_transaction_read_only=on/u,
@@ -309,6 +385,7 @@ test("direct and session-pooler readers pin Development and pass secrets only in
             "PGUSER",
             "PGPASSWORD",
             "PGSSLMODE",
+            "PGSSLROOTCERT",
             "PGCONNECT_TIMEOUT",
             "PGOPTIONS",
           ].sort(),
@@ -319,12 +396,34 @@ test("direct and session-pooler readers pin Development and pass secrets only in
     assert.equal(calls, 1);
   }
 });
+test("an existing require or verify-ca URI is upgraded to hostname verification with the fixed reviewed CA", () => {
+  for (const mode of ["require", "verify-ca", "verify-full"]) {
+    readMembershipDevelopmentCatalog(
+      databaseUrl + "?sslmode=" + mode,
+      process.cwd(),
+      (_file, _args, options) => {
+        assert.equal(options.env.PGSSLMODE, "verify-full");
+        assert.equal(
+          options.env.PGSSLROOTCERT,
+          resolve(
+            process.cwd(),
+            "scripts/hosted-development/membership-display-development-ca.pem",
+          ),
+        );
+        return "t";
+      },
+    );
+  }
+});
 for (const uri of [
   databaseUrl.replace(p.database, "fotdmeakexgrkronxlof"),
   databaseUrl.replace("db.", "untrusted."),
   databaseUrl.replace(/\/postgres$/u, "/other"),
   databaseUrl.replace(":5432", ":6543"),
   databaseUrl + "?sslmode=disable",
+  databaseUrl + "?sslmode=allow",
+  databaseUrl + "?sslmode=prefer",
+  databaseUrl + "?sslrootcert=/tmp/unreviewed-ca.pem",
   databaseUrl + "?options=-c%20default_transaction_read_only=off",
   databaseUrl + "?sslmode=require&sslmode=disable",
   databaseUrl + "#other",
@@ -619,6 +718,7 @@ test("the protected URL preserves the full catalog proof before creation and aft
   let reads = 0;
   const receipt = await createMembershipPreview(v.config, {
     ...v,
+    verifyCa: reviewedCa,
     execute: (_file, _args, options) => {
       reads++;
       assert.equal(options.input, developmentCatalogQuery(process.cwd()));
@@ -635,7 +735,11 @@ test("a failed URL catalog proof performs no provider operation or create", asyn
   v.config.accessToken = "";
   v.config.databaseUrl = databaseUrl;
   await assert.rejects(
-    createMembershipPreview(v.config, { ...v, execute: () => "f" }),
+    createMembershipPreview(v.config, {
+      ...v,
+      verifyCa: reviewedCa,
+      execute: () => "f",
+    }),
   );
   assert.equal(v.creates(), 0);
   assert.deepEqual(v.calls, []);
