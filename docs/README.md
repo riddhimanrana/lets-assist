@@ -38,6 +38,7 @@ This directory is the canonical documentation home for humans and coding agents.
 - [Deployment model](development/deployment.md)
 - [Development maintenance cutover](development/development-cutover.md)
 - [One-time Production points schema hotfix](development/production-points-schema-hotfix.md)
+- [Isolated membership display hotfix](development/membership-display-hotfix.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Design system](development/design-system.md)
 - [Home demo preview](development/home-demo.md)

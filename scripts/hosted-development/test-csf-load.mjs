@@ -29,6 +29,7 @@ import {
   waitForLoadedReviewRecord,
 } from "./csf-load-applications-roster.mjs";
 import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
+import { membershipAcceptanceOrigin } from "./membership-display-preview.mjs";
 
 const EXPECTED_ORIGIN = "https://dev.lets-assist.com";
 const MEMBER_SESSIONS = MEMBER_SESSION_COUNT;
@@ -77,8 +78,20 @@ function validateTarget() {
     );
   }
   const appUrl = new URL(required("CSF_APP_URL"));
-  if (appUrl.origin !== EXPECTED_ORIGIN || appUrl.pathname !== "/") {
-    throw new Error(`CSF_APP_URL must be exactly ${EXPECTED_ORIGIN}/.`);
+  const expectedOrigin = process.env.CSF_MEMBERSHIP_PREVIEW_RECEIPT
+    ? membershipAcceptanceOrigin(process.env)
+    : EXPECTED_ORIGIN;
+  if (
+    appUrl.origin !== expectedOrigin ||
+    appUrl.pathname !== "/" ||
+    appUrl.username ||
+    appUrl.password ||
+    appUrl.search ||
+    appUrl.hash
+  ) {
+    throw new Error(
+      "CSF_APP_URL differs from the exact hosted acceptance target.",
+    );
   }
   const password = required("CSF_HOSTED_LOAD_PASSWORD");
   if (password.length < 16 || /[\r\n]/u.test(password)) {

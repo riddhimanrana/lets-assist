@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const reviewedSources = Object.freeze({
   schema: "415b8060d2466924bbb7e9567920f57455dc0aa1",
   security: "1e43cb58975f7a30c23404fd786a9fc55c208cee",
+  membership: "494d8247f2e8327866b0287c029bbd419cf8de33",
 });
 
 export function readReviewedHotfixFile(kind, path) {
