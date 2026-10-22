@@ -56,6 +56,18 @@ table checks and the exact all-disabled worker warning; it refuses any enabled,
 unknown or missing worker state rather than demanding an operational status
 that would require an enabled worker.
 
+The catalog read uses the existing protected `SUPABASE_ACCESS_TOKEN` when
+available. When it is absent, the same pinned read-only query can use the
+existing `DEVELOPMENT_DATABASE_URL`. This is an owner-authority connection in
+an explicit read-only transaction, not a new read-only role. Direct and session
+pooler connections are restricted to the fixed Development project, database
+`postgres`, port5432 and required TLS. Credentials stay out of command arguments
+and Vercel configuration. A denied Management API read does not fall through to
+another transport. Missing credentials, a failed query or unknown output remain
+fatal before Preview creation. The sanitized failure phase distinguishes initial
+configuration refusal from a potentially attempted create; never retry an
+uncertain create without provider inventory reconciliation.
+
 The Production job requires that same workflow run's successful hosted job
 and mandatory completion steps. CI, a Vercel check or a forged commit status
 cannot replace it. It repeats exact Main/source/full-CI checks, verifies the

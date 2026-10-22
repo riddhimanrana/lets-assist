@@ -22,6 +22,8 @@ import {
   verifyPreviewReceipt,
   developmentCatalogQuery,
   verifyMembershipPreviewStatus,
+  membershipPreviewConfig,
+  readMembershipDevelopmentCatalog,
 } from "./membership-display-preview.mjs";
 import { shouldRunVercelBuild } from "../vercel-build-policy.mjs";
 import {
@@ -228,6 +230,154 @@ test("database query is pinned to reviewed Development catalog, explicit read-on
 });
 test("catalog builder refuses altered committed baseline bytes", () =>
   assert.throws(() => developmentCatalogQuery("/unused", () => "{}")));
+
+const databaseUrl = `postgresql://postgres:fictional-password@db.${p.database}.supabase.co:5432/postgres`;
+test("missing Management token can use only the existing protected Development URL", () => {
+  const env = {
+    GITHUB_ACTIONS: "true",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_REPOSITORY: p.repository,
+    GITHUB_REPOSITORY_ID: p.repositoryId,
+    GITHUB_WORKFLOW_REF: `${p.repository}/${p.workflow}@refs/heads/main`,
+    GITHUB_SHA: config.sha,
+    RELEASE_SHA: config.sha,
+    GITHUB_RUN_ID: config.run,
+    CONFIRMATION: `deploy-membership-display:${config.sha}`,
+    FIXTURE_CONFIRMATION: `test-existing-development-fixture:${config.sha}`,
+    GH_TOKEN: "fictional-github",
+    VERCEL_TOKEN: "fictional-vercel",
+    VERCEL_ROOT_PROJECT_ID: p.project,
+    VERCEL_TEAM_ID: p.team,
+    DEVELOPMENT_PROJECT_REF: p.database,
+    VERCEL_AUTOMATION_BYPASS_SECRET: "fictional-bypass",
+    SUPABASE_ACCESS_TOKEN: "",
+  };
+  assert.throws(() => membershipPreviewConfig(env));
+  assert.equal(
+    membershipPreviewConfig({ ...env, DEVELOPMENT_DATABASE_URL: databaseUrl })
+      .databaseUrl,
+    databaseUrl,
+  );
+  assert.throws(() =>
+    membershipPreviewConfig({
+      ...env,
+      DEVELOPMENT_DATABASE_URL: databaseUrl,
+      DEVELOPMENT_PROJECT_REF: "fotdmeakexgrkronxlof",
+    }),
+  );
+});
+test("direct and session-pooler readers pin Development and pass secrets only in a minimal child environment", () => {
+  for (const uri of [
+    databaseUrl,
+    `postgresql://postgres.${p.database}:fictional-password@aws-0-us-west-1.pooler.supabase.com:5432/postgres?sslmode=verify-full`,
+  ]) {
+    let calls = 0;
+    readMembershipDevelopmentCatalog(
+      uri,
+      process.cwd(),
+      (file, args, options) => {
+        calls++;
+        assert.equal(file, "psql");
+        assert.deepEqual(args, [
+          "-X",
+          "-w",
+          "-q",
+          "-t",
+          "-A",
+          "-v",
+          "ON_ERROR_STOP=1",
+        ]);
+        assert.equal(options.input, developmentCatalogQuery(process.cwd()));
+        assert.equal(options.env.PGPASSWORD, "fictional-password");
+        assert.equal(options.env.PGDATABASE, "postgres");
+        assert.match(
+          options.env.PGOPTIONS,
+          /default_transaction_read_only=on/u,
+        );
+        assert.equal(options.timeout, 150000);
+        assert.ok(!JSON.stringify(args).includes("fictional-password"));
+        assert.deepEqual(
+          Object.keys(options.env).sort(),
+          [
+            "PATH",
+            "LANG",
+            "PGHOST",
+            "PGPORT",
+            "PGDATABASE",
+            "PGUSER",
+            "PGPASSWORD",
+            "PGSSLMODE",
+            "PGCONNECT_TIMEOUT",
+            "PGOPTIONS",
+          ].sort(),
+        );
+        return "t\n";
+      },
+    );
+    assert.equal(calls, 1);
+  }
+});
+for (const uri of [
+  databaseUrl.replace(p.database, "fotdmeakexgrkronxlof"),
+  databaseUrl.replace("db.", "untrusted."),
+  databaseUrl.replace(/\/postgres$/u, "/other"),
+  databaseUrl.replace(":5432", ":6543"),
+  databaseUrl + "?sslmode=disable",
+  databaseUrl + "?options=-c%20default_transaction_read_only=off",
+  databaseUrl + "?sslmode=require&sslmode=disable",
+  databaseUrl + "#other",
+  `postgresql://postgres.fotdmeakexgrkronxlof:fictional-password@aws-0-us-west-1.pooler.supabase.com:5432/postgres`,
+])
+  test(
+    "invalid Development connection refuses before child execution: " +
+      uri.replace("fictional-password", "[redacted]"),
+    () => {
+      let calls = 0;
+      assert.throws(() =>
+        readMembershipDevelopmentCatalog(uri, process.cwd(), () => {
+          calls++;
+          return "t";
+        }),
+      );
+      assert.equal(calls, 0);
+    },
+  );
+test("false, malformed and failed catalog responses stay fatal with raw credential output suppressed", () => {
+  for (const result of ["f", "t\nextra", "", "true"])
+    assert.throws(() =>
+      readMembershipDevelopmentCatalog(
+        databaseUrl,
+        process.cwd(),
+        () => result,
+      ),
+    );
+  assert.throws(
+    () =>
+      readMembershipDevelopmentCatalog(databaseUrl, process.cwd(), () => {
+        throw new Error(databaseUrl);
+      }),
+    (error) => !error.message.includes("fictional-password"),
+  );
+});
+test("only the three Development catalog steps receive the existing database URL", () => {
+  const workflow = readFileSync(
+    new URL(
+      "../../.github/workflows/deploy-membership-display.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const [acceptance, production] = workflow.split("\n  deploy:\n");
+  assert.equal(
+    acceptance.match(
+      /DEVELOPMENT_DATABASE_URL: \$\{\{ secrets\.DEVELOPMENT_DATABASE_URL \}\}/gu,
+    )?.length,
+    3,
+  );
+  assert.ok(!production.includes("DEVELOPMENT_DATABASE_URL"));
+});
 test("load script retains every functional/performance threshold with only its target proof extended", () => {
   const source = readFileSync(
     new URL("./test-csf-load.mjs", import.meta.url),
@@ -462,6 +612,52 @@ function providerFixture({
     creates: () => creates,
   };
 }
+test("the protected URL preserves the full catalog proof before creation and after READY", async () => {
+  const v = providerFixture();
+  v.config.accessToken = "";
+  v.config.databaseUrl = databaseUrl;
+  let reads = 0;
+  const receipt = await createMembershipPreview(v.config, {
+    ...v,
+    execute: (_file, _args, options) => {
+      reads++;
+      assert.equal(options.input, developmentCatalogQuery(process.cwd()));
+      return "t";
+    },
+  });
+  assert.equal(receipt.readiness, "READY");
+  assert.equal(v.creates(), 1);
+  assert.equal(reads, 2);
+  assert.ok(!v.calls.some((c) => c.path.endsWith("/database/query/read-only")));
+});
+test("a failed URL catalog proof performs no provider operation or create", async () => {
+  const v = providerFixture();
+  v.config.accessToken = "";
+  v.config.databaseUrl = databaseUrl;
+  await assert.rejects(
+    createMembershipPreview(v.config, { ...v, execute: () => "f" }),
+  );
+  assert.equal(v.creates(), 0);
+  assert.deepEqual(v.calls, []);
+  assert.deepEqual(v.records, []);
+});
+test("a denied existing Management API read never falls through to the URL transport", async () => {
+  const v = providerFixture();
+  v.config.databaseUrl = databaseUrl;
+  let childCalls = 0;
+  await assert.rejects(
+    createMembershipPreview(v.config, {
+      ...v,
+      fetcher: async () => new Response("", { status: 403 }),
+      execute: () => {
+        childCalls++;
+        return "t";
+      },
+    }),
+  );
+  assert.equal(childCalls, 0);
+  assert.equal(v.creates(), 0);
+});
 test("real Preview orchestration creates once, records before waiting and never writes aliases", async () => {
   const v = providerFixture();
   const receipt = await createMembershipPreview(v.config, v);
