@@ -10,6 +10,9 @@ The release is restricted to Main baseline `415b8060`, private gitlink
 root acceptance/controller path list. The only dependency exception is the
 exact SHA-256-bound package/lockfile repair for `sanitize-html@2.18.1` and
 `follow-redirects@1.16.1`, including the former's required transitive updates.
+Two additional byte-bound files give the historical security-only test its
+original reviewed Git snapshot and make that snapshot available in CI. The
+security-only verifier and its accepted bytes remain unchanged.
 Any migration, other dependency change, application
 route, additional private change, changed Development baseline or changed
 Production baseline refuses the operation. Full CI must pass on the exact new

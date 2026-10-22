@@ -332,7 +332,16 @@ test("security-only source requires exact main commit, review diff and no waiver
     mkdirSync(dirname(resolve(cwd, path)), { recursive: true });
     writeFileSync(
       resolve(cwd, path),
-      readFileSync(new URL(`../../${path}`, import.meta.url)),
+      // This one-time exception must retain its original reviewed bytes even
+      // after normal later releases update dependencies or these tests.
+      execFileSync(
+        "git",
+        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
+        {
+          cwd: new URL("../../", import.meta.url),
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      ),
     );
   }
   git("add", ".");

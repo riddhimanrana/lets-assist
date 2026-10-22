@@ -22,6 +22,7 @@ export const membershipPolicy = Object.freeze({
 });
 
 export const membershipPaths = Object.freeze([
+  ".github/workflows/ci.yml",
   ".github/workflows/deploy-membership-display.yml",
   "bun.lock",
   "docs/README.md",
@@ -33,14 +34,19 @@ export const membershipPaths = Object.freeze([
   "scripts/hosted-development/test-csf-load.mjs",
   "scripts/production/membership-display-source.mjs",
   "scripts/production/membership-display-source.test.mjs",
+  "scripts/production/security-only-app-source.test.mjs",
   "scripts/vercel-build-policy.mjs",
 ]);
-// Only the exact two-package audit repair, not arbitrary dependency changes.
+// Exact audit repair and historical fixture support; no arbitrary changes.
 export const membershipDependencyHashes = Object.freeze({
+  ".github/workflows/ci.yml":
+    "5ebbca9bef86a6945c09a17c8b95121acd0ba88bf9a05a86c6143f18a37538cc",
   "package.json":
     "79e92fc6e14e00af516960c6e521c26bfef7dc062d209a317e03224b2fbece9f",
   "bun.lock":
     "55e2f1f1bd8a1093980cb8e8eadf1fbd8663dc95a68293e845e6aa8c9907853c",
+  "scripts/production/security-only-app-source.test.mjs":
+    "a3e5e5706d3a46a0d80fd37c0ba4d27117bc1833d5ee9c65db2f00815707c5d6",
 });
 const privatePaths = [
   "plugins/dvhs-csf/components/CsfMemberProfileStatus.ts",

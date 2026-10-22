@@ -78,12 +78,14 @@ test("refuses duplicate paths", () =>
     verifyMembershipPaths([...membershipPaths.slice(1), membershipPaths[1]]),
   ));
 
-test("dependency exception is bound to the exact reviewed package and lockfile bytes", () => {
+test("dependency repair and historical fixture support require exact reviewed bytes", () => {
   const root = new URL("../../", import.meta.url).pathname;
   verifyMembershipDependencies(root);
   assert.deepEqual(Object.keys(membershipDependencyHashes).sort(), [
+    ".github/workflows/ci.yml",
     "bun.lock",
     "package.json",
+    "scripts/production/security-only-app-source.test.mjs",
   ]);
   for (const file of Object.keys(membershipDependencyHashes))
     assert.throws(() =>
