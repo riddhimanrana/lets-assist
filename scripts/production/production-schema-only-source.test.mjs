@@ -116,7 +116,15 @@ test("workflow rejects altered imported code before executing the verifier", (t)
     mkdirSync(dirname(resolve(release, path)), { recursive: true });
     writeFileSync(
       resolve(release, path),
-      readFileSync(new URL(`../../${path}`, import.meta.url)),
+      // Keep this historical positive fixture independent of later releases.
+      execFileSync(
+        "git",
+        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
+        {
+          cwd: new URL("../../", import.meta.url),
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      ),
     );
   }
   git("add", ".");
@@ -328,7 +336,14 @@ test("exact schema-only release requires main, full CI, live app, and no waivers
     mkdirSync(dirname(resolve(cwd, path)), { recursive: true });
     writeFileSync(
       resolve(cwd, path),
-      readFileSync(new URL(`../../${path}`, import.meta.url)),
+      execFileSync(
+        "git",
+        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
+        {
+          cwd: new URL("../../", import.meta.url),
+          stdio: ["ignore", "pipe", "pipe"],
+        },
+      ),
     );
   }
   git("add", ".");
