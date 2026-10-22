@@ -10,6 +10,9 @@ export interface VerificationMatches {
   status: boolean;
   type: boolean;
   location: boolean;
+  eventStartDate: boolean;
+  eventEndDate: boolean;
+  issuedDate: boolean;
 }
 
 export interface VerificationResult {
@@ -32,6 +35,7 @@ export interface VerificationResult {
     startDate: string;
     creditedMinutes?: number | null;
     endDate: string;
+    timeZone?: string | null;
     /** Canonical hours for the certificate, as the dashboard exports them. */
     duration?: number | null;
   };

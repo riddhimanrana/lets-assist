@@ -27,6 +27,9 @@ const MATCH_LABELS: Record<string, string> = {
   status: "Certification status",
   type: "Certificate type",
   location: "Location",
+  eventStartDate: "Event start date",
+  eventEndDate: "Event end date",
+  issuedDate: "Issued date",
 };
 
 /** The duration cell as hours, or nothing when it is not a plain number. */

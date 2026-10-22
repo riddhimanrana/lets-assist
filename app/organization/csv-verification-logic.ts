@@ -1,5 +1,9 @@
 import { encodeCsvField, parseCsv } from "@/lib/certificates/csv";
 import { safeConsole } from "@/lib/safe-console";
+import {
+  formatCertificateDate,
+  formatCertificateTime,
+} from "@/lib/certificates/project-dates";
 
 import type {
   CertificateRow,
@@ -259,6 +263,25 @@ const canonicalType = (type: string | null | undefined): string => {
   return value === "verified" ? "platform" : value;
 };
 
+// Compare the dashboard's exported precision in its recorded timezone, never
+// the upload viewer's timezone. Intl/spreadsheets can use nonbreaking spaces.
+const normalizedDateCell = (value: string | null | undefined): string =>
+  (value ?? "").replace(/[\u00a0\u202f]/gu, " ").trim();
+
+const sameExportedDate = (
+  recorded: string | null | undefined,
+  supplied: string | undefined,
+  timeZone: string | null | undefined,
+  includeTime: boolean,
+): boolean => {
+  if (!recorded || !Number.isFinite(Date.parse(recorded))) return false;
+  const date = formatCertificateDate(recorded, timeZone);
+  const expected = includeTime
+    ? `${date} ${formatCertificateTime(recorded, timeZone)}`
+    : date;
+  return normalizedDateCell(supplied) === expected;
+};
+
 /** The certificate's hours as the lookup reports them, or null if unusable. */
 export const authoritativeHours = (
   result: VerificationResult | undefined,
@@ -314,6 +337,24 @@ export const compareCertificateRow = (
     location: sameText(
       result.project?.location || UNKNOWN_LOCATION,
       row.location,
+    ),
+    eventStartDate: sameExportedDate(
+      result.event?.startDate,
+      row.eventStartDate,
+      result.event?.timeZone,
+      true,
+    ),
+    eventEndDate: sameExportedDate(
+      result.event?.endDate,
+      row.eventEndDate,
+      result.event?.timeZone,
+      true,
+    ),
+    issuedDate: sameExportedDate(
+      result.certificate?.issuedAt,
+      row.issuedDate,
+      result.event?.timeZone,
+      false,
     ),
   };
 };

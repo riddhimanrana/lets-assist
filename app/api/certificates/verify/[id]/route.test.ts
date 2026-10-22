@@ -12,6 +12,8 @@ const certificate = {
   is_certified: true,
   event_start: "2026-10-06T16:00:00Z",
   event_end: "2026-10-06T17:15:00Z",
+  event_timezone: "Asia/Tokyo",
+  projects: { project_timezone: "America/New_York" },
   volunteer_name: "Fictional volunteer",
   volunteer_email: "volunteer@example.test",
   issued_at: "2026-10-06T18:00:00Z",
@@ -21,29 +23,33 @@ let missing = false;
 let failed = false;
 let malformedDates = false;
 let creditedMinutes: number | null | undefined;
+let selected = "";
 /** An error the query returns instead of throwing, as PostgREST does. */
 let returnedError: { code?: string; message: string } | null = null;
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => {
-            if (failed) throw new Error("Synthetic read failure");
-            if (returnedError) return { data: null, error: returnedError };
-            return {
-              data: missing
-                ? null
-                : {
-                    ...certificate,
-                    credited_minutes: creditedMinutes,
-                    ...(malformedDates ? { event_end: "invalid" } : {}),
-                  },
-              error: null,
-            };
-          },
-        }),
-      }),
+      select: (columns: string) => {
+        selected = columns;
+        return {
+          eq: () => ({
+            single: async () => {
+              if (failed) throw new Error("Synthetic read failure");
+              if (returnedError) return { data: null, error: returnedError };
+              return {
+                data: missing
+                  ? null
+                  : {
+                      ...certificate,
+                      credited_minutes: creditedMinutes,
+                      ...(malformedDates ? { event_end: "invalid" } : {}),
+                    },
+                error: null,
+              };
+            },
+          }),
+        };
+      },
     }),
   }),
 }));
@@ -79,6 +85,16 @@ describe("certificate verification contract", () => {
     const response = await GET(request(), params);
     expect(response.status).toBe(200);
     expect((await response.json()).event.duration).toBe(1.3);
+  });
+  test("GET selects only the caller-readable project timezone and returns export precedence", async () => {
+    const response = await GET(request(), params);
+    const body = await response.json();
+    expect(selected).toContain("event_timezone");
+    expect(selected).toContain(
+      "projects!certificates_project_id_fkey(project_timezone)",
+    );
+    expect(body.event.timeZone).toBe("America/New_York");
+    expect(body.project).not.toHaveProperty("projects");
   });
   test.each([61, 0])(
     "canonical %i credited minutes override the event envelope",

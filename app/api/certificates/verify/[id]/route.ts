@@ -37,6 +37,8 @@ export async function GET(
         is_certified,
         event_start,
         event_end,
+        event_timezone,
+        projects!certificates_project_id_fkey(project_timezone),
         credited_minutes,
         volunteer_name,
         volunteer_email,
@@ -45,7 +47,8 @@ export async function GET(
       `,
       )
       .eq("id", certificateId)
-      .single();
+      // The explicit project foreign key is a nullable to-one relation.
+      .single<Parameters<typeof certificateVerification>[0]>();
 
     // Empty, unreadable and malformed identifiers retain the same private
     // response. A backend failure cannot establish that a certificate is absent.

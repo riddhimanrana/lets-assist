@@ -11,6 +11,8 @@ type VerificationCertificate = {
   is_certified: boolean | null;
   event_start: string;
   event_end: string;
+  event_timezone?: string | null;
+  projects?: { project_timezone?: string | null } | null;
   credited_minutes?: number | null;
   volunteer_name: string | null;
   volunteer_email: string | null;
@@ -68,6 +70,8 @@ export function certificateVerification(certificate: VerificationCertificate) {
     event: {
       startDate: certificate.event_start,
       endDate: certificate.event_end,
+      timeZone:
+        certificate.projects?.project_timezone || certificate.event_timezone,
       duration,
       creditedMinutes: certificate.credited_minutes,
     },

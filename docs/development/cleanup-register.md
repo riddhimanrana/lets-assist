@@ -1,5 +1,23 @@
 # Repository cleanup register
 
+## Certificate CSV date verdict — 2026-10-22
+
+`CERTIFICATE-CSV-DATES-20261022`, P2, implemented; successor full CI pending.
+PR #873 review found that changing Event Start Date, Event End Date or Issued
+Date could still produce a verified row. The verifier now compares all three
+with the dashboard's shared timezone formatter: event times retain exported
+minute precision, while issuance is compared as an exported date. The
+caller-scoped certificate query includes only the project timezone relation
+and stored event timezone needed for the dashboard's existing precedence and
+legacy fallback. No authority, stored certificate or award is changed.
+
+The actual dashboard export/CSV parser/API projection/verifier regressions cover
+tampered and missing dates, invalid authoritative dates, project and self-reported
+timezones, overnight and DST boundaries, and Intl nonbreaking spaces. The 124
+focused tests pass. Predecessor `5e41015a` full CI `39757776831` passed with one
+retried browser case; it does not verify this successor. The retained 352-image
+baseline belongs to predecessor `5fbfec45`; no new pixel approval is claimed.
+
 ## Release blocker found during current merge review — 2026-10-20
 
 `PROJECT-DELETION-CALENDAR-RESYNC-20261020`, P2, implemented, release validation pending.

@@ -49,8 +49,8 @@ function storedCertificate(
 
 /**
  * The cells the dashboard export writes for a certificate, in column order.
- * Uses the dashboard's actual formatter. The date cells are not compared with
- * the record, but must still be accepted by the upload parser.
+ * Uses the dashboard's actual formatter, including its project timezone and
+ * date/time precision.
  */
 function exportedCells(certificate: StoredCertificate): string[] {
   const row = certificateToDashboardExport(certificate, ACCOUNT_EMAIL);
@@ -568,6 +568,24 @@ describe("a changed identifying field does not verify", () => {
     { name: "duration", column: 8, value: "1.1", field: "hours" },
     { name: "location", column: 9, value: "Another park", field: "location" },
     {
+      name: "event start date",
+      column: 6,
+      value: "2026-10-07 9:00 AM PDT",
+      field: "eventStartDate",
+    },
+    {
+      name: "event end date",
+      column: 7,
+      value: "2026-10-07 10:15 AM PDT",
+      field: "eventEndDate",
+    },
+    {
+      name: "issued date",
+      column: 13,
+      value: "2026-10-07",
+      field: "issuedDate",
+    },
+    {
       name: "recipient name",
       column: 11,
       value: "Different fictional recipient",
@@ -634,7 +652,7 @@ describe("a changed identifying field does not verify", () => {
     const verified = await verify(uploadedRow(cells));
 
     expect(verified.isVerified).toBe(false);
-    expect(mismatchedFields(verified)).toEqual(["hours"]);
+    expect(mismatchedFields(verified)).toEqual(["hours", "eventEndDate"]);
   });
 
   for (const email of [ACCOUNT_EMAIL, "anyone@example.test", ""]) {
@@ -651,6 +669,101 @@ describe("a changed identifying field does not verify", () => {
       expect(mismatchedFields(verified)).toEqual(["recipientEmail"]);
     });
   }
+});
+
+describe("exported dates use the certificate timezone and exported precision", () => {
+  const examples: Partial<StoredCertificate>[] = [
+    {
+      projects: { project_timezone: "America/New_York" },
+      event_timezone: "Asia/Tokyo",
+      event_start: "2026-10-13T03:45:42Z",
+      event_end: "2026-10-13T04:15:19Z",
+      issued_at: "2026-10-13T05:00:47Z",
+    },
+    {
+      type: "self-reported",
+      project_id: null,
+      event_timezone: "Asia/Tokyo",
+      event_start: "2026-10-06T16:00:59Z",
+      event_end: "2026-10-06T17:15:30Z",
+    },
+    {
+      projects: { project_timezone: "America/New_York" },
+      event_start: "2026-03-08T06:30:00Z",
+      event_end: "2026-03-08T07:30:00Z",
+    },
+    {
+      projects: { project_timezone: "America/New_York" },
+      event_start: "2026-11-01T05:30:00Z",
+      event_end: "2026-11-01T06:30:00Z",
+    },
+    { event_timezone: "UTC" },
+    { event_timezone: "invalid-zone" },
+  ];
+  for (const [index, overrides] of examples.entries()) {
+    test(`the genuine dashboard export matches timezone case ${index + 1}`, async () => {
+      const certificate = storedCertificate(overrides);
+      recordOnFile(certificate);
+      const row = uploadedRow(exportedCells(certificate));
+      expect(row.issues).toEqual([]);
+      expect((await verify(row)).isVerified).toBe(true);
+    });
+  }
+
+  test("surrounding and Intl nonbreaking spaces do not change a date", async () => {
+    const certificate = storedCertificate();
+    const cells = exportedCells(certificate);
+    cells[6] = `  ${cells[6].replace(/ /gu, "\u00a0")}  `;
+    cells[7] = cells[7].replace(/ /gu, "\u202f");
+    cells[13] = ` ${cells[13]} `;
+    recordOnFile(certificate);
+    expect((await verify(uploadedRow(cells))).isVerified).toBe(true);
+  });
+
+  test("the repeated fall-back wall clock still requires the correct offset label", async () => {
+    const certificate = storedCertificate({
+      projects: { project_timezone: "America/New_York" },
+      event_start: "2026-11-01T05:30:00Z",
+      event_end: "2026-11-01T06:30:00Z",
+    });
+    const cells = exportedCells(certificate);
+    cells[6] = cells[6].replace("EDT", "EST");
+    recordOnFile(certificate);
+    expect(mismatchedFields(await verify(uploadedRow(cells)))).toEqual([
+      "eventStartDate",
+    ]);
+  });
+
+  for (const [column, field] of [
+    [6, "eventStartDate"],
+    [7, "eventEndDate"],
+    [13, "issuedDate"],
+  ] as const) {
+    test(`a missing ${field} never verifies`, async () => {
+      const certificate = storedCertificate();
+      const cells = exportedCells(certificate);
+      cells[column] = "";
+      recordOnFile(certificate);
+      expect(mismatchedFields(await verify(uploadedRow(cells)))).toEqual([
+        field,
+      ]);
+    });
+  }
+
+  test("unusable authoritative dates cannot confirm even matching unknown placeholders", async () => {
+    const certificate = storedCertificate({
+      event_start: "invalid",
+      event_end: "invalid",
+      issued_at: null,
+    });
+    recordOnFile(certificate);
+    const row = uploadedRow(exportedCells(certificate));
+    expect(mismatchedFields(await verify(row))).toEqual([
+      "eventStartDate",
+      "eventEndDate",
+      "issuedDate",
+    ]);
+  });
 });
 
 describe("duration cells are read strictly", () => {
