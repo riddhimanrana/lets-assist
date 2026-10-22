@@ -73,6 +73,13 @@ export async function POST(request: NextRequest) {
         // Publish approved sessions, then sweep pending certificate email
         const result = await processExpiredSessions();
         summary.capture(result);
+        const outcome = summary.outcome().outcome;
+        // The manual fallback owns its heartbeat and checks the HTTP status.
+        // Keep that signal aligned with the captured worker classification.
+        const incomplete =
+          summary.heartbeatBlocked() ||
+          outcome === "failed" ||
+          outcome === "partial";
 
         const executionTime = Date.now() - startTime;
         safeConsole.log(
@@ -96,7 +103,7 @@ export async function POST(request: NextRequest) {
             executionTimeMs: executionTime,
             results: result.results,
           },
-          { status: 200 },
+          { status: incomplete ? 503 : 200 },
         );
       },
       summary,

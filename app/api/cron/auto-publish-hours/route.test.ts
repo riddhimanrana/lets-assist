@@ -9,6 +9,7 @@ let claimFailure = false;
 let recoveryFailure = false;
 let heldHistorical = 0;
 let pendingDeliveries = 0;
+let heldDeliveries = 0;
 let probe: NextResponse | null = null;
 // The only outbound request this route can make here is a heartbeat ping.
 const heartbeatUrl =
@@ -72,7 +73,7 @@ mock.module("@supabase/supabase-js", () => ({
               data: {
                 counted: true,
                 pendingDeliveries,
-                heldDeliveries: 0,
+                heldDeliveries,
                 groups: [],
               },
               error: null,
@@ -127,6 +128,7 @@ beforeEach(() => {
   recoveryFailure = false;
   heldHistorical = 0;
   pendingDeliveries = 0;
+  heldDeliveries = 0;
   workerCalls.length = 0;
   receipts.length = 0;
   pings.length = 0;
@@ -272,7 +274,7 @@ test("a confirmed empty claim records one enabled empty pass with separate recov
 test("held historical sessions are reported top-level and never record an empty pass", async () => {
   heldHistorical = 2;
   const response = await POST(request());
-  expect(response.status).toBe(200);
+  expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({
     approvalStatus: "approved",
     discoveryCounted: true,
@@ -285,6 +287,39 @@ test("held historical sessions are reported top-level and never record an empty 
     completed: 0,
     refused: 2,
   });
+});
+test("fallback retries pending or held recovery without receiving a false success", async () => {
+  for (const held of [false, true]) {
+    pendingDeliveries = held ? 0 : 1;
+    heldDeliveries = held ? 1 : 0;
+    const response = await POST(
+      scheduled("POST", "lets-assist-cron/Auto-Publish Hours"),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      recovery: {
+        counted: true,
+        pending: pendingDeliveries,
+        held: heldDeliveries,
+      },
+    });
+    expect(heartbeatStatus(response)).toBe("not_sent");
+    expect(receipts.at(-1)?.parameters.p_result).toMatchObject({
+      outcome: "partial",
+    });
+  }
+  pendingDeliveries = 0;
+  heldDeliveries = 0;
+  const retry = await POST(
+    scheduled("POST", "lets-assist-cron/Auto-Publish Hours"),
+  );
+  expect(retry.status).toBe(200);
+  expect(receipts.at(-1)?.parameters.p_result).toMatchObject({
+    outcome: "no_run",
+    code: "empty_queue",
+  });
+  expect(heartbeatStatus(retry)).toBe("not_sent");
+  expect(pings).toHaveLength(0);
 });
 test("the scheduled Production GET owns the heartbeat and reports an authoritative empty pass", async () => {
   const response = await GET(scheduled());
@@ -303,6 +338,7 @@ test("the scheduled Production GET owns the heartbeat and reports an authoritati
 test("the scheduled heartbeat fails for pending mail, held sessions, and missing approval", async () => {
   pendingDeliveries = 1;
   let response = await GET(scheduled());
+  expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({
     recovery: { counted: true, pending: 1, deliveries: 0 },
   });
@@ -315,12 +351,13 @@ test("the scheduled heartbeat fails for pending mail, held sessions, and missing
   pendingDeliveries = 0;
   heldHistorical = 1;
   response = await GET(scheduled());
+  expect(response.status).toBe(503);
   expect(heartbeatStatus(response)).toBe("failed_signaled");
 
   heldHistorical = 0;
   delete process.env.AUTO_PUBLISH_APPROVED_FROM;
   response = await GET(scheduled());
-  expect(response.status).toBe(200);
+  expect(response.status).toBe(503);
   expect(heartbeatStatus(response)).toBe("failed_signaled");
 
   expect(pings).toEqual([
@@ -385,7 +422,7 @@ test("a missing or offset approval boundary blocks discovery and reports unknown
     receipts.length = 0;
 
     const response = await POST(request());
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     const body = await response.json();
     expect(body).toMatchObject({
       approvalStatus: "approval_required",

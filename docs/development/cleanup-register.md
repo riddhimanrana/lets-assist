@@ -12103,3 +12103,12 @@ leak without claiming native Windows execution. The six private caller tests
 and eight root compatibility tests pass. Private PR663 merged to Development
 after its hosted quality checks passed; source promotion PR662 and exact root
 integration remain separate. No runtime authorization or provider state changes.
+
+`HOURS-FALLBACK-PARTIAL-HEARTBEAT-20261022`, P2: review found that the manual
+hours fallback accepted HTTP 200 for a partial certificate-email recovery and
+could send its success heartbeat. The route now returns 503 when its existing
+worker summary is blocked, partial or failed. The response counters, execution
+receipts, publication rules and heartbeat ownership are unchanged. Regression
+coverage exercises pending and held recovery followed by a confirmed empty
+retry; scheduled failure signaling and approval refusals remain covered.
+Exact successor CI and hosted release acceptance remain required.
