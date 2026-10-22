@@ -316,11 +316,6 @@ test("inventories every root project_signups to projects embed and its DTO shape
       inner: true,
     },
     {
-      file: "services/auto-publish-hours-worker.ts",
-      outputAlias: "projects",
-      inner: true,
-    },
-    {
       file: "services/calendar-settings-data.ts",
       outputAlias: "project",
       inner: false,

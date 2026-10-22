@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  BadgeCheck,
   CheckCircle2,
   Clock,
   FileText,
@@ -49,8 +48,8 @@ const {
   coordinatorImage: COORDINATOR_IMAGE,
 } = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const PROJECT_HREF = `/projects/${PROJECT_ID}`;
-// Display only. The demo links still point at PROJECT_HREF.
-const PROJECT_DISPLAY_URL = "lets-assist.com/projects/santa-cruz-beach-cleanup";
+// Display only: the example is not a live signup destination.
+const PROJECT_DISPLAY_URL = `lets-assist.com${PROJECT_HREF}`;
 
 const attendees = [
   { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
@@ -124,29 +123,16 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 
 const platformHighlights = [
   {
-    icon: QrCode,
-    title: "QR code check-in at events",
-    desc: "Check volunteers in on-site and keep attendance tied to the project record.",
+    title: "Set up the project",
+    desc: "Add sessions, spots, and a waiver when your event requires one.",
   },
   {
-    icon: BadgeCheck,
-    title: "Track all your volunteer hours in one place",
-    desc: "Verified, pending, and self-reported service hours stay organized together.",
+    title: "Run the day",
+    desc: "Share one sign-up link and record QR check-ins at each session.",
   },
   {
-    icon: null,
-    title: "Google Sheets and Calendar sync",
-    desc: "Push project rosters and dates into the tools your organization already uses.",
-    logos: [
-      {
-        src: "/resources/google-sheets-logo-2026.png",
-        alt: "Google Sheets",
-      },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
+    title: "Publish the proof",
+    desc: "Verify hours and give volunteers a service certificate.",
   },
 ];
 
@@ -490,7 +476,6 @@ function buildDemoProject(demoDateAnchor: string): {
   project: Project;
   creator: ProjectCreatorProfileRecord;
   organization: Organization;
-  attendees: SlotAttendee[];
 } {
   const dayOne = landingDemoDate(demoDateAnchor, 31);
   const dayTwo = landingDemoDate(demoDateAnchor, 32);
@@ -533,8 +518,8 @@ function buildDemoProject(demoDateAnchor: string): {
     event_type: "multiDay",
     verification_method: "qr-code",
     require_login: false,
-    enable_volunteer_comments: true,
-    show_attendees_publicly: true,
+    enable_volunteer_comments: false,
+    show_attendees_publicly: false,
     waiver_required: false,
     creator_id: creator.id,
     schedule: {
@@ -593,117 +578,13 @@ function buildDemoProject(demoDateAnchor: string): {
     project_timezone: "America/Los_Angeles",
   };
 
-  const profileAvatarByName: Record<string, string> = {
-    "Maya Chen": "/demo/avatars/maya-chen.png",
-    "Jordan Lee": "/demo/avatars/jordan-lee.png",
-    "Avery Patel": "/demo/avatars/avery-patel.png",
-    "Priya Shah": "/demo/avatars/priya-shah.png",
-  };
-  const makeAttendee = (
-    scheduleId: string,
-    index: number,
-    name: string,
-    comment = "",
-    anonymous = false,
-  ): SlotAttendee => {
-    const username = name.toLowerCase().replace(/[^a-z0-9]+/g, ".");
-
-    return {
-      signup_id: `demo-${scheduleId}-${index}`,
-      schedule_id: scheduleId,
-      user_id: anonymous ? null : `demo-user-${username}`,
-      full_name: name,
-      username: anonymous ? "" : username,
-      avatar_url: anonymous ? "" : (profileAvatarByName[name] ?? ""),
-      volunteer_comment: comment,
-      is_anonymous: anonymous,
-      anonymous_name: anonymous ? name : "",
-      profile_note: anonymous
-        ? undefined
-        : index % 3 === 0
-          ? "Verified volunteer with recent project check-ins."
-          : index % 3 === 1
-            ? "Student volunteer tracking service hours."
-            : "Community member helping with local cleanup projects.",
-      is_trusted: !anonymous && index % 4 === 0,
-      created_at: "2025-01-15T00:00:00.000Z",
-    };
-  };
-
-  const attendeeGroups = [
-    {
-      scheduleId: `${dayOne}-0-0`,
-      rows: [
-        ["Maya Chen", "Bringing gloves and trash bags."],
-        ["Jordan Lee", "Can help sort recycling."],
-        ["Avery Patel", ""],
-        ["Nina Brooks", "Happy to cover shoreline photos."],
-        ["Sam Rivera", ""],
-        ["Priya Shah", "Joining with two friends."],
-        ["Ethan Wong", ""],
-        ["Lena Kim", "Can stay 15 minutes late."],
-        ["Marcus Reed", ""],
-        ["Anonymous Volunteer", "Prefers supply sorting.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayOne}-0-1`,
-      rows: [
-        ["Grace Lin", "I can check people in."],
-        ["Owen Clark", ""],
-        ["Anonymous Volunteer", "Bringing extra water.", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-0`,
-      rows: [
-        ["Sofia Martinez", ""],
-        ["Noah Singh", "Can help carry full bags."],
-        ["Isabella Nguyen", ""],
-        ["Lucas Brown", ""],
-        ["Amara Davis", "I have a grabber tool."],
-        ["Ben Carter", ""],
-        ["Mila Johnson", "Can lead a small group."],
-        ["Kai Thompson", ""],
-        ["Emma Wilson", ""],
-        ["Daniel Park", "Bringing reusable gloves."],
-        ["Leah Robinson", ""],
-        ["Ravi Mehta", ""],
-        ["Anonymous Volunteer", "Coming with family.", true],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can help with photos.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-1`,
-      rows: [
-        ["Chloe Adams", "Experienced with sorting."],
-        ["Henry Scott", ""],
-        ["Zara Ali", "Can label bins."],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can stay until 5:30.", true],
-      ],
-    },
-  ] satisfies Array<{
-    scheduleId: string;
-    rows: Array<[string, string?, boolean?]>;
-  }>;
-
-  const attendees: SlotAttendee[] = attendeeGroups.flatMap((group) =>
-    group.rows.map(([name, comment = "", anonymous = false], index) =>
-      makeAttendee(group.scheduleId, index, name, comment, anonymous),
-    ),
-  );
-
-  return { project, creator, organization, attendees };
+  return { project, creator, organization };
 }
 
 function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
   const [demoScrollEnabled, setDemoScrollEnabled] = useState(false);
   const demoWindowRef = useRef<HTMLDivElement>(null);
-  const { project, creator, organization, attendees } = useMemo(
+  const { project, creator, organization } = useMemo(
     () => buildDemoProject(demoDateAnchor),
     [demoDateAnchor],
   );
@@ -743,6 +624,9 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
       className="relative mx-auto w-full max-w-6xl"
       id="live-demo"
     >
+      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Fictional interactive project · Signups here are not saved
+      </p>
       <div
         ref={demoWindowRef}
         className="relative overflow-hidden rounded-[1.75rem] border bg-background shadow-(--card-shadow)"
@@ -780,7 +664,7 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
             userSignupsData={[]}
             allSignups={[]}
             demoMode
-            demoPublicAttendees={attendees}
+            demoPublicAttendees={[]}
           />
         </div>
         <Button
@@ -911,9 +795,9 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Sign up from one link, check in with a QR code, and get hours your
-          school or club can verify. Free for volunteers and the groups that run
-          events.
+          Plan shifts and signups, record QR attendance or review a scanned
+          paper roster, then attribute and verify volunteer hours. Keep the
+          record and certificates in one organization workspace.
         </motion.p>
 
         <motion.div
@@ -922,13 +806,22 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/signup">
-            Run a volunteer event
+          <MotionLinkButton href="/signup?redirect=%2Fprojects%2Fcreate">
+            Create a project
           </MotionLinkButton>
-          <MotionLinkButton href="/contact" tone="outline">
-            Contact us
+          <MotionLinkButton href="#org-tooling" tone="outline">
+            See how it works
           </MotionLinkButton>
         </motion.div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Want to volunteer?{" "}
+          <Link
+            href="/projects"
+            className="font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+          >
+            Browse upcoming projects
+          </Link>
+        </p>
       </div>
 
       <motion.div
@@ -940,47 +833,29 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
         <RealProjectDemoWindow demoDateAnchor={demoDateAnchor} />
       </motion.div>
 
-      <motion.div
+      <motion.ol
         initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
+        className="mx-auto mt-8 grid w-full max-w-6xl gap-6 border-t pt-6 text-left sm:grid-cols-3 sm:gap-8"
       >
-        {platformHighlights.map((item) => (
-          <Card key={item.title}>
-            <CardContent className="p-4">
-              <div className="mb-4 flex h-10 items-center">
-                {item.logos ? (
-                  <div className="flex items-center gap-2">
-                    {item.logos.map((logo) => (
-                      <span
-                        key={logo.src}
-                        className="flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs"
-                      >
-                        <Image
-                          src={logo.src}
-                          alt={logo.alt}
-                          width={24}
-                          height={24}
-                          className="size-6 object-contain"
-                        />
-                      </span>
-                    ))}
-                  </div>
-                ) : item.icon ? (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <item.icon className="size-5" />
-                  </div>
-                ) : null}
-              </div>
-              <h3 className="text-sm font-semibold">{item.title}</h3>
+        {platformHighlights.map((item, index) => (
+          <li key={item.title} className="flex gap-4">
+            <span
+              aria-hidden="true"
+              className="pt-0.5 text-sm font-semibold tabular-nums text-muted-foreground"
+            >
+              0{index + 1}
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">{item.title}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {item.desc}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </li>
         ))}
-      </motion.div>
+      </motion.ol>
     </section>
   );
 };

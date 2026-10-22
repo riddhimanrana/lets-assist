@@ -25,6 +25,10 @@ for (const [scenario, description] of [
   ["past-legacy", "an ended legacy session can publish reviewed attendance"],
   ["future", "future sessions explain why publication is disabled"],
   ["missing-window", "unresolvable sessions cannot offer publication"],
+  [
+    "timezone-label",
+    "the timezone label does not imply today's seasonal offset",
+  ],
 ]) {
   test(
     description,

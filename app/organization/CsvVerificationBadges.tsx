@@ -43,6 +43,31 @@ export function CertificateTypeBadge({ row }: { row: CertificateRow }) {
   );
 }
 
+type LookupStatusLabel =
+  "Verified" | "Data mismatch" | "Unavailable" | "Not found" | "Not verified";
+
+const STATUS_BADGE_VARIANT = {
+  Verified: "success",
+  "Data mismatch": "warning",
+  Unavailable: "warning",
+  "Not found": "destructive",
+  "Not verified": "destructive",
+} as const satisfies Record<LookupStatusLabel, string>;
+
+/**
+ * The outcome of a finished lookup. "Not found" is said only when the lookup
+ * reported that no certificate exists; a lookup that could not answer is
+ * "Unavailable".
+ */
+export function certificateStatusLabel(row: CertificateRow): LookupStatusLabel {
+  if (row.isVerified) return "Verified";
+  if (row.verificationStatus === "verified") return "Data mismatch";
+  if (row.verificationStatus === "unavailable") return "Unavailable";
+  return row.verificationResult?.exists === false
+    ? "Not found"
+    : "Not verified";
+}
+
 /** One flat status per row. Format problems win over lookup results. */
 export function CertificateStatusBadge({ row }: { row: CertificateRow }) {
   if (!row.valid) return <Badge variant="destructive">Invalid format</Badge>;
@@ -57,9 +82,9 @@ export function CertificateStatusBadge({ row }: { row: CertificateRow }) {
       </Badge>
     );
   }
-  if (row.isVerified) return <Badge variant="success">Verified</Badge>;
-  if (row.verificationStatus === "verified") {
-    return <Badge variant="warning">Data mismatch</Badge>;
-  }
-  return <Badge variant="destructive">Not found</Badge>;
+  return (
+    <Badge variant={STATUS_BADGE_VARIANT[certificateStatusLabel(row)]}>
+      {certificateStatusLabel(row)}
+    </Badge>
+  );
 }

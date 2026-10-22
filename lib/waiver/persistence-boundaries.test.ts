@@ -140,7 +140,7 @@ test("signup cancellation and project deletion cannot erase signed evidence", ()
   const cancelStart = source.indexOf("export async function cancelSignup");
   const cancelEnd = source.indexOf("export async function", cancelStart + 30);
   const cancelFlow = source.slice(cancelStart, cancelEnd);
-  const deleteStart = source.indexOf("export async function deleteProject");
+  const deleteStart = source.indexOf("export async function deleteProject(");
   const deleteFlow = source.slice(deleteStart);
 
   assert.match(cancelFlow, /\.update\(\{ status: "cancelled" \}\)/u);
@@ -149,5 +149,7 @@ test("signup cancellation and project deletion cannot erase signed evidence", ()
     /\.from\("project_signups"\)\s*\n\s*\.delete\(\)/u,
   );
   assert.match(deleteFlow, /from\("waiver_signatures"\)/u);
+  assert.match(deleteFlow, /error: PROJECT_DELETION_ERRORS\.signed_waivers/u);
+  assert.match(deleteFlow, /actorId: user\.id/u);
   assert.match(deleteFlow, /signed waivers must be cancelled and retained/u);
 });

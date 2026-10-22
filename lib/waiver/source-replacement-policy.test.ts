@@ -65,23 +65,33 @@ describe("waiver source actions", () => {
   });
 
   test("both actions authorize first and check the lock before touching storage", () => {
-    for (const [flow, message] of [
-      [upload, "WAIVER_SOURCE_REPLACE_LOCKED_MESSAGE"],
-      [remove, "WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE"],
+    // Removal no longer deletes the object itself. It detaches the project
+    // and hands the object to the reference-rechecked cleanup queue.
+    for (const [flow, message, storageStep] of [
+      [upload, "WAIVER_SOURCE_REPLACE_LOCKED_MESSAGE", ".storage"],
+      [
+        remove,
+        "WAIVER_SOURCE_REMOVE_LOCKED_MESSAGE",
+        "enqueue_superseded_waiver_source",
+      ],
     ] as const) {
       const authorized = flow.indexOf("canCurrentUserManageProject(projectId)");
       const locked = flow.indexOf("isWaiverSourceLocked(");
-      const storage = flow.indexOf(".storage");
+      const storage = flow.indexOf(storageStep);
 
       expect(authorized).toBeGreaterThan(0);
       expect(locked).toBeGreaterThan(authorized);
       expect(storage).toBeGreaterThan(locked);
       expect(flow).toContain(message);
     }
+    expect(remove).not.toContain(".storage");
+    expect(remove.indexOf("enqueue_superseded_waiver_source")).toBeGreaterThan(
+      remove.indexOf(".update("),
+    );
   });
 
   test("a password protected PDF is refused before it is stored", () => {
-    const encrypted = upload.indexOf("isEncryptedPdf(");
+    const encrypted = upload.indexOf("waiverFileProblem(");
     expect(encrypted).toBeGreaterThan(0);
     expect(upload.indexOf(".upload(")).toBeGreaterThan(encrypted);
     expect(upload).toContain("ENCRYPTED_WAIVER_PDF_MESSAGE");

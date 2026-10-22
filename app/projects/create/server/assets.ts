@@ -6,6 +6,11 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { v4 as uuidv4 } from "uuid";
 import {
+  parseWaiverDataUrl,
+  waiverFileProblem,
+} from "@/lib/waiver/file-validation";
+import { ENCRYPTED_WAIVER_PDF_MESSAGE } from "@/lib/waiver/source-replacement-policy";
+import {
   ALLOWED_DOCUMENT_TYPES,
   ALLOWED_IMAGE_TYPES,
   MAX_COVER_IMAGE_SIZE,
@@ -202,11 +207,14 @@ export async function linkProjectUploadedAssets(
     return { error: "You must be logged in to upload files." };
   }
 
-  const { data: project, error: projectError } = await supabase
-    .from("projects")
-    .select("id, creator_id, organization_id, documents")
-    .eq("id", projectId)
-    .single();
+  const loadProject = async () =>
+    await supabase
+      .from("projects")
+      .select("id, creator_id, organization_id, cover_image_url, documents")
+      .eq("id", projectId)
+      .single();
+
+  const { data: project, error: projectError } = await loadProject();
 
   if (projectError || !project) {
     safeConsole.error(
@@ -234,46 +242,109 @@ export async function linkProjectUploadedAssets(
     return { error: "You don't have permission to update this project." };
   }
 
-  const safeDocuments = (assets.documents ?? []).filter((document) => {
-    return (
-      document &&
-      typeof document.name === "string" &&
-      typeof document.originalName === "string" &&
-      typeof document.type === "string" &&
-      typeof document.size === "number" &&
-      typeof document.url === "string" &&
-      ALLOWED_DOCUMENT_TYPES.includes(document.type)
-    );
-  });
-
-  const updatePayload: Record<string, unknown> = {};
-
-  if (assets.coverImageUrl) {
-    updatePayload.cover_image_url = assets.coverImageUrl;
+  // The stored URL is the document's identity. A URL sent twice, or sent
+  // again by a retry, is attached once.
+  const requestedUrls = new Set<string>();
+  const safeDocuments: UploadedProjectDocument[] = [];
+  for (const document of Array.isArray(assets.documents)
+    ? assets.documents
+    : []) {
+    if (
+      !document ||
+      typeof document.name !== "string" ||
+      typeof document.originalName !== "string" ||
+      typeof document.type !== "string" ||
+      typeof document.size !== "number" ||
+      typeof document.url !== "string" ||
+      !document.url ||
+      !ALLOWED_DOCUMENT_TYPES.includes(document.type) ||
+      requestedUrls.has(document.url)
+    ) {
+      continue;
+    }
+    requestedUrls.add(document.url);
+    safeDocuments.push({
+      name: document.name,
+      originalName: document.originalName,
+      type: document.type,
+      size: document.size,
+      url: document.url,
+    });
   }
+  const coverImageUrl =
+    typeof assets.coverImageUrl === "string" && assets.coverImageUrl
+      ? assets.coverImageUrl
+      : null;
 
-  if (safeDocuments.length > 0) {
-    const currentDocuments = Array.isArray(project.documents)
-      ? project.documents
+  // The documents column is replaced as a whole, so an append is written only
+  // while the column still holds the exact value the append was built from.
+  // A write that matched no row, or changed nothing, is rebuilt from the row
+  // as it is now. Success is reported only for what the row really holds.
+  const maxWrites = 3;
+  let current: {
+    cover_image_url?: unknown;
+    documents?: unknown;
+  } = project;
+  for (let pass = 0; ; pass += 1) {
+    const currentDocuments: unknown[] = Array.isArray(current.documents)
+      ? current.documents
       : [];
-    updatePayload.documents = [...currentDocuments, ...safeDocuments];
+    const attachedUrls = new Set(
+      currentDocuments.map((document) =>
+        document && typeof document === "object"
+          ? (document as { url?: unknown }).url
+          : undefined,
+      ),
+    );
+    const missingDocuments = safeDocuments.filter(
+      (document) => !attachedUrls.has(document.url),
+    );
+    const coverPending =
+      coverImageUrl !== null && current.cover_image_url !== coverImageUrl;
+
+    if (missingDocuments.length === 0 && !coverPending) {
+      return { success: true };
+    }
+
+    if (pass === maxWrites) {
+      safeConsole.error("Uploaded project assets were not stored on the row.");
+      return { error: "Uploaded files could not be attached to the project." };
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+    if (coverPending) updatePayload.cover_image_url = coverImageUrl;
+    let write = supabase
+      .from("projects")
+      .update(updatePayload)
+      .eq("id", projectId);
+    if (missingDocuments.length > 0) {
+      updatePayload.documents = [...currentDocuments, ...missingDocuments];
+      // jsonb equality needs the value as JSON text. SQL NULL equals nothing,
+      // so it has its own filter. A cover-only write carries no documents and
+      // needs no condition.
+      write =
+        current.documents === null || current.documents === undefined
+          ? write.is("documents", null)
+          : write.eq("documents", JSON.stringify(current.documents));
+    }
+
+    const { error: updateError } = await write;
+
+    if (updateError) {
+      safeConsole.error("Error linking uploaded project assets:", updateError);
+      return { error: "Uploaded files could not be attached to the project." };
+    }
+
+    const { data: stored, error: storedError } = await loadProject();
+    if (storedError || !stored) {
+      safeConsole.error(
+        "Error confirming uploaded project assets:",
+        storedError,
+      );
+      return { error: "Uploaded files could not be attached to the project." };
+    }
+    current = stored;
   }
-
-  if (Object.keys(updatePayload).length === 0) {
-    return { success: true };
-  }
-
-  const { error: updateError } = await supabase
-    .from("projects")
-    .update(updatePayload)
-    .eq("id", projectId);
-
-  if (updateError) {
-    safeConsole.error("Error linking uploaded project assets:", updateError);
-    return { error: "Uploaded files could not be attached to the project." };
-  }
-
-  return { success: true };
 }
 
 // Handle waiver PDF upload for a project
@@ -286,21 +357,26 @@ export async function uploadWaiverPdf(
   const supabase = await createClient();
 
   try {
-    // Skip if no PDF data
-    if (!pdfBase64 || !pdfBase64.includes("base64")) {
-      return { success: true };
+    const parsed = parseWaiverDataUrl(pdfBase64);
+    if (!parsed || parsed.contentType !== "application/pdf") {
+      return { error: "Choose a valid waiver PDF and try again." };
     }
-
-    // Process base64 PDF
-    const base64Str = pdfBase64.split(",")[1];
-    const buffer = Buffer.from(base64Str, "base64");
+    const buffer = parsed.buffer;
     const contentType = "application/pdf";
 
     // Validate size (10MB max)
-    const sizeInBytes = Math.ceil(base64Str.length * 0.75);
+    const sizeInBytes = parsed.size;
     if (sizeInBytes > 10 * 1024 * 1024) {
       return { error: "Waiver PDF is too large. Maximum size is 10MB." };
     }
+    const pdfProblem = await waiverFileProblem(buffer, contentType);
+    if (pdfProblem === "encrypted")
+      return { error: ENCRYPTED_WAIVER_PDF_MESSAGE };
+    if (pdfProblem)
+      return {
+        error:
+          "The waiver PDF could not be read. Choose a valid PDF and try again.",
+      };
 
     // Create unique filename
     const timestamp = Date.now();

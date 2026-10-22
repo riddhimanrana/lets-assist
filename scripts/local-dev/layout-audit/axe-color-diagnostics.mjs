@@ -55,7 +55,7 @@ export async function readAxeRows({ includeColorDetails = false } = {}) {
     let region = "other";
     if (element) {
       for (const [selector, name] of [
-        ["#comparison", "comparison"],
+        ["#partners", "partners"],
         ["#check-in", "check-in"],
         ["#journey", "journey"],
         ["#org-tooling", "org-tooling"],

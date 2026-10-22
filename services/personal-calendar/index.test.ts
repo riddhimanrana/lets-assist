@@ -125,9 +125,9 @@ test("an active binding still syncs every planned event", async () => {
   }
   expect(steps).toEqual(["renew", "confirm", "renew", "confirm", "finish"]);
   expect(tokenFetches).toBe(1);
-  // One pin with the credential, then one fresh read before each write, all
-  // for this user's personal-calendar binding and nothing else.
-  expect(bindingReads).toHaveLength(3);
+  // One read on each side of the credential fetch, then one fresh read before
+  // each write, all for this user's personal-calendar binding and nothing else.
+  expect(bindingReads).toHaveLength(4);
   expect(
     bindingReads.every(
       (read) => read.userId === USER_ID && read.purpose === "personal_calendar",

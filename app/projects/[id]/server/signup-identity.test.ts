@@ -1,4 +1,14 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { PDFDocument } from "pdf-lib";
+
+// The project's waiver document as Storage holds it. An e-signature is only
+// accepted once its placement is proven against these actual bytes.
+const waiverSourcePdf = await (async () => {
+  const document = await PDFDocument.create();
+  document.addPage([612, 792]);
+  return document.save();
+})();
+const waiverSourceDownloads: string[] = [];
 
 type Op = { method: string; args: unknown[] };
 type TableCall = { table: string; ops: Op[] };
@@ -72,7 +82,16 @@ function makeClient() {
       getUser: async () => ({ data: { user: sessionUser }, error: null }),
     },
     storage: {
-      from: () => ({
+      from: (bucket: string) => ({
+        download: async (path: string) => {
+          waiverSourceDownloads.push(`${bucket}/${path}`);
+          return {
+            data: new Blob([waiverSourcePdf.slice()], {
+              type: "application/pdf",
+            }),
+            error: null,
+          };
+        },
         upload: async () => ({ error: null }),
         remove: async () => ({ error: null }),
         copy: async () => ({ error: null }),
@@ -151,6 +170,18 @@ function baseProject(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const WAIVER_SOURCE_PATH =
+  "project_waivers/11111111-1111-4111-8111-111111111111/source.pdf";
+
+/** A waiver project whose source document really exists in Storage. */
+function waiverProject(overrides: Record<string, unknown> = {}) {
+  return baseProject({
+    waiver_required: true,
+    waiver_pdf_storage_path: WAIVER_SOURCE_PATH,
+    ...overrides,
+  });
+}
+
 function insertedSignup() {
   return {
     data: [
@@ -196,6 +227,7 @@ const deleteCalls = () =>
 beforeEach(() => {
   tableCalls.length = 0;
   rpcCalls.length = 0;
+  waiverSourceDownloads.length = 0;
   sessionUser = null;
   projectRecord = baseProject();
   emailOutcome = "accepted";
@@ -309,7 +341,7 @@ describe("signUpForProject waiver boundary", () => {
 
   test("the evidence travels inside the one capacity-checked transaction", async () => {
     sessionUser = SESSION;
-    projectRecord = baseProject({ waiver_required: true });
+    projectRecord = waiverProject();
 
     const result = await signUpForProject(
       projectRecord.id as string,
@@ -320,6 +352,10 @@ describe("signUpForProject waiver boundary", () => {
     );
 
     expect(result.success).toBe(true);
+    // The placement was proven against the stored source before the insert.
+    expect(waiverSourceDownloads).toEqual([
+      `waiver-uploads/${WAIVER_SOURCE_PATH}`,
+    ]);
 
     const inserts = signupInserts();
     expect(inserts).toHaveLength(1);
@@ -336,11 +372,29 @@ describe("signUpForProject waiver boundary", () => {
     expect(waiver).not.toHaveProperty("project_id");
     expect(waiver).not.toHaveProperty("signup_id");
     expect(waiver).not.toHaveProperty("user_id");
+    expect(waiver.waiver_pdf_storage_path).toBe(WAIVER_SOURCE_PATH);
+  });
+
+  test("an e-signature on a project with no waiver document never reaches the database", async () => {
+    sessionUser = SESSION;
+    projectRecord = baseProject({ waiver_required: true });
+
+    const result = await signUpForProject(
+      projectRecord.id as string,
+      "oneTime",
+      undefined,
+      undefined,
+      TYPED_WAIVER,
+    );
+
+    expect(result.success).toBeUndefined();
+    expect(result.error).toMatch(/waiver document is not available/iu);
+    expect(signupInserts()).toEqual([]);
   });
 
   test("a database refusal surfaces its mapped message and leaves nothing behind", async () => {
     sessionUser = SESSION;
-    projectRecord = baseProject({ waiver_required: true });
+    projectRecord = waiverProject();
     rpcHandlers.insert_project_signup_with_waiver = () => ({
       data: [
         {
@@ -589,7 +643,7 @@ describe("signUpForProject guest flow", () => {
 
   test("a guest waiver signature is recorded under the gated guest address", async () => {
     sessionUser = null;
-    projectRecord = baseProject({ waiver_required: true });
+    projectRecord = waiverProject();
     rpcHandlers.insert_project_signup_with_waiver = () => ({
       data: [
         {

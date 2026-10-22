@@ -38,8 +38,8 @@ const steps = [
   {
     icon: Award,
     key: "certificate",
-    label: "Get certified",
-    desc: "Certificates after organizers verify and publish hours",
+    label: "Get a certificate",
+    desc: "A shareable service certificate after organizers verify and publish hours",
   },
 ];
 
@@ -68,11 +68,13 @@ const mockCertificateData = {
   projectName: "Bellingham Square Park Cleanup",
   organizationName: "San Ramon City Alliance",
   hours: 3.0,
-  volunteerName: "Riddhiman Rana",
+  volunteerName: "Example Volunteer",
 };
 
 export default function VolunteerJourneySection() {
-  const [active, setActive] = useState(0);
+  // Lead with the result volunteers care about; the steps remain in journey
+  // order and can be selected individually.
+  const [active, setActive] = useState(4);
   const [userSelected, setUserSelected] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const sectionInView = useInView(sectionRef, { amount: 0.3 });
@@ -151,7 +153,11 @@ export default function VolunteerJourneySection() {
             From sign-up to certificate
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
-            What a volunteer sees, start to finish.
+            Volunteers can sign up, record attendance, and see their hours turn
+            into a certificate once an organizer verifies and publishes them.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Interactive sample with fictional project and volunteer details.
           </p>
         </motion.div>
 

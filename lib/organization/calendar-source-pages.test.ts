@@ -26,6 +26,30 @@ test("later page errors refuse the partial snapshot", async () => {
     ),
   ).rejects.toThrow("complete calendar source");
 });
+test("a deadline stops the next page from being read", async () => {
+  const expired = new AbortController();
+  expired.abort();
+  const unread = mock(async () => ({ data: [], error: null }));
+  await expect(loadCalendarSourcePages(unread, expired.signal)).rejects.toThrow(
+    "deadline",
+  );
+  expect(unread).not.toHaveBeenCalled();
+
+  const controller = new AbortController();
+  const fetcher = mock(async (_after: string | null, size: number) => {
+    controller.abort();
+    return {
+      data: Array.from({ length: size }, (_, index) => ({
+        id: String(index).padStart(5, "0"),
+      })),
+      error: null,
+    };
+  });
+  await expect(
+    loadCalendarSourcePages(fetcher, controller.signal),
+  ).rejects.toThrow("deadline");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
 test("non-advancing pages cannot loop or duplicate projections", async () => {
   await expect(
     loadCalendarSourcePages(async () => ({

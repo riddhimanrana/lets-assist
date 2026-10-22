@@ -78,7 +78,7 @@ export default async function Home({ searchParams }: HomePageProps) {
       <EmailConfirmationModal />
       <EmailVerificationToast />
       <div
-        className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6"
+        className="mx-auto grid w-full grid-cols-1 gap-6 px-4 py-8 sm:px-6"
         data-next-url={next}
       >
         <PageHeader

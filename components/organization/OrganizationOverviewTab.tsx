@@ -144,8 +144,11 @@ export function OrganizationOverviewTab({
                         </ItemDescription>
                       ) : null}
                     </ItemContent>
-                    <ItemActions>
-                      <ProjectStatusBadge status={getProjectStatus(project)} />
+                    <ItemActions className="shrink-0">
+                      <ProjectStatusBadge
+                        status={getProjectStatus(project)}
+                        size="sm"
+                      />
                     </ItemActions>
                   </Item>
                 ))}

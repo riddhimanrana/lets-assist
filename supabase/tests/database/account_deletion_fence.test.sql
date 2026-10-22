@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(15);
+SELECT extensions.plan(18);
 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at,
  raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -38,6 +38,25 @@ SELECT extensions.throws_ok($$UPDATE public.profiles SET full_name = 'Changed' W
  '42501', 'Account deletion is pending or complete.', 'the statement fence also refuses zero-row client writes');
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
+-- A SECURITY DEFINER boolean must disclose only the acting account's state.
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at,
+ raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+VALUES ('fc000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
+ 'other-deletion-fence@local.test', now(), '{}', '{}', now(), now());
+SELECT set_config('request.jwt.claim.sub', 'fc000000-0000-4000-8000-000000000002', true);
+SET LOCAL ROLE authenticated;
+SELECT extensions.is(public.account_deletion_pending(), false,
+ 'one pending deletion does not disclose pending state for another account');
+SELECT extensions.throws_ok(
+ $$SELECT app_private.account_deletion_actor_is_active(
+   'fc000000-0000-4000-8000-000000000001')$$,
+ '42501', NULL, 'a browser actor cannot call the private helper for another account');
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+SET LOCAL ROLE anon;
+SELECT extensions.throws_ok($$SELECT public.account_deletion_pending()$$,
+ '42501', NULL, 'anonymous callers cannot execute the deletion-state RPC');
+RESET ROLE;
 SELECT extensions.throws_ok($$INSERT INTO public.notifications (user_id, title, body, type)
  VALUES ('fc000000-0000-4000-8000-000000000001', 'Synthetic', 'Synthetic', 'general')$$,
  '42501', 'Cannot create a reference to an account being deleted.', 'service writes cannot add new user dependencies');

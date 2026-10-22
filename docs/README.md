@@ -32,10 +32,13 @@ This directory is the canonical documentation home for humans and coding agents.
 - [CI pipeline](development/ci-pipeline.md): jobs, sharding, the local preflight, and pin regeneration.
 - [Account data exports](development/account-exports.md): scope, private downloads, durable processing, and recovery.
 - [Telemetry privacy](development/telemetry-privacy.md)
+- [Analytics source audit and proposed aggregate metrics](development/analytics-audit.md)
 - [Source maintenance](development/source-maintenance.md)
 - [Dependency security](development/dependency-security.md)
 - [Deployment model](development/deployment.md)
 - [Development maintenance cutover](development/development-cutover.md)
+- [One-time Production points schema hotfix](development/production-points-schema-hotfix.md)
+- [Isolated membership display hotfix](development/membership-display-hotfix.md)
 - [Private-plugin and submodule workflow](development/private-plugins.md)
 - [Design system](development/design-system.md)
 - [Home demo preview](development/home-demo.md)

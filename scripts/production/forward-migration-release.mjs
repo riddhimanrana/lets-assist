@@ -13,22 +13,39 @@ import {
   verifySchema,
 } from "./app-release-checks.mjs";
 
-import { approvedMigrations } from "./forward-migration-allowlist.mjs";
+import {
+  approvedMigrations,
+  pointsFirstApprovedMigrations,
+} from "./forward-migration-allowlist.mjs";
 export { approvedMigrations } from "./forward-migration-allowlist.mjs";
 
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const maintenanceRequiredVersions = new Set([
   "20261007210000",
   "20261007230000",
+  // These repairs depend on paired application changes and enforce write
+  // fences. Keep them behind a drained, verified maintenance cutover.
+  "20261011104000",
+  "20261011105000",
+  "20261011105500",
+  "20261011110000",
+  "20261011112000",
+  "20261011112500",
+  "20261011113000",
 ]);
 const ledgerQuery =
   "SELECT version::text FROM supabase_migrations.schema_migrations ORDER BY version;";
 
 export function prepareMigration(cwd, read = readFileSync, appliedVersions) {
   const versions = expectedVersions(cwd);
-  const tail = approvedMigrations.map(([name]) => name.slice(0, 14));
-  if (JSON.stringify(versions.slice(-tail.length)) !== JSON.stringify(tail))
+  const selected = [approvedMigrations, pointsFirstApprovedMigrations].find(
+    (migrations) =>
+      JSON.stringify(versions.slice(-migrations.length)) ===
+      JSON.stringify(migrations.map(([name]) => name.slice(0, 14))),
+  );
+  if (!selected)
     throw new ReleaseCheckError("The accepted migration tail is not approved.");
+  const tail = selected.map(([name]) => name.slice(0, 14));
   const minimumPrefix = versions.slice(0, -tail.length);
   const prefix = appliedVersions ?? minimumPrefix;
   if (prefix.length < minimumPrefix.length || prefix.length > versions.length)
@@ -39,7 +56,7 @@ export function prepareMigration(cwd, read = readFileSync, appliedVersions) {
     prefix.map((version) => ({ version })),
     versions.slice(0, prefix.length),
   );
-  const statements = approvedMigrations.map(([name, hash]) => {
+  const statements = selected.map(([name, hash]) => {
     const sql = read(
       resolve(cwd, "supabase/migrations", `${name}.sql`),
       "utf8",

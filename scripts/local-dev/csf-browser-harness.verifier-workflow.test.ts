@@ -264,8 +264,18 @@ describe("db-replay-validation CI job contract", () => {
       expect(each, name).toContain("- name: Seed fictional platform fixtures");
       const stop = each.indexOf("- name: Stop isolated Let’s Assist Supabase");
       expect(stop, name).toBeGreaterThan(-1);
-      // The stop is the last step and runs whatever happened before it.
-      expect(each.indexOf("\n      - name:", stop + 1), name).toBe(-1);
+      // Browser teardown stays last. The database runner stops its ordinary
+      // stack before the separate controller rehearsal owns a fresh stack.
+      const next = each.indexOf("\n      - name:", stop + 1);
+      if (name === "database") {
+        expect(each.slice(next)).toStartWith(
+          "\n      - name: Rehearse the bounded points-first Production controller",
+        );
+        expect(each.slice(next)).toContain("timeout-minutes: 25");
+        expect(each.slice(next)).toContain(
+          "run: node scripts/production/rehearse-points-first-rollout.mjs",
+        );
+      } else expect(next, name).toBe(-1);
       expect(each.slice(stop), name).toContain("        if: always()\n");
       expect(
         each.match(/stop-dvhs-csf-isolated-stack\.sh/gu)?.length,
@@ -379,8 +389,22 @@ describe("db-replay-validation CI job contract", () => {
     expect(layoutAudit).toContain("if-no-files-found: error");
     expect(layoutAudit).toContain("retention-days: 7");
     expect(layoutAudit).not.toContain("path: .artifacts/");
+    const database = workflowJob("database");
+    expect(database.split("uses: actions/upload-artifact@").length - 1).toBe(2);
+    const rehearsalUpload = database.slice(
+      database.indexOf(
+        "- name: Retain sanitized points-first controller rehearsal",
+      ),
+    );
+    expect(rehearsalUpload).toContain(
+      ".artifacts/points-first-controller-rehearsal/*/result.json",
+    );
+    expect(rehearsalUpload).toContain(
+      ".artifacts/points-first-controller-rehearsal/*/receipt.json",
+    );
+    expect(rehearsalUpload).not.toContain("private-");
     expect(ciWorkflow.split("uses: actions/upload-artifact@").length - 1).toBe(
-      2,
+      4,
     );
     expect(playwrightConfig).toContain(
       'process.env.CSF_E2E_RUN_ID ?? "playwright-local"',
@@ -389,6 +413,45 @@ describe("db-replay-validation CI job contract", () => {
     expect(ciWorkflow).toContain("retention-days: 7");
     expect(traceValidationStep).toBeLessThan(uploadStep);
     expect(teardownStep).toBeGreaterThan(uploadStep);
+  });
+
+  test("retains only unreviewed schema metadata before the unchanged catalog gate", () => {
+    const database = workflowJob("database");
+    const capture = database.indexOf(
+      "- name: Capture unreviewed schema metadata from the owned replay",
+    );
+    const upload = database.indexOf(
+      "- name: Retain unreviewed schema metadata for source review",
+    );
+    const acceptance = database.indexOf(
+      "- name: Verify the release catalog before loading fixtures",
+    );
+    expect(capture).toBeGreaterThan(-1);
+    expect(upload).toBeGreaterThan(capture);
+    expect(acceptance).toBeGreaterThan(upload);
+    const metadata = database.slice(capture, acceptance);
+    expect(metadata).toContain("umask 077");
+    expect(metadata).toContain(
+      "node scripts/production/capture-isolated-release-inventory.mjs > .artifacts/release-schema/unreviewed-schema.json",
+    );
+    expect(metadata).toContain(
+      "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    );
+    expect(metadata).toContain(
+      "name: unreviewed-release-schema-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}\n",
+    );
+    expect(metadata).toContain(
+      "path: .artifacts/release-schema/unreviewed-schema.json\n",
+    );
+    expect(metadata).toContain("if-no-files-found: error");
+    expect(metadata).toContain("retention-days: 7");
+    expect(metadata).not.toContain("if: always()");
+    expect(database.slice(acceptance)).toContain(
+      'if [[ "${catalog_result}" != "1" ]]; then',
+    );
+    expect(database.slice(acceptance)).toContain(
+      "The isolated schema does not match the reviewed release catalog.",
+    );
   });
 });
 

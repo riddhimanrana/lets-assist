@@ -577,12 +577,17 @@ jobs:
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Show pending migrations
+        timeout-minutes: 4
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-        run: |
-          echo "Migrations to be applied:"
-          supabase db push --linked --dry-run
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
+        run: node scripts/production/points-first-rollout.mjs plan
 
       - name: Stage static Production maintenance page
         id: deploy-maintenance
@@ -869,20 +874,18 @@ jobs:
       - name: Push schema to production
         timeout-minutes: 15
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
         run: |
           set -euo pipefail
-          echo "Pushing migrations to production..."
-          echo "⚠️  This will modify the production database - ensure all checks passed above"
-          echo ""
-          supabase db push --linked --dry-run
-          echo "✓ Dry-run successful, proceeding with deployment..."
-
-          supabase db push --linked --yes 2>&1 | tee deploy.log
-
-          echo ""
-          echo "✓ Deployment to production completed successfully"
+          node scripts/production/points-first-rollout.mjs plan
+          node scripts/production/points-first-rollout.mjs apply | tee deploy.log
 
       - name: Verify production schema deployment
         timeout-minutes: 4
@@ -1032,6 +1035,16 @@ jobs:
           if [[ "${postcondition_failures}" -ne 0 ]]; then
             exit 1
           fi
+
+      - name: Retain bounded Production rollout receipt
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-points-first-rollout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/production-points-first-rollout/receipt.json
+          if-no-files-found: warn
+          retention-days: 90
 
       - name: Post deployment summary
         if: success()

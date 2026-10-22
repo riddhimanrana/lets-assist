@@ -1,7 +1,8 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
-import { formatDistanceToNowStrict } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { tz } from "@date-fns/tz";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/hooks/useHydrated";
 
 import { statusTone } from "./admin-status";
 import {
@@ -44,6 +46,7 @@ export function FeedbackQueue({
   selectByOffset: (offset: number) => void;
   getModerationStatus: (item: FeedbackItem) => ModerationStatus;
 }) {
+  const hydrated = useHydrated();
   const resultsSummary =
     filteredFeedback.length === 1
       ? "1 result"
@@ -126,9 +129,13 @@ export function FeedbackQueue({
                     </p>
                     <span className="text-muted-foreground shrink-0 text-xs">
                       {createdAt
-                        ? formatDistanceToNowStrict(createdAt, {
-                            addSuffix: true,
-                          })
+                        ? hydrated
+                          ? formatDistanceToNowStrict(createdAt, {
+                              addSuffix: true,
+                            })
+                          : format(createdAt, "MMM d, yyyy", {
+                              in: tz("UTC"),
+                            })
                         : "Unknown date"}
                     </span>
                   </div>

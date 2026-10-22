@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Search, UserRoundCheck } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { getTimezoneAbbreviation } from "@/utils/timezone";
 import { StatStrip } from "@/components/layout/SettingsSection";
 import { AttendanceTools } from "@/components/projects/AttendanceTools";
 import { AttendanceExport } from "@/components/projects/AttendanceExport";
@@ -100,7 +99,7 @@ export function HoursClient({
           />
         }
         title="Manage volunteer hours"
-        description={`Review actual attendance, publish credit, and correct earlier awards. Times are shown in ${getTimezoneAbbreviation(timezone)}.`}
+        description={`Review actual attendance, publish credit, and correct earlier awards. Times are shown in ${timezone}.`}
         actions={<AttendanceTools projectId={project.id} />}
       />
       <StatStrip

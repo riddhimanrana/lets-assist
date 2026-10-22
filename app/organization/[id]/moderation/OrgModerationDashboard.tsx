@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { getOrgFlaggedContent } from "./actions";
 import { format } from "date-fns";
+import { tz } from "@date-fns/tz";
 
 type FlagStatus = "pending_review" | "blocked" | "confirmed" | "dismissed";
 
@@ -245,7 +246,9 @@ export default function OrgModerationDashboard({
                               </span>
                             ) : null}
                             <span>
-                              {format(new Date(item.created_at), "PPp")}
+                              {format(new Date(item.created_at), "PPp", {
+                                in: tz("UTC"),
+                              })}
                             </span>
                           </div>
                         </ItemContent>

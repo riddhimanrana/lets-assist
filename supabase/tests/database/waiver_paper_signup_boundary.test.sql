@@ -73,13 +73,20 @@ WHERE id IN (
   'c9100000-0000-4000-8000-000000000002'
 );
 
+-- The digital signature names the project's waiver document, which exists.
+INSERT INTO storage.objects (bucket_id, name)
+VALUES ('waiver-uploads',
+        'project_waivers/c9100000-0000-4000-8000-000000000001/source.pdf');
+
 INSERT INTO public.waiver_signatures (
-  project_id, signup_id, user_id, signer_name, signer_email, signature_type
+  project_id, signup_id, user_id, signer_name, signer_email, signature_type,
+  waiver_pdf_storage_path
 )
 VALUES ('c9100000-0000-4000-8000-000000000001',
         'c9200000-0000-4000-8000-000000000001',
         'c9000000-0000-4000-8000-000000000002',
-        'Signed Volunteer', 'paper-waiver-signed@local.test', 'typed');
+        'Signed Volunteer', 'paper-waiver-signed@local.test', 'typed',
+        'project_waivers/c9100000-0000-4000-8000-000000000001/source.pdf');
 
 INSERT INTO public.project_paper_scan_batches (
   id, project_id, schedule_id, created_by, status

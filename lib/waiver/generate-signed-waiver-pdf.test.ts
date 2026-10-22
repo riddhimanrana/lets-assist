@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import fontkit from "@pdf-lib/fontkit";
+import sharp from "sharp";
 import {
   PDFArray,
   PDFDict,
@@ -548,13 +549,327 @@ describe("generateSignedWaiverPdf", () => {
     }
   });
 
-  test("skips fields on a page the document does not have", async () => {
-    const pdf = await generateSignedWaiverPdf({
+  test("refuses a signed copy when the signer's signature is on a page the document does not have", async () => {
+    const attempt = generateSignedWaiverPdf({
       sourcePdfBytes: await blankPdf(1),
       definition: {
         id: "definition",
         fields: [
           signatureField({ page_index: 7 }),
+          {
+            field_key: "on_page",
+            field_type: "text",
+            page_index: 0,
+            rect: { x: 72, y: 520, width: 240, height: 20 },
+            signer_role_key: null,
+          },
+        ],
+      },
+      signaturePayload: {
+        signers: [typedSigner("Alex Johnson")],
+        fields: { on_page: "Visible" },
+      },
+    });
+
+    await expect(attempt).rejects.toBeInstanceOf(SignedWaiverPdfError);
+    await expect(attempt).rejects.toMatchObject({
+      code: "unplaceable_signature",
+      message: "A waiver signature has no usable placement on the waiver PDF",
+    });
+  });
+
+  test.each<[string, Field[] | undefined]>([
+    [
+      "no signature field for the signer's role",
+      [signatureField({ signer_role_key: "guardian" })],
+    ],
+    [
+      "a signature field assigned to nobody",
+      [signatureField({ signer_role_key: null })],
+    ],
+    [
+      "only an initials field for the role",
+      [signatureField({ field_type: "initial" })],
+    ],
+    ["an empty field list", []],
+    ["no field list", undefined],
+    ["a negative page", [signatureField({ page_index: -1 })]],
+    ["a fractional page", [signatureField({ page_index: 0.5 })]],
+    [
+      "a page that is not a number",
+      [signatureField({ page_index: Number.NaN })],
+    ],
+    [
+      "a non-finite position",
+      [
+        signatureField({
+          rect: { x: Number.NaN, y: 500, width: 240, height: 48 },
+        }),
+      ],
+    ],
+    [
+      "a non-finite size",
+      [
+        signatureField({
+          rect: { x: 72, y: 500, width: Number.POSITIVE_INFINITY, height: 48 },
+        }),
+      ],
+    ],
+    [
+      "a negative width",
+      [signatureField({ rect: { x: 72, y: 500, width: -240, height: 48 } })],
+    ],
+    [
+      "a negative height",
+      [signatureField({ rect: { x: 72, y: 500, width: 240, height: -48 } })],
+    ],
+    [
+      "a box with no area",
+      [signatureField({ rect: { x: 72, y: 500, width: 0, height: 0 } })],
+    ],
+    ["a missing rectangle", [signatureField({ rect: null as never })]],
+    [
+      "a box left of the page",
+      [signatureField({ rect: { x: -40, y: 500, width: 240, height: 48 } })],
+    ],
+    [
+      "a box below the page",
+      [signatureField({ rect: { x: 72, y: -40, width: 240, height: 48 } })],
+    ],
+    [
+      "a box right of the page",
+      [signatureField({ rect: { x: 700, y: 500, width: 240, height: 48 } })],
+    ],
+    [
+      "a box above the page",
+      [signatureField({ rect: { x: 72, y: 900, width: 240, height: 48 } })],
+    ],
+    [
+      "a box that overhangs the right edge",
+      [signatureField({ rect: { x: 400, y: 500, width: 240, height: 48 } })],
+    ],
+    [
+      "a box that overhangs the top edge",
+      [signatureField({ rect: { x: 72, y: 760, width: 240, height: 48 } })],
+    ],
+    [
+      "one usable placement beside one on a missing page",
+      [
+        signatureField(),
+        signatureField({ field_key: "second_signature", page_index: 3 }),
+      ],
+    ],
+  ])("refuses a typed signature with %s", async (_name, fields) => {
+    await expect(
+      generateSignedWaiverPdf({
+        sourcePdfBytes: await blankPdf(),
+        definition: { id: "definition", fields },
+        signaturePayload: {
+          signers: [typedSigner("Alex Johnson")],
+          fields: {},
+        },
+      }),
+    ).rejects.toMatchObject({ code: "unplaceable_signature" });
+  });
+
+  test("refuses an unplaceable image signature before reading it from storage", async () => {
+    const paths: string[] = [];
+    await expect(
+      generateSignedWaiverPdf({
+        sourcePdfBytes: await blankPdf(),
+        definition: {
+          id: "definition",
+          fields: [
+            signatureField(),
+            signatureField({
+              field_key: "guardian_signature",
+              signer_role_key: "guardian",
+              page_index: 2,
+            }),
+          ],
+        },
+        signaturePayload: {
+          signers: [
+            {
+              role_key: "volunteer",
+              method: "upload",
+              data: "signature-images/fictional-volunteer.png",
+              timestamp: "2026-10-11T00:00:00Z",
+            },
+            {
+              role_key: "guardian",
+              method: "draw",
+              data: "signature-images/fictional-guardian.png",
+              timestamp: "2026-10-11T00:00:00Z",
+            },
+          ],
+          fields: {},
+        },
+        storageResolver: async (path) => {
+          paths.push(path);
+          return new ArrayBuffer(0);
+        },
+      }),
+    ).rejects.toMatchObject({ code: "unplaceable_signature" });
+    // The earlier, valid signer was not read either: nothing is done first.
+    expect(paths).toEqual([]);
+  });
+
+  test.each([
+    ["the whole page", { x: 0, y: 0, width: 612, height: 792 }],
+    [
+      "flush with the bottom-left corner",
+      { x: 0, y: 0, width: 240, height: 48 },
+    ],
+    [
+      "flush with the top-right corner",
+      { x: 372, y: 744, width: 240, height: 48 },
+    ],
+    [
+      "a box smaller than a signature, as detected from a text baseline",
+      { x: 72, y: 500, width: 20, height: 4 },
+    ],
+    [
+      "a box within rounding distance of the right edge",
+      { x: 372.4, y: 500, width: 240, height: 48 },
+    ],
+  ])("stamps a signature placed at %s", async (_name, rect) => {
+    const pdf = await generateSignedWaiverPdf({
+      sourcePdfBytes: await blankPdf(),
+      definition: { id: "definition", fields: [signatureField({ rect })] },
+      signaturePayload: { signers: [typedSigner("Alex Johnson")], fields: {} },
+    });
+
+    const drawn = await drawnText(pdf);
+    expect(drawn).toContain("Alex Johnson");
+    expect(drawn).toContain("Signed: Mar 1, 2026 at 8:15 PM UTC");
+  });
+
+  test("stamps an image signature that sits flush with the page edges", async () => {
+    const png = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "black" },
+    })
+      .png()
+      .toBuffer();
+    const pdf = await generateSignedWaiverPdf({
+      sourcePdfBytes: await blankPdf(),
+      definition: {
+        id: "definition",
+        fields: [
+          signatureField({ rect: { x: 372, y: 744, width: 240, height: 48 } }),
+        ],
+      },
+      signaturePayload: {
+        signers: [
+          {
+            role_key: "volunteer",
+            method: "draw",
+            data: `data:image/png;base64,${png.toString("base64")}`,
+            timestamp: "2026-10-11T00:00:00Z",
+          },
+        ],
+        fields: {},
+      },
+    });
+
+    const parsed = await PDFDocument.load(pdf);
+    const images = parsed.context
+      .enumerateIndirectObjects()
+      .filter(
+        ([, object]) =>
+          object instanceof PDFRawStream &&
+          object.dict.get(PDFName.of("Subtype")) === PDFName.of("Image"),
+      );
+    expect(images).toHaveLength(1);
+  });
+
+  test("measures a placement against a page box that does not start at the origin", async () => {
+    const document = await PDFDocument.create();
+    document.addPage([612, 792]).setMediaBox(100, 100, 612, 792);
+    const source = await document.save();
+    const render = (rect: Field["rect"]) =>
+      generateSignedWaiverPdf({
+        sourcePdfBytes: source,
+        definition: { id: "definition", fields: [signatureField({ rect })] },
+        signaturePayload: {
+          signers: [typedSigner("Alex Johnson")],
+          fields: {},
+        },
+      });
+
+    expect(
+      await drawnText(await render({ x: 100, y: 100, width: 240, height: 48 })),
+    ).toContain("Alex Johnson");
+    expect(
+      await drawnText(await render({ x: 472, y: 844, width: 240, height: 48 })),
+    ).toContain("Alex Johnson");
+    await expect(
+      render({ x: 0, y: 0, width: 240, height: 48 }),
+    ).rejects.toMatchObject({ code: "unplaceable_signature" });
+  });
+
+  test("still skips a listed signer who has no signature data", async () => {
+    const pdf = await generateSignedWaiverPdf({
+      sourcePdfBytes: await blankPdf(),
+      definition: {
+        id: "definition",
+        fields: [
+          signatureField(),
+          // The optional guardian's box is on a page the document lacks.
+          signatureField({
+            field_key: "guardian_signature",
+            signer_role_key: "guardian",
+            page_index: 7,
+          }),
+        ],
+      },
+      signaturePayload: {
+        signers: [
+          typedSigner("Alex Johnson"),
+          {
+            role_key: "guardian",
+            method: "typed",
+            data: "",
+            timestamp: "2026-03-01T20:15:00.000Z",
+          },
+          {
+            role_key: "guardian",
+            method: "typed",
+            data: "   ",
+            timestamp: "2026-03-01T20:15:00.000Z",
+          },
+          // No signature field exists for this role at all.
+          {
+            role_key: "witness",
+            method: "typed",
+            data: "",
+            timestamp: "2026-03-01T20:15:00.000Z",
+          },
+        ],
+        fields: {},
+      },
+    });
+
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
+    const drawn = await drawnText(pdf);
+    expect(drawn.filter((text) => text === "Alex Johnson")).toHaveLength(1);
+    expect(drawn.filter((text) => text.startsWith("Signed:"))).toHaveLength(1);
+  });
+
+  test("skips optional fields on a page the document does not have when the signer is placed", async () => {
+    const pdf = await generateSignedWaiverPdf({
+      sourcePdfBytes: await blankPdf(1),
+      definition: {
+        id: "definition",
+        fields: [
+          signatureField(),
+          // Another role's signature box is off the document, and that role
+          // did not sign, so it does not block this signer's copy.
+          signatureField({
+            field_key: "guardian_signature",
+            signer_role_key: "guardian",
+            page_index: 7,
+          }),
           {
             field_key: "off_page",
             field_type: "text",
@@ -576,6 +891,20 @@ describe("generateSignedWaiverPdf", () => {
             rect: { x: 72, y: 520, width: 240, height: 20 },
             signer_role_key: null,
           },
+          {
+            field_key: "broken_rect",
+            field_type: "text",
+            page_index: 0,
+            rect: { x: Number.NaN, y: 480, width: 240, height: 20 },
+            signer_role_key: null,
+          },
+          {
+            field_key: "broken_rect_off_page",
+            field_type: "text",
+            page_index: 7,
+            rect: { x: Number.NaN, y: 480, width: 240, height: 20 },
+            signer_role_key: null,
+          },
         ],
       },
       signaturePayload: {
@@ -584,6 +913,10 @@ describe("generateSignedWaiverPdf", () => {
           off_page: "Hidden one",
           negative_page: "Hidden two",
           on_page: "Visible",
+          // A text field with an unusable box keeps its existing fallback
+          // position. Only a signature placement is held to the strict rule.
+          broken_rect: "Fallback",
+          broken_rect_off_page: "Hidden three",
         },
       },
     });
@@ -592,8 +925,9 @@ describe("generateSignedWaiverPdf", () => {
     expect(document.getPageCount()).toBe(1);
     const drawn = (await drawnText(pdf)).join(" ");
     expect(drawn).toContain("Visible");
+    expect(drawn).toContain("Fallback");
     expect(drawn).not.toContain("Hidden");
-    expect(drawn).not.toContain("Alex Johnson");
+    expect(drawn).toContain("Alex Johnson");
   });
 
   test("draws address and initial values", async () => {
@@ -627,6 +961,126 @@ describe("generateSignedWaiverPdf", () => {
     const drawn = (await drawnText(pdf)).join(" ");
     expect(drawn).toContain("123 Main St");
     expect(drawn).toContain("AJ");
+  });
+
+  test("valid drawn and stored JPEG signatures both remain embedded in a multi-signer PDF", async () => {
+    const png = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "black" },
+    })
+      .png()
+      .toBuffer();
+    const jpg = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "white" },
+    })
+      .jpeg()
+      .toBuffer();
+    const paths: string[] = [];
+    const pdf = await generateSignedWaiverPdf({
+      sourcePdfBytes: await blankPdf(),
+      definition: {
+        id: "definition",
+        fields: [
+          signatureField(),
+          signatureField({
+            field_key: "guardian_signature",
+            signer_role_key: "guardian",
+            rect: { x: 72, y: 400, width: 240, height: 48 },
+          }),
+        ],
+      },
+      signaturePayload: {
+        signers: [
+          {
+            role_key: "volunteer",
+            method: "draw",
+            data: `data:image/png;base64,${png.toString("base64")}`,
+            timestamp: "2026-10-11T00:00:00Z",
+          },
+          {
+            role_key: "guardian",
+            method: "upload",
+            data: "signature-images/fictional-guardian.jpg",
+            timestamp: "2026-10-11T00:00:00Z",
+          },
+        ],
+        fields: {},
+      },
+      storageResolver: async (path) => {
+        paths.push(path);
+        return new Uint8Array(jpg).buffer;
+      },
+    });
+    const parsed = await PDFDocument.load(pdf);
+    const images = parsed.context
+      .enumerateIndirectObjects()
+      .filter(
+        ([, object]) =>
+          object instanceof PDFRawStream &&
+          object.dict.get(PDFName.of("Subtype")) === PDFName.of("Image"),
+      );
+    expect(parsed.getPageCount()).toBe(1);
+    expect(images).toHaveLength(2);
+    expect(paths).toEqual(["signature-images/fictional-guardian.jpg"]);
+  });
+
+  test("one corrupt signer refuses the whole result even after another signature embedded", async () => {
+    const png = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "black" },
+    })
+      .png()
+      .toBuffer();
+    await expect(
+      generateSignedWaiverPdf({
+        sourcePdfBytes: await blankPdf(),
+        definition: {
+          id: "definition",
+          fields: [
+            signatureField(),
+            signatureField({
+              field_key: "guardian_signature",
+              signer_role_key: "guardian",
+            }),
+          ],
+        },
+        signaturePayload: {
+          signers: [
+            {
+              role_key: "volunteer",
+              method: "draw",
+              data: `data:image/png;base64,${png.toString("base64")}`,
+              timestamp: "2026-10-11T00:00:00Z",
+            },
+            {
+              role_key: "guardian",
+              method: "upload",
+              data: "data:image/jpeg;base64,AAAA",
+              timestamp: "2026-10-11T00:00:00Z",
+            },
+          ],
+          fields: {},
+        },
+      }),
+    ).rejects.toMatchObject({ code: "unreadable_signature" });
+  });
+
+  test("refuses a signed PDF when a provided signature image cannot be embedded", async () => {
+    await expect(
+      generateSignedWaiverPdf({
+        sourcePdfBytes: await blankPdf(),
+        definition: { id: "definition", fields: [signatureField()] },
+        signaturePayload: {
+          signers: [
+            {
+              role_key: "volunteer",
+              method: "draw",
+              data: "data:image/png;base64,AAAA",
+              timestamp: "2026-10-11T00:00:00Z",
+            },
+          ],
+          fields: {},
+        },
+      }),
+    ).rejects.toMatchObject({ code: "unreadable_signature" });
   });
 
   test("reports an unreadable source with a typed error", async () => {

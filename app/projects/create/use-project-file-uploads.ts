@@ -3,7 +3,6 @@ import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
 
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -21,9 +20,55 @@ type UploadedProjectDocument = {
 };
 
 /**
+ * Files the server has confirmed as attached, and the project they belong to.
+ * A retry of the same attempt skips them without sending their bytes again.
+ * Keyed by the File object, so a file picked again is a new entry.
+ */
+const confirmedAttachments = new WeakMap<File, string>();
+
+/**
+ * Names the stored object after the file itself: its name, type and bytes.
+ * The same file always lands on the same key for a project, so a retry (even
+ * after a reload) reuses the object and the link action can tell it is already
+ * attached. A changed file with the same name gets a different key.
+ */
+const fingerprintFile = async (file: File) => {
+  const identity = new Blob([file.name, "\0", file.type, "\0", file]);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    await identity.arrayBuffer(),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  )
+    .join("")
+    .slice(0, 32);
+};
+
+/** Storage refused the upload because this exact key is already stored. */
+const isAlreadyStored = (error: unknown) => {
+  if (!error || typeof error !== "object") return false;
+  const storageError = error as {
+    statusCode?: unknown;
+    status?: unknown;
+    error?: unknown;
+    message?: unknown;
+  };
+  return (
+    String(storageError.statusCode) === "409" ||
+    storageError.status === 409 ||
+    storageError.error === "Duplicate" ||
+    /already exists/i.test(String(storageError.message ?? ""))
+  );
+};
+
+/**
  * The cover image and supporting documents picked on the last step, and the
- * direct-to-storage upload that runs after the project row exists. Moved out
- * of ProjectCreator unchanged.
+ * direct-to-storage upload that runs after the project row exists.
+ *
+ * The upload can be run again for the same project. Files already attached are
+ * left alone, files already stored are not stored twice, and nothing is removed
+ * from storage here, because a link whose answer was lost may have succeeded.
  */
 export function useProjectFileUploads() {
   // File handling states
@@ -66,42 +111,56 @@ export function useProjectFileUploads() {
     }
 
     const supabase = createBrowserSupabaseClient();
+    const isAttached = (file: File) =>
+      confirmedAttachments.get(file) === projectId;
     let hasErrors = false;
     let coverImageUrl: string | undefined;
     const uploadedDocuments: UploadedProjectDocument[] = [];
-    const uploadedPaths: { bucket: string; path: string }[] = [];
+    const pendingDocumentFiles: File[] = [];
 
-    setCoverImageUploadState(coverImage ? "idle" : "idle");
+    const setDocumentStates = (files: File[], status: UploadStatus) =>
+      setDocumentUploadStates((current) => {
+        const next = { ...current };
+        for (const file of files) next[getUploadKey(file)] = status;
+        return next;
+      });
+
+    /** Stores the file under its own key. A key that is already stored is reused. */
+    const storeFile = async (bucket: string, path: string, file: File) => {
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(path, file, {
+          contentType: file.type,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError && !isAlreadyStored(uploadError)) throw uploadError;
+
+      return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    };
+
+    const coverAttached = coverImage ? isAttached(coverImage) : false;
+    setCoverImageUploadState(coverAttached ? "done" : "idle");
     setDocumentUploadStates(
       Object.fromEntries(
         documents.map((document) => [
           getUploadKey(document),
-          "idle" as UploadStatus,
+          (isAttached(document) ? "done" : "idle") as UploadStatus,
         ]),
       ),
     );
 
-    if (coverImage) {
+    if (coverImage && !coverAttached) {
       if (validateFileSize(coverImage, 5 * 1024 * 1024)) {
         setCoverImageUploadState("uploading");
         try {
-          const filePath = `project_${projectId}_cover_${Date.now()}.${getSafeExtension(coverImage)}`;
-          const { error: uploadError } = await supabase.storage
-            .from("project-images")
-            .upload(filePath, coverImage, {
-              contentType: coverImage.type,
-              cacheControl: "3600",
-              upsert: false,
-            });
-
-          if (uploadError) throw uploadError;
-          uploadedPaths.push({ bucket: "project-images", path: filePath });
-
-          const { data: publicUrlData } = supabase.storage
-            .from("project-images")
-            .getPublicUrl(filePath);
-
-          coverImageUrl = publicUrlData.publicUrl;
+          const filePath = `project_${projectId}_cover_${await fingerprintFile(coverImage)}.${getSafeExtension(coverImage)}`;
+          coverImageUrl = await storeFile(
+            "project-images",
+            filePath,
+            coverImage,
+          );
           setCoverImageUploadState("processing");
         } catch (error) {
           safeConsole.error("Cover image upload failed:", error);
@@ -115,103 +174,71 @@ export function useProjectFileUploads() {
     }
 
     for (const document of documents) {
-      const uploadKey = getUploadKey(document);
+      if (isAttached(document)) continue;
 
       if (!validateFileSize(document, 10 * 1024 * 1024)) {
-        setDocumentUploadStates((current) => ({
-          ...current,
-          [uploadKey]: "error",
-        }));
+        setDocumentStates([document], "error");
         hasErrors = true;
         continue;
       }
 
-      setDocumentUploadStates((current) => ({
-        ...current,
-        [uploadKey]: "uploading",
-      }));
+      setDocumentStates([document], "uploading");
 
       try {
-        const filePath = `project_${projectId}_${uuidv4().slice(0, 8)}_${Date.now()}.${getSafeExtension(document)}`;
-        const { error: uploadError } = await supabase.storage
-          .from("project-documents")
-          .upload(filePath, document, {
-            contentType: document.type,
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (uploadError) throw uploadError;
-        uploadedPaths.push({ bucket: "project-documents", path: filePath });
-
-        const { data: publicUrlData } = supabase.storage
-          .from("project-documents")
-          .getPublicUrl(filePath);
+        const filePath = `project_${projectId}_${await fingerprintFile(document)}.${getSafeExtension(document)}`;
+        const url = await storeFile("project-documents", filePath, document);
 
         uploadedDocuments.push({
           name: document.name,
           originalName: document.name,
           type: document.type,
           size: document.size,
-          url: publicUrlData.publicUrl,
+          url,
         });
+        pendingDocumentFiles.push(document);
 
-        setDocumentUploadStates((current) => ({
-          ...current,
-          [uploadKey]: "processing",
-        }));
+        setDocumentStates([document], "processing");
       } catch (error) {
         safeConsole.error(
           `Document upload failed for ${document.name}:`,
           error,
         );
-        setDocumentUploadStates((current) => ({
-          ...current,
-          [uploadKey]: "error",
-        }));
+        setDocumentStates([document], "error");
         hasErrors = true;
       }
     }
 
     if (coverImageUrl || uploadedDocuments.length > 0) {
-      const linkResult = await linkProjectUploadedAssets(projectId, {
-        coverImageUrl,
-        documents: uploadedDocuments,
-      });
+      const markLinkFailed = () => {
+        if (coverImageUrl) setCoverImageUploadState("error");
+        setDocumentStates(pendingDocumentFiles, "error");
+      };
+
+      let linkResult: Awaited<ReturnType<typeof linkProjectUploadedAssets>>;
+      try {
+        linkResult = await linkProjectUploadedAssets(projectId, {
+          coverImageUrl,
+          documents: uploadedDocuments,
+        });
+      } catch (error) {
+        // No answer does not mean nothing was attached. The stored files stay,
+        // and the next attempt finds them under the same keys.
+        markLinkFailed();
+        throw error;
+      }
 
       if ("error" in linkResult && linkResult.error) {
         hasErrors = true;
-        if (coverImageUrl) setCoverImageUploadState("error");
-        setDocumentUploadStates((current) => {
-          const next = { ...current };
-          for (const document of uploadedDocuments) {
-            const matchingFile = documents.find(
-              (file) =>
-                file.name === document.name && file.size === document.size,
-            );
-            if (matchingFile) next[getUploadKey(matchingFile)] = "error";
-          }
-          return next;
-        });
-
-        await Promise.allSettled(
-          uploadedPaths.map((item) =>
-            supabase.storage.from(item.bucket).remove([item.path]),
-          ),
-        );
+        markLinkFailed();
       } else {
-        if (coverImageUrl) setCoverImageUploadState("done");
-        setDocumentUploadStates((current) => {
-          const next = { ...current };
-          for (const document of uploadedDocuments) {
-            const matchingFile = documents.find(
-              (file) =>
-                file.name === document.name && file.size === document.size,
-            );
-            if (matchingFile) next[getUploadKey(matchingFile)] = "done";
-          }
-          return next;
-        });
+        if (coverImage && coverImageUrl) {
+          confirmedAttachments.set(coverImage, projectId);
+          setCoverImageUploadState("done");
+        }
+        for (const file of pendingDocumentFiles) {
+          confirmedAttachments.set(file, projectId);
+        }
+        setDocumentStates(pendingDocumentFiles, "done");
       }
     }
 

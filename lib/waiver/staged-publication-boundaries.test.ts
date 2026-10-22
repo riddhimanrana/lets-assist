@@ -6,6 +6,9 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 const creation = read("app/projects/create/server/create.ts");
 const drafts = read("app/projects/create/server/drafts.ts");
+const draftPublication = read(
+  "app/projects/create/server/draft-publication.ts",
+);
 const barrel = read("app/projects/create/actions.ts");
 const creator = read("app/projects/create/ProjectCreator.tsx");
 const migration = read(
@@ -186,10 +189,11 @@ describe("publication database contract", () => {
 
 describe("draft publication cannot strand a staged waiver project", () => {
   test("publishing a stored draft refuses waiver projects before creating a row", () => {
-    const publish = drafts.slice(
+    const action = drafts.slice(
       drafts.indexOf("export async function publishDraft"),
-      drafts.indexOf("export async function updateDraft"),
     );
+    expect(action).toMatch(/publishSavedDraft\(supabase, user\.id, draftId\)/u);
+    const publish = draftPublication;
 
     const guardIndex = publish.indexOf("projectData?.waiverRequired");
     const createIndex = publish.indexOf("createBasicProject(");

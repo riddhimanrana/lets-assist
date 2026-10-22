@@ -197,6 +197,7 @@ export async function createBasicProject(
       .select("role")
       .eq("organization_id", organizationId)
       .eq("user_id", user.id)
+      .eq("status", "active")
       .single();
 
     if (orgError || !orgMember) {

@@ -1,0 +1,46 @@
+{
+  "format": 1,
+  "sourceBase": "de87d3031589745d8c6c6dc1c07a32d48d985567",
+  "evidence": "Owned PostgreSQL 18.6 function replay: all four historical definition/owner/ACL digests matched the accepted 739 manifest before replacement. This five-object delta still requires the full clean CI replay/catalog gate.",
+  "previousTarget": {
+    "count": 739,
+    "ledger": "ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4",
+    "manifestSha256": "7789c4442aad99f6bedf91bda3cde33a9b0b49ac6b50690803c3d198bd8a89cb"
+  },
+  "step": {
+    "version": "20261020031605",
+    "migration": "20261020031605_project_calendar_deletion_fence.sql",
+    "sha256": "33f971e40a211fa12a4adb1249f0605cb857fc71545d33e53c168da4f5af0c26",
+    "count": 740,
+    "ledger": "073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7",
+    "manifestSha256": "43ade8b15f325a5c6272138b6d0e18c0c7f037f19605109b09077e9c9309ecb2",
+    "changed": [
+      {
+        "identity": "function:app_private.project_calendar_deletion_pending(p_project_id uuid)",
+        "digest": "9942b24efab6a6ec0a0e807e7f21bb2b"
+      },
+      {
+        "identity": "function:public.claim_personal_calendar_sync(p_actor_user_id uuid, p_source_kind text, p_source_id uuid, p_operation text, p_schedule_id text, p_expected_event_id text)",
+        "digest": "65c451715c6728d86f884ef66ace955a"
+      },
+      {
+        "identity": "function:public.claim_personal_calendar_update(p_actor_user_id uuid, p_project_id uuid, p_expected_source jsonb)",
+        "digest": "940e039b2b4f05a42a45763b2505002e"
+      },
+      {
+        "identity": "function:public.finalize_project_deletion(p_operation_id uuid, p_project_id uuid, p_actor_id uuid)",
+        "digest": "bce39641c5b3ae44c3948dcd57bde34a"
+      },
+      {
+        "identity": "function:public.prepare_project_deletion(p_project_id uuid, p_actor_id uuid, p_replay_only boolean)",
+        "digest": "9682a6a816388d87307f510846c2d609"
+      }
+    ],
+    "removed": []
+  },
+  "target": {
+    "count": 740,
+    "ledger": "073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7",
+    "manifestSha256": "43ade8b15f325a5c6272138b6d0e18c0c7f037f19605109b09077e9c9309ecb2"
+  }
+}

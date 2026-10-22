@@ -7,17 +7,29 @@ import {
 } from "@/app/organization/[id]/reports/report-layouts";
 import { logWarn } from "@/lib/logger";
 import {
+  organizationSheetSyncConfigMoved,
+  prepareOrganizationSheetSyncAuthority,
+} from "./organization-sync-authority";
+import {
+  buildOrganizationSheetSyncSnapshot,
+  claimOrganizationSheetSyncRun,
+  type OrganizationSheetSyncRun,
+  type OrganizationSheetSyncSnapshot,
+} from "./organization-sync-run";
+import {
   buildOrganizationReportRowsForSync,
   type ReportType,
 } from "@/lib/organization/report-service";
 import type { getAdminClient } from "@/lib/supabase/admin";
-import { replaceSpreadsheetReportValues } from "@/services/google-sheets";
 import {
   inspectSpreadsheet,
+  replaceSpreadsheetReportRanges,
   type SheetsFailureReason,
 } from "@/services/google-sheets-report";
 
 import {
+  buildStaleClearRanges,
+  buildWriteRange,
   describeReportRangeOverflow,
   openLegacyDefaultReportRange,
 } from "./ranges";
@@ -29,7 +41,7 @@ export const ORGANIZATION_SHEET_SYNC_DEFAULT_TAB = "Member Hours";
  * select this list, so neither can leave out the saved layout.
  */
 export const ORGANIZATION_SHEET_SYNC_COLUMNS =
-  "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by" as const;
+  "organization_id, sheet_id, tab_name, range_a1, report_type, layout_config, created_by, updated_at" as const;
 
 export type OrganizationSheetSyncConfig = {
   organization_id: string;
@@ -40,6 +52,7 @@ export type OrganizationSheetSyncConfig = {
   layout_config: unknown;
   /** The owner the caller authorized. Write-backs only touch their config. */
   created_by: string;
+  updated_at: string;
 };
 
 /** Stable codes for logs, the worker response and the cards. */
@@ -55,6 +68,10 @@ export type OrganizationSheetSyncErrorCode =
   | "sheets_rejected"
   | "sheets_unavailable"
   | "stale_clear_failed"
+  | "authorization_changed"
+  | "configuration_changed"
+  | "sync_in_progress"
+  | "sync_outcome_unknown"
   | "record_failed";
 
 export type OrganizationSheetSyncResult =
@@ -81,6 +98,39 @@ const TIMEOUT_MESSAGE =
 
 const RESELECT_MESSAGE =
   "The connected Google account cannot open this spreadsheet. Choose the file again with the picker.";
+
+type Refusal = Extract<OrganizationSheetSyncResult, { success: false }>;
+
+const IN_PROGRESS: Refusal = {
+  success: false,
+  code: "sync_in_progress",
+  error:
+    "Another sync for this organization is still running. Try again in a few minutes.",
+};
+// Nothing here says the earlier update succeeded or failed: that is not known.
+const OUTCOME_UNKNOWN: Refusal = {
+  success: false,
+  code: "sync_outcome_unknown",
+  error:
+    "An earlier update to this spreadsheet was sent without a confirmed result. Syncing is paused for this organization until that update is reviewed.",
+};
+const CLAIM_REFUSED: Refusal = {
+  success: false,
+  code: "authorization_changed",
+  error: "Export authorization could not be confirmed. Retry shortly.",
+};
+const CONFIGURATION_CHANGED: Refusal = {
+  success: false,
+  code: "configuration_changed",
+  error:
+    "The sheet settings changed during this sync. Retry using the current destination.",
+};
+const SNAPSHOT_UNSAVED: Refusal = {
+  success: false,
+  code: "report_unavailable",
+  error:
+    "The report could not be saved before writing. Nothing was sent to the spreadsheet. Try again in a few minutes.",
+};
 
 const SHEETS_FAILURES: Record<
   SheetsFailureReason,
@@ -145,64 +195,142 @@ export function resolveSavedSheetLayout(
  * Runs one organization report sync: resolve the tab, build the rows with the
  * saved layout, write them, and record the sync time.
  *
- * The caller has already authorized the request and obtained the owner's
- * Sheets token. This function never creates a tab: a missing tab means the
+ * This function confirms the current owner, OAuth binding and saved destination
+ * before each provider mutation. It never creates a tab: a missing tab means the
  * destination changed, and writing somewhere new is the admin's decision.
+ *
+ * One run per organization holds a durable claim, taken before a token is
+ * refreshed and before the report is read or built. The report is saved
+ * before its first mutation and a retry replays that saved report. Each mutation is recorded before it is sent and
+ * acknowledged after a known answer. A mutation with no saved answer blocks
+ * the organization with `sync_outcome_unknown` and is never retried here.
  */
 export async function runOrganizationSheetSync({
   supabase,
   config,
-  accessToken,
   signal,
 }: {
   supabase: ReturnType<typeof getAdminClient>;
   config: OrganizationSheetSyncConfig;
-  accessToken: string;
   /** Ends every Sheets request for this organization, such as at a deadline. */
   signal?: AbortSignal;
 }): Promise<OrganizationSheetSyncResult> {
-  const result = await writeOrganizationReport(
-    supabase,
-    config,
-    accessToken,
-    signal,
-  );
-
-  // Work abandoned at its deadline must not go on to change the saved sync.
   if (signal?.aborted) {
     return { success: false, code: "sheets_timeout", error: TIMEOUT_MESSAGE };
   }
-
-  // Each write-back names the owner and spreadsheet that were authorized and
-  // synced. If an admin changed either while this ran, the stale result
-  // matches nothing and leaves the new configuration alone.
-  const authorizedConfig = () =>
-    supabase
-      .from("organization_sheet_syncs")
-      .update(
-        result.success
-          ? { last_synced_at: new Date().toISOString() }
-          : { auto_sync: false, updated_at: new Date().toISOString() },
-      )
-      .eq("organization_id", config.organization_id)
-      .eq("sheet_id", config.sheet_id)
-      .eq("created_by", config.created_by);
-
-  if (!result.success) {
-    if (isPermanentSheetSyncFailure(result.code)) await authorizedConfig();
-    return result;
+  // The claim comes first. The database confirms the active admin, the exact
+  // connection binding and the saved configuration, and a second caller stops
+  // here: it refreshes no token and reads no spreadsheet or report, so it
+  // cannot rotate the credential the run in progress has pinned.
+  const claim = await claimOrganizationSheetSyncRun(
+    (name, args) => supabase.rpc(name, args),
+    config,
+  );
+  if (claim.status === "busy") return IN_PROGRESS;
+  if (claim.status === "outcome_unknown") return OUTCOME_UNKNOWN;
+  if (claim.status === "refused") {
+    return (await organizationSheetSyncConfigMoved(supabase, config))
+      ? CONFIGURATION_CHANGED
+      : CLAIM_REFUSED;
   }
+  const { run } = claim;
 
-  const { error: recordError } = await authorizedConfig();
-  if (recordError) {
-    return {
-      success: false,
-      code: "record_failed",
-      error: "The sheet was updated, but the sync time could not be saved.",
-    };
+  try {
+    // Token preparation happens only under the claim, and the claim is
+    // released whatever it finds.
+    const authority = await prepareOrganizationSheetSyncAuthority(
+      supabase,
+      config,
+      signal,
+    );
+    const refused = authority.failure();
+    if (refused) return refused;
+
+    const result = await writeOrganizationReport(
+      supabase,
+      config,
+      authority.accessToken!,
+      run,
+      claim.status === "resume" ? claim.snapshot : null,
+      signal,
+      authority.beforeWrite,
+    );
+
+    // An unconfirmed mutation outranks every other reading of this run.
+    if (run.outcomeUnknown()) return OUTCOME_UNKNOWN;
+    // Work abandoned at its deadline must not go on to change the saved sync.
+    if (signal?.aborted) {
+      return { success: false, code: "sheets_timeout", error: TIMEOUT_MESSAGE };
+    }
+    if (authority.failure()) return authority.failure()!;
+
+    if (!result.success) {
+      // The pause names the owner and spreadsheet that were authorized. If an
+      // admin changed either while this ran, it matches nothing and leaves
+      // the new configuration alone. It runs before the claim is released.
+      if (isPermanentSheetSyncFailure(result.code)) {
+        await supabase
+          .from("organization_sheet_syncs")
+          .update({ auto_sync: false, updated_at: new Date().toISOString() })
+          .eq("organization_id", config.organization_id)
+          .eq("sheet_id", config.sheet_id)
+          .eq("created_by", config.created_by)
+          .eq("updated_at", config.updated_at)
+          .select("organization_id")
+          .maybeSingle();
+      }
+      return result;
+    }
+
+    try {
+      await authority.beforeWrite();
+    } catch {
+      // A deadline that ends the last check is a timeout, not lost authority.
+      if (signal?.aborted) {
+        return {
+          success: false,
+          code: "sheets_timeout",
+          error: TIMEOUT_MESSAGE,
+        };
+      }
+      return (
+        authority.failure() ?? {
+          success: false,
+          code: "authorization_changed",
+          error: "Export authorization could not be confirmed.",
+        }
+      );
+    }
+    // The database stamps the sync time in the same transaction that checks
+    // the owner, the connection, the saved configuration and this claim. A
+    // false answer means unconfirmed: the stamp may or may not be saved.
+    if (!(await run.finalize())) {
+      return {
+        success: false,
+        code: "record_failed",
+        error:
+          "The sheet was updated, but saving the sync time was not confirmed.",
+      };
+    }
+
+    return { success: true };
+  } finally {
+    // Release keeps the saved report and any unacknowledged mutation.
+    await run.release();
   }
+}
 
-  return { success: true };
+/** The exact ranges one replacement mutates: the write, then each clear. */
+function reportMutationRanges(
+  tabName: string,
+  writeRangeA1: string | null | undefined,
+  staleClearRangeA1: string | null | undefined,
+  rows: OrganizationSheetSyncSnapshot["rows"],
+) {
+  return [
+    buildWriteRange(tabName, writeRangeA1, rows),
+    ...buildStaleClearRanges(tabName, staleClearRangeA1, rows),
+  ];
 }
 
 /**
@@ -260,12 +388,22 @@ async function writeOrganizationReport(
   supabase: ReturnType<typeof getAdminClient>,
   config: OrganizationSheetSyncConfig,
   accessToken: string,
+  run: OrganizationSheetSyncRun,
+  /** The report an earlier pass saved and did not finish, when there is one. */
+  saved: OrganizationSheetSyncSnapshot | null,
   signal?: AbortSignal,
+  beforeWrite?: () => Promise<void>,
 ): Promise<OrganizationSheetSyncResult> {
   // Every Sheets request below spends from this budget, so one sync can make
   // at most the metadata read, the write and the two clears.
   const sheets = {
     signal,
+    // Authority first, then the durable record that this mutation is next.
+    beforeWrite: async () => {
+      await beforeWrite?.();
+      await run.beginMutation();
+    },
+    acknowledgeWrite: run.acknowledgeMutation,
     budget: { remaining: ORGANIZATION_SHEET_SYNC_MAX_SHEETS_REQUESTS },
   };
   const timedOut = (): OrganizationSheetSyncResult => ({
@@ -274,7 +412,8 @@ async function writeOrganizationReport(
     error: TIMEOUT_MESSAGE,
   });
   const tabName =
-    config.tab_name?.trim() || ORGANIZATION_SHEET_SYNC_DEFAULT_TAB;
+    saved?.tab_name ??
+    (config.tab_name?.trim() || ORGANIZATION_SHEET_SYNC_DEFAULT_TAB);
   const reportType = config.report_type as ReportType;
 
   const inspection = await inspectSpreadsheet(
@@ -293,6 +432,75 @@ async function writeOrganizationReport(
     };
   }
 
+  const snapshot =
+    saved ??
+    (await saveOrganizationReportSnapshot(
+      supabase,
+      config,
+      run,
+      tabName,
+      reportType,
+      signal,
+      beforeWrite,
+    ));
+  if (!("rows" in snapshot)) return snapshot;
+  if (signal?.aborted) return timedOut();
+  // A saved report is replayed only to the spreadsheet it was saved for, and
+  // to the exact ranges saved with it rather than to recalculated ones.
+  const [writeRange, ...staleRanges] = snapshot.ranges;
+  if (snapshot.sheet_id !== config.sheet_id || !writeRange)
+    return SNAPSHOT_UNSAVED;
+
+  const replacement = await replaceSpreadsheetReportRanges(
+    accessToken,
+    snapshot.sheet_id,
+    writeRange,
+    staleRanges,
+    snapshot.rows,
+    sheets,
+  );
+  if (!replacement.success && replacement.stage === "write") {
+    // The spreadsheet opened a moment ago, so a refusal here is about editing.
+    if (replacement.reason === "access_denied") {
+      return {
+        success: false,
+        code: "sheet_not_editable",
+        error:
+          "The connected Google account can view this spreadsheet but cannot edit it. Ask the file owner for edit access, or choose another file.",
+      };
+    }
+    return { success: false, ...SHEETS_FAILURES[replacement.reason] };
+  }
+  if (!replacement.success) {
+    return {
+      success: false,
+      code: "stale_clear_failed",
+      error:
+        "The sheet was updated, but older rows below or beside the report could not be cleared.",
+    };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Builds the report and saves it with its ranges before anything is written.
+ * Returns the refusal instead when the report cannot be built or saved.
+ */
+async function saveOrganizationReportSnapshot(
+  supabase: ReturnType<typeof getAdminClient>,
+  config: OrganizationSheetSyncConfig,
+  run: OrganizationSheetSyncRun,
+  tabName: string,
+  reportType: ReportType,
+  signal?: AbortSignal,
+  beforeWrite?: () => Promise<void>,
+): Promise<OrganizationSheetSyncSnapshot | Refusal> {
+  const timedOut = (): Refusal => ({
+    success: false,
+    code: "sheets_timeout",
+    error: TIMEOUT_MESSAGE,
+  });
   const withinBounds = await isReportSourceWithinBounds(
     supabase,
     config.organization_id,
@@ -360,40 +568,50 @@ async function writeOrganizationReport(
     return { success: false, code: "range_too_small", error: overflow };
   }
 
-  const replacement = await replaceSpreadsheetReportValues(
-    accessToken,
-    config.sheet_id,
-    tabName,
-    writeRangeA1,
+  const snapshot = buildOrganizationSheetSyncSnapshot(
+    {
+      sheet_id: config.sheet_id,
+      report_type: config.report_type,
+      tab_name: tabName,
+      write_range_a1: writeRangeA1 ?? null,
+      stale_clear_range_a1: config.range_a1 ?? null,
+      // Stale cells are cleared only inside the saved range. The sync has no
+      // record of how far an earlier report reached, so clearing further down
+      // could erase cells it never wrote. A legacy-range report that shrinks
+      // can therefore leave its old rows below row 20, as it always could;
+      // recording the written extent on the sync row is what closes that.
+      ranges: reportMutationRanges(
+        tabName,
+        writeRangeA1,
+        config.range_a1,
+        rows,
+      ),
+    },
     rows,
-    sheets,
-    // Stale cells are cleared only inside the saved range. The sync has no
-    // record of how far an earlier report reached, so clearing further down
-    // could erase cells it never wrote. A legacy-range report that shrinks
-    // can therefore leave its old rows below row 20, as it always could;
-    // recording the written extent on the sync row is what closes that.
-    config.range_a1,
   );
-  if (!replacement.success && replacement.stage === "write") {
-    // The spreadsheet opened a moment ago, so a refusal here is about editing.
-    if (replacement.reason === "access_denied") {
-      return {
-        success: false,
-        code: "sheet_not_editable",
-        error:
-          "The connected Google account can view this spreadsheet but cannot edit it. Ask the file owner for edit access, or choose another file.",
-      };
-    }
-    return { success: false, ...SHEETS_FAILURES[replacement.reason] };
-  }
-  if (!replacement.success) {
+  if (snapshot === "too_large") {
     return {
       success: false,
-      code: "stale_clear_failed",
-      error:
-        "The sheet was updated, but older rows below or beside the report could not be cleared.",
+      code: "report_too_large",
+      error: REPORT_TOO_LARGE_MESSAGE,
     };
   }
-
-  return { success: true };
+  if (snapshot === "invalid") {
+    return {
+      success: false,
+      code: "report_unavailable",
+      error:
+        "The report has values a spreadsheet cannot store as plain data. Nothing was sent to the spreadsheet.",
+    };
+  }
+  // Building took time, so authority is confirmed again before the report is
+  // saved. The caller reports the recorded refusal or the deadline.
+  try {
+    await beforeWrite?.();
+  } catch {
+    return SNAPSHOT_UNSAVED;
+  }
+  // The report is saved before its first mutation. If that is not confirmed,
+  // nothing is written.
+  return (await run.plan(snapshot)) ? snapshot : SNAPSHOT_UNSAVED;
 }

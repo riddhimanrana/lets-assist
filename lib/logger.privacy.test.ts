@@ -12,6 +12,57 @@ const { sanitizeLogRecord } = await import("./log-privacy");
 const { telemetryRuntime } = await import("./telemetry-runtime");
 afterAll(() => mock.restore());
 describe("telemetry data boundary", () => {
+  test("worker monitoring retains bounded outcomes and excludes destinations and records", () => {
+    logInfo("Organization sheet sync failed", {
+      worker: "organization-sheet-sync",
+      error_code: "sync_outcome_unknown",
+      deferred: 2,
+      synced: 1,
+      organization_id: "private-organization",
+      sheet_id: "private-sheet",
+      ranges: "Private roster!A1:H20",
+      report_cells: "Synthetic Student, private@example.test",
+      heartbeat_url: "https://example.test/private-token",
+      error_message: "private-provider-body",
+    });
+    expect(emitted.at(-1)).toMatchObject({
+      body: "Organization sheet sync failed",
+      attributes: {
+        worker: "organization-sheet-sync",
+        error_code: "sync_outcome_unknown",
+        deferred: 2,
+        synced: 1,
+      },
+    });
+    expect(JSON.stringify(emitted.at(-1))).not.toMatch(
+      /private|Private|Synthetic Student/,
+    );
+    expect(
+      sanitizeLogRecord("Worker heartbeat unavailable", {
+        worker: "organization-calendar-sync",
+        heartbeat_status: "configuration_invalid",
+        receipt_phase: "finish",
+        discovery: "unread",
+        outcome: "failed",
+      }).attributes,
+    ).toEqual({
+      worker: "organization-calendar-sync",
+      heartbeat_status: "configuration_invalid",
+      receipt_phase: "finish",
+      discovery: "unread",
+      outcome: "failed",
+    });
+    expect(
+      sanitizeLogRecord("Worker heartbeat unavailable", {
+        worker: "organization-calendar-sync private-token",
+        heartbeat_status: "configuration_invalid private-token",
+        discovery: "unread private-token",
+        error_code: "sync_outcome_unknown private-token",
+        deferred: -1,
+        synced: "2",
+      }).attributes,
+    ).toEqual({});
+  });
   test("business conflict codes survive without exporting their private messages", () => {
     logError(
       "Failed to update Google spreadsheet values",

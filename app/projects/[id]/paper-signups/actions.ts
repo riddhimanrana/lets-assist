@@ -571,14 +571,16 @@ export async function retryPaperScanCertificates(input: {
     actorId: userId,
   });
   const certificateErrors = [...issuance.errors];
-  // A zero-row idempotent replay means certificates already exist. This
-  // closes an issuance retry, but it cannot prove an earlier email attempt
-  // reached its recipient; keep the operator on the explicit Hours resend
-  // path instead of silently declaring delivery repaired.
+  // A zero-row replay whose awards all have ledger-tracked delivery is a
+  // completed retry: the ledger, not this action, records each outcome.
+  // Without that ledger a zero-row replay cannot prove an earlier email
+  // attempt reached its recipient; keep the operator on the explicit Hours
+  // resend path instead of silently declaring delivery repaired.
   if (
     signupIds.length > 0 &&
     issuance.issued === 0 &&
-    certificateErrors.length === 0
+    certificateErrors.length === 0 &&
+    !issuance.deliveryDurable
   ) {
     certificateErrors.push("certificate_delivery_retry_required");
   }

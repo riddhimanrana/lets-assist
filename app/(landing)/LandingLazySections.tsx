@@ -8,19 +8,9 @@ import {
   OrgToolingIntro,
 } from "./_components/OrgToolingIntro";
 
-// The partner tiles are tooltip triggers. Their ids and trigger props come
-// from a store that effects fill in, and that first render has not been
-// reviewed for hydration, so the section stays client-only.
-const BayAreaExamples = dynamic(() => import("./_components/BayAreaExamples"), {
-  loading: () => null,
-  ssr: false,
-});
-// These render on the server, so their copy and #anchors are in the first
-// response. Each still ships as its own client chunk. No `loading` here: it
-// would add a boundary that can stream the section in behind a script.
-const ComparisonSection = dynamic(
-  () => import("./_components/ComparisonSection"),
-);
+// These sections render their copy in the first response. The partner list no
+// longer depends on a client-only tooltip store.
+const BayAreaExamples = dynamic(() => import("./_components/BayAreaExamples"));
 const VolunteerJourneySection = dynamic(
   () => import("./_components/VolunteerJourneySection"),
 );
@@ -30,9 +20,6 @@ const VolunteerJourneySection = dynamic(
 // response avoids inserting these sections only after their chunks arrive.
 const RealCheckIn = dynamic(() =>
   import("./_components/RealCheckIn").then((mod) => mod.RealCheckIn),
-);
-const TestimonialsSection = dynamic(
-  () => import("./_components/TestimonialsSection"),
 );
 // The organization mock mounts the real organization screens, which read the
 // viewport and the clock, so it stays client-only. Only the mock is behind
@@ -48,14 +35,13 @@ const OrgToolingDemo = dynamic(
 export function LandingLazySections() {
   return (
     <>
-      <BayAreaExamples />
-      <ComparisonSection />
-      <RealCheckIn />
       <VolunteerJourneySection />
       <OrgToolingIntro>
         <OrgToolingDemo />
       </OrgToolingIntro>
-      <TestimonialsSection />
+      <RealCheckIn />
+      <BayAreaExamples />
+      {/* Quote permissions need confirmation before testimonials return here. */}
       <CallToAction />
     </>
   );

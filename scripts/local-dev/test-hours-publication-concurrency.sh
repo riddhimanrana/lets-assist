@@ -75,7 +75,29 @@ trap cleanup EXIT
 
 cleanup_database
 
+complete_fixture_project() {
+  psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
+SET LOCAL lock_timeout = '10s';
+-- Unlike process_projects' nonblocking scheduler entry, the proof must wait
+-- for concurrent maintenance to finish before checking the completed state.
+SELECT pg_advisory_xact_lock(hashtextextended('lets-assist-project-status-maintenance', 0));
+SELECT public.process_projects();
+DO $$
+BEGIN
+  IF (SELECT status FROM public.projects
+      WHERE id = 'ac200000-0000-4000-8000-000000000001') IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'past-dated concurrency fixture must be completed';
+  END IF;
+END;
+$$;
+COMMIT;
+SQL
+}
+
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+-- Keep the past-dated project and its initial enrollment invisible to status
+-- maintenance until both exist. A cron tick must not split fixture setup.
 BEGIN;
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
@@ -169,6 +191,8 @@ BEGIN
 END;
 $$;
 SQL
+# Exercise the completed state independently of the five-minute cron boundary.
+complete_fixture_project
 
 (
   PGAPPNAME=hours_publication_session_a \
@@ -500,6 +524,7 @@ END;
 $$;
 COMMIT;
 SQL
+complete_fixture_project
 
 # A status change that already owns the signup lock must settle before the
 # publication validates the row. The RPC must then observe rejected, not the
@@ -544,6 +569,8 @@ if [[ "${STATUS_RACE_EXIT}" -eq 0 ]] || ! grep -q "one or more signups" "${OUTPU
 fi
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+-- Reset only this owned fixture for the next independent race. Hold its
+-- project lock through approval, then let real maintenance complete it again.
 BEGIN;
 UPDATE public.projects
 SET status = 'upcoming'
@@ -553,6 +580,7 @@ SET status = 'approved'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
 COMMIT;
 SQL
+complete_fixture_project
 
 # The same serialization guarantee applies to the staff membership used for
 # authorization. A revocation that owns the row lock must win before publish.

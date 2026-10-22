@@ -89,6 +89,93 @@ test("in-memory summary cannot hide an error response or manufacture evidence be
     });
   }
 });
+const organizationResults = (successes: boolean[]) => ({
+  processed: successes.length,
+  results: successes.map((success, index) => ({
+    success,
+    organizationId: `private-organization-${index}`,
+    ...(success ? {} : { error: "private provider diagnostic" }),
+  })),
+});
+test.each(["organization-calendar-sync", "organization-sheet-sync"] as const)(
+  "a 503 %s pass keeps its captured partial and failed counters",
+  async (worker) => {
+    for (const [successes, expected] of [
+      [
+        [true, false, true],
+        {
+          outcome: "partial",
+          code: "partial_work",
+          attempted: 3,
+          completed: 2,
+          failed: 1,
+        },
+      ],
+      [
+        [false, false],
+        {
+          outcome: "failed",
+          code: "worker_failed",
+          attempted: 2,
+          completed: 0,
+          failed: 2,
+        },
+      ],
+    ] as const) {
+      const body = organizationResults([...successes]);
+      const summary = workerResponseSummary(worker);
+      const h = harness();
+      const response = Response.json(body, { status: 503 });
+      expect(
+        await observeWorkerRun(
+          worker,
+          async () => {
+            summary.capture(body);
+            return response;
+          },
+          summary,
+          h.deps,
+        ),
+      ).toBe(response);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual(body);
+      expect(h.writes[1].parameters.p_result).toEqual({
+        ...expected,
+        pending: 0,
+        refused: 0,
+        faults: 0,
+        deadlineReached: false,
+        durationMs: 0,
+      });
+      expect(JSON.stringify(h.writes)).not.toContain("private");
+      expect(h.warnings).toHaveLength(0);
+    }
+  },
+);
+test("a 503 response cannot be recorded as the healthy or empty pass it captured", async () => {
+  for (const successes of [[], [true, true]]) {
+    const body = organizationResults(successes);
+    const summary = workerResponseSummary("organization-sheet-sync");
+    summary.capture(body);
+    expect(summary.outcome().outcome).toBe(
+      successes.length ? "processed" : "no_run",
+    );
+    const h = harness();
+    await observeWorkerRun(
+      "organization-sheet-sync",
+      async () => Response.json(body, { status: 503 }),
+      summary,
+      h.deps,
+    );
+    expect(h.writes[1].parameters.p_result).toMatchObject({
+      outcome: "failed",
+      code: "worker_failed",
+      attempted: 0,
+      completed: 0,
+      faults: 1,
+    });
+  }
+});
 test("the default response parser still refuses oversized evidence", async () => {
   const h = harness();
   await observeWorkerRun(

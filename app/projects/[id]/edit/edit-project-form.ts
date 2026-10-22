@@ -78,6 +78,36 @@ export const formSchema = z.object({
 
 export type FormValues = z.infer<typeof formSchema>;
 
+export function getProjectEditFormDefaults(project: Project): FormValues {
+  return {
+    title: project.title,
+    description: project.description,
+    location: project.location,
+    location_data: project.location_data || {
+      text: project.location,
+      display_name: project.location,
+    },
+    require_login: project.require_login,
+    enable_volunteer_comments: project.enable_volunteer_comments ?? false,
+    show_attendees_publicly: project.show_attendees_publicly ?? false,
+    waiver_required: project.waiver_required ?? false,
+    waiver_allow_upload: true,
+    waiver_disable_esignature: project.waiver_disable_esignature ?? false,
+    verification_method: project.verification_method,
+    visibility: project.visibility,
+  };
+}
+
+export function hasProjectEditFormChanges(
+  values: FormValues,
+  project: Project,
+) {
+  const defaults = getProjectEditFormDefaults(project);
+  return (Object.keys(defaults) as Array<keyof FormValues>).some(
+    (key) => JSON.stringify(values[key]) !== JSON.stringify(defaults[key]),
+  );
+}
+
 // Helper to initialize schedule state from project
 export function initializeScheduleState(project: Project) {
   const eventType = project.event_type;

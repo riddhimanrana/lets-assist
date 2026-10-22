@@ -12,6 +12,8 @@ const certificate = {
   is_certified: true,
   event_start: "2026-10-06T16:00:00Z",
   event_end: "2026-10-06T17:15:00Z",
+  event_timezone: "Asia/Tokyo",
+  projects: { project_timezone: "America/New_York" },
   volunteer_name: "Fictional volunteer",
   volunteer_email: "volunteer@example.test",
   issued_at: "2026-10-06T18:00:00Z",
@@ -21,26 +23,33 @@ let missing = false;
 let failed = false;
 let malformedDates = false;
 let creditedMinutes: number | null | undefined;
+let selected = "";
+/** An error the query returns instead of throwing, as PostgREST does. */
+let returnedError: { code?: string; message: string } | null = null;
 mock.module("@/lib/supabase/server", () => ({
   createClient: async () => ({
     from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: async () => {
-            if (failed) throw new Error("Synthetic read failure");
-            return {
-              data: missing
-                ? null
-                : {
-                    ...certificate,
-                    credited_minutes: creditedMinutes,
-                    ...(malformedDates ? { event_end: "invalid" } : {}),
-                  },
-              error: null,
-            };
-          },
-        }),
-      }),
+      select: (columns: string) => {
+        selected = columns;
+        return {
+          eq: () => ({
+            single: async () => {
+              if (failed) throw new Error("Synthetic read failure");
+              if (returnedError) return { data: null, error: returnedError };
+              return {
+                data: missing
+                  ? null
+                  : {
+                      ...certificate,
+                      credited_minutes: creditedMinutes,
+                      ...(malformedDates ? { event_end: "invalid" } : {}),
+                    },
+                error: null,
+              };
+            },
+          }),
+        };
+      },
     }),
   }),
 }));
@@ -70,11 +79,22 @@ describe("certificate verification contract", () => {
     failed = false;
     malformedDates = false;
     creditedMinutes = undefined;
+    returnedError = null;
   });
   test("GET includes numeric duration matching the exported one-decimal hours", async () => {
     const response = await GET(request(), params);
     expect(response.status).toBe(200);
     expect((await response.json()).event.duration).toBe(1.3);
+  });
+  test("GET selects only the caller-readable project timezone and returns export precedence", async () => {
+    const response = await GET(request(), params);
+    const body = await response.json();
+    expect(selected).toContain("event_timezone");
+    expect(selected).toContain(
+      "projects!certificates_project_id_fkey(project_timezone)",
+    );
+    expect(body.event.timeZone).toBe("America/New_York");
+    expect(body.project).not.toHaveProperty("projects");
   });
   test.each([61, 0])(
     "canonical %i credited minutes override the event envelope",
@@ -120,7 +140,108 @@ describe("certificate verification contract", () => {
     failed = true;
     const response = await POST(request({ expectedData }), params);
     expect(response.status).toBe(500);
-    expect(await response.json()).toMatchObject({ valid: false });
+    const body = await response.json();
+    expect(body).toMatchObject({ valid: false, retryable: true });
+    expect(body).not.toHaveProperty("exists");
+  });
+
+  const backendFailures = [
+    { code: "08006", message: "Synthetic connection failure" },
+    { code: "57014", message: "Synthetic statement timeout" },
+    { code: "PGRST301", message: "Synthetic gateway failure" },
+    { code: "XX000", message: "Synthetic timeout with an unreviewed code" },
+    { message: "TypeError: fetch failed" },
+  ];
+  for (const failure of backendFailures) {
+    test(`a returned ${failure.code ?? "transport"} error is a retryable 503 that claims nothing about existence`, async () => {
+      returnedError = failure;
+      const originalError = console.error;
+      console.error = () => {};
+
+      try {
+        const response = await GET(request(), params);
+        const body = await response.json();
+
+        expect(response.status).toBe(503);
+        expect(response.headers.get("Retry-After")).toBe("5");
+        expect(body).toMatchObject({ valid: false, retryable: true });
+        expect(body).not.toHaveProperty("exists");
+        expect(JSON.stringify(body)).not.toContain("Synthetic");
+      } finally {
+        console.error = originalError;
+      }
+    });
+  }
+
+  test("POST preserves the retryable 503 and its Retry-After header", async () => {
+    returnedError = { code: "08006", message: "Synthetic connection failure" };
+    const originalError = console.error;
+    console.error = () => {};
+
+    try {
+      const response = await POST(request({ expectedData }), params);
+      const body = await response.json();
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("Retry-After")).toBe("5");
+      expect(body).toMatchObject({ valid: false, retryable: true });
+      expect(body).not.toHaveProperty("exists");
+      expect(body).not.toHaveProperty("verification");
+    } finally {
+      console.error = originalError;
+    }
+  });
+
+  for (const code of ["PGRST116", "42501"]) {
+    test(`a missing or unreadable certificate (${code}) stays a private 404`, async () => {
+      returnedError = { code, message: "Synthetic refusal" };
+
+      const response = await GET(request(), params);
+
+      expect(response.status).toBe(404);
+      expect(response.headers.get("Retry-After")).toBeNull();
+      expect(await response.json()).toEqual({
+        error: "Certificate not found",
+        valid: false,
+        exists: false,
+      });
+    });
+  }
+
+  for (const method of ["GET", "POST"]) {
+    test(`${method} treats a malformed UUID as absent without a retry hint`, async () => {
+      returnedError = {
+        code: "22P02",
+        message: "Synthetic invalid UUID abc123",
+      };
+      const malformedParams = { params: Promise.resolve({ id: "abc123" }) };
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const response =
+          method === "GET"
+            ? await GET(request(), malformedParams)
+            : await POST(request({ expectedData }), malformedParams);
+        expect(response.status).toBe(404);
+        expect(response.headers.get("Retry-After")).toBeNull();
+        expect(await response.json()).toEqual({
+          error: "Certificate not found",
+          valid: false,
+          exists: false,
+        });
+      } finally {
+        console.error = originalError;
+      }
+    });
+  }
+
+  test("an empty result without an error stays a private 404", async () => {
+    missing = true;
+
+    const response = await GET(request(), params);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ exists: false });
   });
   test("invalid stored dates never compare as zero valid hours", async () => {
     malformedDates = true;

@@ -1,7 +1,10 @@
 import "server-only";
 
 import { reconcileOrganizationCalendar } from "@/services/organization-calendar/reconcile";
-import { loadCalendarSourcePages } from "./calendar-source-pages";
+import {
+  loadCalendarSourcePages,
+  withCalendarDeadline,
+} from "./calendar-source-pages";
 import { createPluginAdminClient } from "@/lib/plugins/supabase";
 import { getAdminClient } from "@/lib/supabase/admin";
 
@@ -253,15 +256,20 @@ export async function syncCsfCalendarProjections(options: {
   accessToken: string;
   calendarId: string;
   userId?: string;
+  /** The caller's deadline, passed to every source page and to the reconcile. */
+  signal?: AbortSignal;
 }): Promise<CsfCalendarSyncResult> {
+  const { signal } = options;
   const serviceSupabase = getAdminClient();
   let userId = options.userId;
   if (!userId) {
-    const { data, error } = await serviceSupabase
-      .from("organization_calendar_syncs")
-      .select("created_by")
-      .eq("organization_id", options.organizationId)
-      .maybeSingle();
+    const { data, error } = await withCalendarDeadline(
+      serviceSupabase
+        .from("organization_calendar_syncs")
+        .select("created_by")
+        .eq("organization_id", options.organizationId),
+      signal,
+    ).maybeSingle();
     if (error || !data?.created_by)
       return {
         success: false,
@@ -288,8 +296,8 @@ export async function syncCsfCalendarProjections(options: {
               .order("id")
               .limit(size);
             if (after) query = query.gt("id", after);
-            return query;
-          }),
+            return withCalendarDeadline(query, signal);
+          }, signal),
           loadCalendarSourcePages<MeetingRow>((after, size) => {
             let query = pluginSupabase
               .from("csf_meetings")
@@ -299,8 +307,8 @@ export async function syncCsfCalendarProjections(options: {
               .order("id")
               .limit(size);
             if (after) query = query.gt("id", after);
-            return query;
-          }),
+            return withCalendarDeadline(query, signal);
+          }, signal),
           loadCalendarSourcePages<MeetingSessionRow>((after, size) => {
             let query = pluginSupabase
               .from("csf_meeting_sessions")
@@ -312,8 +320,8 @@ export async function syncCsfCalendarProjections(options: {
               .order("id")
               .limit(size);
             if (after) query = query.gt("id", after);
-            return query;
-          }),
+            return withCalendarDeadline(query, signal);
+          }, signal),
           loadCalendarSourcePages<DeadlineRow>((after, size) => {
             let query = pluginSupabase
               .from("csf_term_deadlines")
@@ -326,8 +334,8 @@ export async function syncCsfCalendarProjections(options: {
               .order("id")
               .limit(size);
             if (after) query = query.gt("id", after);
-            return query;
-          }),
+            return withCalendarDeadline(query, signal);
+          }, signal),
         ]);
       return buildCsfCalendarProjections({
         opportunities,

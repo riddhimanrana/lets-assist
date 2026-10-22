@@ -23,6 +23,12 @@ export const isSha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
 export const digest = (bytes) =>
   createHash("sha256").update(bytes).digest("hex");
 
+export function cutoverFailureMessage(error) {
+  return error instanceof ReleaseCheckError
+    ? error.message
+    : "Development cutover failed. Raw output was suppressed.";
+}
+
 export function cutoverConfig(env) {
   const config = {
     phase: env.CUTOVER_PHASE,
@@ -42,7 +48,20 @@ export function cutoverConfig(env) {
     cwd: process.cwd(),
   };
   requireCondition(
-    ["bootstrap", "prepare", "complete", "recover"].includes(config.phase) &&
+    env.SUPABASE_PROJECT_ID === target.database &&
+      env.SUPABASE_URL === `https://${target.database}.supabase.co`,
+    "Development Supabase project or canonical URL does not match the fixed target.",
+  );
+  requireCondition(
+    [
+      "inspect",
+      "bootstrap",
+      "pause-cron",
+      "resume-cron",
+      "prepare",
+      "complete",
+      "recover",
+    ].includes(config.phase) &&
       isSha(config.candidate) &&
       isSha(config.controller) &&
       env.GITHUB_ACTIONS === "true" &&
@@ -50,7 +69,13 @@ export function cutoverConfig(env) {
       env.GITHUB_RUN_ATTEMPT === "1" &&
       env.GITHUB_REPOSITORY === target.repository &&
       env.GITHUB_REPOSITORY_ID === String(target.repositoryId) &&
-      (["bootstrap", "prepare"].includes(config.phase)
+      ([
+        "inspect",
+        "bootstrap",
+        "pause-cron",
+        "resume-cron",
+        "prepare",
+      ].includes(config.phase)
         ? config.controller === config.candidate &&
           config.ref?.startsWith("refs/heads/codex/")
         : config.ref === "refs/heads/development" ||
@@ -78,18 +103,37 @@ export function cutoverConfig(env) {
     "Development cutover authority or credentials are incomplete.",
   );
   requireCondition(
-    ["bootstrap", "prepare"].includes(config.phase)
-      ? !config.prepareRun &&
+    config.phase === "inspect"
+      ? !config.prepareRun && !env.EXTERNAL_WRITERS_CONFIRMATION
+      : ["bootstrap", "pause-cron", "prepare"].includes(config.phase)
+        ? !config.prepareRun &&
           env.EXTERNAL_WRITERS_CONFIRMATION ===
             `external-writers-stopped:${config.candidate}`
-      : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
-          config.prepareRun !== config.run,
+        : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
+          config.prepareRun !== config.run &&
+          (config.phase !== "resume-cron" ||
+            env.EXTERNAL_WRITERS_CONFIRMATION ===
+              `external-writers-stopped:${config.candidate}`),
     "A candidate-bound external writer hold or prior preparation run is required.",
   );
   return config;
 }
 
 export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
+  const provider = url.startsWith("https://api.github.com/")
+    ? "GitHub"
+    : url.startsWith("https://api.vercel.com/")
+      ? "Vercel"
+      : "Provider";
+  const operation = url.includes("/environments/")
+    ? "environment policy"
+    : url.includes("/collaborators/")
+      ? "actor permission"
+      : url.includes("/approvals")
+        ? "environment review"
+        : url.includes("/v9/projects/") && !url.includes("/domains")
+          ? "root project"
+          : "provider operation";
   let response;
   try {
     response = await fetcher(url, {
@@ -102,14 +146,20 @@ export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
         ...options.headers,
       },
     });
-    requireCondition(
-      response.ok,
-      "Provider request refused. Reconcile any unknown mutation before retrying.",
+  } catch {
+    throw new ReleaseCheckError(
+      `${provider} request transport failed during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
+  }
+  requireCondition(
+    response.ok,
+    `${provider} request refused (HTTP ${response.status}) during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
+  );
+  try {
     return await response.json();
   } catch {
     throw new ReleaseCheckError(
-      "Provider request failed. Raw responses and credentials were suppressed.",
+      `${provider} returned invalid JSON during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
   }
 }
@@ -188,8 +238,17 @@ export async function verifyAuthority(
   requireCondition(
     reviews.length === 1 &&
       reviews[0].state === "approved" &&
-      reviews[0].user?.login,
+      typeof reviews[0].user?.login === "string" &&
+      reviews[0].user.login,
     "This workflow run has no unambiguous approved Development environment review.",
+  );
+  const reviewerRule = environment.protection_rules.find(
+    (rule) => rule.type === "required_reviewers",
+  );
+  requireCondition(
+    reviewerRule.prevent_self_review !== true ||
+      reviews[0].user.login.toLowerCase() !== config.actor.toLowerCase(),
+    "The current Development policy requires an independent reviewer.",
   );
   requireCondition(
     pr.number === config.pr &&
@@ -208,7 +267,12 @@ export async function verifyAuthority(
     Array.isArray(heldRefs) && heldRefs.length === 0,
     "The reserved maintenance branch must not exist.",
   );
-  if (["bootstrap", "prepare"].includes(config.phase) && !recovery) {
+  if (
+    ["inspect", "bootstrap", "pause-cron", "resume-cron", "prepare"].includes(
+      config.phase,
+    ) &&
+    !recovery
+  ) {
     requireCondition(
       pr.state === "open" &&
         pr.merged === false &&
@@ -264,6 +328,7 @@ export async function loadPreparation(
   read,
   fetcher = fetch,
   now = Date.now(),
+  validate = validateReceipt,
 ) {
   const run = await read(`/actions/runs/${config.prepareRun}`);
   requireCondition(
@@ -273,7 +338,8 @@ export async function loadPreparation(
       run.run_attempt === 1 &&
       run.status === "completed" &&
       run.repository?.id === target.repositoryId &&
-      (config.phase === "recover" || run.conclusion === "success"),
+      (["recover", "resume-cron"].includes(config.phase) ||
+        run.conclusion === "success"),
     "The preparation must be an immutable completed run of this candidate workflow.",
   );
   const listing = await read(
@@ -363,7 +429,7 @@ export async function loadPreparation(
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-  validateReceipt(receipt, config, now);
+  validate(receipt, config, now);
   requireCondition(
     run.head_sha === receipt.controller &&
       (receipt.controller === receipt.candidate ||

@@ -49,6 +49,12 @@ Two kinds, and they look different on purpose.
 
 Never hand-tint a badge with palette classes such as `bg-emerald-500/10`. If a status has no variant, it is one of the five above.
 
+Organization roles retain the approved reference colors: Admin uses the green
+`default` label, Staff uses the blue `info` tint, and Member stays `outline`.
+Their shared `MemberRoleBadge` owns this presentation across the directory,
+header, and members table. Semantic foregrounds keep text and icons readable
+in both themes.
+
 ## Fields
 
 Text inputs, textareas, and input groups are flat: a hairline border, no shadow, no gradient. Select triggers are the exception, because you press them, so they are glossy neutral.
@@ -63,7 +69,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 - Headline numbers use `StatStrip`: one card, divided cells. No coloured tiles.
 - A status-tinted card tints its ring (`ring-warning/30`), never a second border.
 - Clickable cards change their ring or fill on hover. They do not lift.
-- The organization directory uses a primary wash and ring for the viewer’s membership cards, following the approved earlier card design. Discovered and profile cards stay neutral.
+- The organization directory uses a decorative brand wash and semantic primary ring for the viewer’s membership cards, following the approved earlier card design. Discovered and profile cards stay neutral. Focus rings and readable role labels continue to use semantic colors.
 
 ## Tabs
 
@@ -145,11 +151,13 @@ To add an icon, take the component from lucide-animated, put it in `components/i
 - Press feedback comes from the primitives. Do not add `active:scale-*` to a screen.
 - No entrance animations on pages, cards, or rows.
 - Motion that does exist is short (under 500ms), runs once, and stops for reduced-motion users.
+- One approved exception: the landing headline (`HeroHeading`) reveals its letters once on mount, in about 1.3 seconds. It is a CSS animation whose resting state is the final one. The `h1` carries its text once for assistive technology, the letters are `aria-hidden`, and reduced motion removes the animation. Do not copy it to other headings.
 
 ## Colour
 
 - Interactive and status surfaces use the semantic tokens: `primary`, `success`, `warning`, `info`, `destructive`, `muted`.
 - `--brand` is decorative only. Never put text or a control on it.
+- Links in page content use `TEXT_LINK_CLASS` from `lib/text-link.ts`: `text-primary`, an underline that strengthens on hover, and a `ring-primary` focus ring. It is opt-in per link. Navigation, buttons, and whole-card links keep their own styles, and nothing recolours `a` globally.
 - No raw palette classes (`amber-500`, `emerald-600`, `red-500`) in screens.
 - Dark surfaces are owned by the dark palette tokens in `app/globals.css`. The gloss tokens are tuned per theme and redeclared under `.dark`.
 

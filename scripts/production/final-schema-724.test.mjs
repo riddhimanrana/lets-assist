@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
+import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
 import { projectStatusCronCatalog } from "./project-status-cron-catalog.mjs";
@@ -12,7 +13,10 @@ import { accountDeletionStorageCatalog } from "./account-deletion-storage-catalo
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 
 const root = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(root).slice(0, 724);
+const versions = reviewedDevelopmentVersions(expectedVersions(root)).slice(
+  0,
+  724,
+);
 const manifest = JSON.parse(
   readFileSync(new URL("./final-schema-724.json", import.meta.url), "utf8"),
 );

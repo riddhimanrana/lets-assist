@@ -111,6 +111,16 @@ VALUES
     'f1000000-0000-4000-8000-000000000001'
   );
 
+-- Each project uses its own definition. New evidence must name the current
+-- definition of its project, so the fixtures say which one that is.
+UPDATE public.projects
+SET waiver_definition_id = 'f5000000-0000-4000-8000-000000000001'
+WHERE id = 'f2000000-0000-4000-8000-000000000001';
+
+UPDATE public.projects
+SET waiver_definition_id = 'f5000000-0000-4000-8000-000000000002'
+WHERE id = 'f2000000-0000-4000-8000-000000000002';
+
 SELECT extensions.throws_ok(
   $$
     INSERT INTO public.waiver_signatures (

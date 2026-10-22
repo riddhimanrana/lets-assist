@@ -37,6 +37,8 @@ export async function GET(
         is_certified,
         event_start,
         event_end,
+        event_timezone,
+        projects!certificates_project_id_fkey(project_timezone),
         credited_minutes,
         volunteer_name,
         volunteer_email,
@@ -45,8 +47,23 @@ export async function GET(
       `,
       )
       .eq("id", certificateId)
-      .single();
+      // The explicit project foreign key is a nullable to-one relation.
+      .single<Parameters<typeof certificateVerification>[0]>();
 
+    // Empty, unreadable and malformed identifiers retain the same private
+    // response. A backend failure cannot establish that a certificate is absent.
+    if (certError && !["PGRST116", "42501", "22P02"].includes(certError.code)) {
+      safeConsole.error("Certificate verification read failed:", certError);
+      return NextResponse.json(
+        {
+          error:
+            "Certificate verification is temporarily unavailable. Please try again.",
+          valid: false,
+          retryable: true,
+        },
+        { status: 503, headers: { "Retry-After": "5" } },
+      );
+    }
     if (certError || !certificate) {
       return NextResponse.json(
         {
@@ -67,7 +84,7 @@ export async function GET(
       {
         error: "Internal server error during verification",
         valid: false,
-        exists: false,
+        retryable: true,
       },
       { status: 500 },
     );
@@ -124,7 +141,7 @@ export async function POST(
       {
         error: "Internal server error during batch verification",
         valid: false,
-        exists: false,
+        retryable: true,
       },
       { status: 500 },
     );

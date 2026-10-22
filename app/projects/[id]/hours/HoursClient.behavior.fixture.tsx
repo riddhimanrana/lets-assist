@@ -97,7 +97,8 @@ const project = {
   id: "fictional-project",
   title: "Fictional attendance",
   event_type: "oneTime",
-  project_timezone: "UTC",
+  project_timezone:
+    scenario === "timezone-label" ? "America/Los_Angeles" : "UTC",
   schedule: { oneTime: { date, startTime: "09:00", endTime: "12:00" } },
   published: {},
 } as Project;
@@ -156,7 +157,11 @@ const button = (label: string) =>
   buttons.find((props) =>
     renderToStaticMarkup(<>{props.children}</>).includes(label),
   );
-if (mixed) {
+if (scenario === "timezone-label") {
+  assert.ok(markup.includes("Times are shown in America/Los_Angeles."));
+  assert.ok(!markup.includes("Times are shown in PDT."));
+  assert.ok(!markup.includes("Times are shown in PST."));
+} else if (mixed) {
   assert.ok(button("Correct hours"));
   assert.ok(button("Edit visits"));
   assert.equal(button("Review and publish 1 volunteer")?.disabled, false);

@@ -78,7 +78,20 @@ function buildReadFixture(table: string) {
           signupIds.includes(row.signup_id) && (!after || row.id > after),
       )
       .slice(0, Math.min(limit, pageCap));
+  // The exact count the API returns with a counted read of these tables: every
+  // matching row, or none when the read fails.
+  const count = () =>
+    table === "projects"
+      ? 1
+      : table === "certificates"
+        ? certificates.length
+        : table === "project_signups"
+          ? attendanceFailure
+            ? null
+            : signups.length
+          : undefined;
   const result = () => ({
+    count: count(),
     data:
       table === "organization_members"
         ? { role, status: membershipStatus }
@@ -92,12 +105,18 @@ function buildReadFixture(table: string) {
                 : intervalRows()
               : attendanceFailure
                 ? null
-                : signups.map(
-                    ({ project_attendance_intervals: omitted, ...row }) => {
-                      void omitted;
-                      return row;
-                    },
-                  ),
+                : signups
+                    .map(
+                      ({ project_attendance_intervals: omitted, ...row }) => {
+                        void omitted;
+                        return row;
+                      },
+                    )
+                    .filter((row) => after === null || row.id > after)
+                    .sort((left, right) =>
+                      left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+                    )
+                    .slice(0, limit),
     error:
       (table === "project_signups" && attendanceFailure) ||
       (table === "project_attendance_intervals" && intervalFailure)
@@ -354,8 +373,11 @@ test("interval loading chunks authorized signup IDs and retains all pages", asyn
   expect(scopes.every((call) => (call.args[1] as string[]).length <= 200)).toBe(
     true,
   );
+  expect(new Set(scopes.flatMap((call) => call.args[1] as string[])).size).toBe(
+    201,
+  );
   expect(
-    scopes.some((call) => JSON.stringify(call.args[1]) === '["signup-200"]'),
+    scopes.some((call) => (call.args[1] as string[]).includes("signup-200")),
   ).toBe(true);
 });
 
