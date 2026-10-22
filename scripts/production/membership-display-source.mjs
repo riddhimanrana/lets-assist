@@ -34,6 +34,7 @@ export const membershipPaths = Object.freeze([
   "scripts/hosted-development/test-csf-load.mjs",
   "scripts/production/membership-display-source.mjs",
   "scripts/production/membership-display-source.test.mjs",
+  "scripts/production/production-schema-only-source.test.mjs",
   "scripts/production/security-only-app-source.test.mjs",
   "scripts/vercel-build-policy.mjs",
 ]);
@@ -47,6 +48,8 @@ export const membershipDependencyHashes = Object.freeze({
     "55e2f1f1bd8a1093980cb8e8eadf1fbd8663dc95a68293e845e6aa8c9907853c",
   "scripts/production/security-only-app-source.test.mjs":
     "a3e5e5706d3a46a0d80fd37c0ba4d27117bc1833d5ee9c65db2f00815707c5d6",
+  "scripts/production/production-schema-only-source.test.mjs":
+    "15de7bd8c23d2e27335ee762915c8ca0d37748b7eabd7f99c4c2d54bc41ef856",
 });
 const privatePaths = [
   "plugins/dvhs-csf/components/CsfMemberProfileStatus.ts",

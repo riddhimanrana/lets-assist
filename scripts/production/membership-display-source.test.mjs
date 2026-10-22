@@ -85,6 +85,7 @@ test("dependency repair and historical fixture support require exact reviewed by
     ".github/workflows/ci.yml",
     "bun.lock",
     "package.json",
+    "scripts/production/production-schema-only-source.test.mjs",
     "scripts/production/security-only-app-source.test.mjs",
   ]);
   for (const file of Object.keys(membershipDependencyHashes))
