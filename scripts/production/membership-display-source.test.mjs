@@ -12,6 +12,8 @@ import {
   verifyMembershipHostedJob,
   verifyMembershipPaths,
   retainMembershipVerification,
+  verifyMembershipDependencies,
+  membershipDependencyHashes,
 } from "./membership-display-source.mjs";
 
 const sha = "a".repeat(40);
@@ -63,7 +65,7 @@ test("scope admits the complete reviewed controller/display set", () => {
 for (const path of [
   "supabase/migrations/new.sql",
   "app/home/page.tsx",
-  "package.json",
+  "bunfig.toml",
   "scripts/production/security-only-app-source.mjs",
   ".github/workflows/deploy-app-only.yml",
   "lib/plugins/private/other.ts",
@@ -75,6 +77,24 @@ test("refuses duplicate paths", () =>
   assert.throws(() =>
     verifyMembershipPaths([...membershipPaths.slice(1), membershipPaths[1]]),
   ));
+
+test("dependency exception is bound to the exact reviewed package and lockfile bytes", () => {
+  const root = new URL("../../", import.meta.url).pathname;
+  verifyMembershipDependencies(root);
+  assert.deepEqual(Object.keys(membershipDependencyHashes).sort(), [
+    "bun.lock",
+    "package.json",
+  ]);
+  for (const file of Object.keys(membershipDependencyHashes))
+    assert.throws(() =>
+      verifyMembershipDependencies(root, (target) => {
+        const bytes = readFileSync(target);
+        return target.endsWith("/" + file)
+          ? Buffer.concat([bytes, Buffer.from("\n")])
+          : bytes;
+      }),
+    );
+});
 
 function proof() {
   return {

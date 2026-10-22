@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { verifyExactFullCi } from "./security-only-app-source.mjs";
 
 // A separate functional acceptance path. The security-only exception is unchanged.
@@ -22,9 +23,11 @@ export const membershipPolicy = Object.freeze({
 
 export const membershipPaths = Object.freeze([
   ".github/workflows/deploy-membership-display.yml",
+  "bun.lock",
   "docs/README.md",
   "docs/development/membership-display-hotfix.md",
   "lib/plugins/private",
+  "package.json",
   "scripts/hosted-development/membership-display-preview.mjs",
   "scripts/hosted-development/membership-display-preview.test.mjs",
   "scripts/hosted-development/test-csf-load.mjs",
@@ -32,6 +35,13 @@ export const membershipPaths = Object.freeze([
   "scripts/production/membership-display-source.test.mjs",
   "scripts/vercel-build-policy.mjs",
 ]);
+// Only the exact two-package audit repair, not arbitrary dependency changes.
+export const membershipDependencyHashes = Object.freeze({
+  "package.json":
+    "79e92fc6e14e00af516960c6e521c26bfef7dc062d209a317e03224b2fbece9f",
+  "bun.lock":
+    "55e2f1f1bd8a1093980cb8e8eadf1fbd8663dc95a68293e845e6aa8c9907853c",
+});
 const privatePaths = [
   "plugins/dvhs-csf/components/CsfMemberProfileStatus.ts",
   "plugins/dvhs-csf/components/CsfProfileTermWorkspace.tsx",
@@ -55,6 +65,17 @@ export function verifyMembershipPaths(paths) {
     membershipPaths.some((path) => !paths.includes(path))
   )
     fail();
+}
+
+export function verifyMembershipDependencies(cwd, read = readFileSync) {
+  for (const [file, expected] of Object.entries(membershipDependencyHashes)) {
+    const target = resolve(cwd, file);
+    if (
+      !lstatSync(target).isFile() ||
+      createHash("sha256").update(read(target)).digest("hex") !== expected
+    )
+      fail();
+  }
 }
 
 export function membershipConfig(env) {
@@ -116,6 +137,7 @@ export function verifyMembershipCheckout(config, cwd, execute = execFileSync) {
       .split("\0")
       .filter(Boolean),
   );
+  verifyMembershipDependencies(cwd);
   if (
     git("rev-parse", membershipPolicy.baseline + ":lib/plugins/private") !==
       membershipPolicy.privateBefore ||

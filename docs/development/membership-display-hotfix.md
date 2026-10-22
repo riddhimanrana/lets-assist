@@ -7,7 +7,10 @@ workflows and verifier remain unchanged.
 
 The release is restricted to Main baseline `415b8060`, private gitlink
 `7ded413a`, the four original private display/test files, and the explicit
-root acceptance/controller path list. Any migration, dependency, application
+root acceptance/controller path list. The only dependency exception is the
+exact SHA-256-bound package/lockfile repair for `sanitize-html@2.18.1` and
+`follow-redirects@1.16.1`, including the former's required transitive updates.
+Any migration, other dependency change, application
 route, additional private change, changed Development baseline or changed
 Production baseline refuses the operation. Full CI must pass on the exact new
 Main SHA before any Preview is created.
