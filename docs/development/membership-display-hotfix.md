@@ -75,7 +75,13 @@ never passed through. Credentials stay out of command arguments
 and Vercel configuration. A denied Management API read does not fall through to
 another transport. Missing credentials, a failed query or unknown output remain
 fatal before Preview creation. The sanitized failure phase distinguishes initial
-configuration refusal from a potentially attempted create; never retry an
+configuration refusal from a potentially attempted create. Fixed, nonsecret
+phase/reason codes separate URI shape, CA, client availability, connection/TLS,
+authentication, query and catalog failures on both existing transports; raw
+values and response bodies remain suppressed. Management API refusals never
+fall through to the database URL.
+These codes diagnose a refusal and never make an unproved create retryable.
+Never retry an
 uncertain create without provider inventory reconciliation.
 
 The public CA was supplied by the release owner from Development's database

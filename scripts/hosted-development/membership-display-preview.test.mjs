@@ -27,6 +27,7 @@ import {
   membershipPreviewConfig,
   readMembershipDevelopmentCatalog as readCatalogImplementation,
   verifyMembershipDevelopmentCa,
+  membershipPreviewDiagnosticCode,
 } from "./membership-display-preview.mjs";
 import { shouldRunVercelBuild } from "../vercel-build-policy.mjs";
 import {
@@ -505,6 +506,104 @@ test("only the three Development catalog steps receive the existing database URL
   );
   assert.ok(!production.includes("DEVELOPMENT_DATABASE_URL"));
 });
+
+for (const [uri, code] of [
+  [databaseUrl.replace(":5432", ":6543"), "database-port"],
+  [databaseUrl.replace(p.database, "other-project"), "database-target"],
+  [databaseUrl.replace("fictional-password", ""), "database-auth-input"],
+  [databaseUrl.replace(/\/postgres$/u, "/other"), "database-name"],
+  [databaseUrl + "?options=unreviewed", "database-options"],
+  [databaseUrl + "?sslmode=disable", "database-tls-mode"],
+])
+  test("connection-shape refusal reports only " + code, () => {
+    let calls = 0;
+    assert.throws(
+      () =>
+        readMembershipDevelopmentCatalog(uri, process.cwd(), () => {
+          calls++;
+        }),
+      (error) => {
+        assert.equal(membershipPreviewDiagnosticCode(error), code);
+        assert.ok(!error.message.includes("fictional-password"));
+        return true;
+      },
+    );
+    assert.equal(calls, 0);
+  });
+for (const [detail, code] of [
+  [{ code: "ENOENT" }, "database-client"],
+  [{ code: "ETIMEDOUT" }, "database-timeout"],
+  [{ stderr: "certificate verify failed" }, "database-tls"],
+  [{ stderr: "password authentication failed" }, "database-auth"],
+  [{ stderr: "could not translate host name" }, "database-dns"],
+  [{ stderr: "Network is unreachable" }, "database-network"],
+  [{ status: 2 }, "database-connect"],
+  [{ status: 3 }, "database-query"],
+])
+  test(
+    "client failure reports " + code + " without credential or provider text",
+    () => {
+      const secret = "fictional-private-connection-value";
+      assert.throws(
+        () =>
+          readMembershipDevelopmentCatalog(databaseUrl, process.cwd(), () => {
+            throw Object.assign(new Error(secret), {
+              ...detail,
+              stderr: (detail.stderr ?? "") + " " + secret,
+            });
+          }),
+        (error) => {
+          assert.equal(membershipPreviewDiagnosticCode(error), code);
+          assert.ok(!error.message.includes(secret));
+          assert.ok(!JSON.stringify(error).includes(secret));
+          return true;
+        },
+      );
+    },
+  );
+test("CA, query-source and catalog failures remain distinct and fatal", () => {
+  const refuses = (code) => (error) =>
+    membershipPreviewDiagnosticCode(error) === code;
+  assert.throws(
+    () =>
+      readCatalogImplementation(
+        databaseUrl,
+        process.cwd(),
+        () => assert.fail("must not connect"),
+        () => {
+          throw Error("private CA path");
+        },
+      ),
+    refuses("database-ca"),
+  );
+  assert.throws(
+    () =>
+      readMembershipDevelopmentCatalog(databaseUrl, "/unused", () =>
+        assert.fail("must not connect"),
+      ),
+    refuses("database-query-source"),
+  );
+  assert.throws(
+    () =>
+      readMembershipDevelopmentCatalog(databaseUrl, process.cwd(), () => "f"),
+    refuses("development-catalog-mismatch"),
+  );
+  assert.throws(
+    () =>
+      readMembershipDevelopmentCatalog(
+        databaseUrl,
+        process.cwd(),
+        () => "unexpected",
+      ),
+    refuses("database-output"),
+  );
+  assert.equal(
+    membershipPreviewDiagnosticCode(
+      Object.assign(Error("private"), { code: "database-auth" }),
+    ),
+    "unclassified",
+  );
+});
 test("load script retains every functional/performance threshold with only its target proof extended", () => {
   const source = readFileSync(
     new URL("./test-csf-load.mjs", import.meta.url),
@@ -758,6 +857,38 @@ test("the protected URL preserves the full catalog proof before creation and aft
   assert.equal(reads, 2);
   assert.ok(!v.calls.some((c) => c.path.endsWith("/database/query/read-only")));
 });
+test("fixed phase observations distinguish preflight from the single create boundary", async () => {
+  const v = providerFixture(),
+    phases = [];
+  await createMembershipPreview(v.config, {
+    ...v,
+    onPhase: (phase) => phases.push(phase),
+  });
+  assert.deepEqual(phases, [
+    "development-catalog",
+    "vercel-aliases",
+    "vercel-project",
+    "preview-create",
+    "preview-receipt",
+    "preview-readiness",
+    "preview-postcheck",
+  ]);
+  assert.equal(v.creates(), 1);
+  const refused = providerFixture(),
+    stopped = [];
+  refused.config.accessToken = "";
+  refused.config.databaseUrl = databaseUrl.replace(":5432", ":6543");
+  await assert.rejects(
+    createMembershipPreview(refused.config, {
+      ...refused,
+      onPhase: (phase) => stopped.push(phase),
+    }),
+    (error) => membershipPreviewDiagnosticCode(error) === "database-port",
+  );
+  assert.deepEqual(stopped, ["development-catalog"]);
+  assert.equal(refused.calls.length, 0);
+  assert.equal(refused.creates(), 0);
+});
 test("a failed URL catalog proof performs no provider operation or create", async () => {
   const v = providerFixture();
   v.config.accessToken = "";
@@ -773,23 +904,92 @@ test("a failed URL catalog proof performs no provider operation or create", asyn
   assert.deepEqual(v.calls, []);
   assert.deepEqual(v.records, []);
 });
-test("a denied existing Management API read never falls through to the URL transport", async () => {
-  const v = providerFixture();
-  v.config.databaseUrl = databaseUrl;
-  let childCalls = 0;
-  await assert.rejects(
-    createMembershipPreview(v.config, {
-      ...v,
-      fetcher: async () => new Response("", { status: 403 }),
-      execute: () => {
-        childCalls++;
-        return "t";
-      },
-    }),
+for (const [name, fetcher, code, cwd] of [
+  [
+    "source",
+    () => assert.fail("must not fetch"),
+    "database-query-source",
+    "/unused",
+  ],
+  [
+    "auth",
+    async () => new Response("private", { status: 401 }),
+    "database-auth",
+  ],
+  [
+    "denial",
+    async () => new Response("private", { status: 403 }),
+    "database-auth",
+  ],
+  [
+    "query",
+    async () => new Response("private", { status: 500 }),
+    "database-query",
+  ],
+  [
+    "network",
+    async () => {
+      throw Error("private network detail");
+    },
+    "database-connect",
+  ],
+  [
+    "timeout",
+    async () => {
+      throw new DOMException("private", "TimeoutError");
+    },
+    "database-timeout",
+  ],
+  [
+    "aborted",
+    async () => {
+      throw new DOMException("private", "AbortError");
+    },
+    "database-timeout",
+  ],
+  ["json", async () => new Response("private"), "database-output"],
+  ["shape", async () => new Response("{}"), "database-output"],
+  ["null", async () => new Response("[null]"), "database-output"],
+  [
+    "catalog",
+    async () => new Response('[{"valid":false}]'),
+    "development-catalog-mismatch",
+  ],
+])
+  test(
+    "Management API " +
+      name +
+      " is classified without provider calls or URL fallback",
+    async () => {
+      const v = providerFixture();
+      v.config.databaseUrl = databaseUrl;
+      let childCalls = 0;
+      await assert.rejects(
+        createMembershipPreview(v.config, {
+          ...v,
+          fetcher,
+          cwd: cwd ?? process.cwd(),
+          execute: () => {
+            childCalls++;
+            return "t";
+          },
+        }),
+        (error) => {
+          assert.equal(membershipPreviewDiagnosticCode(error), code);
+          assert.equal(
+            error.message,
+            "Membership-display Preview proof refused.",
+          );
+          assert.doesNotMatch(JSON.stringify(error), /private|fictional/iu);
+          return true;
+        },
+      );
+      assert.equal(childCalls, 0);
+      assert.equal(v.creates(), 0);
+      assert.deepEqual(v.calls, []);
+      assert.deepEqual(v.records, []);
+    },
   );
-  assert.equal(childCalls, 0);
-  assert.equal(v.creates(), 0);
-});
 test("real Preview orchestration creates once, records before waiting and never writes aliases", async () => {
   const v = providerFixture();
   const receipt = await createMembershipPreview(v.config, v);

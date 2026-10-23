@@ -26,6 +26,70 @@ const developmentCaFile =
 const fail = () => {
   throw new Error("Membership-display Preview proof refused.");
 };
+const diagnosticCodes = new Set([
+  "database-url",
+  "database-target",
+  "database-auth-input",
+  "database-name",
+  "database-port",
+  "database-options",
+  "database-tls-mode",
+  "database-ca",
+  "database-query-source",
+  "database-client",
+  "database-timeout",
+  "database-tls",
+  "database-auth",
+  "database-dns",
+  "database-network",
+  "database-connect",
+  "database-query",
+  "database-output",
+  "development-catalog-mismatch",
+]);
+class PreviewReadFailure extends Error {
+  constructor(code) {
+    super("Membership-display Preview proof refused.");
+    this.code = diagnosticCodes.has(code) ? code : "unclassified";
+  }
+}
+const refuseRead = (code) => {
+  throw new PreviewReadFailure(code);
+};
+export function membershipPreviewDiagnosticCode(error) {
+  return error instanceof PreviewReadFailure && diagnosticCodes.has(error.code)
+    ? error.code
+    : "unclassified";
+}
+function clientFailureCode(error) {
+  if (error?.code === "ENOENT") return "database-client";
+  const stderr =
+    typeof error?.stderr === "string" || Buffer.isBuffer(error?.stderr)
+      ? error.stderr.toString().slice(0, 8192)
+      : "";
+  if (
+    error?.code === "ETIMEDOUT" ||
+    /timeout expired|connection timed out/iu.test(stderr)
+  )
+    return "database-timeout";
+  if (/certificate|SSL error|TLS|does not match host name/iu.test(stderr))
+    return "database-tls";
+  if (
+    /password authentication failed|SASL authentication|authentication failed/iu.test(
+      stderr,
+    )
+  )
+    return "database-auth";
+  if (
+    /could not translate host name|Name or service not known|Temporary failure in name resolution/iu.test(
+      stderr,
+    )
+  )
+    return "database-dns";
+  if (/Network is unreachable|No route to host/iu.test(stderr))
+    return "database-network";
+  return error?.status === 3 ? "database-query" : "database-connect";
+}
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const disabled = [
   "AUTO_PUBLISH_ENABLED",
@@ -126,6 +190,7 @@ export function readMembershipDevelopmentCatalog(
   execute = execFileSync,
   verifyCa = verifyMembershipDevelopmentCa,
 ) {
+  let stage = "database-url";
   try {
     const url = new URL(databaseUrl);
     const username = decodeURIComponent(url.username);
@@ -143,28 +208,39 @@ export function readMembershipDevelopmentCatalog(
           `^[a-z][a-z0-9_]*\\.${membershipPolicy.database}$`,
           "u",
         ).test(username);
+    if (!["postgres:", "postgresql:"].includes(url.protocol))
+      refuseRead("database-url");
+    if (!expectedUser) refuseRead("database-target");
     if (
-      !["postgres:", "postgresql:"].includes(url.protocol) ||
-      !expectedUser ||
       !password ||
-      url.pathname !== "/postgres" ||
-      (url.port && url.port !== "5432") ||
-      url.hash ||
       [...(username + password)].some(
         (c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127,
-      ) ||
-      [...url.searchParams.keys()].some((key) => key !== "sslmode") ||
-      url.searchParams.getAll("sslmode").length > 1 ||
-      (requestedSslmode !== null &&
-        !["require", "verify-ca", "verify-full"].includes(requestedSslmode))
+      )
     )
-      fail();
+      refuseRead("database-auth-input");
+    if (url.pathname !== "/postgres") refuseRead("database-name");
+    if (url.port && url.port !== "5432") refuseRead("database-port");
+    if (
+      url.hash ||
+      [...url.searchParams.keys()].some((key) => key !== "sslmode") ||
+      url.searchParams.getAll("sslmode").length > 1
+    )
+      refuseRead("database-options");
+    if (
+      requestedSslmode !== null &&
+      !["require", "verify-ca", "verify-full"].includes(requestedSslmode)
+    )
+      refuseRead("database-tls-mode");
+    stage = "database-ca";
     const caPath = verifyCa(cwd);
+    stage = "database-query-source";
+    const query = developmentCatalogQuery(cwd);
+    stage = "database-connect";
     const result = execute(
       "psql",
       ["-X", "-w", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"],
       {
-        input: developmentCatalogQuery(cwd),
+        input: query,
         encoding: "utf8",
         timeout: 150000,
         maxBuffer: 1024 * 1024,
@@ -188,9 +264,11 @@ export function readMembershipDevelopmentCatalog(
         },
       },
     );
-    if (result.trim() !== "t") fail();
-  } catch {
-    fail();
+    if (result.trim() === "f") refuseRead("development-catalog-mismatch");
+    if (result.trim() !== "t") refuseRead("database-output");
+  } catch (error) {
+    if (error instanceof PreviewReadFailure) throw error;
+    refuseRead(stage === "database-connect" ? clientFailureCode(error) : stage);
   }
 }
 
@@ -470,25 +548,48 @@ async function verifyBackend(config, cwd, fetcher, execute, verifyCa) {
     );
     return;
   }
-  const response = await fetcher(
-    "https://api.supabase.com/v1/projects/" +
-      membershipPolicy.database +
-      "/database/query/read-only",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + config.accessToken,
-        "Content-Type": "application/json",
+  let query, response, data;
+  try {
+    query = developmentCatalogQuery(cwd);
+  } catch {
+    refuseRead("database-query-source");
+  }
+  try {
+    response = await fetcher(
+      "https://api.supabase.com/v1/projects/" +
+        membershipPolicy.database +
+        "/database/query/read-only",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + config.accessToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+        redirect: "error",
+        signal: AbortSignal.timeout(150000),
       },
-      body: JSON.stringify({ query: developmentCatalogQuery(cwd) }),
-      redirect: "error",
-      signal: AbortSignal.timeout(150000),
-    },
-  );
-  if (!response.ok) fail();
-  const data = await response.json();
-  if (!Array.isArray(data) || data.length !== 1 || data[0].valid !== true)
-    fail();
+    );
+  } catch (error) {
+    refuseRead(
+      error?.name === "TimeoutError" || error?.name === "AbortError"
+        ? "database-timeout"
+        : "database-connect",
+    );
+  }
+  if (!response.ok)
+    refuseRead(
+      [401, 403].includes(response.status) ? "database-auth" : "database-query",
+    );
+  try {
+    data = await response.json();
+  } catch {
+    refuseRead("database-output");
+  }
+  if (Array.isArray(data) && data.length === 1 && data[0]?.valid === false)
+    refuseRead("development-catalog-mismatch");
+  if (!Array.isArray(data) || data.length !== 1 || data[0]?.valid !== true)
+    refuseRead("database-output");
 }
 
 export async function createMembershipPreview(
@@ -500,10 +601,14 @@ export async function createMembershipPreview(
     cwd = process.cwd(),
     execute = execFileSync,
     verifyCa = verifyMembershipDevelopmentCa,
+    onPhase = () => {},
   },
 ) {
+  onPhase("development-catalog");
   await verifyBackend(config, cwd, fetcher, execute, verifyCa);
+  onPhase("vercel-aliases");
   const prior = await aliases(config, fetcher);
+  onPhase("vercel-project");
   const project = await request(
     config,
     "/v9/projects/" + membershipPolicy.project,
@@ -518,12 +623,14 @@ export async function createMembershipPreview(
   )
     fail();
   // Exactly one create; unknown outcomes never issue another POST.
+  onPhase("preview-create");
   const created = await request(
     config,
     "/v13/deployments",
     membershipPreviewPayload(config),
     fetcher,
   );
+  onPhase("preview-receipt");
   let receipt = {
     ...verifyMembershipPreview(created, config),
     ...prior,
@@ -533,6 +640,7 @@ export async function createMembershipPreview(
     readiness: "pending",
   };
   record(receipt);
+  onPhase("preview-readiness");
   for (let attempt = 0; attempt < 100; attempt++) {
     const deployment = await request(
       config,
@@ -544,6 +652,7 @@ export async function createMembershipPreview(
     if (deployment.readyState === "READY") {
       receipt = { ...receipt, readiness: "READY" };
       record(receipt);
+      onPhase("preview-postcheck");
       await checkMembershipPreview(config, receipt, {
         fetcher,
         cwd,
@@ -624,6 +733,21 @@ if (
       phase = "create-or-preflight";
       mkdirSync(".artifacts", { recursive: true, mode: 0o700 });
       const receipt = await createMembershipPreview(config, {
+        onPhase: (value) => {
+          if (
+            ![
+              "development-catalog",
+              "vercel-aliases",
+              "vercel-project",
+              "preview-create",
+              "preview-receipt",
+              "preview-readiness",
+              "preview-postcheck",
+            ].includes(value)
+          )
+            fail();
+          phase = value;
+        },
         record: (value) =>
           writeFileSync(receiptPath, JSON.stringify(value, null, 2) + "\n", {
             mode: 0o600,
@@ -643,9 +767,9 @@ if (
       );
     } else fail();
     console.log("Exact membership-display Preview verified; no alias moved.");
-  } catch {
+  } catch (error) {
     console.error(
-      `Membership-display Preview unproved; phase=${phase}; raw provider/credential output suppressed. Reconcile recorded IDs before any new create.`,
+      `Membership-display Preview unproved; phase=${phase}; reason=${membershipPreviewDiagnosticCode(error)}; raw provider/credential output suppressed. Reconcile recorded IDs before any new create.`,
     );
     process.exitCode = 1;
   }
