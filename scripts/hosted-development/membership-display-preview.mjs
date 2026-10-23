@@ -548,25 +548,48 @@ async function verifyBackend(config, cwd, fetcher, execute, verifyCa) {
     );
     return;
   }
-  const response = await fetcher(
-    "https://api.supabase.com/v1/projects/" +
-      membershipPolicy.database +
-      "/database/query/read-only",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + config.accessToken,
-        "Content-Type": "application/json",
+  let query, response, data;
+  try {
+    query = developmentCatalogQuery(cwd);
+  } catch {
+    refuseRead("database-query-source");
+  }
+  try {
+    response = await fetcher(
+      "https://api.supabase.com/v1/projects/" +
+        membershipPolicy.database +
+        "/database/query/read-only",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + config.accessToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query }),
+        redirect: "error",
+        signal: AbortSignal.timeout(150000),
       },
-      body: JSON.stringify({ query: developmentCatalogQuery(cwd) }),
-      redirect: "error",
-      signal: AbortSignal.timeout(150000),
-    },
-  );
-  if (!response.ok) fail();
-  const data = await response.json();
-  if (!Array.isArray(data) || data.length !== 1 || data[0].valid !== true)
-    fail();
+    );
+  } catch (error) {
+    refuseRead(
+      error?.name === "TimeoutError" || error?.name === "AbortError"
+        ? "database-timeout"
+        : "database-connect",
+    );
+  }
+  if (!response.ok)
+    refuseRead(
+      [401, 403].includes(response.status) ? "database-auth" : "database-query",
+    );
+  try {
+    data = await response.json();
+  } catch {
+    refuseRead("database-output");
+  }
+  if (Array.isArray(data) && data.length === 1 && data[0]?.valid === false)
+    refuseRead("development-catalog-mismatch");
+  if (!Array.isArray(data) || data.length !== 1 || data[0]?.valid !== true)
+    refuseRead("database-output");
 }
 
 export async function createMembershipPreview(

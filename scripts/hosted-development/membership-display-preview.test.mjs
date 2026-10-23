@@ -904,23 +904,92 @@ test("a failed URL catalog proof performs no provider operation or create", asyn
   assert.deepEqual(v.calls, []);
   assert.deepEqual(v.records, []);
 });
-test("a denied existing Management API read never falls through to the URL transport", async () => {
-  const v = providerFixture();
-  v.config.databaseUrl = databaseUrl;
-  let childCalls = 0;
-  await assert.rejects(
-    createMembershipPreview(v.config, {
-      ...v,
-      fetcher: async () => new Response("", { status: 403 }),
-      execute: () => {
-        childCalls++;
-        return "t";
-      },
-    }),
+for (const [name, fetcher, code, cwd] of [
+  [
+    "source",
+    () => assert.fail("must not fetch"),
+    "database-query-source",
+    "/unused",
+  ],
+  [
+    "auth",
+    async () => new Response("private", { status: 401 }),
+    "database-auth",
+  ],
+  [
+    "denial",
+    async () => new Response("private", { status: 403 }),
+    "database-auth",
+  ],
+  [
+    "query",
+    async () => new Response("private", { status: 500 }),
+    "database-query",
+  ],
+  [
+    "network",
+    async () => {
+      throw Error("private network detail");
+    },
+    "database-connect",
+  ],
+  [
+    "timeout",
+    async () => {
+      throw new DOMException("private", "TimeoutError");
+    },
+    "database-timeout",
+  ],
+  [
+    "aborted",
+    async () => {
+      throw new DOMException("private", "AbortError");
+    },
+    "database-timeout",
+  ],
+  ["json", async () => new Response("private"), "database-output"],
+  ["shape", async () => new Response("{}"), "database-output"],
+  ["null", async () => new Response("[null]"), "database-output"],
+  [
+    "catalog",
+    async () => new Response('[{"valid":false}]'),
+    "development-catalog-mismatch",
+  ],
+])
+  test(
+    "Management API " +
+      name +
+      " is classified without provider calls or URL fallback",
+    async () => {
+      const v = providerFixture();
+      v.config.databaseUrl = databaseUrl;
+      let childCalls = 0;
+      await assert.rejects(
+        createMembershipPreview(v.config, {
+          ...v,
+          fetcher,
+          cwd: cwd ?? process.cwd(),
+          execute: () => {
+            childCalls++;
+            return "t";
+          },
+        }),
+        (error) => {
+          assert.equal(membershipPreviewDiagnosticCode(error), code);
+          assert.equal(
+            error.message,
+            "Membership-display Preview proof refused.",
+          );
+          assert.doesNotMatch(JSON.stringify(error), /private|fictional/iu);
+          return true;
+        },
+      );
+      assert.equal(childCalls, 0);
+      assert.equal(v.creates(), 0);
+      assert.deepEqual(v.calls, []);
+      assert.deepEqual(v.records, []);
+    },
   );
-  assert.equal(childCalls, 0);
-  assert.equal(v.creates(), 0);
-});
 test("real Preview orchestration creates once, records before waiting and never writes aliases", async () => {
   const v = providerFixture();
   const receipt = await createMembershipPreview(v.config, v);

@@ -77,7 +77,9 @@ another transport. Missing credentials, a failed query or unknown output remain
 fatal before Preview creation. The sanitized failure phase distinguishes initial
 configuration refusal from a potentially attempted create. Fixed, nonsecret
 phase/reason codes separate URI shape, CA, client availability, connection/TLS,
-authentication, query and catalog failures; raw values remain suppressed.
+authentication, query and catalog failures on both existing transports; raw
+values and response bodies remain suppressed. Management API refusals never
+fall through to the database URL.
 These codes diagnose a refusal and never make an unproved create retryable.
 Never retry an
 uncertain create without provider inventory reconciliation.
