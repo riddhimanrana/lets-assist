@@ -416,6 +416,7 @@ describe("the child environment is a positive allowlist", () => {
       "CRON_EGRESS_SMTP_PORTS",
       "NODE_OPTIONS",
       "NEXT_TELEMETRY_DISABLED",
+      "CI",
       "NEXT_DIST_DIR",
       "CSF_LOCAL_FIXTURE_MODE",
       "PLUGIN_APPLICATION_LOCAL_URL",
@@ -424,6 +425,25 @@ describe("the child environment is a positive allowlist", () => {
     ]);
 
     expect(Object.keys(childEnv).sort()).toEqual([...expected].sort());
+  });
+
+  test("noninteractive CI mode cannot be overridden by the shell or env files", () => {
+    const original = process.env.CI;
+    process.env.CI = "false";
+    try {
+      const childEnv = build({
+        appEnv: stack.appEnv,
+        isolated: stack.isolated,
+        port: 3009,
+        secret: "run-scoped-synthetic-secret",
+        ledgerPath: join(stack.directory, "ledger.jsonl"),
+        envFileKeys: ["CI"],
+      });
+      expect(childEnv.CI).toBe("true");
+    } finally {
+      if (original === undefined) delete process.env.CI;
+      else process.env.CI = original;
+    }
   });
 
   test("the cron child refuses Mailpit while the app runner permits it", () => {
@@ -534,6 +554,7 @@ describe("the child environment is a positive allowlist", () => {
     }
     expect(childEnv.CRON_AUTH_SHAPE_PROBE_ONLY).toBe("auth-shape-v1");
     expect(childEnv.NEXT_TELEMETRY_DISABLED).toBe("1");
+    expect(childEnv.CI).toBe("true");
     expect(childEnv.NODE_OPTIONS).toBe(`--require ${guardPath}`);
     expect(childEnv.CRON_EGRESS_SMTP_PORTS).toBe(String(BASE_PORT + 5));
     expect(childEnv.PORT).toBe("3009");

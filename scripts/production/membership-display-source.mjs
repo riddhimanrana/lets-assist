@@ -33,13 +33,15 @@ export const membershipPaths = Object.freeze([
   "scripts/hosted-development/membership-display-preview.mjs",
   "scripts/hosted-development/membership-display-preview.test.mjs",
   "scripts/hosted-development/test-csf-load.mjs",
+  "scripts/local-dev/test-cron-endpoints.ts",
+  "scripts/local-dev/test-cron-endpoints.test.ts",
   "scripts/production/membership-display-source.mjs",
   "scripts/production/membership-display-source.test.mjs",
   "scripts/production/production-schema-only-source.test.mjs",
   "scripts/production/security-only-app-source.test.mjs",
   "scripts/vercel-build-policy.mjs",
 ]);
-// Exact audit repair and historical fixture support; no arbitrary changes.
+// Exact audit repair and isolated/historical test support; no arbitrary changes.
 export const membershipDependencyHashes = Object.freeze({
   ".github/workflows/ci.yml":
     "5ebbca9bef86a6945c09a17c8b95121acd0ba88bf9a05a86c6143f18a37538cc",
@@ -47,6 +49,10 @@ export const membershipDependencyHashes = Object.freeze({
     "97973a16b20f8034f27cd6fa8fc8a2977910c9d73d19319ef990881454fd156c",
   "bun.lock":
     "f8fec715892eb61f4f3bc1a037f968855ab8d63aa2f3f610c2a3164150bc7088",
+  "scripts/local-dev/test-cron-endpoints.ts":
+    "544667577a7ecc4d3d7bc5ae28c962a9289015109b01f87ff567d765765f838a",
+  "scripts/local-dev/test-cron-endpoints.test.ts":
+    "3846527f408a8264f2d6a516d08d18d23d65eee83fb323de53df9f3e3ba3b8b6",
   "scripts/production/security-only-app-source.test.mjs":
     "a3e5e5706d3a46a0d80fd37c0ba4d27117bc1833d5ee9c65db2f00815707c5d6",
   "scripts/production/production-schema-only-source.test.mjs":
