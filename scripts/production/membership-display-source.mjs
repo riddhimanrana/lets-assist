@@ -29,6 +29,7 @@ export const membershipPaths = Object.freeze([
   "docs/development/membership-display-hotfix.md",
   "lib/plugins/private",
   "package.json",
+  "scripts/hosted-development/membership-display-development-ca.pem",
   "scripts/hosted-development/membership-display-preview.mjs",
   "scripts/hosted-development/membership-display-preview.test.mjs",
   "scripts/hosted-development/test-csf-load.mjs",
