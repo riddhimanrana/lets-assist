@@ -16,6 +16,10 @@ PR881; Next16.4.1 is the earliest patched16.x release for the reported advisorie
 Three additional byte-bound files give the historical security-only and
 schema-only tests their original reviewed Git snapshots and make those snapshots
 available in CI. Both runtime verifiers and their accepted bytes remain unchanged.
+The exact cron probe and its regression test are also byte-bound: its owned
+noninteractive child explicitly uses CI mode so Next16.4 does not start an
+interactive npm advisory lookup. The separate required production audit and
+every zero-egress assertion remain enabled; no external endpoint is allowed.
 Any migration, other dependency change, application
 route, additional private change, changed Development baseline or changed
 Production baseline refuses the operation. Full CI must pass on the exact new
