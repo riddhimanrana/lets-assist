@@ -7,9 +7,12 @@ workflows and verifier remain unchanged.
 
 The release is restricted to Main baseline `415b8060`, private gitlink
 `7ded413a`, the four original private display/test files, and the explicit
-root acceptance/controller path list. The only dependency exception is the
-exact SHA-256-bound package/lockfile repair for `sanitize-html@2.18.1` and
-`follow-redirects@1.16.1`, including the former's required transitive updates.
+root acceptance/controller path list. Dependency repairs are restricted to the
+exact SHA-256-bound package/lockfile: `sanitize-html@2.18.1`,
+`follow-redirects@1.16.1`, `next@16.4.1` with its matching Next tooling,
+`dompurify@3.4.17` and `nodemailer@10.0.10`, including their required transitive
+updates. The latter three updates address the production audit failure in
+PR881; Next16.4.1 is the earliest patched16.x release for the reported advisories.
 Three additional byte-bound files give the historical security-only and
 schema-only tests their original reviewed Git snapshots and make those snapshots
 available in CI. Both runtime verifiers and their accepted bytes remain unchanged.
