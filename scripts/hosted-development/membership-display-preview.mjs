@@ -42,6 +42,8 @@ const diagnosticCodes = new Set([
   "database-auth",
   "database-dns",
   "database-network",
+  "database-network-unreachable",
+  "database-no-route",
   "database-connect",
   "database-query",
   "database-output",
@@ -86,8 +88,11 @@ function clientFailureCode(error) {
     )
   )
     return "database-dns";
-  if (/Network is unreachable|No route to host/iu.test(stderr))
-    return "database-network";
+  const networkUnreachable = /Network is unreachable/iu.test(stderr);
+  const noRoute = /No route to host/iu.test(stderr);
+  if (networkUnreachable && noRoute) return "database-network";
+  if (networkUnreachable) return "database-network-unreachable";
+  if (noRoute) return "database-no-route";
   return error?.status === 3 ? "database-query" : "database-connect";
 }
 const hash = (value) => createHash("sha256").update(value).digest("hex");
