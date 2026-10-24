@@ -99,6 +99,8 @@ test("dependency repair and historical fixture support require exact reviewed by
       ".github/workflows/ci.yml",
       "bun.lock",
       "package.json",
+      "scripts/local-dev/test-cron-endpoints.test.ts",
+      "scripts/local-dev/test-cron-endpoints.ts",
       "scripts/production/production-schema-only-source.test.mjs",
       "scripts/production/security-only-app-source.test.mjs",
     ]);
