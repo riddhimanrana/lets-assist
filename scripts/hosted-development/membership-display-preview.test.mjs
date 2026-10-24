@@ -536,7 +536,9 @@ for (const [detail, code] of [
   [{ stderr: "certificate verify failed" }, "database-tls"],
   [{ stderr: "password authentication failed" }, "database-auth"],
   [{ stderr: "could not translate host name" }, "database-dns"],
-  [{ stderr: "Network is unreachable" }, "database-network"],
+  [{ stderr: "Network is unreachable" }, "database-network-unreachable"],
+  [{ stderr: "No route to host" }, "database-no-route"],
+  [{ stderr: "Network is unreachable; No route to host" }, "database-network"],
   [{ status: 2 }, "database-connect"],
   [{ status: 3 }, "database-query"],
 ])
@@ -554,8 +556,13 @@ for (const [detail, code] of [
           }),
         (error) => {
           assert.equal(membershipPreviewDiagnosticCode(error), code);
-          assert.ok(!error.message.includes(secret));
-          assert.ok(!JSON.stringify(error).includes(secret));
+          const serialized = JSON.stringify(
+            error,
+            Object.getOwnPropertyNames(error),
+          );
+          assert.ok(!serialized.includes(secret));
+          if (detail.stderr)
+            assert.ok(!serialized.includes(String(detail.stderr)));
           return true;
         },
       );
