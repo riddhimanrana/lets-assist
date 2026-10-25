@@ -103,7 +103,7 @@ test("the committed migration objects match the reviewed 723 plus 17 source poli
   );
   assert.equal(
     reviewed.targetPrivateGitlink,
-    "ca8a2a004087f188166cfabf1951f62eb21940a6",
+    "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
   );
   assert.equal(
     reviewed.targetPrivateGitlink,

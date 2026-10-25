@@ -2,7 +2,7 @@
 
 Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
-The combined release source binding is now exact private `ca8a2a00` and 740
+The combined release source binding is now exact private `370c538d` and 740
 migration objects, retaining the unchanged 723-object prefix. This source
 binding does not accept a database catalog. Relative to the previous reviewed
 private source `f1164838`, the candidate changes only membership status and
@@ -10,8 +10,9 @@ default-term presentation, historical and closed-term status labels, lifecycle
 propagation to the member ledger, their fictional regression tests, and private
 CI host-pairing metadata. The application package also replaces the vulnerable
 glob dependency paths with its private-owned compatibility package and pins the
-reviewed follow-redirects repair. Embedded plugin trees are unchanged by that
-dependency repair. It adds no reader, action, provider call or SQL. The
+reviewed follow-redirects repair. A later dependency-only repair moves the
+application to Next.js 16.4.1, zod 4.6.6 and fast-uri 3.1.9. Embedded plugin
+trees are unchanged by either dependency repair. It adds no reader, action, provider call or SQL. The
 exact private pin and all capture guards remain required. The officer overview requires the loaded officer-task section and its
 `Your tasks` heading; `Home` is a navigation label. Loading, route drift or
 runtime faults still fail capture. These source checks do not establish runtime or pixel acceptance.

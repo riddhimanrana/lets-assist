@@ -228,6 +228,11 @@ export function buildChildEnvironment(options: {
     probeMode: PROBE_MODE,
     workDirOverride: options.workDirOverride,
   });
+  // This owned, noninteractive test process must retain Next's CI behavior.
+  // Next16.4 otherwise checks npm advisories at dev startup, which the zero-
+  // egress probe correctly refuses. The separate required production audit
+  // still runs in CI; no network destination is admitted by this setting.
+  childEnv.CI = "true";
   return childEnv;
 }
 

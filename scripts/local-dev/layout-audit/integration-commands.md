@@ -1,6 +1,6 @@
 # Owned Linux capture integration
 
-The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `ca8a2a004087f188166cfabf1951f62eb21940a6` (CSF 1.2.89) and exactly 740 migration objects: the historical prefix, fifteen joined forward migrations, the reviewed integration migration 739, and the calendar deletion fence 740. The source object-list digest is `ea324e71164f6b5f2be65792d080e33821bcd7554510aa9fc7598c208519defd`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not replace the accepted 740 database catalog, a clean replay, or runtime/browser/pixel proof.
+The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `370c538d49d6dc1fc66d3435a13b1a5db14e82d2` (CSF 1.2.89 plus the dependency-only `apps/csf` repair) and exactly 740 migration objects: the historical prefix, fifteen joined forward migrations, the reviewed integration migration 739, and the calendar deletion fence 740. The source object-list digest is `ea324e71164f6b5f2be65792d080e33821bcd7554510aa9fc7598c208519defd`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not replace the accepted 740 database catalog, a clean replay, or runtime/browser/pixel proof.
 
 ## Source integration and job boundary
 
@@ -42,7 +42,7 @@ Place an owner-only, new `$layout_support/authorization.json` containing these f
   "template": false,
   "reviewed": true,
   "rootHead": "<exact final GITHUB_SHA>",
-  "privateHead": "ca8a2a004087f188166cfabf1951f62eb21940a6",
+  "privateHead": "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
   "repoRoot": "<real GITHUB_WORKSPACE>",
   "workDir": "<exact canonical owned CSF_ISOLATED_WORK_DIR>",
   "codeManifestSha256": "<reviewed portable/code-manifest.sha256 SHA256>",
