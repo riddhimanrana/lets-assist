@@ -3,6 +3,7 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { productionRef, ReleaseCheckError } from "./app-release-checks.mjs";
+import { recoveryReceipt } from "./recovery-receipt.mjs";
 import {
   executeMaintenanceQuery,
   maintenanceLedgerQuery,
@@ -36,6 +37,12 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
     databaseUrl: env.PRODUCTION_BOOTSTRAP_DATABASE_URL,
     recoveryCaptureSha256: env.RECOVERY_CAPTURE_SHA256,
   };
+  let recovery = null;
+  try {
+    recovery = recoveryReceipt(env);
+  } catch {
+    recovery = null;
+  }
   requireCondition(
     env.GITHUB_ACTIONS === "true" &&
       env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
@@ -55,13 +62,13 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
       env.EXTERNAL_WRITERS_CONFIRMATION ===
         `external-writers-stopped:${config.source}` &&
       /^[a-f0-9]{64}$/u.test(config.recoveryCaptureSha256 ?? "") &&
-      env.RECOVERY_CAPTURE_CONFIRMATION ===
-        `recovery-capture-verified:${config.source}:${config.recoveryCaptureSha256}` &&
+      recovery?.sha256 === config.recoveryCaptureSha256 &&
       [config.githubToken, config.databaseUrl].every(
         (value) => typeof value === "string" && value.trim(),
       ),
     "The bounded rollout requires the exact protected main run and recovery confirmations.",
   );
+  config.recoveryMode = recovery.mode;
   validateMaintenanceBinding(productionRef, config.databaseUrl);
   const url = new URL(config.databaseUrl);
   requireCondition(

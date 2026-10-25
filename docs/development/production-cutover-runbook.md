@@ -309,6 +309,26 @@ Record the fallback's fidelity gap: local `auth`, `storage`, and `realtime` sche
 
 Managed backups are not enough on their own, and a backup you have not restored is a hypothesis.
 
+**Managed-backup alternative (operator decision).** Use it only when the pending migrations destroy no rows and mutate no Storage objects, as the 688→740 audit found. The operator may then accept an existing daily physical backup as the restore point instead of the full capture. Dispatch deploy-schema with:
+
+- `managed_backup_inserted_at=<exact inserted_at from GET /v1/projects/fotdmeakexgrkronxlof/database/backups, with milliseconds; the dashboard shows only whole seconds>`;
+- `recovery_capture_sha256=<sha256 of managed-physical-backup:fotdmeakexgrkronxlof:<ISO time>>`;
+- `recovery_capture_confirmation=managed-backup-accepted:<main SHA>:<that digest>`.
+
+The workflow refuses unless the Management API lists exactly one completed physical backup at that time, no older than 36 hours.
+
+This is a weaker recovery point than the full capture:
+
+- every write after the backup time is outside it;
+- it was never restored here;
+- Storage objects are not in it.
+
+Recovery from a failed release stays a corrective forward migration. Restoring the backup would discard every later write. All other gates are unchanged:
+
+- the Production environment approval;
+- the writer and write-block receipts;
+- the exact candidate, catalog and ledger checks.
+
 ```bash
 set -euo pipefail
 set +x
