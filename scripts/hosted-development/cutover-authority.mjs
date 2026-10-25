@@ -14,6 +14,11 @@ export const target = Object.freeze({
   domain: "dev.lets-assist.com",
   branch: "development",
   holdBranch: "codex/development-maintenance-hold",
+  // Vercel binds a domain only to a branch that exists. The hold branch is one
+  // reviewed orphan commit whose sole vercel.json disables Git deployments and
+  // ignores builds, so it can never produce an app deployment.
+  holdCommit: "5edf615dcc9d0817680632c0c76f139912cb1f5d",
+  holdTree: "993f3b25e5f0ac4100840be7ed62458fb7bef69e",
   workflow: ".github/workflows/csf-hosted-development-acceptance.yml",
 });
 export const requireCondition = (condition, message) => {
@@ -119,6 +124,47 @@ export function cutoverConfig(env) {
   return config;
 }
 
+// A refused provider request names its error code and a cleaned message, so an
+// operator can reconcile it without the raw body. URLs, bearer values and long
+// token-like strings are removed; nothing from the request is echoed.
+export function sanitizeProviderError(text) {
+  let body;
+  try {
+    body = JSON.parse(String(text ?? "").slice(0, 4096));
+  } catch {
+    return {};
+  }
+  const rawCode = body?.error?.code ?? body?.code;
+  const rawMessage = body?.error?.message ?? body?.message;
+  const code =
+    typeof rawCode === "string" && /^[A-Za-z0-9_.-]{1,64}$/u.test(rawCode)
+      ? rawCode
+      : undefined;
+  const message =
+    typeof rawMessage === "string"
+      ? rawMessage
+          .replace(/[\u0000-\u001f\u007f]+/gu, " ")
+          .replace(/https?:\/\/\S+/giu, "[url]")
+          .replace(/Bearer\s+\S+/giu, "[redacted]")
+          .replace(/[A-Za-z0-9_\-]{24,}/gu, "[redacted]")
+          .trim()
+          .slice(0, 200)
+      : undefined;
+  return { code, message };
+}
+
+async function refusalDetail(response, method) {
+  let text = "";
+  try {
+    text = (await response.text()).slice(0, 4096);
+  } catch {
+    return "";
+  }
+  const { code, message } = sanitizeProviderError(text);
+  if (!code && !message) return "";
+  return ` (${(method || "GET").toUpperCase()}${code ? ` ${code}` : ""}${message ? `: ${message}` : ""})`;
+}
+
 export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
   const provider = url.startsWith("https://api.github.com/")
     ? "GitHub"
@@ -151,10 +197,12 @@ export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
       `${provider} request transport failed during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
   }
-  requireCondition(
-    response.ok,
-    `${provider} request refused (HTTP ${response.status}) during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
-  );
+  if (!response.ok) {
+    const detail = await refusalDetail(response, options.method);
+    throw new ReleaseCheckError(
+      `${provider} request refused (HTTP ${response.status}) during ${operation}${detail}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
+    );
+  }
   try {
     return await response.json();
   } catch {
@@ -260,12 +308,21 @@ export async function verifyAuthority(
       pr.head.ref !== target.holdBranch,
     "Pull request identity does not match the reviewed Development candidate.",
   );
-  // A successful authenticated repository read above distinguishes absence from
-  // an inaccessible repository. Matching-refs returns [] for a missing prefix.
-  const heldRefs = await read(`/git/matching-refs/heads/${target.holdBranch}`);
+  // The hold branch must be exactly the pinned sentinel: a moved tip, another
+  // tree or a parent could carry a deployable app build onto the held domain.
+  const heldRef = await read(`/git/ref/heads/${target.holdBranch}`);
   requireCondition(
-    Array.isArray(heldRefs) && heldRefs.length === 0,
-    "The reserved maintenance branch must not exist.",
+    heldRef?.object?.type === "commit" &&
+      heldRef.object.sha === target.holdCommit,
+    "The maintenance hold branch is not the pinned sentinel commit.",
+  );
+  const heldCommit = await read(`/git/commits/${target.holdCommit}`);
+  requireCondition(
+    heldCommit?.sha === target.holdCommit &&
+      heldCommit.tree?.sha === target.holdTree &&
+      Array.isArray(heldCommit.parents) &&
+      heldCommit.parents.length === 0,
+    "The maintenance hold branch is not the pinned sentinel tree.",
   );
   if (
     ["inspect", "bootstrap", "pause-cron", "resume-cron", "prepare"].includes(

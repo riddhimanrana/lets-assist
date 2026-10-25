@@ -176,9 +176,19 @@ for (const [name, path, change] of [
     () => ({ status: "diverged", behind_by: 1 }),
   ],
   [
-    "existing hold branch",
-    `/git/matching-refs/heads/${target.holdBranch}`,
-    () => [{ ref: target.holdBranch }],
+    "a moved hold branch tip",
+    `/git/ref/heads/${target.holdBranch}`,
+    (ref) => ({ ...ref, object: { type: "commit", sha: "0".repeat(40) } }),
+  ],
+  [
+    "a re-treed hold branch commit",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, tree: { sha: "0".repeat(40) } }),
+  ],
+  [
+    "a hold branch commit with a parent",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, parents: [{ sha: "0".repeat(40) }] }),
   ],
 ])
   test(`refuses ${name} before any mutation`, async () => {

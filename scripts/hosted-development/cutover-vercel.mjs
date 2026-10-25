@@ -84,7 +84,7 @@ export async function verifyNoCompetingDeployment(read, owned = []) {
   let until = "";
   for (let page = 0; page < 10; page++) {
     const result = await read(
-      `/v6/deployments?projectId=${target.project}&limit=100&state=BUILDING,QUEUED,INITIALIZING${until}`,
+      `/v6/deployments?projectId=${target.project}&limit=100&state=BUILDING,QUEUED,INITIALIZING,BLOCKED${until}`,
     );
     requireCondition(
       Array.isArray(result.deployments),
@@ -119,10 +119,41 @@ export async function verifyNoCompetingDeployment(read, owned = []) {
   );
 }
 
+// The sentinel cannot build, but a deployment from it in any state other than
+// CANCELED or ERROR would mean that guarantee failed, so the hold refuses.
+export async function refuseHoldBranchDeployments(read) {
+  let until = "";
+  for (let page = 0; page < 10; page++) {
+    const result = await read(
+      `/v6/deployments?projectId=${target.project}&limit=100&sha=${target.holdCommit}${until}`,
+    );
+    requireCondition(
+      Array.isArray(result?.deployments),
+      "Hold branch deployment inventory is unavailable.",
+    );
+    for (const deployment of result.deployments)
+      requireCondition(
+        ["CANCELED", "ERROR"].includes(
+          deployment.state ?? deployment.readyState,
+        ),
+        "A hold branch deployment is not settled as canceled. Refusing the hold.",
+      );
+    if (!result.pagination?.next) return;
+    requireCondition(
+      Number.isSafeInteger(result.pagination.next) &&
+        result.pagination.next > 0,
+      "Hold branch deployment pagination is invalid.",
+    );
+    until = `&until=${result.pagination.next}`;
+  }
+  requireCondition(false, "Hold branch deployment history exceeds its bound.");
+}
+
 export async function holdDomain(read, priorAlias, owned = []) {
   await verifyProject(read);
   await readDomain(read, target.branch);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
   await readAlias(read, [priorAlias]);
   await read(
     `/v9/projects/${target.project}/domains/${target.domain}`,
@@ -132,12 +163,14 @@ export async function holdDomain(read, priorAlias, owned = []) {
   await readDomain(read, target.holdBranch);
   await readAlias(read, [priorAlias]);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
 }
 
 export async function verifyHeldAlias(read, allowed, owned = []) {
   await verifyProject(read);
   await readDomain(read, target.holdBranch);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
   return readAlias(read, allowed);
 }
 
@@ -153,10 +186,13 @@ export async function assignHeldAlias(
   );
   // The API has no conditional alias write. These checks do not serialize
   // unrelated privileged operators. Unexpected ownership stops recovery too.
-  await verifyHeldAlias(read, expected, owned);
-  await read(`/v2/deployments/${deploymentId}/aliases`, {
-    alias: target.domain,
-  });
+  const current = await verifyHeldAlias(read, expected, owned);
+  // Vercel answers 409 when the alias already points at the deployment, which
+  // a recovery after a later failure would otherwise hit.
+  if (current !== deploymentId)
+    await read(`/v2/deployments/${deploymentId}/aliases`, {
+      alias: target.domain,
+    });
   await readDomain(read, target.holdBranch);
   await readAlias(read, [deploymentId]);
 }

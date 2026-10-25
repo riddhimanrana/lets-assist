@@ -226,6 +226,17 @@ export function controllerFixture(phase = "prepare") {
           },
         ],
       };
+    if (path === `/git/ref/heads/${target.holdBranch}`)
+      return {
+        ref: `refs/heads/${target.holdBranch}`,
+        object: { type: "commit", sha: target.holdCommit },
+      };
+    if (path === `/git/commits/${target.holdCommit}`)
+      return {
+        sha: target.holdCommit,
+        tree: { sha: target.holdTree },
+        parents: [],
+      };
     if (path.startsWith("/git/matching-refs/")) return [];
     if (path.startsWith("/compare/")) return { status: "ahead", behind_by: 0 };
     throw new Error(`Unexpected GitHub fixture path ${path}`);
@@ -283,6 +294,8 @@ export function controllerFixture(phase = "prepare") {
         ],
         pagination: {},
       };
+    if (path.includes(`&sha=${target.holdCommit}`))
+      return { deployments: [], pagination: {} };
     if (path.startsWith("/v6/deployments?"))
       return { deployments: state.active, pagination: {} };
     if (path === "/v13/deployments" && body) {
