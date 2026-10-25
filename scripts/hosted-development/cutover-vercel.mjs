@@ -335,14 +335,16 @@ export async function waitPreview(
   );
 }
 
-// A deployment tagged for a candidate can only be created after the candidate
-// commit reached GitHub and Vercel. Two independently retained records bound
-// that moment: the candidate's earliest GitHub workflow run (GitHub's clock)
-// and its earliest Vercel git deployment (the same clock as the scan). The scan
-// starts at the earlier of the two, less a clock-skew margin, and fails closed
-// when either record is missing, mismatched or truncated. Assumption: earlier
-// records were not deleted from both providers. The deployment scan keeps its
-// reviewed page bound.
+// Preparation runs only on a workflow run whose head is the candidate, and only
+// preparation creates a maintenance deployment. So any earlier maintenance
+// deployment for the candidate was created by a GitHub run with that head, and
+// the candidate's earliest GitHub run bounds the history to scan. The
+// candidate's earliest Vercel git deployment is a second, independent lower
+// bound on Vercel's own clock; taking the earlier of the two only widens the
+// scan. Either record missing, mismatched or truncated fails closed. The margin
+// covers clock skew. Assumptions: earlier records were not deleted from both
+// providers (including during the read) and the clocks agree within the margin.
+// The deployment scan keeps its reviewed page bound.
 export const candidateHistoryMarginMs = 24 * 60 * 60 * 1000;
 
 async function earliestGithubRun(github, candidate) {

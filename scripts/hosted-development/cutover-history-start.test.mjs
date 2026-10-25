@@ -64,32 +64,58 @@ test("the start is the earlier of both candidate records less the margin", async
 
 test("missing, mismatched or truncated candidate history fails closed", async () => {
   const cases = [
-    sources({ runs: [[]] }),
-    sources({ deployments: [[]] }),
-    sources({ runs: [[run(clock, "0".repeat(40))]] }),
-    sources({ deployments: [[push(clock, "0".repeat(40))]] }),
-    sources({ runs: [[{ head_sha: candidate, created_at: "not a time" }]] }),
-    sources({ deployments: [[{ created: clock, meta: {} }]] }),
-    sources({ total: 2 }),
-    sources({ runs: [[run(clock)]], total: 0 }),
-    sources({
-      runs: Array.from({ length: 10 }, () =>
-        Array.from({ length: 100 }, () => run(clock)),
-      ),
-    }),
-    sources({
-      deployments: Array.from({ length: 11 }, () => [push(clock)]),
-    }),
+    [sources({ runs: [[]] }), /empty or incomplete/u],
+    [sources({ deployments: [[]] }), /no recorded Vercel deployment/u],
+    [
+      sources({ runs: [[run(clock, "0".repeat(40))]] }),
+      /workflow history is not bound/u,
+    ],
+    [
+      sources({ deployments: [[push(clock, "0".repeat(40))]] }),
+      /deployment history is not bound/u,
+    ],
+    [
+      sources({ runs: [[{ head_sha: candidate, created_at: "not a time" }]] }),
+      /workflow history is not bound/u,
+    ],
+    [
+      sources({ deployments: [[{ created: clock, meta: {} }]] }),
+      /deployment history is not bound/u,
+    ],
+    [sources({ total: 2 }), /empty or incomplete/u],
+    [sources({ runs: [[run(clock)]], total: 0 }), /empty or incomplete/u],
+    [
+      sources({
+        runs: Array.from({ length: 10 }, () =>
+          Array.from({ length: 100 }, () => run(clock)),
+        ),
+      }),
+      /workflow history exceeds its reviewed bound/u,
+    ],
+    [
+      sources({
+        deployments: Array.from({ length: 11 }, () => [push(clock)]),
+      }),
+      /deployment history exceeds its reviewed bound/u,
+    ],
   ];
-  for (const s of cases)
-    await assert.rejects(candidateHistoryStart(s.github, s.vercel, candidate));
+  for (const [s, message] of cases)
+    await assert.rejects(
+      candidateHistoryStart(s.github, s.vercel, candidate),
+      message,
+    );
   const s = sources();
-  await assert.rejects(candidateHistoryStart(s.github, s.vercel, "abc"));
+  await assert.rejects(
+    candidateHistoryStart(s.github, s.vercel, "abc"),
+    /exact candidate SHA/u,
+  );
   await assert.rejects(
     candidateHistoryStart(async () => ({}), s.vercel, candidate),
+    /workflow history is unavailable/u,
   );
   await assert.rejects(
     candidateHistoryStart(s.github, async () => ({}), candidate),
+    /deployment history is unavailable/u,
   );
   await assert.rejects(
     candidateHistoryStart(
@@ -97,6 +123,7 @@ test("missing, mismatched or truncated candidate history fails closed", async ()
       async () => ({ deployments: [push(clock)], pagination: { next: -1 } }),
       candidate,
     ),
+    /pagination is invalid/u,
   );
 });
 
@@ -144,5 +171,48 @@ test("preparation refuses before any write when a candidate record is missing", 
           : original(path, ...rest);
     await assert.rejects(runDevelopmentCutover(f.config, f.dependencies));
     assert.deepEqual(f.state.writes, [], kind);
+  }
+});
+
+test("completion and recovery never read the candidate history", async () => {
+  for (const phase of ["complete", "recover"]) {
+    const f = controllerFixture(phase);
+    const reads = [];
+    for (const kind of ["github", "vercel"]) {
+      const original = f.dependencies[kind];
+      f.dependencies[kind] = (path, ...rest) => {
+        reads.push(path);
+        return original(path, ...rest);
+      };
+    }
+    const receipt = await runDevelopmentCutover(f.config, f.dependencies);
+    assert.equal(
+      receipt.phase,
+      phase === "complete" ? "completed" : "recovered",
+    );
+    assert.equal(
+      reads.some(
+        (path) =>
+          path.startsWith("/actions/runs?head_sha=") ||
+          path.includes(`&sha=${candidate}`),
+      ),
+      false,
+      phase,
+    );
+    if (phase === "complete") {
+      const since = reads
+        .filter(
+          (path) =>
+            path.startsWith("/v6/deployments?") && path.includes("&since="),
+        )
+        .map((path) => query(path).get("since"));
+      assert.ok(since.length > 0);
+      assert.ok(
+        since.every(
+          (value) =>
+            Number(value) !== 0 && Number(value) > clock - 6 * 3_600_000,
+        ),
+      );
+    }
   }
 });
