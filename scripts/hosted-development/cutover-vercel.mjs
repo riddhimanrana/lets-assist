@@ -187,7 +187,13 @@ export function maintenancePayload(config) {
   });
   files.push({
     file: "vercel.json",
-    data: JSON.stringify({ version: 2, routes: output.routes, crons: [] }),
+    data: JSON.stringify({
+      version: 2,
+      installCommand: "",
+      buildCommand: "",
+      routes: output.routes,
+      crons: [],
+    }),
     encoding: "utf-8",
   });
   return {
@@ -196,10 +202,12 @@ export function maintenancePayload(config) {
     source: "cli",
     files,
     autoAssignCustomDomains: false,
+    // The project's own settings name an install and a build. An empty string
+    // skips each step for this static upload; null would fall back to them.
     projectSettings: {
       framework: null,
-      buildCommand: null,
-      installCommand: null,
+      buildCommand: "",
+      installCommand: "",
       outputDirectory: ".",
     },
     meta: {
