@@ -227,7 +227,10 @@ for (const [name, path, change, message] of [
 
 for (const [name, deployment] of [
   ["a READY sentinel deployment", { uid: "dpl_Held", state: "READY" }],
-  ["a building hold branch deployment", { uid: "dpl_Held", readyState: "BUILDING" }],
+  [
+    "a building hold branch deployment",
+    { uid: "dpl_Held", readyState: "BUILDING" },
+  ],
 ])
   test(`prepare stops at ${name} before the domain moves`, async () => {
     const f = controllerFixture();

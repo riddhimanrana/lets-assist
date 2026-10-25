@@ -107,7 +107,10 @@ test("the hold scans follow pagination and keep their page bound", async () => {
     };
     await assert.rejects(refuseHoldBranchDeployments(read), unsettled);
     assert.ok(
-      paths.some((path) => path.includes(filter) && path.endsWith("&until=1700000000000")),
+      paths.some(
+        (path) =>
+          path.includes(filter) && path.endsWith("&until=1700000000000"),
+      ),
     );
   }
   let pages = 0;
@@ -223,7 +226,9 @@ test("the hold rescans after the domain moves and refuses a hold branch build it
     alias: "dpl_Prior",
     domainBranch: target.branch,
     holdDeployments: (binding) =>
-      binding === target.holdBranch ? [{ uid: "dpl_Late", state: "READY" }] : [],
+      binding === target.holdBranch
+        ? [{ uid: "dpl_Late", state: "READY" }]
+        : [],
   });
   await assert.rejects(holdDomain(s.read, "dpl_Prior"), unsettled);
   assert.equal(s.writes.length, 1);
@@ -232,7 +237,10 @@ test("the hold rescans after the domain moves and refuses a hold branch build it
 
 test("held alias checks and alias moves refuse a live hold branch deployment", async () => {
   const live = () => [{ uid: "dpl_Late", state: "READY" }];
-  const verify = vercelStub({ alias: "dpl_Maintenance", holdDeployments: live });
+  const verify = vercelStub({
+    alias: "dpl_Maintenance",
+    holdDeployments: live,
+  });
   await assert.rejects(
     verifyHeldAlias(verify.read, ["dpl_Maintenance"]),
     unsettled,
