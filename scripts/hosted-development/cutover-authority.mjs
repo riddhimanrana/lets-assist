@@ -200,7 +200,7 @@ export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
   if (!response.ok) {
     const detail = await refusalDetail(response, options.method);
     throw new ReleaseCheckError(
-      `${provider} request refused (HTTP ${response.status}) during ${operation}${detail}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
+      `${provider} request refused (HTTP ${response.status}) during ${operation}${detail}. Reconcile any unknown mutation before retrying. The raw body was suppressed.`,
     );
   }
   try {

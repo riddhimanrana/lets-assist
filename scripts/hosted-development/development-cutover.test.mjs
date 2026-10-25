@@ -175,27 +175,69 @@ for (const [name, path, change] of [
     `/compare/${base}...${candidate}`,
     () => ({ status: "diverged", behind_by: 1 }),
   ],
-  [
-    "a moved hold branch tip",
-    `/git/ref/heads/${target.holdBranch}`,
-    (ref) => ({ ...ref, object: { type: "commit", sha: "0".repeat(40) } }),
-  ],
-  [
-    "a re-treed hold branch commit",
-    `/git/commits/${target.holdCommit}`,
-    (commit) => ({ ...commit, tree: { sha: "0".repeat(40) } }),
-  ],
-  [
-    "a hold branch commit with a parent",
-    `/git/commits/${target.holdCommit}`,
-    (commit) => ({ ...commit, parents: [{ sha: "0".repeat(40) }] }),
-  ],
 ])
   test(`refuses ${name} before any mutation`, async () => {
     const f = controllerFixture();
     f.state.apiChanges.set(path, change);
     await assert.rejects(runDevelopmentCutover(f.config, f.dependencies));
     assert.deepEqual(f.state.writes, []);
+  });
+
+for (const [name, path, change, message] of [
+  [
+    "a moved hold branch tip",
+    `/git/ref/heads/${target.holdBranch}`,
+    (ref) => ({ ...ref, object: { type: "commit", sha: "0".repeat(40) } }),
+    /not the pinned sentinel commit/u,
+  ],
+  [
+    "a hold branch ref that names a tag object",
+    `/git/ref/heads/${target.holdBranch}`,
+    (ref) => ({ ...ref, object: { ...ref.object, type: "tag" } }),
+    /not the pinned sentinel commit/u,
+  ],
+  [
+    "a hold commit read that answers for another commit",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, sha: "0".repeat(40) }),
+    /not the pinned sentinel tree/u,
+  ],
+  [
+    "a re-treed hold branch commit",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, tree: { sha: "0".repeat(40) } }),
+    /not the pinned sentinel tree/u,
+  ],
+  [
+    "a hold branch commit with a parent",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, parents: [{ sha: "0".repeat(40) }] }),
+    /not the pinned sentinel tree/u,
+  ],
+])
+  test(`refuses ${name} before any mutation`, async () => {
+    const f = controllerFixture();
+    f.state.apiChanges.set(path, change);
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      message,
+    );
+    assert.deepEqual(f.state.writes, []);
+  });
+
+for (const [name, deployment] of [
+  ["a READY sentinel deployment", { uid: "dpl_Held", state: "READY" }],
+  ["a building hold branch deployment", { uid: "dpl_Held", readyState: "BUILDING" }],
+])
+  test(`prepare stops at ${name} before the domain moves`, async () => {
+    const f = controllerFixture();
+    f.state.holdDeployments = [deployment];
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      /hold branch deployment is not settled/u,
+    );
+    assert.equal(f.state.domain, target.branch);
+    assert.equal(f.state.alias, "dpl_Prior");
   });
 
 test("prepare records maintenance without merging or applying schema", async () => {

@@ -141,6 +141,7 @@ export function controllerFixture(phase = "prepare") {
     reads: [],
     apiChanges: new Map(),
     active: [],
+    holdDeployments: [],
     schemaFailure: false,
     bootstrapped: false,
     postOpenDrift: false,
@@ -294,8 +295,11 @@ export function controllerFixture(phase = "prepare") {
         ],
         pagination: {},
       };
-    if (path.includes(`&sha=${target.holdCommit}`))
-      return { deployments: [], pagination: {} };
+    if (
+      path.includes(`&sha=${target.holdCommit}`) ||
+      path.includes(`&branch=${encodeURIComponent(target.holdBranch)}`)
+    )
+      return { deployments: state.holdDeployments, pagination: {} };
     if (path.startsWith("/v6/deployments?"))
       return { deployments: state.active, pagination: {} };
     if (path === "/v13/deployments" && body) {

@@ -59,38 +59,79 @@ test("non-JSON, oversized or unsafe provider bodies fall back cleanly", async ()
   );
 });
 
-test("the hold refuses any sentinel deployment that is not canceled or failed", async () => {
-  for (const state of ["READY", "BLOCKED", "BUILDING", "QUEUED", undefined]) {
-    const read = async () => ({
-      deployments: [{ uid: "dpl_x", state }],
-      pagination: {},
-    });
-    await assert.rejects(refuseHoldBranchDeployments(read), state ?? "none");
-  }
+const holdFilters = [
+  `&sha=${target.holdCommit}`,
+  `&branch=${encodeURIComponent(target.holdBranch)}`,
+];
+const unsettled = /hold branch deployment is not settled/u;
+
+test("the hold refuses any sentinel or hold branch deployment that is not canceled or failed", async () => {
+  for (const filter of holdFilters)
+    for (const state of ["READY", "BLOCKED", "BUILDING", "QUEUED", undefined]) {
+      const read = async (path) => ({
+        deployments: path.includes(filter) ? [{ uid: "dpl_x", state }] : [],
+        pagination: {},
+      });
+      await assert.rejects(refuseHoldBranchDeployments(read), unsettled);
+    }
   for (const state of ["CANCELED", "ERROR"]) {
-    const read = async (path) => {
-      assert.ok(path.includes(`&sha=${target.holdCommit}`));
+    const paths = [];
+    await refuseHoldBranchDeployments(async (path) => {
+      paths.push(path);
       return {
         deployments: [{ uid: "dpl_x", readyState: state }],
         pagination: {},
       };
-    };
-    await refuseHoldBranchDeployments(read);
+    });
+    assert.equal(paths.length, 2);
+    holdFilters.forEach((filter, index) =>
+      assert.ok(paths[index].includes(filter), filter),
+    );
   }
-  await refuseHoldBranchDeployments(async () => ({
-    deployments: [],
-    pagination: {},
-  }));
-  await assert.rejects(refuseHoldBranchDeployments(async () => ({})));
+  await assert.rejects(
+    refuseHoldBranchDeployments(async () => ({})),
+    /inventory is unavailable/u,
+  );
 });
 
-test("the competing-deployment scan includes blocked deployments", async () => {
+test("the hold scans follow pagination and keep their page bound", async () => {
+  for (const filter of holdFilters) {
+    const paths = [];
+    const read = async (path) => {
+      paths.push(path);
+      if (!path.includes(filter)) return { deployments: [], pagination: {} };
+      return path.includes("&until=")
+        ? { deployments: [{ uid: "dpl_late", state: "READY" }], pagination: {} }
+        : { deployments: [], pagination: { next: 1_700_000_000_000 } };
+    };
+    await assert.rejects(refuseHoldBranchDeployments(read), unsettled);
+    assert.ok(
+      paths.some((path) => path.includes(filter) && path.endsWith("&until=1700000000000")),
+    );
+  }
+  await assert.rejects(
+    refuseHoldBranchDeployments(async () => ({
+      deployments: [],
+      pagination: { next: 1 },
+    })),
+    /exceeds its bound/u,
+  );
+  await assert.rejects(
+    refuseHoldBranchDeployments(async () => ({
+      deployments: [],
+      pagination: { next: "1" },
+    })),
+    /pagination is invalid/u,
+  );
+});
+
+test("the competing-deployment scan keeps the live-proven state filter", async () => {
   const paths = [];
   await verifyNoCompetingDeployment(async (path) => {
     paths.push(path);
     return { deployments: [], pagination: {} };
   });
-  assert.match(paths[0], /state=BUILDING,QUEUED,INITIALIZING,BLOCKED/u);
+  assert.match(paths[0], /state=BUILDING,QUEUED,INITIALIZING(&|$)/u);
 });
 
 function vercelStub({ alias, domainBranch = target.holdBranch }) {

@@ -84,7 +84,7 @@ export async function verifyNoCompetingDeployment(read, owned = []) {
   let until = "";
   for (let page = 0; page < 10; page++) {
     const result = await read(
-      `/v6/deployments?projectId=${target.project}&limit=100&state=BUILDING,QUEUED,INITIALIZING,BLOCKED${until}`,
+      `/v6/deployments?projectId=${target.project}&limit=100&state=BUILDING,QUEUED,INITIALIZING${until}`,
     );
     requireCondition(
       Array.isArray(result.deployments),
@@ -119,34 +119,47 @@ export async function verifyNoCompetingDeployment(read, owned = []) {
   );
 }
 
-// The sentinel cannot build, but a deployment from it in any state other than
-// CANCELED or ERROR would mean that guarantee failed, so the hold refuses.
+// The sentinel cannot build, but a deployment for the hold branch, or from the
+// sentinel commit, in any state other than CANCELED or ERROR would mean that
+// guarantee failed (for example a commit pushed and reset away), so the hold
+// refuses. Both scans are bounded.
 export async function refuseHoldBranchDeployments(read) {
-  let until = "";
-  for (let page = 0; page < 10; page++) {
-    const result = await read(
-      `/v6/deployments?projectId=${target.project}&limit=100&sha=${target.holdCommit}${until}`,
-    );
-    requireCondition(
-      Array.isArray(result?.deployments),
-      "Hold branch deployment inventory is unavailable.",
-    );
-    for (const deployment of result.deployments)
-      requireCondition(
-        ["CANCELED", "ERROR"].includes(
-          deployment.state ?? deployment.readyState,
-        ),
-        "A hold branch deployment is not settled as canceled. Refusing the hold.",
+  for (const filter of [
+    `sha=${target.holdCommit}`,
+    `branch=${encodeURIComponent(target.holdBranch)}`,
+  ]) {
+    let until = "";
+    let complete = false;
+    for (let page = 0; page < 10 && !complete; page++) {
+      const result = await read(
+        `/v6/deployments?projectId=${target.project}&limit=100&${filter}${until}`,
       );
-    if (!result.pagination?.next) return;
+      requireCondition(
+        Array.isArray(result?.deployments),
+        "Hold branch deployment inventory is unavailable.",
+      );
+      for (const deployment of result.deployments)
+        requireCondition(
+          ["CANCELED", "ERROR"].includes(
+            deployment.state ?? deployment.readyState,
+          ),
+          "A hold branch deployment is not settled as canceled. Refusing the hold.",
+        );
+      if (!result.pagination?.next) complete = true;
+      else {
+        requireCondition(
+          Number.isSafeInteger(result.pagination.next) &&
+            result.pagination.next > 0,
+          "Hold branch deployment pagination is invalid.",
+        );
+        until = `&until=${result.pagination.next}`;
+      }
+    }
     requireCondition(
-      Number.isSafeInteger(result.pagination.next) &&
-        result.pagination.next > 0,
-      "Hold branch deployment pagination is invalid.",
+      complete,
+      "Hold branch deployment history exceeds its bound.",
     );
-    until = `&until=${result.pagination.next}`;
   }
-  requireCondition(false, "Hold branch deployment history exceeds its bound.");
 }
 
 export async function holdDomain(read, priorAlias, owned = []) {
