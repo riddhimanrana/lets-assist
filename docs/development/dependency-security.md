@@ -14,12 +14,15 @@ Production deployment or a published SDK tarball. The private application patch
 must merge before the host gitlink advances. Runtime configuration must be
 checked again in the signed prebuilt artifact and hosted deployment.
 
-The root pins Next.js and its companion packages to 16.3.8 for
-[GHSA-vcvr-r3jv-pc5j](https://github.com/advisories/GHSA-vcvr-r3jv-pc5j).
-The advisory concerns Node ImageResponse processing of attacker-controlled SVG;
-a vulnerable package version alone does not prove an exploitable application.
-Nodemailer 10.0.15 includes the parser fixes through
-[GHSA-g57g-f23g-4646](https://github.com/advisories/GHSA-g57g-f23g-4646).
+The root pins Next.js and its companion packages to 16.4.1 for
+[GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw),
+[GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr) and
+[GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r).
+A vulnerable package version alone does not prove an exploitable application:
+the locked `sharp` is already 0.35.5 and the app has no `use cache` functions,
+but the Server Actions denial of service applies to the App Router.
+Nodemailer 10.1.4 includes the address parser fixes through
+[GHSA-m943-m63m-w62w](https://github.com/advisories/GHSA-m943-m63m-w62w).
 The stream-transport regression generates a message in memory and verifies the
 envelope without sending mail. Nodemailer serves the local Mailpit transport;
 Production uses the separate Resend transport.
@@ -34,13 +37,13 @@ the frozen lockfile passes the full audit, and affected package checks pass.
 | sharp                     | 0.35.5         | GHSA-wq5f-xc86-pv6w, upstream librsvg memory safety                                |
 | brace-expansion           | 5.0.12         | GHSA-qhr7-859c-m2p7, GHSA-6j4f-fj2g-mc7p, GHSA-q2hr-2g5m-vwhr                      |
 | @grpc/grpc-js             | 1.14.5         | GHSA-m9gg-hp2v-232j, GHSA-f596-whhp-79r4                                           |
-| dompurify                 | 3.4.16         | GHSA-p98j-92pf-mc4p, GHSA-6688-9rhm-gjv2                                           |
+| dompurify                 | 3.4.17         | GHSA-cg2g-xh64-v4q7, GHSA-mrv2-3pqr-j5jr, GHSA-c6gr-qvv4-5v3f                      |
 | source-map-js             | 1.2.2          | GHSA-68fv-2mgg-jv7q                                                                |
-| fast-uri                  | 3.1.8          | GHSA-hrr3-gc8f-f4qj, also pinned in the standalone SDK                             |
+| fast-uri                  | 3.1.9          | GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr, also pinned in the standalone SDK        |
 | engine.io                 | 6.6.11         | GHSA-2gc4-cqfq-p2gv                                                                |
 | js-yaml                   | 4.3.2          | GHSA-2883-xcg3-v3hh                                                                |
 | qs                        | 6.16.0         | GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g                                           |
-| ip-address                | 10.7.3         | GHSA-rpw4-54j3-4h4q, GHSA-2vr4-cq9g-pvrc, GHSA-j6r3-76f7-8jcv, GHSA-h3mg-xc3c-68pw |
+| ip-address                | 10.7.4         | GHSA-rxp7-6hxx-x8q5 and the earlier ip-address advisories                          |
 | proxy-addr                | 2.0.8          | GHSA-jqcg-44mw-7w3h                                                                |
 | @modelcontextprotocol/sdk | 1.32.1         | GHSA-6qxp-vccf-f47h                                                                |
 | @babel/core               | 7.29.7         | GHSA-4x5r-pxfx-6jf8                                                                |
@@ -48,6 +51,9 @@ the frozen lockfile passes the full audit, and affected package checks pass.
 | postcss-selector-parser   | 7.1.6          | GHSA-rj75-hqrm-r3gf                                                                |
 | hono                      | 4.13.13        | GHSA-gqvv-2mrq-wpjv, GHSA-g6gw-c38x-mqfc, GHSA-crvj-82cr-hjcx, GHSA-hxh3-vqpv-xpqv |
 | browserslist              | 4.28.9         | GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g                                           |
+| undici                    | 7.30.1         | GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472                      |
+| body-parser               | 2.4.0          | GHSA-27r3-jxmh-p828                                                                |
+| zod                       | 4.6.6          | GHSA-mrhx-c7xc-m3w5, also forced for the unused shadcn CLI                         |
 
 ## Open upstream blocker
 
@@ -58,11 +64,13 @@ not arbitrary contents of a file matched by an ordinary glob. The
 [upstream report](https://github.com/micromatch/braces/issues/70) recommends a
 small nesting bound or a smaller maximum pattern length until a fix exists.
 
-Both the platform and private application retain the vulnerable package through
-`fast-glob` and `micromatch`. Root importers include microfrontends configuration
-discovery, Next ESLint, next-sitemap, the shadcn development CLI, and repository
-inventory/test scripts. The private app includes microfrontends and Next ESLint.
-The SDK graph does not contain `braces`.
+The platform now preserves the Production dependency hotfix: its reviewed
+`fast-glob` compatibility package uses `tinyglobby` and removes `braces` and
+`micromatch` from the root graph. Compatibility tests cover microfrontends config
+discovery, sitemap paths, directory results and depth limits. The private
+application still retains `braces` through microfrontends and Next ESLint; the
+existing exception is narrowed to that unchanged graph. The SDK graph does not
+contain `braces`.
 
 Repository-owned patterns are constants in `scripts/run-tests.mjs`,
 `scripts/generate-audit-surface-inventory.mjs`, and `next-sitemap.config.js`.
@@ -77,7 +85,7 @@ The repository owner accepted this specific build-tool denial-of-service risk
 until **2026-10-21 00:00 UTC**. The gate still prints the high-severity advisory
 and an accepted-risk result. It does not describe this package as patched or the
 scan as clean. `scripts/security/braces-exception.mjs` limits acceptance to this
-advisory, `braces@3.0.3`, the exact reviewed root and private application lockfiles,
+advisory, `braces@3.0.3`, the exact reviewed package-graph lockfiles,
 and the unchanged inventory including the clean SDK graph. New advisories,
 versions, graph changes, expired acceptance, malformed JSON, and registry errors
 fail the gate. There is no severity-wide or package-wide ignore.

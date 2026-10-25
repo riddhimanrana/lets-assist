@@ -1,4 +1,5 @@
 import { certificateHours } from "@/lib/projects/certificate-duration";
+import { certificateExportType } from "./csv";
 import { formatCertificateDate, formatCertificateTime } from "./project-dates";
 
 export type CertificateRecord = {
@@ -46,7 +47,7 @@ export function certificateToDashboardExport(
   cert: CertificateRecord,
   userEmail: string,
 ): ExportData {
-  const isVerified = (cert.type || "platform") === "platform";
+  const isVerified = certificateExportType(cert.type) === "platform";
   const timeZone = cert.projects?.project_timezone || cert.event_timezone;
   return {
     id: cert.id,

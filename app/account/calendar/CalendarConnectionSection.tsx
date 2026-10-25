@@ -26,6 +26,7 @@ function formatConnectedDate(dateString: string) {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 

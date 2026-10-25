@@ -5,11 +5,15 @@ export async function loadCalendarSourcePages<T extends Row>(
     afterId: string | null,
     pageSize: number,
   ) => PromiseLike<{ data: T[] | null; error: unknown }>,
+  /** Stops before the next page once the caller's deadline has passed. */
+  signal?: AbortSignal,
 ): Promise<T[]> {
   const pageSize = 500;
   const rows: T[] = [];
   let afterId: string | null = null;
   for (;;) {
+    if (signal?.aborted)
+      throw new Error("Calendar source loading stopped at its deadline.");
     const { data, error } = await fetchPage(afterId, pageSize);
     if (error || !data || data.length > pageSize)
       throw new Error("Failed to load the complete calendar source snapshot.");
@@ -25,4 +29,11 @@ export async function loadCalendarSourcePages<T extends Row>(
       );
     if (data.length < pageSize) return rows;
   }
+}
+
+/** Ends a source query with the caller's deadline, when it has one. */
+export function withCalendarDeadline<
+  Query extends { abortSignal: (signal: AbortSignal) => Query },
+>(query: Query, signal?: AbortSignal): Query {
+  return signal ? query.abortSignal(signal) : query;
 }

@@ -10,13 +10,13 @@ export const BRACES_EXCEPTION = Object.freeze({
   expiresAt: "2026-10-21T00:00:00.000Z",
   owner: "repository owner",
   graphHashes: {
-    ".": "194d316a7a36f4865f6131de17adc273aa854c6d4a8c154364f65a9ce1377001",
+    ".": "23b4a555c31ecd3f4d77447dae46787bec6e28a19b97cf472d077978141a99f1",
     "packages/plugin-sdk":
       "34f55231c04ea7e1af41fccf7e25b1b46cd454b24cb14c63adc5e3dda944e99b",
     "lib/plugins/private/apps/csf":
       "a566906cdf1bb5831a6696de62e40b6a961ac3c43719b4ac80a87d0b79271624",
   },
-  affectedGraphs: [".", "lib/plugins/private/apps/csf"],
+  affectedGraphs: ["lib/plugins/private/apps/csf"],
   sourceHashes: {
     "scripts/run-tests.mjs":
       "93c5ffa18dc70ccb1a646148a5a2bf7dcff5d425a439dae0289afeeaaac7efea",

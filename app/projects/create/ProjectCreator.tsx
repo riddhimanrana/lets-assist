@@ -352,7 +352,7 @@ export default function ProjectCreator({
       const storage = attemptStorage();
       const attempt = persistAttempt(
         readStagedWaiverAttempt(storage) ??
-          createStagedWaiverAttempt(crypto.randomUUID()),
+          createStagedWaiverAttempt(draftSession.id ?? crypto.randomUUID()),
       );
 
       formData.append("creationIdempotencyKey", attempt.idempotencyKey);
@@ -510,7 +510,7 @@ export default function ProjectCreator({
       : undefined;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-6 [&_button]:scroll-my-28 [&_input]:scroll-my-28 [&_textarea]:scroll-my-28 [&_[contenteditable=true]]:scroll-my-28">
       <CreateHeader
         drafts={drafts}
         showAIButton={state.step === 1}

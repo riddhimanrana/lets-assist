@@ -1,12 +1,119 @@
 "use server";
+import { z } from "zod";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
-import { deleteGoogleCalendarEvent } from "@/services/calendar";
+import { CalendarSyncError } from "@/services/personal-calendar/reconcile";
+import type { Project } from "@/types";
+
+type CalendarHelperResult =
+  | { success: true; message: string }
+  | {
+      success: false;
+      error: string;
+      code?: "unauthenticated" | "not_found" | "not_owner" | "conflict";
+      retryable?: boolean;
+    };
+
+const sourceIdSchema = z.string().uuid();
+
+/** Every helper here is a public Server Action, so each one derives its own actor. */
+async function authenticate() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  return error || !user ? null : { supabase, user };
+}
+
+const UNAUTHENTICATED: CalendarHelperResult = {
+  success: false,
+  error: "User not authenticated",
+  code: "unauthenticated",
+};
+
+function calendarFailure(
+  error: unknown,
+  fallback: string,
+): CalendarHelperResult {
+  if (error instanceof CalendarSyncError) {
+    return {
+      success: false,
+      error: error.message,
+      retryable: error.status === 409 || error.status >= 500,
+    };
+  }
+  // Provider and credential errors can carry details that do not belong in logs.
+  safeConsole.error(fallback);
+  return { success: false, error: fallback, retryable: true };
+}
 
 /**
- * Updates a calendar event when a project is edited.
+ * Remove the actor's own calendar entry through its durable receipt. A source
+ * row without a marker, or no source row at all, is not proof that nothing is
+ * left at Google: only a receipt already saved for this actor names the event.
+ * `narrowTo` is a caller's claim about which event it means. It never selects
+ * an event; it can only refuse when the resolved one differs.
+ */
+async function removeOwnCalendarEntry(
+  userId: string,
+  sourceKind: "project" | "signup",
+  sourceId: string,
+  eventId: string | null,
+  narrowTo?: string,
+): Promise<CalendarHelperResult> {
+  let expectedEventId = eventId;
+  if (!expectedEventId) {
+    const { findPersonalCalendarReceiptEvent } =
+      await import("@/services/personal-calendar/cleanup");
+    try {
+      expectedEventId = await findPersonalCalendarReceiptEvent(
+        userId,
+        sourceKind,
+        sourceId,
+      );
+    } catch {
+      // An unconfirmed lookup is not proof that nothing is left at Google.
+      return {
+        success: false,
+        error:
+          "Calendar cleanup could not be confirmed. Check your calendar settings for entries that still need removing.",
+        retryable: true,
+      };
+    }
+    // The exact lookup found no unresolved receipt owned by this actor.
+    if (!expectedEventId) {
+      return { success: true, message: "No calendar event to remove" };
+    }
+  }
+  if (narrowTo !== undefined && narrowTo !== expectedEventId) {
+    return {
+      success: false,
+      error: "The calendar event changed. Refresh and try again.",
+      code: "conflict",
+    };
+  }
+  const { synchronizePersonalCalendar } =
+    await import("@/services/personal-calendar");
+  await synchronizePersonalCalendar({
+    userId,
+    sourceKind,
+    sourceId,
+    operation: "remove",
+    expectedEventId,
+  });
+  return { success: true, message: "Calendar event removed successfully" };
+}
+
+/**
+ * Updates the creator's calendar event when a project is edited.
  * Call this after successfully updating a project in the database.
+ *
+ * The actor comes from the session and the project is read again here, so
+ * nothing the browser sends decides what is written. A project that was never
+ * synced is left alone: the durable claim reports that without provider work.
  *
  * @param projectId - The ID of the project that was updated
  * @returns Success or error message
@@ -15,65 +122,73 @@ import { deleteGoogleCalendarEvent } from "@/services/calendar";
  * // After updating a project:
  * const updateResult = await updateProject(projectId, updatedData);
  * if (updateResult.success) {
- *   await updateCalendarEventForProject(projectId);
+ *   const calendarResult = await updateCalendarEventForProject(projectId);
+ *   if (!calendarResult.success) showCalendarWarning(calendarResult.error);
  * }
  */
-export async function updateCalendarEventForProject(projectId: string) {
+export async function updateCalendarEventForProject(
+  projectId: string,
+): Promise<CalendarHelperResult> {
   try {
-    const supabase = await createClient();
-
-    // Check if project has a calendar event
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_calendar_event_id")
-      .eq("id", projectId)
-      .single();
-
-    if (!project?.creator_calendar_event_id) {
-      // No calendar event to update
-      return { success: true, message: "No calendar event to update" };
+    const session = await authenticate();
+    if (!session) return UNAUTHENTICATED;
+    if (!sourceIdSchema.safeParse(projectId).success) {
+      return { success: false, error: "Project not found", code: "not_found" };
     }
 
-    // Call the sync API to update the event
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SITE_URL}/api/calendar/sync-project`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ projectId }),
-      },
-    );
-
-    if (!response.ok) {
-      const data = await response.json();
-      safeConsole.error("Failed to update calendar event:", data.error);
+    const { data, error } = await session.supabase
+      .from("projects")
+      .select(PROJECT_CLIENT_SELECT)
+      .eq("id", projectId)
+      .maybeSingle();
+    if (error) {
       return {
         success: false,
         error: "Failed to update calendar event",
+        retryable: true,
+      };
+    }
+    const project = data as unknown as Project | null;
+    if (!project || project.id !== projectId) {
+      return { success: false, error: "Project not found", code: "not_found" };
+    }
+    if (project.creator_id !== session.user.id) {
+      return {
+        success: false,
+        error:
+          "Only the project creator can update their Google Calendar entry",
+        code: "not_owner",
       };
     }
 
+    // A missing marker does not prove there is no receipt. The durable claim
+    // decides: it reports "not synced" without any provider work, or refuses
+    // when a saved receipt no longer matches the project.
+    const { updatePersonalCalendarProject } =
+      await import("@/services/personal-calendar");
+    const result = await updatePersonalCalendarProject({
+      userId: session.user.id,
+      project,
+    });
     return {
       success: true,
-      message: "Calendar event updated successfully",
+      message:
+        result.phase === "synced"
+          ? "Calendar event updated successfully"
+          : "No calendar event to update",
     };
   } catch (error) {
-    safeConsole.error("Error updating calendar event:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update calendar event",
-    };
+    return calendarFailure(error, "Failed to update calendar event");
   }
 }
 
 /**
- * Removes calendar event when a project is cancelled.
- * Call this after successfully cancelling a project.
+ * Removes the creator's calendar event when a project is cancelled or deleted.
+ * Call this after successfully cancelling a project, or before deleting it.
+ *
+ * `deletionSnapshot` never grants authority. It can only narrow the signed-in
+ * creator's own request: a different user is refused, and so is an event that
+ * differs from the one resolved from the project or the creator's own receipt.
  *
  * @param projectId - The ID of the project that was cancelled
  * @returns Success or error message
@@ -88,85 +203,60 @@ export async function updateCalendarEventForProject(projectId: string) {
 export async function removeCalendarEventForProject(
   projectId: string,
   deletionSnapshot?: { userId: string; calendarEventId: string },
-) {
+): Promise<CalendarHelperResult> {
   try {
-    if (deletionSnapshot) {
-      const deleted = await deleteGoogleCalendarEvent(
-        deletionSnapshot.userId,
-        deletionSnapshot.calendarEventId,
-      );
-      return deleted
-        ? { success: true, message: "Calendar event removed successfully" }
-        : { success: false, error: "Failed to remove calendar event" };
+    const session = await authenticate();
+    if (!session) return UNAUTHENTICATED;
+    if (!sourceIdSchema.safeParse(projectId).success) {
+      return { success: false, error: "Project not found", code: "not_found" };
     }
-
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      safeConsole.error("Error getting user:", userError);
-      return { success: false, error: "User not authenticated" };
-    }
-
-    // Check if project has a calendar event
-    const { data: project } = await supabase
-      .from("projects")
-      .select("creator_calendar_event_id")
-      .eq("id", projectId)
-      .single();
-
-    if (!project?.creator_calendar_event_id) {
-      // No calendar event to remove
-      return { success: true, message: "No calendar event to remove" };
-    }
-
-    // Delete from Google Calendar directly
-    const deleted = await deleteGoogleCalendarEvent(
-      user.id,
-      project.creator_calendar_event_id,
-    );
-
-    if (!deleted) {
-      safeConsole.error("Failed to delete calendar event from Google");
+    if (deletionSnapshot && deletionSnapshot.userId !== session.user.id) {
       return {
         success: false,
-        error: "Failed to remove calendar event",
+        error: "Only the project creator can remove their calendar event",
+        code: "not_owner",
       };
     }
 
-    // Update database to clear calendar event ID
-    await supabase
+    const { data: project, error } = await session.supabase
       .from("projects")
-      .update({
-        creator_calendar_event_id: null,
-        creator_synced_at: null,
-      })
-      .eq("id", projectId);
+      .select("id, creator_id, creator_calendar_event_id")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (error) {
+      return {
+        success: false,
+        error: "Failed to remove calendar event",
+        retryable: true,
+      };
+    }
+    if (project && project.creator_id !== session.user.id) {
+      return {
+        success: false,
+        error: "Only the project creator can remove their calendar event",
+        code: "not_owner",
+      };
+    }
 
-    return {
-      success: true,
-      message: "Calendar event removed successfully",
-    };
+    return await removeOwnCalendarEntry(
+      session.user.id,
+      "project",
+      projectId,
+      project?.creator_calendar_event_id ?? null,
+      deletionSnapshot?.calendarEventId,
+    );
   } catch (error) {
-    safeConsole.error("Error removing calendar event:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to remove calendar event",
-    };
+    return calendarFailure(error, "Failed to remove calendar event");
   }
 }
 
 /**
- * Removes calendar event for a signup when it's cancelled.
+ * Removes the volunteer's own calendar event when their signup is cancelled.
  * Call this after successfully cancelling a signup.
+ *
+ * Only the volunteer who owns the signup can remove it. An organizer who
+ * cancels someone else's signup gets a refusal, not a write with their own
+ * credentials.
  *
  * @param signupId - The ID of the signup that was cancelled
  * @returns Success or error message
@@ -178,85 +268,67 @@ export async function removeCalendarEventForProject(
  *   await removeCalendarEventForSignup(signupId);
  * }
  */
-export async function removeCalendarEventForSignup(signupId: string) {
+export async function removeCalendarEventForSignup(
+  signupId: string,
+): Promise<CalendarHelperResult> {
   try {
-    const supabase = await createClient();
-
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      safeConsole.error("Error getting user:", userError);
-      return { success: false, error: "User not authenticated" };
+    const session = await authenticate();
+    if (!session) return UNAUTHENTICATED;
+    if (!sourceIdSchema.safeParse(signupId).success) {
+      return { success: false, error: "Signup not found", code: "not_found" };
     }
 
-    // Check if signup has a calendar event
-    const { data: signup } = await supabase
+    const { data: signup, error } = await session.supabase
       .from("project_signups")
-      .select("volunteer_calendar_event_id")
+      .select("id, user_id, volunteer_calendar_event_id")
       .eq("id", signupId)
-      .single();
-
-    if (!signup?.volunteer_calendar_event_id) {
-      // No calendar event to remove
-      return { success: true, message: "No calendar event to remove" };
-    }
-
-    // Delete from Google Calendar directly
-    const deleted = await deleteGoogleCalendarEvent(
-      user.id,
-      signup.volunteer_calendar_event_id,
-    );
-
-    if (!deleted) {
-      safeConsole.error("Failed to delete calendar event from Google");
+      .maybeSingle();
+    if (error) {
       return {
         success: false,
         error: "Failed to remove calendar event",
+        retryable: true,
+      };
+    }
+    if (signup && signup.user_id !== session.user.id) {
+      return {
+        success: false,
+        error: "Only the volunteer can remove their calendar event",
+        code: "not_owner",
       };
     }
 
-    // Update database to clear calendar event ID
-    await supabase
-      .from("project_signups")
-      .update({
-        volunteer_calendar_event_id: null,
-        volunteer_synced_at: null,
-      })
-      .eq("id", signupId);
-
-    return {
-      success: true,
-      message: "Calendar event removed successfully",
-    };
+    return await removeOwnCalendarEntry(
+      session.user.id,
+      "signup",
+      signupId,
+      signup?.volunteer_calendar_event_id ?? null,
+    );
   } catch (error) {
-    safeConsole.error("Error removing calendar event:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to remove calendar event",
-    };
+    return calendarFailure(error, "Failed to remove calendar event");
   }
 }
 
 /**
- * Removes all volunteer calendar events when a project is cancelled.
- * This removes calendar events for all volunteers who signed up.
+ * Removes the signed-in volunteer's own calendar events for a project.
+ *
+ * This does not reach other volunteers' calendars: each removal goes through
+ * `removeCalendarEventForSignup`, which refuses signups the actor does not own
+ * and counts them as failed.
  *
  * @param projectId - The ID of the project that was cancelled
  * @returns Success or error message with count of removed events
  */
 export async function removeAllVolunteerCalendarEvents(projectId: string) {
   try {
-    const supabase = await createClient();
+    const session = await authenticate();
+    if (!session) return UNAUTHENTICATED;
+    if (!sourceIdSchema.safeParse(projectId).success) {
+      return { success: false, error: "Project not found" };
+    }
 
     // Get all signups with calendar events for this project
-    const { data: signups, error } = await supabase
+    const { data: signups, error } = await session.supabase
       .from("project_signups")
       .select("id, volunteer_calendar_event_id")
       .eq("project_id", projectId)

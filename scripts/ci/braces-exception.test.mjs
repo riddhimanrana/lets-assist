@@ -53,7 +53,7 @@ function fixture(version = "3.0.3") {
   return {
     root,
     graphs,
-    graph: graphs[0],
+    graph: graphs.find((graph) => policy.affectedGraphs.includes(graph.label)),
     finding: { ...advisory, package: "braces" },
     policy,
     environment: {},
@@ -87,6 +87,11 @@ test("another advisory or package never inherits acceptance", () => {
       finding: { ...value.finding, package: "other" },
     }),
   ).toBe(false);
+});
+test("the repaired root graph cannot reuse the private application's exception", () => {
+  const value = fixture();
+  value.graph = value.graphs.find((graph) => graph.label === ".");
+  expect(() => acceptBracesFinding(value)).toThrow("unreviewed package graph");
 });
 test("a changed lockfile, resolved version, or graph inventory requires review", () => {
   const value = fixture();

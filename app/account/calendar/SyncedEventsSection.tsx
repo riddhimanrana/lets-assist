@@ -1,3 +1,5 @@
+"use client";
+
 import { Fragment } from "react";
 import Link from "next/link";
 import { MapPin, Trash2 } from "lucide-react";
@@ -25,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
+import { useHydrated } from "@/hooks/useHydrated";
 
 /** One synced event, whichever list it came from. */
 export type SyncedEvent = {
@@ -37,8 +40,9 @@ export type SyncedEvent = {
   syncedAt: string | null;
 };
 
-function formatDate(dateString: string) {
+function formatDate(dateString: string, hydrated: boolean) {
   const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+  if (!dateOnly && !hydrated) return "—";
   return new Date(
     dateOnly ? `${dateString}T12:00:00` : dateString,
   ).toLocaleDateString("en-US", {
@@ -60,6 +64,7 @@ function SyncedEventRow({
   disabled: boolean;
   onRemove: () => void;
 }) {
+  const hydrated = useHydrated();
   return (
     <Item className="flex-nowrap items-start">
       <ItemContent className="min-w-0">
@@ -72,9 +77,9 @@ function SyncedEventRow({
           </Link>
         </ItemTitle>
         <p className="text-muted-foreground text-sm">
-          {formatDate(event.start)}
+          {formatDate(event.start, hydrated)}
           {event.end && event.end !== event.start
-            ? ` - ${formatDate(event.end)}`
+            ? ` - ${formatDate(event.end, hydrated)}`
             : null}
         </p>
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -86,7 +91,7 @@ function SyncedEventRow({
           ) : null}
           <span>
             {event.syncedAt
-              ? `Synced ${formatDate(event.syncedAt)}`
+              ? `Synced ${formatDate(event.syncedAt, hydrated)}`
               : "Sync incomplete. Reopen the project to retry, or remove it."}
           </span>
         </div>

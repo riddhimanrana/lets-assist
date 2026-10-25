@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 import { maintenanceTarget } from "../production/maintenance-preflight.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
 import { pauseBootstrapCron } from "./cutover-cron.mjs";
+import { runDevelopmentInspection } from "./cutover-inspection.mjs";
+import { runDevelopmentCronControl } from "./cutover-cron-control.mjs";
 import {
   bootstrapPlan,
   bootstrapWriteFence,
@@ -12,6 +14,7 @@ import {
 } from "./cutover-bootstrap.mjs";
 import {
   cutoverConfig,
+  cutoverFailureMessage,
   githubReader,
   loadPreparation,
   requireCondition,
@@ -19,11 +22,11 @@ import {
   verifyAuthority,
 } from "./cutover-authority.mjs";
 import {
+  developmentDatabaseTransport,
   probeWriteBlock,
   setRetentionJob,
   setWriteBlock,
   settlePreexistingRequests,
-  validateDatabaseUrl,
   verifyDevelopmentMaintenance,
   verifyQuiescence,
 } from "./cutover-database.mjs";
@@ -33,6 +36,7 @@ import {
   holdDomain,
   readAlias,
   readDomain,
+  candidateHistoryStart,
   refuseEarlierStage,
   verifyApplicationPage,
   verifyHeldAlias,
@@ -56,18 +60,41 @@ export function receiptWriter(cwd) {
 }
 
 export async function runDevelopmentCutover(config, dependencies = {}) {
+  config = {
+    ...config,
+    databaseUrl: developmentDatabaseTransport(config.databaseUrl),
+  };
   const fetcher = dependencies.fetcher || fetch;
   const github = dependencies.github || githubReader(config, fetcher);
   const vercel = dependencies.vercel || vercelReader(config, fetcher);
   const record = dependencies.record || receiptWriter(config.cwd);
   const query = dependencies.query;
   const now = dependencies.now || Date.now;
-  validateDatabaseUrl(config.databaseUrl);
   const expectedDigest = ledgerDigest(
     config.phase === "bootstrap"
       ? bootstrapPlan(config.cwd).after
       : maintenanceTarget(config.cwd),
   );
+  if (config.phase === "inspect")
+    return runDevelopmentInspection(config, {
+      github,
+      vercel,
+      query,
+      record,
+      now,
+      fetcher,
+    });
+  if (["pause-cron", "resume-cron"].includes(config.phase))
+    return runDevelopmentCronControl(config, {
+      github,
+      vercel,
+      query,
+      record,
+      now,
+      fetcher,
+      loadReceipt: dependencies.loadReceipt,
+      wait: dependencies.wait,
+    });
   let receipt = ["bootstrap", "prepare"].includes(config.phase)
     ? undefined
     : await (dependencies.loadReceipt || loadPreparation)(
@@ -196,7 +223,12 @@ export async function runDevelopmentCutover(config, dependencies = {}) {
       "The prior Development alias must serve the current Development head.",
     );
     verifyQuiescence(config, query);
-    await refuseEarlierStage(config, vercel, "maintenance", 0);
+    await refuseEarlierStage(
+      config,
+      vercel,
+      "maintenance",
+      await candidateHistoryStart(github, vercel, config.candidate),
+    );
     receipt = {
       format: 1,
       ...source,
@@ -389,9 +421,9 @@ if (
         automaticDomainAssignment: result.automaticDomainAssignment,
       }),
     );
-  } catch {
+  } catch (error) {
     console.error(
-      "Development cutover stopped. Inspect the sanitized run receipt; reconcile unknown operations before retrying. Raw provider output was suppressed.",
+      `Development cutover stopped: ${cutoverFailureMessage(error)} Inspect any sanitized run receipt; reconcile unknown operations before retrying.`,
     );
     process.exitCode = 1;
   }

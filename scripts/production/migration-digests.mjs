@@ -1456,6 +1456,24 @@ export const migrationDigests = {
     "5eddf6a9c4d05c9371e66a6bf669f4f388d8c5e3132346113d7ab55a98c6d288",
   "20261011100000_landing_demo_mode.sql":
     "78707e9e1ba93cf2e69cf8f4922625d29572677ad3d83a1966e10c3133f1a143",
+  "20261011104000_active_project_membership_boundaries.sql":
+    "82407e1b0cc63f08f84ca3816c6b9fbb15f96733b1c8fe5bf4fac0f5ee2f95e3",
+  "20261011105000_hours_publication_recovery.sql":
+    "0175d8e78bad552dfead737e5b097a0b459c7c016ce94352e63e24be2fa71c57",
+  "20261011105500_personal_calendar_reconciliation.sql":
+    "865a01b7fe9814669967268fbf9b3b0ab5e07bac174acde6b1cbb2a2a33d06b9",
+  "20261011110000_csf_review_application_roster_paging.sql":
+    "49770537de18414b68071b20b10085d94b20ce660bae85a4d6b0ca49aecdb62c",
+  "20261011112000_organization_sync_run_boundaries.sql":
+    "7ca81a8d620930c4e78d70d9266b6191f1eae12407cd3468e8b632122130cb69",
+  "20261011112500_project_asset_lifecycle.sql":
+    "8c56f8c6857d3c3535602aa8d8ecf41e58dbbc31755a11f018188b828b1d33de",
+  "20261011113000_waiver_geometry_boundary.sql":
+    "10e28f08e51f6741828570918a6e237f6f78e26d076d78f7cb3cb0ca7c430213",
+  "20261011224034_publish_dvhs_csf_1_2_88.sql":
+    "1719230acb414189156e118b159919524469f6c668549b1356a1905670fa4e8c",
+  "20261012002404_publish_dvhs_csf_1_2_89.sql":
+    "3e954a254470ec7b1eb861af14a80582c3d22f446d6aaaeb00c37779772d15ea",
   "20261013010957_repair_scheduled_attendance_windows.sql":
     "7ad8dd2c9c34da4519da98c2371c31273427a1a16182c4dbf504ef01aa57ac1b",
   "20261013071100_csf_repeatable_pending_activity_claims.sql":
@@ -1468,4 +1486,8 @@ export const migrationDigests = {
     "83cbf1ed33b166bc9f8a7f2e7ae59d19cb5ce54eb9366ad277b970a1015f34c8",
   "20261014162331_enforce_formatter_certificate_timezones.sql":
     "b5831c1929dc1bf5fe83c3033e05be0699fb7366949a3817b6345f86a2104b21",
+  "20261016063427_prioritize_named_attendance_role.sql":
+    "f4f3254fe0c1aa4600b204ef167ef5c4164df64cc500a9a7813d291abe617fa4",
+  "20261020031605_project_calendar_deletion_fence.sql":
+    "33f971e40a211fa12a4adb1249f0605cb857fc71545d33e53c168da4f5af0c26",
 };

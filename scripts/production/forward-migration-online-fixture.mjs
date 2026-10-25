@@ -45,7 +45,7 @@ export async function historicalOnlineReleaseTestFixture(
     );
     writeFileSync(
       resolve(scripts, "forward-migration-allowlist.mjs"),
-      `export const approvedMigrations = ${JSON.stringify(migrations)};\n`,
+      `export const approvedMigrations = ${JSON.stringify(migrations)};\nexport const pointsFirstApprovedMigrations = [];\n`,
     );
     return {
       ...fixture,

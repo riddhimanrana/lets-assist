@@ -119,10 +119,54 @@ export async function verifyNoCompetingDeployment(read, owned = []) {
   );
 }
 
+// The sentinel cannot build, but a deployment for the hold branch, or from the
+// sentinel commit, in any state other than CANCELED or ERROR would mean that
+// guarantee failed (for example a commit pushed and reset away), so the hold
+// refuses. Both scans are bounded.
+export async function refuseHoldBranchDeployments(read) {
+  for (const filter of [
+    `sha=${target.holdCommit}`,
+    `branch=${encodeURIComponent(target.holdBranch)}`,
+  ]) {
+    let until = "";
+    let complete = false;
+    for (let page = 0; page < 10 && !complete; page++) {
+      const result = await read(
+        `/v6/deployments?projectId=${target.project}&limit=100&${filter}${until}`,
+      );
+      requireCondition(
+        Array.isArray(result?.deployments),
+        "Hold branch deployment inventory is unavailable.",
+      );
+      for (const deployment of result.deployments)
+        requireCondition(
+          ["CANCELED", "ERROR"].includes(
+            deployment.state ?? deployment.readyState,
+          ),
+          "A hold branch deployment is not settled as canceled. Refusing the hold.",
+        );
+      if (!result.pagination?.next) complete = true;
+      else {
+        requireCondition(
+          Number.isSafeInteger(result.pagination.next) &&
+            result.pagination.next > 0,
+          "Hold branch deployment pagination is invalid.",
+        );
+        until = `&until=${result.pagination.next}`;
+      }
+    }
+    requireCondition(
+      complete,
+      "Hold branch deployment history exceeds its bound.",
+    );
+  }
+}
+
 export async function holdDomain(read, priorAlias, owned = []) {
   await verifyProject(read);
   await readDomain(read, target.branch);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
   await readAlias(read, [priorAlias]);
   await read(
     `/v9/projects/${target.project}/domains/${target.domain}`,
@@ -132,12 +176,14 @@ export async function holdDomain(read, priorAlias, owned = []) {
   await readDomain(read, target.holdBranch);
   await readAlias(read, [priorAlias]);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
 }
 
 export async function verifyHeldAlias(read, allowed, owned = []) {
   await verifyProject(read);
   await readDomain(read, target.holdBranch);
   await verifyNoCompetingDeployment(read, owned);
+  await refuseHoldBranchDeployments(read);
   return readAlias(read, allowed);
 }
 
@@ -153,10 +199,13 @@ export async function assignHeldAlias(
   );
   // The API has no conditional alias write. These checks do not serialize
   // unrelated privileged operators. Unexpected ownership stops recovery too.
-  await verifyHeldAlias(read, expected, owned);
-  await read(`/v2/deployments/${deploymentId}/aliases`, {
-    alias: target.domain,
-  });
+  const current = await verifyHeldAlias(read, expected, owned);
+  // Vercel answers 409 when the alias already points at the deployment, which
+  // a recovery after a later failure would otherwise hit.
+  if (current !== deploymentId)
+    await read(`/v2/deployments/${deploymentId}/aliases`, {
+      alias: target.domain,
+    });
   await readDomain(read, target.holdBranch);
   await readAlias(read, [deploymentId]);
 }
@@ -187,7 +236,13 @@ export function maintenancePayload(config) {
   });
   files.push({
     file: "vercel.json",
-    data: JSON.stringify({ version: 2, routes: output.routes, crons: [] }),
+    data: JSON.stringify({
+      version: 2,
+      installCommand: "",
+      buildCommand: "",
+      routes: output.routes,
+      crons: [],
+    }),
     encoding: "utf-8",
   });
   return {
@@ -196,10 +251,12 @@ export function maintenancePayload(config) {
     source: "cli",
     files,
     autoAssignCustomDomains: false,
+    // The project's own settings name an install and a build. An empty string
+    // skips each step for this static upload; null would fall back to them.
     projectSettings: {
       framework: null,
-      buildCommand: null,
-      installCommand: null,
+      buildCommand: "",
+      installCommand: "",
       outputDirectory: ".",
     },
     meta: {
@@ -332,6 +389,107 @@ export async function waitPreview(
   requireCondition(
     false,
     "The recorded Preview is still pending. Do not create a replacement blindly.",
+  );
+}
+
+// Preparation runs only on a workflow run whose head is the candidate, and only
+// preparation creates a maintenance deployment. So any earlier maintenance
+// deployment for the candidate was created by a GitHub run with that head, and
+// the candidate's earliest GitHub run bounds the history to scan. The
+// candidate's earliest Vercel git deployment is a second, independent lower
+// bound on Vercel's own clock; taking the earlier of the two only widens the
+// scan. Either record missing, mismatched or truncated fails closed. The margin
+// covers clock skew. Assumptions: earlier records were not deleted from both
+// providers (including during the read) and the clocks agree within the margin.
+// The deployment scan keeps its reviewed page bound.
+export const candidateHistoryMarginMs = 24 * 60 * 60 * 1000;
+
+async function earliestGithubRun(github, candidate) {
+  let earliest = null,
+    seen = 0;
+  for (let page = 1; page <= 10; page++) {
+    const result = await github(
+      `/actions/runs?head_sha=${candidate}&per_page=100&page=${page}`,
+    );
+    requireCondition(
+      Array.isArray(result?.workflow_runs) &&
+        Number.isSafeInteger(result.total_count),
+      "Candidate workflow history is unavailable.",
+    );
+    for (const run of result.workflow_runs) {
+      const created = Date.parse(run?.created_at);
+      requireCondition(
+        run?.head_sha === candidate && Number.isFinite(created) && created > 0,
+        "Candidate workflow history is not bound to the candidate.",
+      );
+      if (earliest === null || created < earliest) earliest = created;
+    }
+    seen += result.workflow_runs.length;
+    if (result.workflow_runs.length < 100) {
+      requireCondition(
+        earliest !== null && seen === result.total_count,
+        "Candidate workflow history is empty or incomplete.",
+      );
+      return earliest;
+    }
+  }
+  requireCondition(
+    false,
+    "Candidate workflow history exceeds its reviewed bound.",
+  );
+}
+
+async function earliestVercelCommit(vercel, candidate) {
+  let earliest = null,
+    until = "";
+  for (let page = 0; page < 10; page++) {
+    const result = await vercel(
+      `/v6/deployments?projectId=${target.project}&limit=100&sha=${candidate}${until}`,
+    );
+    requireCondition(
+      Array.isArray(result?.deployments),
+      "Candidate deployment history is unavailable.",
+    );
+    for (const deployment of result.deployments) {
+      requireCondition(
+        deployment?.meta?.githubCommitSha === candidate &&
+          Number.isSafeInteger(deployment.created) &&
+          deployment.created > 0,
+        "Candidate deployment history is not bound to the candidate.",
+      );
+      if (earliest === null || deployment.created < earliest)
+        earliest = deployment.created;
+    }
+    if (!result.pagination?.next) {
+      requireCondition(
+        earliest !== null,
+        "The candidate has no recorded Vercel deployment.",
+      );
+      return earliest;
+    }
+    requireCondition(
+      Number.isSafeInteger(result.pagination.next) &&
+        result.pagination.next > 0,
+      "Candidate deployment history pagination is invalid.",
+    );
+    until = `&until=${result.pagination.next}`;
+  }
+  requireCondition(
+    false,
+    "Candidate deployment history exceeds its reviewed bound.",
+  );
+}
+
+export async function candidateHistoryStart(github, vercel, candidate) {
+  requireCondition(
+    /^[0-9a-f]{40}$/u.test(candidate ?? ""),
+    "The candidate history start needs an exact candidate SHA.",
+  );
+  const githubStart = await earliestGithubRun(github, candidate);
+  const vercelStart = await earliestVercelCommit(vercel, candidate);
+  return Math.max(
+    0,
+    Math.min(githubStart, vercelStart) - candidateHistoryMarginMs,
   );
 }
 

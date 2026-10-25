@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Future actual owned runtime collector. No launch, DB mutation or provider request.
 import fs from "node:fs";
+import {
+  csfSettingsPolicyFromCompiled,
+  verifyCsfSettingsFixture,
+} from "./csf-settings-reader-contract.mjs";
 import { pluginPolicyFromCompiled } from "./plugin-reader-contract.mjs";
 import {
   integrationPolicyFromCompiled,
@@ -217,6 +221,7 @@ export async function main(
   let invitationReadPolicy = { enabled: false, reviewed: false };
   let integrationReadPolicy = { enabled: false, reviewed: false };
   let pluginReadPolicy = { enabled: false, reviewed: false };
+  let csfSettingsReadPolicy = { enabled: false, reviewed: false };
   if (enableReads) {
     const meta = path.join(directory, "server/server-reference-manifest.json");
     os.ownFile(meta, false);
@@ -267,6 +272,20 @@ export async function main(
       REPO,
       digest(bytes),
       readProof.pluginReaderSourceHashes,
+    );
+    const csfAdmin = fixture.baselineActors.find(
+      (actor) => actor.key === "csfAdmin",
+    );
+    verifyCsfSettingsFixture(
+      fixture.csfSettingsReader,
+      { kind: "baseline", key: "csfAdmin", id: csfAdmin?.userId },
+      seed.IDS.csfOrg,
+    );
+    csfSettingsReadPolicy = csfSettingsPolicyFromCompiled(
+      JSON.parse(bytes),
+      REPO,
+      digest(bytes),
+      readProof.csfSettingsReaderSourceHashes,
     );
   }
   const runtime = {
@@ -397,6 +416,7 @@ export async function main(
     invitationReadPolicy,
     integrationReadPolicy,
     pluginReadPolicy,
+    csfSettingsReadPolicy,
   };
   const manifestFile = path.join(supportDir, "capture-manifest.json");
   os.exclusiveJSON(manifestFile, manifest);

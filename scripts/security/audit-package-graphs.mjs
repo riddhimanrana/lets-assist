@@ -48,9 +48,10 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
   if (!lstatSync(join(root, "package.json")).isFile()) {
     throw new Error("Root package metadata must be a regular file.");
   }
-  const expectedManager = JSON.parse(
+  const rootManifest = JSON.parse(
     readFileSync(join(root, "package.json"), "utf8"),
-  ).packageManager;
+  );
+  const expectedManager = rootManifest.packageManager;
   const graphs = [];
   for (const repository of [root, privateRoot]) {
     const tracked = new Set(listFiles(repository));
@@ -68,6 +69,49 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
         .map((name) => (directory === "." ? name : `${directory}/${name}`))
         .filter((file) => tracked.has(file));
       const label = relative(root, join(repository, directory)) || ".";
+      // Each exact local compatibility package belongs to its application's
+      // audited lockfile. Other vendor packages remain independent graphs.
+      const compatibilityOwner =
+        repository === root && directory === "vendor/fast-glob-compat"
+          ? ""
+          : repository === privateRoot &&
+              directory === "apps/csf/vendor/fast-glob-compat"
+            ? "apps/csf"
+            : null;
+      if (compatibilityOwner !== null) {
+        const ownerPrefix = compatibilityOwner ? `${compatibilityOwner}/` : "";
+        const refusal =
+          "The vendored fast-glob dependency must remain covered by the " +
+          (compatibilityOwner ? "CSF application" : "root") +
+          " lockfile.";
+        if (
+          !tracked.has(`${ownerPrefix}package.json`) ||
+          !tracked.has(`${ownerPrefix}bun.lock`)
+        )
+          throw new Error(refusal);
+        const ownerManifest = JSON.parse(
+          readFileSync(join(repository, ownerPrefix, "package.json"), "utf8"),
+        );
+        const ownerLock = readFileSync(
+          join(repository, ownerPrefix, "bun.lock"),
+          "utf8",
+        );
+        if (
+          ownerManifest.overrides?.["fast-glob"] !==
+            "file:./vendor/fast-glob-compat" ||
+          manifest.name !== "fast-glob" ||
+          manifest.version !== "3.3.3-lets-assist.1" ||
+          JSON.stringify(manifest.dependencies) !==
+            JSON.stringify({ tinyglobby: "0.2.17" }) ||
+          lockfiles.length !== 0 ||
+          !/"fast-glob@file:(?:\.\/)?vendor\/fast-glob-compat"/u.test(
+            ownerLock,
+          ) ||
+          !ownerLock.includes('"tinyglobby@0.2.17"')
+        )
+          throw new Error(refusal);
+        continue;
+      }
       if (
         manifest.packageManager !== expectedManager ||
         !/^bun@\d+\.\d+\.\d+$/u.test(expectedManager)

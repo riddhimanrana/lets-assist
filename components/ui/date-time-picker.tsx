@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useHydrated } from "@/hooks/useHydrated";
 
 interface DateTimePickerProps {
   value?: Date | null;
@@ -39,6 +40,7 @@ export function DateTimePicker({
   "aria-describedby": ariaDescribedBy,
   "aria-label": ariaLabel,
 }: DateTimePickerProps) {
+  const hydrated = useHydrated();
   // Use value from props if provided, otherwise use internal state
   const [date, setDate] = React.useState<Date | null>(value || null);
   const [isOpen, setIsOpen] = React.useState(false);
@@ -143,7 +145,7 @@ export function DateTimePicker({
             aria-invalid={error || undefined}
           >
             <CalendarIcon data-icon="inline-start" />
-            {date ? (
+            {date && hydrated ? (
               format(date, "MM/dd/yyyy hh:mm aa")
             ) : (
               <span>{placeholder}</span>

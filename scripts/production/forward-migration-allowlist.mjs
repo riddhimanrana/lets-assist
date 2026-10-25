@@ -938,3 +938,15 @@ export const approvedMigrations = [
     "b2422616e826bcd85f9577757e19a0c6c0d6eb1fd2440c7a48284f8990fed42e",
   ],
 ];
+
+// Production's separately reviewed points-first hotfix omits the October v4
+// suffix. Keep that exact historical tail distinct from the maintenance history.
+export const pointsFirstApprovedMigrations = [
+  ...approvedMigrations.filter(
+    ([name]) => name.slice(0, 14) <= "20260929051500",
+  ),
+  [
+    "20261013071100_csf_repeatable_pending_activity_claims",
+    "694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00",
+  ],
+];

@@ -1,43 +1,59 @@
+/** Every field of a row that is compared with the certificate record. */
+export interface VerificationMatches {
+  certificateId: boolean;
+  title: boolean;
+  organization: boolean;
+  organizer: boolean;
+  recipientName: boolean;
+  recipientEmail: boolean;
+  hours: boolean;
+  status: boolean;
+  type: boolean;
+  location: boolean;
+  eventStartDate: boolean;
+  eventEndDate: boolean;
+  issuedDate: boolean;
+}
+
 export interface VerificationResult {
   valid: boolean;
-  exists: boolean;
+  /** False only when the lookup itself reported that no certificate exists. */
+  exists?: boolean;
+  /** True when the lookup failed and a later attempt may succeed. */
+  retryable?: boolean;
   certificate?: {
     id: string;
-    certified: boolean;
-    issuedAt: string;
+    certified: boolean | null;
+    issuedAt?: string | null;
     type?: string; // 'platform' or 'self-reported'
     recipient: {
-      name: string;
-      email: string;
+      name: string | null;
+      email: string | null;
     };
   };
   event?: {
     startDate: string;
     creditedMinutes?: number | null;
     endDate: string;
+    timeZone?: string | null;
+    /** Canonical hours for the certificate, as the dashboard exports them. */
+    duration?: number | null;
   };
   project?: {
-    id: string;
+    id?: string | null;
     title: string;
-    location: string;
+    location: string | null;
   };
   organization?: {
-    name: string;
+    name: string | null;
   };
   organizer?: {
-    id: string;
-    name: string;
+    id?: string | null;
+    name: string | null;
   };
   verification?: {
     timestamp: string;
-    matches?: {
-      certificateId: boolean;
-      title: boolean;
-      organizer: boolean;
-      hours: boolean;
-      status: boolean;
-      type: boolean;
-    };
+    matches?: VerificationMatches;
   };
   error?: string;
 }
@@ -59,7 +75,12 @@ export interface CertificateRow {
   volunteerEmail?: string;
   valid: boolean;
   issues: string[];
-  verificationStatus?: "pending" | "verified" | "failed";
+  /**
+   * "verified" means the certificate was found and compared. "failed" means
+   * the lookup answered without a usable certificate. "unavailable" means the
+   * lookup could not answer, so nothing is known about the certificate.
+   */
+  verificationStatus?: "pending" | "verified" | "failed" | "unavailable";
   verificationResult?: VerificationResult;
   isVerified?: boolean;
 }

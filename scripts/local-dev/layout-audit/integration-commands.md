@@ -1,10 +1,10 @@
 # Owned Linux capture integration
 
-The support code is implemented. Passing offline checks is not runtime acceptance. The final frontend SHA is a parameter; preserve private `38dc7c7aff6fd101c87f92eebfae822d1726f2b4` and the immutable 723-migration prefix anchored at `accba0cfc2cd2f880b5632f4535cea822947da94`. The reviewed scheduled-attendance and points migrations extend the candidate to 725. Capture requires that exact reviewed725 ledger and Git-object-list hash; the original prefix is still checked separately. Unknown additions or changes to either portion fail.
+The support code is implemented. Offline checks are not runtime acceptance. The historical root/private anchor remains `accba0cfc2cd2f880b5632f4535cea822947da94` / `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`, with its immutable 723-migration object prefix unchanged. The combined candidate explicitly binds private `370c538d49d6dc1fc66d3435a13b1a5db14e82d2` (CSF 1.2.89 plus the dependency-only `apps/csf` repair) and exactly 740 migration objects: the historical prefix, fifteen joined forward migrations, the reviewed integration migration 739, and the calendar deletion fence 740. The source object-list digest is `ea324e71164f6b5f2be65792d080e33821bcd7554510aa9fc7598c208519defd`. Missing, reordered or altered objects still fail. This is source capture authorization only; it does not replace the accepted 740 database catalog, a clean replay, or runtime/browser/pixel proof.
 
 ## Source integration and job boundary
 
-Copy the **contents of `portable/`** unchanged into `scripts/local-dev/layout-audit/` in the same frontend PR. Include `code-manifest.sha256` and `upstream/`. Do not copy the original Mac package, external archive, generated `proof-data/`, offline scratch directories, authorization, passwords or runtime receipts. Run only through an opt-in `layout_audit` input/job in the existing `ci.yml`, with the final clean committed SHA as the checkout/GITHUB_SHA, `contents: read`, existing entitled private read key, `persist-credentials: false`, non-Main ref and one fresh job/stack. No new secret, scheduler, environment, provider or billing configuration is needed.
+Keep the reviewed `scripts/local-dev/layout-audit/` files and their exact `code-manifest.sha256` hashes in the same frontend PR. Do not copy the original Mac package, external archive, generated `proof-data/`, offline scratch directories, authorization, passwords or runtime receipts. Run only through an opt-in `layout_audit` input/job in the existing `ci.yml`, with the final clean committed SHA as the checkout/GITHUB_SHA, `contents: read`, existing entitled private read key, `persist-credentials: false`, non-Main ref and one fresh job/stack. No new secret, scheduler, environment, provider or billing configuration is needed.
 
 Reuse the current browser job's pinned checkout/setup actions, Node 24.21.0, Bun 1.4.2, Supabase 2.120.0, private gitlink checkout/metadata normalization, strict submodule check, frozen dependency installs, Chromium install, fresh `ci`+14 hex run ID, exact `/tmp/lets-assist-csf-browser-$CSF_ISOLATED_RUN_ID`, stack launcher, descriptor-validated 17-name app environment loader and masking. Reuse the owned replay/catalog/pgTAP checks; no shared or hosted seed. A final source input must name this frontend PR's committed descendant, not a dirty checkout, backend PR873 or a presumed current branch.
 
@@ -42,7 +42,7 @@ Place an owner-only, new `$layout_support/authorization.json` containing these f
   "template": false,
   "reviewed": true,
   "rootHead": "<exact final GITHUB_SHA>",
-  "privateHead": "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
+  "privateHead": "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
   "repoRoot": "<real GITHUB_WORKSPACE>",
   "workDir": "<exact canonical owned CSF_ISOLATED_WORK_DIR>",
   "codeManifestSha256": "<reviewed portable/code-manifest.sha256 SHA256>",

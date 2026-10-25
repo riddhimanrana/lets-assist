@@ -228,4 +228,41 @@ describe("legacy attendance session windows", () => {
     expect(getAttendanceScheduleWindow(project, "role-1")).toEqual(expected);
     expect(getAttendanceScheduleWindow(project, "role-2")).toBeNull();
   });
+
+  test("literal role names win collisions while unclaimed positional aliases still resolve", () => {
+    const project = oneTimeProject({
+      event_type: "sameDayMultiArea",
+      schedule: {
+        sameDayMultiArea: {
+          date: "2026-09-15",
+          overallStart: "09:00",
+          overallEnd: "15:00",
+          roles: [
+            {
+              name: "Setup",
+              startTime: "13:00",
+              endTime: "15:00",
+              volunteers: 5,
+            },
+            {
+              name: "role-0",
+              startTime: "09:00",
+              endTime: "11:00",
+              volunteers: 5,
+            },
+          ],
+        },
+      },
+    });
+    const named = getAttendanceScheduleWindow(project, "role-0");
+    expect(named).toEqual({
+      scheduleId: "role-0",
+      startsAt: Date.parse("2026-09-15T16:00:00Z"),
+      endsAt: Date.parse("2026-09-15T18:00:00Z"),
+    });
+    expect(getAttendanceScheduleWindow(project, "role-1")).toEqual(named);
+    expect(getAttendanceScheduleWindow(project, "Setup")?.startsAt).toBe(
+      Date.parse("2026-09-15T20:00:00Z"),
+    );
+  });
 });

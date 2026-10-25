@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  copyFileSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -12,6 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { expectedVersions, productionRef } from "./app-release-checks.mjs";
+import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 import {
   maintenanceConnectionReceipt,
   productionMaintenanceConfig,
@@ -19,6 +23,9 @@ import {
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const entry = join(cwd, "scripts/production/maintenance-preflight.mjs");
+const fixtureVersions = reviewedDevelopmentVersions(
+  expectedVersions(cwd),
+).slice(0, 729);
 const password = "fictional-transport-password";
 function connection(username = "postgres", pooler = false) {
   const url = new URL(
@@ -98,12 +105,23 @@ test("configured transport takes precedence and its authority is not inferred fr
 function withTransport(mode, run) {
   const root = mkdtempSync(join(tmpdir(), "lets-assist-preflight-transport-"));
   chmodSync(root, 0o700);
+  // Transport success cases use the immutable, already-reviewed Development
+  // ledger. Its transport contract remains testable after later releases.
+  const fixtureCwd = join(root, "reviewed-target");
+  const fixtureMigrations = join(fixtureCwd, "supabase/migrations");
+  mkdirSync(fixtureMigrations, { recursive: true });
+  const fixtureSet = new Set(fixtureVersions);
+  for (const name of readdirSync(join(cwd, "supabase/migrations"))) {
+    if (name.endsWith(".sql") && fixtureSet.has(name.slice(0, 14)))
+      copyFileSync(
+        join(cwd, "supabase/migrations", name),
+        join(fixtureMigrations, name),
+      );
+  }
   const log = join(root, "calls.jsonl");
   const psql = join(root, "psql");
   const ledger =
-    mode === "target-success"
-      ? expectedVersions(cwd)
-      : expectedVersions(cwd).slice(0, 687);
+    mode === "target-success" ? fixtureVersions : fixtureVersions.slice(0, 687);
   const receipts = [
     "PASS Q1: no active pg_cron schedules.",
     "PASS Q2: no pg_cron execution is still running.",
@@ -142,9 +160,14 @@ else process.stdout.write(${JSON.stringify(receipts)});
 `,
     { mode: 0o700 },
   );
-  const invoke = (modeArg, extra = {}, args = []) =>
+  const invoke = (
+    modeArg,
+    extra = {},
+    args = [],
+    workingDirectory = fixtureCwd,
+  ) =>
     spawnSync(process.execPath, [entry, modeArg, ...args], {
-      cwd,
+      cwd: workingDirectory,
       encoding: "utf8",
       timeout: 20_000,
       env: {
@@ -173,7 +196,7 @@ else process.stdout.write(${JSON.stringify(receipts)});
     });
     assert.equal(syntax.status, 0, syntax.stderr);
     assert.equal(calls().length, 0, "Syntax validation executed psql");
-    run(invoke, calls);
+    run(invoke, calls, (modeArg) => invoke(modeArg, {}, [], cwd));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -204,18 +227,21 @@ test("before and quiescence CLI execute only fixed SQL with bounded read-only de
         call.options,
         "-c default_transaction_read_only=on -c search_path=pg_catalog -c statement_timeout=120000 -c lock_timeout=5000",
       );
-      assert.deepEqual(call.keys, [
-        "LANG",
-        "PATH",
-        "PGCONNECT_TIMEOUT",
-        "PGDATABASE",
-        "PGHOST",
-        "PGOPTIONS",
-        "PGPASSWORD",
-        "PGPORT",
-        "PGSSLMODE",
-        "PGUSER",
-      ]);
+      assert.deepEqual(
+        call.keys.filter((key) => key !== "__CF_USER_TEXT_ENCODING"),
+        [
+          "LANG",
+          "PATH",
+          "PGCONNECT_TIMEOUT",
+          "PGDATABASE",
+          "PGHOST",
+          "PGOPTIONS",
+          "PGPASSWORD",
+          "PGPORT",
+          "PGSSLMODE",
+          "PGUSER",
+        ],
+      );
       assert.equal(call.sslmode, "require");
       for (const key of [
         "explicitReadOnly",
@@ -259,7 +285,7 @@ test("target mode accepts only the entire reviewed ledger and honors the preferr
     assert.equal(result.status, 0, result.stderr);
     const receipt = JSON.parse(result.stdout);
     assert.equal(receipt.mode, "target");
-    assert.equal(receipt.migrations, expectedVersions(cwd).length);
+    assert.equal(receipt.migrations, fixtureVersions.length);
     assert.equal(receipt.connectionSource, "production-readonly-url");
     assert.equal(receipt.databaseAuthority, "configured-role-unverified");
     assert.equal(calls().length, 2);
@@ -267,6 +293,15 @@ test("target mode accepts only the entire reviewed ledger and honors the preferr
   });
   withTransport("success", (invoke, calls) => {
     assert.notEqual(invoke("target").status, 0);
+    assert.equal(calls().length, 1);
+  });
+});
+
+test("the current target rejects an older reported ledger after read-only transport", () => {
+  withTransport("target-success", (_invoke, calls, invokeCurrent) => {
+    const result = invokeCurrent("target");
+    assert.notEqual(result.status, 0);
+    assert.equal(result.stdout.trim(), "");
     assert.equal(calls().length, 1);
   });
 });

@@ -20,8 +20,9 @@ import {
 
 function artifactFixture(options = {}) {
   const config = cutoverConfig(
-    environment(options.recovery ? "recover" : "complete"),
+    environment(options.phase || (options.recovery ? "recover" : "complete")),
   );
+  if (options.phase === "resume-cron") config.prepareRun = "100";
   const receipt = { ...preparedReceipt(), ...options.receipt };
   const directory = mkdtempSync(join(tmpdir(), "cutover-artifact-test-"));
   let archive;
@@ -101,6 +102,36 @@ test("preparation uses immutable ZIP digest, exact file and GitHub run identity"
   assert.equal(f.requests[0].settings.redirect, "manual");
   assert.equal(f.requests[1].settings.redirect, "error");
   assert.equal(f.requests[1].settings.headers, undefined);
+});
+
+test("failed cron pause artifacts retain every immutable archive guard and require the phase validator", async () => {
+  const f = artifactFixture({
+    phase: "resume-cron",
+    run: { conclusion: "failure" },
+  });
+  let validated = false;
+  const validate = (receipt, config, now) => {
+    assert.equal(receipt.controller, candidate);
+    assert.equal(config.phase, "resume-cron");
+    assert.equal(now, clock);
+    validated = true;
+  };
+  await loadPreparation(f.config, f.read, f.fetcher, clock, validate);
+  assert.equal(validated, true);
+  const tampered = artifactFixture({
+    phase: "resume-cron",
+    run: { conclusion: "failure" },
+    artifact: { digest: `sha256:${"0".repeat(64)}` },
+  });
+  await assert.rejects(
+    loadPreparation(
+      tampered.config,
+      tampered.read,
+      tampered.fetcher,
+      clock,
+      validate,
+    ),
+  );
 });
 
 for (const [name, options] of [

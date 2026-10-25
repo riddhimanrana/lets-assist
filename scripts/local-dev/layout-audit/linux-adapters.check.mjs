@@ -36,8 +36,8 @@ const cfg = {
   testOnly: true,
   repoRoot: root,
   rootHead: "1".repeat(40),
-  privateHead: "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
-  ledgerCount: 725,
+  privateHead: "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
+  ledgerCount: 740,
   codeManifestSha256: "2".repeat(64),
   dirtyDiffSha256: os.hash(Buffer.from("\n--private--\n")),
   capturePaths: ["/"],
@@ -68,7 +68,45 @@ try {
   process.env.LETS_ASSIST_LAYOUT_BINDING = configFile;
   delete process.env.LETS_ASSIST_LAYOUT_SPAWN_OBSERVER_OPT_IN;
   pass(() => binding.shape(cfg));
-  deny(() => binding.shape({ ...cfg, ledgerCount: 724 }));
+  deny(() => binding.shape({ ...cfg, ledgerCount: 728 }));
+  deny(() => binding.shape({ ...cfg, ledgerCount: 729 }));
+  deny(() => binding.shape({ ...cfg, ledgerCount: 738 }));
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "b575074c2bb018943bf07c16bbdf6e4da33ac4ea",
+    }),
+  );
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "38dc7c7aff6fd101c87f92eebfae822d1726f2b4",
+    }),
+  );
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "f116483844d8bfc04c99899c1e38d501a01be191",
+    }),
+  );
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "8f4948f5d56ea66c1ad2937dd2c03866e41ff62b",
+    }),
+  );
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "b8027798ee0f7b3e5647936b4d985f8e05bc62e6",
+    }),
+  );
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "ca8a2a004087f188166cfabf1951f62eb21940a6",
+    }),
+  );
   for (const key of Object.keys(cfg)) {
     const c = structuredClone(cfg);
     delete c[key];

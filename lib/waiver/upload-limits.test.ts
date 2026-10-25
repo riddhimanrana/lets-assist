@@ -7,6 +7,9 @@ import {
   SIGNED_WAIVER_UNREADABLE_MESSAGE,
   SIGNED_WAIVER_UPLOAD_ACCEPT,
   SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+  WAIVER_SIGNATURE_IMAGE_MAX_BYTES,
+  WAIVER_SIGNATURE_IMAGE_SIZE_MESSAGE,
+  signatureImageUploadProblem,
   shouldSendWaiverWithSlot,
   signedWaiverUploadFailureMessage,
   signedWaiverUploadProblem,
@@ -118,5 +121,40 @@ describe("multi-slot guest sign-up waiver carry", () => {
     expect(
       slotsThatCarriedTheWaiver([{ success: true }, { success: true }]),
     ).toEqual([true, true]);
+  });
+});
+
+describe("signature image upload limits", () => {
+  test("accepts PNG/JPEG at 2 MB and refuses one extra byte", () => {
+    for (const type of ["image/png", "image/jpeg", "image/jpg"]) {
+      expect(
+        signatureImageUploadProblem({
+          type,
+          size: WAIVER_SIGNATURE_IMAGE_MAX_BYTES,
+        }),
+      ).toBeNull();
+      expect(
+        signatureImageUploadProblem({
+          type,
+          size: WAIVER_SIGNATURE_IMAGE_MAX_BYTES + 1,
+        }),
+      ).toBe(WAIVER_SIGNATURE_IMAGE_SIZE_MESSAGE);
+    }
+    expect(WAIVER_SIGNATURE_IMAGE_MAX_BYTES).toBe(2 * 1024 * 1024);
+    expect(WAIVER_SIGNATURE_IMAGE_SIZE_MESSAGE).toContain("2 MB");
+  });
+  test("the signature limit does not lower the full signed waiver limit", () => {
+    expect(
+      signedWaiverUploadProblem({
+        type: "image/png",
+        size: SIGNED_WAIVER_UPLOAD_MAX_BYTES,
+      }),
+    ).toBeNull();
+    expect(
+      signatureImageUploadProblem({ type: "application/pdf", size: 1024 }),
+    ).toBeTruthy();
+    expect(
+      signatureImageUploadProblem({ type: "image/webp", size: 1024 }),
+    ).toBeTruthy();
   });
 });

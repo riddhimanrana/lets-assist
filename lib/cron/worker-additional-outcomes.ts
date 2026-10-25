@@ -66,6 +66,105 @@ function readWorkbookCounts(
   }
 }
 
+const HELD_SESSION_KEYS = [
+  "historical",
+  "oversized",
+  "invalidAttendance",
+  "missingCreator",
+  "invalidSchedule",
+] as const;
+const MAX_RECOVERY_DELIVERIES = 25;
+
+// A successful session means its award transaction committed. It says nothing
+// about email: delivery is counted only from recovery, and only acceptance the
+// ledger recorded counts as completed. A pass is an authoritative empty queue
+// only when publication was approved, discovery counted, nothing is held or
+// pending, and the counted email ledger has nothing pending or held.
+function readAutoPublishCounts(
+  value: Record<string, unknown>,
+  result: WorkerOutcome,
+) {
+  const approved = value.approvalStatus === "approved";
+  if (
+    (!approved && value.approvalStatus !== "approval_required") ||
+    typeof value.discoveryCounted !== "boolean"
+  )
+    throw new Error("invalid_response");
+
+  const processed = count(value.processedSessions);
+  const successful = count(value.successfulSessions);
+  const sessions = array(value.results);
+  if (sessions.length !== processed) throw new Error("invalid_response");
+  let succeeded = 0;
+  let sessionFaults = 0;
+  for (const entry of sessions) {
+    const session = record(entry);
+    if (typeof session.success !== "boolean")
+      throw new Error("invalid_response");
+    if (session.success) succeeded++;
+    sessionFaults += array(session.errors).length;
+  }
+  if (succeeded !== successful) throw new Error("invalid_response");
+
+  const recovery = record(value.recovery);
+  const deliveries = count(recovery.deliveries);
+  const accepted = count(recovery.accepted);
+  const partial = count(recovery.partial);
+  const unconfirmed = count(recovery.settlementUnconfirmed);
+  if (
+    typeof recovery.counted !== "boolean" ||
+    deliveries > MAX_RECOVERY_DELIVERIES ||
+    accepted + partial !== deliveries ||
+    unconfirmed > partial
+  )
+    throw new Error("invalid_response");
+
+  // A selected batch is at most 25 deliveries. The ledger inventory says what
+  // remains behind it and what is held, so a full accepted batch cannot pass
+  // for a drained queue.
+  let pendingDeliveries = 0;
+  let heldDeliveries = 0;
+  let uncounted = 0;
+  if (recovery.counted) {
+    pendingDeliveries = count(recovery.pending);
+    heldDeliveries = count(recovery.held);
+  } else {
+    if (
+      deliveries !== 0 ||
+      (recovery.pending ?? null) !== null ||
+      (recovery.held ?? null) !== null
+    )
+      throw new Error("invalid_response");
+    uncounted = 1;
+  }
+
+  let pendingSessions = 0;
+  let refused = 0;
+  if (approved && value.discoveryCounted) {
+    const held = record(value.heldSessions);
+    refused = sum(...HELD_SESSION_KEYS.map((key) => held[key]));
+    pendingSessions = count(value.pendingSessions);
+  } else {
+    // Without approval, or when the claim was contended, nothing was
+    // discovered. Any session, held, or pending count would be invented.
+    if (
+      (!approved && value.discoveryCounted) ||
+      processed !== 0 ||
+      (value.heldSessions ?? null) !== null ||
+      (value.pendingSessions ?? null) !== null
+    )
+      throw new Error("invalid_response");
+    refused = 1;
+  }
+
+  result.attempted = sum(processed, deliveries);
+  result.completed = sum(successful, accepted);
+  result.failed = processed - successful;
+  result.pending = sum(pendingSessions, partial, pendingDeliveries);
+  result.refused = sum(refused, heldDeliveries, uncounted);
+  result.faults = sum(sessionFaults, unconfirmed);
+}
+
 // Inspect fixed numeric/boolean fields only. Identifiers and diagnostics never
 // enter a receipt, even when the authenticated route returns detailed results.
 export function readAdditionalWorkerCounts(
@@ -126,19 +225,9 @@ export function readAdditionalWorkerCounts(
         : result.attempted;
       return true;
     }
-    case "auto-publish-hours": {
-      result.attempted = count(value.processedSessions);
-      result.completed = count(value.successfulSessions);
-      result.failed = count(result.attempted - result.completed);
-      result.pending = optionalCount(value, "pendingSessions");
-      const sessions = array(value.results);
-      if (sessions.length !== result.attempted)
-        throw new Error("invalid_response");
-      result.faults = sum(
-        ...sessions.map((entry) => array(record(entry).errors).length),
-      );
+    case "auto-publish-hours":
+      readAutoPublishCounts(value, result);
       return true;
-    }
     case "generate-recurring-projects":
       result.attempted = count(value.checkedProjects);
       result.faults = count(value.failedProjects);
@@ -161,6 +250,21 @@ export function readAdditionalWorkerCounts(
         if (typeof success !== "boolean") throw new Error("invalid_response");
         if (success) result.completed++;
         else result.failed++;
+      }
+      // Organizations that were due but not started are unfinished work,
+      // even when nothing else ran. The field is absent only in responses
+      // that predate it.
+      result.pending = optionalCount(value, "deferredOrganizations");
+      // Discovery that did not count, or stopped early, knows of no due
+      // organizations. It is refused rather than given an invented count.
+      for (const [flag, blocking] of [
+        ["discoveryCounted", false],
+        ["discoveryIncomplete", true],
+      ] as const) {
+        if (!Object.hasOwn(value, flag)) continue;
+        if (typeof value[flag] !== "boolean")
+          throw new Error("invalid_response");
+        if (value[flag] === blocking) result.refused = 1;
       }
       return true;
     }

@@ -21,8 +21,9 @@ git check-ignore "$layout_tool/code-manifest.sha256" "$layout_support/authorizat
 node "$layout_tool/linux-adapters.check.mjs"
 node "$layout_tool/landing-visual-settlement.check.mjs"
 node "$layout_tool/notification-reader.check.mjs" "$GITHUB_WORKSPACE"
-node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-comparison-readiness.test.mjs"
-# Root authorized only reordering the original87 scenes, not altering landmarks.
+node --test "$layout_tool/capture-sessions.test.mjs" "$layout_tool/capture-summary.test.mjs" "$layout_tool/csf-canonical-routes.test.mjs" "$layout_tool/invitation-reader.test.mjs" "$layout_tool/integration-reader.test.mjs" "$layout_tool/csf-settings-reader.test.mjs" "$layout_tool/capture-resting-state.test.mjs" "$layout_tool/settings-readiness.test.mjs" "$layout_tool/landing-static-readiness.test.mjs"
+# Keep the 87 scene identities, actors and guards from the reviewed template;
+# ordering below does not alter its source-backed loaded landmarks.
 node --input-type=module - "$layout_tool" "$layout_support" <<'NODE'
 import fs from 'node:fs';import path from 'node:path';import {createHash} from 'node:crypto';
 const [tool,support]=process.argv.slice(2),digest=b=>createHash('sha256').update(b).digest('hex');
@@ -30,7 +31,7 @@ const source=JSON.parse(fs.readFileSync(path.join(tool,'upstream/manifest.baseli
 const rank=e=>e.id==='landing-baseline'?0:e.id==='home-member'?1:e.id.startsWith('dashboard-')?2:e.id.startsWith('organization')?3:4;
 source.captures=source.captures.map((entry,index)=>({entry,index})).sort((a,b)=>rank(a.entry)-rank(b.entry)||a.index-b.index).map(v=>v.entry);
 const file=path.join(support,'ordered-scene-template.json'),bytes=JSON.stringify(source,null,2)+'\n';fs.writeFileSync(file,bytes,{mode:0o600,flag:'wx'});
-const authorization={schema:'lets-assist-layout-linux-authorization-v1',template:false,reviewed:true,rootHead:process.env.GITHUB_SHA,privateHead:'38dc7c7aff6fd101c87f92eebfae822d1726f2b4',repoRoot:process.env.GITHUB_WORKSPACE,workDir:process.env.CSF_ISOLATED_WORK_DIR,codeManifestSha256:process.env.LAYOUT_AUDIT_CODE_MANIFEST_SHA256,reviewedSourceHashes:{'hooks/useUserProfile.ts':'aa7837619294779965a8fcac375f7e6fba8923e6e4a412854c1fd055f23252ce','components/layout/Navbar.tsx':'8c9ca8fa2754a923a92870a985a6d4f7a256e5ea310acb8871ec3f5c61f18808'},captureTemplateFile:file,reviewedCaptureTemplateSha256:digest(Buffer.from(bytes))};
+const authorization={schema:'lets-assist-layout-linux-authorization-v1',template:false,reviewed:true,rootHead:process.env.GITHUB_SHA,privateHead:'370c538d49d6dc1fc66d3435a13b1a5db14e82d2',repoRoot:process.env.GITHUB_WORKSPACE,workDir:process.env.CSF_ISOLATED_WORK_DIR,codeManifestSha256:process.env.LAYOUT_AUDIT_CODE_MANIFEST_SHA256,reviewedSourceHashes:{'hooks/useUserProfile.ts':'aa7837619294779965a8fcac375f7e6fba8923e6e4a412854c1fd055f23252ce','components/layout/Navbar.tsx':'8c9ca8fa2754a923a92870a985a6d4f7a256e5ea310acb8871ec3f5c61f18808','app/projects/[id]/page.tsx':'68f40040186d41763021619933aa65fbbbc7991f44f0d380f06c5074a538485b'},captureTemplateFile:file,reviewedCaptureTemplateSha256:digest(Buffer.from(bytes))};
 fs.writeFileSync(path.join(support,'authorization.json'),JSON.stringify(authorization)+'\n',{mode:0o600,flag:'wx'});
 NODE
 node "$layout_tool/prepare-linux-binding.mjs" "$layout_support/authorization.json" "$layout_support/linux-binding.json"

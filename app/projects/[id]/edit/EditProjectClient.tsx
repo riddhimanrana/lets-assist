@@ -1,5 +1,4 @@
 "use client";
-import { safeConsole } from "@/lib/safe-console";
 
 import { Project, ProjectSchedule } from "@/types";
 import { useRouter } from "next/navigation";
@@ -34,7 +33,6 @@ import {
   canDeleteProject,
   isWithinDeletionRestrictionWindow,
 } from "@/utils/project";
-import { updateCalendarEventForProject } from "@/utils/calendar-helpers";
 import Schedule from "@/app/projects/create/Schedule";
 import FilePreview from "@/app/projects/_components/FilePreview";
 import { WaiverBuilderDialog } from "@/components/waiver/WaiverBuilderDialog";
@@ -42,10 +40,17 @@ import { buildRecurrenceRuleFromState } from "@/lib/projects/recurrence";
 import { ProjectToolBreadcrumb } from "../ProjectToolBreadcrumb";
 import {
   formSchema,
+  getProjectEditFormDefaults,
+  hasProjectEditFormChanges,
   initializeRecurrenceState,
   initializeScheduleState,
   type FormValues,
 } from "./edit-project-form";
+import {
+  EditProjectCalendarNotice,
+  runProjectCalendarUpdate,
+  type ProjectCalendarIssue,
+} from "./EditProjectCalendarNotice";
 import { EditProjectDanger } from "./EditProjectDanger";
 import { EditProjectDetails } from "./EditProjectDetails";
 import { EditProjectMediaSection } from "./EditProjectMediaSection";
@@ -69,6 +74,9 @@ export default function EditProjectClient({ project }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [calendarIssue, setCalendarIssue] =
+    useState<ProjectCalendarIssue | null>(null);
+  const [retryingCalendar, setRetryingCalendar] = useState(false);
 
   const schedule = useEditProjectSchedule(project);
   const { scheduleState, recurrenceState, scheduleErrors, setScheduleErrors } =
@@ -84,23 +92,7 @@ export default function EditProjectClient({ project }: Props) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: project.title,
-      description: project.description,
-      location: project.location,
-      location_data: project.location_data || {
-        text: project.location,
-        display_name: project.location,
-      },
-      require_login: project.require_login,
-      enable_volunteer_comments: project.enable_volunteer_comments ?? false,
-      show_attendees_publicly: project.show_attendees_publicly ?? false,
-      waiver_required: project.waiver_required ?? false,
-      waiver_allow_upload: true,
-      waiver_disable_esignature: project.waiver_disable_esignature ?? false,
-      verification_method: project.verification_method,
-      visibility: project.visibility,
-    },
+    defaultValues: getProjectEditFormDefaults(project),
   });
 
   useEffect(() => {
@@ -113,24 +105,7 @@ export default function EditProjectClient({ project }: Props) {
   useEffect(() => {
     const subscription = form.watch(() => {
       const formValues = form.getValues();
-      const basicInfoChanged =
-        formValues.title !== project.title ||
-        formValues.description !== project.description ||
-        formValues.location !== project.location ||
-        JSON.stringify(formValues.location_data) !==
-          JSON.stringify(project.location_data) ||
-        formValues.require_login !== project.require_login ||
-        formValues.enable_volunteer_comments !==
-          (project.enable_volunteer_comments ?? false) ||
-        formValues.show_attendees_publicly !==
-          (project.show_attendees_publicly ?? false) ||
-        formValues.waiver_required !== (project.waiver_required ?? false) ||
-        formValues.waiver_allow_upload !==
-          (project.waiver_allow_upload ?? true) ||
-        formValues.waiver_disable_esignature !==
-          (project.waiver_disable_esignature ?? false) ||
-        formValues.verification_method !== project.verification_method ||
-        formValues.visibility !== project.visibility;
+      const basicInfoChanged = hasProjectEditFormChanges(formValues, project);
 
       const initialSchedule = initializeScheduleState(project);
       const initialRecurrence = initializeRecurrenceState(project);
@@ -154,24 +129,7 @@ export default function EditProjectClient({ project }: Props) {
       JSON.stringify(recurrenceState) !== JSON.stringify(initialRecurrence);
 
     const formValues = form.getValues();
-    const basicInfoChanged =
-      formValues.title !== project.title ||
-      formValues.description !== project.description ||
-      formValues.location !== project.location ||
-      JSON.stringify(formValues.location_data) !==
-        JSON.stringify(project.location_data) ||
-      formValues.require_login !== project.require_login ||
-      formValues.enable_volunteer_comments !==
-        (project.enable_volunteer_comments ?? false) ||
-      formValues.show_attendees_publicly !==
-        (project.show_attendees_publicly ?? false) ||
-      formValues.waiver_required !== (project.waiver_required ?? false) ||
-      formValues.waiver_allow_upload !==
-        (project.waiver_allow_upload ?? true) ||
-      formValues.waiver_disable_esignature !==
-        (project.waiver_disable_esignature ?? false) ||
-      formValues.verification_method !== project.verification_method ||
-      formValues.visibility !== project.visibility;
+    const basicInfoChanged = hasProjectEditFormChanges(formValues, project);
 
     setHasChanges(basicInfoChanged || scheduleChanged || recurrenceChanged);
   }, [scheduleState, recurrenceState, form, project]);
@@ -224,16 +182,19 @@ export default function EditProjectClient({ project }: Props) {
           toast.success("Project updated successfully");
         }
 
-        // Update calendar event if details changed (non-blocking)
-        try {
-          await updateCalendarEventForProject(project.id);
-        } catch (calendarError) {
-          safeConsole.error("Error updating calendar event:", calendarError);
-          // Don't show error to user - this is non-critical
-        }
-
-        // A draft stays on this page: publishing is the next step.
-        if (project.workflow_status !== "draft") {
+        // The project is saved either way. A calendar failure stays on this
+        // page with a retry instead of being hidden behind the redirect.
+        const issue = await runProjectCalendarUpdate(
+          project.id,
+          Boolean(project.creator_calendar_event_id),
+        );
+        setCalendarIssue(issue);
+        if (issue) {
+          toast.warning(
+            "Project saved. Google Calendar update is unconfirmed.",
+          );
+        } else if (project.workflow_status !== "draft") {
+          // A draft stays on this page: publishing is the next step.
           router.push(`/projects/${project.id}`);
         }
         router.refresh();
@@ -243,6 +204,17 @@ export default function EditProjectClient({ project }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRetryCalendar = async () => {
+    setRetryingCalendar(true);
+    const issue = await runProjectCalendarUpdate(
+      project.id,
+      Boolean(project.creator_calendar_event_id),
+    );
+    setCalendarIssue(issue);
+    if (!issue) toast.success("Google Calendar updated");
+    setRetryingCalendar(false);
   };
 
   // A draft row (a duplicated project, or one whose waiver was never
@@ -361,6 +333,13 @@ export default function EditProjectClient({ project }: Props) {
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <EditProjectCalendarNotice
+        issue={calendarIssue}
+        retrying={retryingCalendar}
+        onRetry={handleRetryCalendar}
+        onViewProject={() => router.push(`/projects/${project.id}`)}
+      />
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-8">
         <EditProjectDetails

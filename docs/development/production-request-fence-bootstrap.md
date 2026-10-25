@@ -6,7 +6,7 @@ The revised maintenance workflow refuses an existing 687-migration database with
 
 ## Prerequisites and approval scope
 
-The bootstrap source and accepted 687/688 catalog metadata must first be reviewed and merged to main through the separately approved release process. The manual workflow must exist on the repository default branch before GitHub can dispatch it. Do not dispatch a feature revision, create a tag to bypass that condition, or use Development's credentials.
+The bootstrap source and applicable accepted catalog metadata must first be reviewed and merged to main through the separately approved release process. The manual workflow must exist on the repository default branch before GitHub can dispatch it. Do not dispatch a feature revision, create a tag to bypass that condition, or use Development's credentials.
 
 Before requesting execution approval, retain local proof that the shared SQL accepts the exact baseline, rejects altered catalogs/settings/ledgers, installs the guard atomically and can reconcile an uncertain response. Fresh local PostgREST reads and zero-row writes must still work with blocking disabled; separately prove that enabling the installed guard blocks writable requests and reopening restores them. The bootstrap's hosted success receipt proves installation with blocking disabled. It does not prove a later maintenance window.
 
@@ -24,7 +24,14 @@ Select `Bootstrap Production request fence` on current `main`. Supply its exact 
 
 The controller reads GitHub's actual environment approval history. It requires one approved review for the exact Production environment, a permitted current actor, the exact workflow/run/source identity and unchanged current main. A caller-provided reviewer string grants no authority. It rechecks this evidence immediately before mutation and after verification. The workflow shares `production-schema-deployment` concurrency with the schema release and does not cancel an active run.
 
-Only exact 687 or exact 688 is accepted. The shared plan verifies every filename and migration hash in that fixed prefix and both approved catalogs. Later source files are neither accepted nor included in the mutation. A database that already has a later ledger tail is refused. The transaction rechecks the baseline under the ledger lock before applying the reviewed SQL. The actual request flag must remain off. Unknown database settings or a different hook require separate review.
+The legacy path accepts only the exact 687 baseline or its fence-first 688
+result. The current points-first path accepts only the first 687 migrations plus
+`20261013071100`, or that exact 688 baseline plus the request fence at count 689.
+The points-first path requires the exact reviewed 739 source and hotfix bytes.
+Its highest ledger version remains the hotfix; the mutation and receipt still
+name the request-fence version `20260929051600` explicitly. Both paths verify
+all applicable migration bytes and before/after catalogs. No later migration is
+included in the mutation, and all other ledger tails are refused. The transaction rechecks the baseline under the ledger lock before applying the reviewed SQL. The actual request flag must remain off. Unknown database settings or a different hook require separate review.
 
 After installation, the controller independently reads the ledger/catalog and waits up to 20 seconds for the exact preexisting authenticator transaction identities to settle. It never terminates pooled connections or the schema listener. It then makes fresh zero-row GET and PATCH requests against the fixed Production API. The PATCH uses contradictory predicates so it cannot change a row. It repeats catalog/quiescence/open-flag verification and current GitHub authority before reporting success. The flag's `pgrst.app_settings.maintenance_write_block` name is stored in the authenticator role catalog and read there by the hook. This procedure does not assume PostgREST exports it as a runtime setting.
 
@@ -32,7 +39,7 @@ After installation, the controller independently reads the ledger/catalog and wa
 
 The sanitized artifact is `production-request-fence-bootstrap-<run id>` and contains only its source, run, reviewer, target, ledger digests and phase. Raw database/provider output, URLs, keys and response rows are suppressed.
 
-A missing or lost mutation response triggers readback, never a second write in that run. Exact 688 with the reviewed catalog, open flag and all remaining proofs may complete as `verified-after-unknown-response`. Catalog readback cannot prove a post-commit transaction barrier completed, so every reconciliation path repeats the bounded read-only barrier. A timeout leaves the run unproven even when the migration committed. An unchanged 687, partial/drifted catalog, failed API probe, changed main or ambiguous approval also leaves the run unproven. A later approved fresh run may reconcile exact 688 without reapplying the migration, or apply it to verified 687. A future ledger tail is refused.
+A missing or lost mutation response triggers readback, never a second write in that run. Exact 688 with the reviewed catalog, open flag and all remaining proofs may complete as `verified-after-unknown-response`. Catalog readback cannot prove a post-commit transaction barrier completed, so every reconciliation path repeats the bounded read-only barrier. A timeout leaves the run unproven even when the migration committed. An unchanged applicable baseline, partial/drifted catalog, failed API probe, changed main or ambiguous approval also leaves the run unproven. A later approved fresh run may reconcile the exact applicable after-state without reapplying the migration, or apply it to the verified before-state. A future ledger tail is refused.
 
 Do not delete or repair a migration record, remove the hook, reset role settings, reopen jobs or retry the mutation manually to make a failed run green. Reconcile the recorded phase and actual fixed target first. The additive guard stays installed if its transaction committed. Operational holds stay under their own reviewed recovery plan. A failure after commit is not permission to roll back protected history or deploy an older application.
 

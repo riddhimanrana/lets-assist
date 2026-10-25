@@ -46,7 +46,7 @@
       "ready": [
         {
           "role": "heading",
-          "name": "The modern way to do volunteering"
+          "name": "A workspace for your volunteer organization."
         }
       ],
       "captureReducedMotion": true,
@@ -1160,14 +1160,13 @@
     },
     {
       "id": "csf-overview",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/overview",
+      "route": "/organization/dvhs-csf?tab=csf-overview",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/overview"
+        "/organization/dvhs-csf?tab=csf-overview"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Home"
+          "selector": "section[data-tour-id=\"csf-officer-tasks\"]"
         },
         {
           "role": "heading",
@@ -1181,9 +1180,9 @@
     },
     {
       "id": "csf-home",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/home",
+      "route": "/organization/dvhs-csf?tab=csf-home",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/home"
+        "/organization/dvhs-csf?tab=csf-home"
       ],
       "ready": [
         {
@@ -1198,18 +1197,21 @@
     },
     {
       "id": "csf-my-profile",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/my-profile",
+      "route": "/organization/dvhs-csf?tab=csf-profile",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/my-profile"
+        "/organization/dvhs-csf?tab=csf-profile"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "My CSF"
+          "role": "region",
+          "name": "CSF member profile"
         },
         {
-          "role": "region",
-          "name": "Current semester status"
+          "role": "tablist",
+          "name": "Member semesters"
+        },
+        {
+          "selector": "[role=\"tabpanel\"] [aria-label=\"Selected semester status and progress\"]"
         }
       ],
       "actorKey": "csfMember",
@@ -1219,9 +1221,9 @@
     },
     {
       "id": "csf-profiles",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/profiles",
+      "route": "/organization/dvhs-csf?tab=csf-members",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/profiles"
+        "/organization/dvhs-csf?tab=csf-members"
       ],
       "ready": [
         {
@@ -1240,14 +1242,14 @@
     },
     {
       "id": "csf-cohorts",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/cohorts",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/cohorts"
+        "/organization/dvhs-csf?tab=csf-cohorts"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Classes"
+          "role": "region",
+          "name": "Your classes"
         },
         {
           "role": "heading",
@@ -1261,9 +1263,9 @@
     },
     {
       "id": "csf-terms",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/terms",
+      "route": "/organization/dvhs-csf?tab=csf-terms",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/terms"
+        "/organization/dvhs-csf?tab=csf-terms"
       ],
       "ready": [
         {
@@ -1277,9 +1279,9 @@
     },
     {
       "id": "csf-meetings",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/meetings",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=meetings",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/meetings"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=meetings"
       ],
       "ready": [
         {
@@ -1298,17 +1300,18 @@
     },
     {
       "id": "csf-applications",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/applications",
+      "route": "/organization/dvhs-csf?tab=csf-applications",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/applications"
+        "/organization/dvhs-csf?tab=csf-applications"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Applications"
+          "role": "textbox",
+          "name": "Search by name"
         },
         {
-          "text": "Link Google Sheet"
+          "role": "button",
+          "name": "Link Google Sheet"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1318,9 +1321,9 @@
     },
     {
       "id": "csf-opportunities",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/opportunities",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=opportunities",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/opportunities"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=opportunities"
       ],
       "ready": [
         {
@@ -1335,9 +1338,9 @@
     },
     {
       "id": "csf-partner-clubs",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=partner-clubs",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/partner-clubs"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=partner-clubs"
       ],
       "ready": [
         {
@@ -1352,9 +1355,9 @@
     },
     {
       "id": "csf-submissions",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/submissions",
+      "route": "/organization/dvhs-csf?tab=csf-submissions",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/submissions"
+        "/organization/dvhs-csf?tab=csf-submissions"
       ],
       "ready": [
         {
@@ -1373,18 +1376,22 @@
     },
     {
       "id": "csf-points",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/points",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=points",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/points"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=points"
       ],
       "ready": [
         {
           "role": "heading",
-          "name": "Submissions"
+          "name": "Point submissions"
         },
         {
           "role": "region",
           "name": "Current semester point policy"
+        },
+        {
+          "role": "tablist",
+          "name": "Point submission views"
         }
       ],
       "actorKey": "csfAdmin",
@@ -1394,15 +1401,11 @@
     },
     {
       "id": "csf-verification",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/verification",
+      "route": "/organization/dvhs-csf?tab=csf-activities&csf_service=verification",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/verification"
+        "/organization/dvhs-csf?tab=csf-activities&csf_service=verification"
       ],
       "ready": [
-        {
-          "role": "heading",
-          "name": "Submissions"
-        },
         {
           "role": "textbox",
           "name": "Search by name"
@@ -1415,14 +1418,14 @@
     },
     {
       "id": "csf-sheets",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/sheets",
+      "route": "/organization/dvhs-csf?tab=csf-cohorts",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/sheets"
+        "/organization/dvhs-csf?tab=csf-cohorts"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Classes"
+          "role": "region",
+          "name": "Your classes"
         },
         {
           "role": "heading",
@@ -1436,14 +1439,14 @@
     },
     {
       "id": "csf-staff",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/staff",
+      "route": "/organization/dvhs-csf?tab=csf-staff",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/staff"
+        "/organization/dvhs-csf?tab=csf-staff"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Officers & access"
+          "role": "region",
+          "name": "Officer roster"
         },
         {
           "role": "heading",
@@ -1457,17 +1460,16 @@
     },
     {
       "id": "csf-audit",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/audit",
+      "route": "/organization/dvhs-csf?tab=csf-audit",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/audit"
+        "/organization/dvhs-csf?tab=csf-audit"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "Change history"
+          "selector": "[data-slot=\"card\"]:has([data-slot=\"card-title\"]:text-is(\"Change history\"))"
         },
         {
-          "text": "Change history"
+          "text": "Immutable records for staff assignments, activities, imports, reviews, and other consequential CSF actions."
         }
       ],
       "actorKey": "csfAdmin",
@@ -1477,9 +1479,9 @@
     },
     {
       "id": "csf-communications",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/communications",
+      "route": "/organization/dvhs-csf?tab=csf-communications",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/communications"
+        "/organization/dvhs-csf?tab=csf-communications"
       ],
       "ready": [
         {
@@ -1498,9 +1500,9 @@
     },
     {
       "id": "csf-settings",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/settings",
+      "route": "/organization/dvhs-csf?tab=csf-settings",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/settings"
+        "/organization/dvhs-csf?tab=csf-settings"
       ],
       "ready": [
         {
@@ -1510,23 +1512,39 @@
         {
           "role": "heading",
           "name": "Connected Google account"
+        },
+        {
+          "role": "region",
+          "name": "Google Drive connection"
         }
       ],
       "actorKey": "csfAdmin",
       "captureReducedMotion": false,
       "coverageClaim": "Source-derived loaded landmark. No unreviewed POST/extra-origin bypass. Any capability mismatch, loader or effect stops this candidate without interior credit.",
-      "group": "private-candidate"
+      "group": "private-candidate",
+      "readActions": [
+        "getCsfSheetsConnectionStatusAction",
+        "getCsfSheetSyncWorkspaceAction",
+        "getCsfSheetSemesterLedgerWorklistAction"
+      ]
     },
     {
       "id": "csf-help",
-      "route": "/organization/dvhs-csf/plugins/dvhs-csf/help",
+      "route": "/organization/dvhs-csf?tab=csf-help",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/help"
+        "/organization/dvhs-csf?tab=csf-help"
       ],
       "ready": [
         {
-          "role": "heading",
-          "name": "DVHS CSF Help"
+          "role": "textbox",
+          "name": "Search CSF help"
+        },
+        {
+          "text": "Member guide"
+        },
+        {
+          "role": "button",
+          "name": "Replay tour"
         }
       ],
       "actorKey": "csfMember",
@@ -1538,12 +1556,17 @@
       "id": "csf-connect",
       "route": "/organization/dvhs-csf/plugins/dvhs-csf/connect",
       "expectedRoutes": [
-        "/organization/dvhs-csf/plugins/dvhs-csf/connect"
+        "/organization/dvhs-csf/plugins/dvhs-csf/connect",
+        "/organization/dvhs-csf/plugins/dvhs-csf/connect?connected=1"
       ],
       "ready": [
         {
           "role": "heading",
-          "name": "Connect CSF Profile"
+          "name": "Your CSF record is linked"
+        },
+        {
+          "role": "button",
+          "name": "Go to My CSF"
         }
       ],
       "actorKey": "csfApplicant",

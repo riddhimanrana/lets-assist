@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Future GitHub-only setup: source facts and proof files, never stack/fixture writes.
+import { CSF_SETTINGS_SOURCE_HASHES } from "./csf-settings-reader-contract.mjs";
 import { NOTIFICATION_SOURCE_HASHES } from "./notification-reader-contract.mjs";
 import fs from "node:fs";
 import { verifyCaptureLedger } from "./capture-ledger-policy.mjs";
 import { INVITATION_SOURCE_HASHES } from "./invitation-reader-contract.mjs";
 import { INTEGRATION_SOURCE_HASHES } from "./integration-reader-contract.mjs";
+import { PLUGIN_SOURCE_HASHES } from "./plugin-reader-contract.mjs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -24,7 +26,7 @@ if (
   a.template !== false ||
   a.reviewed !== true ||
   a.rootHead !== process.env.GITHUB_SHA ||
-  a.privateHead !== "38dc7c7aff6fd101c87f92eebfae822d1726f2b4" ||
+  a.privateHead !== "370c538d49d6dc1fc66d3435a13b1a5db14e82d2" ||
   a.repoRoot !== fs.realpathSync(process.env.GITHUB_WORKSPACE ?? "") ||
   !a.reviewedSourceHashes ||
   process.versions.node !== "24.21.0"
@@ -46,6 +48,7 @@ const git = (args, cwd = a.repoRoot) =>
 const baseline = JSON.parse(
   fs.readFileSync(new URL("./baseline-policy.json", import.meta.url)),
 );
+if (baseline.targetPrivateGitlink !== a.privateHead) os.deny();
 execFileSync(
   "/usr/bin/git",
   ["merge-base", "--is-ancestor", baseline.rootHead, a.rootHead],
@@ -139,6 +142,18 @@ review.invitationReaderSourceHashes = Object.fromEntries(
 );
 review.integrationReaderSourceHashes = Object.fromEntries(
   Object.entries(INTEGRATION_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.pluginReaderSourceHashes = Object.fromEntries(
+  Object.entries(PLUGIN_SOURCE_HASHES).map(([file, sha]) => [
+    file,
+    authorizedHash(file, sha),
+  ]),
+);
+review.csfSettingsReaderSourceHashes = Object.fromEntries(
+  Object.entries(CSF_SETTINGS_SOURCE_HASHES).map(([file, sha]) => [
     file,
     authorizedHash(file, sha),
   ]),

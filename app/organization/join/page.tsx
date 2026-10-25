@@ -1,3 +1,5 @@
+import { ReadLoadError } from "@/components/projects/ReadLoadError";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
@@ -38,14 +40,30 @@ export default async function JoinOrganizationPage({
 
   // Find organization by join code
   const admin = getAdminClient();
-  const { data: organization } = (await admin
+  const { data: organization, error: lookupError } = (await admin
     .from("organizations")
     .select("id, name, username, logo_url")
     .eq("join_code", code)
-    .single()) as {
+    .maybeSingle()) as {
     data: JoinOrganization | null;
-    error: { message: string } | null;
+    error: { message: string; code?: string } | null;
   };
+
+  // A failed lookup says nothing about the code, so it is not reported as an
+  // invalid code and nothing joins. Retrying reruns this read from the URL.
+  // Only the error class is logged: the message can repeat the request.
+  if (lookupError) {
+    safeConsole.error("Error looking up organization join code.", {
+      code: lookupError.code,
+    });
+    return (
+      <InviteShell>
+        <div className="w-full max-w-sm">
+          <ReadLoadError title="We couldn't check this join link" />
+        </div>
+      </InviteShell>
+    );
+  }
 
   if (!organization) {
     redirect("/organization?error=invalid-code");

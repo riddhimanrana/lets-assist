@@ -1,5 +1,16 @@
 import assert from "node:assert/strict";
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expectedVersions } from "../production/app-release-checks.mjs";
+import { reviewedDevelopmentVersions } from "../production/reconciliation-ledgers.mjs";
 import { ledgerDigest } from "../production/final-schema-manifest.mjs";
 import { cutoverConfig, target } from "./cutover-authority.mjs";
 
@@ -8,9 +19,41 @@ export const base = "b".repeat(40);
 export const merged = "c".repeat(40);
 export const tree = "d".repeat(40);
 export const clock = 1_800_000_000_000;
-export const versions = expectedVersions(process.cwd());
+// Model controller success against the immutable, accepted Development ledger.
+// An unreviewed checkout must not gain catalog approval through a unit fixture.
+export const versions = reviewedDevelopmentVersions(
+  expectedVersions(process.cwd()),
+);
+const fixtureCwd = mkdtempSync(join(tmpdir(), "lets-assist-reviewed-cutover-"));
+const fixtureMigrations = join(fixtureCwd, "supabase/migrations");
+mkdirSync(fixtureMigrations, { recursive: true, mode: 0o700 });
+const fixtureSet = new Set(versions);
+for (const name of readdirSync("supabase/migrations")) {
+  if (name.endsWith(".sql") && fixtureSet.has(name.slice(0, 14)))
+    copyFileSync(
+      join("supabase/migrations", name),
+      join(fixtureMigrations, name),
+    );
+}
+cpSync(
+  "scripts/production/maintenance-output",
+  join(fixtureCwd, "scripts/production/maintenance-output"),
+  { recursive: true },
+);
+// Bun shares this imported module across test files. Keep its owned fixture for
+// the same process lifetime rather than deleting it after the first importer.
+process.once("exit", () =>
+  rmSync(fixtureCwd, { recursive: true, force: true }),
+);
 
 export function environment(phase = "prepare") {
+  const candidatePhase = [
+    "inspect",
+    "bootstrap",
+    "pause-cron",
+    "resume-cron",
+    "prepare",
+  ].includes(phase);
   const database = new URL(
     `postgres://db.${target.database}.supabase.co/postgres`,
   );
@@ -19,23 +62,23 @@ export function environment(phase = "prepare") {
   return {
     CUTOVER_PHASE: phase,
     ACCEPTED_SHA: candidate,
-    GITHUB_SHA: ["bootstrap", "prepare"].includes(phase) ? candidate : merged,
+    GITHUB_SHA: candidatePhase ? candidate : merged,
     GITHUB_ACTIONS: "true",
     GITHUB_EVENT_NAME: "workflow_dispatch",
     GITHUB_RUN_ATTEMPT: "1",
     GITHUB_REPOSITORY: target.repository,
     GITHUB_REPOSITORY_ID: String(target.repositoryId),
-    GITHUB_REF: ["bootstrap", "prepare"].includes(phase)
+    GITHUB_REF: candidatePhase
       ? "refs/heads/codex/reviewed-fixture"
       : "refs/heads/development",
-    GITHUB_RUN_ID: ["bootstrap", "prepare"].includes(phase) ? "100" : "101",
+    GITHUB_RUN_ID: candidatePhase ? "100" : "101",
     GITHUB_ACTOR: "fixture-owner",
     CUTOVER_PR_NUMBER: "867",
-    CUTOVER_PREPARE_RUN_ID: ["bootstrap", "prepare"].includes(phase)
-      ? ""
-      : "100",
+    CUTOVER_PREPARE_RUN_ID:
+      phase === "resume-cron" ? "99" : candidatePhase ? "" : "100",
     CONFIRMATION: `cutover-development:${phase}:${candidate}`,
-    EXTERNAL_WRITERS_CONFIRMATION: `external-writers-stopped:${candidate}`,
+    EXTERNAL_WRITERS_CONFIRMATION:
+      phase === "inspect" ? "" : `external-writers-stopped:${candidate}`,
     SUPABASE_PROJECT_ID: target.database,
     SUPABASE_URL: `https://${target.database}.supabase.co`,
     DEVELOPMENT_DATABASE_URL: database.href,
@@ -78,23 +121,27 @@ export function preparedReceipt() {
 }
 
 export function controllerFixture(phase = "prepare") {
-  const config = cutoverConfig(environment(phase));
+  const candidatePhase = [
+    "inspect",
+    "bootstrap",
+    "pause-cron",
+    "resume-cron",
+    "prepare",
+  ].includes(phase);
+  const config = { ...cutoverConfig(environment(phase)), cwd: fixtureCwd };
   const receipt = preparedReceipt();
   const state = {
-    domain: ["bootstrap", "prepare"].includes(phase)
-      ? target.branch
-      : target.holdBranch,
-    alias: ["bootstrap", "prepare"].includes(phase)
-      ? "dpl_Prior"
-      : "dpl_Maintenance",
-    current: ["bootstrap", "prepare"].includes(phase) ? base : merged,
-    blocked: !["bootstrap", "prepare"].includes(phase),
+    domain: candidatePhase ? target.branch : target.holdBranch,
+    alias: candidatePhase ? "dpl_Prior" : "dpl_Maintenance",
+    current: candidatePhase ? base : merged,
+    blocked: !candidatePhase,
     retention: false,
     records: [],
     writes: [],
     reads: [],
     apiChanges: new Map(),
     active: [],
+    holdDeployments: [],
     schemaFailure: false,
     bootstrapped: false,
     postOpenDrift: false,
@@ -170,6 +217,27 @@ export function controllerFixture(phase = "prepare") {
         commit: { tree: { sha: tree } },
         parents: [{ sha: base }, { sha: candidate }],
       };
+    if (path.startsWith(`/actions/runs?head_sha=${candidate}&`))
+      return {
+        total_count: 1,
+        workflow_runs: [
+          {
+            head_sha: candidate,
+            created_at: new Date(clock - 2 * 86_400_000).toISOString(),
+          },
+        ],
+      };
+    if (path === `/git/ref/heads/${target.holdBranch}`)
+      return {
+        ref: `refs/heads/${target.holdBranch}`,
+        object: { type: "commit", sha: target.holdCommit },
+      };
+    if (path === `/git/commits/${target.holdCommit}`)
+      return {
+        sha: target.holdCommit,
+        tree: { sha: target.holdTree },
+        parents: [],
+      };
     if (path.startsWith("/git/matching-refs/")) return [];
     if (path.startsWith("/compare/")) return { status: "ahead", behind_by: 0 };
     throw new Error(`Unexpected GitHub fixture path ${path}`);
@@ -212,6 +280,26 @@ export function controllerFixture(phase = "prepare") {
         projectId: target.project,
         deploymentId: state.alias,
       };
+    if (
+      path.startsWith(
+        `/v6/deployments?projectId=${target.project}&limit=100&sha=${candidate}`,
+      )
+    )
+      return {
+        deployments: [
+          {
+            uid: "dpl_CandidatePush",
+            created: clock - 2 * 86_400_000,
+            meta: { githubCommitSha: candidate },
+          },
+        ],
+        pagination: {},
+      };
+    if (
+      path.includes(`&sha=${target.holdCommit}`) ||
+      path.includes(`&branch=${encodeURIComponent(target.holdBranch)}`)
+    )
+      return { deployments: state.holdDeployments, pagination: {} };
     if (path.startsWith("/v6/deployments?"))
       return { deployments: state.active, pagination: {} };
     if (path === "/v13/deployments" && body) {
@@ -253,6 +341,15 @@ export function controllerFixture(phase = "prepare") {
     throw new Error(`Unexpected Vercel fixture path ${path}`);
   };
   const query = (_url, sql) => {
+    if (sql.includes("'inspectionCatalog'"))
+      return JSON.stringify({
+        inspectionLedger: true,
+        inspectionCatalog: true,
+        activeCron: 4,
+        runningCron: 0,
+        enabledControlRows: 0,
+        publicationLeases: 0,
+      });
     if (sql.includes("SELECT 'development-bootstrap-cron-paused'")) {
       state.writes.push({ kind: "cron-pause", sql });
       return "development-bootstrap-cron-paused";
@@ -322,7 +419,7 @@ export function controllerFixture(phase = "prepare") {
       return Response.json({
         service: "lets-assist",
         environment: "preview",
-        version: merged,
+        version: phase === "inspect" ? base : merged,
         deep: false,
         checks: [
           {

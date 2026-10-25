@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   cutoverConfig,
@@ -15,6 +24,7 @@ import {
 } from "./cutover-database.mjs";
 import {
   applicationPayload,
+  candidateHistoryMarginMs,
   holdDomain,
   validateDeployment,
   verifyApplicationPage,
@@ -35,6 +45,53 @@ import {
 test("configured same-owner environment approval permits preparation", async () => {
   const f = controllerFixture();
   assert.equal((await verifyAuthority(f.config, f.github)).base, base);
+});
+
+test("an independent reviewer satisfies the current policy without relaxing it", async () => {
+  const f = controllerFixture();
+  const read = async (path) => {
+    const result = await f.github(path);
+    if (path === "/environments/development")
+      return {
+        ...result,
+        protection_rules: result.protection_rules.map((rule) => ({
+          ...rule,
+          prevent_self_review: true,
+          reviewers: [{ type: "User", reviewer: { login: "reviewer" } }],
+        })),
+      };
+    if (path === "/actions/runs/100/approvals")
+      return result.map((review) => ({
+        ...review,
+        user: { login: "reviewer" },
+      }));
+    return result;
+  };
+  assert.equal((await verifyAuthority(f.config, read)).base, base);
+});
+
+test("an unreviewed migration is rejected before controller provider access", async () => {
+  const f = controllerFixture();
+  const cwd = mkdtempSync(join(tmpdir(), "lets-assist-unreviewed-cutover-"));
+  try {
+    mkdirSync(join(cwd, "supabase"));
+    cpSync("supabase/migrations", join(cwd, "supabase/migrations"), {
+      recursive: true,
+    });
+    writeFileSync(
+      join(cwd, "supabase/migrations/20990101000000_unreviewed.sql"),
+      "select 1;\n",
+    );
+    f.config.cwd = cwd;
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      /not reviewed|explicit release review/u,
+    );
+    assert.deepEqual(f.state.writes, []);
+    assert.deepEqual(f.state.reads, []);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 for (const [key, value] of Object.entries({
@@ -64,6 +121,17 @@ for (const [name, path, change] of [
     "no environment reviewers",
     "/environments/development",
     (r) => ({ ...r, protection_rules: [] }),
+  ],
+  [
+    "same-owner review after independent review becomes required",
+    "/environments/development",
+    (r) => ({
+      ...r,
+      protection_rules: r.protection_rules.map((rule) => ({
+        ...rule,
+        prevent_self_review: true,
+      })),
+    }),
   ],
   [
     "completed run replay",
@@ -107,17 +175,72 @@ for (const [name, path, change] of [
     `/compare/${base}...${candidate}`,
     () => ({ status: "diverged", behind_by: 1 }),
   ],
-  [
-    "existing hold branch",
-    `/git/matching-refs/heads/${target.holdBranch}`,
-    () => [{ ref: target.holdBranch }],
-  ],
 ])
   test(`refuses ${name} before any mutation`, async () => {
     const f = controllerFixture();
     f.state.apiChanges.set(path, change);
     await assert.rejects(runDevelopmentCutover(f.config, f.dependencies));
     assert.deepEqual(f.state.writes, []);
+  });
+
+for (const [name, path, change, message] of [
+  [
+    "a moved hold branch tip",
+    `/git/ref/heads/${target.holdBranch}`,
+    (ref) => ({ ...ref, object: { type: "commit", sha: "0".repeat(40) } }),
+    /not the pinned sentinel commit/u,
+  ],
+  [
+    "a hold branch ref that names a tag object",
+    `/git/ref/heads/${target.holdBranch}`,
+    (ref) => ({ ...ref, object: { ...ref.object, type: "tag" } }),
+    /not the pinned sentinel commit/u,
+  ],
+  [
+    "a hold commit read that answers for another commit",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, sha: "0".repeat(40) }),
+    /not the pinned sentinel tree/u,
+  ],
+  [
+    "a re-treed hold branch commit",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, tree: { sha: "0".repeat(40) } }),
+    /not the pinned sentinel tree/u,
+  ],
+  [
+    "a hold branch commit with a parent",
+    `/git/commits/${target.holdCommit}`,
+    (commit) => ({ ...commit, parents: [{ sha: "0".repeat(40) }] }),
+    /not the pinned sentinel tree/u,
+  ],
+])
+  test(`refuses ${name} before any mutation`, async () => {
+    const f = controllerFixture();
+    f.state.apiChanges.set(path, change);
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      message,
+    );
+    assert.deepEqual(f.state.writes, []);
+  });
+
+for (const [name, deployment] of [
+  ["a READY sentinel deployment", { uid: "dpl_Held", state: "READY" }],
+  [
+    "a building hold branch deployment",
+    { uid: "dpl_Held", readyState: "BUILDING" },
+  ],
+])
+  test(`prepare stops at ${name} before the domain moves`, async () => {
+    const f = controllerFixture();
+    f.state.holdDeployments = [deployment];
+    await assert.rejects(
+      runDevelopmentCutover(f.config, f.dependencies),
+      /hold branch deployment is not settled/u,
+    );
+    assert.equal(f.state.domain, target.branch);
+    assert.equal(f.state.alias, "dpl_Prior");
   });
 
 test("prepare records maintenance without merging or applying schema", async () => {
@@ -497,7 +620,11 @@ test("maintenance creation refuses an unrecorded candidate deployment older than
   const f = controllerFixture("prepare");
   f.dependencies.vercel = (path, ...rest) =>
     path.startsWith("/v6/deployments?") && path.includes("&since=")
-      ? (assert.ok(path.includes("&since=0")),
+      ? (assert.ok(
+          path.includes(
+            `&since=${clock - 2 * 86_400_000 - candidateHistoryMarginMs}`,
+          ),
+        ),
         Promise.resolve({
           deployments: [
             {

@@ -9,6 +9,11 @@ import {
 } from "./maintenance-preflight.mjs";
 import { settlePreexistingRequestTransactionsSql } from "./request-write-fence.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
+import { ledgerDigest } from "./final-schema-manifest.mjs";
+import {
+  pointsFirstRolloutStates,
+  pointsFirstRolloutTarget,
+} from "./points-first-rollout-catalog.mjs";
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const requireCondition = (condition, message) => {
   if (!condition) throw new ReleaseCheckError(message);
@@ -39,8 +44,9 @@ const guardOff = `NOT EXISTS (
         AND (s.setrole<>'authenticator'::regrole OR s.setdatabase<>0
           OR entry.setting<>'pgrst.app_settings.maintenance_write_block=off'))))`;
 
-export function bootstrapPlan(cwd, read = readFileSync) {
-  const versions = expectedVersions(cwd).slice(0, 688);
+export function bootstrapPlan(cwd, read = readFileSync, observedVersions) {
+  const target = expectedVersions(cwd);
+  const versions = target.slice(0, 688);
   const names = readdirSync(resolve(cwd, "supabase/migrations"))
     .filter((name) => /^\d{14}_.+\.sql$/u.test(name))
     .sort()
@@ -71,12 +77,38 @@ export function bootstrapPlan(cwd, read = readFileSync) {
     .replace(/^BEGIN;[ \t]*\r?\n/mu, "")
     .replace(/\s*COMMIT;\s*$/u, "");
   requireCondition(body !== sql, "The bootstrap transaction envelope changed.");
-  const before = versions.slice(0, 687);
-  const after = versions.slice(0, 688);
+  let before = versions.slice(0, 687);
+  let after = versions.slice(0, 688);
+  if (observedVersions !== undefined) {
+    const same = (expected) =>
+      JSON.stringify(observedVersions) === JSON.stringify(expected);
+    const pointsBefore = pointsFirstRolloutStates[0].versions;
+    const pointsAfter = pointsFirstRolloutStates[1].versions;
+    if (same(pointsBefore) || same(pointsAfter)) {
+      requireCondition(
+        target.length === pointsFirstRolloutTarget.count &&
+          ledgerDigest(target) === pointsFirstRolloutTarget.ledger,
+        "The points-first bootstrap is bound to the reviewed 739 source.",
+      );
+      const hotfix =
+        "20261013071100_csf_repeatable_pending_activity_claims.sql";
+      requireCondition(
+        digest(read(resolve(cwd, "supabase/migrations", hotfix))) ===
+          migrationDigests[hotfix],
+        "The points-first baseline migration bytes are not reviewed.",
+      );
+      before = [...pointsBefore];
+      after = [...pointsAfter];
+    } else
+      requireCondition(
+        same(before) || same(after),
+        "Production bootstrap requires an exact reviewed before or after ledger.",
+      );
+  }
   // Both catalog manifests must come from a replay of these exact bytes.
   maintenanceCatalogQuery(before);
   maintenanceCatalogQuery(after);
-  return { before, after, sql, body };
+  return { before, after, sql, body, version: bootstrapVersion };
 }
 
 export function bootstrapVerificationSql(versions) {

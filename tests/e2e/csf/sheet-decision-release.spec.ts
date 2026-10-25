@@ -144,12 +144,22 @@ for (const width of [1280, 390]) {
     await expect(row(page, applicants.byRole.rejected.lastName)).toHaveCount(0);
     await expect(row(page, applicants.byRole.explained.lastName)).toBeVisible();
     await page.getByRole("button", { name: /^All \(/ }).click();
-    await expect(row(page, applicants.byRole.accepted.lastName)).toContainText(
-      "Approved",
-    );
-    await expect(row(page, applicants.byRole.rejected.lastName)).toContainText(
-      "Rejected",
-    );
+    // Released rows can be past the first server page as fixtures accumulate.
+    // Reach each through the same committed search used by roster users.
+    for (const [role, status] of [
+      ["accepted", "Approved"],
+      ["rejected", "Rejected"],
+    ] as const) {
+      const lastName = applicants.byRole[role].lastName;
+      await page
+        .getByRole("textbox", { name: "Search by name", exact: true })
+        .fill(lastName);
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get("csf_review_q"))
+        .toBe(lastName);
+      await expect(row(page, lastName)).toHaveCount(1);
+      await expect(row(page, lastName)).toContainText(status);
+    }
     await expectNoHorizontalOverflow(page);
     expectNoBrowserFailures(failures);
   });

@@ -187,23 +187,11 @@ export async function syncSheetNow(organizationId: string): Promise<{
       .update({ auto_sync: false, updated_at: new Date().toISOString() })
       .eq("organization_id", organizationId)
       .eq("created_by", syncConfig.created_by)
-      .eq("sheet_id", syncConfig.sheet_id);
+      .eq("sheet_id", syncConfig.sheet_id)
+      .eq("updated_at", syncConfig.updated_at);
     return {
       success: false,
       error: "Sheet sync owner no longer has active organization admin access",
-    };
-  }
-
-  const accessToken = await getOrganizationSheetsAccessToken(
-    syncConfig.created_by,
-    organizationId,
-    true,
-  );
-  if (!accessToken) {
-    return {
-      success: false,
-      error:
-        "Sheets access missing. Ask an admin to reconnect with Sheets permissions.",
     };
   }
 
@@ -212,7 +200,6 @@ export async function syncSheetNow(organizationId: string): Promise<{
   return runOrganizationSheetSync({
     supabase: serviceSupabase,
     config: syncConfig,
-    accessToken,
   });
 }
 

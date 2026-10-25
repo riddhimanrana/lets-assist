@@ -7,6 +7,30 @@ const cleanupEventSchema = z.object({
   event_id: z.string().regex(/^[A-Za-z0-9_-]{5,1024}$/),
 });
 export type CalendarCleanupEvent = z.infer<typeof cleanupEventSchema>;
+/**
+ * The event ID of this user's own unresolved receipt for one exact source, or
+ * null when no such receipt exists. Throws when the lookup cannot be confirmed,
+ * so a failed read is never mistaken for "nothing to clean up".
+ */
+export async function findPersonalCalendarReceiptEvent(
+  userId: string,
+  sourceKind: CalendarCleanupEvent["source_kind"],
+  sourceId: string,
+): Promise<string | null> {
+  const { data, error } = await getAdminClient().rpc(
+    "find_personal_calendar_receipt_event",
+    {
+      p_actor_user_id: userId,
+      p_source_kind: sourceKind,
+      p_source_id: sourceId,
+    },
+  );
+  const parsed = cleanupEventSchema.shape.event_id.nullable().safeParse(data);
+  if (error || !parsed.success)
+    throw new Error("Calendar cleanup state could not be confirmed.");
+  return parsed.data;
+}
+
 export async function getPersonalCalendarCleanup(
   userId: string,
 ): Promise<CalendarCleanupEvent[]> {

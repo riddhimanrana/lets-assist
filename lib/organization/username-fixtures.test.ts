@@ -208,7 +208,7 @@ function boundedSeriesBindings(fromClause: string): SeriesBinding[] | null {
   const match = fromClause
     .trim()
     .match(
-      /^from\s+(?:pg_catalog\.)?generate_series\(\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)\s+(?:as\s+)?([a-z_][a-z0-9_]*)$/iu,
+      /^from\s+(?:pg_catalog\.)?generate_series\(\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)\s*(?:as\s+)?([a-z_][a-z0-9_]*)$/iu,
     );
   if (!match) return null;
   const [start, end, step] = [
@@ -584,6 +584,21 @@ describe("bounded SQL username expressions", () => {
         ),
       ).map(({ value }) => value),
     ).toEqual(["chapter-15", "chapter-13", "chapter-11", "chapter-9"]);
+  });
+
+  test("enumerates a bounded SQL series with an adjacent alias", () => {
+    const fixtures = sqlOrganizationUsernameFixtures(
+      "bounded.sql",
+      insert("'synthetic-calendar-batch-' || n", "generate_series(1,33)n"),
+    );
+    expect(fixtures).toHaveLength(33);
+    expect(fixtures[0].value).toBe("synthetic-calendar-batch-1");
+    expect(fixtures.at(-1)?.value).toBe("synthetic-calendar-batch-33");
+    expect(
+      fixtures.every(
+        ({ value }) => organizationUsernameSchema.safeParse(value).success,
+      ),
+    ).toBe(true);
   });
 
   test.each([

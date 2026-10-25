@@ -165,7 +165,12 @@ The CSF application's independent lint, typecheck, tests, build and data-access
 gates pass under Node 24.21.0. Host typecheck and lint pass. Combined root tests,
 private plugin tests, the root build and integrated database/browser acceptance
 must finish against the final private gitlink before this is a release receipt.
-The existing time-limited braces advisory remains an accepted risk, not a patch.
+The October 22 candidate removes both private application fast-glob paths and
+their vulnerable braces/micromatch parser through the same private-owned
+compatibility package used by the host. It also pins follow-redirects 1.16.1.
+The child's full dependency audit is clean, and its build and actual caller tests
+pass. The existing exception remains expired; no finding is waived. Exact root
+integration and hosted release acceptance remain separate gates.
 
 Sources: [Node.js release schedule](https://nodejs.org/en/about/previous-releases),
 [Vercel Node.js support](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions),

@@ -35,6 +35,10 @@ VALUES
  ('multi-day-descriptive-alias','multiDay','{"multiDay":[{"date":"2020-01-15","slots":[{"startTime":"10:00","endTime":"12:00","volunteers":10}]}]}','day-0-slot-0'),
  ('named-role','sameDayMultiArea','{"sameDayMultiArea":{"date":"2020-01-15","overallStart":"09:00","overallEnd":"14:00","roles":[{"name":"Fictional desk","startTime":"10:00","endTime":"12:00","volunteers":10}]}}','Fictional desk'),
  ('named-role-index-alias','sameDayMultiArea','{"sameDayMultiArea":{"date":"2020-01-15","overallStart":"09:00","overallEnd":"14:00","roles":[{"name":"Fictional desk","startTime":"10:00","endTime":"12:00","volunteers":10}]}}','role-0');
+INSERT INTO scheduled_attendance_cases(name,event_type,schedule,schedule_id,expected_in,expected_out)
+VALUES ('named-role-beats-index-alias','sameDayMultiArea',
+ '{"sameDayMultiArea":{"date":"2020-01-15","overallStart":"09:00","overallEnd":"14:00","roles":[{"name":"Fictional desk","startTime":"10:00","endTime":"11:00","volunteers":10},{"name":"role-0","startTime":"12:00","endTime":"13:00","volunteers":10}]}}',
+ 'role-0','2020-01-15 12:00:00+00','2020-01-15 13:00:00+00');
 INSERT INTO scheduled_attendance_cases(name,zone,expected_in,expected_out)
 VALUES
  ('Pacific-winter','America/Los_Angeles','2020-01-15 18:00:00+00','2020-01-15 20:00:00+00'),
@@ -58,6 +62,10 @@ INSERT INTO scheduled_attendance_cases(name,event_type,method,schedule,schedule_
 VALUES ('QR-named-role-index-alias','sameDayMultiArea','qr-code',
  '{"sameDayMultiArea":{"date":"2020-01-15","overallStart":"09:00","overallEnd":"14:00","roles":[{"name":"Fictional desk","startTime":"10:00","endTime":"12:00","volunteers":10}]}}',
  'role-0','attended','2020-01-15 10:15:00+00','attended','2020-01-15 10:15:00+00','2020-01-15 12:00:00+00');
+INSERT INTO scheduled_attendance_cases(name,event_type,method,schedule,schedule_id,initial_status,initial_in,expected_status,expected_in,expected_out)
+VALUES ('QR-named-role-beats-index-alias','sameDayMultiArea','qr-code',
+ '{"sameDayMultiArea":{"date":"2020-01-15","overallStart":"09:00","overallEnd":"14:00","roles":[{"name":"Fictional desk","startTime":"10:00","endTime":"11:00","volunteers":10},{"name":"role-0","startTime":"12:00","endTime":"13:00","volunteers":10}]}}',
+ 'role-0','attended','2020-01-15 12:15:00+00','attended','2020-01-15 12:15:00+00','2020-01-15 13:00:00+00');
 INSERT INTO scheduled_attendance_cases(name,workflow,expected_status,expected_in,expected_out)
 VALUES ('draft','draft','approved',NULL,NULL);
 INSERT INTO scheduled_attendance_cases(name,schedule,expected_status,expected_in,expected_out)

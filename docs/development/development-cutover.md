@@ -2,7 +2,7 @@
 
 Use the `cutover_phase` entry in the existing **CSF hosted Development acceptance** workflow for a reviewed root change that contracts database permissions. Migrations 700 and 702 require this ordering because the existing application can lose access before its replacement is ready. Ordinary hosted acceptance verifies a deployed result; it does not order the application and database deployment.
 
-The coordinator supports `bootstrap`, `prepare`, `complete` and `recover`. The separately confirmed bootstrap installs only the accepted request guard from the exact 687-migration baseline, producing ledger 688. The other phases never apply migrations or merge a pull request. Supabase's connected persistent Development branch applies the reviewed suffix after the separately approved root merge. Turning off automatic branch creation does not stop that persistent branch's deployment workflow.
+The coordinator supports inspection, `bootstrap`, `pause-cron`, `resume-cron`, `prepare`, `complete` and `recover`. The separately confirmed bootstrap installs only the accepted request guard from the exact 687-migration baseline, producing ledger 688. The other phases never apply migrations or merge a pull request. Supabase's connected persistent Development branch applies the reviewed suffix after the separately approved root merge. Turning off automatic branch creation does not stop that persistent branch's deployment workflow.
 
 ## Fixed targets and prerequisites
 
@@ -18,7 +18,88 @@ Before an operator runs it:
 - Stop the five CSF release controls: workbook refresh, import commit, communications, scheduled post publication and publication notifications. Drain active database cron runs and publication leases. Bootstrap pauses the three reviewed database jobs after verifying the exact 687/688 ledger, catalog, worker posture and cron inventory. It refuses other jobs, changed commands or ownership. Preparation verifies that every job remains stopped.
 - Hold Auth and Storage administration, external API writers and external schedulers. Include data exports, project cancellation, feedback, recurrence, moderation, cleanup, paper notifications, organization calendars and organization Sheets. The PostgREST request guard does not block these other channels. The required `external-writers-stopped:<candidate SHA>` confirmation records the approving operator's attestation, not independently measured provider state.
 
-The October 7 provider readback confirms that the Development environment now requires review by `riddhimanrana`, permits that owner to review their own run, and allows only `development` and `codex/*` branch deployments. `DEVELOPMENT_DATABASE_URL` is still absent. Credential setup, external-writer shutdown and an approved workflow run remain required before cutover. Local controller tests do not establish those prerequisites or a hosted cutover.
+Protected inspection [39356949691](https://github.com/riddhimanrana/lets-assist/actions/runs/39356949691) succeeded on October 20, 2026. The existing Development credential reached the fixed database, verified its accepted 729-migration history and passed a zero-row Data API GET. Four cron jobs were active; no cron run, enabled CSF control or publication lease was active. This clears the earlier credential blocker. External-writer shutdown, reviewed cron pause and preparation remain required. Inspection does not establish maintenance readiness or a hosted cutover.
+
+## Inspect before maintenance
+
+The fixed Development coordinator selects the shared Session pooler before any
+SQL when the configured URI names its direct database endpoint. Supabase Connect
+verified `aws-0-us-west-1.pooler.supabase.com:5432` for this branch on October 19, 2026. The tenant username is `postgres.ocbuygudvarsuxijxhau`. The job retains the
+existing password and TLS mode inside its original protected environment. No
+stored credential, permission or provider setting changes. Already configured
+pooler URIs remain unchanged. Transport selection does not retry SQL and retains
+the fixed project, source, review, catalog and maintenance gates.
+
+Before opening a maintenance window, dispatch the same protected workflow from
+the exact reviewed candidate with `cutover_phase=inspect`, its full SHA and PR
+number, and `confirmation=cutover-development:inspect:<candidate SHA>`. Leave
+the receipt-run and external-writer confirmation empty. Inspection retains the
+configured environment review and exact source checks. It only reads the fixed
+Vercel project, domain, current application, Development database catalog and
+worker counts, reads the current application worker mode and eleven effective
+boolean flags through an authenticated status GET, then makes a zero-row Data
+API GET. The status read uses the already configured protected credential and
+retains only source/mode/flag metadata. Enabled flags remain visible; inspection
+does not claim a hold or change worker state. It changes no Vercel or
+database state and does not claim an external writer hold. Its retained
+`inspected` or `inspection-stopped` receipt cannot authorize preparation,
+completion or a merge. Use this result to diagnose current project/team or
+credential capability before pausing jobs.
+
+The Development coordinator also recognizes the exact reviewed 729-migration
+Development history before the combined 740 target. Both ordered ledger digests
+and the accepted catalog remain mandatory. That history is not an ordered
+prefix of the combined tree; this Development-only recognition changes no
+Production ledger selection or maintenance posture check. Target verification
+still requires the complete combined ledger.
+
+## Pause the existing 729 database jobs
+
+The exact 729 history already contains the request guard. Do not bootstrap it
+again. Its four-job inventory needs the separate protected `pause-cron` phase
+before preparation. Dispatch from the reviewed candidate branch with its full
+SHA and root PR, `confirmation=cutover-development:pause-cron:<candidate SHA>`,
+and `external_writers_confirmation=external-writers-stopped:<candidate SHA>`.
+Leave the receipt-run input empty. This confirmation must describe a real
+operator hold, not a planned hold.
+
+The operation binds the accepted 729 ledger and complete 740 target, verifies
+the unchanged Development application and inactive request fence, and records
+every original job ID and active flag before mutation. Exactly four job names,
+owners, databases, schedules and command hashes must match. Only
+`cron.alter_job` changes their active flags. No direct update of `cron.job` is
+used. The transaction repeats its ledger, catalog, worker, lease and exact
+inventory guards before and after those changes. Fresh readback must show all
+jobs paused and running work drained before the receipt says `cron-paused`.
+The operation changes no alias, request fence, membership or migration.
+
+During this Development hold, automatic check-ins, check-outs and project
+status processing pause, as does cron history retention. Manual Auth/Storage
+administration, API writers and external schedulers must be held by their
+operators for the release window, at most four hours. The five CSF release
+controls were already disabled at inspection. Vercel's scheduled cron invokes
+the [Production deployment URL](https://vercel.com/docs/cron-jobs), so disabling
+that project scheduler would affect Production and is outside this Development
+operation. Auth/Storage and manually invoked Development writers still need
+an explicit owner hold; the controller cannot infer one from disabled CSF
+controls.
+
+If preparation is abandoned before it changes the application, dispatch
+`resume-cron` from the same candidate with the original pause run in
+`cutover_receipt_run`, the candidate-bound resume confirmation and a renewed
+external-writer attestation. It verifies that immutable artifact, original
+Development base, candidate tree, alias, accepted ledger and inactive request
+fence. It restores only the recorded active flags. A changed job, mixed flag
+state, alias or application stops restoration. Already restored original flags
+are verified without another mutation. An expired pause receipt may support
+this abort restoration only with fresh protected review and unchanged source
+and provider state; it does not renew release approval.
+
+A lost response leaves an unproven receipt and never triggers a SQL retry or
+automatic resume. Reconcile the original artifact and fresh provider state.
+Once preparation has changed the domain or request fence, `resume-cron`
+refuses the operation. Use the existing maintenance recovery path, which keeps
+writes fenced, rather than resuming jobs around an unfinished cutover.
 
 ## Install the request guard before preparation
 
@@ -32,7 +113,11 @@ The guard stays inactive. An exact catalog readback, the bounded legacy request 
 
 Dispatch the registered workflow from the exact reviewed `codex/` candidate branch. Set `development_sha` to its full SHA, `cutover_phase=prepare`, the existing root PR number, and `confirmation=cutover-development:prepare:<candidate SHA>`. Set the external writer confirmation above. Leave `cutover_receipt_run` empty.
 
-Preparation verifies the open PR's head, repository, Development base and ancestry. It checks that the existing Development alias serves the current Development head. It stages a static maintenance Preview and records its immutable identity. Then it changes only the Development domain's Git binding from `development` to the fixed, nonexistent `codex/development-maintenance-hold` branch. It refuses redirects, another domain bound to either branch, and competing Preview deployments that could assign this domain. It verifies the complete paginated inventory and the binding after the change.
+Preparation verifies the open PR's head, repository, Development base and ancestry. It checks that the existing Development alias serves the current Development head. It stages a static maintenance Preview and records its immutable identity. Then it changes only the Development domain's Git binding from `development` to the fixed `codex/development-maintenance-hold` branch. Vercel binds a domain only to a branch that exists, so that branch is one pinned orphan sentinel commit (`5edf615dcc9d0817680632c0c76f139912cb1f5d`, tree `993f3b25e5f0ac4100840be7ed62458fb7bef69e`) whose sole `vercel.json` disables Git deployments and ignores builds. Every authority check refuses a moved tip, another tree or a parent, and the hold refuses any sentinel deployment that is not canceled or failed, so the held domain cannot follow a deployable build. A refused provider request reports its sanitized error code and message.
+
+Create the sentinel once, before inspection, by pushing exactly `5edf615dcc9d0817680632c0c76f139912cb1f5d:refs/heads/codex/development-maintenance-hold` (the commit's only file is `vercel.json` with `{"git":{"deploymentEnabled":false},"ignoreCommand":"exit 0"}`). Every phase checks it. Never move or delete the branch while the domain is held or a later phase may run; restoring the domain to `development` is a separate reviewed action. The competing-deployment scan covers building, queued and initializing deployments; stale blocked CLI previews are a tracked cleanup before blocked deployments join that scan. It refuses redirects, another domain bound to either branch, and competing Preview deployments that could assign this domain. It verifies the complete paginated inventory and the binding after the change.
+
+Before staging, preparation refuses an existing maintenance deployment for the candidate. Only a preparation run creates a maintenance deployment, and it runs only on a workflow run whose head is the candidate. The scan therefore starts at the candidate's earliest GitHub workflow run, or its earliest Vercel git deployment if that is earlier, less 24 hours. Either record missing, mismatched or truncated stops preparation before any provider change, and the scan keeps its ten-page bound. Preparation therefore depends on the project's existing Vercel git record for pushed candidate commits; a change to the Git deployment pattern or to Vercel's retention of canceled deployments makes preparation refuse until reviewed. This assumes earlier records of the candidate were not deleted from both GitHub and Vercel, including during the read, and that the two clocks agree within the margin. Completion still scans from the preparation receipt's creation time, and recovery reuses the recorded deployment. A full-history reconciliation is separate evidence for a specific run, not a property of the algorithm.
 
 The controller enables the Development PostgREST request guard and sends a fresh zero-row PATCH that must fail with SQLSTATE `25006`. It then waits for the exact active authenticator transactions observed after that runtime proof, without terminating pooled or listener connections. The controller verifies the complete accepted baseline ledger, object catalog and maintenance posture, assigns the recorded maintenance deployment to the fixed domain and verifies its candidate/run marker. The immutable workflow artifact contains a sanitized `prepared` receipt with a four-hour completion window.
 
@@ -66,6 +151,7 @@ Run the focused controller, artifact and workflow tests with:
 
 ```sh
 node --test scripts/hosted-development/development-cutover.test.mjs \
+  scripts/hosted-development/cutover-cron-control.test.mjs \
   scripts/hosted-development/cutover-bootstrap.test.mjs \
   scripts/hosted-development/cutover-artifact.test.mjs \
   scripts/hosted-development/cutover-workflow.test.mjs

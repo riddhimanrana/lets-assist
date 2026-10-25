@@ -1,9 +1,18 @@
 import { afterAll, beforeEach, expect, mock, test } from "bun:test";
 mock.module("server-only", () => ({}));
 mock.module("next/cache", () => ({ revalidatePath: () => undefined }));
+const INITIAL_VERSION = "2026-10-11T00:00:00.000Z";
+const PROVISIONED_VERSION = "2026-10-11T00:00:01.000Z";
+const NEWER_VERSION = "2026-10-11T00:05:00.000Z";
 let authorized = true;
 let projectError = false;
 let failCalendar = false;
+// The saved configuration as the database holds it now. A concurrent admin
+// change edits it through one of the hooks below while a pass is in flight.
+let savedRow: Record<string, unknown> = {};
+let duringAuthorization: () => void = () => undefined;
+let duringProvisioning: () => void = () => undefined;
+let duringProjection: () => void = () => undefined;
 const queryCalls: Array<[string, string, unknown[]]> = [];
 const project = {
   id: "project-one",
@@ -12,70 +21,101 @@ const project = {
     oneTime: { date: "2030-01-01", startTime: "10:00", endTime: "12:00" },
   },
 };
+// The concurrent changes an in-flight pass must lose to. Each moves one pinned
+// column only, so every predicate has to hold on its own.
+const concurrentChanges = {
+  owner: () => Object.assign(savedRow, { created_by: "owner-two" }),
+  calendar: () =>
+    Object.assign(savedRow, { calendar_id: "replacement@example.test" }),
+  version: () => Object.assign(savedRow, { updated_at: NEWER_VERSION }),
+} as const;
+type Change = keyof typeof concurrentChanges;
+const changes = Object.keys(concurrentChanges) as Change[];
+/** Applies a change mid-pass and returns the row exactly as it left it. */
+function saveConcurrently(change: Change, also: () => void = () => undefined) {
+  const saved: { row: Record<string, unknown> | null } = { row: null };
+  const apply = () => {
+    also();
+    concurrentChanges[change]();
+    saved.row = { ...savedRow };
+  };
+  return { apply, saved };
+}
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
     from: (table: string) => {
-      const result = () =>
-        table === "organizations"
-          ? { data: { name: "Synthetic", username: "synthetic" }, error: null }
-          : table === "organization_calendar_syncs"
-            ? {
-                data: {
-                  created_by: "owner",
-                  calendar_id: "old@example.test",
-                  organization_id: "org",
-                },
-                error: null,
-              }
-            : {
-                data: projectError ? null : [project],
-                error: projectError ? {} : null,
-              };
+      const filters: Array<["eq" | "is", string, unknown]> = [];
+      let payload: Record<string, unknown> | null = null;
+      // Filters decide the row like Postgres: `= NULL` matches nothing.
+      const matches = () =>
+        filters.every(([operator, column, value]) =>
+          operator === "is"
+            ? savedRow[column] === value
+            : value !== null && savedRow[column] === value,
+        );
+      const result = () => {
+        if (table === "organizations")
+          return {
+            data: { name: "Synthetic", username: "synthetic" },
+            error: null,
+          };
+        if (table !== "organization_calendar_syncs")
+          return {
+            data: projectError ? null : [project],
+            error: projectError ? {} : null,
+          };
+        if (!matches()) return { data: null, error: null };
+        if (payload) Object.assign(savedRow, payload);
+        return { data: { ...savedRow }, error: null };
+      };
+      const record =
+        (method: string) =>
+        (...args: unknown[]): unknown => {
+          queryCalls.push([table, method, args]);
+          return query;
+        };
       const query = {
-        select: (...args: unknown[]) => {
-          queryCalls.push([table, "select", args]);
-          return query;
+        select: record("select"),
+        eq: (column: string, value: unknown) => {
+          filters.push(["eq", column, value]);
+          return record("eq")(column, value);
         },
-        eq: (...args: unknown[]) => {
-          queryCalls.push([table, "eq", args]);
-          return query;
+        is: (column: string, value: unknown) => {
+          filters.push(["is", column, value]);
+          return record("is")(column, value);
         },
-        neq: (...args: unknown[]) => {
-          queryCalls.push([table, "neq", args]);
-          return query;
-        },
-        or: (...args: unknown[]) => {
-          queryCalls.push([table, "or", args]);
-          return query;
-        },
-        order: (...args: unknown[]) => {
-          queryCalls.push([table, "order", args]);
-          return query;
-        },
-        limit: (...args: unknown[]) => {
-          queryCalls.push([table, "limit", args]);
-          return query;
-        },
+        neq: record("neq"),
+        or: record("or"),
+        order: record("order"),
+        limit: record("limit"),
+        abortSignal: record("abortSignal"),
         gt: () => query,
-        update: (...args: unknown[]) => {
-          queryCalls.push([table, "update", args]);
-          return query;
+        update: (values: Record<string, unknown>) => {
+          payload = values;
+          return record("update")(values);
         },
         single: async () => result(),
         maybeSingle: async () => result(),
-        then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve(result()).then(resolve),
+        then: (
+          resolve: (value: unknown) => unknown,
+          reject?: (reason: unknown) => unknown,
+        ) => Promise.resolve().then(result).then(resolve, reject),
       };
       return query;
     },
   }),
 }));
 const token = mock(async (..._args: unknown[]) => "fictional");
-const ensure = mock(async (..._args: unknown[]) =>
-  failCalendar
-    ? null
-    : { calendarId: "canonical@example.test", created: false },
-);
+const ensure = mock(async (..._args: unknown[]) => {
+  if (failCalendar) return null;
+  // Provisioning rewrites the compatibility row, which moves its version.
+  Object.assign(savedRow, {
+    calendar_id: "canonical@example.test",
+    updated_at: PROVISIONED_VERSION,
+  });
+  duringProvisioning();
+  return { calendarId: "canonical@example.test", created: false };
+});
 mock.module("@/services/calendar", () => ({
   getGoogleAccessTokenForUser: token,
   organizationCalendarGoogleBinding: (organizationId: string) => ({
@@ -86,9 +126,10 @@ mock.module("@/services/calendar", () => ({
   formatProjectToCalendarEvent: () => ({ summary: "Synthetic event" }),
 }));
 mock.module("@/lib/auth/google-oauth-authorization", () => ({
-  authorizeGoogleOAuthOrganizationRequest: async () => ({
-    allowed: authorized,
-  }),
+  authorizeGoogleOAuthOrganizationRequest: async () => {
+    duringAuthorization();
+    return { allowed: authorized };
+  },
 }));
 const plans: unknown[] = [];
 const reconcile = mock(
@@ -105,6 +146,7 @@ const reconcile = mock(
         owner: options.userId,
         calendar: options.calendarId,
       });
+      duringProjection();
       return {
         success: true,
         createdCount: 1,
@@ -129,10 +171,27 @@ mock.module("@/lib/organization/csf-calendar-sync", () => ({
   syncCsfCalendarProjections: csf,
 }));
 const { syncOrganizationCalendarInternal } = await import("./calendar-sync");
+const configurationUpdates = () =>
+  queryCalls.filter(
+    ([table, method]) =>
+      table === "organization_calendar_syncs" && method === "update",
+  );
 beforeEach(() => {
   authorized = true;
   projectError = false;
   failCalendar = false;
+  savedRow = {
+    organization_id: "org",
+    created_by: "owner",
+    calendar_id: "old@example.test",
+    calendar_email: "calendar@example.test",
+    auto_sync: true,
+    last_synced_at: null,
+    updated_at: INITIAL_VERSION,
+  };
+  duringAuthorization = () => undefined;
+  duringProvisioning = () => undefined;
+  duringProjection = () => undefined;
   queryCalls.length = 0;
   plans.length = 0;
   token.mockClear();
@@ -146,14 +205,46 @@ test("revoked owner disables sync before acquiring a provider token", async () =
   expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
   expect(token).not.toHaveBeenCalled();
   expect(ensure).not.toHaveBeenCalled();
-  expect(
-    queryCalls.some(
-      ([table, method, args]) =>
-        table === "organization_calendar_syncs" &&
-        method === "update" &&
-        (args[0] as { auto_sync: boolean }).auto_sync === false,
-    ),
-  ).toBe(true);
+  expect(savedRow.auto_sync).toBe(false);
+  expect(savedRow.updated_at).not.toBe(INITIAL_VERSION);
+  expect(savedRow.last_synced_at).toBeNull();
+});
+test("revoked owner of a calendar that was never provisioned is still paused", async () => {
+  authorized = false;
+  savedRow.calendar_id = null;
+  expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
+  expect(token).not.toHaveBeenCalled();
+  expect(savedRow.auto_sync).toBe(false);
+  expect(savedRow.calendar_id).toBeNull();
+});
+test.each(changes)(
+  "a revoked old pass cannot disable a configuration with a newer %s",
+  async (change) => {
+    // The old owner loses access while an admin saves the replacement.
+    const { apply, saved } = saveConcurrently(change, () => {
+      authorized = false;
+    });
+    duringAuthorization = apply;
+
+    expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
+    // The pause was attempted and matched nothing.
+    expect(configurationUpdates()).toHaveLength(1);
+    expect(savedRow).toEqual(saved.row!);
+    expect(savedRow.auto_sync).toBe(true);
+    expect(token).not.toHaveBeenCalled();
+  },
+);
+test("a calendar saved over an unprovisioned one is not paused by the old pass", async () => {
+  savedRow.calendar_id = null;
+  const { apply, saved } = saveConcurrently("calendar", () => {
+    authorized = false;
+  });
+  duringAuthorization = apply;
+
+  expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
+  expect(configurationUpdates()).toHaveLength(1);
+  expect(savedRow).toEqual(saved.row!);
+  expect(savedRow.auto_sync).toBe(true);
 });
 test("project projection keeps tenancy, publication scope, and source kind at the durable boundary", async () => {
   expect((await syncOrganizationCalendarInternal("org")).success).toBe(true);
@@ -188,21 +279,144 @@ test("project projection keeps tenancy, publication scope, and source kind at th
   ]);
   expect(csf).toHaveBeenCalledTimes(1);
 });
+test("completion stamps the version that provisioning left, not the one first read", async () => {
+  expect(await syncOrganizationCalendarInternal("org")).toEqual({
+    success: true,
+    createdCount: 1,
+    updatedCount: 0,
+    removedCount: 0,
+  });
+  expect(typeof savedRow.last_synced_at).toBe("string");
+  expect(savedRow).toMatchObject({
+    auto_sync: true,
+    created_by: "owner",
+    calendar_id: "canonical@example.test",
+    updated_at: PROVISIONED_VERSION,
+  });
+});
+test.each(changes)(
+  "an old pass cannot stamp completion on a configuration with a newer %s",
+  async (change) => {
+    const { apply, saved } = saveConcurrently(change);
+    duringProjection = apply;
+    const result = await syncOrganizationCalendarInternal("org");
+
+    expect(result).toEqual({
+      success: false,
+      error: "Calendar events synced, but completion could not be recorded",
+    });
+    expect(reconcile).toHaveBeenCalledTimes(1);
+    // Completion was attempted and matched nothing.
+    expect(configurationUpdates()).toHaveLength(1);
+    expect(savedRow).toEqual(saved.row!);
+    expect(savedRow.last_synced_at).toBeNull();
+  },
+);
+test.each(["owner", "calendar"] as const)(
+  "a newer %s saved during provisioning stops the pass before any event work",
+  async (change) => {
+    duringProvisioning = saveConcurrently(change).apply;
+    const result = await syncOrganizationCalendarInternal("org");
+
+    expect(result).toEqual({
+      success: false,
+      error: "Calendar settings changed. Retry with the current connection.",
+    });
+    expect(reconcile).not.toHaveBeenCalled();
+    expect(csf).not.toHaveBeenCalled();
+    expect(configurationUpdates()).toHaveLength(0);
+    expect(savedRow.last_synced_at).toBeNull();
+    expect(savedRow.auto_sync).toBe(true);
+  },
+);
 test("source load failure cannot report completion or run the other projection lane", async () => {
   projectError = true;
   expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
   expect(plans).toEqual([]);
   expect(csf).not.toHaveBeenCalled();
-  expect(
-    queryCalls.some(
-      ([table, method]) =>
-        table === "organization_calendar_syncs" && method === "update",
-    ),
-  ).toBe(false);
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+});
+test("owner revocation after event work cannot stamp healthy completion", async () => {
+  duringProjection = () => {
+    authorized = false;
+  };
+  const result = await syncOrganizationCalendarInternal("org");
+  expect(result.success).toBe(false);
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+});
+test("a pass without a deadline attaches no signal to any query", async () => {
+  expect((await syncOrganizationCalendarInternal("org")).success).toBe(true);
+  expect(queryCalls.some(([, method]) => method === "abortSignal")).toBe(false);
+  const passed = reconcile.mock.calls[0][0] as unknown as {
+    signal?: AbortSignal;
+  };
+  expect(passed.signal).toBeUndefined();
+});
+test("a deadline that already passed reads nothing and reaches no provider", async () => {
+  const expired = new AbortController();
+  expired.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: expired.signal,
+  });
+  expect(result.success).toBe(false);
+  expect(queryCalls).toHaveLength(0);
+  expect(token).not.toHaveBeenCalled();
+  expect(ensure).not.toHaveBeenCalled();
+});
+test("a deadline that passes during provisioning stops before any event work", async () => {
+  const controller = new AbortController();
+  duringProvisioning = () => controller.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  expect(result.success).toBe(false);
+  expect(reconcile).not.toHaveBeenCalled();
+  expect(csf).not.toHaveBeenCalled();
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+});
+test("a deadline that passes during event work cannot stamp a healthy completion", async () => {
+  const controller = new AbortController();
+  duringProjection = () => controller.abort();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  // The reconcile reported success, and the pass still does not.
+  expect(result.success).toBe(false);
+  expect(reconcile).toHaveBeenCalledTimes(1);
+  expect(csf).not.toHaveBeenCalled();
+  expect(configurationUpdates()).toHaveLength(0);
+  expect(savedRow.last_synced_at).toBeNull();
+  expect(savedRow.auto_sync).toBe(true);
+});
+test("the deadline reaches every source query and both projection lanes", async () => {
+  const controller = new AbortController();
+  const result = await syncOrganizationCalendarInternal("org", {
+    signal: controller.signal,
+  });
+  expect(result.success).toBe(true);
+  expect(reconcile.mock.calls[0][0]).toMatchObject({
+    signal: controller.signal,
+  });
+  expect(csf.mock.calls[0][0]).toMatchObject({ signal: controller.signal });
+  const bounded = queryCalls
+    .filter(([, method]) => method === "abortSignal")
+    .map(([table, , args]) => [table, args[0]]);
+  expect(bounded).toEqual([
+    ["organizations", controller.signal],
+    ["organization_calendar_syncs", controller.signal],
+    ["organization_calendar_syncs", controller.signal],
+    ["projects", controller.signal],
+  ]);
+  // The completion stamp is checked against the deadline, not cut off by it.
+  expect(typeof savedRow.last_synced_at).toBe("string");
 });
 test("uncertain destination prevents event reconciliation", async () => {
   failCalendar = true;
   expect((await syncOrganizationCalendarInternal("org")).success).toBe(false);
   expect(reconcile).not.toHaveBeenCalled();
   expect(csf).not.toHaveBeenCalled();
+  expect(savedRow.last_synced_at).toBeNull();
 });

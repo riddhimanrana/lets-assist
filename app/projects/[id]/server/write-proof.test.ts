@@ -25,7 +25,6 @@ let mockCancellationRpcResult: RpcResult | null;
 let mockStatusTransitionRpcResult: RpcResult | null;
 let mockSignedWaiverCount: number | null;
 let mockSignedWaiverError: unknown;
-let mockStorageListError: unknown;
 let mockStorageRemovalErrors: Record<string, unknown>;
 let anonymousAccessAllowed: boolean;
 
@@ -339,13 +338,6 @@ function buildMockClient() {
     },
     storage: {
       from: (bucket: string) => ({
-        list: async () => ({
-          data: [
-            { name: `project_${PROJECT_ID}_guide.pdf` },
-            { name: "other-project.pdf" },
-          ],
-          error: mockStorageListError,
-        }),
         remove: async (paths: string[]) => {
           eventLog.push(`storage:${bucket}`);
           storageRemovals.push({ bucket, paths });
@@ -369,7 +361,7 @@ mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async () => ({ user: mockUser, error: mockAuthError }),
 }));
 
-const { updateProjectStatus, deleteProject } = await import("./lifecycle");
+const { updateProjectStatus } = await import("./lifecycle");
 const { rejectSignup, unrejectSignup, cancelSignup } =
   await import("./cancellation");
 
@@ -462,7 +454,6 @@ beforeEach(() => {
   mockStatusTransitionRpcResult = null;
   mockSignedWaiverCount = 0;
   mockSignedWaiverError = null;
-  mockStorageListError = null;
   mockStorageRemovalErrors = {};
   anonymousAccessAllowed = false;
 });
@@ -1083,114 +1074,5 @@ describe("cancelSignup organizer authorization", () => {
   });
 });
 
-describe("deleteProject", () => {
-  test("external cleanup settles while the project still anchors authority", async () => {
-    mockProject = baseProject({
-      documents: [{ name: "guide.pdf" }],
-      cover_image_url:
-        "https://example.test/storage/project-images/project-cover.png",
-      creator_calendar_event_id: "calendar-event-1",
-    });
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({ success: true });
-    expect(eventLog).toEqual([
-      "storage:project-documents",
-      "storage:project-images",
-      "calendar:project",
-      "db:project-delete",
-    ]);
-    expect(storageRemovals).toEqual([
-      {
-        bucket: "project-documents",
-        paths: [`project_${PROJECT_ID}_guide.pdf`],
-      },
-      { bucket: "project-images", paths: ["project-cover.png"] },
-    ]);
-  });
-
-  test("an RLS zero-row delete is reported after settled external cleanup", async () => {
-    mockProject = baseProject({
-      documents: [{ name: "guide.pdf" }],
-      cover_image_url: "https://example.test/project-cover.png",
-    });
-    mockProjectDeleteResult = { data: null, error: null };
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({ error: "Failed to delete project" });
-    expect(storageRemovals).toHaveLength(2);
-    expect(calendarProjectRemovals).toHaveLength(0);
-  });
-
-  test("an explicit delete error performs no external cleanup", async () => {
-    mockProject = baseProject();
-    mockProjectDeleteResult = {
-      data: null,
-      error: { message: "foreign key refusal" },
-    };
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({ error: "Failed to delete project" });
-    expect(storageRemovals).toHaveLength(0);
-    expect(calendarProjectRemovals).toHaveLength(0);
-  });
-
-  test("a mismatched delete result performs no external cleanup", async () => {
-    mockProject = baseProject();
-    mockProjectDeleteResult = {
-      data: { id: "different-project" },
-      error: null,
-    };
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({ error: "Failed to delete project" });
-    expect(storageRemovals).toHaveLength(0);
-    expect(calendarProjectRemovals).toHaveLength(0);
-  });
-
-  test("signed waiver retention blocks the database delete and cleanup", async () => {
-    mockSignedWaiverCount = 1;
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toMatchObject({
-      error: expect.stringContaining("signed waivers"),
-    });
-    expect(eventLog).toHaveLength(0);
-  });
-
-  test("a waiver-state read error fails closed", async () => {
-    mockSignedWaiverError = { message: "count failed" };
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({
-      error: "Unable to verify the project's waiver-retention state",
-    });
-    expect(eventLog).toHaveLength(0);
-  });
-
-  test("a missing exact waiver count fails closed", async () => {
-    mockSignedWaiverCount = null;
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({
-      error: "Unable to verify the project's waiver-retention state",
-    });
-    expect(eventLog).toHaveLength(0);
-  });
-
-  test("a checked storage-list fault retains the project for retry", async () => {
-    mockProject = baseProject({ documents: [{ name: "guide.pdf" }] });
-    mockStorageListError = { message: "storage unavailable" };
-
-    const result = await deleteProject(PROJECT_ID);
-
-    expect(result).toEqual({ error: "Failed to clean up project documents" });
-    expect(eventLog).toEqual([]);
-    expect(storageRemovals).toHaveLength(0);
-  });
-});
+// deleteProject is covered in lifecycle.project-deletion.test.ts, which models
+// the deletion claim, the Storage delete guard, and the reference fence.

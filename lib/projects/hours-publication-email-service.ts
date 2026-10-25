@@ -22,6 +22,27 @@ export type HoursPublicationDeliverySummary = {
   emailsSent: number;
   errors: string[];
   partial: boolean;
+  // Provider acceptance recorded in the ledger during this call.
+  settledAccepted: number;
+  // The provider answered, but the ledger write was not confirmed. The
+  // delivery stays leased and is never reported as delivered.
+  settlementUnconfirmed: number;
+};
+
+const DURABLE_DELIVERY_PAGE_SIZE = 500;
+// 10,000 deliveries. A session holds at most 1,000 awards plus late arrivals.
+const DURABLE_DELIVERY_MAX_PAGES = 20;
+// 100 UUIDs keep the certificate filter inside common request-line limits.
+const DURABLE_CERTIFICATE_CHUNK_SIZE = 100;
+
+type DurableCertificateRow = {
+  id: string;
+  volunteer_name: string | null;
+  volunteer_email: string | null;
+  event_start: string;
+  event_end: string;
+  credited_minutes: number | null;
+  attendance_revision: number;
 };
 
 export async function loadDurablePublicationForRetry(
@@ -45,50 +66,75 @@ export async function loadDurablePublicationForRetry(
   }
   if (!receipt) return null;
 
-  const { data: outboxRows, error: outboxError } = await admin
-    .from("hours_publication_email_outbox")
-    .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
-    .eq("receipt_id", receipt.id)
-    .order("created_at", { ascending: true });
-  if (outboxError || !outboxRows) {
-    throw new Error("durable publication delivery lookup failed");
-  }
+  // Keyset pages by the unique delivery id. A single read would stop at the
+  // Data API row cap and silently drop the rest of a large session.
+  const deliveries: PublicationDelivery[] = [];
+  let lastDeliveryId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= DURABLE_DELIVERY_MAX_PAGES) {
+      throw new Error("durable publication delivery ledger exceeds the limit");
+    }
+    let pageQuery = admin
+      .from("hours_publication_email_outbox")
+      .select("id, state, idempotency_key, certificate_id, payload_prepared_at")
+      .eq("receipt_id", receipt.id);
+    if (lastDeliveryId) pageQuery = pageQuery.gt("id", lastDeliveryId);
+    const { data: outboxRows, error: outboxError } = await pageQuery
+      .order("id", { ascending: true })
+      .limit(DURABLE_DELIVERY_PAGE_SIZE);
+    if (outboxError || !outboxRows) {
+      throw new Error("durable publication delivery lookup failed");
+    }
+    if (outboxRows.length === 0) break;
 
-  const certificateIds = outboxRows.map((row) => row.certificate_id);
-  const { data: certificates, error: certificateError } = certificateIds.length
-    ? await admin
+    const certificatesById = new Map<string, DurableCertificateRow>();
+    for (
+      let offset = 0;
+      offset < outboxRows.length;
+      offset += DURABLE_CERTIFICATE_CHUNK_SIZE
+    ) {
+      const { data: certificates, error: certificateError } = await admin
         .from("certificates")
         .select(
           "id, volunteer_name, volunteer_email, event_start, event_end, credited_minutes, attendance_revision",
         )
-        .in("id", certificateIds)
-    : { data: [], error: null };
-  if (certificateError || !certificates) {
-    throw new Error("durable publication certificate lookup failed");
-  }
-
-  const certificatesById = new Map(
-    certificates.map((certificate) => [certificate.id, certificate]),
-  );
-  const deliveries: PublicationDelivery[] = outboxRows.map((row) => {
-    const certificate = certificatesById.get(row.certificate_id);
-    if (!certificate) {
-      throw new Error("durable publication certificate is missing");
+        .in(
+          "id",
+          outboxRows
+            .slice(offset, offset + DURABLE_CERTIFICATE_CHUNK_SIZE)
+            .map((row) => row.certificate_id),
+        );
+      if (certificateError || !certificates) {
+        throw new Error("durable publication certificate lookup failed");
+      }
+      for (const certificate of certificates as DurableCertificateRow[]) {
+        certificatesById.set(certificate.id, certificate);
+      }
     }
-    return {
-      deliveryId: row.id,
-      state: row.state,
-      payloadPrepared: row.payload_prepared_at !== null,
-      idempotencyKey: row.idempotency_key,
-      certificateId: certificate.id,
-      volunteerName: certificate.volunteer_name,
-      volunteerEmail: certificate.volunteer_email,
-      eventStart: certificate.event_start,
-      eventEnd: certificate.event_end,
-      creditedMinutes: certificate.credited_minutes,
-      attendanceRevision: certificate.attendance_revision,
-    };
-  });
+
+    for (const row of outboxRows) {
+      const certificate = certificatesById.get(row.certificate_id);
+      if (!certificate) {
+        throw new Error("durable publication certificate is missing");
+      }
+      deliveries.push({
+        deliveryId: row.id,
+        state: row.state,
+        payloadPrepared: row.payload_prepared_at !== null,
+        idempotencyKey: row.idempotency_key,
+        certificateId: certificate.id,
+        volunteerName: certificate.volunteer_name,
+        volunteerEmail: certificate.volunteer_email,
+        eventStart: certificate.event_start,
+        eventEnd: certificate.event_end,
+        creditedMinutes: certificate.credited_minutes,
+        attendanceRevision: certificate.attendance_revision,
+      });
+    }
+
+    if (outboxRows.length < DURABLE_DELIVERY_PAGE_SIZE) break;
+    lastDeliveryId = outboxRows[outboxRows.length - 1].id;
+  }
 
   return {
     outcome: "replayed",
@@ -167,6 +213,8 @@ export async function drainPublicationEmails(
     (delivery) => delivery.state === "accepted",
   ).length;
   let partial = false;
+  let settledAccepted = 0;
+  let settlementUnconfirmed = 0;
   const errors: string[] = [];
   let admin: ReturnType<typeof getAdminClient> | null = null;
 
@@ -213,7 +261,13 @@ export async function drainPublicationEmails(
         errors.push(
           "Email delivery could not start; durable work remains queued for safe follow-up",
         );
-        return { emailsSent, errors, partial: true };
+        return {
+          emailsSent,
+          errors,
+          partial: true,
+          settledAccepted,
+          settlementUnconfirmed,
+        };
       }
     }
 
@@ -320,6 +374,7 @@ export async function drainPublicationEmails(
 
     if (!settlementResult.settled) {
       partial = true;
+      settlementUnconfirmed++;
       errors.push(
         `Certificate ${delivery.certificateId}: delivery settlement failed`,
       );
@@ -337,12 +392,20 @@ export async function drainPublicationEmails(
       continue;
     }
 
-    if (settlementState !== "accepted") {
+    if (settlementState === "accepted") {
+      settledAccepted++;
+    } else {
       errors.push(
         `Certificate ${delivery.certificateId}: email ${settlementState.replaceAll("_", " ")}`,
       );
     }
   }
 
-  return { emailsSent, errors, partial };
+  return {
+    emailsSent,
+    errors,
+    partial,
+    settledAccepted,
+    settlementUnconfirmed,
+  };
 }

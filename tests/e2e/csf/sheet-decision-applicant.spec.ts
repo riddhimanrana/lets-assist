@@ -25,6 +25,14 @@ const PROFILE = `${CSF_ORGANIZATION_PATH}?tab=csf-profile`;
 const memberTabs = ["csf-home", "csf-profile", "csf-submissions"];
 let fixture: SheetDecisionFixture;
 let applicants: SheetApplicants;
+async function visibleTermPanel(page: Page) {
+  const panels = page.locator(`#csf-term-panel-${fixture.termId}`);
+  const summary = page.getByRole("tabpanel").and(panels);
+  await expect(summary).toHaveCount(1);
+  await expect(summary).toBeVisible();
+  await expect(panels.filter({ visible: true })).toHaveCount(1);
+  return summary;
+}
 async function stageOutcomes() {
   await stageDecisions(fixture, [
     {
@@ -97,8 +105,7 @@ for (const width of [1280, 390]) {
       ).toBeNull();
       await releaseDecisions(fixture);
       await page.goto(PROFILE);
-      const summary = page.locator(`#csf-term-panel-${fixture.termId}`);
-      await expect(summary).toBeVisible();
+      const summary = await visibleTermPanel(page);
       if (role === "accepted") {
         await expect(
           summary.getByText("Approved by CSF officers"),
@@ -150,9 +157,9 @@ test("a new red proposal preserves the member's published access until release",
   await loginWithEmail(page, applicants.byRole.accepted.email);
   await page.goto(PROFILE);
   await expect(
-    page
-      .locator(`#csf-term-panel-${fixture.termId}`)
-      .getByText("Approved by CSF officers", { exact: true }),
+    (await visibleTermPanel(page)).getByText("Approved by CSF officers", {
+      exact: true,
+    }),
   ).toBeVisible();
   expect(
     (await publishedState(fixture, applicants.byRole.accepted))
@@ -161,9 +168,9 @@ test("a new red proposal preserves the member's published access until release",
   await releaseDecisions(fixture);
   await page.reload();
   await expect(
-    page
-      .locator(`#csf-term-panel-${fixture.termId}`)
-      .getByText("Application not approved", { exact: true }),
+    (await visibleTermPanel(page)).getByText("Application not approved", {
+      exact: true,
+    }),
   ).toBeVisible();
   expect(
     (await publishedState(fixture, applicants.byRole.accepted))

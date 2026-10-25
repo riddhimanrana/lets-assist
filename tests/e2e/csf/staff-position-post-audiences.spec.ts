@@ -175,7 +175,12 @@ test("assigning and revoking a staff position changes post access while officer 
       },
     ]);
     await loginOwnedMember(actor, email);
-    await expect(actor.getByText(classTitle, { exact: true })).toBeVisible();
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toBeVisible();
     await expect(
       actor.getByRole("button", {
         name: "Switch to CSF Officer view",
@@ -288,7 +293,12 @@ test("assigning and revoking a staff position changes post access while officer 
         exact: true,
       }),
     ).toBeVisible();
-    await expect(actor.getByText(classTitle, { exact: true })).toBeVisible();
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toBeVisible();
     await expect(actor.getByText(memberTitle, { exact: true })).toBeVisible();
     expect(await actor.content()).not.toContain(staffTitle);
     expect(await actor.content()).not.toContain(otherClassTitle);
@@ -340,7 +350,12 @@ test("assigning and revoking a staff position changes post access while officer 
     for (const row of history ?? [])
       expect(row.correlation_id).toEqual(expect.any(String));
     await actor.reload({ waitUntil: "domcontentloaded" });
-    await expect(actor.getByText(classTitle, { exact: true })).toBeVisible();
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toHaveCount(1);
+    await expect(
+      actor.getByRole("heading", { name: classTitle, exact: true }),
+    ).toBeVisible();
     await expect(
       actor.getByRole("button", {
         name: "Switch to CSF Officer view",

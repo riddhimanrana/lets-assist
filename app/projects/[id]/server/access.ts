@@ -9,7 +9,10 @@ import { isProjectVisible } from "@/utils/project";
 import { type Project } from "@/types";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
-import { activeOrganizationRole } from "@/lib/projects/management-access";
+import {
+  ACTIVE_ORGANIZATION_MEMBER_STATUS,
+  activeOrganizationRole,
+} from "@/lib/projects/management-access";
 import { isMissingWaiverDisableEsignatureColumnError } from "./shared";
 import { canUserManageProject } from "./access-helpers";
 
@@ -177,20 +180,26 @@ export async function getProject(projectId: string) {
         return { error: "unauthorized", project: null };
       }
 
-      // Get user's organization memberships
-      const { data: userOrgs } = (await supabase
-        .from("organization_members")
-        .select("organization_id, role")
-        .eq("user_id", user.id)) as {
-        data: { organization_id: string; role: string }[] | null;
-        error: { message: string } | null;
-      };
+      // The creator reads their own project whatever their membership is now,
+      // matching the database read policy.
+      if (project.creator_id !== user.id) {
+        // Only an active membership counts. A failed read grants nothing.
+        const { data: userOrgs, error: userOrgsError } = (await supabase
+          .from("organization_members")
+          .select("organization_id, role")
+          .eq("user_id", user.id)
+          .eq("status", ACTIVE_ORGANIZATION_MEMBER_STATUS)) as {
+          data: { organization_id: string; role: string }[] | null;
+          error: { message: string } | null;
+        };
 
-      // Check if user is a member of the project's organization
-      const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
+        // Check if user is a member of the project's organization
+        const hasAccess =
+          !userOrgsError && isProjectVisible(project, user.id, userOrgs || []);
 
-      if (!hasAccess) {
-        return { error: "unauthorized", project: null };
+        if (!hasAccess) {
+          return { error: "unauthorized", project: null };
+        }
       }
     }
   }

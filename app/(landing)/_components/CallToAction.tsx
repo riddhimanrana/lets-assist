@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play, HeartHandshake } from "lucide-react";
+import { Play } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,40 +11,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AnimatedText } from "./AnimatedText";
 
 export const CallToAction = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <section id="cta" className="py-20 relative overflow-hidden">
-      {/* Enhanced background gradient */}
-      <div className="absolute inset-0 bg-linear-to-b from-transparent via-muted/30 to-muted/80"></div>
-
-      {/* Show accent circle only on desktop */}
-      {/* <div className="hidden md:block absolute -left-24 bottom-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div> */}
-      {/* <div className="absolute -right-20 top-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow"></div> */}
-
-      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
+    <section id="cta" className="border-t py-16 sm:py-20">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center space-y-8 max-w-3xl mx-auto"
+          className="max-w-3xl space-y-6"
         >
-          <div className="relative inline-block">
-            <div className="absolute inset-0 bg-linear-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow motion-reduce:animate-none"></div>
-            <HeartHandshake className="w-16 h-16 text-primary mx-auto relative z-10" />
-          </div>
-
-          <div className="flex flex-col items-center gap-6">
-            <h2 className="text-center text-3xl font-semibold tracking-tight md:text-4xl">
-              <AnimatedText text="Who will you help next?" mode="words" />
+          <div className="space-y-6">
+            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+              Set up your next volunteer project
             </h2>
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Button asChild size="lg" className="rounded-full px-6">
-                <Link href="/signup">Make a difference</Link>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button
+                asChild
+                size="lg"
+                className="w-full rounded-full px-6 sm:w-auto"
+              >
+                <Link href="/signup?redirect=%2Fprojects%2Fcreate">
+                  Create a project
+                </Link>
               </Button>
 
               <Dialog open={open} onOpenChange={setOpen}>
@@ -54,7 +47,7 @@ export const CallToAction = () => {
                       type="button"
                       variant="outline"
                       size="lg"
-                      className="rounded-full px-6"
+                      className="w-full rounded-full px-6 sm:w-auto"
                     >
                       <Play data-icon="inline-start" aria-hidden="true" />
                       Play demo video
@@ -93,8 +86,15 @@ export const CallToAction = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Every small act of kindness creates ripples of change in our
-            community. Start your volunteering journey today.
+            Add a date and shifts, then share one link with your volunteers.
+            Questions before you begin?{" "}
+            <Link
+              href="/contact"
+              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+            >
+              Contact us
+            </Link>
+            .
           </p>
         </motion.div>
       </div>

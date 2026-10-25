@@ -268,6 +268,91 @@ test("preserves bounded application review state through a CSF reconnect", () =>
   assert.equal(resolved.returnTo, returnTo);
 });
 
+test("preserves the application review list's search, filters and page through a CSF reconnect", () => {
+  const returnTo =
+    "/organization/dvhs-csf?tab=csf-applications" +
+    "&csf_import_type=application_responses" +
+    "&csf_review_term=33333333-3333-4333-8333-333333333333" +
+    "&csf_review_q=Member09" +
+    "&csf_review_show=all" +
+    "&csf_review_sheet=conflict" +
+    "&csf_review_cursor=a.-1.55555555-5555-4555-8555-555555555555.bWVtYmVyMDk1MA.bG9hZA";
+  const resolved = resolveGoogleOAuthReturnRoute({
+    purpose: "csf_import",
+    returnTo,
+    organizationSegments: ["dvhs-csf"],
+  });
+
+  assert.equal(resolved.allowlisted, true);
+  assert.equal(resolved.returnTo, returnTo);
+});
+
+test("preserves an every-class application review through a CSF reconnect", () => {
+  // The class selector emits `all` for every class, not a class id.
+  const returnTo =
+    "/organization/dvhs-csf?tab=csf-applications" +
+    "&csf_import_type=application_responses" +
+    "&csf_review_term=33333333-3333-4333-8333-333333333333" +
+    "&csf_review_cohort=all" +
+    "&csf_review_q=Member09" +
+    "&csf_review_show=all" +
+    "&csf_review_cursor=a.0.55555555-5555-4555-8555-555555555555.bWVtYmVyMDk1MA.bG9hZA";
+  const resolved = resolveGoogleOAuthReturnRoute({
+    purpose: "csf_import",
+    returnTo,
+    organizationSegments: ["dvhs-csf"],
+  });
+
+  assert.equal(resolved.allowlisted, true);
+  assert.equal(resolved.returnTo, returnTo);
+});
+
+test("rejects a review class that is neither a class id nor exactly all", () => {
+  const base =
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses";
+  for (const cohort of [
+    "ALL",
+    "All",
+    "all ",
+    "everything",
+    "*",
+    "all,44444444-4444-4444-8444-444444444444",
+    "not-a-uuid",
+    "",
+  ]) {
+    const returnTo = `${base}&csf_review_cohort=${encodeURIComponent(cohort)}`;
+    const resolved = resolveGoogleOAuthReturnRoute({
+      purpose: "csf_import",
+      returnTo,
+      organizationSegments: ["dvhs-csf"],
+    });
+    assert.equal(resolved.allowlisted, false, returnTo);
+  }
+});
+
+test("rejects malformed application review list state", () => {
+  const base =
+    "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses";
+  for (const returnTo of [
+    `${base}&csf_review_show=pending`,
+    `${base}&csf_review_sheet=everything`,
+    `${base}&csf_review_q=${"x".repeat(121)}`,
+    `${base}&csf_review_cursor=a.0.50`,
+    `${base}&csf_review_cursor=c.0.55555555-5555-4555-8555-555555555555.YQ.Yg`,
+    `${base}&csf_review_cursor=a.2.55555555-5555-4555-8555-555555555555.YQ.Yg`,
+    `${base}&csf_review_cursor=a.0.not-a-uuid.YQ.Yg`,
+    `${base}&csf_review_cursor=a.0.55555555-5555-4555-8555-555555555555.YQ%3D%3D.Yg`,
+    `${base}&csf_review_q=one&csf_review_q=two`,
+  ]) {
+    const resolved = resolveGoogleOAuthReturnRoute({
+      purpose: "csf_import",
+      returnTo,
+      organizationSegments: ["dvhs-csf"],
+    });
+    assert.equal(resolved.allowlisted, false, returnTo);
+  }
+});
+
 test("rejects unknown, duplicate, and malformed application import state", () => {
   const base =
     "/organization/dvhs-csf?tab=csf-applications&csf_import_type=application_responses";

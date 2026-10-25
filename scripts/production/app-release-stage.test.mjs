@@ -95,7 +95,7 @@ test("polling only reads the recorded deployment and never creates a replacement
     async (url, options) => {
       assert.equal(
         url,
-        "https://api.vercel.com/v13/deployments/dpl_fixture?teamId=team_fixture",
+        "https://api.vercel.com/v13/deployments/dpl_fixture?teamId=team_fixture&withGitRepoInfo=true",
       );
       assert.equal(options.method, "GET");
       return Response.json(

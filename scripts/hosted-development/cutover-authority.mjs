@@ -14,6 +14,11 @@ export const target = Object.freeze({
   domain: "dev.lets-assist.com",
   branch: "development",
   holdBranch: "codex/development-maintenance-hold",
+  // Vercel binds a domain only to a branch that exists. The hold branch is one
+  // reviewed orphan commit whose sole vercel.json disables Git deployments and
+  // ignores builds, so it can never produce an app deployment.
+  holdCommit: "5edf615dcc9d0817680632c0c76f139912cb1f5d",
+  holdTree: "993f3b25e5f0ac4100840be7ed62458fb7bef69e",
   workflow: ".github/workflows/csf-hosted-development-acceptance.yml",
 });
 export const requireCondition = (condition, message) => {
@@ -22,6 +27,12 @@ export const requireCondition = (condition, message) => {
 export const isSha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
 export const digest = (bytes) =>
   createHash("sha256").update(bytes).digest("hex");
+
+export function cutoverFailureMessage(error) {
+  return error instanceof ReleaseCheckError
+    ? error.message
+    : "Development cutover failed. Raw output was suppressed.";
+}
 
 export function cutoverConfig(env) {
   const config = {
@@ -42,7 +53,20 @@ export function cutoverConfig(env) {
     cwd: process.cwd(),
   };
   requireCondition(
-    ["bootstrap", "prepare", "complete", "recover"].includes(config.phase) &&
+    env.SUPABASE_PROJECT_ID === target.database &&
+      env.SUPABASE_URL === `https://${target.database}.supabase.co`,
+    "Development Supabase project or canonical URL does not match the fixed target.",
+  );
+  requireCondition(
+    [
+      "inspect",
+      "bootstrap",
+      "pause-cron",
+      "resume-cron",
+      "prepare",
+      "complete",
+      "recover",
+    ].includes(config.phase) &&
       isSha(config.candidate) &&
       isSha(config.controller) &&
       env.GITHUB_ACTIONS === "true" &&
@@ -50,7 +74,13 @@ export function cutoverConfig(env) {
       env.GITHUB_RUN_ATTEMPT === "1" &&
       env.GITHUB_REPOSITORY === target.repository &&
       env.GITHUB_REPOSITORY_ID === String(target.repositoryId) &&
-      (["bootstrap", "prepare"].includes(config.phase)
+      ([
+        "inspect",
+        "bootstrap",
+        "pause-cron",
+        "resume-cron",
+        "prepare",
+      ].includes(config.phase)
         ? config.controller === config.candidate &&
           config.ref?.startsWith("refs/heads/codex/")
         : config.ref === "refs/heads/development" ||
@@ -78,18 +108,78 @@ export function cutoverConfig(env) {
     "Development cutover authority or credentials are incomplete.",
   );
   requireCondition(
-    ["bootstrap", "prepare"].includes(config.phase)
-      ? !config.prepareRun &&
+    config.phase === "inspect"
+      ? !config.prepareRun && !env.EXTERNAL_WRITERS_CONFIRMATION
+      : ["bootstrap", "pause-cron", "prepare"].includes(config.phase)
+        ? !config.prepareRun &&
           env.EXTERNAL_WRITERS_CONFIRMATION ===
             `external-writers-stopped:${config.candidate}`
-      : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
-          config.prepareRun !== config.run,
+        : /^[1-9][0-9]*$/u.test(config.prepareRun ?? "") &&
+          config.prepareRun !== config.run &&
+          (config.phase !== "resume-cron" ||
+            env.EXTERNAL_WRITERS_CONFIRMATION ===
+              `external-writers-stopped:${config.candidate}`),
     "A candidate-bound external writer hold or prior preparation run is required.",
   );
   return config;
 }
 
+// A refused provider request names its error code and a cleaned message, so an
+// operator can reconcile it without the raw body. URLs, bearer values and long
+// token-like strings are removed; nothing from the request is echoed.
+export function sanitizeProviderError(text) {
+  let body;
+  try {
+    body = JSON.parse(String(text ?? "").slice(0, 4096));
+  } catch {
+    return {};
+  }
+  const rawCode = body?.error?.code ?? body?.code;
+  const rawMessage = body?.error?.message ?? body?.message;
+  const code =
+    typeof rawCode === "string" && /^[A-Za-z0-9_.-]{1,64}$/u.test(rawCode)
+      ? rawCode
+      : undefined;
+  const message =
+    typeof rawMessage === "string"
+      ? rawMessage
+          .replace(/\p{Cc}+/gu, " ")
+          .replace(/https?:\/\/\S+/giu, "[url]")
+          .replace(/Bearer\s+\S+/giu, "[redacted]")
+          .replace(/[A-Za-z0-9_-]{24,}/gu, "[redacted]")
+          .trim()
+          .slice(0, 200)
+      : undefined;
+  return { code, message };
+}
+
+async function refusalDetail(response, method) {
+  let text = "";
+  try {
+    text = (await response.text()).slice(0, 4096);
+  } catch {
+    return "";
+  }
+  const { code, message } = sanitizeProviderError(text);
+  if (!code && !message) return "";
+  return ` (${(method || "GET").toUpperCase()}${code ? ` ${code}` : ""}${message ? `: ${message}` : ""})`;
+}
+
 export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
+  const provider = url.startsWith("https://api.github.com/")
+    ? "GitHub"
+    : url.startsWith("https://api.vercel.com/")
+      ? "Vercel"
+      : "Provider";
+  const operation = url.includes("/environments/")
+    ? "environment policy"
+    : url.includes("/collaborators/")
+      ? "actor permission"
+      : url.includes("/approvals")
+        ? "environment review"
+        : url.includes("/v9/projects/") && !url.includes("/domains")
+          ? "root project"
+          : "provider operation";
   let response;
   try {
     response = await fetcher(url, {
@@ -102,14 +192,22 @@ export async function jsonRequest(url, token, options = {}, fetcher = fetch) {
         ...options.headers,
       },
     });
-    requireCondition(
-      response.ok,
-      "Provider request refused. Reconcile any unknown mutation before retrying.",
+  } catch {
+    throw new ReleaseCheckError(
+      `${provider} request transport failed during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
+  }
+  if (!response.ok) {
+    const detail = await refusalDetail(response, options.method);
+    throw new ReleaseCheckError(
+      `${provider} request refused (HTTP ${response.status}) during ${operation}${detail}. Reconcile any unknown mutation before retrying. The raw body was suppressed.`,
+    );
+  }
+  try {
     return await response.json();
   } catch {
     throw new ReleaseCheckError(
-      "Provider request failed. Raw responses and credentials were suppressed.",
+      `${provider} returned invalid JSON during ${operation}. Reconcile any unknown mutation before retrying. Raw output was suppressed.`,
     );
   }
 }
@@ -188,8 +286,17 @@ export async function verifyAuthority(
   requireCondition(
     reviews.length === 1 &&
       reviews[0].state === "approved" &&
-      reviews[0].user?.login,
+      typeof reviews[0].user?.login === "string" &&
+      reviews[0].user.login,
     "This workflow run has no unambiguous approved Development environment review.",
+  );
+  const reviewerRule = environment.protection_rules.find(
+    (rule) => rule.type === "required_reviewers",
+  );
+  requireCondition(
+    reviewerRule.prevent_self_review !== true ||
+      reviews[0].user.login.toLowerCase() !== config.actor.toLowerCase(),
+    "The current Development policy requires an independent reviewer.",
   );
   requireCondition(
     pr.number === config.pr &&
@@ -201,14 +308,28 @@ export async function verifyAuthority(
       pr.head.ref !== target.holdBranch,
     "Pull request identity does not match the reviewed Development candidate.",
   );
-  // A successful authenticated repository read above distinguishes absence from
-  // an inaccessible repository. Matching-refs returns [] for a missing prefix.
-  const heldRefs = await read(`/git/matching-refs/heads/${target.holdBranch}`);
+  // The hold branch must be exactly the pinned sentinel: a moved tip, another
+  // tree or a parent could carry a deployable app build onto the held domain.
+  const heldRef = await read(`/git/ref/heads/${target.holdBranch}`);
   requireCondition(
-    Array.isArray(heldRefs) && heldRefs.length === 0,
-    "The reserved maintenance branch must not exist.",
+    heldRef?.object?.type === "commit" &&
+      heldRef.object.sha === target.holdCommit,
+    "The maintenance hold branch is not the pinned sentinel commit.",
   );
-  if (["bootstrap", "prepare"].includes(config.phase) && !recovery) {
+  const heldCommit = await read(`/git/commits/${target.holdCommit}`);
+  requireCondition(
+    heldCommit?.sha === target.holdCommit &&
+      heldCommit.tree?.sha === target.holdTree &&
+      Array.isArray(heldCommit.parents) &&
+      heldCommit.parents.length === 0,
+    "The maintenance hold branch is not the pinned sentinel tree.",
+  );
+  if (
+    ["inspect", "bootstrap", "pause-cron", "resume-cron", "prepare"].includes(
+      config.phase,
+    ) &&
+    !recovery
+  ) {
     requireCondition(
       pr.state === "open" &&
         pr.merged === false &&
@@ -264,6 +385,7 @@ export async function loadPreparation(
   read,
   fetcher = fetch,
   now = Date.now(),
+  validate = validateReceipt,
 ) {
   const run = await read(`/actions/runs/${config.prepareRun}`);
   requireCondition(
@@ -273,7 +395,8 @@ export async function loadPreparation(
       run.run_attempt === 1 &&
       run.status === "completed" &&
       run.repository?.id === target.repositoryId &&
-      (config.phase === "recover" || run.conclusion === "success"),
+      (["recover", "resume-cron"].includes(config.phase) ||
+        run.conclusion === "success"),
     "The preparation must be an immutable completed run of this candidate workflow.",
   );
   const listing = await read(
@@ -363,7 +486,7 @@ export async function loadPreparation(
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-  validateReceipt(receipt, config, now);
+  validate(receipt, config, now);
   requireCondition(
     run.head_sha === receipt.controller &&
       (receipt.controller === receipt.candidate ||

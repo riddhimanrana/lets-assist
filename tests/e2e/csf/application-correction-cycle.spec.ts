@@ -315,7 +315,12 @@ test("existing member correction remains reviewable after the duplicate entry po
         .click();
     for (const name of ["Reopen review", "Open review"]) {
       const open = officer.getByRole("button", { name, exact: true });
-      if (await open.isVisible()) await open.click();
+      if (await open.isVisible()) {
+        await open.click();
+        // Period controls disappear only after the committed period arrives.
+        // A visible search box does not prove that scope change has settled.
+        await expect(open).toBeHidden();
+      }
     }
     await expect(
       officer.getByRole("textbox", { name: "Search by name", exact: true }),
@@ -323,6 +328,9 @@ test("existing member correction remains reviewable after the duplicate entry po
     await officer
       .getByRole("button", { name: "Chen, Evan", exact: true })
       .click();
+    await expect(
+      officer.getByRole("button", { name: "Back to roster", exact: true }),
+    ).toBeVisible();
     const correctionSection = officer.getByRole("region", {
       name: "Student corrections",
     });
