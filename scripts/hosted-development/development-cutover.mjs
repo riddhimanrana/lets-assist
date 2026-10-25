@@ -36,6 +36,7 @@ import {
   holdDomain,
   readAlias,
   readDomain,
+  candidateHistoryStart,
   refuseEarlierStage,
   verifyApplicationPage,
   verifyHeldAlias,
@@ -222,7 +223,12 @@ export async function runDevelopmentCutover(config, dependencies = {}) {
       "The prior Development alias must serve the current Development head.",
     );
     verifyQuiescence(config, query);
-    await refuseEarlierStage(config, vercel, "maintenance", 0);
+    await refuseEarlierStage(
+      config,
+      vercel,
+      "maintenance",
+      await candidateHistoryStart(github, vercel, config.candidate),
+    );
     receipt = {
       format: 1,
       ...source,

@@ -335,6 +335,105 @@ export async function waitPreview(
   );
 }
 
+// A deployment tagged for a candidate can only be created after the candidate
+// commit reached GitHub and Vercel. Two independently retained records bound
+// that moment: the candidate's earliest GitHub workflow run (GitHub's clock)
+// and its earliest Vercel git deployment (the same clock as the scan). The scan
+// starts at the earlier of the two, less a clock-skew margin, and fails closed
+// when either record is missing, mismatched or truncated. Assumption: earlier
+// records were not deleted from both providers. The deployment scan keeps its
+// reviewed page bound.
+export const candidateHistoryMarginMs = 24 * 60 * 60 * 1000;
+
+async function earliestGithubRun(github, candidate) {
+  let earliest = null,
+    seen = 0;
+  for (let page = 1; page <= 10; page++) {
+    const result = await github(
+      `/actions/runs?head_sha=${candidate}&per_page=100&page=${page}`,
+    );
+    requireCondition(
+      Array.isArray(result?.workflow_runs) &&
+        Number.isSafeInteger(result.total_count),
+      "Candidate workflow history is unavailable.",
+    );
+    for (const run of result.workflow_runs) {
+      const created = Date.parse(run?.created_at);
+      requireCondition(
+        run?.head_sha === candidate && Number.isFinite(created) && created > 0,
+        "Candidate workflow history is not bound to the candidate.",
+      );
+      if (earliest === null || created < earliest) earliest = created;
+    }
+    seen += result.workflow_runs.length;
+    if (result.workflow_runs.length < 100) {
+      requireCondition(
+        earliest !== null && seen === result.total_count,
+        "Candidate workflow history is empty or incomplete.",
+      );
+      return earliest;
+    }
+  }
+  requireCondition(
+    false,
+    "Candidate workflow history exceeds its reviewed bound.",
+  );
+}
+
+async function earliestVercelCommit(vercel, candidate) {
+  let earliest = null,
+    until = "";
+  for (let page = 0; page < 10; page++) {
+    const result = await vercel(
+      `/v6/deployments?projectId=${target.project}&limit=100&sha=${candidate}${until}`,
+    );
+    requireCondition(
+      Array.isArray(result?.deployments),
+      "Candidate deployment history is unavailable.",
+    );
+    for (const deployment of result.deployments) {
+      requireCondition(
+        deployment?.meta?.githubCommitSha === candidate &&
+          Number.isSafeInteger(deployment.created) &&
+          deployment.created > 0,
+        "Candidate deployment history is not bound to the candidate.",
+      );
+      if (earliest === null || deployment.created < earliest)
+        earliest = deployment.created;
+    }
+    if (!result.pagination?.next) {
+      requireCondition(
+        earliest !== null,
+        "The candidate has no recorded Vercel deployment.",
+      );
+      return earliest;
+    }
+    requireCondition(
+      Number.isSafeInteger(result.pagination.next) &&
+        result.pagination.next > 0,
+      "Candidate deployment history pagination is invalid.",
+    );
+    until = `&until=${result.pagination.next}`;
+  }
+  requireCondition(
+    false,
+    "Candidate deployment history exceeds its reviewed bound.",
+  );
+}
+
+export async function candidateHistoryStart(github, vercel, candidate) {
+  requireCondition(
+    /^[0-9a-f]{40}$/u.test(candidate ?? ""),
+    "The candidate history start needs an exact candidate SHA.",
+  );
+  const githubStart = await earliestGithubRun(github, candidate);
+  const vercelStart = await earliestVercelCommit(vercel, candidate);
+  return Math.max(
+    0,
+    Math.min(githubStart, vercelStart) - candidateHistoryMarginMs,
+  );
+}
+
 export async function refuseEarlierStage(config, read, kind, since) {
   let until = "";
   for (let page = 0; page < 10; page++) {

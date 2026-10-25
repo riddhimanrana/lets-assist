@@ -24,6 +24,7 @@ import {
 } from "./cutover-database.mjs";
 import {
   applicationPayload,
+  candidateHistoryMarginMs,
   holdDomain,
   validateDeployment,
   verifyApplicationPage,
@@ -564,7 +565,11 @@ test("maintenance creation refuses an unrecorded candidate deployment older than
   const f = controllerFixture("prepare");
   f.dependencies.vercel = (path, ...rest) =>
     path.startsWith("/v6/deployments?") && path.includes("&since=")
-      ? (assert.ok(path.includes("&since=0")),
+      ? (assert.ok(
+          path.includes(
+            `&since=${clock - 2 * 86_400_000 - candidateHistoryMarginMs}`,
+          ),
+        ),
         Promise.resolve({
           deployments: [
             {

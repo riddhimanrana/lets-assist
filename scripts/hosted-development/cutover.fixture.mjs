@@ -216,6 +216,16 @@ export function controllerFixture(phase = "prepare") {
         commit: { tree: { sha: tree } },
         parents: [{ sha: base }, { sha: candidate }],
       };
+    if (path.startsWith(`/actions/runs?head_sha=${candidate}&`))
+      return {
+        total_count: 1,
+        workflow_runs: [
+          {
+            head_sha: candidate,
+            created_at: new Date(clock - 2 * 86_400_000).toISOString(),
+          },
+        ],
+      };
     if (path.startsWith("/git/matching-refs/")) return [];
     if (path.startsWith("/compare/")) return { status: "ahead", behind_by: 0 };
     throw new Error(`Unexpected GitHub fixture path ${path}`);
@@ -257,6 +267,21 @@ export function controllerFixture(phase = "prepare") {
         alias: target.domain,
         projectId: target.project,
         deploymentId: state.alias,
+      };
+    if (
+      path.startsWith(
+        `/v6/deployments?projectId=${target.project}&limit=100&sha=${candidate}`,
+      )
+    )
+      return {
+        deployments: [
+          {
+            uid: "dpl_CandidatePush",
+            created: clock - 2 * 86_400_000,
+            meta: { githubCommitSha: candidate },
+          },
+        ],
+        pagination: {},
       };
     if (path.startsWith("/v6/deployments?"))
       return { deployments: state.active, pagination: {} };
