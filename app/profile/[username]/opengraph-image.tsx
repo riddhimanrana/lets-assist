@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
@@ -63,7 +64,7 @@ async function loadFont(fileName: string) {
       fontBuffer.byteOffset + fontBuffer.byteLength,
     );
   } catch (error) {
-    console.warn("OG font read failed:", error);
+    safeConsole.warn("OG font read failed:", error);
     return null;
   }
 }
@@ -75,7 +76,7 @@ async function getLogoDataUri(): Promise<string | null> {
     const base64 = logoBuffer.toString("base64");
     return `data:image/png;base64,${base64}`;
   } catch (error) {
-    console.warn("OG logo read failed:", error);
+    safeConsole.warn("OG logo read failed:", error);
     return null;
   }
 }
@@ -92,13 +93,13 @@ async function getProfileData(username: string) {
       .maybeSingle<ProfileRecord>();
 
     if (error) {
-      console.error("Error fetching profile for OG image:", error);
+      safeConsole.error("Error fetching profile for OG image:", error);
       return null;
     }
 
     return data ?? null;
   } catch (error) {
-    console.error("Error fetching profile for OG image:", error);
+    safeConsole.error("Error fetching profile for OG image:", error);
     return null;
   }
 }

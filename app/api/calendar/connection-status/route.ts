@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Get Calendar Connection Status
  * GET /api/calendar/connection-status
@@ -38,7 +39,7 @@ export async function GET(_request: Request) {
       preferences: connection.preferences,
     });
   } catch (error) {
-    console.error("Error getting calendar connection status:", error);
+    safeConsole.error("Error getting calendar connection status:", error);
     return NextResponse.json(
       { error: "Failed to get connection status" },
       { status: 500 },

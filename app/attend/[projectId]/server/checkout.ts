@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -62,7 +63,7 @@ export async function checkOutUser(
         .maybeSingle();
 
       if (fetchError) {
-        console.error(
+        safeConsole.error(
           "[checkOutUser] Error fetching anonymous signup:",
           fetchError,
         );
@@ -88,7 +89,7 @@ export async function checkOutUser(
         .maybeSingle();
 
       if (fetchError) {
-        console.error(
+        safeConsole.error(
           "[checkOutUser] Error fetching owned signup:",
           fetchError,
         );
@@ -119,7 +120,10 @@ export async function checkOutUser(
     const checkout = (checkoutRows as CheckoutRpcRow[] | null)?.[0] ?? null;
 
     if (checkoutError || !checkout) {
-      console.error("[checkOutUser] Atomic checkout failed:", checkoutError);
+      safeConsole.error(
+        "[checkOutUser] Atomic checkout failed:",
+        checkoutError,
+      );
       return {
         success: false,
         error: "Database error during check-out update.",
@@ -172,7 +176,10 @@ export async function checkOutUser(
       alreadyCheckedOut: checkout.outcome === "already_checked_out",
     };
   } catch (error) {
-    console.error("[checkOutUser] Unexpected error during check-out:", error);
+    safeConsole.error(
+      "[checkOutUser] Unexpected error during check-out:",
+      error,
+    );
     return { success: false, error: "An unexpected error occurred." };
   }
 }

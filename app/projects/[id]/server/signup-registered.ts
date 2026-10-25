@@ -161,7 +161,7 @@ export async function registerAuthenticatedSignup({
       if (userProfile?.email) {
         const { date, timeRange } = getScheduleDetails(project, scheduleId);
         const projectUrl = `${siteUrl}/projects/${projectId}`;
-        const { data: emailData, error: emailError } = await sendEmail({
+        const delivery = await sendEmail({
           to: userProfile.email,
           subject: `Signup confirmed for ${project.title}`,
           react: React.createElement(UserSignupConfirmation, {
@@ -176,17 +176,20 @@ export async function registerAuthenticatedSignup({
           type: "transactional",
         });
 
-        if (emailError) {
-          logSignupDebug(traceId, "registered_confirmation_email_failed", {
-            error: summarizePostgrestError(emailError),
+        if (delivery.outcome === "accepted") {
+          logSignupDebug(traceId, "registered_confirmation_email_sent", {
+            emailId: delivery.messageId,
+            transport: delivery.transport,
           });
         } else {
-          logSignupDebug(traceId, "registered_confirmation_email_sent", {
-            emailId:
-              typeof emailData === "object" && emailData
-                ? (emailData as { id?: string }).id
-                : undefined,
-          });
+          logSignupDebug(
+            traceId,
+            "registered_confirmation_email_not_confirmed",
+            {
+              outcome: delivery.outcome,
+              code: delivery.code,
+            },
+          );
         }
       }
     } catch (emailError) {

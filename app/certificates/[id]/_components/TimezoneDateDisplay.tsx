@@ -1,197 +1,91 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { format as formatDate, parseISO } from "date-fns";
 import { tz } from "@date-fns/tz";
+import {
+  certificateTimezone,
+  formatCertificateDate,
+  formatCertificateTime,
+} from "@/lib/certificates/project-dates";
 
 interface TimezoneDateDisplayProps {
   dateString: string;
   format: string;
+  timeZone?: string | null;
   className?: string;
   fallbackText?: string;
 }
 
+/** Certificate dates use the recorded zone on both server and client. */
 export function TimezoneDateDisplay({
   dateString,
   format,
+  timeZone,
   className = "",
-  fallbackText = "Loading...",
+  fallbackText = "Unknown date",
 }: TimezoneDateDisplayProps) {
-  const [formattedDate, setFormattedDate] = useState<string>(fallbackText);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-
-    try {
-      // Get user's timezone
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // Format the date in user's timezone
-      const formatted = formatDate(
-        parseISO(dateString),
-        format, // Prop name
-        { in: tz(userTimezone) },
-      );
-
-      // Add timezone abbreviation if the format includes time
-      let finalFormatted = formatted;
-      if (format.includes("h") || format.includes("H")) {
-        try {
-          const tzAbbr =
-            new Intl.DateTimeFormat("en-US", {
-              timeZone: userTimezone,
-              timeZoneName: "short",
-            })
-              .formatToParts(parseISO(dateString))
-              .find((part) => part.type === "timeZoneName")?.value || "";
-
-          if (tzAbbr) {
-            finalFormatted = `${formatted} ${tzAbbr}`;
-          }
-        } catch (tzError) {
-          console.warn("Error adding timezone abbreviation:", tzError);
-        }
-      }
-
-      setFormattedDate(finalFormatted);
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      // Fallback to UTC if timezone conversion fails
-      setFormattedDate(fallbackText);
+  let formattedDate = fallbackText;
+  try {
+    const zone = certificateTimezone(timeZone);
+    const date = parseISO(dateString);
+    formattedDate = formatDate(date, format, {
+      in: tz(zone),
+    });
+    if (format.includes("h") || format.includes("H")) {
+      const abbreviation = new Intl.DateTimeFormat("en-US", {
+        timeZone: zone,
+        timeZoneName: "short",
+      })
+        .formatToParts(date)
+        .find((part) => part.type === "timeZoneName")?.value;
+      if (abbreviation) formattedDate += ` ${abbreviation}`;
     }
-  }, [dateString, format, fallbackText]);
-
-  if (!isClient) {
-    return <span className={className}>{fallbackText}</span>;
+  } catch {
+    // Invalid historical dates retain the supplied readable fallback.
   }
-
   return <span className={className}>{formattedDate}</span>;
 }
 
 interface TimezoneEventDateRangeProps {
   startDate: string;
   endDate: string;
+  timeZone?: string | null;
   className?: string;
 }
 
 export function TimezoneEventDateRange({
   startDate,
   endDate,
+  timeZone,
   className = "",
 }: TimezoneEventDateRangeProps) {
-  const [formattedDates, setFormattedDates] = useState<{
-    start: string;
-    end: string;
-  }>({
-    start: "Loading...",
-    end: "Loading...",
-  });
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-
-    try {
-      // Get user's timezone
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // Get timezone abbreviation
-      const getTzAbbr = () => {
-        try {
-          return (
-            new Intl.DateTimeFormat("en-US", {
-              timeZone: userTimezone,
-              timeZoneName: "short",
-            })
-              .formatToParts(parseISO(startDate))
-              .find((part) => part.type === "timeZoneName")?.value || ""
-          );
-        } catch (tzError) {
-          console.warn("Error getting timezone abbreviation:", tzError);
-          return "";
-        }
-      };
-
-      const tzAbbr = getTzAbbr();
-
-      // Format both dates in user's timezone
-      const formattedStart = formatDate(
-        parseISO(startDate),
-        "MMM d, yyyy • h:mm a",
-        { in: tz(userTimezone) },
-      );
-
-      const formattedEnd = formatDate(
-        parseISO(endDate),
-        "MMM d, yyyy • h:mm a",
-        { in: tz(userTimezone) },
-      );
-
-      setFormattedDates({
-        start: tzAbbr ? `${formattedStart} ${tzAbbr}` : formattedStart,
-        end: tzAbbr ? `${formattedEnd} ${tzAbbr}` : formattedEnd,
-      });
-    } catch (error) {
-      console.error("Error formatting dates:", error);
-      setFormattedDates({
-        start: "Error loading date",
-        end: "Error loading date",
-      });
-    }
-  }, [startDate, endDate]);
-
-  if (!isClient) {
-    return (
-      <div className={className}>
-        <p className="text-base font-semibold mt-0.5">Loading...</p>
-        <p className="text-xs text-muted-foreground">to Loading...</p>
-      </div>
-    );
-  }
-
+  const endpoint = (date: string) =>
+    `${formatCertificateDate(date, timeZone, "display")} • ${formatCertificateTime(date, timeZone)}`;
   return (
     <div className={className}>
-      <p className="text-base font-semibold mt-0.5">{formattedDates.start}</p>
-      <p className="text-xs text-muted-foreground">to {formattedDates.end}</p>
+      <p className="font-medium tabular-nums">{endpoint(startDate)}</p>
+      <p className="text-muted-foreground text-sm tabular-nums">
+        to {endpoint(endDate)}
+      </p>
     </div>
   );
 }
 
 interface TimezonePrintEventDateProps {
   startDate: string;
+  timeZone?: string | null;
   className?: string;
 }
 
 export function TimezonePrintEventDate({
   startDate,
+  timeZone,
   className = "",
 }: TimezonePrintEventDateProps) {
-  const [formattedDate, setFormattedDate] = useState<string>("Loading...");
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-
-    try {
-      // Get user's timezone
-      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // Format the date in user's timezone
-      const formatted = formatDate(parseISO(startDate), "MMMM d, yyyy", {
-        in: tz(userTimezone),
-      });
-
-      setFormattedDate(formatted);
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      setFormattedDate("Error loading date");
-    }
-  }, [startDate]);
-
-  if (!isClient) {
-    return <span className={className}>Loading...</span>;
-  }
-
-  return <span className={className}>{formattedDate}</span>;
+  return (
+    <TimezoneDateDisplay
+      dateString={startDate}
+      format="MMMM d, yyyy"
+      timeZone={timeZone}
+      className={className}
+    />
+  );
 }

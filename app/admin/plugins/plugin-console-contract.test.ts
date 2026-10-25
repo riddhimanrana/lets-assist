@@ -16,7 +16,9 @@ describe("plugin admin console", () => {
     expect(controlPlane).toContain('useState("overview")');
     expect(controlPlane).toContain('value="advanced"');
     expect(overview).toContain("Microfrontend app");
-    expect(overview).toContain("Manage access, installed versions, runtimes");
+    expect(controlPlane).toContain(
+      "Manage access, installed versions, runtimes",
+    );
     expect(overview).not.toContain("How a release moves");
   });
 
@@ -28,6 +30,7 @@ describe("plugin admin console", () => {
       "PluginAdvancedControls.tsx",
       "PluginDataBoundaries.tsx",
       "PluginDetails.tsx",
+      "PluginSelectField.tsx",
     ];
 
     for (const filename of modules) {

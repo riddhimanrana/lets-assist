@@ -1,8 +1,8 @@
 name: Background Data Exports
 
 on:
-  schedule:
-    - cron: "*/20 * * * *" # Every 20 minutes
+  # Vercel Cron owns the schedule (vercel.json). This approval-gated
+  # dispatch is the manual fallback.
   workflow_dispatch:
 
 permissions:

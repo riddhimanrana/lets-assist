@@ -794,7 +794,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.end_recurring_project_series_transactional(
     'f9200000-0000-4000-8000-000000000010'
   )$$,
-  '40001',
+  'PT409',
   'series end generation required; refresh required',
   'the compatibility wrapper cannot adopt and end an active generation'
 );
@@ -839,7 +839,7 @@ SELECT extensions.throws_ok(
       )
     )
   )$$,
-  '40001',
+  'PT409',
   'project recurrence generation changed; refresh required',
   'a delayed retry cannot end a replacement recurrence generation'
 );
@@ -968,7 +968,7 @@ SELECT extensions.throws_ok(
       )
     )
   )$$,
-  '40001',
+  'PT409',
   'project series end request does not match committed edit',
   'a generation receipt cannot be rebound to different ordinary edits'
 );

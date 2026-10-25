@@ -1,12 +1,18 @@
 "use client";
 
-import * as React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, usePathname } from "next/navigation";
 import { Dialog } from "@base-ui/react/dialog";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { FIRST_LOGIN_TOUR_STEPS } from "@/components/onboarding/first-login-tour-steps";
 import type { Step, Tour } from "nextstepjs";
@@ -350,19 +356,19 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
               <>
                 {/* Use a single div with a massive box-shadow to create the overlay with a clear cutout */}
                 <div
-                  className="absolute transition-all duration-300 ease-out"
+                  className="absolute transition-all duration-300 ease-out motion-reduce:transition-none"
                   style={{
                     top: highlightStyle.top,
                     left: highlightStyle.left,
                     width: highlightStyle.width,
                     height: highlightStyle.height,
                     borderRadius: highlightStyle.borderRadius,
-                    boxShadow: "0 0 0 9999px rgba(2, 6, 23, 0.75)",
+                    boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.75)",
                   }}
                 />
                 {/* Border highlight around the cutout */}
                 <div
-                  className="absolute border-2 border-primary/70 transition-[top,left,width,height] duration-300 ease-out ring-2 ring-primary/30"
+                  className="border-primary absolute border-2 transition-[top,left,width,height] duration-300 ease-out motion-reduce:transition-none"
                   style={{
                     top: highlightStyle.top,
                     left: highlightStyle.left,
@@ -373,7 +379,7 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
                 />
               </>
             ) : (
-              <div className="absolute inset-0 bg-slate-950/75" />
+              <div className="absolute inset-0 bg-black/75" />
             )}
           </div>,
           highlightPortalRoot,
@@ -390,78 +396,61 @@ body[data-first-login-tour='true'] .base-Dialog-backdrop {
               First login tour walkthrough
             </Dialog.Title>
             <div className="relative flex h-full w-full items-end justify-end p-4 sm:p-8 pointer-events-none">
-              <Card className="relative z-20 w-full max-w-lg shadow-2xl pointer-events-auto">
-                <CardHeader className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      {/**
-                       * step.icon may be either a Lucide icon component (function) or a JSX element
-                       * (depending on which steps file is resolved). Support both.
-                       */}
-                      {(() => {
-                        const Icon = step?.icon;
-                        if (!Icon) return null;
-                        if (typeof Icon === "function") {
-                          return React.createElement(Icon, {
-                            className: "h-6 w-6",
-                          });
-                        }
-                        // If Icon is already a JSX element, render it directly (but override size if possible).
-                        return Icon;
-                      })()}
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl">{step.title}</CardTitle>
-                    </div>
-                  </div>
+              <Card className="pointer-events-auto relative z-20 w-full max-w-md shadow-lg">
+                <CardHeader>
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    Step {currentStep + 1} of {flattenedSteps.length}
+                  </p>
+                  <CardTitle>{step.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <p className="text-sm text-muted-foreground">
+                <CardContent className="grid gap-4">
+                  <p className="text-muted-foreground text-sm">
                     {step.content}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div aria-hidden="true" className="flex items-center gap-1">
                     {flattenedSteps.map((_, index) => (
                       <span
                         key={index}
                         className={cn(
-                          "h-1 flex-1 rounded-full bg-muted transition-colors duration-200",
+                          "bg-muted h-1 flex-1 rounded-full",
                           index <= currentStep && "bg-primary",
                         )}
                       />
                     ))}
                   </div>
                   {isNavigating && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                    <div
+                      role="status"
+                      className="text-muted-foreground flex items-center gap-2 text-xs"
+                    >
+                      <Loader2
+                        aria-hidden="true"
+                        className="size-3 animate-spin"
+                      />
                       <span>Loading the next page…</span>
                     </div>
                   )}
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <Button variant="ghost" size="sm" onClick={handleSkip}>
-                      Skip tour
-                    </Button>
-                    <div className="flex w-full gap-2 sm:w-auto">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1 sm:flex-none"
-                        disabled={currentStep === 0 || isNavigating}
-                        onClick={handleBack}
-                      >
-                        Back
-                      </Button>
-                      <Button
-                        className="flex-1 sm:flex-none"
-                        onClick={handleNext}
-                        disabled={isNavigating}
-                      >
-                        {currentStep === flattenedSteps.length - 1
-                          ? "Continue"
-                          : "Next"}
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
+                <CardFooter className="justify-between gap-2">
+                  <Button variant="ghost" onClick={handleSkip}>
+                    Skip tour
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={currentStep === 0 || isNavigating}
+                      onClick={handleBack}
+                    >
+                      Back
+                    </Button>
+                    <Button onClick={handleNext} disabled={isNavigating}>
+                      {currentStep === flattenedSteps.length - 1
+                        ? "Continue"
+                        : "Next"}
+                    </Button>
+                  </div>
+                </CardFooter>
               </Card>
             </div>
           </Dialog.Popup>

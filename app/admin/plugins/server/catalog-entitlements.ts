@@ -1,5 +1,6 @@
 "use server";
 
+import { isArchivedPlugin } from "@/lib/plugins/archived-plugins";
 import "server-only";
 
 import { revalidatePath } from "next/cache";
@@ -39,6 +40,13 @@ export async function upsertPluginCatalogControl(input: {
       success: false,
       error:
         "Plugin key must start with a lowercase letter/number and only contain lowercase letters, numbers, '-', '_' or '.'.",
+    };
+  }
+
+  if (isArchivedPlugin(key)) {
+    return {
+      success: false,
+      error: "This plugin is archived and cannot be offered.",
     };
   }
 
@@ -107,6 +115,13 @@ export async function upsertOrganizationPluginEntitlement(input: {
 
   if (!input.organizationId || !input.pluginKey) {
     return { success: false, error: "Organization and plugin are required." };
+  }
+
+  if (isArchivedPlugin(input.pluginKey) && input.status === "active") {
+    return {
+      success: false,
+      error: "This plugin is archived and cannot receive new access.",
+    };
   }
 
   const dateWindow = normalizeEntitlementDateWindow({
@@ -190,6 +205,13 @@ export async function bulkUpsertOrganizationPluginEntitlements(input: {
       success: false,
       error:
         "Add at least one organization identifier (organization ID or username).",
+    };
+  }
+
+  if (isArchivedPlugin(input.pluginKey) && input.status === "active") {
+    return {
+      success: false,
+      error: "This plugin is archived and cannot receive new access.",
     };
   }
 

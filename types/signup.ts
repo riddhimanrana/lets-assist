@@ -67,6 +67,10 @@ export interface Signup {
   updated_at: string;
   check_in_time: string | null;
   check_out_time: string | null;
+  attendance_intervals?: Array<{
+    checkIn: string | null;
+    checkOut: string | null;
+  }> | null;
   volunteer_comment?: string | null;
   response_data?: Record<string, unknown> | null;
   waiver_signature?: WaiverSignature | WaiverSignature[] | null;

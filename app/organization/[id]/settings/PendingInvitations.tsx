@@ -1,33 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  AlertCircle,
+  CheckCircle2,
+  Mail,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
+
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Pagination,
   PaginationContent,
@@ -36,17 +36,14 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-  MoreHorizontal,
-  Send,
-  XCircle,
-  Loader2,
-  RefreshCw,
-  Mail,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Trash2,
-} from "lucide-react";
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   deleteInvitations,
   getOrganizationInvitations,
@@ -54,7 +51,9 @@ import {
   resendInvitation,
 } from "@/app/organization/[id]/admin/actions";
 import type { OrganizationInvitationWithDetails } from "@/types/invitation";
-import type { InvitationDuration } from "@/lib/organization/invitation-utils";
+import { type InvitationDuration } from "@/lib/organization/invitation-utils";
+
+import PendingInvitationsTable from "./PendingInvitationsTable";
 
 interface PendingInvitationsProps {
   organizationId: string;
@@ -90,6 +89,10 @@ export default function PendingInvitations({
   );
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<{
+    invitationIds: string[];
+    isBulk: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -123,18 +126,6 @@ export default function PendingInvitations({
   useEffect(() => {
     void loadInvitations(page);
   }, [loadInvitations, page, refreshKey]);
-
-  const getEffectiveStatus = (
-    invitation: OrganizationInvitationWithDetails,
-  ) => {
-    const expired = new Date(invitation.expires_at) < new Date();
-
-    if (invitation.status === "pending" && expired) {
-      return "expired";
-    }
-
-    return invitation.status;
-  };
 
   const handleFilterChange = (value: StatusFilter) => {
     setStatusFilter(value);
@@ -178,6 +169,18 @@ export default function PendingInvitations({
     setActionPending(null);
   };
 
+  // Deleting is permanent, so it always goes through the confirm dialog.
+  const requestDeleteInvitations = (
+    invitationIds: string[],
+    isBulk = false,
+  ) => {
+    if (invitationIds.length === 0) {
+      return;
+    }
+
+    setPendingDelete({ invitationIds, isBulk });
+  };
+
   const handleDeleteInvitations = async (
     invitationIds: string[],
     isBulk = false,
@@ -186,15 +189,7 @@ export default function PendingInvitations({
       return;
     }
 
-    const confirmMessage =
-      invitationIds.length === 1
-        ? "Delete this invitation permanently?"
-        : `Delete ${invitationIds.length} invitations permanently?`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+    setPendingDelete(null);
     setError(null);
     setSuccessMessage(null);
 
@@ -227,81 +222,6 @@ export default function PendingInvitations({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const getStatusBadge = (invitation: OrganizationInvitationWithDetails) => {
-    const effectiveStatus = getEffectiveStatus(invitation);
-
-    if (effectiveStatus === "accepted") {
-      return (
-        <Badge variant="default">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
-          Accepted
-        </Badge>
-      );
-    }
-
-    if (effectiveStatus === "cancelled") {
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          <XCircle className="h-3 w-3 mr-1" />
-          Cancelled
-        </Badge>
-      );
-    }
-
-    if (effectiveStatus === "expired") {
-      return (
-        <Badge variant="outline" className="text-amber-600 border-amber-300">
-          <Clock className="h-3 w-3 mr-1" />
-          Expired
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge variant="secondary">
-        <Mail className="h-3 w-3 mr-1" />
-        Pending
-      </Badge>
-    );
-  };
-
-  const getDeliveryBadge = (invitation: OrganizationInvitationWithDetails) => {
-    const deliveryStatus = invitation.email_delivery_status || "pending";
-
-    if (deliveryStatus === "sent") {
-      return <Badge variant="default">Sent</Badge>;
-    }
-
-    if (deliveryStatus === "failed") {
-      return <Badge variant="destructive">Failed</Badge>;
-    }
-
-    if (deliveryStatus === "skipped") {
-      return <Badge variant="outline">Skipped</Badge>;
-    }
-
-    return <Badge variant="secondary">Pending</Badge>;
-  };
-
-  const getRoleBadge = (role: string) => {
-    return (
-      <Badge
-        variant={role === "staff" ? "default" : "outline"}
-        className="capitalize"
-      >
-        {role}
-      </Badge>
-    );
-  };
-
   // Clear messages after 5 seconds
   useEffect(() => {
     if (successMessage || error) {
@@ -314,12 +234,6 @@ export default function PendingInvitations({
   }, [successMessage, error]);
 
   const selectedCount = selectedInvitationIds.length;
-  const allCurrentPageSelected =
-    invitations.length > 0 &&
-    invitations.every((invitation) =>
-      selectedInvitationIds.includes(invitation.id),
-    );
-
   const pagedSummary = useMemo(() => {
     if (totalInvitations === 0) {
       return "0 invitations";
@@ -330,299 +244,205 @@ export default function PendingInvitations({
     return `${from}-${to} of ${totalInvitations}`;
   }, [page, totalInvitations]);
 
+  const filterLabel =
+    STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)
+      ?.label ?? "All";
+  const deleteCount = pendingDelete?.invitationIds.length ?? 0;
+
   return (
-    <div className="space-y-4">
-      {/* Filters and Actions */}
-      <div className="flex items-center justify-between">
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Select
           items={STATUS_FILTER_OPTIONS}
           value={statusFilter}
           onValueChange={(v) => handleFilterChange(v as StatusFilter)}
         >
-          <SelectTrigger className="w-37.5">
+          <SelectTrigger className="w-40" aria-label="Filter by status">
             <SelectValue placeholder="Pending" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="all">All</SelectItem>
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void loadInvitations(page)}
-          disabled={isLoading}
-        >
-          <RefreshCw
-            className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
-      </div>
-
-      {selectedCount > 0 && (
-        <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
-          <p className="text-sm text-muted-foreground">
-            {selectedCount} selected on this page
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 ? (
+            <>
+              <span className="text-muted-foreground text-sm">
+                {selectedCount} selected
+              </span>
+              <Button
+                variant="destructive-ghost"
+                onClick={() =>
+                  requestDeleteInvitations(selectedInvitationIds, true)
+                }
+                disabled={isBulkDeleting}
+              >
+                <Trash2 />
+                {isBulkDeleting ? "Deleting..." : "Delete selected"}
+              </Button>
+            </>
+          ) : null}
           <Button
-            variant="destructive"
-            size="sm"
-            onClick={() =>
-              void handleDeleteInvitations(selectedInvitationIds, true)
-            }
-            disabled={isBulkDeleting}
+            variant="ghost"
+            onClick={() => void loadInvitations(page)}
+            disabled={isLoading}
           >
-            {isBulkDeleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
-            )}
-            Delete selected
+            <RefreshCw className={isLoading ? "animate-spin" : undefined} />
+            Refresh
           </Button>
         </div>
-      )}
+      </div>
 
-      {/* Messages */}
       {error && (
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircle />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800 dark:text-green-200">
-            {successMessage}
-          </AlertDescription>
+        <Alert variant="success">
+          <CheckCircle2 />
+          <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 
-      {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="grid gap-2" aria-busy="true" aria-live="polite">
+          <span className="sr-only">Loading invitations</span>
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
       ) : invitations.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>
-            No {statusFilter !== "all" ? statusFilter : ""} invitations found.
-          </p>
-        </div>
+        <Empty className="border p-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Mail />
+            </EmptyMedia>
+            <EmptyTitle>
+              {statusFilter === "all"
+                ? "No invitations yet"
+                : `No ${filterLabel.toLowerCase()} invitations`}
+            </EmptyTitle>
+            <EmptyDescription>
+              {statusFilter === "all"
+                ? "Invitations you send with bulk import show up here."
+                : "Try another status, or send invitations with bulk import."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={allCurrentPageSelected}
-                    onCheckedChange={(checked) => {
-                      if (checked === true) {
-                        setSelectedInvitationIds(
-                          invitations.map((invitation) => invitation.id),
-                        );
-                        return;
-                      }
-
-                      setSelectedInvitationIds([]);
-                    }}
-                    aria-label="Select all invitations on page"
-                  />
-                </TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Email status</TableHead>
-                <TableHead>Sent</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead className="w-12.5"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invitations.map((invitation) => {
-                const effectiveStatus = getEffectiveStatus(invitation);
-                const canCancel = effectiveStatus === "pending";
-                const canResend =
-                  effectiveStatus === "pending" ||
-                  effectiveStatus === "expired";
-                const isRowBusy = actionPending === invitation.id;
-
-                return (
-                  <TableRow key={invitation.id}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedInvitationIds.includes(invitation.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedInvitationIds((previous) => {
-                            if (checked === true) {
-                              return previous.includes(invitation.id)
-                                ? previous
-                                : [...previous, invitation.id];
-                            }
-
-                            return previous.filter(
-                              (id) => id !== invitation.id,
-                            );
-                          });
-                        }}
-                        aria-label={`Select ${invitation.email}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      <div className="space-y-1">
-                        <p>{invitation.email}</p>
-                        {invitation.invited_full_name ? (
-                          <p className="text-xs text-muted-foreground">
-                            {invitation.invited_full_name}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getRoleBadge(invitation.role)}</TableCell>
-                    <TableCell>{getStatusBadge(invitation)}</TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {getDeliveryBadge(invitation)}
-                        {invitation.email_delivery_error ? (
-                          <p className="max-w-56 truncate text-xs text-destructive">
-                            {invitation.email_delivery_error}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(
-                        invitation.last_email_sent_at ||
-                          invitation.last_email_attempt_at ||
-                          invitation.created_at,
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {formatDate(invitation.expires_at)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={isRowBusy}
-                            >
-                              {isRowBusy ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <MoreHorizontal className="h-4 w-4" />
-                              )}
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end">
-                          {canResend ? (
-                            <>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  void handleResend(invitation.id, "1_week")
-                                }
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Resend (1 week)
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  void handleResend(invitation.id, "1_month")
-                                }
-                              >
-                                <Send className="h-4 w-4 mr-2" />
-                                Resend (1 month)
-                              </DropdownMenuItem>
-                            </>
-                          ) : null}
-
-                          {canCancel ? (
-                            <DropdownMenuItem
-                              onClick={() => void handleCancel(invitation.id)}
-                            >
-                              <XCircle className="h-4 w-4 mr-2" />
-                              Cancel invitation
-                            </DropdownMenuItem>
-                          ) : null}
-
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() =>
-                              void handleDeleteInvitations([invitation.id])
-                            }
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete invitation
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <PendingInvitationsTable
+          invitations={invitations}
+          selectedIds={selectedInvitationIds}
+          busyInvitationId={actionPending}
+          onSelectedIdsChange={setSelectedInvitationIds}
+          onResend={(id, duration) => void handleResend(id, duration)}
+          onCancel={(id) => void handleCancel(id)}
+          onDelete={(id) => requestDeleteInvitations([id])}
+        />
       )}
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground">Showing {pagedSummary}</p>
-        <Pagination className="mx-0 w-auto justify-start sm:justify-end">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (page > 1 && !isLoading) {
-                    setPage((previous) => Math.max(1, previous - 1));
-                  }
-                }}
-                aria-disabled={page <= 1 || isLoading}
-                className={
-                  page <= 1 || isLoading ? "pointer-events-none opacity-50" : ""
+      {totalInvitations > 0 ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-sm">
+            Showing {pagedSummary}
+          </p>
+          {totalPages > 1 ? (
+            <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (page > 1 && !isLoading) {
+                        setPage((previous) => Math.max(1, previous - 1));
+                      }
+                    }}
+                    aria-disabled={page <= 1 || isLoading}
+                    className={
+                      page <= 1 || isLoading
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="text-muted-foreground px-3 text-sm">
+                    Page {page} of {totalPages}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (page < totalPages && !isLoading) {
+                        setPage((previous) =>
+                          Math.min(totalPages, previous + 1),
+                        );
+                      }
+                    }}
+                    aria-disabled={page >= totalPages || isLoading}
+                    className={
+                      page >= totalPages || isLoading
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          ) : null}
+        </div>
+      ) : null}
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteCount === 1
+                ? "Delete this invitation?"
+                : `Delete ${deleteCount} invitations?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes{" "}
+              {deleteCount === 1 ? "the invitation" : "these invitations"} from
+              the history. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDelete) {
+                  void handleDeleteInvitations(
+                    pendingDelete.invitationIds,
+                    pendingDelete.isBulk,
+                  );
                 }
-              />
-            </PaginationItem>
-            <PaginationItem>
-              <span className="px-3 text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(event) => {
-                  event.preventDefault();
-                  if (page < totalPages && !isLoading) {
-                    setPage((previous) => Math.min(totalPages, previous + 1));
-                  }
-                }}
-                aria-disabled={page >= totalPages || isLoading}
-                className={
-                  page >= totalPages || isLoading
-                    ? "pointer-events-none opacity-50"
-                    : ""
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </div>
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

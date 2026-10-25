@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +12,7 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
+  AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
@@ -130,47 +132,39 @@ export function PluginPermanentDeletionDialog({
         className="sm:max-w-md"
         aria-describedby="plugin-data-deletion-desc"
       >
-        <div className="flex flex-col items-center gap-3 px-2 pt-4 text-center">
-          <div className="flex size-14 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10">
-            <ShieldAlert className="size-6 text-destructive" />
-          </div>
-          <AlertDialogTitle className="text-xl font-semibold">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
             Permanently delete {plugin.name} data?
           </AlertDialogTitle>
-          <AlertDialogDescription
-            id="plugin-data-deletion-desc"
-            className="text-sm text-muted-foreground"
-          >
+          <AlertDialogDescription id="plugin-data-deletion-desc">
             This is different from uninstalling. Uninstalling only removes the
             plugin&apos;s install record and settings — its stored data is kept.
             This action runs the plugin&apos;s own data-deletion code and
             permanently erases every manifest-declared tenant data target it
             manages for this organization. This cannot be undone.
           </AlertDialogDescription>
-        </div>
+        </AlertDialogHeader>
 
-        <div className="flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-            <p className="text-destructive">
-              All declared tenant data {plugin.name} manages for{" "}
-              {organizationName} will be permanently erased. Already-queued work
-              using this data may fail.
-            </p>
-          </div>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>
+            All declared tenant data {plugin.name} manages for{" "}
+            {organizationName} will be permanently erased. Already-queued work
+            using this data may fail.
+          </AlertTitle>
           {plugin.dataDeletionExternalSystemsNotCovered.length > 0 ? (
-            <div className="flex flex-col gap-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <AlertDescription className="grid gap-1">
+              <p className="text-foreground text-sm font-medium">
                 Not covered by this action
               </p>
-              <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <ul className="text-muted-foreground grid gap-1 text-sm">
                 {plugin.dataDeletionExternalSystemsNotCovered.map((system) => (
                   <li key={system}>{system}</li>
                 ))}
               </ul>
-            </div>
+            </AlertDescription>
           ) : null}
-        </div>
+        </Alert>
 
         <Field>
           <FieldLabel htmlFor="plugin-data-deletion-confirmation">
@@ -192,7 +186,7 @@ export function PluginPermanentDeletionDialog({
           </FieldContent>
         </Field>
 
-        <AlertDialogFooter className="sm:justify-between">
+        <AlertDialogFooter>
           <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"

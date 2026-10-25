@@ -5,6 +5,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 // this file in its own project context, where "@/" resolves to that app's root
 // and the alias would not find this module.
 import { loggerProvider } from "./lib/otel-logger-provider";
+import { telemetryRuntime } from "./lib/telemetry-runtime";
 
 // Keep every Node-only OpenTelemetry dependency behind instrumentation.ts's
 // NEXT_RUNTIME guard. This is required for the Webpack dev fallback and also
@@ -21,6 +22,7 @@ export { loggerProvider };
 async function startPostHogTraceExporter() {
   if (
     posthogTraceSdkStarted ||
+    !telemetryRuntime().enabled ||
     !process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN
   ) {
     return;
@@ -33,7 +35,7 @@ async function startPostHogTraceExporter() {
     ]);
 
     const sdk = new NodeSDK({
-      resource: resourceFromAttributes({ "service.name": "lets-assist" }),
+      resource: resourceFromAttributes(telemetryRuntime().attributes),
       traceExporter: new PostHogTraceExporter({
         projectToken: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
         host: "https://us.i.posthog.com",
@@ -42,11 +44,8 @@ async function startPostHogTraceExporter() {
 
     await sdk.start();
     posthogTraceSdkStarted = true;
-  } catch (error) {
-    console.warn(
-      "[Instrumentation] Failed to start PostHog trace exporter",
-      error,
-    );
+  } catch {
+    console.warn("[Instrumentation] Failed to start PostHog trace exporter");
   }
 }
 

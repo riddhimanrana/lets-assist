@@ -1,12 +1,25 @@
+import {
+  activeOrganizationRole,
+  canManageProjectAccess,
+  type OrganizationMembershipRow,
+} from "@/lib/projects/management-access";
+
 /**
- * Phase 7: Waiver Preview Authorization Helpers
+ * Authorization for reading a signed waiver.
  *
- * Extracted authorization logic for waiver preview/download routes.
- * Supports three authorization paths with proper priority:
- * 1. Organizer access (project creator or org admin/staff)
- * 2. Signer self-access (authenticated user tied to signature)
- * 3. Anonymous signer access (with required anonymousSignupId validation)
+ * Exactly four callers may read one, and every path fails closed:
+ * 1. The project creator.
+ * 2. An ACTIVE organization admin of the project's organization.
+ * 3. ACTIVE organization staff, only when the project allows staff management.
+ * 4. The signer: the signed-in user who owns the record, or a guest holding
+ *    the validated access token for the guest record that owns it.
+ *
+ * Paths 1 to 3 are the canonical project-management policy in
+ * `lib/projects/management-access.ts`. This module never restates it.
  */
+
+/** Signed URLs are opened by the browser straight after the action returns. */
+export const WAIVER_SIGNED_URL_TTL_SECONDS = 120;
 
 export interface AuthCheckParams {
   /** Current authenticated user ID, or null if not authenticated */
@@ -20,12 +33,13 @@ export interface AuthCheckParams {
   project: {
     creator_id: string | null;
     organization_id: string | null;
-    can_be_managed_by_staff: boolean;
+    can_be_managed_by_staff: boolean | null;
   };
-  /** Organization member record if user is in org, or null */
-  orgMember?: {
-    role: string;
-  } | null;
+  /**
+   * The caller's membership row in the project's organization, with its
+   * status. A row without an explicitly active status confers nothing.
+   */
+  orgMember?: OrganizationMembershipRow;
   /** For anonymous access, the anonymousSignupId from query params */
   anonymousSignupIdParam?: string | null;
   /** Whether the anonymous token was validated server-side for the provided anonymousSignupId */
@@ -44,10 +58,7 @@ export interface AuthCheckResult {
 /**
  * Check if a user/request is authorized to access a waiver signature.
  *
- * Authorization paths (in order of priority):
- * 1. Organizer: project creator or org admin/staff
- * 2. Signer self-access: authenticated user owns the signature
- * 3. Anonymous signer: valid anonymousSignupId matches signature.anonymous_id
+ * See the module comment for the four permitted readers.
  */
 export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
   const {
@@ -59,32 +70,33 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     anonymousAccessValidated,
   } = params;
 
-  // Path 1: Organizer access (project creator)
-  if (currentUserId && project.creator_id === currentUserId) {
-    return {
-      hasPermission: true,
-      reason: "organizer",
-      details: "User is project creator",
-    };
-  }
+  // Paths 1 to 3: the canonical project-management policy. A membership only
+  // counts for the project's own organization and only while it is active.
+  if (currentUserId) {
+    const organizationRole = project.organization_id
+      ? activeOrganizationRole(orgMember)
+      : null;
 
-  // Path 1: Organization admins always manage org projects. Staff only inherit
-  // that access when the creator explicitly enabled staff management.
-  if (currentUserId && project.organization_id && orgMember) {
-    const isAuthorizedOrgManager =
-      orgMember.role === "admin" ||
-      (orgMember.role === "staff" && project.can_be_managed_by_staff);
-
-    if (isAuthorizedOrgManager) {
+    if (
+      canManageProjectAccess({
+        creatorId: project.creator_id,
+        userId: currentUserId,
+        organizationRole,
+        canBeManagedByStaff: project.can_be_managed_by_staff,
+      })
+    ) {
       return {
         hasPermission: true,
         reason: "organizer",
-        details: `User is org ${orgMember.role}`,
+        details:
+          project.creator_id === currentUserId
+            ? "User is project creator"
+            : "User is an active organization manager",
       };
     }
   }
 
-  // Path 2: Signer self-access (authenticated user)
+  // Path 4a: Signer self-access (authenticated user)
   if (currentUserId && signature.user_id === currentUserId) {
     return {
       hasPermission: true,
@@ -93,7 +105,9 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
     };
   }
 
-  // Path 3: Anonymous signer access (or logged-in user with anonymous link)
+  // Path 4b: Guest signer access. A session does not disable this path, so a
+  // signed-in visitor can still open their own guest link. It never widens
+  // access: the id must match this record and the token must have validated.
   if (signature.anonymous_id) {
     // Must provide anonymousSignupId parameter for anonymous signatures
     if (anonymousSignupIdParam) {
@@ -128,9 +142,6 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
       details:
         "Anonymous signature access requires anonymousSignupId parameter",
     };
-
-    // Fallback: if user is logged in, but signed anonymously, we don't have a
-    // direct link unless it was explicitly linked later or they have the token.
   }
 
   // No authorization path matched
@@ -141,20 +152,55 @@ export function checkWaiverAccess(params: AuthCheckParams): AuthCheckResult {
   };
 }
 
+/** The only media types a stored signed waiver is ever served as. */
+const WAIVER_FILE_EXTENSIONS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+};
+
+/**
+ * The served media type for a stored signed waiver. The stored object's own
+ * content type wins. The path extension is only a fallback for objects whose
+ * type was not recorded, and anything unrecognized is served as a PDF.
+ */
+export function resolveWaiverContentType(
+  storedContentType: string | null | undefined,
+  storagePath: string | null | undefined,
+): "application/pdf" | "image/png" | "image/jpeg" {
+  const stored = (storedContentType ?? "").split(";")[0].trim().toLowerCase();
+  if (stored === "application/pdf") return "application/pdf";
+  if (stored === "image/png") return "image/png";
+  if (stored === "image/jpeg" || stored === "image/jpg") return "image/jpeg";
+
+  const path = (storagePath ?? "").toLowerCase();
+  if (path.endsWith(".png")) return "image/png";
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+  return "application/pdf";
+}
+
 /**
  * Get Content-Disposition header value for waiver responses.
  *
  * @param inline - If true, returns 'inline' (for preview), otherwise 'attachment' (for download)
  * @param signatureId - The signature ID for filename
+ * @param contentType - Media type of the body, which decides the extension
  */
 export function getContentDisposition(
   inline: boolean,
   signatureId: string,
+  contentType: string = "application/pdf",
 ): string {
   const disposition = inline ? "inline" : "attachment";
+  const extension =
+    WAIVER_FILE_EXTENSIONS[contentType.split(";")[0].trim().toLowerCase()] ??
+    "pdf";
+  // The id is a database uuid, but it reaches a header, so keep it inert.
+  const safeId = signatureId.replace(/[^A-Za-z0-9_-]/g, "");
   const filename = inline
-    ? `waiver-${signatureId}.pdf`
-    : `signed-waiver-${signatureId}.pdf`;
+    ? `waiver-${safeId}.${extension}`
+    : `signed-waiver-${safeId}.${extension}`;
 
   return `${disposition}; filename="${filename}"`;
 }

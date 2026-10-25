@@ -1,8 +1,10 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist/webpack.mjs";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   createRectFromCenter,
   getCustomPlacementFieldSize,
@@ -137,7 +139,7 @@ export function PdfPage({
         const name = err instanceof Error ? err.name : undefined;
         // RenderingCancelledException is expected on fast navigation/zoom.
         if (name !== "RenderingCancelledException") {
-          console.error("Page render error:", err);
+          safeConsole.error("Page render error:", err);
           // Retry once after 100ms if initial render fails
           if (renderAttempts === 0) {
             retryTimeout = setTimeout(() => {
@@ -205,7 +207,7 @@ export function PdfPage({
     });
   };
 
-  if (!viewport) return <div className="w-150 h-200 bg-white animate-pulse" />;
+  if (!viewport) return <Skeleton className="h-200 w-150 rounded-none" />;
 
   const toWaiverFieldType = (
     fieldType: DetectedPdfField["fieldType"],
@@ -247,7 +249,7 @@ export function PdfPage({
   return (
     <div
       ref={containerRef}
-      className="relative ring-1 ring-border shadow-sm"
+      className="relative ring-1 ring-border"
       style={{ width: viewport.width, height: viewport.height }}
       onClick={handleCanvasClick}
     >
@@ -280,8 +282,8 @@ export function PdfPage({
             className={cn(
               "border-2 absolute transition-all cursor-pointer group flex items-center justify-center z-10",
               isSignature
-                ? "border-blue-500 bg-blue-500/15 hover:bg-blue-500/25"
-                : "border-gray-400 bg-gray-400/15 hover:bg-gray-400/25",
+                ? "border-info bg-info/15 hover:bg-info/25"
+                : "border-muted-foreground/60 bg-muted-foreground/15 hover:bg-muted-foreground/25",
               isHighlighted &&
                 "ring-2 ring-warning ring-offset-2 bg-warning/20 border-warning",
             )}
@@ -290,7 +292,7 @@ export function PdfPage({
               onDetectedFieldClick?.(field);
             }}
           >
-            <span className="opacity-0 group-hover:opacity-100 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded absolute -top-6 whitespace-nowrap pointer-events-none shadow-sm border text-center">
+            <span className="opacity-0 group-hover:opacity-100 bg-popover text-popover-foreground text-xs px-1.5 py-0.5 rounded-md absolute -top-7 whitespace-nowrap pointer-events-none shadow-md border text-center">
               {field.fieldName} ({field.fieldType})
             </span>
 

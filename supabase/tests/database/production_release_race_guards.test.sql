@@ -92,7 +92,7 @@ SELECT extensions.throws_ok(
       true
     )
   $$,
-  '40001',
+  'PT409',
   'plugin entitlement transition is locked',
   'a forced entitlement cannot cross an active deletion lease'
 );
@@ -104,7 +104,7 @@ SELECT extensions.throws_ok(
     WHERE organization_id = 'ef100000-0000-4000-8000-000000000001'
       AND plugin_key = 'race-guard-plugin'
   $$,
-  '40001',
+  'PT409',
   'plugin entitlement transition is locked',
   'an entitlement cannot move away from a pair with an active deletion lease'
 );

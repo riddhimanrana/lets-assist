@@ -1,7 +1,14 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
+import { runInNewContext } from "node:vm";
 import { withMicrofrontends } from "@vercel/microfrontends/next/config";
 import fg from "fast-glob";
 
@@ -123,6 +130,14 @@ test("directory results match fast-glob's path and globstar semantics", async ()
   expect(await fg("one/**", { cwd: root, onlyDirectories: true })).toEqual(
     expected,
   );
+  for (const pattern of ["./one/**", "././one/**", "one//**"]) {
+    expect(fg.globSync(pattern, { cwd: root, onlyDirectories: true })).toEqual(
+      expected,
+    );
+    expect(await fg(pattern, { cwd: root, onlyDirectories: true })).toEqual(
+      expected,
+    );
+  }
   expect(
     fg.globSync("one/**", {
       cwd: root,
@@ -130,4 +145,38 @@ test("directory results match fast-glob's path and globstar semantics", async ()
       markDirectories: true,
     }),
   ).toEqual(["one/two/", "one/two/three/"]);
+});
+
+test("Windows UNC globstar comparisons retain only descendants", async () => {
+  const matches = ["//server/share/apps", "//server/share/apps/one"];
+  const loaded = { exports: fg };
+  runInNewContext(
+    readFileSync(
+      new URL("../../vendor/fast-glob-compat/index.cjs", import.meta.url),
+      "utf8",
+    ),
+    {
+      module: loaded,
+      process: { cwd: () => "C:\\fixture" },
+      require: (name: string) => {
+        if (name === "node:path") return win32;
+        if (name === "tinyglobby")
+          return {
+            glob: async () => matches,
+            globSync: () => matches,
+            isDynamicPattern: () => false,
+          };
+        throw new Error("Unexpected compatibility dependency");
+      },
+    },
+  );
+  for (const absolute of [undefined, false, true]) {
+    const options = { onlyDirectories: true, absolute };
+    expect(loaded.exports.globSync("//server/share/apps/**", options)).toEqual([
+      matches[1],
+    ]);
+    expect(await loaded.exports("//server/share/apps/**", options)).toEqual([
+      matches[1],
+    ]);
+  }
 });

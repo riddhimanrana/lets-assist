@@ -1,9 +1,14 @@
+import { safeConsole } from "@/lib/safe-console";
 import { revalidatePath } from "next/cache";
 import { SuccessMessage } from "./SuccessMessage";
 import { ErrorMessage } from "./ErrorMessage";
-import { Loader2 } from "lucide-react";
+import { NoticePage } from "@/components/projects/NoticePage";
+import { Spinner } from "@/components/ui/spinner";
 import { getAnonymousSignupAccessRecord } from "@/lib/anonymous-signup-access";
-import { confirmAnonymousSignupWithCapacity } from "@/lib/projects/signup-capacity";
+import {
+  AnonymousSignupWaiverError,
+  confirmAnonymousSignupWithCapacity,
+} from "@/lib/projects/signup-capacity";
 
 // Define possible confirmation statuses
 type ConfirmationStatus =
@@ -27,12 +32,12 @@ async function performConfirmation(
       });
 
     if (findError) {
-      console.error("Error finding anonymous signup:", findError);
+      safeConsole.error("Error finding anonymous signup:", findError);
       return { status: "error", message: "Database error finding signup." };
     }
 
     if (!anonSignup) {
-      console.error("Confirmation failed: Invalid token or ID");
+      safeConsole.error("Confirmation failed: Invalid token or ID");
       return { status: "invalid" };
     }
 
@@ -41,8 +46,13 @@ async function performConfirmation(
     // unmodified so the volunteer never receives a partial confirmation.
     const confirmation =
       await confirmAnonymousSignupWithCapacity(anonymousSignupId);
+    // A waiver refusal carries its own fixed sentence. Nothing was confirmed,
+    // and it is not a database fault.
+    if (confirmation.error instanceof AnonymousSignupWaiverError) {
+      return { status: "error", message: confirmation.error.message };
+    }
     if (confirmation.error || !confirmation.data) {
-      console.error(
+      safeConsole.error(
         "Error atomically confirming anonymous signup:",
         confirmation.error,
       );
@@ -74,7 +84,10 @@ async function performConfirmation(
       }
       revalidatePath(`/anonymous/${anonymousSignupId}`);
     } catch (revalidateError) {
-      console.warn("Path revalidation failed (non-critical):", revalidateError);
+      safeConsole.warn(
+        "Path revalidation failed (non-critical):",
+        revalidateError,
+      );
     }
 
     return {
@@ -85,7 +98,7 @@ async function performConfirmation(
           : "success",
     };
   } catch (error) {
-    console.error("Unexpected error during confirmation:", error);
+    safeConsole.error("Unexpected error during confirmation:", error);
     return { status: "error", message: "An unexpected error occurred." };
   }
 }
@@ -108,7 +121,7 @@ export default async function ConfirmationPage({
   };
 
   if (!token || !anonymousSignupId) {
-    console.error("Confirmation failed: Missing token or ID in URL");
+    safeConsole.error("Confirmation failed: Missing token or ID in URL");
     confirmationResult = { status: "invalid" };
   } else {
     // Perform the confirmation logic on the server
@@ -141,12 +154,7 @@ export default async function ConfirmationPage({
     case "processing": // Should ideally not be shown unless there's an issue before calling performConfirmation
     default:
       return (
-        <div className="container mx-auto flex min-h-[calc(100vh-150px)] items-center justify-center px-4 py-10">
-          <div className="flex flex-col items-center gap-4 text-muted-foreground">
-            <Loader2 className="h-12 w-12 animate-spin" />
-            <p>Processing confirmation...</p>
-          </div>
-        </div>
+        <NoticePage icon={<Spinner />} title="Processing confirmation..." />
       );
   }
 }

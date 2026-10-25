@@ -4,9 +4,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import EventType from "./EventType";
 
 const eventTypes = [
-  ["oneTime", "Single Event"],
-  ["multiDay", "Multiple Day Event"],
-  ["sameDayMultiArea", "Multi-Role Event"],
+  ["oneTime", "Single event"],
+  ["multiDay", "Multiple day event"],
+  ["sameDayMultiArea", "Multi-role event"],
 ] as const;
 
 describe("create-project event type accessibility", () => {

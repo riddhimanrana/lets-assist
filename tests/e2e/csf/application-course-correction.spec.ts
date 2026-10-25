@@ -91,7 +91,12 @@ async function openApplicationsTab(
 async function openSeededApplication(page: Parameters<typeof loginAs>[0]) {
   for (const label of ["Reopen review", "Open review"]) {
     const open = page.getByRole("button", { name: label, exact: true });
-    if (await open.isVisible()) await open.click();
+    if (await open.isVisible()) {
+      await open.click();
+      // Opening creates a new review scope; wait for its committed UI before
+      // entering the queue so the prior scope is not used for the read.
+      await expect(open).toBeHidden();
+    }
   }
   await expect(
     page.getByRole("textbox", { name: "Search by name", exact: true }),

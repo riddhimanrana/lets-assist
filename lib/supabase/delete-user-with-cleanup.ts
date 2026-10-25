@@ -1,239 +1,264 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
-import { detachContentReportReporter } from "@/lib/moderation/content-report-retention";
-
+const storageObject = z.object({
+  id: z.uuid(),
+  bucket_id: z.enum(["avatars", "data-exports"]),
+  object_name: z.string().min(1).max(1024),
+});
+const blockersSchema = z.record(z.string(), z.unknown());
+const operationSchema = z.object({
+  id: z.uuid(),
+  target_user_id: z.uuid(),
+  requested_by: z.uuid(),
+  mode: z.enum(["self_delete", "admin_blacklist"]),
+  phase: z.enum([
+    "database_pending",
+    "blocked",
+    "external_pending",
+    "completed",
+  ]),
+  deleted_counts: z.record(z.string(), z.number().int().nonnegative()),
+  blockers: blockersSchema,
+  safe_error_code: z.string().nullable(),
+  reason: z.string().max(1000).nullable().default(null),
+  claim_token: z.uuid().nullable(),
+  objects: z.array(storageObject).max(500).optional(),
+});
+type Operation = z.infer<typeof operationSchema>;
+type SoleAdminOrg = {
+  organization_id: string;
+  organization_name: string | null;
+};
 export type DeleteUserWithCleanupOptions = {
   deleteProjects?: boolean;
   deleteOrganizations?: boolean;
   dryRun?: boolean;
+  actorId?: string;
+  reason?: string;
+  mode?: "self_delete" | "admin_blacklist";
 };
-
 export type DeleteUserCleanupReport = {
   userId: string;
-  blockedBySoleAdminOrgs: Array<{
-    organization_id: string;
-    organization_name: string | null;
-  }>;
+  operationId?: string;
+  phase: "blocked" | "external_pending" | "completed" | "preflight";
+  blockedBySoleAdminOrgs: SoleAdminOrg[];
+  blockers: Record<string, unknown>;
   deletedCounts: Record<string, number>;
   skipped: string[];
   notes: string[];
+  completedNow: boolean;
 };
+function report(
+  operation: Operation,
+  completedNow = false,
+): DeleteUserCleanupReport {
+  return {
+    userId: operation.target_user_id,
+    operationId: operation.id,
+    phase:
+      operation.phase === "database_pending"
+        ? "external_pending"
+        : operation.phase,
+    blockedBySoleAdminOrgs: readSoleAdminOrgs(operation.blockers),
+    blockers: operation.blockers,
+    deletedCounts: operation.deleted_counts,
+    skipped: [],
+    notes: operation.safe_error_code ? [operation.safe_error_code] : [],
+    completedNow,
+  };
+}
+function readSoleAdminOrgs(blockers: Record<string, unknown>): SoleAdminOrg[] {
+  return z
+    .array(
+      z.object({
+        organization_id: z.uuid(),
+        organization_name: z.string().nullable(),
+      }),
+    )
+    .parse(blockers.sole_admin_organizations ?? []);
+}
+async function receiptRpc(
+  client: SupabaseClient,
+  name: string,
+  args: Record<string, unknown>,
+) {
+  const { data, error } = await client.rpc(name, args);
+  if (error)
+    throw new Error(
+      "Account cleanup could not be confirmed. Retry the saved operation.",
+    );
+  return operationSchema.parse(data);
+}
 
-/**
- * Delete a user and their associated data from Supabase.
- *
- * This function follows Supabase's recommended approach:
- * 1. Delete user data from public tables
- * 2. Call auth.admin.deleteUser() which automatically cleans up auth schema tables
- *
- * Reference: https://supabase.com/docs/guides/auth/managing-user-data#self-deletion
- */
+/** Resume a service-owned operation. The claim supplies the frozen target and storage paths. */
+export async function resumeAccountDeletionOperation(
+  client: SupabaseClient,
+  operationId: string,
+): Promise<DeleteUserCleanupReport> {
+  let operation = await receiptRpc(client, "claim_account_deletion_cleanup", {
+    p_operation: z.uuid().parse(operationId),
+  });
+  if (operation.phase === "completed") return report(operation);
+  if (
+    operation.phase !== "external_pending" ||
+    !operation.claim_token ||
+    !operation.objects
+  )
+    throw new Error("Account cleanup returned an invalid claim.");
+  const claim = operation.claim_token;
+  const pendingObjects = operation.objects;
+  const advance = (step: string, ids: string[] = []) =>
+    receiptRpc(client, "advance_account_deletion_cleanup", {
+      p_operation: operationId,
+      p_claim: claim,
+      p_step: step,
+      p_object_ids: ids,
+    });
+  const failed = async (
+    step: "storage_cleanup_failed" | "auth_cleanup_failed",
+  ) => {
+    try {
+      operation = await advance(step);
+    } catch {
+      /* The lease expires after an uncertain response. */
+    }
+    return report({
+      ...operation,
+      phase: "external_pending",
+      safe_error_code: step,
+    });
+  };
+  for (const bucket of ["avatars", "data-exports"] as const) {
+    const objects = pendingObjects.filter(
+      (object) => object.bucket_id === bucket,
+    );
+    for (let index = 0; index < objects.length; index += 100) {
+      const batch = objects.slice(index, index + 100);
+      try {
+        await advance("renew");
+        const { error } = await client.storage
+          .from(bucket)
+          .remove(batch.map((object) => object.object_name));
+        if (error) return await failed("storage_cleanup_failed");
+        await advance(
+          "storage_removed",
+          batch.map((object) => object.id),
+        );
+      } catch {
+        return await failed("storage_cleanup_failed");
+      }
+    }
+  }
+  try {
+    await advance("renew");
+    if (operation.mode === "self_delete") {
+      const { error } = await client.auth.admin.deleteUser(
+        operation.target_user_id,
+      );
+      // A lost successful response can leave an already-removed user on retry.
+      // The final RPC independently verifies absence before completing.
+      if (error && error.code !== "user_not_found")
+        return await failed("auth_cleanup_failed");
+    } else {
+      const { error } = await client.auth.admin.updateUserById(
+        operation.target_user_id,
+        {
+          ban_duration: "876000h",
+          app_metadata: {
+            account_access: {
+              status: "banned",
+              reason:
+                operation.reason ??
+                "Account removal approved by an administrator.",
+              updated_at: new Date().toISOString(),
+              updated_by: operation.requested_by,
+            },
+          },
+        },
+      );
+      if (error) return await failed("auth_cleanup_failed");
+    }
+    operation = await advance("complete");
+    if (operation.phase !== "completed")
+      throw new Error("Account cleanup is incomplete.");
+    return report(operation, true);
+  } catch {
+    return await failed("auth_cleanup_failed");
+  }
+}
+
 export async function deleteUserWithCleanup(
-  supabaseAdmin: SupabaseClient,
+  client: SupabaseClient,
   userId: string,
   options: DeleteUserWithCleanupOptions = {},
 ): Promise<DeleteUserCleanupReport> {
-  const {
-    deleteProjects = true,
-    deleteOrganizations = false,
-    dryRun = false,
-  } = options;
-  const deletedCounts: Record<string, number> = {};
-  const skipped: string[] = [];
-  const notes: string[] = [];
-
-  // Check if user is sole admin of any organizations
-  const blockedOrgs = await findSoleAdminOrgs(supabaseAdmin, userId);
-  if (blockedOrgs.length > 0) {
-    notes.push("User is the only admin in one or more organizations.");
+  if (options.deleteOrganizations)
+    throw new Error(
+      "Transfer organization ownership before deleting an account.",
+    );
+  const args = {
+    p_actor: z.uuid().parse(options.actorId ?? userId),
+    p_target: z.uuid().parse(userId),
+    p_mode: options.mode ?? "self_delete",
+    p_delete_projects: options.deleteProjects ?? true,
+  };
+  if (options.dryRun) {
+    const { data, error } = await client.rpc(
+      "preflight_account_deletion",
+      args,
+    );
+    if (error)
+      throw new Error("Account deletion preflight could not be completed.");
+    const blockers = blockersSchema.parse(data);
     return {
       userId,
-      blockedBySoleAdminOrgs: blockedOrgs,
-      deletedCounts,
-      skipped,
-      notes,
+      phase: "preflight",
+      blockers,
+      blockedBySoleAdminOrgs: readSoleAdminOrgs(blockers),
+      deletedCounts: {},
+      skipped: ["Read-only preflight"],
+      notes: [],
+      completedNow: false,
     };
   }
-
-  if (!dryRun) {
-    // Moderation evidence is retained with the actor detached rather than
-    // deleted, so an account removal cannot erase reports about other content.
-    await detachContentReportReporter(supabaseAdmin, userId);
-    notes.push("content_reports retained with the reporter link detached.");
-
-    // Delete user data from public tables (respecting foreign key constraints)
-    const deletionSteps = [
-      { table: "feedback", where: { user_id: userId } },
-      { table: "notifications", where: { user_id: userId } },
-      { table: "notification_settings", where: { user_id: userId } },
-      { table: "user_calendar_connections", where: { user_id: userId } },
-      { table: "user_emails", where: { user_id: userId } },
-      { table: "trusted_member", where: { user_id: userId } },
-      { table: "certificates", where: { user_id: userId } },
-      { table: "project_signups", where: { user_id: userId } },
-    ];
-
-    if (deleteProjects) {
-      // Projects - delete those created by the user
-      const { error: projectError } = await supabaseAdmin
-        .from("projects")
-        .delete()
-        .eq("creator_id", userId);
-
-      if (projectError) {
-        throw new Error(`Failed to delete projects: ${projectError.message}`);
-      }
-      deletedCounts["projects"] = 0; // Count not available via this method
-    }
-
-    if (deleteOrganizations) {
-      // Organizations - delete those created by the user
-      const { error: orgError } = await supabaseAdmin
-        .from("organizations")
-        .delete()
-        .eq("created_by", userId);
-
-      if (orgError) {
-        throw new Error(`Failed to delete organizations: ${orgError.message}`);
-      }
-      deletedCounts["organizations"] = 0; // Count not available via this method
-    }
-
-    // Delete from other tables
-    for (const step of deletionSteps) {
-      let query = supabaseAdmin.from(step.table).delete();
-
-      // Apply the where conditions
-      for (const [key, value] of Object.entries(step.where)) {
-        query = query.eq(key, value);
-      }
-
-      const { error } = await query;
-
-      if (error) {
-        throw new Error(
-          `Failed to delete from ${step.table}: ${error.message}`,
-        );
-      } else {
-        deletedCounts[step.table] = 0; // Count not available via this method
-      }
-    }
-
-    // Delete organization memberships
-    const { error: membershipError } = await supabaseAdmin
-      .from("organization_members")
-      .delete()
-      .eq("user_id", userId);
-
-    if (membershipError) {
-      throw new Error(
-        `Failed to delete organization memberships: ${membershipError.message}`,
-      );
-    }
-    deletedCounts["organization_members"] = 0; // Count not available via this method
-
-    // Delete the user profile (cascade delete will handle related data)
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .delete()
-      .eq("id", userId);
-
-    if (profileError) {
-      throw new Error(`Failed to delete profile: ${profileError.message}`);
-    }
-    deletedCounts["profiles"] = 0; // Count not available via this method
-
-    // Finally, delete the user account from auth
-    // This automatically cleans up all auth schema tables (sessions, mfa_factors, identities, etc.)
-    if (!supabaseAdmin.auth?.admin?.deleteUser) {
-      throw new Error("Supabase admin client is missing auth.admin.deleteUser");
-    }
-
-    const { error: authError } =
-      await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (authError) {
-      throw new Error(`Failed to delete auth user: ${authError.message}`);
-    }
-    notes.push(
-      "User deleted from auth system (all sessions and auth data automatically cleaned up)",
-    );
-  } else {
-    skipped.push("(dry run - no deletions performed)");
-  }
-
-  return {
-    userId,
-    blockedBySoleAdminOrgs: [],
-    deletedCounts,
-    skipped,
-    notes,
-  };
-}
-
-/**
- * Find organizations where the user is the sole admin.
- * Users cannot be deleted if they're the only admin in any organization.
- */
-export async function findSoleAdminOrgs(
-  supabaseAdmin: SupabaseClient,
-  userId: string,
-): Promise<
-  Array<{ organization_id: string; organization_name: string | null }>
-> {
-  const { data: memberships, error: membershipError } = await supabaseAdmin
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .eq("role", "admin");
-
-  if (membershipError) {
+  const operation = await receiptRpc(client, "begin_account_deletion", {
+    ...args,
+    p_reason: options.reason?.trim() || null,
+  });
+  if (
+    operation.target_user_id !== userId ||
+    operation.requested_by !== args.p_actor ||
+    operation.mode !== args.p_mode
+  )
     throw new Error(
-      `Failed to fetch organization memberships: ${membershipError.message}`,
+      "Account deletion intent did not match the requested account.",
     );
+  if (operation.phase !== "external_pending") return report(operation);
+  try {
+    return await resumeAccountDeletionOperation(client, operation.id);
+  } catch {
+    return report(operation);
   }
-
-  const orgIds = (memberships ?? [])
-    .map((row) => row.organization_id)
-    .filter((id): id is string => Boolean(id));
-
-  if (orgIds.length === 0) {
-    return [];
-  }
-
-  const { data: organizations, error: orgError } = await supabaseAdmin
-    .from("organizations")
-    .select("id,name")
-    .in("id", orgIds);
-
-  if (orgError) {
-    throw new Error(`Failed to fetch organizations: ${orgError.message}`);
-  }
-
-  const results: Array<{
-    organization_id: string;
-    organization_name: string | null;
-  }> = [];
-
-  for (const org of organizations ?? []) {
-    const { count, error: countError } = await supabaseAdmin
-      .from("organization_members")
-      .select("role", { count: "exact", head: true })
-      .eq("organization_id", org.id)
-      .eq("role", "admin");
-
-    if (countError) {
-      throw new Error(
-        `Failed to count admins for org ${org.id}: ${countError.message}`,
-      );
-    }
-
-    if ((count ?? 0) <= 1) {
-      results.push({
-        organization_id: org.id,
-        organization_name: org.name ?? null,
-      });
-    }
-  }
-
-  return results;
+}
+export async function findSoleAdminOrgs(
+  client: SupabaseClient,
+  userId: string,
+): Promise<SoleAdminOrg[]> {
+  return (await deleteUserWithCleanup(client, userId, { dryRun: true }))
+    .blockedBySoleAdminOrgs;
+}
+export function accountDeletionFailureMessage(
+  result: DeleteUserCleanupReport,
+): string {
+  if (result.blockedBySoleAdminOrgs.length)
+    return `Add another active admin before deleting this account: ${result.blockedBySoleAdminOrgs
+      .map(
+        (organization) =>
+          organization.organization_name ?? organization.organization_id,
+      )
+      .join(", ")}.`;
+  if (result.phase === "external_pending")
+    return `Account cleanup is pending. Retry deletion or contact support with operation ${result.operationId}.`;
+  return "Account removal is blocked. Disconnect linked providers and resolve retained organization, plugin, or storage records before retrying. No account data was removed.";
 }

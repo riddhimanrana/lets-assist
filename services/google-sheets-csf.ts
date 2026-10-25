@@ -2,13 +2,15 @@ import { createHash } from "node:crypto";
 import { logError } from "@/lib/logger";
 import { GOOGLE_SHEETS_API, type CsfDriveCommentThread } from "./google-drive";
 import {
-  CSF_SHEET_MAX_BOUNDED_CELLS,
-  GOOGLE_SHEETS_MAX_COLUMN_INDEX,
-  columnToIndex,
-  formatSheetNameForA1,
-  indexToColumn,
-  parseA1Range,
-} from "./google-sheets-report";
+  formatCsfSheetBounds,
+  parseCsfSheetBoundedRange,
+  type CsfSheetBounds,
+} from "@/lib/google-sheets/ranges";
+export {
+  formatCsfSheetBounds,
+  parseCsfSheetBoundedRange,
+  type CsfSheetBounds,
+} from "@/lib/google-sheets/ranges";
 
 export type CsfSheetTabVisibility = "visible" | "hidden" | "very_hidden";
 
@@ -18,14 +20,6 @@ export type CsfSheetSourceUnavailableReason =
   | "rate_limited"
   | "invalid_range"
   | "unavailable";
-
-export type CsfSheetBounds = {
-  tabName: string;
-  startRow: number;
-  endRow: number;
-  startColumn: number;
-  endColumn: number;
-};
 
 export type CsfSheetTabEvidence = {
   tabName: string;
@@ -157,72 +151,6 @@ function unavailableReasonForStatus(
   if (status === 404) return "not_found";
   if (status === 429) return "rate_limited";
   return "unavailable";
-}
-
-export function parseCsfSheetBoundedRange(
-  range: string,
-  fallbackTabName: string,
-): CsfSheetBounds | null {
-  const parsed = parseA1Range(range);
-  if (!parsed?.end) return null;
-  const tabName = parsed.tabName || fallbackTabName;
-  if (!tabName) return null;
-
-  const startRow = parsed.start.row;
-  const endRow = parsed.end.row;
-  const startColumn = columnToIndex(parsed.start.column);
-  const endColumn = columnToIndex(parsed.end.column);
-  const height = endRow - startRow + 1;
-  const width = endColumn - startColumn + 1;
-  const cellCount = height * width;
-  if (
-    !Number.isSafeInteger(startRow) ||
-    !Number.isSafeInteger(endRow) ||
-    !Number.isSafeInteger(startColumn) ||
-    !Number.isSafeInteger(endColumn) ||
-    startRow < 1 ||
-    endRow < startRow ||
-    startColumn < 1 ||
-    endColumn < startColumn ||
-    !Number.isSafeInteger(height) ||
-    !Number.isSafeInteger(width) ||
-    !Number.isSafeInteger(cellCount) ||
-    cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
-  ) {
-    return null;
-  }
-
-  return { tabName, startRow, endRow, startColumn, endColumn };
-}
-
-export function formatCsfSheetBounds(bounds: CsfSheetBounds) {
-  const height = bounds.endRow - bounds.startRow + 1;
-  const width = bounds.endColumn - bounds.startColumn + 1;
-  const cellCount = height * width;
-  if (
-    !bounds.tabName.trim() ||
-    !Number.isSafeInteger(bounds.startRow) ||
-    !Number.isSafeInteger(bounds.endRow) ||
-    !Number.isSafeInteger(bounds.startColumn) ||
-    !Number.isSafeInteger(bounds.endColumn) ||
-    bounds.startRow < 1 ||
-    bounds.endRow < bounds.startRow ||
-    bounds.startColumn < 1 ||
-    bounds.endColumn < bounds.startColumn ||
-    bounds.endColumn > GOOGLE_SHEETS_MAX_COLUMN_INDEX ||
-    !Number.isSafeInteger(height) ||
-    !Number.isSafeInteger(width) ||
-    !Number.isSafeInteger(cellCount) ||
-    cellCount > CSF_SHEET_MAX_BOUNDED_CELLS
-  ) {
-    throw new RangeError(
-      "CSF Google Sheets bounds must describe one safe bounded rectangle.",
-    );
-  }
-
-  const startColumn = indexToColumn(bounds.startColumn);
-  const endColumn = indexToColumn(bounds.endColumn);
-  return `${formatSheetNameForA1(bounds.tabName)}!${startColumn}${bounds.startRow}:${endColumn}${bounds.endRow}`;
 }
 
 /**

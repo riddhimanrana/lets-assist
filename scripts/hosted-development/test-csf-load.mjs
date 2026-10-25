@@ -22,7 +22,12 @@ import {
   createHostedReadMetrics,
   passesHostedReadRouteBudgets,
 } from "./csf-load-metrics.mjs";
-import { applicationsRosterSearch } from "./csf-load-applications-roster.mjs";
+import {
+  applicationsRosterSearch,
+  applicationsRosterSubjects,
+  openApplicationsReviewQueue,
+  waitForLoadedReviewRecord,
+} from "./csf-load-applications-roster.mjs";
 import { createBrowserDiagnostics } from "./browser-diagnostics.mjs";
 import { membershipAcceptanceOrigin } from "./membership-display-preview.mjs";
 
@@ -501,7 +506,11 @@ async function collectHeap(page, session) {
 async function selectedReviewDigest(nextButton) {
   return nextButton.evaluate(async (button) => {
     const queue = button.closest("[aria-busy]");
-    const panelText = queue?.children.item(1)?.textContent?.trim() ?? "";
+    const panel = queue?.children.item(1);
+    // Only a loaded record is a selected subject. A panel that is loading or
+    // failed carries no record marker, and its text is never digested.
+    if (!panel?.hasAttribute("data-review-record")) return "";
+    const panelText = panel.textContent?.trim() ?? "";
     if (!panelText) return "";
     const bytes = new TextEncoder().encode(panelText);
     const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -745,18 +754,13 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
   assertFixtureLocation(officerPage.url(), appUrl);
   const rosterSearch = applicationsRosterSearch(officerPage);
   await rosterSearch.waitFor({ state: "visible", timeout: 60_000 });
-  const roster = rosterSearch.locator(
-    "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' space-y-4 ')][1]",
-  );
-  const firstSubject = roster.locator("ul > li button").first();
+  const firstSubject = applicationsRosterSubjects(rosterSearch).first();
   await firstSubject.waitFor({ state: "visible", timeout: 60_000 });
-  await firstSubject.click({ timeout: 60_000 });
-  assertFixtureLocation(officerPage.url(), appUrl);
-
   const reviewQueue = officerPage.locator('[aria-busy="false"]').filter({
     has: officerPage.getByRole("button", { name: "Next subject" }),
   });
-  await reviewQueue.waitFor({ state: "visible", timeout: 60_000 });
+  await openApplicationsReviewQueue(rosterSearch, reviewQueue);
+  assertFixtureLocation(officerPage.url(), appUrl);
   const nextSubject = reviewQueue.getByRole("button", {
     name: "Next subject",
   });
@@ -769,6 +773,10 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
     );
   }
 
+  // An application is read when the queue reaches it. Each step waits for the
+  // loaded record itself, and for a different one after a move, so a loading
+  // placeholder can never stand in for the subject.
+  let reviewRecord = await waitForLoadedReviewRecord(reviewQueue);
   let reviewDigest = await selectedReviewDigest(nextSubject);
   if (!reviewDigest) {
     throw new Error(
@@ -785,6 +793,7 @@ async function runBrowserAcceptance({ appUrl, memberPage, officerPage }) {
           requestAnimationFrame(() => requestAnimationFrame(resolve));
         }),
     );
+    reviewRecord = await waitForLoadedReviewRecord(reviewQueue, reviewRecord);
     reviewDigest = await selectedReviewDigest(nextSubject);
     if (!reviewDigest || reviewDigest === previousDigest) {
       throw new Error(

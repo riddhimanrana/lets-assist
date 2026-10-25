@@ -406,7 +406,7 @@ SELECT extensions.throws_ok(
       '{"name":"must not write"}'::jsonb
     )
   $$,
-  '40001',
+  'PT409',
   'The CSF source file changed before its metadata could be refreshed.',
   'a stale expected file id fails closed'
 );

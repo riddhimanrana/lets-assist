@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -70,7 +71,7 @@ export async function signInWithGoogle(
     });
 
     if (error) {
-      console.error("Google OAuth error:", error);
+      safeConsole.error("Google OAuth error:", error);
       return {
         error: {
           server: ["Unable to start Google sign-in. Please try again."],

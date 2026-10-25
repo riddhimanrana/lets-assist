@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { readReviewedHotfixFile } from "./historical-hotfix-test-fixture.mjs";
 import {
   verifyDeployedApp,
   verifyExactFullCi,
@@ -40,6 +41,13 @@ const deployment = (sha) => ({
 });
 const alias = (id = deploymentId) => ({
   aliases: [{ alias: "lets-assist.com", projectId, deploymentId: id }],
+});
+
+test("the combined release cannot reuse the one-time dependency repair approval", () => {
+  assert.throws(
+    () => verifyReviewedContent(new URL("../../", import.meta.url).pathname),
+    /exact reviewed repair/u,
+  );
 });
 
 test("security-only workflow retains staging, exact public checks and rollback", () => {
@@ -330,19 +338,7 @@ test("security-only source requires exact main commit, review diff and no waiver
   ];
   for (const path of reviewedFiles) {
     mkdirSync(dirname(resolve(cwd, path)), { recursive: true });
-    writeFileSync(
-      resolve(cwd, path),
-      // This one-time exception must retain its original reviewed bytes even
-      // after normal later releases update dependencies or these tests.
-      execFileSync(
-        "git",
-        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
-        {
-          cwd: new URL("../../", import.meta.url),
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      ),
-    );
+    writeFileSync(resolve(cwd, path), readReviewedHotfixFile("security", path));
   }
   git("add", ".");
   git("commit", "-m", "Fictional audited dependency repair");

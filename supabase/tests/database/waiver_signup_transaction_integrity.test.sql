@@ -89,6 +89,14 @@ VALUES
     'project_waivers/c2000000-0000-4000-8000-000000000003/source.pdf'
   );
 
+-- The published project's waiver document really exists. New evidence must
+-- name it, and a snapshot of a missing object is refused.
+INSERT INTO storage.objects (bucket_id, name)
+VALUES (
+  'waiver-uploads',
+  'project_waivers/c2000000-0000-4000-8000-000000000001/source.pdf'
+);
+
 CREATE TEMPORARY TABLE signup_call_result AS
 SELECT * FROM public.insert_project_signup_with_waiver(
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
@@ -131,6 +139,8 @@ AS $$
     'signer_email', 'signer@local.test',
     'signature_type', 'typed',
     'signature_text', 'Signature Fixture',
+    'waiver_pdf_storage_path',
+      'project_waivers/c2000000-0000-4000-8000-000000000001/source.pdf',
     'project_id', 'c2000000-0000-4000-8000-000000000002',
     'signup_id', '00000000-0000-4000-8000-0000000000ff',
     'user_id', '00000000-0000-4000-8000-0000000000ee'
@@ -406,7 +416,9 @@ SELECT extensions.is(
       'signer_name', 'Guest Signer',
       'signer_email', 'guest-signer@local.test',
       'signature_type', 'typed',
-      'signature_text', 'Guest Signer'
+      'signature_text', 'Guest Signer',
+      'waiver_pdf_storage_path',
+        'project_waivers/c2000000-0000-4000-8000-000000000001/source.pdf'
     ),
     '{"email":"guest-signer@local.test","name":"Guest Signer","confirmed":false}'::jsonb
   ),

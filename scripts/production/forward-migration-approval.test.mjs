@@ -3,9 +3,12 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
 import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
-import { prepareMigration } from "./forward-migration-release.mjs";
+import {
+  applyForwardMigrations,
+  prepareMigration,
+} from "./forward-migration-release.mjs";
 
-test("unapproved migrations remain rejected beside the historical release fixture", () => {
+test("unapproved migrations are refused before any provider request", async () => {
   const future = historicalReleaseTestFixture();
   try {
     writeFileSync(
@@ -19,6 +22,22 @@ test("unapproved migrations remain rejected beside the historical release fixtur
       () => prepareMigration(future.cwd),
       /accepted migration tail is not approved/u,
     );
+    let requests = 0;
+    await assert.rejects(
+      applyForwardMigrations(
+        {
+          cwd: future.cwd,
+          projectRef: "fotdmeakexgrkronxlof",
+          token: "synthetic-test-token",
+        },
+        async () => {
+          requests += 1;
+          throw new Error("Unexpected provider request");
+        },
+      ),
+      /accepted migration tail is not approved/u,
+    );
+    assert.equal(requests, 0);
   } finally {
     future.dispose();
   }

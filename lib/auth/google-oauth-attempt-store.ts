@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { decrypt, encrypt } from "@/lib/encryption";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -129,7 +130,7 @@ export async function beginGoogleOAuthAttempt(input: {
   });
 
   if (error) {
-    console.error("Failed to record Google OAuth attempt", {
+    safeConsole.error("Failed to record Google OAuth attempt", {
       correlationId: input.secrets.correlationId,
       code: error.code ?? null,
     });
@@ -172,7 +173,7 @@ export async function claimGoogleOAuthAttempt(input: {
   });
 
   if (error) {
-    console.error("Failed to claim Google OAuth attempt", {
+    safeConsole.error("Failed to claim Google OAuth attempt", {
       code: error.code ?? null,
     });
     return { verdict: "unknown_attempt", correlationId: null };
@@ -266,7 +267,7 @@ export async function finalizeGoogleOAuthAttempt(input: {
   });
 
   if (error) {
-    console.error("Failed to finalize Google OAuth attempt", {
+    safeConsole.error("Failed to finalize Google OAuth attempt", {
       attemptId: input.attemptId,
       code: error.code ?? null,
     });
@@ -293,7 +294,7 @@ export async function markGoogleOAuthAttemptExchanged(input: {
   );
 
   if (error) {
-    console.error("Failed to mark Google OAuth code exchange", {
+    safeConsole.error("Failed to mark Google OAuth code exchange", {
       attemptId: input.attemptId,
       code: error.code ?? null,
     });

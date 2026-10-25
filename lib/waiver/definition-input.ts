@@ -111,6 +111,53 @@ const customFieldSchema = z
   })
   .strict();
 
+type SignatureCoverageInput = {
+  signers: ReadonlyArray<{ roleKey: string; label: string; required: boolean }>;
+  fields: {
+    detected: Record<string, { fieldType?: string; signerRoleKey?: string }>;
+    custom: ReadonlyArray<{ fieldType?: string; signerRoleKey?: string }>;
+  };
+};
+
+/**
+ * The required signers that nobody could e-sign for.
+ *
+ * The signing form only offers a signer a signature step when a field of type
+ * `signature` is mapped to them. An `initial` field does not count, and neither
+ * does a signature field left unassigned. A definition with such a signer
+ * always fails with "Required signature missing", so it is refused at save.
+ */
+export function findRequiredSignersMissingSignatureField(
+  definition: SignatureCoverageInput,
+): Array<{ roleKey: string; label: string }> {
+  const signedRoles = new Set<string>();
+  for (const field of [
+    ...Object.values(definition.fields.detected),
+    ...definition.fields.custom,
+  ]) {
+    if (field.fieldType === "signature" && field.signerRoleKey) {
+      signedRoles.add(field.signerRoleKey);
+    }
+  }
+
+  return definition.signers
+    .filter((signer) => signer.required && !signedRoles.has(signer.roleKey))
+    .map((signer) => ({ roleKey: signer.roleKey, label: signer.label }));
+}
+
+/** One sentence naming every signer that still needs a signature field. */
+export function describeMissingSignatureFields(
+  missing: ReadonlyArray<{ label: string }>,
+): string | null {
+  if (missing.length === 0) return null;
+  const labels = missing.map((signer) => signer.label);
+  const named =
+    labels.length === 1
+      ? labels[0]
+      : `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+  return `Add a signature field for ${named} before saving. An initials field does not count.`;
+}
+
 export const waiverDefinitionInputSchema = z
   .object({
     title: z.string().trim().min(1).max(160).optional(),
@@ -169,6 +216,14 @@ export const waiverDefinitionInputSchema = z
           message: "Field references an unknown signer role",
         });
       }
+    }
+
+    for (const signer of findRequiredSignersMissingSignatureField(definition)) {
+      context.addIssue({
+        code: "custom",
+        path: ["signers", roleKeys.indexOf(signer.roleKey)],
+        message: `Required signer "${signer.label}" needs a signature field`,
+      });
     }
 
     let serializedDefinition: string;

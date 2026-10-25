@@ -46,7 +46,7 @@ Core Let&apos;s Assist application code in this repository is open-source under 
 - Per-person targeting is configured from `/admin/plugins` via install configuration JSON (`organization_plugin_installs.configuration.targeting`).
 - Organization admins control local install/update state from `/organization/[org]/settings`.
 
-Private implementations are checked out through the `lib/plugins/private` submodule. Public architecture documentation includes the [DV Speech & Debate system](docs/architecture/dv-speech-debate.md).
+Private implementations are checked out through the `lib/plugins/private` submodule. DVHS CSF is active. Speech and Debate remains [archived reference code](docs/architecture/dv-speech-debate.md) and is not an app offering.
 
 Production client-specific logic should remain in private repos and be imported into this app runtime, not developed directly in public source.
 

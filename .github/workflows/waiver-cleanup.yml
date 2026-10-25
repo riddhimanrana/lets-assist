@@ -1,8 +1,8 @@
 name: Waiver Cleanup
 
 on:
-  schedule:
-    - cron: "25 */12 * * *" # Every 12 hours
+  # Vercel Cron owns the schedule (vercel.json). This approval-gated
+  # dispatch is the manual fallback.
   workflow_dispatch:
 
 permissions:

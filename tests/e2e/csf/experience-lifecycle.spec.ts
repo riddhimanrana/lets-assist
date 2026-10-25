@@ -331,6 +331,46 @@ test("Sheet sync exposes a failed status read and reloads without enabling a des
   ).toHaveCount(0);
 });
 
+test("term selection waits for hydration before accepting a click", async ({
+  page,
+}) => {
+  await loginAs(page, "admin", `${CSF_ORGANIZATION_PATH}?tab=csf-terms`);
+  let releaseScripts = () => {};
+  const scriptsReady = new Promise<void>((resolve) => {
+    releaseScripts = resolve;
+  });
+  let heldScripts = 0;
+  await page.route("**/_next/static/**/*.js", async (route) => {
+    if (new URL(route.request().url()).origin !== new URL(page.url()).origin) {
+      await route.continue();
+      return;
+    }
+    heldScripts++;
+    await scriptsReady;
+    await route.continue();
+  });
+  try {
+    await page.goto(`${CSF_ORGANIZATION_PATH}?tab=csf-terms`, {
+      waitUntil: "commit",
+    });
+    const trigger = page.getByRole("button", {
+      name: "Start next term",
+      exact: true,
+    });
+    await expect(trigger).toBeVisible();
+    expect(heldScripts).toBeGreaterThan(0);
+    await expect(trigger).toBeDisabled();
+    releaseScripts();
+    await expect(trigger).toBeEnabled();
+    await trigger.click();
+    await expect(
+      page.getByRole("dialog", { name: "Start Spring 2027", exact: true }),
+    ).toBeVisible();
+  } finally {
+    releaseScripts();
+  }
+});
+
 test("initial term selection and starting the next term preserve the prior semester", async ({
   page,
 }) => {

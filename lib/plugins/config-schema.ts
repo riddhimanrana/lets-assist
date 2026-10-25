@@ -1,5 +1,7 @@
 import Ajv from "ajv";
 
+import { editableConfigProperties } from "./config-fields";
+
 // Plugin manifests use presentation-only formats such as `textarea`. Keep
 // runtime validation aligned with SDK validation: constraints still run, while
 // unknown formats remain UI hints instead of compile-time failures.
@@ -76,7 +78,7 @@ export function applyConfigDefaults(
 ): Record<string, unknown> {
   const result = { ...config };
 
-  for (const [key, propSchema] of Object.entries(schema.properties)) {
+  for (const [key, propSchema] of editableConfigProperties(schema)) {
     if (!(key in result) && propSchema.default !== undefined) {
       result[key] = propSchema.default;
     }
@@ -128,7 +130,7 @@ export function generateConfigFormFields(
   const fields: ConfigFormField[] = [];
   const required = new Set(schema.required ?? []);
 
-  for (const [key, propSchema] of Object.entries(schema.properties)) {
+  for (const [key, propSchema] of editableConfigProperties(schema)) {
     const field: ConfigFormField = {
       key,
       type: mapSchemaTypeToFormType(propSchema),

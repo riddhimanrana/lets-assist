@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 import type { AccountAccessStatus } from "@/lib/auth/account-access";
@@ -118,9 +119,9 @@ export async function createServerNotification(
     });
 
     if (error) {
-      console.error("Error creating notification:", error);
+      safeConsole.error("Error creating notification:", error);
     }
   } catch (error) {
-    console.error("Exception creating notification:", error);
+    safeConsole.error("Exception creating notification:", error);
   }
 }

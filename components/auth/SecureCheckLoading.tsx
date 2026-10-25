@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SECURE_CHECK_UNAVAILABLE_COPY } from "@/lib/auth/secure-check";
@@ -8,26 +8,15 @@ import { cn } from "@/lib/utils";
 
 export function SecureCheckLoading() {
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background">
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <span className="relative flex size-8 items-center justify-center rounded-full border border-border bg-muted/40 text-primary">
-          <ShieldCheck className="size-4" />
-          <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary motion-safe:animate-pulse" />
-        </span>
-        <span className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground">
-            Preparing secure check
-          </span>
-          <span className="mt-1 flex items-center gap-1 text-[0.7rem]">
-            <span>Almost ready</span>
-            <span className="flex gap-0.5" aria-hidden>
-              <span className="size-1 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce [animation-delay:-200ms]" />
-              <span className="size-1 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce [animation-delay:-100ms]" />
-              <span className="size-1 rounded-full bg-muted-foreground/60 motion-safe:animate-bounce" />
-            </span>
-          </span>
-        </span>
-      </div>
+    <div className="bg-background absolute inset-0 z-10 flex items-center justify-center gap-3 rounded-lg">
+      <Loader2
+        aria-hidden="true"
+        className="text-muted-foreground size-4 shrink-0 animate-spin motion-reduce:animate-none"
+      />
+      <span className="grid gap-0.5">
+        <span className="text-sm font-medium">Preparing secure check</span>
+        <span className="text-muted-foreground text-xs">Almost ready</span>
+      </span>
     </div>
   );
 }
@@ -51,18 +40,19 @@ export function SecureCheckUnavailable({
       aria-live="polite"
       data-testid="secure-check-unavailable"
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border border-border/70 bg-muted/20 p-3 text-left",
+        "flex w-full items-start gap-3 rounded-lg border p-3 text-left",
         className,
       )}
     >
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground">
-        <ShieldAlert className="size-4" />
-      </span>
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-foreground">
+      <ShieldAlert
+        aria-hidden="true"
+        className="text-muted-foreground mt-0.5 size-4 shrink-0"
+      />
+      <div className="grid gap-1">
+        <span className="text-sm font-medium">
           {SECURE_CHECK_UNAVAILABLE_COPY.title}
         </span>
-        <span className="text-[0.7rem] leading-4 text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           {SECURE_CHECK_UNAVAILABLE_COPY.description}
         </span>
         <Button
@@ -70,7 +60,7 @@ export function SecureCheckUnavailable({
           variant="outline"
           size="sm"
           onClick={onRetry}
-          className="mt-1.5 h-7 w-fit rounded-full px-3 text-xs font-semibold"
+          className="mt-1 w-fit"
         >
           {SECURE_CHECK_UNAVAILABLE_COPY.retryLabel}
         </Button>

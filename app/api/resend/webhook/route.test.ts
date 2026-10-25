@@ -964,6 +964,7 @@ describe("ledger failures are classified by structured error code", () => {
       { code: "57014", label: "statement cancelled" },
       { code: "XX000", label: "internal error" },
       { code: "40001", label: "serialization failure" },
+      { code: "PT409", label: "application conflict" },
     ];
 
     for (const row of PERMANENT_MATRIX) {
@@ -1114,27 +1115,31 @@ describe("ledger failures are classified by structured error code", () => {
     expect(response.status).toBeGreaterThanOrEqual(500);
   });
 
-  test("a storage outage asks Resend to retry instead of discarding the event", async () => {
-    // 53300 is too_many_connections: a retry genuinely can fix it, so it must not be
-    // quarantined as though it were permanent.
-    rpcResult = {
-      data: null,
-      error: {
-        code: "53300",
-        message: "remaining connection slots are reserved",
-      },
-    };
-    verifyImpl = () => JSON.parse(raw);
+  test.each(["53300", "PT409"])(
+    "ledger failure %s preserves provider retries",
+    async (code) => {
+      rpcResult = {
+        data: null,
+        error: {
+          code,
+          message:
+            code === "PT409"
+              ? "A concurrent writer removed CSF provider webhook evidence mid-transaction."
+              : "remaining connection slots are reserved",
+        },
+      };
+      verifyImpl = () => JSON.parse(raw);
 
-    const response = await route.POST(makeRequest(raw));
+      const response = await route.POST(makeRequest(raw));
 
-    expect(response.status).toBeGreaterThanOrEqual(500);
-    expect(
-      rpcCalls.some(
-        (call) => call.fn === "csf_quarantine_communication_webhook",
-      ),
-    ).toBe(false);
-  });
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(
+        rpcCalls.some(
+          (call) => call.fn === "csf_quarantine_communication_webhook",
+        ),
+      ).toBe(false);
+    },
+  );
 
   test("a schema or runtime fault asks Resend to retry", async () => {
     rpcResult = {

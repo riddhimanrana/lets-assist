@@ -104,7 +104,7 @@ export default function EmailExpiredClient({
             <AlertCircle className="h-12 w-12 text-amber-600" />
           </div>
           <CardTitle className="text-2xl text-center">
-            Verification link no longer works
+            <h1>Verification link no longer works</h1>
           </CardTitle>
           <CardDescription className="text-center">
             {email
@@ -125,7 +125,7 @@ export default function EmailExpiredClient({
               className="h-4 w-4"
               style={{ color: "var(--muted-foreground)" }}
             />
-            <AlertDescription>
+            <AlertDescription className="text-foreground/70">
               {email
                 ? `We can send a new verification link to ${email}.`
                 : "The link does not include an email address. Sign in with the account you used to join."}

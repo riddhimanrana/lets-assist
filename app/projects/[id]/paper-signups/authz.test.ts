@@ -109,7 +109,7 @@ describe("paper signup management access", () => {
 
   test("both service-role entry points derive an active membership and fence extraction ownership", async () => {
     const actionsSource = await Bun.file(
-      new URL("./actions.ts", import.meta.url),
+      new URL("./access.ts", import.meta.url),
     ).text();
     const scanRouteSource = await Bun.file(
       new URL("../../../api/ai/scan-signup-sheet/route.ts", import.meta.url),

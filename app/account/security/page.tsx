@@ -1,23 +1,23 @@
 import { Metadata } from "next";
-// import { createClient } from "@/lib/supabase/server";
-// import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import SecurityClient from "./SecurityClient";
 
 export const metadata: Metadata = {
-  title: "Privacy & Security",
+  title: "Sign-in & security",
   description:
-    "Manage your account security with password management and account deletion options on Let's Assist.",
+    "Manage your login email, password, Google sign-in, two-factor authentication, data export and account deletion on Let's Assist.",
 };
 
 export default async function SecurityPage() {
-  // // Check if user is authenticated
-  // const supabase = await createClient();
-  // const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // if (!user) {
-  //   // Redirect unauthenticated users to login
-  //   redirect("/login?redirect=/account/security");
-  // }
+  if (!user) {
+    redirect("/login?redirect=/account/security");
+  }
 
   return <SecurityClient />;
 }

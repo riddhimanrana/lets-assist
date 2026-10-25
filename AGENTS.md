@@ -4,7 +4,7 @@ This is the canonical operating guide for AI coding agents working in Let's Assi
 
 ## Repository purpose
 
-Let's Assist is a Next.js App Router volunteering platform backed by Supabase and deployed on Vercel. The public repository owns the platform, database migration ledger, local/CI tooling, and private-plugin integration boundary. Organization-specific DVHS CSF and DV Speech & Debate implementations live in the `lib/plugins/private` Git submodule.
+Let's Assist is a Next.js App Router volunteering platform backed by Supabase and deployed on Vercel. The public repository owns the platform, database migration ledger, local/CI tooling, and private-plugin integration boundary. DVHS CSF and archived Speech and Debate reference code live in the `lib/plugins/private` Git submodule. Speech and Debate is not a registered or offered plugin.
 
 Use Bun, not npm, pnpm, or Yarn. The package manager version is pinned in `package.json`.
 
@@ -41,7 +41,6 @@ Read [local environments](docs/development/environments.md) before running datab
 - `bun run build` — production build and deployment-safety checks.
 - `bun run db:validate` — non-mutating migration file validation. Use `db:test:redesign` for an owned isolated replay.
 - `bun run db:test:redesign` — full isolated schema/plugin gate.
-- `bun run dv:test:db` / `bun run dv:test:e2e` — DV database and browser gates.
 - `bun run csf:test:workflows` / `bun run csf:test:e2e` — CSF database workflows and browser journeys.
 - `bun run plugin:submodules:init` / `bun run plugin:submodules:check:strict` — initialize and validate the private gitlink.
 - `bun run agent:check` — validate instruction pointers, MCP scope, package-manager ownership, and pinned GitHub Actions.
@@ -92,8 +91,8 @@ for publication and deployment.
 - Run `bun run plugin:submodules:init` and
   `bun run plugin:submodules:check:strict` in every fresh worktree.
 - Before `bun run supabase`, export a run-scoped
-  `CSF_LOCAL_TEST_PASSWORD`; reuse it as `DV_LOCAL_TEST_PASSWORD` when loading
-  the optional Speech and Debate fixtures.
+  `CSF_LOCAL_TEST_PASSWORD`. Archived Speech and Debate tools are outside normal
+  setup and delivery gates.
 - Use one branch and worktree per concurrent agent task. Merge reviewed work
   into `development`, then delete only branches proven to be ancestors of
   `origin/development`.
@@ -145,3 +144,19 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Review guidelines
+
+Review the full pull request against `development`, including its exact private
+gitlink. Report actionable defects with file and line evidence. Prioritize
+server authorization, organization isolation, retry and concurrency behavior,
+migration order and grants, and release identity checks. Do not treat a hidden
+button as authorization or a successful provider request as confirmed delivery.
+
+For UI changes, check keyboard access, mobile overflow, loading and error states,
+and reduced motion. Preserve the approved flat glossy controls. Flag misleading
+status or delivery copy when it disagrees with the server result.
+
+Tests must exercise the changed behavior. Source assertions, local tests, hosted
+Development checks and Production acceptance prove different things. Name any
+missing coverage. Never approve a release because an AI review found no issue.

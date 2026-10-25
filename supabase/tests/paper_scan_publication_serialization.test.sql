@@ -1,6 +1,6 @@
 BEGIN;
 
-SELECT plan(27);
+SELECT plan(29);
 
 SELECT has_function(
   'public',
@@ -151,7 +151,7 @@ VALUES (
   'Synthetic publication race fixture',
   'oneTime',
   'manual',
-  '{"oneTime":{"date":"2030-08-18","startTime":"09:00","endTime":"12:00","volunteers":5}}',
+  '{"oneTime":{"date":"2020-08-18","startTime":"09:00","endTime":"12:00","volunteers":5}}',
   true
 );
 
@@ -164,8 +164,8 @@ VALUES (
   'ac000000-0000-4000-8000-000000000001',
   'oneTime',
   'attended',
-  '2030-08-18T16:00:00Z',
-  '2030-08-18T18:00:00Z'
+  '2020-08-18T16:00:00Z',
+  '2020-08-18T18:00:00Z'
 );
 
 SELECT throws_ok(
@@ -184,8 +184,8 @@ INSERT INTO public.certificates (
 VALUES (
   'Publication serialization fixture',
   true,
-  '2030-08-18T16:00:00Z',
-  '2030-08-18T18:00:00Z',
+  '2020-08-18T16:00:00Z',
+  '2020-08-18T18:00:00Z',
   'manual',
   'ac100000-0000-4000-8000-000000000001',
   'oneTime',
@@ -208,9 +208,13 @@ SELECT results_eq(
   'the successful guarded publication persists the session state'
 );
 
+-- A late paper actor must hold current project-management authority.
+INSERT INTO public.organizations (id,name,username,type,join_code,verified)
+VALUES ('ac400000-0000-4000-8000-000000000001','Late attendance fixture organization','late_attendance_fixture','nonprofit','934271',true);
+
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
-  verification_method, schedule, require_login, published
+  verification_method, schedule, require_login, published, organization_id, can_be_managed_by_staff
 )
 VALUES (
   'ac100000-0000-4000-8000-000000000002',
@@ -220,9 +224,11 @@ VALUES (
   'Synthetic already-published fixture',
   'oneTime',
   'manual',
-  '{"oneTime":{"date":"2030-08-19","startTime":"09:00","endTime":"12:00","volunteers":5}}',
+  '{"oneTime":{"date":"2020-08-19","startTime":"09:00","endTime":"12:00","volunteers":5}}',
   true,
-  '{"oneTime":true}'
+  '{"oneTime":true}',
+  'ac400000-0000-4000-8000-000000000001',
+  true
 );
 
 INSERT INTO public.project_signups (
@@ -234,8 +240,8 @@ VALUES (
   'ac000000-0000-4000-8000-000000000001',
   'oneTime',
   'attended',
-  '2030-08-19T16:00:00Z',
-  '2030-08-19T18:00:00Z'
+  '2020-08-19T16:00:00Z',
+  '2020-08-19T18:00:00Z'
 );
 
 SELECT results_eq(
@@ -292,11 +298,29 @@ SELECT pg_catalog.set_config(
   true
 );
 
+SELECT throws_ok(
+  $$UPDATE public.project_signups
+    SET status='attended',check_in_time='2020-08-19T16:15:00Z',check_out_time='2020-08-19T18:15:00Z'
+    WHERE id='ac200000-0000-4000-8000-000000000003'$$,
+  '42501',
+  'not authorized to issue certificates',
+  'a committing actor identifier does not grant certificate authority'
+);
+SELECT ok(
+  (SELECT status='approved' AND check_in_time IS NULL AND check_out_time IS NULL
+    FROM public.project_signups WHERE id='ac200000-0000-4000-8000-000000000003')
+  AND NOT EXISTS(SELECT 1 FROM public.certificates WHERE signup_id='ac200000-0000-4000-8000-000000000003'),
+  'unauthorized late attendance leaves its signup and award unchanged'
+);
+
+INSERT INTO public.organization_members (organization_id,user_id,role,status)
+VALUES ('ac400000-0000-4000-8000-000000000001','ac000000-0000-4000-8000-000000000002','staff','active');
+
 UPDATE public.project_signups
 SET
   status = 'attended',
-  check_in_time = '2030-08-19T16:15:00Z',
-  check_out_time = '2030-08-19T18:15:00Z'
+  check_in_time = '2020-08-19T16:15:00Z',
+  check_out_time = '2020-08-19T18:15:00Z'
 WHERE id = 'ac200000-0000-4000-8000-000000000003';
 
 SELECT results_eq(
@@ -314,7 +338,7 @@ SELECT results_eq(
     WHERE signup_id = 'ac200000-0000-4000-8000-000000000003'
       AND type = 'verified'$$,
   $$VALUES ('ac000000-0000-4000-8000-000000000002'::uuid)$$,
-  'late paper attendance preserves the reviewed committing actor identity'
+  'late paper attendance preserves the authorized staff actor identity'
 );
 
 SELECT results_eq(
@@ -342,7 +366,7 @@ VALUES (
   'Synthetic durable origin fixture',
   'oneTime',
   'manual',
-  '{"oneTime":{"date":"2030-08-20","startTime":"09:00","endTime":"12:00","volunteers":5}}',
+  '{"oneTime":{"date":"2020-08-20","startTime":"09:00","endTime":"12:00","volunteers":5}}',
   true
 );
 
@@ -355,8 +379,8 @@ VALUES (
   'ac000000-0000-4000-8000-000000000001',
   'oneTime',
   'attended',
-  '2030-08-20T16:00:00Z',
-  '2030-08-20T18:00:00Z'
+  '2020-08-20T16:00:00Z',
+  '2020-08-20T18:00:00Z'
 );
 
 SELECT results_eq(
@@ -366,8 +390,8 @@ SELECT results_eq(
       'oneTime',
       pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
         'signupId', 'ac200000-0000-4000-8000-000000000004',
-        'checkIn', '2030-08-20T16:00:00Z',
-        'checkOut', '2030-08-20T18:00:00Z'
+        'checkIn', '2020-08-20T16:00:00Z',
+        'checkOut', '2020-08-20T18:00:00Z'
       )),
       'hours-publication:v1:' || repeat('a', 64)
     ) ->> 'publicationOrigin'$$,

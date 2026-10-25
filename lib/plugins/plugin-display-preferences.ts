@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -69,7 +70,7 @@ export async function loadPluginDisplayPreferences(
   };
 
   if (error) {
-    console.warn(
+    safeConsole.warn(
       "[plugin-display-preferences] Failed to read preferences; hiding plugin content:",
       error,
     );

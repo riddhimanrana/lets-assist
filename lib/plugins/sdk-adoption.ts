@@ -17,7 +17,7 @@ import {
   type PublishedPluginRelease,
 } from "@/lib/plugins/published-releases";
 
-const EMBEDDED_PLUGIN_KEYS = ["dvhs-csf", "dv-speech-debate"] as const;
+const EMBEDDED_PLUGIN_KEYS = ["dvhs-csf"] as const;
 const PLUGIN_DATA_SCHEMA_FLOOR = "20260412000001";
 
 /**
@@ -33,13 +33,6 @@ const legacyEmbeddedPluginAdoptions: Record<string, EmbeddedPluginAdoption> = {
     requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
     supportedInstallContracts: { minimum: "1.1.0", maximum: "1.1.0" },
     releaseInputs: ["plugins/dvhs-csf"],
-  },
-  "dv-speech-debate": {
-    hostApiRange: { minimum: PLUGIN_HOST_API_VERSION },
-    pluginDataSchemaVersion: 1,
-    requiredPlatformSchemaVersion: PLUGIN_DATA_SCHEMA_FLOOR,
-    supportedInstallContracts: { minimum: "2.0.0", maximum: "2.0.0" },
-    releaseInputs: ["plugins/dv-speech-debate"],
   },
 };
 

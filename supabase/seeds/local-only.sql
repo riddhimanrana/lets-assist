@@ -14,9 +14,9 @@ INSERT INTO public.plugins (
 VALUES (
   'dv-speech-debate',
   'DV Speech & Debate Ops',
-  'Server-only seasonal membership, tournament, guardian, and team operations for speech and debate organizations.',
+  'Development is on hold. This private plugin is not available for installation.',
   'private',
-  true,
+  false,
   '2.0.2',
   true
 )

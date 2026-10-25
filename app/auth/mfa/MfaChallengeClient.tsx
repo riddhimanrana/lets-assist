@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { AlertTriangle, LogOut, ShieldCheck, Smartphone } from "lucide-react";
@@ -37,6 +38,8 @@ type MfaChallengeClientProps = {
   redirectPath: string;
   email: string | null;
 };
+
+const MFA_CODE_INPUT_ID = "mfa-verification-code";
 
 function getMfaVerificationErrorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
@@ -89,7 +92,7 @@ export default function MfaChallengeClient({
       }
 
       if (claimsError) {
-        console.error(
+        safeConsole.error(
           "Failed to load auth claims for MFA challenge:",
           claimsError,
         );
@@ -133,7 +136,7 @@ export default function MfaChallengeClient({
         return verifiedFactors[0]?.id ?? null;
       });
     } catch (error) {
-      console.error("Failed to load MFA challenge state:", error);
+      safeConsole.error("Failed to load MFA challenge state:", error);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -178,7 +181,7 @@ export default function MfaChallengeClient({
       router.replace(redirectPath);
       router.refresh();
     } catch (error) {
-      console.error("Failed to verify MFA challenge:", error);
+      safeConsole.error("Failed to verify MFA challenge:", error);
       const message = getMfaVerificationErrorMessage(error);
 
       setErrorMessage(message);
@@ -216,13 +219,16 @@ export default function MfaChallengeClient({
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 sm:p-6">
-      <Card className="w-full max-w-xl border shadow-xs">
+      <Card className="w-full max-w-xl">
         <CardHeader className="space-y-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ShieldCheck className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl">Verify it’s really you</CardTitle>
+            {/* CardTitle renders a plain div, so the page had no h1 at all. */}
+            <CardTitle className="text-2xl">
+              <h1>Verify it’s really you</h1>
+            </CardTitle>
             <CardDescription>
               {email
                 ? `Enter the current code from your authenticator app to continue as ${email}.`
@@ -248,109 +254,122 @@ export default function MfaChallengeClient({
                 </Alert>
               )}
 
-              {factors.length > 0 && (
-                <div className="space-y-4">
-                  {factors.length > 1 ? (
+              <form
+                className="space-y-6"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (isVerifying) return;
+                  void handleVerify();
+                }}
+              >
+                {factors.length > 0 && (
+                  <div className="space-y-4">
+                    {factors.length > 1 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">
+                          Choose an authenticator
+                        </p>
+                        <div className="grid gap-2">
+                          {factors.map((factor, index) => {
+                            const isSelected = factor.id === selectedFactorId;
+
+                            return (
+                              <button
+                                key={factor.id}
+                                type="button"
+                                onClick={() => setSelectedFactorId(factor.id)}
+                                className={cn(
+                                  "flex items-center justify-between rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/40",
+                                  isSelected &&
+                                    "border-primary bg-primary/5 text-primary",
+                                )}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+                                    <Smartphone className="h-4 w-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {getMfaFactorLabel(factor, index)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Enter the latest 6-digit code from this
+                                      device.
+                                    </p>
+                                  </div>
+                                </div>
+                                {isSelected && <Badge>Selected</Badge>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border bg-muted/20 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">Using</p>
+                          <Badge variant="outline">
+                            {getMfaFactorLabel(factors[0], 0)}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
-                      <p className="text-sm font-medium">
-                        Choose an authenticator
-                      </p>
-                      <div className="grid gap-2">
-                        {factors.map((factor, index) => {
-                          const isSelected = factor.id === selectedFactorId;
-
-                          return (
-                            <button
-                              key={factor.id}
-                              type="button"
-                              onClick={() => setSelectedFactorId(factor.id)}
-                              className={cn(
-                                "flex items-center justify-between rounded-lg border px-3 py-3 text-left transition-colors hover:bg-muted/40",
-                                isSelected &&
-                                  "border-primary bg-primary/5 text-primary",
-                              )}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-                                  <Smartphone className="h-4 w-4" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-foreground">
-                                    {getMfaFactorLabel(factor, index)}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Enter the latest 6-digit code from this
-                                    device.
-                                  </p>
-                                </div>
-                              </div>
-                              {isSelected && <Badge>Selected</Badge>}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <label
+                        htmlFor={MFA_CODE_INPUT_ID}
+                        className="block text-sm font-medium"
+                      >
+                        6-digit authenticator code
+                      </label>
+                      <InputOTP
+                        id={MFA_CODE_INPUT_ID}
+                        value={verificationCode}
+                        onChange={setVerificationCode}
+                        maxLength={6}
+                        pattern={REGEXP_ONLY_DIGITS}
+                        containerClassName="justify-start"
+                      >
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                        </InputOTPGroup>
+                        <InputOTPSeparator />
+                        <InputOTPGroup>
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
                     </div>
-                  ) : (
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium">Using</p>
-                        <Badge variant="outline">
-                          {getMfaFactorLabel(factors[0], 0)}
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">
-                      6-digit authenticator code
-                    </p>
-                    <InputOTP
-                      value={verificationCode}
-                      onChange={setVerificationCode}
-                      maxLength={6}
-                      pattern={REGEXP_ONLY_DIGITS}
-                      containerClassName="justify-start"
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                      </InputOTPGroup>
-                      <InputOTPSeparator />
-                      <InputOTPGroup>
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button
-                  onClick={handleVerify}
-                  disabled={
-                    isVerifying ||
-                    !selectedFactorId ||
-                    verificationCode.length !== 6
-                  }
-                  className="sm:w-auto"
-                >
-                  {isVerifying ? "Verifying..." : "Verify and continue"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleUseAnotherAccount}
-                  disabled={isVerifying}
-                  className="sm:w-auto"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Use another account
-                </Button>
-              </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="submit"
+                    disabled={
+                      isVerifying ||
+                      !selectedFactorId ||
+                      verificationCode.length !== 6
+                    }
+                    className="sm:w-auto"
+                  >
+                    {isVerifying ? "Verifying..." : "Verify and continue"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleUseAnotherAccount}
+                    disabled={isVerifying}
+                    className="sm:w-auto"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Use another account
+                  </Button>
+                </div>
+              </form>
 
               {/* <Alert>
                 <ShieldCheck className="h-4 w-4" />

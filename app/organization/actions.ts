@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -136,7 +137,7 @@ export async function leaveOrganization(organizationId: string) {
   );
 
   if (leaveError || removed !== true) {
-    console.error("Error leaving organization:", leaveError);
+    safeConsole.error("Error leaving organization:", leaveError);
     return { error: "Failed to leave organization. Please try again." };
   }
 

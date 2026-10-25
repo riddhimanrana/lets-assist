@@ -1,4 +1,6 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -7,7 +9,10 @@ import { isProjectVisible } from "@/utils/project";
 import { type Project } from "@/types";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
-import { activeOrganizationRole } from "@/lib/projects/management-access";
+import {
+  ACTIVE_ORGANIZATION_MEMBER_STATUS,
+  activeOrganizationRole,
+} from "@/lib/projects/management-access";
 import { isMissingWaiverDisableEsignatureColumnError } from "./shared";
 import { canUserManageProject } from "./access-helpers";
 
@@ -128,7 +133,7 @@ export async function getProject(projectId: string) {
     .from("projects")
     .select(
       `
-      *,
+      ${PROJECT_CLIENT_SELECT},
       organization:organizations (
         id,
         name,
@@ -141,13 +146,13 @@ export async function getProject(projectId: string) {
     `,
     )
     .eq("id", projectId)
-    .single()) as {
+    .maybeSingle()) as {
     data: Project | null;
     error: { message: string } | null;
   };
 
   if (error) {
-    console.error("Error fetching project:", JSON.stringify(error, null, 2));
+    safeConsole.error("Error fetching project:", error);
     return { error: "Failed to fetch project" };
   }
 
@@ -175,20 +180,26 @@ export async function getProject(projectId: string) {
         return { error: "unauthorized", project: null };
       }
 
-      // Get user's organization memberships
-      const { data: userOrgs } = (await supabase
-        .from("organization_members")
-        .select("organization_id, role")
-        .eq("user_id", user.id)) as {
-        data: { organization_id: string; role: string }[] | null;
-        error: { message: string } | null;
-      };
+      // The creator reads their own project whatever their membership is now,
+      // matching the database read policy.
+      if (project.creator_id !== user.id) {
+        // Only an active membership counts. A failed read grants nothing.
+        const { data: userOrgs, error: userOrgsError } = (await supabase
+          .from("organization_members")
+          .select("organization_id, role")
+          .eq("user_id", user.id)
+          .eq("status", ACTIVE_ORGANIZATION_MEMBER_STATUS)) as {
+          data: { organization_id: string; role: string }[] | null;
+          error: { message: string } | null;
+        };
 
-      // Check if user is a member of the project's organization
-      const hasAccess = isProjectVisible(project, user.id, userOrgs || []);
+        // Check if user is a member of the project's organization
+        const hasAccess =
+          !userOrgsError && isProjectVisible(project, user.id, userOrgs || []);
 
-      if (!hasAccess) {
-        return { error: "unauthorized", project: null };
+        if (!hasAccess) {
+          return { error: "unauthorized", project: null };
+        }
       }
     }
   }
@@ -201,7 +212,7 @@ export async function getCreatorProfile(userId: string) {
   const { data: profile, error } = await getProjectCreatorProfileById(userId);
 
   if (error) {
-    console.error("Error fetching creator profile:", error);
+    safeConsole.error("Error fetching creator profile:", error);
     return { error: "Failed to fetch creator profile" };
   }
 
@@ -247,7 +258,7 @@ export async function getProjectWaiver(projectId: string) {
     }
 
     if (projectError) {
-      console.error("Error fetching project waiver config:", projectError);
+      safeConsole.error("Error fetching project waiver config:", projectError);
       return { error: "Failed to load project waiver configuration" };
     }
 
@@ -311,7 +322,7 @@ export async function getProjectWaiver(projectId: string) {
       definition: null,
     };
   } catch (error) {
-    console.error("Error fetching project waiver:", error);
+    safeConsole.error("Error fetching project waiver:", error);
     return { error: "Failed to load project waiver" };
   }
 }

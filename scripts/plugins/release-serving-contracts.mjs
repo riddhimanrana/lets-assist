@@ -1,15 +1,16 @@
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const escapePattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 
 const sqlString = (value) => `'${value.replaceAll("'", "''")}'`;
 
-export function updateEmbeddedServingExpectations(
+export function prepareEmbeddedServingExpectations(
   migrationTestsDir,
   pluginKey,
   version,
   sourceCommit,
+  previousUpdates = new Map(),
 ) {
   const key = escapePattern(pluginKey);
   const columns = [
@@ -22,9 +23,11 @@ export function updateEmbeddedServingExpectations(
     name.endsWith(".test.sql"),
   )) {
     const path = join(migrationTestsDir, file);
-    let source = readFileSync(path, "utf8");
-    const targetsServingCatalog = source.includes(
-      `FROM public.plugins WHERE key = '${pluginKey}'`,
+    let source = previousUpdates.get(path) ?? readFileSync(path, "utf8");
+    const targetsServingCatalog = columns.some(([column]) =>
+      source.includes(
+        `SELECT ${column} FROM public.plugins WHERE key = '${pluginKey}'`,
+      ),
     );
     if (!targetsServingCatalog) continue;
 
@@ -44,5 +47,5 @@ export function updateEmbeddedServingExpectations(
     updates.push([path, source]);
   }
 
-  for (const [path, source] of updates) writeFileSync(path, source);
+  return updates;
 }

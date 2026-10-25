@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import {
   Dialog,
   DialogContent,
@@ -14,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Clock, Calendar, User, Building2 } from "lucide-react";
+import { Calendar } from "lucide-react";
+import { PlusIcon, useAnimatedIcon } from "@/components/icons/animated";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -46,6 +48,7 @@ export function AddVolunteerHoursModal({
   onAdd,
   trigger,
 }: AddVolunteerHoursModalProps) {
+  const hydrated = useHydrated();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<UnverifiedHoursData>({
@@ -59,6 +62,7 @@ export function AddVolunteerHoursModal({
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const addIcon = useAnimatedIcon();
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -70,7 +74,7 @@ export function AddVolunteerHoursModal({
 
     // Creator name required
     if (!formData.creatorName.trim()) {
-      newErrors.creatorName = "Creator/Supervisor name is required";
+      newErrors.creatorName = "Creator/supervisor name is required";
     }
 
     // Date is required
@@ -161,6 +165,7 @@ export function AddVolunteerHoursModal({
         date: formData.date ? format(formData.date, "yyyy-MM-dd") : "",
         startTime: formData.startTime,
         endTime: formData.endTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         description: formData.description?.trim() || null,
       };
 
@@ -221,9 +226,14 @@ export function AddVolunteerHoursModal({
   };
 
   const defaultTrigger = (
-    <Button className="gap-2">
-      <Plus className="h-4 w-4" />
-      Add Self-Reported Hours
+    <Button {...addIcon.triggerProps}>
+      <PlusIcon
+        ref={addIcon.ref}
+        size={16}
+        data-icon="inline-start"
+        aria-hidden="true"
+      />
+      Add self-reported hours
     </Button>
   );
 
@@ -232,18 +242,16 @@ export function AddVolunteerHoursModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger
+        disabled={!hydrated}
         render={
           (React.isValidElement(trigger)
             ? trigger
             : defaultTrigger) as React.ReactElement
         }
       />
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Add Self-Reported Hours
-          </DialogTitle>
+          <DialogTitle>Add self-reported hours</DialogTitle>
           <DialogDescription>
             Log volunteer hours performed outside the platform. Provide a clear
             title, supervisor/creator, and optional organization.
@@ -270,10 +278,7 @@ export function AddVolunteerHoursModal({
 
           {/* Creator / Supervisor Name */}
           <div className="space-y-2">
-            <Label htmlFor="creatorName" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Creator / Supervisor *
-            </Label>
+            <Label htmlFor="creatorName">Creator / supervisor *</Label>
             <Input
               id="creatorName"
               value={formData.creatorName}
@@ -293,13 +298,7 @@ export function AddVolunteerHoursModal({
 
           {/* Organization (Optional) */}
           <div className="space-y-2">
-            <Label
-              htmlFor="organizationName"
-              className="flex items-center gap-2"
-            >
-              <Building2 className="h-4 w-4" />
-              Organization (Optional)
-            </Label>
+            <Label htmlFor="organizationName">Organization (optional)</Label>
             <Input
               id="organizationName"
               value={formData.organizationName}
@@ -315,10 +314,7 @@ export function AddVolunteerHoursModal({
 
           {/* Date Selection */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Date *
-            </Label>
+            <Label>Date *</Label>
             <Popover>
               <PopoverTrigger
                 render={
@@ -326,7 +322,7 @@ export function AddVolunteerHoursModal({
                     variant="outline"
                     className={`w-full justify-start text-left font-normal ${!formData.date ? "text-muted-foreground" : ""} ${errors.date ? "border-destructive" : ""}`}
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
+                    <Calendar data-icon="inline-start" aria-hidden="true" />
                     {formData.date
                       ? format(formData.date, "PPP")
                       : "Select date"}
@@ -363,7 +359,7 @@ export function AddVolunteerHoursModal({
               onChangeAction={(time) =>
                 setFormData((prev) => ({ ...prev, startTime: time }))
               }
-              label="Start Time *"
+              label="Start time *"
               error={!!errors.startTime}
               errorMessage={errors.startTime}
             />
@@ -373,7 +369,7 @@ export function AddVolunteerHoursModal({
               onChangeAction={(time) =>
                 setFormData((prev) => ({ ...prev, endTime: time }))
               }
-              label="End Time *"
+              label="End time *"
               error={!!errors.endTime}
               errorMessage={errors.endTime}
             />
@@ -381,20 +377,18 @@ export function AddVolunteerHoursModal({
 
           {/* Duration Display */}
           {duration && (
-            <div className="bg-muted/50 p-3 rounded-lg">
-              <p className="text-sm font-medium text-center">
-                Duration:{" "}
-                <span className="text-primary font-bold">{duration}</span>
-              </p>
-            </div>
+            <p className="text-muted-foreground text-sm">
+              Duration:{" "}
+              <span className="text-foreground font-medium">{duration}</span>
+            </p>
           )}
 
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">
-              Activity Description
+              Activity description
               <span className="text-xs text-muted-foreground ml-2">
-                (Optional)
+                (optional)
               </span>
             </Label>
             <Textarea
@@ -424,7 +418,7 @@ export function AddVolunteerHoursModal({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Hours"}
+              {isLoading ? "Adding..." : "Add hours"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,7 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
@@ -13,7 +14,9 @@ import {
 const read = (file) => readFileSync(new URL(file, import.meta.url), "utf8");
 const before = JSON.parse(read("./final-schema-676.json"));
 const after = JSON.parse(read("./final-schema-677.json"));
-const repository = new URL("../../", import.meta.url).pathname;
+const fixture = historicalReleaseTestFixture();
+const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 677);
 test("signed lifecycle publication preserves the reviewed schema and install boundary", () => {
   assert.deepEqual(after.objects, before.objects);

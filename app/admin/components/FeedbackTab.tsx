@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -207,7 +208,7 @@ export function FeedbackTab({
           setSelectedId(fallbackId);
         }
       } catch (error) {
-        console.error("Error updating feedback moderation:", error);
+        safeConsole.error("Error updating feedback moderation:", error);
         toast.error("Failed to update feedback moderation");
       } finally {
         setIsActionLoading(false);
@@ -253,7 +254,7 @@ export function FeedbackTab({
         }
         toast.success("Feedback removed");
       } catch (error) {
-        console.error("Error deleting feedback:", error);
+        safeConsole.error("Error deleting feedback:", error);
         toast.error("Failed to remove feedback");
       } finally {
         setIsActionLoading(false);

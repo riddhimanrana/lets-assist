@@ -6418,7 +6418,7 @@ SELECT extensions.throws_ok(
     (SELECT nonce FROM plugin_data.csf_sheet_source_evidence_tokens
      WHERE preview_job_id = 'df300000-0000-4000-8000-00000000000e'
      ORDER BY evidence_generation ASC LIMIT 1)),
-  '40001', NULL,
+  'PT409', NULL,
   'and the superseded receipt is refused'
 );
 
@@ -6663,7 +6663,7 @@ SELECT extensions.throws_ok(
     (SELECT nonce FROM plugin_data.csf_sheet_source_evidence_tokens
      WHERE preview_job_id = 'df300000-0000-4000-8000-000000000054'
      ORDER BY evidence_generation DESC LIMIT 1)),
-  '40001', NULL,
+  'PT409', NULL,
   'an uppercase recorded digest is refused at consumption rather than folded back into the receipt'
 );
 

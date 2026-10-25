@@ -43,7 +43,7 @@ export function ProjectFeedbackDialog({
       <DialogTrigger
         render={
           <Button variant="outline" size="sm" className="w-fit">
-            <Star className="h-4 w-4" aria-hidden="true" />
+            <Star className="size-4" aria-hidden="true" />
             {submitted ? "View or edit feedback" : "Rate this project"}
           </Button>
         }

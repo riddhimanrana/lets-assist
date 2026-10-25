@@ -1,20 +1,10 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  chmodSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const verifierPath = new URL("./verify-vercel-project.sh", import.meta.url)
   .pathname;
-const workflowPath = new URL(
-  "../../.github/workflows/diagnose-production-vercel-project.yml",
-  import.meta.url,
-).pathname;
 const temporaryDirectories: string[] = [];
 
 afterAll(() => {
@@ -198,19 +188,5 @@ describe("Production Vercel project verifier", () => {
         `endpoint=${endpoint} status=network-error`,
       );
     }
-  });
-
-  test("manual diagnostic workflow is read only and reuses Production credentials", () => {
-    const workflow = readFileSync(workflowPath, "utf8");
-    expect(workflow).toContain("workflow_dispatch:");
-    expect(workflow).toContain("if: github.ref == 'refs/heads/main'");
-    expect(workflow).not.toContain("refs/heads/development");
-    expect(workflow).toContain("environment: production");
-    expect(workflow).toContain("permissions:\n  contents: read");
-    expect(workflow).toContain("secrets.VERCEL_TOKEN");
-    expect(workflow).toContain("scripts/production/verify-vercel-project.sh");
-    expect(workflow).not.toMatch(
-      /vercel deploy|vercel promote|curl .*-X|--request|supabase/u,
-    );
   });
 });

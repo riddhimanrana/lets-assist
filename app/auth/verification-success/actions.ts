@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,14 +24,14 @@ export async function verifyEmailToken(
   const supabase = await createClient();
 
   try {
-    console.log("Starting email verification with token");
+    safeConsole.log("Starting email verification with token");
 
     // Step 1: Exchange the token for a session (similar to password reset flow)
     const { error: sessionError } =
       await supabase.auth.exchangeCodeForSession(token);
 
     if (sessionError) {
-      console.error("Session exchange error:", sessionError);
+      safeConsole.error("Session exchange error:", sessionError);
       return {
         success: false,
         error:
@@ -46,14 +47,14 @@ export async function verifyEmailToken(
 
     // Get the trusted user data after the code exchange
     if (!user) {
-      console.error(
+      safeConsole.error(
         "No trusted user available after email verification",
         userError,
       );
       return { success: false, error: "User not found in verification data" };
     }
 
-    console.log("User found in session:", user.email);
+    safeConsole.log("User found in session:", user.email);
 
     // Extract email from user data
     const newEmail = user.email;
@@ -70,11 +71,11 @@ export async function verifyEmailToken(
         .eq("id", user.id)) as { error: { message?: string } | null };
 
       if (profileUpdateError) {
-        console.error("Profile update error:", profileUpdateError);
+        safeConsole.error("Profile update error:", profileUpdateError);
         // Continue anyway since auth update succeeded
       }
     } catch (profileError) {
-      console.error("Profile update exception:", profileError);
+      safeConsole.error("Profile update exception:", profileError);
       // Continue anyway since auth update succeeded
     }
 
@@ -86,7 +87,7 @@ export async function verifyEmailToken(
       email: newEmail,
     };
   } catch (error) {
-    console.error("Unexpected error during email verification:", error);
+    safeConsole.error("Unexpected error during email verification:", error);
     return {
       success: false,
       error:

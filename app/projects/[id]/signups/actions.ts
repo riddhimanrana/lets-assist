@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -98,7 +99,7 @@ export async function getOrganizerSignupsWithWaiverStatus(
     .maybeSingle();
 
   if (projectError || !project) {
-    console.error(
+    safeConsole.error(
       "Error loading project for signups authorization:",
       projectError,
     );
@@ -120,7 +121,7 @@ export async function getOrganizerSignupsWithWaiverStatus(
       .maybeSingle();
 
     if (orgError) {
-      console.error("Error checking organizer org membership:", orgError);
+      safeConsole.error("Error checking organizer org membership:", orgError);
     }
 
     organizationRole = activeOrganizationRole(orgMember);
@@ -179,7 +180,7 @@ export async function getOrganizerSignupsWithWaiverStatus(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error loading organizer signups (admin):", error);
+    safeConsole.error("Error loading organizer signups (admin):", error);
     return { error: "Failed to load signups" };
   }
 

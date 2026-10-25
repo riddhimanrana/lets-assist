@@ -1,3 +1,5 @@
+import { certificateHours } from "@/lib/projects/certificate-duration";
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { redirect } from "next/navigation";
@@ -13,6 +15,8 @@ import { TZDate, tz } from "@date-fns/tz";
 import { Project } from "@/types";
 import { getSlotDetails } from "@/utils/project";
 import { withRetryableSupabaseQuery } from "@/lib/supabase/retry-query";
+import { formatHoursDuration } from "@/lib/format/hours";
+import { dashboardOrganizationLogos } from "./dashboard-identity";
 
 interface BackendCertificate {
   id: string;
@@ -22,6 +26,8 @@ interface BackendCertificate {
   type?: "verified" | "self-reported"; // backend uses 'verified' | 'self-reported'
   event_start: string;
   event_end: string;
+  event_timezone?: string | null;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -32,7 +38,12 @@ interface BackendCertificate {
   project_location: string | null;
   projects?: {
     project_timezone?: string;
-  };
+    organizations?: {
+      id: string;
+      name: string;
+      logo_url: string | null;
+    } | null;
+  } | null;
 }
 
 // Add a local UI certificate type that matches what the components expect.
@@ -44,10 +55,12 @@ interface UICertificate {
   is_certified: boolean;
   type?: "platform" | "self-reported";
   event_start: string;
+  event_timezone?: string | null;
   projects?: {
     project_timezone?: string;
   };
   event_end: string;
+  credited_minutes?: number | null;
   volunteer_email: string | null;
   organization_name: string | null;
   project_id: string | null;
@@ -70,6 +83,7 @@ interface VolunteerStats {
   }[];
   organizations: {
     name: string;
+    logoUrl?: string | null;
     hours: number;
     projects: number;
   }[];
@@ -81,6 +95,7 @@ interface UpcomingSession {
   signupId: string;
   projectId: string;
   projectTitle: string;
+  projectImage?: string | null;
   scheduleId: string;
   sessionDisplayName: string;
   sessionStartTime: Date;
@@ -96,7 +111,7 @@ function calculateHours(startTime: string, endTime: string): number {
     if (isBefore(end, start)) return 0;
     return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10; // Round to 1 decimal place
   } catch (e) {
-    console.error("Error calculating hours:", e);
+    safeConsole.error("Error calculating hours:", e);
     return 0;
   }
 }
@@ -119,7 +134,7 @@ function getCombinedDateTime(
     const dateTime = parseISO(isoString);
     return isNaN(dateTime.getTime()) ? null : dateTime;
   } catch (e) {
-    console.error("Error parsing date/time:", e);
+    safeConsole.error("Error parsing date/time:", e);
     return null;
   }
 }
@@ -172,33 +187,8 @@ function getSessionDisplayName(
   return details.schedule_id || "Session";
 }
 
-// Helper function to format total duration from hours (decimal) to Xh Ym
-export function formatTotalDuration(totalHours: number): string {
-  if (totalHours <= 0) return "0m"; // Handle zero or negative hours
-
-  // Convert decimal hours to total minutes, rounding to nearest minute
-  const totalMinutes = Math.round(totalHours * 60);
-
-  if (totalMinutes === 0) return "0m"; // Handle cases that round down to 0
-
-  const hours = Math.floor(totalMinutes / 60);
-  const remainingMinutes = totalMinutes % 60;
-
-  let result = "";
-  if (hours > 0) {
-    result += `${hours}h`;
-  }
-  if (remainingMinutes > 0) {
-    // Add space if hours were also added
-    if (hours > 0) {
-      result += " ";
-    }
-    result += `${remainingMinutes}m`;
-  }
-
-  // Fallback in case result is somehow empty (e.g., very small positive number rounds to 0 minutes)
-  return result || (totalMinutes > 0 ? "1m" : "0m");
-}
+/** Total hours for display. One formatter serves the whole dashboard. */
+export const formatTotalDuration = formatHoursDuration;
 
 export async function loadVolunteerDashboardData() {
   const supabase = await createClient();
@@ -219,7 +209,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (profileError) {
-    console.error("Error fetching profile:", profileError);
+    safeConsole.error("Error fetching profile:", profileError);
   }
 
   // Fetch certificates for this user
@@ -230,6 +220,7 @@ export async function loadVolunteerDashboardData() {
     is_certified: boolean;
     event_start: string;
     event_end: string;
+    credited_minutes?: number | null;
     volunteer_email: string | null;
     organization_name: string | null;
     project_id: string | null;
@@ -238,6 +229,13 @@ export async function loadVolunteerDashboardData() {
     signup_id: string | null;
     volunteer_name: string | null;
     project_location: string | null;
+    projects: {
+      organizations: {
+        id: string;
+        name: string;
+        logo_url: string | null;
+      } | null;
+    } | null;
   };
 
   const certificatesResult = await withRetryableSupabaseQuery(() =>
@@ -245,7 +243,8 @@ export async function loadVolunteerDashboardData() {
       .from("certificates")
       .select(
         `
-      *
+      *,
+      projects!certificates_project_id_fkey(project_timezone,organizations!projects_organization_id_fkey(id,name,logo_url))
     `,
       )
       .eq("user_id", user.id)
@@ -259,7 +258,7 @@ export async function loadVolunteerDashboardData() {
     };
 
   if (certificatesError) {
-    console.error("Error fetching certificates:", certificatesError);
+    safeConsole.error("Error fetching certificates:", certificatesError);
   }
 
   // Fetch upcoming signups
@@ -269,8 +268,14 @@ export async function loadVolunteerDashboardData() {
     schedule_id: string;
     status: string;
     projects:
-      | Pick<Project, "id" | "title" | "schedule" | "event_type">
-      | Pick<Project, "id" | "title" | "schedule" | "event_type">[]
+      | Pick<
+          Project,
+          "id" | "title" | "schedule" | "event_type" | "cover_image_url"
+        >
+      | Pick<
+          Project,
+          "id" | "title" | "schedule" | "event_type" | "cover_image_url"
+        >[]
       | null;
   };
 
@@ -286,6 +291,7 @@ export async function loadVolunteerDashboardData() {
       projects!project_signups_project_id_fkey (
         id,
         title,
+        cover_image_url,
         schedule,
         event_type
       )
@@ -301,7 +307,7 @@ export async function loadVolunteerDashboardData() {
   }; // Fetch approved and pending
 
   if (signupsError) {
-    console.error("Error fetching upcoming signups:", signupsError);
+    safeConsole.error("Error fetching upcoming signups:", signupsError);
     // Handle error appropriately, maybe show a message
   }
 
@@ -326,7 +332,7 @@ export async function loadVolunteerDashboardData() {
   };
 
   if (certificatesErrorFetch) {
-    console.error("Error fetching certificates:", certificatesErrorFetch);
+    safeConsole.error("Error fetching certificates:", certificatesErrorFetch);
     // Handle error appropriately
   }
 
@@ -341,10 +347,13 @@ export async function loadVolunteerDashboardData() {
   };
 
   // Process certificate data (typed as BackendCertificate from the DB)
+  const organizationLogos = dashboardOrganizationLogos(certificates ?? []);
   const processedCertificates = (certificates || []).map(
     (cert: BackendCertificate) => {
       // Calculate hours for this certificate
-      const hours = calculateHours(cert.event_start, cert.event_end);
+      const hours = certificateHours(cert, () =>
+        calculateHours(cert.event_start, cert.event_end),
+      );
 
       // Default to 'verified' for existing certificates that don't have the type field
       const certType = cert.type || "verified";
@@ -396,6 +405,9 @@ export async function loadVolunteerDashboardData() {
   // backend 'verified' -> UI 'platform', 'self-reported' stays 'self-reported'
   const uiCertificates: UICertificate[] = processedCertificates.map((c) => ({
     ...c,
+    projects: c.projects
+      ? { project_timezone: c.projects.project_timezone }
+      : undefined,
     // Ensure the "type" matches the UI type union ("platform" | "self-reported" | undefined)
     type: c.type === "verified" ? "platform" : c.type,
   }));
@@ -485,6 +497,7 @@ export async function loadVolunteerDashboardData() {
           signupId: signup.id,
           projectId: project.id,
           projectTitle: project.title,
+          projectImage: project.cover_image_url ?? null,
           scheduleId: signup.schedule_id,
           sessionDisplayName: getSessionDisplayName(
             project,
@@ -508,7 +521,25 @@ export async function loadVolunteerDashboardData() {
   // --- END NEW PROCESSING ---
 
   return {
-    statistics,
+    statistics: {
+      ...statistics,
+      organizations: statistics.organizations.map((org) => ({
+        ...org,
+        logoUrl: organizationLogos.get(org.name) ?? null,
+      })),
+    },
+    profileIdentity: {
+      name:
+        typeof profileResult.data?.full_name === "string"
+          ? profileResult.data.full_name
+          : typeof user.user_metadata?.full_name === "string"
+            ? user.user_metadata.full_name
+            : "Volunteer",
+      avatarUrl:
+        typeof profileResult.data?.avatar_url === "string"
+          ? profileResult.data.avatar_url
+          : null,
+    },
     selfReportedHours,
     upcomingSessions,
     user,

@@ -10,6 +10,7 @@ export {
   getSheetReportPreview,
   getSheetsAccessTokenForPicker,
   getSpreadsheetSetupMetadata,
+  reselectSheetDestination,
 } from "./server/setup";
 export {
   disconnectOrganizationSheetConnection,
@@ -18,3 +19,4 @@ export {
   updateSheetOwner,
 } from "./server/ownership";
 export type { SheetSyncStatus } from "./server/shared";
+export type { SheetDestinationProblem } from "./server/shared";

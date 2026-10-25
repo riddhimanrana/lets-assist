@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { canViewOrgModeration } from "@/utils/admin-helpers";
@@ -72,7 +73,7 @@ export async function getOrgFlaggedContent(
   };
 
   if (error) {
-    console.error("Error fetching org flagged content:", error);
+    safeConsole.error("Error fetching org flagged content:", error);
     return { error: error.message };
   }
 

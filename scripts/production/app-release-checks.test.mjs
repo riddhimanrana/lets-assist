@@ -1,7 +1,15 @@
 import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { localValidationChecks } from "./local-validation-evidence.mjs";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { after, test } from "node:test";
@@ -297,7 +305,15 @@ test("source verification pins clean Git trees and the required CI workflow", as
   git("config", "user.name", "Fictional fixture");
   git("config", "user.email", "fixture@example.test");
   git("config", "commit.gpgsign", "false");
-  git("commit", "--allow-empty", "-m", "Accepted fixture");
+  const privateGitlink = "d".repeat(40);
+  mkdirSync(resolve(cwd, "lib/plugins/private"), { recursive: true });
+  git(
+    "update-index",
+    "--add",
+    "--cacheinfo",
+    `160000,${privateGitlink},lib/plugins/private`,
+  );
+  git("commit", "-m", "Accepted fixture");
   const acceptedSha = git("rev-parse", "HEAD");
   git("commit", "--allow-empty", "-m", "Release fixture");
   const releaseSha = git("rev-parse", "HEAD");
@@ -310,7 +326,33 @@ test("source verification pins clean Git trees and the required CI workflow", as
     repository,
     token: "fictional-token",
   };
+  const report = "Synthetic sanitized check report. Exit status 0.";
+  const evidenceReceipt = {
+    schemaVersion: 1,
+    kind: "operator-local-validation",
+    releaseSha,
+    acceptedSha,
+    gitTree: git("rev-parse", "HEAD^{tree}"),
+    privateGitlink,
+    actor: "release-owner",
+    issuedAt: new Date(Date.now() - 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    changeRecord: `https://github.com/${repository}/issues/123`,
+    checks: localValidationChecks.map((name) => ({
+      name,
+      exitCode: 0,
+      completedAt: new Date(Date.now() - 2000).toISOString(),
+      reportSha256: createHash("sha256").update(report).digest("hex"),
+    })),
+  };
+  const evidence = JSON.stringify({
+    receipt: evidenceReceipt,
+    reports: Object.fromEntries(
+      localValidationChecks.map((name) => [name, report]),
+    ),
+  });
   const localValidation = {
+    evidence,
     confirmation: `deploy-with-local-validation:${releaseSha}:${acceptedSha}`,
     reason:
       "Release owner reviewed focused local regression results and waives hosted checks.",
@@ -326,6 +368,53 @@ test("source verification pins clean Git trees and the required CI workflow", as
     localFetcher,
   );
   assert.equal(
+    localReceipt.localValidationOverride.evidence.privateGitlink,
+    privateGitlink,
+  );
+  assert.match(
+    localReceipt.localValidationOverride.localValidation,
+    /test execution is not independently proven/u,
+  );
+  assert.ok(!JSON.stringify(localReceipt).includes(report));
+  for (const badEvidence of [
+    undefined,
+    "",
+    "not-json",
+    JSON.stringify({ ...JSON.parse(evidence), reports: {} }),
+    JSON.stringify({
+      ...JSON.parse(evidence),
+      receipt: { ...evidenceReceipt, gitTree: "e".repeat(40) },
+    }),
+    JSON.stringify({
+      ...JSON.parse(evidence),
+      receipt: { ...evidenceReceipt, privateGitlink: "e".repeat(40) },
+    }),
+    JSON.stringify({
+      ...JSON.parse(evidence),
+      receipt: {
+        ...evidenceReceipt,
+        expiresAt: new Date(Date.now() - 1).toISOString(),
+      },
+    }),
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      verifySource(
+        {
+          ...config,
+          localValidation: { ...localValidation, evidence: badEvidence },
+        },
+        async () => {
+          calls++;
+          throw new Error("No provider call expected");
+        },
+      ),
+      /evidence/u,
+    );
+    assert.equal(calls, 0);
+  }
+
+  assert.equal(
     localReceipt.localValidationOverride.hostedAcceptance,
     "waived, not passed",
   );
@@ -339,6 +428,19 @@ test("source verification pins clean Git trees and the required CI workflow", as
   );
   assert.equal(localReceipt.localValidationOverride.actor, "release-owner");
   assert.equal(localReceipt.localValidationOverride.runId, "12345");
+  const originalNow = Date.now;
+  try {
+    await assert.rejects(
+      verifySource({ ...config, localValidation }, async () => {
+        Date.now = () => Date.parse(evidenceReceipt.expiresAt);
+        return Response.json({ permission: "write" });
+      }),
+      /expired during permission/u,
+    );
+  } finally {
+    Date.now = originalNow;
+  }
+
   await assert.rejects(
     verifySource({ ...config, localValidation }, async () =>
       Response.json({ permission: "read" }),
@@ -569,7 +671,7 @@ test("schema verification uses only fixed read-only management requests", async 
       assert.equal(JSON.parse(options.body).read_only, undefined);
       assert.match(
         JSON.parse(options.body).query,
-        /^BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\nSELECT CASE WHEN \(WITH\b/u,
+        /^BEGIN READ ONLY;\nSET LOCAL search_path TO public, extensions;\nSELECT CASE WHEN \(SELECT CASE WHEN \(WITH\b/u,
       );
       assert.match(JSON.parse(options.body).query, /;\nCOMMIT;$/u);
     } else assert.equal(JSON.parse(options.body).read_only, true);
@@ -793,6 +895,7 @@ test("local validation override is opt-in, exact and auditable", () => {
   const valid = {
     confirmation: `deploy-with-local-validation:${sha}:${acceptedSha}`,
     reason: "Release owner reviewed focused local regression evidence.",
+    evidence: "candidate-bound-envelope-validated-by-verifySource",
     actor: "release-owner",
     runId: "12345",
   };
@@ -807,6 +910,7 @@ test("local validation override is opt-in, exact and auditable", () => {
     { actor: "../owner" },
     { runId: "" },
     { runId: "run" },
+    { evidence: "" },
   ])
     assert.throws(() =>
       localValidationOverride({ ...valid, ...patch }, sha, acceptedSha),
@@ -824,6 +928,13 @@ test("local validation override is opt-in, exact and auditable", () => {
       workflow,
       /LOCAL_VALIDATION_REASON: \$\{\{ inputs.local_validation_reason \}\}/u,
     );
+    assert.match(
+      workflow,
+      /LOCAL_VALIDATION_EVIDENCE: \$\{\{ inputs.local_validation_evidence \}\}/u,
+    );
+    assert.match(workflow, /Recheck local evidence before provider mutation/u);
+    if (file === "deploy-app-only.yml")
+      assert.match(workflow, /Recheck local evidence before promotion/u);
     assert.match(
       workflow,
       /path: release\/\.artifacts\/source-verification.json/u,

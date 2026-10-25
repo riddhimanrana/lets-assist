@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -80,7 +81,10 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (error) {
-      console.error("Trusted user lookup failed during confirmation:", error);
+      safeConsole.error(
+        "Trusted user lookup failed during confirmation:",
+        error,
+      );
       return null;
     }
 
@@ -99,18 +103,18 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       if (type === "signup" && isRestartableAuthFlowError(error)) {
-        console.info("Signup confirmation requires a new auth flow", {
+        safeConsole.info("Signup confirmation requires a new auth flow", {
           code: error.code ?? "unclassified",
         });
         return redirectToExpiredLink();
       }
       if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
-        console.info("Signup confirmation link expired", {
+        safeConsole.info("Signup confirmation link expired", {
           code: error.code ?? "unclassified",
         });
         return redirectToExpiredLink();
       }
-      console.error("Code exchange error:", error);
+      safeConsole.error("Code exchange error:", error);
       return redirectToError(authOrigin, error.message);
     }
 
@@ -121,7 +125,7 @@ export async function GET(request: NextRequest) {
 
     const primarySync = await syncPrimaryUserEmail(trustedUser.id);
     if (!primarySync.success) {
-      console.error(
+      safeConsole.error(
         "Primary email synchronization failed after code exchange:",
         primarySync.status,
       );
@@ -144,7 +148,7 @@ export async function GET(request: NextRequest) {
   const tokenValue = token_hash ?? token;
 
   if (!tokenValue) {
-    console.error("Missing token for verification");
+    safeConsole.error("Missing token for verification");
     return redirectToError(authOrigin);
   }
 
@@ -154,7 +158,7 @@ export async function GET(request: NextRequest) {
   });
 
   if (error) {
-    console.error("Verification error:", error);
+    safeConsole.error("Verification error:", error);
     if (type === "signup" && isExpiredLinkError(error.message ?? "")) {
       return redirectToExpiredLink();
     }
@@ -169,7 +173,7 @@ export async function GET(request: NextRequest) {
 
   const primarySync = await syncPrimaryUserEmail(trustedUser.id);
   if (!primarySync.success) {
-    console.error(
+    safeConsole.error(
       "Primary email synchronization failed after confirmation:",
       primarySync.status,
     );

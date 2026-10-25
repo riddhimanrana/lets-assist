@@ -1,18 +1,45 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import test from "node:test";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import test, { after as afterAll } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { csfSubmissionDeletionCatalog } from "./csf-submission-deletion-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
 import { prepareMigration } from "./forward-migration-release.mjs";
+import { pointsFirstRolloutStates } from "./points-first-rollout-catalog.mjs";
 
 const read = (name) =>
   JSON.parse(readFileSync(new URL(name, import.meta.url), "utf8"));
 const repository = new URL("../../", import.meta.url).pathname;
-const versions = expectedVersions(repository);
+const currentVersions = expectedVersions(repository);
+const versions = pointsFirstRolloutStates[0].versions;
 const before = read("./final-schema-687.json");
-const after = read("./final-schema-688.json");
+const after = read("./final-schema-points-first-688.json");
+
+// Retain the deployed hotfix's exact history without treating today's combined
+// source as an online-migration release or replacing the fence-first catalog.
+const fixture = mkdtempSync(resolve(tmpdir(), "csf-points-hotfix-history-"));
+afterAll(() => rmSync(fixture, { recursive: true, force: true }));
+mkdirSync(resolve(fixture, "supabase/migrations"), { recursive: true });
+for (const name of readdirSync(resolve(repository, "supabase/migrations"))) {
+  if (versions.includes(name.slice(0, 14)))
+    symlinkSync(
+      resolve(repository, "supabase/migrations", name),
+      resolve(fixture, "supabase/migrations", name),
+    );
+}
+for (const name of ["scripts", ".github"])
+  symlinkSync(resolve(repository, name), resolve(fixture, name), "dir");
+assert.equal(expectedVersions(fixture).length, 688);
 
 test("repeatable pending claims change only the reviewed functions and claim index", () => {
   assert.deepEqual(
@@ -36,11 +63,12 @@ test("repeatable pending claims change only the reviewed functions and claim ind
     acceptedCatalogQuery("invalid predecessor", versions),
     csfSubmissionDeletionCatalog(finalSchemaCatalog(after, versions)),
   );
+  assert.notEqual(read("./final-schema-688.json").ledger, after.ledger);
 });
 
-test("Production forward controller selects just the hotfix from ledger 687", () => {
+test("the historical hotfix stays bounded and the combined target refuses online release", () => {
   const prepared = prepareMigration(
-    repository,
+    fixture,
     readFileSync,
     versions.slice(0, 687),
   );
@@ -50,7 +78,11 @@ test("Production forward controller selects just the hotfix from ledger 687", ()
     /'20261013071100','csf_repeatable_pending_activity_claims'/u,
   );
   assert.doesNotMatch(
-    prepareMigration(repository, readFileSync, versions).query,
+    prepareMigration(fixture, readFileSync, versions).query,
     /'20261013071100','csf_repeatable_pending_activity_claims'/u,
+  );
+  assert.throws(
+    () => prepareMigration(repository, readFileSync, currentVersions),
+    /not approved|maintenance cutover/u,
   );
 });

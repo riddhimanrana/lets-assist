@@ -16,6 +16,9 @@ let insertError: {
 mock.module("sonner", () => ({
   toast: { info: () => undefined },
 }));
+mock.module("@/lib/safe-console", () => ({
+  safeConsole: { error: () => undefined },
+}));
 
 mock.module("@/lib/supabase/client", () => ({
   createClient: () => ({

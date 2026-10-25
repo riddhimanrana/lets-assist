@@ -1,5 +1,14 @@
 import type { Project, Signup } from "@/types";
 
+/**
+ * The one definition of a taken spot. A pending sign-up holds its spot while
+ * it waits for approval or email confirmation, so nobody is shown a free spot
+ * and then turned away. Rejected and cancelled sign-ups free theirs.
+ *
+ * Every count of remaining capacity reads this list: the project cards
+ * (`getProjectRemainingSpots`) and the project page (`getSlotCapacities` in
+ * `utils/project.ts`). Do not write the statuses out anywhere else.
+ */
 export const ACTIVE_PROJECT_SIGNUP_STATUSES = [
   "pending",
   "approved",
@@ -161,4 +170,17 @@ export function getProjectRemainingSpots(project: ProjectAvailability): number {
     0,
     getProjectVolunteerCapacity(project) - getProjectFilledSpots(project),
   );
+}
+
+/**
+ * How remaining capacity reads everywhere: "23 of 25 spots left" when the
+ * capacity is shown beside it, "1 spot left" when it is not, and "Full" once
+ * nothing is left.
+ */
+export function formatSpotsLeft(remaining: number, capacity?: number): string {
+  if (remaining <= 0) return "Full";
+  if (capacity === undefined) {
+    return `${remaining} ${remaining === 1 ? "spot" : "spots"} left`;
+  }
+  return `${remaining} of ${capacity} ${capacity === 1 ? "spot" : "spots"} left`;
 }

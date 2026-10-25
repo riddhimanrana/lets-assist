@@ -15,8 +15,12 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 import { Hero } from "./_components/Hero";
+import { HomeDemoExperience } from "@/components/home/HomeDemoExperience";
+import { HomeGreeting } from "@/components/home/HomeGreeting";
+import { readPublicLandingDemoMode } from "@/lib/home/landing-demo-mode";
 import { LandingLazySections } from "./LandingLazySections";
 import SmoothScroll from "./_components/SmoothScroll";
+import { getProjectCalendarDate } from "@/lib/projects/recurrence-occurrence-dates";
 
 // This page calls getAuthUser() which reads cookies — it must be dynamic.
 // Without this, Next.js attempts a build-time prerender and fails when
@@ -27,15 +31,15 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Let's Assist: Connect Volunteers with Opportunities",
+    absolute: "Let's Assist: A workspace for volunteer organizations",
   },
   description:
-    "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+    "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: "Let's Assist: Connect Volunteers with Opportunities",
+    title: "Let's Assist: A workspace for volunteer organizations",
     description:
-      "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
     url: siteUrl,
     siteName: "Let's Assist",
     type: "website",
@@ -44,15 +48,15 @@ export const metadata: Metadata = {
         url: `${siteUrl}/opengraph-image`,
         width: 1200,
         height: 630,
-        alt: "Let's Assist - Connect volunteers with opportunities",
+        alt: "Let's Assist volunteer project tools",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Let's Assist: Connect Volunteers with Opportunities",
+    title: "Let's Assist: A workspace for volunteer organizations",
     description:
-      "A platform connecting volunteers with opportunities to make a difference in their communities. Find local volunteer projects, track your hours, and earn recognition for your service.",
+      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
     images: [`${siteUrl}/opengraph-image`],
   },
   alternates: {
@@ -106,7 +110,7 @@ export default async function HomePage(props: {
           <CardHeader className="text-center">
             <CardTitle className="flex items-center justify-center gap-2 text-destructive">
               <AlertCircle className="h-6 w-6" />
-              Email Verification Error
+              Email verification error
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center text-muted-foreground">
@@ -118,10 +122,10 @@ export default async function HomePage(props: {
               href="/login"
               className={cn(buttonVariants({ variant: "outline" }))}
             >
-              Back to Login
+              Back to login
             </Link>
             <Link href="/" className={cn(buttonVariants())}>
-              Go to Home
+              Go to home
             </Link>
           </CardFooter>
         </Card>
@@ -129,11 +133,36 @@ export default async function HomePage(props: {
     );
   }
 
+  const { enabled: demoEnabled } = await readPublicLandingDemoMode();
+
+  // The root layout owns the main landmark; this is only a wrapper.
   return (
-    <main className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-background text-foreground">
       <SmoothScroll />
-      <Hero />
+      <Hero
+        demoDateAnchor={getProjectCalendarDate(
+          new Date(),
+          "America/Los_Angeles",
+        )}
+      />
+      {demoEnabled === true && (
+        <div
+          data-nosnippet
+          className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-8 sm:px-6"
+        >
+          <p className="text-lg font-semibold">
+            <HomeGreeting
+              name={
+                typeof user?.user_metadata?.full_name === "string"
+                  ? user.user_metadata.full_name
+                  : null
+              }
+            />
+          </p>
+          <HomeDemoExperience showGreeting={false} />
+        </div>
+      )}
       <LandingLazySections />
-    </main>
+    </div>
   );
 }

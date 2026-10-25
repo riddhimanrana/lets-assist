@@ -78,99 +78,86 @@ export function ProfileHoverCard({
   const showVerifiedBadge = variant === "organization" && verified;
   const joinDate = createdAt ? format(new Date(createdAt), "MMMM yyyy") : null;
 
-  // Map org types to icons
-  const getOrgTypeIcon = (type: string | undefined) => {
-    if (!type) return <Building2 className="h-3.5 w-3.5 opacity-70" />;
-
-    const lowerType = type.toLowerCase();
-    if (lowerType.includes("nonprofit") || lowerType.includes("non-profit")) {
-      return <Building2 className="h-3.5 w-3.5 opacity-70" />;
-    }
-    if (
-      lowerType.includes("school") ||
-      lowerType.includes("education") ||
-      lowerType.includes("educational")
-    ) {
-      return <GraduationCap className="h-3.5 w-3.5 opacity-70" />;
-    }
-    if (
-      lowerType.includes("business") ||
-      lowerType.includes("company") ||
-      lowerType.includes("corporate")
-    ) {
-      return <Briefcase className="h-3.5 w-3.5 opacity-70" />;
-    }
-    if (lowerType.includes("community") || lowerType.includes("group")) {
-      return <Users className="h-3.5 w-3.5 opacity-70" />;
-    }
-    return <Building2 className="h-3.5 w-3.5 opacity-70" />;
-  };
+  const OrgTypeIcon = orgTypeIcon(description);
 
   return (
     <HoverCard>
+      {/* The trigger is a plain span on purpose. Callers put this around a
+          link, or inside a card that is itself a link, so an anchor or button
+          here would nest one interactive element in another. */}
       <HoverCardTrigger
-        render={<span className="inline-flex">{children}</span>}
+        render={<span className="inline-flex min-w-0">{children}</span>}
       />
 
       <HoverCardContent
         side={side}
         sideOffset={sideOffset}
-        className={cn(
-          "w-auto max-w-[calc(100vw-2rem)] rounded-lg p-4 bg-popover border border-border shadow-lg",
-          contentClassName,
-        )}
+        className={cn("w-72 max-w-[calc(100vw-2rem)]", contentClassName)}
       >
-        <Link href={resolvedHref} className="block group transition-colors">
-          <div className="flex justify-between gap-4">
-            <Avatar className="h-10 w-10 border border-border">
-              <AvatarImage src={avatarUrl} alt={fullName} />
-              <AvatarFallback>
-                <NoAvatar fullName={fullName} />
-              </AvatarFallback>
-            </Avatar>
+        <Link
+          href={resolvedHref}
+          className="group/profile focus-visible:ring-ring/50 -m-1 flex items-start gap-3 rounded-md p-1 outline-none focus-visible:ring-[3px]"
+        >
+          <Avatar className="size-10">
+            <AvatarImage src={avatarUrl} alt="" />
+            <AvatarFallback>
+              <NoAvatar fullName={fullName} />
+            </AvatarFallback>
+          </Avatar>
 
-            <div className="space-y-1 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <h4 className="text-sm font-semibold leading-none truncate group-hover:underline underline-offset-4">
-                  {fullName}
-                </h4>
-                {showTrustedBadge && (
-                  <BadgeCheck
-                    className="h-4 w-4 text-success shrink-0"
-                    fill="currentColor"
-                  />
-                )}
-                {showVerifiedBadge && (
-                  <BadgeCheck className="h-4 w-4 text-primary shrink-0" />
-                )}
-              </div>
-
-              <div className="text-sm text-muted-foreground truncate group-hover:text-primary group-hover:underline underline-offset-4">
-                @{username}
-              </div>
-
-              {variant === "profile" && description ? (
-                <p className="text-sm leading-snug line-clamp-2 text-foreground/90">
-                  {description}
-                </p>
-              ) : null}
-
-              {variant === "organization" && description ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-xs pt-2">
-                  {getOrgTypeIcon(description)}
-                  <span>{description}</span>
-                </div>
-              ) : !description && joinDate ? (
-                <div className="text-muted-foreground text-xs pt-0.5">
-                  Joined {joinDate}
-                </div>
-              ) : null}
+          <div className="grid min-w-0 flex-1 gap-0.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="truncate text-sm leading-snug font-medium underline-offset-4 group-hover/profile:underline">
+                {fullName}
+              </p>
+              {showTrustedBadge && (
+                <BadgeCheck
+                  aria-label="Trusted member"
+                  className="text-success size-4 shrink-0"
+                />
+              )}
+              {showVerifiedBadge && (
+                <BadgeCheck
+                  aria-label="Verified organization"
+                  className="text-success size-4 shrink-0"
+                />
+              )}
             </div>
+
+            <p className="text-muted-foreground truncate text-sm">
+              @{username}
+            </p>
+
+            {variant === "profile" && description ? (
+              <p className="line-clamp-2 pt-1 text-sm leading-snug">
+                {description}
+              </p>
+            ) : null}
+
+            {variant === "organization" && description ? (
+              <p className="text-muted-foreground flex items-center gap-1.5 pt-1 text-xs">
+                <OrgTypeIcon aria-hidden="true" className="size-3.5 shrink-0" />
+                {description}
+              </p>
+            ) : !description && joinDate ? (
+              <p className="text-muted-foreground pt-1 text-xs">
+                Joined {joinDate}
+              </p>
+            ) : null}
           </div>
         </Link>
       </HoverCardContent>
     </HoverCard>
   );
+}
+
+/** Organization types are free text, so match on the words people use. */
+function orgTypeIcon(type: string | undefined) {
+  const lowerType = type?.toLowerCase() ?? "";
+  if (/school|education/.test(lowerType)) return GraduationCap;
+  if (/business|company|corporate/.test(lowerType)) return Briefcase;
+  if (/community|group/.test(lowerType)) return Users;
+  return Building2;
 }
 
 interface OrganizationHoverCardProps {

@@ -1,15 +1,22 @@
-import { Suspense } from "react";
+import { safeConsole } from "@/lib/safe-console";
+import { Suspense, type ReactNode } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getProject } from "@/app/projects/[id]/actions";
 import { headers } from "next/headers";
 import AttendanceClient from "./AttendanceClient";
+import { NoticePage } from "@/components/projects/NoticePage";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { CircleAlert, QrCode } from "lucide-react";
 import { cookies } from "next/headers";
 import {
@@ -28,6 +35,43 @@ function validateScanContext(userAgent: string) {
   };
 }
 
+/** A check-in dead end: what went wrong, what to do, and one way out. */
+function AttendNotice({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  action?: { href: string; label: string };
+}) {
+  return (
+    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center px-4 py-12 sm:px-6">
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <EmptyTitle>
+            <h1>{title}</h1>
+          </EmptyTitle>
+          <EmptyDescription>{description}</EmptyDescription>
+        </EmptyHeader>
+        {action ? (
+          <EmptyContent>
+            <Link
+              href={action.href}
+              className={cn(buttonVariants({ variant: "outline" }))}
+            >
+              {action.label}
+            </Link>
+          </EmptyContent>
+        ) : null}
+      </Empty>
+    </div>
+  );
+}
+
 type Props = {
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ session?: string; schedule?: string }>;
@@ -42,29 +86,24 @@ async function AttendanceContent({
   sessionUuid?: string;
   scheduleId?: string;
 }) {
-  console.log(
+  safeConsole.log(
+    "Application diagnostic from app/attend/[projectId]/page",
     `AttendPage: projectId=${projectId}, sessionUuid=${sessionUuid}, scheduleId=${scheduleId}`,
   );
 
   // require session and event
   if (!projectId || !sessionUuid || !scheduleId) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">
-        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4">
-              <CircleAlert className="h-12 w-12 text-destructive" />
-            </div>
-            <CardTitle className="text-2xl text-center">
-              Invalid Attendance Link
-            </CardTitle>
-            <CardDescription className="text-center">
-              This attendance link is missing required parameters. Please scan
-              the QR code provided by the project organizer.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <AttendNotice
+        icon={<CircleAlert aria-hidden="true" />}
+        title="This check-in link is not valid"
+        description="Scan the QR code at the event again, or ask the organizer for a new one."
+        action={
+          projectId
+            ? { href: `/projects/${projectId}`, label: "Back to project" }
+            : { href: "/", label: "Go to home" }
+        }
+      />
     );
   }
 
@@ -72,15 +111,12 @@ async function AttendanceContent({
   const { project, error } = await getProject(projectId);
   if (error || !project || project.session_id !== sessionUuid) {
     return (
-      <div className="container mx-auto py-12 px-4 md:px-6">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Project Not Found</h1>
-          <p className="text-muted-foreground mb-4">
-            The project associated with this QR code could not be found. It may
-            have been deleted.
-          </p>
-        </div>
-      </div>
+      <AttendNotice
+        icon={<CircleAlert aria-hidden="true" />}
+        title="Project not found"
+        description="This QR code does not match a project. The project may have been deleted, or the code may be out of date."
+        action={{ href: "/", label: "Go to home" }}
+      />
     );
   }
 
@@ -99,31 +135,13 @@ async function AttendanceContent({
     scheduleId,
   });
   if (!presence.ok) {
-    console.log("AttendPage: cookie verification failed");
+    safeConsole.log("AttendPage: cookie verification failed");
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-160px)] lg:min-h-[calc(100vh-64px)]">
-        <Card className="mx-auto max-w-[375px] sm:max-w-md w-full shadow-lg">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4">
-              <QrCode className="h-12 w-12 text-warning" />
-            </div>
-            <CardTitle className="text-2xl text-center">
-              Please Scan QR Code Again
-            </CardTitle>
-            <CardDescription className="text-center mt-2">
-              If you just logged in or signed up, you&apos;ll need to scan the
-              QR code again to continue with attendance. This is a security
-              measure to ensure you&apos;re accessing the correct session.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <p className="text-muted-foreground text-center mb-4">
-              Simply scan the QR code again using your device&apos;s camera to
-              proceed with checking in.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <AttendNotice
+        icon={<QrCode aria-hidden="true" />}
+        title="Scan the QR code again"
+        description="If you just logged in or signed up, scan the event's QR code with your camera again to check in. This confirms you are at the right session."
+      />
     );
   }
 
@@ -201,9 +219,7 @@ export default async function AttendPage(
   return (
     <Suspense
       fallback={
-        <div className="container mx-auto py-12 px-4 text-center">
-          Loading attendance page...
-        </div>
+        <NoticePage icon={<Spinner />} title="Loading attendance page..." />
       }
     >
       <AttendanceContent

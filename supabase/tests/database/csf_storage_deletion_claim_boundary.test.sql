@@ -297,7 +297,7 @@ DELETE FROM plugin_data.csf_storage_deletion_queue
 WHERE id = 'b7600000-0000-4000-8000-000000000004';
 
 -- Hold a real claim transaction open. Restoration must wait for the queue row,
--- then observe the committed token and fail with the retryable 40001 fence.
+-- then observe the committed token and return a PT409 business conflict.
 INSERT INTO plugin_data.csf_storage_deletion_queue (
   id, organization_id, bucket, object_path
 ) VALUES (

@@ -244,7 +244,7 @@ SELECT extensions.throws_ok(
       1
     )
   $$,
-  '40001',
+  'PT409',
   'Someone else changed this decision mapping. Reload it and save again.',
   'a stale expected version is refused instead of silently overwriting'
 );

@@ -27,7 +27,7 @@ export function WaiverPlacementValue({
         <span
           data-testid="waiver-placement-signature-typed"
           className={cn(
-            "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
+            "text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
             inkClass,
           )}
           style={{ fontFamily: "cursive" }}
@@ -71,7 +71,7 @@ export function WaiverPlacementValue({
     <span
       data-testid="waiver-placement-text"
       className={cn(
-        "text-[11px] md:text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
+        "text-xs font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-full",
         inkClass,
       )}
     >

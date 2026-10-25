@@ -384,6 +384,22 @@ test("integrates an independently reconstructed signed release", () => {
   assert.match(migrationTest, /1\.2\.3/u);
 });
 
+test("embedded publication preserves offering availability assertions", () => {
+  const input = fixture();
+  const path = join(input.root, "tests/database/offering_paused.test.sql");
+  const source = `BEGIN;
+SELECT extensions.is(
+  (SELECT is_active FROM public.plugins WHERE key = 'example-plugin'),
+  false,
+  'the offering remains paused after publication'
+);
+ROLLBACK;
+`;
+  writeFileSync(path, source);
+  integrate(input);
+  assert.equal(readFileSync(path, "utf8"), source);
+});
+
 test("consecutive embedded releases refresh historical serving expectations", () => {
   const input = fixture();
   const testsDir = join(input.root, "tests/database");
@@ -785,6 +801,16 @@ test("refuses a signed inventory that does not match the private Git tree", () =
   assert.throws(() => integrate(input), /file inventory does not match/u);
 });
 
+test("names the missing host migration and the candidate_sha remedy", () => {
+  const input = fixture();
+  rmSync(join(input.migrationsDir, "20260412000001_existing.sql"));
+
+  assert.throws(
+    () => integrate(input),
+    /required platform schema migration 20260412000001 is not present in the root ledger\. Merge the host migration into development[\s\S]*candidate_sha/u,
+  );
+});
+
 test("refuses same-version replacement even when its signature is valid", () => {
   const input = fixture();
   const registry = JSON.parse(readFileSync(input.registryPath, "utf8"));
@@ -817,7 +843,7 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   );
   for (const pin of [
     "actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8",
-    "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
     "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6",
     "sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6",
   ]) {
@@ -855,4 +881,14 @@ test("root workflow verifies known assets and opens only a Development PR", () =
   );
   assert.doesNotMatch(workflow, /gh release download "\$\{.*AssetUrl/u);
   assert.doesNotMatch(workflow, /--base main/u);
+  const pullRequestStep = workflow.match(
+    /- name: Open the ordered root integration pull request[\s\S]*$/u,
+  )?.[0];
+  assert.ok(pullRequestStep);
+  assert.match(
+    pullRequestStep,
+    /GH_TOKEN: \$\{\{ secrets\.PLUGIN_ROOT_INTEGRATION_TOKEN \}\}/u,
+  );
+  assert.doesNotMatch(pullRequestStep, /github\.token/u);
+  assert.match(pullRequestStep, /compare\/development\.\.\.\$\{branch\}/u);
 });

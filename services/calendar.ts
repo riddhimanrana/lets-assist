@@ -1,13 +1,12 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google Calendar API integration service
  * Handles OAuth token management and calendar event operations
  */
 
-import { createClient } from "@/lib/supabase/server";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { GoogleOAuthConnectionBindingExpectation } from "@/lib/auth/google-oauth-connection-binding";
 import { hasGoogleCalendarWriteScope } from "@/lib/auth/google-oauth-scopes";
-import { decryptWithRotation, encrypt } from "@/lib/encryption";
 import { Project, CalendarConnection } from "@/types";
 import {
   classifyGoogleCalendarLookupError,
@@ -151,18 +150,24 @@ export function isTokenExpired(expiresAt: string): boolean {
   const now = Date.now();
   const fiveMinutes = 5 * 60 * 1000;
 
-  return expiryTime - now < fiveMinutes;
+  return !Number.isFinite(expiryTime) || expiryTime - now < fiveMinutes;
 }
 
-/**
- * Refresh the access token using the refresh token
- */
-export async function refreshAccessToken(
+type GoogleTokenRefreshResult =
+  | { status: "refreshed"; accessToken: string; expiresIn: number }
+  | { status: "invalid_grant" }
+  | { status: "unavailable" };
+
+/** Preserve valid grants when the provider is temporarily unavailable. */
+export async function requestGoogleAccessTokenRefresh(
   refreshToken: string,
-): Promise<{ accessToken: string; expiresIn: number } | null> {
+): Promise<GoogleTokenRefreshResult> {
   try {
     const response = await fetch(GOOGLE_TOKEN_URL, {
       method: "POST",
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -177,21 +182,57 @@ export async function refreshAccessToken(
     if (!response.ok) {
       // OAuth error bodies can include provider diagnostics tied to the grant.
       // Record only non-sensitive transport metadata.
-      console.error("Failed to refresh Google access token", {
+      safeConsole.error("Failed to refresh Google access token", {
         status: response.status,
       });
-      return null;
+      if (response.status === 400 || response.status === 401) {
+        const failure: unknown = await response.json();
+        if (
+          failure &&
+          typeof failure === "object" &&
+          "error" in failure &&
+          failure.error === "invalid_grant"
+        ) {
+          return { status: "invalid_grant" };
+        }
+      }
+      return { status: "unavailable" };
     }
 
-    const data = await response.json();
+    const data: unknown = await response.json();
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("access_token" in data) ||
+      typeof data.access_token !== "string" ||
+      !data.access_token.trim() ||
+      !("expires_in" in data) ||
+      typeof data.expires_in !== "number" ||
+      !Number.isSafeInteger(data.expires_in) ||
+      data.expires_in <= 0 ||
+      !Number.isFinite(new Date(Date.now() + data.expires_in * 1000).getTime())
+    ) {
+      return { status: "unavailable" };
+    }
     return {
+      status: "refreshed",
       accessToken: data.access_token,
       expiresIn: data.expires_in,
     };
-  } catch (error) {
-    console.error("Error refreshing access token:", error);
-    return null;
+  } catch {
+    safeConsole.error("Error refreshing access token:");
+    return { status: "unavailable" };
   }
+}
+
+/** Refresh the access token while preserving the existing public result. */
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{ accessToken: string; expiresIn: number } | null> {
+  const result = await requestGoogleAccessTokenRefresh(refreshToken);
+  return result.status === "refreshed"
+    ? { accessToken: result.accessToken, expiresIn: result.expiresIn }
+    : null;
 }
 
 /**
@@ -200,61 +241,11 @@ export async function refreshAccessToken(
 export async function getValidAccessToken(
   userId: string,
 ): Promise<string | null> {
-  const supabase = await createClient();
-  const connection = await getCalendarConnection(userId);
-
-  if (!connection) {
-    return null;
-  }
-
-  // Check if token is expired
-  if (!isTokenExpired(connection.token_expires_at)) {
-    const decrypted = decryptWithRotation(connection.access_token);
-    if (decrypted.reencrypted) {
-      const { error } = await supabase
-        .from("user_calendar_connections")
-        .update({ access_token: decrypted.reencrypted })
-        .eq("id", connection.id)
-        .eq("access_token", connection.access_token);
-      if (error) console.error("Failed to rotate Google access credential");
-    }
-    return decrypted.plaintext;
-  }
-
-  // Token is expired or about to expire, refresh it
-  const decryptedRefresh = decryptWithRotation(connection.refresh_token);
-  if (decryptedRefresh.reencrypted) {
-    const { error } = await supabase
-      .from("user_calendar_connections")
-      .update({ refresh_token: decryptedRefresh.reencrypted })
-      .eq("id", connection.id)
-      .eq("refresh_token", connection.refresh_token);
-    if (error) console.error("Failed to rotate Google refresh credential");
-  }
-  const refreshed = await refreshAccessToken(decryptedRefresh.plaintext);
-
-  if (!refreshed) {
-    // Failed to refresh, mark connection as inactive
-    await supabase
-      .from("user_calendar_connections")
-      .update({ is_active: false })
-      .eq("id", connection.id);
-    return null;
-  }
-
-  // Update the connection with new access token
-  const newExpiresAt = new Date(Date.now() + refreshed.expiresIn * 1000);
-  const encryptedAccessToken = encrypt(refreshed.accessToken);
-
-  await supabase
-    .from("user_calendar_connections")
-    .update({
-      access_token: encryptedAccessToken,
-      token_expires_at: newExpiresAt.toISOString(),
-    })
-    .eq("id", connection.id);
-
-  return refreshed.accessToken;
+  const { getGoogleAccessTokenForUser } = await import("./calendar-operations");
+  return getGoogleAccessTokenForUser(userId, false, {
+    expectedBinding: PERSONAL_CALENDAR_GOOGLE_BINDING,
+    connectionType: "calendar",
+  });
 }
 
 /**
@@ -408,88 +399,9 @@ export async function getOrCreateVolunteeringCalendar(
   accessToken: string,
   userId: string,
 ): Promise<string | null> {
-  const supabase = await createClient();
-
-  // Check if we have a stored calendar ID
-  const connection = await getCalendarConnection(userId);
-  if (connection?.preferences?.volunteering_calendar_id) {
-    const accessState = await getGoogleCalendarAccessState(
-      accessToken,
-      connection.preferences.volunteering_calendar_id,
-    );
-    if (accessState.status === "accessible") {
-      return connection.preferences.volunteering_calendar_id;
-    }
-    // Only a confirmed 404 authorizes replacement. Every ambiguous provider
-    // outcome retains the existing calendar identity for explicit review.
-    if (accessState.status !== "missing") {
-      return null;
-    }
-  }
-
-  // Calendar doesn't exist or isn't stored, create a new one
-  try {
-    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        summary: "Let's Assist Volunteering",
-        description: "Volunteer events and shifts from Let's Assist platform",
-        timeZone: "America/Los_Angeles",
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to create personal volunteering calendar", {
-        status: response.status,
-      });
-      return null;
-    }
-
-    const calendar = await response.json();
-    const calendarId = calendar.id;
-
-    // Set calendar color to darker green (Sage - #33B679)
-    try {
-      await fetch(
-        `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            colorId: "3", // Sage green in Google Calendar (one index higher than Basil)
-          }),
-        },
-      );
-    } catch {
-      console.error("Failed to set personal volunteering calendar color");
-      // Non-critical, continue anyway
-    }
-
-    // Store the calendar ID in the user's connection preferences
-    if (connection) {
-      await supabase
-        .from("user_calendar_connections")
-        .update({
-          preferences: {
-            ...connection.preferences,
-            volunteering_calendar_id: calendarId,
-          },
-        })
-        .eq("id", connection.id);
-    }
-
-    return calendarId;
-  } catch (error) {
-    console.error("Error creating volunteering calendar:", error);
-    return null;
-  }
+  const { getDurablePersonalCalendarDestination } =
+    await import("./personal-calendar/destination");
+  return getDurablePersonalCalendarDestination(accessToken, userId);
 }
 
 export async function getGoogleCalendarAccessState(
@@ -505,13 +417,14 @@ export async function getGoogleCalendarAccessState(
           Authorization: `Bearer ${accessToken}`,
         },
         signal: AbortSignal.timeout(GOOGLE_CALENDAR_LOOKUP_TIMEOUT_MS),
+        redirect: "error",
       },
     );
 
     return classifyGoogleCalendarLookupResponse(response);
   } catch (error) {
     const state = classifyGoogleCalendarLookupError(error);
-    console.error("Error checking organization calendar access:", {
+    safeConsole.error("Error checking organization calendar access:", {
       status: state.status,
       reason: state.status === "retryable_error" ? state.reason : undefined,
     });
@@ -523,10 +436,8 @@ export type { CsfPersonalCalendarProviderContext } from "./calendar-csf-personal
 export { getCsfPersonalCalendarProviderContext } from "./calendar-csf-personal";
 export {
   createGoogleCalendarEvent,
-  createGoogleCalendarEventForCalendar,
   deactivateGoogleConnection,
   deleteGoogleCalendarEvent,
-  deleteGoogleCalendarEventForCalendar,
   ensureOrganizationCalendar,
   getCalendarEmail,
   getGoogleAccessToken,
@@ -538,5 +449,4 @@ export {
   markPersonalCalendarConnectionSynced,
   revokeGoogleCalendarAccess,
   updateGoogleCalendarEvent,
-  updateGoogleCalendarEventForCalendar,
 } from "./calendar-operations";

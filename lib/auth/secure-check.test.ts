@@ -16,6 +16,8 @@ describe("isSecureCheckBypassed", () => {
     expect(
       isSecureCheckBypassed({
         nodeEnv: "development",
+        siteUrl: "http://localhost:3000",
+        supabaseUrl: "http://127.0.0.1:54321",
         bypass: undefined,
         siteKey: undefined,
       }),
@@ -40,6 +42,7 @@ describe("isSecureCheckBypassed", () => {
         bypass: "true",
         siteKey: undefined,
         siteUrl: "http://localhost:3000",
+        supabaseUrl: "http://127.0.0.1:54321",
       }),
     ).toBe(true);
     expect(
@@ -48,6 +51,7 @@ describe("isSecureCheckBypassed", () => {
         bypass: "true",
         siteKey: undefined,
         siteUrl: "http://127.0.0.1:3000",
+        supabaseUrl: "http://127.0.0.1:54321",
       }),
     ).toBe(true);
   });
@@ -67,6 +71,8 @@ describe("isSecureCheckBypassed", () => {
     expect(
       isSecureCheckBypassed({
         nodeEnv: "development",
+        siteUrl: "http://localhost:3000",
+        supabaseUrl: "http://127.0.0.1:54321",
         bypass: undefined,
         siteKey: "configured-site-key",
       }),

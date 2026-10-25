@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import {
   checkSuperAdmin,
@@ -10,15 +11,21 @@ import {
   getContentReports,
   getContentReportsStats,
 } from "./moderation/actions";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { AdminLoadError, AdminPage } from "./components/AdminPage";
 import { OverviewTab } from "./components/OverviewTab";
+import { ProjectScheduleHealth } from "./components/ProjectScheduleHealth";
+import { getProjectScheduleHealth } from "./server/project-schedule-health";
+import { getLandingDemoModeForAdmin } from "./server/landing-demo-mode";
+import { LandingDemoControl } from "./components/LandingDemoControl";
 
 export const metadata = {
-  title: "Admin Dashboard | Let's Assist",
+  title: "Admin overview",
   description:
     "Unified admin dashboard for managing feedback, trusted members, and content moderation",
 };
 
-export default async function AdminPage() {
+export default async function AdminOverviewPage() {
   // Check if user is super admin
   const { isAdmin } = await checkSuperAdmin();
 
@@ -35,6 +42,8 @@ export default async function AdminPage() {
     pendingReports,
     reportsStats,
     underReviewReports,
+    scheduleHealth,
+    landingDemoMode,
   ] = await Promise.all([
     getAllFeedback(),
     getTrustedMemberApplications(),
@@ -43,7 +52,13 @@ export default async function AdminPage() {
     getContentReports("pending"),
     getContentReportsStats(),
     getContentReports("under_review"),
+    getProjectScheduleHealth(),
+    getLandingDemoModeForAdmin(),
   ]);
+
+  // A new server snapshot must replace local state even when its Boolean
+  // equals an older snapshot. Read identity is separate from its value.
+  const landingDemoReadVersion = randomUUID();
 
   const stats = moderationStats.data;
   const aggregateReportStats = reportsStats.data ?? {
@@ -65,12 +80,15 @@ export default async function AdminPage() {
 
   if (firstError) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">Error loading admin data</p>
-          <p className="mt-2 text-sm opacity-90">{firstError}</p>
-        </div>
-      </div>
+      <AdminPage>
+        <PageHeader title="Admin overview" />
+        <LandingDemoControl
+          readVersion={landingDemoReadVersion}
+          enabled={landingDemoMode.enabled}
+        />
+        <ProjectScheduleHealth result={scheduleHealth} />
+        <AdminLoadError title="Error loading admin data" message={firstError} />
+      </AdminPage>
     );
   }
 
@@ -92,22 +110,22 @@ export default async function AdminPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-8 py-8 px-4 md:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Admin Overview</h1>
-        <p className="text-muted-foreground">
-          Platform activity and pending actions across feedback, trusted
-          members, and moderation.
-        </p>
+    <>
+      <OverviewTab
+        stats={overviewStats}
+        flaggedContent={flaggedContentData}
+        reportPreview={reportPreview}
+        reportsStats={aggregateReportStats}
+        afterHeader={
+          <LandingDemoControl
+            readVersion={landingDemoReadVersion}
+            enabled={landingDemoMode.enabled}
+          />
+        }
+      />
+      <div className="mx-auto w-full max-w-screen-2xl px-4 pb-8 sm:px-6">
+        <ProjectScheduleHealth result={scheduleHealth} />
       </div>
-      <section className="rounded-2xl border bg-card/80 p-4 shadow-xs sm:p-6">
-        <OverviewTab
-          stats={overviewStats}
-          flaggedContent={flaggedContentData}
-          reportPreview={reportPreview}
-          reportsStats={aggregateReportStats}
-        />
-      </section>
-    </div>
+    </>
   );
 }

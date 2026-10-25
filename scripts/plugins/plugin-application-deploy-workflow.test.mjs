@@ -31,6 +31,24 @@ test("deployment workflow verifies immutable release identity before deploy", ()
   assert.match(workflow, /--environment "\$\{DEPLOYMENT_ENVIRONMENT\}"/u);
 });
 
+test("deployment workflow refuses embedded releases before downloading builds", () => {
+  const downloadStep = workflow.match(
+    /- name: Download the immutable private release[\s\S]*?(?=\n {6}- name:)/u,
+  )?.[0];
+  assert.ok(downloadStep);
+  const profileCheck = downloadStep.indexOf('"${profile}" != application');
+  assert.ok(profileCheck > 0);
+  assert.ok(
+    profileCheck <
+      downloadStep.indexOf(".buildArtifact.artifacts.development.name"),
+  );
+  assert.match(
+    downloadStep,
+    /Only application releases have a deployable build/u,
+  );
+  assert.match(downloadStep, /lib\/plugins\/published-releases\.json/u);
+});
+
 test("deployment workflow separates Vercel Preview and Production targets", () => {
   assert.doesNotMatch(workflow, /--target=development/u);
   assert.match(workflow, /args\+=\(--prod\)/u);
@@ -66,4 +84,28 @@ test("deployment workflow records health through service-only RPCs", () => {
   assert.match(workflow, /rpc\/report_plugin_deployment_health/u);
   assert.match(workflow, /p_health_status:"unhealthy"/u);
   assert.doesNotMatch(workflow, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/u);
+});
+
+test("database preflight precedes Vercel mutation and keeps management authority in its own step", () => {
+  const preflight = workflow.match(
+    /- name: Verify target database and signed schema before deployment[\s\S]*?(?=\n {6}- name:)/u,
+  )?.[0];
+  assert.ok(preflight);
+  assert.match(preflight, /secrets\.SUPABASE_ACCESS_TOKEN/u);
+  assert.match(preflight, /secrets\.SUPABASE_PROJECT_ID/u);
+  assert.match(preflight, /vars\.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF/u);
+  assert.match(preflight, /verify-application-database\.mjs/u);
+  assert.match(preflight, /database-preflight\.json/u);
+  assert.ok(
+    workflow.indexOf("cosign verify-blob") < workflow.indexOf(preflight),
+  );
+  assert.ok(
+    workflow.indexOf(preflight) <
+      workflow.indexOf("- name: Deploy the exact prebuilt bytes"),
+  );
+  assert.doesNotMatch(
+    workflow.replace(preflight, ""),
+    /SUPABASE_ACCESS_TOKEN/u,
+  );
+  assert.doesNotMatch(preflight, /GITHUB_ENV|GITHUB_OUTPUT|vercel@|--token=/u);
 });

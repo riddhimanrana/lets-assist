@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -44,7 +45,7 @@ export async function getAllFeedback() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching feedback:", error);
+    safeConsole.error("Error fetching feedback:", error);
     return { error: "Failed to fetch feedback" };
   }
 
@@ -78,14 +79,14 @@ export async function getAllFeedback() {
   ]);
 
   if (profileError) {
-    console.error("Error fetching feedback profiles:", profileError);
+    safeConsole.error("Error fetching feedback profiles:", profileError);
   }
 
   if (
     moderationError &&
     !isMissingFeedbackModerationTableError(moderationError)
   ) {
-    console.error(
+    safeConsole.error(
       "Error fetching feedback moderation states:",
       moderationError,
     );
@@ -135,7 +136,7 @@ export async function deleteFeedback(feedbackId: string) {
     .eq("id", feedbackId);
 
   if (error) {
-    console.error("Error deleting feedback:", error);
+    safeConsole.error("Error deleting feedback:", error);
     return { error: "Failed to delete feedback" };
   }
 
@@ -183,7 +184,7 @@ export async function updateFeedbackModerationStatus(input: {
           .maybeSingle();
 
         if (feedbackReadError) {
-          console.error(
+          safeConsole.error(
             "Error loading feedback metadata fallback:",
             feedbackReadError,
           );
@@ -202,7 +203,7 @@ export async function updateFeedbackModerationStatus(input: {
           .eq("id", input.feedbackId);
 
         if (feedbackUpdateError) {
-          console.error(
+          safeConsole.error(
             "Error resetting metadata moderation fallback:",
             feedbackUpdateError,
           );
@@ -212,7 +213,7 @@ export async function updateFeedbackModerationStatus(input: {
         return { success: true };
       }
 
-      console.error("Error clearing feedback moderation status:", error);
+      safeConsole.error("Error clearing feedback moderation status:", error);
       return { error: "Failed to reset moderation status" };
     }
 
@@ -243,7 +244,7 @@ export async function updateFeedbackModerationStatus(input: {
         .maybeSingle();
 
       if (feedbackReadError) {
-        console.error(
+        safeConsole.error(
           "Error loading feedback metadata fallback:",
           feedbackReadError,
         );
@@ -267,7 +268,7 @@ export async function updateFeedbackModerationStatus(input: {
         .eq("id", input.feedbackId);
 
       if (feedbackUpdateError) {
-        console.error(
+        safeConsole.error(
           "Error updating metadata moderation fallback:",
           feedbackUpdateError,
         );
@@ -277,7 +278,7 @@ export async function updateFeedbackModerationStatus(input: {
       return { success: true };
     }
 
-    console.error("Error updating feedback moderation:", error);
+    safeConsole.error("Error updating feedback moderation:", error);
     return { error: "Failed to update moderation status" };
   }
 

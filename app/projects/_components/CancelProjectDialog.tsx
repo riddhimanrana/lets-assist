@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { XOctagon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Project } from "@/types";
 import { cn } from "@/lib/utils";
@@ -57,7 +58,7 @@ export function CancelProjectDialog({
       await onConfirm(reason.trim());
       onClose();
     } catch (error) {
-      console.error("Error cancelling project:", error);
+      safeConsole.error("Error cancelling project:", error);
       toast.error("Failed to cancel project. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -121,7 +122,10 @@ export function CancelProjectDialog({
           setRecipientCount(count);
         }
       } catch (error) {
-        console.error("Error fetching cancellation recipient count:", error);
+        safeConsole.error(
+          "Error fetching cancellation recipient count:",
+          error,
+        );
         if (isActive) {
           setRecipientCount(null);
           setRecipientError(
@@ -164,12 +168,9 @@ export function CancelProjectDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="border border-warning/20">
+      <DialogContent>
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <XOctagon className="h-5 w-5 text-warning" />
-            <DialogTitle className="text-warning">Cancel Project</DialogTitle>
-          </div>
+          <DialogTitle>Cancel this project?</DialogTitle>
           <DialogDescription>
             This action cannot be undone. The project will be marked as
             cancelled and approved volunteers will be notified by email.
@@ -183,7 +184,7 @@ export function CancelProjectDialog({
             {recipientText}
           </div>
           <div className="space-y-2">
-            <h4 className="font-medium">Cancellation Reason</h4>
+            <h4 className="text-sm font-medium">Cancellation reason</h4>
             <Textarea
               placeholder="Please provide a reason for cancelling this project..."
               value={reason}
@@ -216,23 +217,26 @@ export function CancelProjectDialog({
             onClick={handleClose}
             disabled={isSubmitting}
           >
-            Cancel
+            Keep project
           </Button>
           <Button
-            variant="default"
+            variant="destructive"
             onClick={handleConfirm}
             disabled={
               isSubmitting || !reason.trim() || reason.length > CHARACTER_LIMIT
             }
-            className="bg-warning hover:bg-warning/90"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
                 Cancelling...
               </>
             ) : (
-              "Confirm Cancellation"
+              "Cancel project"
             )}
           </Button>
         </DialogFooter>

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
       status: result.success ? 200 : 400,
     });
   } catch (error) {
-    console.error("Error creating contact import job:", error);
+    safeConsole.error("Error creating contact import job:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },
@@ -179,7 +180,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, jobs: jobs || [] });
   } catch (error) {
-    console.error("Error listing contact import jobs:", error);
+    safeConsole.error("Error listing contact import jobs:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

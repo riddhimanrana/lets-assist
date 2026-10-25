@@ -568,6 +568,15 @@ export interface OrganizationPluginPageProps<
   organizationName: string;
   userRole: TRole;
   configuration: Record<string, unknown> | null;
+  /**
+   * The request's query string as the route received it, when the page was
+   * reached through a standalone plugin route. A repeated key is an array.
+   *
+   * Untrusted and uninterpreted: the platform forwards it without reading,
+   * filtering or validating any key. It grants nothing, and a plugin must
+   * allowlist and validate whatever it chooses to honor.
+   */
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
 export type OrganizationPluginPageRenderer = {

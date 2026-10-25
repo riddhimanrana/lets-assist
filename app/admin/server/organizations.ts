@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -26,7 +27,7 @@ export async function getOrganizationsForAdmin() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching organizations for admin:", error);
+    safeConsole.error("Error fetching organizations for admin:", error);
     return { error: "Failed to fetch organizations" };
   }
 
@@ -61,7 +62,7 @@ export async function updateOrganizationVerifiedStatus(
     .maybeSingle();
 
   if (fetchError) {
-    console.error(
+    safeConsole.error(
       "Error fetching organization before verification update:",
       fetchError,
     );
@@ -78,7 +79,10 @@ export async function updateOrganizationVerifiedStatus(
     .eq("id", organizationId);
 
   if (error) {
-    console.error("Error updating organization verification status:", error);
+    safeConsole.error(
+      "Error updating organization verification status:",
+      error,
+    );
     return { error: "Failed to update verification status" };
   }
 

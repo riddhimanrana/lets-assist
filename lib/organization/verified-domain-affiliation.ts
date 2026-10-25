@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 
@@ -24,7 +25,7 @@ export async function applyVerifiedDomainAffiliation(userId: string) {
     : affiliationRows;
 
   if (affiliationError || !affiliation) {
-    console.error(
+    safeConsole.error(
       "Failed to resolve verified domain affiliation:",
       affiliationError,
     );

@@ -23,6 +23,16 @@ mock.module("@/services/project-feedback-worker", () => ({
   },
 }));
 
+const observationCalls: string[] = [];
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls.push(worker);
+    return operation();
+  },
+}));
 const { GET, POST } = await import("./route");
 
 const SECRET = "feedback-cron-secret-for-tests";
@@ -44,6 +54,7 @@ const ENV_KEYS = [
 ];
 
 beforeEach(() => {
+  observationCalls.length = 0;
   workerCalls = 0;
   for (const key of ENV_KEYS) {
     savedEnv[key] = process.env[key];
@@ -71,18 +82,21 @@ describe("project-feedback-followups auth grammar", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).enabled).toBe(true);
     expect(workerCalls).toBe(1);
+    expect(observationCalls).toEqual(["project-feedback-followups"]);
   });
 
   test("an unauthenticated GET cannot trigger delivery", async () => {
     const response = await GET(request({}, "GET"));
     expect(response.status).toBe(401);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("a well-formed bearer token is accepted", async () => {
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
     expect(response.status).toBe(200);
     expect(workerCalls).toBe(1);
+    expect(observationCalls).toEqual(["project-feedback-followups"]);
   });
 
   test.each([
@@ -99,12 +113,14 @@ describe("project-feedback-followups auth grammar", () => {
     const response = await POST(request({ authorization: header }));
     expect(response.status).toBe(401);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("a missing header is rejected", async () => {
     const response = await POST(request());
     expect(response.status).toBe(401);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("no configured secret denies even a matching-looking token", async () => {
@@ -112,6 +128,7 @@ describe("project-feedback-followups auth grammar", () => {
     const response = await POST(request({ authorization: `Bearer ${SECRET}` }));
     expect(response.status).toBe(401);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("the shared CRON_TOKEN is also accepted", async () => {
@@ -132,6 +149,7 @@ describe("enable flag", () => {
     const body = await response.json();
     expect(body.enabled).toBe(false);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("an unset flag behaves as disabled", async () => {
@@ -140,5 +158,6 @@ describe("enable flag", () => {
     const body = await response.json();
     expect(body.enabled).toBe(false);
     expect(workerCalls).toBe(0);
+    expect(observationCalls).toHaveLength(0);
   });
 });

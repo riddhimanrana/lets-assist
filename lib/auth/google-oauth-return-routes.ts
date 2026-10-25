@@ -55,6 +55,22 @@ const boundedApplicationSearch = (value: string) =>
 const uuidValue = (value: string) => UUID_PATTERN.test(value);
 const assigneeValue = (value: string) =>
   value === "assigned" || value === "unassigned" || uuidValue(value);
+/**
+ * The review list's page cursor: a direction, a rank, an application id and
+ * two base64url name parts. Matched by shape and bounded, never interpreted
+ * here; the review loader parses it again and drops anything it did not issue.
+ */
+const reviewRosterCursor = (value: string) =>
+  value.length <= 2048 &&
+  /^[ab]\.(?:-1|0|1)\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*$/u.test(
+    value,
+  );
+/** The review class selector emits a class id or exactly `all`. */
+const reviewCohortValue = (value: string) =>
+  value === "all" || uuidValue(value);
+/** The review list's search box holds at most 120 characters. */
+const boundedReviewSearch = (value: string) =>
+  value.length > 0 && value.length <= 120 && !hasAsciiControlCharacter(value);
 
 function hasAsciiControlCharacter(value: string) {
   for (const character of value) {
@@ -106,7 +122,25 @@ const RETURN_ROUTE_RULES: Readonly<
         csf_import_type: ["application_responses"],
         csf_review_kind: ["membership_applications"],
         csf_review_term: uuidValue,
-        csf_review_cohort: uuidValue,
+        // A class id, or the list's own "every class" value.
+        csf_review_cohort: reviewCohortValue,
+        // The application review list's own state. The importer carries the
+        // officer's workspace position through the connection, so without
+        // these an officer who had searched or paged the list would have the
+        // whole return route refused and land on the bare default.
+        csf_review_q: boundedReviewSearch,
+        csf_review_show: ["all"],
+        csf_review_sheet: [
+          "done",
+          "not_done",
+          "accepted",
+          "rejected",
+          "rejected_with_explanation",
+          "on_hold",
+          "unreviewed",
+          "conflict",
+        ],
+        csf_review_cursor: reviewRosterCursor,
         csf_application: uuidValue,
         csf_application_view: ["all"],
         csf_application_queue: [

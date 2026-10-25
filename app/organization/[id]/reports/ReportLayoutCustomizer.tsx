@@ -1,11 +1,4 @@
 import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -105,42 +98,36 @@ export function ReportLayoutCustomizer({
   const selectedColumnKeys = new Set(layout.columns.map((c) => c.key));
 
   return (
-    <Card className="border border-border">
-      <CardHeader>
-        <CardTitle className="text-lg">Report Layout</CardTitle>
-        <CardDescription>
-          Customize how your report is organized and displayed
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <div className="grid gap-6">
+      <div className="grid gap-6">
         {/* Orientation Toggle */}
-        <div className="space-y-3">
-          <Label className="text-base font-semibold">Layout Orientation</Label>
-          <div className="flex gap-2">
+        <div className="grid gap-2">
+          <Label>Layout orientation</Label>
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               variant={
-                layout.orientation === "horizontal" ? "default" : "outline"
+                layout.orientation === "horizontal" ? "secondary" : "outline"
               }
-              size="sm"
+              aria-pressed={layout.orientation === "horizontal"}
               onClick={() => handleOrientationChange("horizontal")}
               disabled={isLoading}
               className="flex-1"
             >
-              Horizontal (Traditional)
+              Horizontal (traditional)
             </Button>
             <Button
               variant={
-                layout.orientation === "vertical" ? "default" : "outline"
+                layout.orientation === "vertical" ? "secondary" : "outline"
               }
-              size="sm"
+              aria-pressed={layout.orientation === "vertical"}
               onClick={() => handleOrientationChange("vertical")}
               disabled={isLoading}
               className="flex-1"
             >
-              Vertical (Custom)
+              Vertical (custom)
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {layout.orientation === "horizontal"
               ? "Each record is a row with columns for each field"
               : "Each record takes multiple rows, one field per row"}
@@ -148,42 +135,40 @@ export function ReportLayoutCustomizer({
         </div>
 
         {/* Columns Configuration */}
-        <div className="space-y-3">
+        <div className="grid gap-2">
           <div className="flex items-center justify-between">
-            <Label className="text-base font-semibold">Columns</Label>
+            <Label>Columns</Label>
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setShowResetDialog(true)}
               disabled={isLoading}
-              className="h-7 px-2"
             >
-              <RotateCw className="h-3.5 w-3.5 mr-1" />
+              <RotateCw data-icon="inline-start" />
               Reset
             </Button>
           </div>
 
           <Tabs defaultValue="selected" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="selected" className="text-xs sm:text-sm">
+              <TabsTrigger value="selected">
                 Selected ({layout.columns.length})
               </TabsTrigger>
-              <TabsTrigger value="available" className="text-xs sm:text-sm">
+              <TabsTrigger value="available">
                 Available ({availableColumns.length - layout.columns.length})
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="selected" className="space-y-2 mt-3">
+            <TabsContent value="selected" className="mt-3 grid gap-2">
               {layout.columns.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   No columns selected. Add columns to display data.
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="grid gap-2">
                   {layout.columns.map((column, index) => (
                     <div
                       key={column.key}
-                      className="flex items-center gap-2 p-2 border rounded-md bg-card hover:bg-accent/50 transition-colors"
+                      className="flex items-center gap-2 rounded-md border p-2"
                       draggable
                       onDragStart={() => setDraggedIndex(index)}
                       onDragOver={(e) => e.preventDefault()}
@@ -194,7 +179,7 @@ export function ReportLayoutCustomizer({
                         }
                       }}
                     >
-                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing" />
+                      <GripVertical className="text-muted-foreground size-4 shrink-0 cursor-grab active:cursor-grabbing" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>
                         <p className="text-xs text-muted-foreground">
@@ -203,12 +188,12 @@ export function ReportLayoutCustomizer({
                       </div>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        aria-label={`Remove ${column.label}`}
                         onClick={() => handleRemoveColumn(index)}
                         disabled={isLoading}
-                        className="h-7 w-7 p-0"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 />
                       </Button>
                     </div>
                   ))}
@@ -216,21 +201,22 @@ export function ReportLayoutCustomizer({
               )}
             </TabsContent>
 
-            <TabsContent value="available" className="space-y-2 mt-3">
-              <div className="space-y-2">
+            <TabsContent value="available" className="mt-3 grid gap-2">
+              <div className="grid gap-2">
                 {availableColumns.map((column) => {
                   const isSelected = selectedColumnKeys.has(column.key);
                   return (
                     <button
+                      type="button"
                       key={column.key}
                       onClick={() => handleToggleColumn(column.key)}
                       disabled={isLoading}
-                      className="w-full flex items-center gap-2 p-2 border rounded-md hover:bg-accent/50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="hover:bg-muted flex min-h-9 w-full items-center gap-2 rounded-md border p-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isSelected ? (
-                        <Eye className="h-4 w-4 text-primary shrink-0" />
+                        <Eye className="text-primary size-4 shrink-0" />
                       ) : (
-                        <EyeOff className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <EyeOff className="text-muted-foreground size-4 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium">{column.label}</p>
@@ -250,13 +236,13 @@ export function ReportLayoutCustomizer({
             </TabsContent>
           </Tabs>
         </div>
-      </CardContent>
+      </div>
 
       {/* Reset Dialog */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset Layout?</AlertDialogTitle>
+            <AlertDialogTitle>Reset layout?</AlertDialogTitle>
             <AlertDialogDescription>
               This will restore the default layout with all original columns in
               their default order.
@@ -265,11 +251,11 @@ export function ReportLayoutCustomizer({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleReset}>
-              Reset Layout
+              Reset layout
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   );
 }

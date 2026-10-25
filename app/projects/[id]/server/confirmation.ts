@@ -1,9 +1,10 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { type Project } from "@/types";
 import crypto from "crypto";
-import { sendEmail } from "@/services/email";
+import { sendEmail, type SendEmailResult } from "@/services/email";
 import AnonymousSignupConfirmation from "@/emails/anonymous-signup-confirmation";
 import * as React from "react";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -25,8 +26,10 @@ export async function resendAnonymousConfirmationEmail(
 ): Promise<{ success?: boolean; error?: string }> {
   "use server";
   try {
-    const captchaValidation =
-      await validateAnonymousSignupCaptcha(captchaToken);
+    const captchaValidation = await validateAnonymousSignupCaptcha(
+      captchaToken,
+      "anonymous-confirmation",
+    );
 
     if ("error" in captchaValidation) {
       return { error: captchaValidation.error };
@@ -63,7 +66,7 @@ export async function resendAnonymousConfirmationEmail(
       .maybeSingle();
 
     if (fetchError) {
-      console.error("Error fetching anonymous signup:", fetchError);
+      safeConsole.error("Error fetching anonymous signup:", fetchError);
       return { error: "Unable to resend the confirmation email." };
     }
 
@@ -80,7 +83,7 @@ export async function resendAnonymousConfirmationEmail(
       .single();
 
     if (projectError || !project) {
-      console.error("Error fetching project:", projectError);
+      safeConsole.error("Error fetching project:", projectError);
       return { error: "Failed to fetch project details." };
     }
 
@@ -88,13 +91,16 @@ export async function resendAnonymousConfirmationEmail(
     const newToken = crypto.randomUUID();
 
     // Update the token in the database
-    const { error: updateError } = await admin
+    const { data: updatedSignup, error: updateError } = await admin
       .from("anonymous_signups")
       .update({ token: newToken })
-      .eq("id", anonymousSignupId);
+      .eq("id", anonymousSignupId)
+      .eq("token", anonSignup.token)
+      .is("confirmed_at", null)
+      .select("id")
+      .maybeSingle();
 
-    if (updateError) {
-      console.error("Error updating token:", updateError);
+    if (updateError || !updatedSignup) {
       return { error: "Failed to generate new confirmation link." };
     }
 
@@ -123,9 +129,9 @@ export async function resendAnonymousConfirmationEmail(
         .eq("token", newToken);
     };
 
-    let emailError: unknown = null;
+    let delivery: SendEmailResult;
     try {
-      const result = await sendEmail({
+      delivery = await sendEmail({
         to: anonSignup.email,
         subject: `Confirm your signup for ${project.title}`,
         react: React.createElement(AnonymousSignupConfirmation, {
@@ -138,22 +144,30 @@ export async function resendAnonymousConfirmationEmail(
           slotLabel: scheduleDetails.slotLabel,
         }),
         type: "transactional",
+        idempotencyKey: `anonymous-confirmation/${anonymousSignupId}/${newToken}`,
       });
-      emailError = result.error;
-    } catch (sendError) {
-      emailError = sendError;
+    } catch {
+      // The request may have reached the provider. Keep the new link valid.
+      return {
+        error:
+          "Delivery could not be confirmed. Check your inbox before requesting another email.",
+      };
     }
 
-    if (emailError) {
-      console.error("Error sending confirmation email:", emailError);
+    if (delivery.outcome === "unknown_outcome") {
+      return {
+        error:
+          "Delivery could not be confirmed. Check your inbox before requesting another email.",
+      };
+    }
+    if (delivery.outcome !== "accepted") {
       await restorePreviousToken();
       return { error: "Failed to send confirmation email. Please try again." };
     }
 
-    console.log("Resent confirmation email to:", anonSignup.email);
     return { success: true };
   } catch (error) {
-    console.error("Error in resendAnonymousConfirmationEmail:", error);
+    safeConsole.error("Error in resendAnonymousConfirmationEmail:", error);
     return { error: "An unexpected error occurred." };
   }
 }

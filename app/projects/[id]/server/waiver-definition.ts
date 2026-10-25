@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,29 @@ import {
   mapDetectedFieldsForDb,
   mapCustomPlacementsForDb,
 } from "@/lib/waiver/map-definition-input";
+import {
+  findDefinitionFieldProblem,
+  sameWaiverSource,
+  waiverSourceSnapshot,
+  type WaiverBoundaryProblem,
+} from "@/lib/waiver/source-boundary";
 import { canCurrentUserManageProject } from "./access";
+
+// Fixed sentences for an organizer. None quotes the document or a field.
+const DEFINITION_SAVE_REFUSALS: Record<WaiverBoundaryProblem, string> = {
+  missing_source: "Upload the waiver PDF before configuring its fields.",
+  unreadable_source:
+    "The waiver PDF could not be read. Upload a valid PDF and try again.",
+  encrypted_source:
+    "The waiver PDF is password protected. Upload a copy without a password and try again.",
+  stale_waiver:
+    "The waiver document or its fields changed while you were saving. Reload the page and try again.",
+  unplaceable_field:
+    "One or more fields are placed outside the pages of the waiver PDF. Move them onto a page and save again.",
+  unplaceable_signature:
+    "A signature field is placed outside the pages of the waiver PDF. Move it onto a page and save again.",
+  missing_evidence: "Failed to save waiver definition",
+};
 
 // Get waiver definition for a project
 export async function getWaiverDefinition(projectId: string): Promise<{
@@ -49,7 +72,7 @@ export async function getWaiverDefinition(projectId: string): Promise<{
       .single();
 
     if (error) {
-      console.error("Error fetching waiver definition:", error);
+      safeConsole.error("Error fetching waiver definition:", error);
       return { success: false, error: "Failed to fetch waiver definition" };
     }
 
@@ -58,7 +81,7 @@ export async function getWaiverDefinition(projectId: string): Promise<{
       definition: definition as WaiverDefinitionFull,
     };
   } catch (error) {
-    console.error("Error in getWaiverDefinition:", error);
+    safeConsole.error("Error in getWaiverDefinition:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }
@@ -175,22 +198,91 @@ export async function saveWaiverDefinition(
       }
     }
 
+    // The new version is pinned to the project's source PDF, or to the current
+    // definition's source for a project row that predates source paths. That
+    // is the same choice the versioning RPC makes.
+    let source = waiverSourceSnapshot(
+      project.waiver_pdf_storage_path,
+      project.waiver_pdf_url,
+    );
+    if (project.waiver_definition_id && source.storagePath === null) {
+      const { data: currentDefinition, error: currentDefinitionError } =
+        await serviceSupabase
+          .from("waiver_definitions")
+          .select("id, pdf_storage_path, pdf_public_url")
+          .eq("id", project.waiver_definition_id)
+          .eq("project_id", projectId)
+          .maybeSingle();
+
+      if (currentDefinitionError) {
+        safeConsole.error(
+          "Error loading current waiver definition:",
+          currentDefinitionError,
+        );
+        return { success: false, error: "Failed to save waiver definition" };
+      }
+      const pinnedSource = waiverSourceSnapshot(
+        currentDefinition?.pdf_storage_path,
+        currentDefinition?.pdf_public_url,
+      );
+      // The new version would be pinned to the current definition's document.
+      // If the project's legacy URL names a different one, the two disagree
+      // and only a fresh upload settles which PDF the fields belong to.
+      if (
+        currentDefinition &&
+        source.publicUrl !== null &&
+        !sameWaiverSource(projectId, source, pinnedSource)
+      ) {
+        return {
+          success: false,
+          error: "Upload the waiver PDF again before configuring its fields.",
+        };
+      }
+      source = waiverSourceSnapshot(
+        pinnedSource.storagePath,
+        source.publicUrl ?? pinnedSource.publicUrl,
+      );
+    }
+
+    // Placements are checked against the actual bytes of that PDF. Page sizes
+    // and page counts reported by the browser are never trusted.
+    const fieldProblem = await findDefinitionFieldProblem({
+      projectId,
+      source,
+      fields: fieldsToInsert,
+      adminClient: serviceSupabase,
+    });
+    if (fieldProblem) {
+      return { success: false, error: DEFINITION_SAVE_REFUSALS[fieldProblem] };
+    }
+
     // Always create a new immutable version and repoint the project in one
     // transaction. Historical signatures keep their original definition row.
+    // The save is refused if the source or the current definition changed
+    // after the snapshot above was read.
     const { data: definitionId, error: saveError } = await serviceSupabase.rpc(
-      "save_project_waiver_definition_version",
+      "save_project_waiver_definition_version_checked",
       {
         p_project_id: projectId,
         p_actor_id: user.id,
         p_title: definition.title || "Project Waiver",
         p_signers: signersToInsert,
         p_fields: fieldsToInsert,
+        p_expected_storage_path: project.waiver_pdf_storage_path ?? null,
+        p_expected_public_url: project.waiver_pdf_url ?? null,
+        p_expected_definition_id: project.waiver_definition_id ?? null,
       },
     );
 
     if (saveError || !definitionId) {
-      console.error("Error versioning waiver definition:", saveError);
-      return { success: false, error: "Failed to save waiver definition" };
+      safeConsole.error("Error versioning waiver definition:", saveError);
+      return {
+        success: false,
+        error:
+          saveError?.code === "40001"
+            ? "The waiver document or its fields changed while you were saving. Reload the page and try again."
+            : "Failed to save waiver definition",
+      };
     }
 
     revalidatePath(`/projects/${projectId}`);
@@ -198,7 +290,7 @@ export async function saveWaiverDefinition(
 
     return { success: true, definitionId: String(definitionId) };
   } catch (error) {
-    console.error("Error in saveWaiverDefinition:", error);
+    safeConsole.error("Error in saveWaiverDefinition:", error);
     return { success: false, error: "An unexpected error occurred" };
   }
 }

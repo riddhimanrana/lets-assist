@@ -1,4 +1,7 @@
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { drainWaiverStorageDeletionQueue } from "@/lib/waiver/cleanup-storage";
 import {
@@ -15,10 +18,9 @@ const BATCH_SIZE = 100;
 const PAGE_SIZE = 500;
 
 function authorizeCronRequest(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
+  const tokens = cronTokens();
 
-  if (!cronSecret) {
+  if (tokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -28,7 +30,7 @@ function authorizeCronRequest(request: NextRequest) {
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronBearerAuthorized(request.headers.get("authorization"), tokens)) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -45,7 +47,7 @@ async function cleanupAnonymousProfiles() {
 
   const initialDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (initialDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error draining waiver Storage deletion queue:",
       initialDrain.error,
     );
@@ -79,7 +81,7 @@ async function cleanupAnonymousProfiles() {
       .range(offset, offset + PAGE_SIZE - 1);
 
     if (candidatesError) {
-      console.error(
+      safeConsole.error(
         "Error fetching candidates for anonymous cleanup:",
         candidatesError,
       );
@@ -113,7 +115,7 @@ async function cleanupAnonymousProfiles() {
   );
 
   if (archiveError) {
-    console.error(
+    safeConsole.error(
       "Error atomically archiving anonymous profiles:",
       archiveError,
     );
@@ -122,7 +124,7 @@ async function cleanupAnonymousProfiles() {
 
   const finalDrain = await drainWaiverStorageDeletionQueue(supabase);
   if (finalDrain.error) {
-    console.error(
+    safeConsole.error(
       "Error deleting archived anonymous waiver assets:",
       finalDrain.error,
     );
@@ -139,17 +141,19 @@ export async function GET(request: NextRequest) {
   const auth = authorizeCronRequest(request);
   if (!auth.ok) return auth.response;
 
-  try {
-    const result = await cleanupAnonymousProfiles();
-    if ("error" in result) {
-      return NextResponse.json(result, { status: 500 });
+  return observeWorkerRun("anonymous-cleanup", async () => {
+    try {
+      const result = await cleanupAnonymousProfiles();
+      if ("error" in result) {
+        return NextResponse.json(result, { status: 500 });
+      }
+      return NextResponse.json(result);
+    } catch (error) {
+      safeConsole.error("Anonymous cleanup cron failed:", error);
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      );
     }
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Anonymous cleanup cron failed:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

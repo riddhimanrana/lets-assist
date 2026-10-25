@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { type StaffInviteOutcome } from "@/lib/organization/staff-invite-outcome";
 
@@ -38,7 +39,7 @@ export async function applyStaffInviteForUser(
       p_redeemed_at: now.toISOString(),
     });
     if (error) {
-      console.error("Error redeeming staff invite:", error);
+      safeConsole.error("Error redeeming staff invite:", error);
       return { status: "error", orgUsername };
     }
 
@@ -64,7 +65,7 @@ export async function applyStaffInviteForUser(
       orgName: row.org_name,
     };
   } catch (error) {
-    console.error("Error processing staff invite:", error);
+    safeConsole.error("Error processing staff invite:", error);
     return { status: "error", orgUsername };
   }
 }

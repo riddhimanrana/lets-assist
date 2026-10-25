@@ -35,7 +35,7 @@ test("signed-out chapter settings returns to settings after administrator login"
   await main.getByRole("button", { name: "Login", exact: true }).click();
   await page.waitForURL((url) => url.pathname === settingsPath);
   await expect(
-    page.getByRole("heading", { name: "Organization Settings", exact: true }),
+    page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Page Not Found", exact: true }),

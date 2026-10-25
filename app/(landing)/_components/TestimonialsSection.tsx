@@ -1,11 +1,59 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
 import { Quote } from "lucide-react";
+import type { KeyboardEvent } from "react";
 
 import { cn } from "@/lib/utils";
-import { AnimatedText } from "./AnimatedText";
+
+// The gap between cards: `gap-4` on the row.
+const CARD_GAP = 16;
+// One 330px card plus the gap. Used when the first card cannot be measured.
+const FALLBACK_ARROW_SCROLL_STEP = 346;
+
+// A card is narrower than 330px on a phone, so the step is read from the first
+// card. Each arrow press then brings in one quote at any width.
+function arrowScrollStep(row: HTMLDivElement) {
+  const card =
+    typeof row.querySelector === "function"
+      ? row.querySelector("article")
+      : null;
+  const width = card?.getBoundingClientRect().width;
+  return typeof width === "number" && Number.isFinite(width) && width > 0
+    ? width + CARD_GAP
+    : FALLBACK_ARROW_SCROLL_STEP;
+}
+
+// Arrow keys do not reliably scroll a focused overflow row on their own, so
+// the row handles them. The scroll is instant: it does not wait on animation
+// frames, and the browser clamps the position at either end. Keys aimed at
+// something inside the row, and key combinations, are left alone.
+function scrollRowFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.target !== event.currentTarget) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+  const row = event.currentTarget;
+  let left: number;
+  switch (event.key) {
+    case "ArrowLeft":
+      left = row.scrollLeft - arrowScrollStep(row);
+      break;
+    case "ArrowRight":
+      left = row.scrollLeft + arrowScrollStep(row);
+      break;
+    case "Home":
+      left = 0;
+      break;
+    case "End":
+      left = row.scrollWidth;
+      break;
+    default:
+      return;
+  }
+
+  event.preventDefault();
+  row.scrollTo({ left, behavior: "instant" });
+}
 
 const testimonials = [
   {
@@ -72,13 +120,17 @@ function TestimonialCard({
   className?: string;
 }) {
   return (
+    // 330px wide, or narrower on a phone: the viewport less the 32px of page
+    // padding, the 16px gap and a strip of the next card. The strip is up to
+    // 48px with no scrollbar gutter, and 33px beside a 15px classic gutter,
+    // which is enough to show part of the next card's quote mark.
     <article
       className={cn(
-        "w-[330px] shrink-0 rounded-3xl border border-foreground/10 bg-card/95 p-5 shadow-xs backdrop-blur",
+        "w-[min(330px,calc(100vw_-_96px))] shrink-0 rounded-3xl border border-foreground/10 bg-card/95 p-5 shadow-xs backdrop-blur",
         className,
       )}
     >
-      <Quote className="mb-5 size-5 text-primary" />
+      <Quote aria-hidden="true" className="mb-5 size-5 text-primary" />
       <p className="font-sans text-sm leading-7 text-foreground/82">
         {testimonial.quote}
       </p>
@@ -106,53 +158,43 @@ function TestimonialCard({
 }
 
 export default function TestimonialsSection() {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <section className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20">
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_50%_0%,color-mix(in_srgb,var(--primary)_12%,transparent),transparent_68%)]"
-      />
-      <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto mb-9 max-w-3xl text-center">
-          <p className="[font-family:var(--font-geist-sans)] text-xs font-medium uppercase tracking-[0.28em] text-primary">
-            Testimonials from demos
-          </p>
-          <h2 className="mt-3 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            <AnimatedText
-              text="Trusted by the people leading service."
-              mode="words"
-            />
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            What teachers and advisors told us
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl font-sans text-base leading-8 text-muted-foreground">
-            Feedback from DVHS educators, SRVUSD community demos, and local
-            service organizations already evaluating Lets Assist.
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
+            From demos with Dougherty Valley High School staff and local service
+            groups.
           </p>
         </div>
 
-        <div className="relative mx-auto max-w-6xl overflow-hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-linear-to-r from-background to-transparent sm:w-20" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-linear-to-l from-background to-transparent sm:w-20" />
-
-          <motion.div
-            className="flex w-max gap-4 py-1"
-            animate={
-              shouldReduceMotion ? undefined : { x: ["0%", "-42%", "0%"] }
-            }
-            transition={{
-              duration: 58,
-              ease: "linear",
-              repeat: Infinity,
-            }}
-          >
+        {/*
+          The row scrolls by hand for everyone. It used to drift on its own,
+          which moved quotes away mid-sentence and left keyboard users no way
+          to reach the ones off screen. The row takes focus so the arrow keys
+          scroll it, and it renders the same with or without a motion
+          preference. The landing smooth-scroll layer is told to leave
+          sideways wheel gestures to the row.
+        */}
+        <div
+          role="region"
+          aria-label="Testimonials from teachers and advisors"
+          tabIndex={0}
+          onKeyDown={scrollRowFromKeyboard}
+          data-lenis-prevent-horizontal
+          className="relative overflow-x-auto rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <div className="flex w-max gap-4 py-1">
             {testimonials.map((testimonial) => (
               <TestimonialCard
                 key={testimonial.name}
                 testimonial={testimonial}
               />
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

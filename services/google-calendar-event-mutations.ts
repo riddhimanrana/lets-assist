@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { googleCalendarEventUrl } from "@/lib/google-calendar-identifiers";
 
 import {
   classifyGoogleCalendarLookupError,
@@ -8,7 +9,6 @@ import {
   type GoogleCalendarAccessState,
 } from "./google-calendar-access-state";
 
-const GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 const GOOGLE_CALENDAR_TIMEOUT_MS = 10_000;
 
 type GoogleCalendarEventDateTime =
@@ -50,8 +50,7 @@ export type GoogleCalendarMutationResult =
 type FetchLike = typeof fetch;
 
 function eventUrl(calendarId: string, eventId?: string) {
-  const base = `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`;
-  return eventId ? `${base}/${encodeURIComponent(eventId)}` : base;
+  return googleCalendarEventUrl(calendarId, eventId);
 }
 
 function requestHeaders(accessToken: string, includeJson = false) {
@@ -135,6 +134,7 @@ export async function lookupGoogleCalendarEvent(
     const response = await fetchImpl(eventUrl(calendarId, eventId), {
       headers: requestHeaders(accessToken),
       signal: AbortSignal.timeout(GOOGLE_CALENDAR_TIMEOUT_MS),
+      redirect: "error",
     });
     return classifyGoogleCalendarLookupResponse(response);
   } catch (error) {
@@ -155,6 +155,7 @@ export async function createGoogleCalendarOwnedEvent(
       headers: requestHeaders(accessToken, true),
       body: JSON.stringify({ ...event, id: eventId }),
       signal: AbortSignal.timeout(GOOGLE_CALENDAR_TIMEOUT_MS),
+      redirect: "error",
     });
     if (response.ok) return { status: "confirmed", eventId };
     if (response.status !== 409) return mutationFailure(response);
@@ -194,6 +195,7 @@ export async function updateGoogleCalendarOwnedEvent(
       headers: requestHeaders(accessToken, true),
       body: JSON.stringify({ ...event, id: eventId }),
       signal: AbortSignal.timeout(GOOGLE_CALENDAR_TIMEOUT_MS),
+      redirect: "error",
     });
     if (response.ok) return { status: "confirmed", eventId };
     if (response.status === 404) return { status: "confirmed_missing" };
@@ -214,6 +216,7 @@ export async function deleteGoogleCalendarOwnedEvent(
       method: "DELETE",
       headers: requestHeaders(accessToken),
       signal: AbortSignal.timeout(GOOGLE_CALENDAR_TIMEOUT_MS),
+      redirect: "error",
     });
     if (response.ok || response.status === 404) {
       return { status: "confirmed_deleted" };

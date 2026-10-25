@@ -1,5 +1,553 @@
 # Repository cleanup register
 
+## Certificate CSV date verdict — 2026-10-22
+
+`CERTIFICATE-CSV-DATES-20261022`, P2, implemented; successor full CI pending.
+PR #873 review found that changing Event Start Date, Event End Date or Issued
+Date could still produce a verified row. The verifier now compares all three
+with the dashboard's shared timezone formatter: event times retain exported
+minute precision, while issuance is compared as an exported date. The
+caller-scoped certificate query includes only the project timezone relation
+and stored event timezone needed for the dashboard's existing precedence and
+legacy fallback. No authority, stored certificate or award is changed.
+
+The actual dashboard export/CSV parser/API projection/verifier regressions cover
+tampered and missing dates, invalid authoritative dates, project and self-reported
+timezones, overnight and DST boundaries, and Intl nonbreaking spaces. The 124
+focused tests pass. Predecessor `5e41015a` full CI `39757776831` passed with one
+retried browser case; it does not verify this successor. The retained 352-image
+baseline belongs to predecessor `5fbfec45`; no new pixel approval is claimed.
+
+## Release blocker found during current merge review — 2026-10-20
+
+`PROJECT-DELETION-CALENDAR-RESYNC-20261020`, P2, implemented, release validation pending.
+Migration `20261020031605` serializes sync/update claims and deletion through the
+project row lock. Claims recheck the pending deletion marker before creating
+provider intent. Preparation and finalization refuse live leases or unfinished
+stored create/update plans, including expired plans. An expired never-planned
+create cannot write a provider event and may be abandoned. Cleanup/removal
+receipts remain usable and survive project deletion. A server-only boolean
+helper preserves owner-only access to deletion records. No existing table grants, records, membership decisions, awards or provider
+state are changed by the migration.
+
+The unchanged 739 function reproduced the race in an owned fictional
+PostgreSQL 18.6 fixture. The correction passed 29 SQL assertions with actual
+concurrent sessions, including both claim/deletion orders, update claims,
+signup parent fencing and the service-role refusal. That local run used an
+assertion shim, not a full Supabase/pgTAP replay. The deletion action passed
+67 tests and 357 assertions. CI owns the complete migration, pgTAP and browser
+proof before the thread can be resolved or the release accepted. The reviewed
+740 catalog preserves all preceding objects and changes only the four functions
+plus the private helper. Hosted Development and Production remain separate gates.
+
+## Release controller rehearsal target correction — 2026-10-20
+
+`CI-POINTS-REHEARSAL-TARGET-20261020`, P2, implemented, full CI pending.
+Run `39364921301` passed the accepted 740 catalog and all 516 pgTAP files,
+13,744 assertions, including the 29 concurrent calendar deletion assertions.
+All four browser shards, build and unit/static gates passed. The later bounded
+controller rehearsal stopped at its plan assertion because it still expected
+50 remaining migrations and target 739. Its retained receipt had the exact
+51-file plan and owner-verified cleanup. The harness now compares the complete
+reviewed remaining filename/hash list and derives its target from the pinned
+catalog. No Production authority, SQL retry, migration bytes or permission guard
+was changed. The protected Development inspection also reports the current
+application's exact worker mode and eleven boolean flags through a GET-only
+status read, without retaining arbitrary response fields or claiming a hold.
+
+## Historical PR #873 Development reconciliation — 2026-10-14
+
+The isolated local merge combines current Development `99adfc03` with the
+PR #873 candidate `4b4987c5`. It retains the nine candidate-only migration
+files and six Development-only files unchanged: 738 SQL migrations in the
+combined ledger, digest
+`ac438ba004623343ecb6925cf451dcc31e1f9a868f41d3504e6b0673b774351d`.
+The reviewed 732-candidate and 729-Development ledger digests still pass their
+historical catalog tests. The 738 ledger deliberately has no accepted final
+schema catalog; the protected maintenance target refuses it pending a fresh
+isolated replay and reviewed inventory. No schema was applied.
+
+The candidate pins signed private CSF 1.2.89 at `f1164838`, whose application
+list rechecks authorization after its bounded reads. The older local
+authorization-skip experiment is not incorporated. The signed private commit
+is present on private `main`, but the private repository currently exposes no
+`development` branch, so the strict submodule publication check cannot yet
+prove the required Development ancestry. Hosted Development application p95
+at the unchanged 2,500 ms budget, full exact-tree CI, writer quiescence and
+protected schema/app readback remain open before this merge can be released.
+
+## Requested design restoration — 2026-10-12
+
+P2 LANDING-VIDEO-PHONE-GUTTER-20261012 and LANDING-VIDEO-REFERRER-20261012
+have scoped source corrections in PR873. The popup preserves phone gutters
+and its iframe is at least 200 pixels high. Both demo iframes send only the
+embedding origin, while the global `no-referrer` policy stays unchanged.
+The missing referrer explains the documented YouTube Error 153 condition;
+actual playback still requires hosted Development verification. Video dialogs
+also have accessible titles and white dismissal controls over a black backing
+in both themes. The active call-to-action is visible at first
+render. The user-requested letter headline recovers actual Production timing,
+with reduced-motion and no replay proof in an owned component fixture.
+
+P2 ORGANIZATION-SIGNUP-PHONE-OVERFLOW-20261012 is corrected with wrapping and
+a bounded signup action. The directory restores the old card grid and footer
+bands, keeps private counts and creation eligibility, and offers the exact
+signed-out signup label with the directory return route. Semantic content
+links use the green text token and an underline. Flat card interaction is
+retained under the approved design system. These are scoped rendered checks,
+not a complete integrated route audit or a deployment receipt.
+
+The October 12 independent Supabase advisor inventory has zero security
+ERROR findings in either environment. WARN security-definer RPCs and
+no-policy/no-client-grant tables are intentional authorization boundaries,
+not grounds for blanket privilege changes. Existing runtime tests cover
+caller, membership and lease denials. Staff-view and account-deletion pgTAP
+suites add missing-actor, other-organization, inactive-membership and actual
+anonymous/private-helper refusals; fresh full CI must execute them. No
+migration, grant, index or provider setting changes accompany this pass.
+FK/unused-index INFO findings need workload evidence before any index change.
+Development deployment and full hosted acceptance remain pending; Production
+is held for the user's subsequent Development review.
+
+## Integrated source checkpoint — 2026-10-11
+
+P2 CSF-REVIEW-QUEUE-SCOPE-20261011 is fixed in reviewed private source
+`8f4948f5`. The original PR650 hook-host reproduction showed a frozen queue
+and deferred response surviving a semester/class history change. The current
+queue binds organization, viewer, period, campaign, semester, class, filters
+and visit identity; it suppresses prior-scope records in the first render and
+rejects stale responses and callbacks. The focused queue-scope/hook-host suite
+passes 55 tests and 222 assertions, including scope changes, revisits and
+delayed responses. This is executable hook-host evidence, not DOM/browser or
+hosted acceptance. No authorization bypass was demonstrated by the original
+finding.
+
+The later source corrections supersede the untested-source status in the
+historical desktop entry below. Applications now passes final independent
+source review, focused service/action/query tests, TypeScript, lint, formatting
+and source/data-access guards. The standalone and OAuth query contracts are
+covered in unit tests. Its nondeterministic ICU name-order correction has
+104 planned pgTAP assertions across two bounded files; actual SQL replay,
+running redirects, browser interaction and unchanged hosted latency acceptance
+remain pending. HOSTED-APPLICATIONS-LATENCY-20261011 remains open.
+
+LIGHT-TOKEN-CONTRAST-20261011, ACCOUNT-PROFILE-RECOVERY-20261011 and the private
+CSF nested-main finding have source corrections with focused regressions.
+Both-theme phone/desktop rendered inspection is pending. The separate
+CSF-POINT-REVIEW-V51-20261011 finding remains open and unchanged. Local source
+and unit checks do not establish a deployment or complete redesign audit.
+
+## Frontend review candidate — 2026-10-12
+
+P2 DASHBOARD-OPTIONAL-IDENTITY-20261012 is implemented after automatic CI
+38283808673 exposed two route-fallback test failures at `f3d0bc26`. The observed
+failure was the fixture contract; no live-route crash was observed. The loader
+always supplies an identity object, including a fallback when its profile read
+fails. The presentation boundary now explicitly accepts absent/null imagery
+and uses Volunteer initials for missing or blank names, preserving the
+dashboard and export tab without displaying an email address. The old fixture
+is now fully typed instead of casting an incomplete dashboard payload. Four
+regression cases cover absent, null, blank and available identities; both
+original export fallback cases pass. Eighteen focused dashboard/route tests
+pass, including module boundaries and actual avatar fallback rendering.
+
+P2 DASHBOARD-CONTROL-NAMES-20261012, P2 MODERATION-PHONE-OVERFLOW-20261012
+and P2 FOOTER-CHECKING-CONTRAST-20261012 are implemented in this candidate.
+Native Linux run 38271350105 at `87d2f3d4` passed all twelve baseline jobs,
+but stopped at organization invitations after 62 PNGs across fifteen scenes.
+It did not complete the 87-scene audit. Its unnamed dashboard progress/date
+controls, moderation phone overflow and light footer status contrast are
+addressed here. Twenty-one focused UI tests pass. Controlled rendering of the
+actual components and application CSS in Chromium 151 at 1280, 390 and 320px
+in both themes checks page overflow, accessible names, existing image loading
+and resting focus/scroll state; targeted axe checks pass for progress names
+and the Checking badge contrast. This harness substitutes only the moderation
+read, signed-out footer auth state and Next Link/Image adapters. It does not
+prove authenticated route data, native Next rendering or full acceptance.
+
+The member navigation label is Home. Dashboard profile, organization and
+upcoming project imagery uses existing stored image fields, with stable
+initials when absent. Certificate organization logos require an exact snapshot
+name and one organization identity; ambiguous or renamed identities retain
+the fallback. Organization directory cards retain their current join/create
+behavior with clearer image sizing and membership emphasis.
+
+The capture resets focus, pointer and scrolling after recording keyboard
+proof, without sending Escape or disabling accessibility. Native settings
+sidebar and tooltip placement still require fresh resting-state captures.
+The invitation exception permits only the two reviewed initial reads for the
+proved fictional active administrator on the exact invitations route. Source
+hashes, compiled action mappings and an absent staff capability are required.
+The staff-link getter performs the existing get-only RPC branch, including its
+row/advisory locks; it does not change data. Mutating branches and unknown
+traffic remain fatal. Twenty-seven positive/refusal tests cover this boundary.
+
+Global light-theme contrast, missing fixture states, complete old/new pixel
+review and hosted Development acceptance remain open. Production remains at
+schema 687 while Development has 723; the landing objects and request fence
+are absent in Production. Protected credential presence is unconfirmed, and
+writer compatibility/shutdown and recovery gates remain required. Production
+approval is conditional on passing those actual gates.
+
+Cloud source organization, full zero-warning ESLint, agent configuration and
+strict private-pin checks pass. The five affected CI contract modules pass
+47 tests; owned offline checks pass 266 Linux adapters, 568 original guards,
+52 landing-settlement and 65 notification/color checks, plus 48 session,
+summary, invitation and resting-state tests. Full local TypeScript remains
+blocked by the unavailable locked SheetJS tarball (HTTP 403); its ten errors
+are confined to missing xlsx declarations and dependent inferred types.
+Twelve existing replay-harness tests exit 127 because rsync is unavailable.
+Neither limitation is waived: fresh exact-commit hosted CI must pass before
+the candidate can be accepted or deployed.
+
+P2 JOURNEY-INDICATOR-VISIBILITY-20261012 is implemented in this candidate.
+The inactive landing journey pills used a translucent surface token and were
+hard to see in the authentic light-theme capture. The scoped Opus 5.5 change
+uses the existing opaque muted foreground token, preserving the active green,
+native button semantics, keyboard behavior and motion. Twelve owned component
+captures at desktop, 390px and 320px in both themes verify inactive contrast
+of at least 4.83:1, focus and selection, and no horizontal overflow. This is
+component evidence; authenticated route and Production acceptance remain open.
+
+The frontend candidate based on Development `accba0cf` keeps the 723-migration
+ledger and private gitlink `38dc7c7a`. The separate backend release candidate
+`4b4987c5` remains in PR 873; its newer database and private Applications
+changes are outside this frontend release.
+
+P2 LIGHT-TOKEN-CONTRAST-20261011 remains open for this frontend release.
+The exact private gitlink still requires its historical shared palette. Full
+CI 38216164624 and affected CI 38216143025 caught the attempted global palette
+change; the candidate now restores the baseline colors and their existing
+contracts unchanged. The global fix remains preserved in backend PR 873.
+Page-content links use a separate opt-in content-link token with tested 4.5:1
+solid page/card contrast in both themes. This does not attest to global control
+or semantic-status contrast.
+
+P2 ACCOUNT-PROFILE-RECOVERY-20261011 is implemented in this candidate. Slow
+loads offer a retry or auth reload without declaring a timeout failure. Failed
+initial profile reads do not display empty editors; failed refreshes retain the
+previous profile with a stale-data notice. A settings-only failure preserves the
+successful profile and identifies the failed settings read. Sixteen hook tests
+and twelve component tests pass, including stale reads, account switches,
+sign-out, disposal and retry. Controlled real React recovery also passes with local-only query/auth stand-ins
+and labelled editor bodies. Actual provider reads and editable form flows remain
+unverified.
+
+The landing mockup's dark Open badge now has legible semantic text at rest and
+hover; its scan-line glow uses a valid complete color. Help export instructions
+match the retained dashboard exporter and omit unsupported summary totals.
+Organization card hierarchy, signup wording, keyboard content links, hero
+entrance/reduced motion and demo dialog geometry have scoped rendered evidence.
+The external video was intercepted before network: this proves layout and
+origin-only referrer behavior, not actual YouTube playback.
+
+P2 FRONTEND-RUNNER-TEARDOWN-20261012, implemented: affected CI also caught a
+shutdown before a blocking build spawn creates its first child. The queued
+signal cannot run during spawnSync, and a child created afterwards misses the
+group signal. The existing asynchronous owned-build repair from backend
+`4b4987c5` is included in three local runner/fixture/test files. The original
+20-second deadline, claim-release and completed-build assertions remain intact.
+
+The comparison table wraps all columns on narrow screens without nested
+horizontal scroll containers. Native included/excluded cells have explicit screen
+reader status text. Both video dialogs place their visible title and scoped 44px
+close control in a separate toolbar before the iframe, with readable backing and
+an inset focus ring measured over an intercepted bright player.
+
+Route corrections add an MFA heading, OTP label and native Enter submission;
+email/current-password autocomplete preserving existing validation; a direct
+draft edit menu link; the admin header before its landing control; logout failure
+feedback; an export unavailable state; and the Next 16.4 retry error boundary.
+The proposed admin loading module was withdrawn to preserve page-level auth
+redirect timing. Authentication, business actions and provider settings are
+unchanged. Focused tests, formatting, lint and TypeScript pass. Twenty-four
+controlled route-component interaction captures and seventy-eight landing/video
+captures pass; they do not establish full authenticated route acceptance.
+
+Both full Code quality 38218073051 and short 38218062199 passed at committed
+156c121a. Later corrections still require fresh exact-head CI. Independent source
+review found no verified P0–P2 regression in those route corrections. The
+comprehensive old/new screen audit and hosted Development validation remain
+incomplete. Local Docker is unresponsive; an opt-in isolated Linux capture job is
+being integrated. Production is authorized after its release gates, but its last
+verified 687-migration schema differs from the candidate's 723 and the protected
+Production database connection secret names are absent. No Production or
+background job change has been made.
+
+## Final desktop audit follow-up — 2026-10-11
+
+P2 HOSTED-APPLICATIONS-LATENCY-20261011 remains open. Exact Development
+6d2ec8cbc8b5580e4d869c8ad771ed76e80c3120 hosted run 38123812096 completed
+9,607 successful HTTP requests and twenty-five review navigations, but the
+officer Applications HTML response (including its full streamed body) had
+p95 2,731.944 ms across 322 requests against the unchanged 2,500 ms per-route
+limit. Its p99 4,293.530 ms and every other pinned acceptance criterion passed.
+The former queue-entry timeout did not recur. Do not describe the overall
+hosted run as accepted or widen its budget.
+
+The measured URL is the embedded membership-application review workspace,
+not the legacy application-list RPC. Its loader performs scope/settings and
+roster reads, related evidence reads and sheet-review loading before completing
+the response. Cumulative database routine timings are not per-request traces
+and do not establish a cause. Obtain correlated phase timings under the same
+100-session load before selecting a performance repair; retain fresh role
+checks, source visibility and per-record authorization.
+
+A source candidate for that finding exists and is unverified. Private branch
+`codex/application-review-server-pages` and migration
+`20261011110000_csf_review_application_roster_paging.sql` replace the
+whole-semester application read with one bounded server page (default 50,
+maximum 100), URL-backed search, filters and keyset cursors, a
+single-application evidence read when an officer opens a record, and a frozen
+id queue on review entry. No test, replay, build or browser run has been
+recorded for it, it is not deployed, and it carries no latency evidence.
+HOSTED-APPLICATIONS-LATENCY-20261011 stays open until the unchanged hosted run
+passes on a deployed candidate. An application now loads after the queue moves
+to it, so the load harness's review digest was changed in source to wait for a
+loaded-record marker and to refuse a loading panel; that change is as
+unverified as the rest and adds no time to any budget.
+
+An independent review of that candidate (APP-PAGE-001 to APP-PAGE-005) found
+five defects, and the candidate was corrected in source for each: the review
+queue is one bounded document instead of a row set the Data API could cut at
+1,000 rows; page cursors are the boundary row's sort values instead of a
+position that shifts when earlier rows change; every list, queue, split and
+single-application read repeats its runtime, membership and permission check
+after its last read and releases on that answer, with the source link decided
+from the final permissions; and a debounced search no longer rebuilds the URL
+it was typed on. The corrections are source only. They need the same
+independent final review, replay and runs as the candidate itself.
+
+P2 CSF-STANDALONE-REVIEW-STATE-20261011 is fixed in source and unverified at
+runtime. The standalone plugin routes redirected to the embedded organization
+tab with only `tab`, because standalone page props carried no query; the
+review semester, class, search, filters and page were dropped, as were
+`csf_review_term` and `csf_review_cohort` before the list state existed. The
+platform now passes the request's query to standalone plugin renderers as an
+optional, untrusted, uninterpreted `searchParams` prop, and keeps it across
+its own id-to-slug and sign-in redirects on the internal path it builds. The
+CSF route phase carries only its existing workspace allowlist into the
+embedded address, with the tab and the record the path names winning every
+collision. Membership, runtime and route permission checks are unchanged.
+This stays open until the redirects are exercised in a running application,
+including the sign-in return, whose handling of a return address that carries
+a query was not read as part of this change.
+
+The Google return allowlist refused `csf_review_cohort=all`, the value the
+class selector emits for every class, so an officer reviewing every class
+would have had the whole return route refused. It now accepts exactly `all`
+or a class id. Source only.
+
+Still open for the Applications candidate after these corrections: its hooks
+are not rendered by any test because the repository has no DOM renderer, so
+the timed navigation regression drives the logic underneath them; the
+migration and its pgTAP file have not been replayed; and there is no hosted
+latency evidence.
+
+The review list orders names under the ICU root locale so that it keeps the
+order the previous loader's `localeCompare` gave for punctuation and accents.
+No approved written ordering contract was found; this preserves observed
+behavior and is not a new policy. If the product contract should state the
+order, that decision is still to be made.
+
+The independent review then proved one ordering defect in that candidate, and
+it is corrected in source only. Name normalization strips accents but keeps a
+zero-width space (U+200B), and `localeCompare` treats `miller` and
+`mi<U+200B>ller` as the same last name, so the previous loader ordered such
+applicants by first name and then application id. The candidate used the
+built-in deterministic `und-x-icu`, which breaks that tie by byte order before
+the first name is consulted, so those applicants were listed, numbered, paged
+and queued in a different order. The unpublished migration now declares
+`plugin_data.csf_review_name_order` (ICU, locale `und`, nondeterministic) and
+uses it for every name ordering: the roster index, the page order, the keyset
+cursor comparison in both directions, and the queue and split order. Search
+matching is unchanged and still a literal substring test under ordinary
+deterministic text. A composed versus decomposed accent pair is not a defect
+here, because normalization removes accents before the names are stored. The
+collation, the functions and the added pgTAP controls have not been replayed
+or run; no SQL, typecheck, build, browser or hosted check has been made for
+this correction, and the schema capture for the new collation is pending.
+
+P2 CSF-POINT-REVIEW-V51-20261011 is open. Point verification still loads one
+class in full, with every member's submissions, appeals, signed proof links,
+notes and credits, and filters and searches that set in the browser. That is
+the V51 gap the application list had, at class scale instead of semester
+scale. It was left unchanged on purpose: point review assigns by positional
+band over the loaded roster, so paging it needs its own design for band
+coordinates, range review and the points split. Measure a large class before
+choosing one, and do not reuse the application list functions for it.
+
+The exact Development candidate 6d2ec8cbc8b5580e4d869c8ad771ed76e80c3120
+and private gitlink 38dc7c7aff6fd101c87f92eebfae822d1726f2b4 passed full
+Code quality run 38123825046. Native Claude Opus 5.5 verified the landing
+and account keyboard bypass destinations, one landing main/h1 and h2 demo
+titles. Earlier entries describing those source checks as local or rendered
+focus as pending are historical; mobile, dark and full-role coverage remain open.
+Hosted run 38123812096 has its separate receipt; this paragraph does not
+attest to that run or Production acceptance.
+
+P2 LIGHT-TOKEN-CONTRAST-20261011 remains open. Final native computed light
+styles and independent root arithmetic confirm 3.00:1 filled-primary small
+text, 3.29:1 primary text on white and a 2.42:1 bound at the 18-percent white
+gloss endpoint. These measurements extend the earlier plain-token finding;
+the endpoint bound is not a pixel sample at the text baseline. Repair semantic
+foreground and small-text colors while preserving the approved green/gloss
+finish, then verify both themes and interaction states.
+
+P2 ACCOUNT-PROFILE-RECOVERY-20261011, observed follow-up: one of three native
+Profile loads remained at eight placeholders after twenty seconds with no
+visible error; two resolved around thirteen seconds. The account page ignores
+useUserProfile.error, while the hook waits for auth and parallel profile/settings
+reads without a local deadline. The actual stalled request and eventual result
+were not traced; the observation occurred while full hosted load testing was
+running. Establish the failing boundary before adding bounded recoverable
+error/retry state and tests that retain stale-user/sign-out protections. No
+global auth timeout or data change is justified solely by this capture.
+
+Normal organization-demo project/create clicks are already intercepted by
+OrgToolingSection's capture handler, preventDefault and mockup toast.
+Destination hrefs alone do not prove navigation; modified/new-tab/no-JavaScript
+behavior remains unverified. Personal/directory width differences follow the
+documented container rules. Compact CSF navigation is an intentional plugin
+exception. The separate private CSF nested-main finding remains open.
+
+The audit is partial: light desktop landing plus twelve interiors, five
+attempted-only redirects/denials, with additional read-only coverage recorded
+separately. It does not attest to mobile/dark/reduced-motion, platform-admin
+controls, signed-out participation, organizer approval/roster or complete
+admin workflows. Private screenshots and transcripts remain outside Git.
+
+P2 TEST-MOCK-DISCOVERY-20261011, corrected: PR 869 exposed three inherited
+fixtures that registered global module mocks outside discoverable test files.
+Each scenario now runs its discoverable Bun test in a separate child process;
+the test registers the mocks explicitly before invoking its fixture. Fixture
+helpers only export stand-ins and assertions. The discovery guard and all
+existing lifecycle, authorization, retry and cleanup assertions remain intact.
+The focused scenarios and unchanged harness contract must pass before integration.
+
+P2 LANDING-LANDMARK-HEADINGS-20261011, corrected locally: the root layout
+already owned the main landmark while landing and other route bodies added
+nested mains. Their wrappers now use div without other markup changes. The landing
+embedded project and organization demos also emitted extra h1 headings. The
+shared main now has a keyboard focus target and the first skip link. Account
+and admin links target their focusable page container after repeated sidebar
+navigation; ordinary pages use the root main. The native anchor destination
+is rendered from the current App Router pathname. The
+landing uses a div and explicit h2 demo headings. Real project/organization
+pages retain their default h1 and the exact visual classes and actions.
+Actual Claude Opus 5.5 implemented the scoped changes after its native Chrome
+desktop review. Focused SSR/behavior tests, typecheck, affected lint and source
+policy pass. Focus visibility/target focus, mobile and dark rendered proof
+remain pending; the six-screen audit is not comprehensive release acceptance.
+
+P2 TEST-INVENTORY-DRAIN-20261011, corrected locally: full integrated CI on
+Development `1aedb7e7` reported 791 inventory lines versus 1,281 across shards.
+The list command called `process.exit` before a long piped stdout write drained.
+A slow-reader regression reproduces the loss with a synthetic 5,000-file
+inventory; the command now waits for the write callback. Partitioning and test
+coverage are unchanged. The reviewed glob-input fingerprint changes only for
+that output repair, retaining the existing advisory scope and expiry. App and
+schema behavior are unchanged; the follow-up requests one fresh exact-SHA
+Development Preview and retains full CI and hosted checks. The build-reuse
+allowlist is unchanged.
+
+P2 SIGNUP-E2E-SCOPE-20261011, corrected locally: the new global Create account
+navigation and the signup form submit legitimately share a label. Two signup
+browser journeys now scope their submit locator to the main landmark, retaining
+the enabled check, actual submission, PKCE verifier and email/account round-trip
+assertions. This repairs selector ambiguity observed in full CI; it does not
+change signup or navigation behavior. Fresh isolated browser proof is pending.
+
+P2 LANDING-DEMO-COMMIT-RESULT-20261011, corrected locally: a cache invalidation
+exception after the service RPC confirmed persistence could falsely report that
+the mode was not saved. Persistence failures and independent refresh attempts
+now have separate outcomes. A confirmed save retains success with a fixed
+refresh notice; a failed awaited admin read shows an unknown disabled mode with
+Saved/Reload guidance instead of announcing a failed write. Three post-commit
+cache failure cases retain success and prove all refreshes were attempted.
+The control awaits uncached Server Action reads after save and reload; an
+asynchronous rejection/deferred retry test proves unknown state remains until
+a fresh result arrives, rather than trusting router.refresh returning void.
+A separate server read identity adopts repeated Boolean values without
+remounting away pending-cache warnings; focused regression cases prove both.
+
+P2 HOSTED-REVIEW-ENTRY-20261011, correction awaiting hosted proof: acceptance
+on Development 1aedb7e7 timed out entering the synthetic application queue.
+The read-only SSR roster entry can be clicked before its handler is hydrated.
+The harness now retries that entry only while the roster remains visible,
+within the original 60-second bound, and never clicks again during a pending
+queue transition. Real browser errors remain errors and the selected-subject
+digest, at least two subjects, 25 navigation steps and all performance budgets
+are unchanged. Focused regressions cover an ignored pre-hydration click,
+pending queue and browser failure. The timing hypothesis requires fresh hosted
+acceptance; this is not a claim that the earlier failed run passed.
+
+P2 PRIVATE-CSF-PUBLIC-LANDMARK-20261011, source-confirmed follow-up:
+CsfDashboardContentSection1 renders the private CsfPublicLanding within the
+platform root main, while that component adds its own main. The App Router
+inventory covers public .tsx modules and does not prove plugin output. Repair
+this through the private repository's ordinary embedded integration workflow;
+retain the exact current gitlink until that separate change is reviewed and
+merged. The unused public SidebarInset primitive and archived Speech and
+Debate editor also contain main tags but are not current route findings.
+
+## Public landing demo switch — Development deployed
+
+The owner corrected the demo scope to the public landing page for everyone.
+The admin overview now has a global switch; the session-only home experiment
+was preserved outside source and replaced before integration. The private singleton and service-only RPCs start off, record the changing
+admin in append-only on/off events, and reject stale saves. Opus review found
+and prompted repairs to the signed-in landing link, per-visitor database load,
+last-writer-only audit, and switch naming. The public display read now uses a
+backend-bound 30-second cache expired immediately on a successful save. The server checks the current super-admin role and enrolled MFA.
+Unavailable mode reads show real landing content and a disabled admin control.
+Home dashboards no longer use the demo environment flag. Every fictional
+counter and project retains its sample label and no-signup preview.
+
+Actual Claude responses used `claude-opus-5-5` for the control implementation
+and independent review. The mode/control/page/admin-boundary checks pass 27 tests in five isolated
+Bun files; the proxy suite passes 13 and sample component/data checks pass 30,
+for 70 distinct focused tests in eight files. TypeScript and affected ESLint
+pass. The 37 landing-mode pgTAP assertions pass on the owned 723-migration
+replay. One existing activity-lock observation failed in the first complete
+12,946-assertion run and passed in isolation. Its polling helper now clears the
+transaction's activity snapshot; the regression deliberately warms that cache
+before queuing the mutation, retaining the exact lock proof and timeout.
+The final reset and full rerun pass all 12,946 assertions in 499 files.
+Catalog 723 adds exactly five objects, with no changes or removals among the
+1,434 preceding fingerprints; all 74 catalog/controller unit checks and current
+pin checks pass. Live catalog checks reject 17 deliberate permission, RLS,
+function, trigger and cron drifts; valid off/on display states remain accepted.
+Every drift and fixture teardown rolled back, and the exact 723-version ledger
+matches source. The owned stack, volume, network and directory were removed;
+unrelated containers and Docker settings remain unchanged. Interrupted or previously committed fixture runs are not used
+as clean proof.
+The historical 722 catalog is unchanged; expectations come only from the
+owned replay, never Production.
+
+A read-only Production ledger check found 687 migrations, head
+`20260929051500`. The owner now authorizes Development integration and its
+preview, with Production reserved for later approval. PR 869 merged after its exact-head short gate. Development 1aedb7e7
+is READY with all 723 ledger versions and the reviewed live catalog verified.
+Its full integrated run failed on the inventory/selector defects above; its
+hosted run passed guarded attendance, then timed out entering the fictional
+review queue. The follow-up changes require fresh full and hosted proof.
+Production still requires separately authorized schema cutover and recovery
+evidence before release. No Production migration, demo activation, main merge, Production alias
+promotion or branch deletion happened in this step. Development integration
+and its hosted checks follow the required pull-request gate. Native Claude Opus 5.5 subsequently inspected the deployed landing and six
+reachable signed-in screens in the confirmed browser at 1480x1273, light theme.
+No page-level horizontal overflow was observed. Mobile, dark, super-admin and
+complete 26-screen rendered acceptance remain pending.
+
+P2, class-join browser assertion: full CI 37723068681 passed on retry because the officer rejection test counted a manual-verification opener as a direct connection submit. The correction checks the actual submission control and retains the rejection and no-account-link database assertions. App code is unchanged. All nine class-join cases pass on a fresh isolated stack with no retry. The correction is part of PR 867.
+
+P2, certificate rendering: the integrated attendance browser test found that the certificate project link called a client-exported styling function from a server component. It now imports the server-safe styling module. The regression simulates the forbidden client call and passes. The fresh isolated attendance journey also passes certificate access, account linking and corrected-hour readback. The correction is part of PR 867.
+
+P2, hours dialog readiness: the integrated browser gate observed an enabled self-reported-hours trigger that did not open its dialog after the first click. The trigger now stays disabled through server rendering until the client handler can run. Render regressions and the fresh isolated browser flow pass, including DST validation and certificate creation. The correction is part of PR 867.
+
+Current consolidation and archival status is maintained in [the integration status](integration-status-20261007.md). Speech and Debate is archived reference code; older pause and release entries below are historical evidence.
+
 This register separates actionable repository defects from provider/account and Production-readiness blockers. A finding leaves the active section only when fixed with evidence, disproved with evidence, or moved to the external section with a named dependency.
 
 The [September 25 CSF experience audit](../csf/experience-audit-20260925.md) shipped as CSF 1.2.81 through Production PR #845. Its evidence table records local, hosted Development, Production, chapter installation, and restored worker verification. Intermittent Terms readiness and workbook worker errors remain open below.
@@ -9,6 +557,26 @@ below. Every dated implementation narrative before that heading is historical
 evidence and does not override the current tables or release gates.
 
 `AUD-` identifiers are allocated per branch and can drift while several audit branches are open at once. Current `development` includes the merged #152, #158, #174, #177, #179, and #181 findings, while open #180 can still carry overlapping historical identifiers. This branch retains `AUD-036` and `AUD-037` for its activity/partner authorization work without renumbering or restating the merged meeting findings.
+
+## CSF partner projects and attendance-backed submissions, September 28, 2026
+
+Implemented locally on root `claude/csf-partner-projects` and private `claude/csf-partner-projects`. One migration, `20261009030000_csf_partner_projects_attendance_submissions.sql`, carries both halves so they cannot apply separately. Nothing is deployed, and no hosted Development or Production check has run. The unpublished draft was moved after the integrated ledger and reconciled with archived-activity review. Stale-link refusals use `PT409`; private callers retain request identity when an earlier commit cannot be ruled out.
+
+| Finding                              | Status            | Evidence and remaining work                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-LINK-STALE-SIGNUP-20260928       | P2, fixed locally | A deleted, hidden, or partner project left a `/projects/<id>` signup link on activity pages, Home, and announcements. Display and announcement preparation now re-resolve the link and omit signup unless it is linkable. Behavior tests cover cancellation between publish and send.                                                                                                                                                                                                                                                         |
+| CSF-LINK-URL-20260928                | P2, fixed locally | `projectIdFromUrl` accepted any host, credentials, and any path containing `projects`. It now delegates to a strict parser that never fetches.                                                                                                                                                                                                                                                                                                                                                                                                |
+| CSF-ATTEND-PUBLISH-DEADLOCK-20260928 | P2, fixed locally | The four activity wrappers and email publication wrapper now lock stored/requested projects before staff membership locks, recheck the captured link, and retain the authorization check under lock. Five two-connection tests prove a queued edit holds no membership lock while publication owns the project.                                                                                                                                                                                                                               |
+| CSF-ATTEND-GUEST-ENABLE-20260928     | P2, fixed locally | Certificate account binding and activity enable/backfill serialize on the project. Both commit orderings pass two-connection tests and produce one evidence row without a staff retry.                                                                                                                                                                                                                                                                                                                                                        |
+| CSF-ATTEND-DOUBLE-CREDIT-20260928    | P1, fixed locally | Independent review: after approval on one activity, disabling, cancelling, or relinking it let a second activity claim the same certificate, producing two verified credits. A certificate behind any reviewed claim is now consumed. pgTAP reproduces the scenario and proves one credit.                                                                                                                                                                                                                                                    |
+| CSF-ATTEND-HOST-CANCEL-20260928      | P1, fixed locally | Independent review: a CSF lock wait inside the organizer's publication could hit the statement timeout and roll back the publication. The projection now try-locks the semester lock, bounds row-lock waits at 200 ms per chapter and project, caps inline work at 200 certificates, and records contention as deferred for replay. A two-session test with a 2 s statement timeout proves the publication commits. A 201-certificate fixture proves 200 inline records, one deferred record, and complete replay without duplicate evidence. |
+| CSF-ATTEND-BACKFILL-20260928         | P1, fixed locally | Independent review: publishing a draft or relinking an enabled activity never backfilled already-published hours. Publish, restore, update, and relink now backfill in the same transaction, and the editor calls the wrapper on relink.                                                                                                                                                                                                                                                                                                      |
+| CSF-ATTEND-GUEST-ORIGIN-20260928     | P1, fixed locally | Independent review: guest claims were labeled `account` on the real app statement order. The origin now comes from the certificate `user_id` transition, and pgTAP uses the app's order.                                                                                                                                                                                                                                                                                                                                                      |
+| CSF-ATTEND-REVIEW-P2-20260928        | P2, fixed locally | Appeals accept organizer evidence as proof. Attendance claims cannot be sent to `needs_action`. A one-shift claim no longer absorbs other shifts. Inactive host members and paper-sheet email matches get no automatic claim. The projection locks identity rows before evidence. Stale previews are dropped after the link field unmounts.                                                                                                                                                                                                   |
+| CSF-ATTEND-RE-REVIEW-20260928        | P2, fixed locally | Re-review: lock waits accumulated per chapter (15 contended chapters cancelled a publication under a 2 s timeout), a staff `duplicate` decision could return as a new claim after an account revoke and restore, and the failure recorder could wait without bound. One 250 ms wait budget now covers each host statement, `duplicate` counts as a decision, and the recorder takes outcome rows with `NOWAIT`. Two-session tests prove each case.                                                                                            |
+| CSF-ATTEND-APPEAL-SHIFT-20260928     | P2, fixed locally | A decided attendance appeal re-drives the distinct waiting sources in the same transaction. Appeal approval after rejection creates a pending claim for the separate shift; it does not reopen the reviewed claim.                                                                                                                                                                                                                                                                                                                            |
+| CSF-ATTEND-DEFER-ORDER-20260928      | P2, fixed locally | A contended chapter no longer stops attempts on every later chapter. Each call receives the remaining statement wait budget. Deferred pairs recorded last receive priority on the next event. A two-connection regression proves progress for an unlocked chapter while the first stays locked.                                                                                                                                                                                                                                               |
+| PROJECTS-RLS-MEMBER-STATUS-20260928  | P2, unverified    | `projects_select_authenticated` accepts any admin or staff `organization_members` row without checking its status, so a deactivated officer may still read that organization's projects. Confirm against current policies before fixing.                                                                                                                                                                                                                                                                                                      |
 
 ## Dark theme before first paint, September 24, 2026
 
@@ -2744,6 +3312,496 @@ sources.
 
 ## Repository-owned P0–P2
 
+### Organization directory cards, October 11, 2026
+
+`ORG-DIRECTORY-CARDS-20261011`, P2, source change on `codex/organization-cards-20261011`; 42 focused tests and affected static checks pass locally. The user rejected the row list for "Your organizations" and the four-column Discover grid, and asked for the earlier card design, improved. Both sections now use `OrganizationCard` in a one, two, three column grid. Owned cards carry the primary wash and edge through the new `highlightMembership` prop and show the type, the viewer's role, the description and a separate member-count footer. Discovered cards stay neutral. A private member list keeps its own footer wording and icon. Verify certificates is a visible page action again and opens `CsvVerificationModal` through its own trigger; the More actions menu and its hidden proxy button are removed. Join with code, creation eligibility, public-safe reads, search, sort and membership deduplication are unchanged. The profile page shares the card and gets the new badge row and footer without the wash.
+
+Two deliberate departures from `docs/development/design-system.md` follow the user's explicit card-reference direction: the owned card uses a translucent `bg-primary/5` fill in addition to the tinted ring, and the directory container adds `lg:px-10` beyond the general `px-4 sm:px-6`. Both directory exceptions are now documented. No token, primitive, action, authorization, migration or private-plugin file changed.
+
+Focused directory, role, organization-profile and empty-action tests pass in separate processes; static checks and actual Opus source review pass. Rendered certificate-trigger verification, exact-head CI and Development deployment remain pending. Phone/dark rendering remains an explicit audit gap. Main and Production remain held.
+
+### Landing first render, October 10, 2026
+
+`LANDING-FIRST-RENDER-20261010`, P2, fixed locally on `codex/landing-first-render-recovery-20261010`; not integrated or deployed. At `development` commit `00960d6a` every section below the landing hero loads client-only with an empty fallback. The comparison and journey components also begin with hidden motion styles, which would conceal their content if rendered on the server. The candidate server-renders those two code-split sections with visible first panels. `OrgToolingIntro` renders the organization heading, features and links around the client-only mock and a compact fallback. Timed demo sequences and the other four lazy sections retain their current behavior. This is a fresh port against `00960d6a`; the recovered patch used a missing snapshot base, so its evidence is historical and does not establish this candidate's behavior.
+
+Local proof for commit `a08bae12` only: the three rendered-markup regressions fail on unchanged development, then pass on this candidate. `bun test "app/(landing)" components/layout` passes 25 tests; typecheck, full zero-warning lint, changed-file formatting and strict private gitlink validation pass. `LANDING_TEST_BASE_URL=<running public app> bunx playwright test --config playwright.landing.config.ts` passes six cases at 390px and 1440px: JavaScript disabled, scripts blocked before hydration, and hydrated keyboard use of the journey certificate preview, comparison table expansion and organization Reports navigation. Eight captures per tree cover those widths without JavaScript, before hydration, and hydrated light/dark. The sections are absent in the baseline's first response and visible in the candidate. All captures show no document overflow or page errors. Hydrated reduced-motion captures retain the baseline's one hero hydration warning; this patch does not fix that warning. A normal-motion smoke check at both widths observes the journey advance from Browse feed to QR check-in/out after 7.1 seconds, with no page errors, document overflow or hydration warning. All browser evidence above predates the user's instruction to use their Chrome extension for further visual QA; later native Chrome access is documented separately below.
+
+`LANDING-PUBLIC-A11Y-20261010`, P2, partially verified locally on `codex/landing-first-render-recovery-20261010`, based on `00960d6a` with the earlier `a08bae12` first-render recovery preserved. This is a local candidate, with no push, PR, merge, deployment or branch deletion.
+
+| Evidence                            | Verified result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Remaining boundary                                                                                                                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused landing/layout regressions  | 58 pass, zero fail. Eight added journey-preview cases fail on the saved before source and pass after fixing hidden initial content and idle success semantics. The hero visibility regression fails with the saved earlier source on its actual opacity/blur ancestor assertion and passes after the fix.                                                                                                                                                                                                                                             | Markup/event proof does not measure pixel contrast or replace browser acceptance. The real hero module uses the repository's Bun `server-only` marker stub; product components remain real and no provider/database action runs.     |
+| Static gates                        | Full formatting, TypeScript, zero-warning ESLint/source-organization guard, exact private gitlink and diff whitespace checks pass.                                                                                                                                                                                                                                                                                                                                                                                                                    | Full build/tests and the integrated Code quality/database/browser gate are not run here.                                                                                                                                             |
+| First real Chrome pass              | Actual `claude-opus-5-5`, installed extension in Chrome Default/Riddhiman, normal motion, 1126px in both themes. Reviewed flat contrast surfaces pass; the comparison table expands from six to ten rows; all journey pills measure 32px.                                                                                                                                                                                                                                                                                                             | Gradients remain manual. Resize calls did not change measured viewport; original outer-size restoration was not verified. The owned tab closed; System theme was restored, with the stored preference changing from unset to System. |
+| Real Chrome follow-up at `be069c08` | Same actual model/profile, 740px dark, with no resize/theme changes. Hero copy, actions and both demo wrappers have opacity 1 from the first response and first capture. Keyboard testimonial scrolling reads 0, 346, 692, 346, 0, then the clamped maximum 2075 for Right/Right/Left/Home/End; the final card is fully visible. Pill and card selections match their preview immediately and remain stable beyond the three-second cycle. Closing text is exposed once, the comparison table still expands and there is no page horizontal overflow. | This is one narrower single-column viewport, not 390px or a desktop recheck of the final corrections. The tab remained hidden and reduced motion was false. No fresh axe scan or CLS benchmark. The owned tab closed.                |
+
+Source fixes remove the prohibited label from `AnimatedText` and provide one screen-reader string beside hidden decorative fragments; make testimonials a named, focusable manual rail with immediate unmodified arrow/Home/End handling and `data-lenis-prevent-horizontal`; remove the reported comparison fades and use semantic colors; provide labelled 32px journey controls with pressed state; stop cycling after user selection and replace the preview without waiting for an exit animation; keep hero link-wrapper `tabIndex` at -1 in both server and reduced-motion renders; make mounted hero content visible initially; and server-render static check-in/testimonials. The reported `.opacity-70.block.truncate` was the modern comparison address label, not an organization label. Hero wording and action routes, all eight quotes, five journey steps and project demo interactions are preserved.
+
+Historical `a08bae12` main-content axe evidence found one prohibited label, eight light/five dark contrast failures and one inaccessible scroll region. Its incomplete contrast counts and differing non-hydrated 390px capture heights remain historical evidence, not current accessibility or CLS acceptance. Current native Chrome logs contain a hydration mismatch with added `data-haptic-enabled` attributes absent from source/server HTML; the runtime origin is unverified and the trace is truncated. A read-only scan found neither exact nor camel-case haptic marker in application source, the installed package graph or compiled assets. The installed Sensurf 1.0.7 extension implements the exact setter on links/buttons and observes added nodes, but current profile metadata records it as disabled (`disable_reasons: [1]`, user action per [Chromium's enum](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/browser/disable_reason.h)). This is a source match, not attribution of the prior runtime warning. No extension or profile setting was changed and the warning was not suppressed. A source-only continuation fixes QR scanning text, email confirmation and certificate content that still depended on entrance frames, and hides the idle check-in toast from assistive technology. Actual Opus 5.5 made those three scoped source edits; the eight regressions and all 58 focused tests pass. The Mac is currently locked, so these latest changes have no new rendered inspection. Browser-dependent 390px and fresh axe checks are paused; the matching loopback axe helper is prepared but not running. The partner section and closing CTA remain client-only; the organization mock replaces a shorter fallback. Broader hierarchy, small mock text, continuous demo motion, 390px Chrome coverage, gradient contrast and the full accessibility audit stay open.
+
+Six additional cases in `tests/e2e/landing/landing-first-render.spec.ts` are written but not run; the six previously passing public browser cases belong to the earlier first-render snapshot. No isolated browser was used after the Chrome-only request. Authenticated volunteer, organizer, admin and plugin coverage remains blocked by unavailable Docker-backed fixtures and unresolved Docker app-use approval. Local public proof is not hosted Development or Production acceptance. The parent/user's main and release decision remains held. Sanitized patches, bundle, receipts and actual Chrome image exports are outside tracked source in the task's evidence package.
+
+### Project status maintenance schedule, October 8, 2026
+
+`AUD-PROJECT-STATUS-CRON-20261008`, P1, fixed in source only. No migration scheduled `public.process_projects()`, so a database built from the ledger never advanced published projects to in-progress or completed, the Admin Overview reported no recorded run, and feedback follow-ups and experience prompts that require `completed` never fired. Production has a dashboard-created `Process project status` job; Development and local databases have none. Forward migration `20261009090000` schedules `process-project-statuses` every five minutes and leaves it paused when applied during a maintenance hold. Six pgTAP assertions and five catalog tests are written; the catalog tests pass, and no replay has applied the migration. Remaining: an isolated replay, then one job per database after reconciling the Production duplicate.
+
+### Disconnected calendar cleanup, October 8, 2026
+
+`AUD-CALENDAR-CLEANUP-20261008`, P2, fixed in source. Saved cleanup entries showed enabled removal buttons after the user disconnected Google Calendar, but the provider call required reconnection. The entries now remain visible with disabled removal controls and guidance to reconnect the same account. Two render regressions cover project and signup receipts in disconnected and connected states. Hosted browser acceptance remains open.
+
+### Attendance correction retention, October 8, 2026
+
+`AUD-ATTENDANCE-RETENTION-20261008`, P1, fixed in source and isolated SQL. Account deletion removed sign-ups and cascaded into `private.project_attendance_changes`, destroying the correction receipt. Forward migration `20261009080000` changes only that foreign key to `ON DELETE SET NULL` and makes its reference nullable. The audit values, corrected certificate, existing access controls and account-deletion workflow stay intact. Nine pgTAP assertions pass on a fresh 720-migration replay; restoring the old foreign key reproduces three failures. Development has not applied this migration. The final integrated release gate remains required.
+
+### Development consolidation, October 7, 2026
+
+| Boundary                      | Current evidence                                                                                                                                                                                                                                                              | Remaining gate                                                                                                                                                                                                                                                                                           |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Brand and feature integration | Claude confirmed all finished redesign work is in root `ade0cf57` and private `6012a1b7`. The integration branch also contains the coordinated Bun 1.4.2 update.                                                                                                              | All 96 local root branch heads are now ancestors of the review candidate. Root Development merge and retirement remain pending; working patches and private histories are archived locally.                                                                                                              |
+| Speech and Debate offering    | Forward migration `20261009070000` pauses the private catalog entry and clears forced updates. Standard SQL and JavaScript fixtures preserve that state. Existing releases, installs, and data remain intact. Five pgTAP assertions and 61 focused source tests pass locally. | Signed CSF 1.2.86 and Speech and Debate 2.0.3 are integrated at root `a982101c`. Hosted Development verification remains pending. The optional local DV fixture command explicitly enables its retained test runtime.                                                                                    |
+| Schema acceptance             | A fresh CLI 2.120 / PostgreSQL 17.11 replay applied all 718 migrations. All 1,434 reviewed catalog objects match; the existing transaction wrapper accounts for seven local fixture helpers and restores them on rollback.                                                    | The signed-pair replay also passed all 719 migrations and 21 focused assertions, including the paused offering and both publication contracts. Full integrated CI remains pending. The first pause replay caught seed reactivation; its failed receipt is retained beside the corrected passing receipt. |
+| Runtime alignment             | Root and private frozen installs pass on Bun 1.4.2. All 569 private test files pass after updating JSX test mocks for both runtime entry points.                                                                                                                              | Private PR #644 and release PR #641 passed their checks and merged. Signed publication completed from `d100831b`; root CI remains pending.                                                                                                                                                               |
+| Secret-scanner triage         | PR #867 reports eight occurrences across three incident IDs. Source review identifies a mocked UUID claim receipt, a dummy password in an invalid-binding unit test, and six empty password-form initializers. No credential value was printed or changed.                    | GitGuardian still reports these historical occurrences; its provider incident state has not been changed. Local provenance is in `gitguardian-triage.json`.                                                                                                                                              |
+| Release controller            | The paired release passed signature verification but treated the offering availability test as a serving-version test. The controller now selects only `latest_version` or `code_reference` assertions and still rejects malformed serving contracts.                         | The corrected workflow verified and pushed `a982101c`, then its immediate PR readback failed. Fresh GitHub and Git ref reads confirm the exact result. A bounded readback retry retains the original push lease and rejects competing heads; 15 workflow tests pass.                                     |
+
+Sanitized local receipts are under `.artifacts/integration/`, including `pause-db/replay-receipt.json`, `pause-db-corrected/replay-receipt.json`, `pause-focused-tests.log`, and `consolidation-private-full-corrected.log`. These are local evidence, not hosted acceptance. No Production change is included.
+
+### Account export integration review, October 7
+
+ACCOUNT-EXPORT-RATING-20261007 and ACCOUNT-EXPORT-ATTENDANCE-20261007, P2: root PR 867's automatic Codex review found that the earlier export projection omitted platform rating context and canonical attendance. Forward migration `20261009060000` includes rating fields, certificate minutes and revisions, signup revisions, and a separately bounded interval dataset joined through exact account ownership. It preserves service-only execution, private audit exclusion, legacy null values and whole-export refusal on limits. All 35 database assertions, 11 archive unit tests and 79 catalog/cutover tests pass. The measured 717 catalog changes only the export function. Hosted verification remains pending.
+
+### Integrated database regression, October 7
+
+CSF-RESTORE-ANNOUNCEMENT-20261007, P2: the new partner attendance wrapper replaced the existing restoration-specific email guard. The integrated database test reproduced acceptance of an invalid announcement request. Forward migration `20261009050000` restores explicit refusal and returns the restoration receipt before email intent capture, retaining the project-first lock order and actor authorization. Expanded SQL coverage checks true and null email choices, unchanged activity state and the absence of a success receipt. All 23 restoration assertions pass on the clean 716 replay, and 76 catalog/cutover tests pass. No hosted change has been made.
+
+### Private integration review, October 7
+
+Private PR 643's Codex review identified three defects in the partner attendance feature. Commit `6c271f0` fixes them; hosted acceptance remains pending.
+
+| Finding                                | Local disposition                                                                                                                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSF-ATTEND-MODE-READ-20261007, P1      | Failed or missing mode reads now return an unconfirmed outcome. Only explicit missing-schema errors permit the legacy off no-op. Six tests cover read failures, confirmed disabling and a lost write response.      |
+| CSF-ATTEND-EVIDENCE-CAP-20261007, P2   | Organizer evidence is loaded for every submission in bounded chunks and ordered pages. Unexpected failures refuse the review load. Tests cover 1,101 submissions, 1,001 rows for one claim and a failed later page. |
+| CSF-PARTNER-OVERNIGHT-DST-20261007, P2 | Overnight ends advance the local calendar date before timezone conversion. Schedule bounds and proposed shifts share the helper. Spring and fall transition regressions pass.                                       |
+
+Integration readback: the complete 716 replay passes 491 SQL files and 12,845 assertions. The registry gate then refuses unpublished DV source version 2.0.3 against published 2.0.2. Root unit verification stops at that same signed-release boundary. Private promotion PR 641 requires separate main/tag authorization; no release guard was relaxed.
+
+The [October 7 integration status](integration-status-20261007.md) tracks the combined brand/audit candidate, preserved feature branches, local checks and remaining provider gates. Integration regressions in draft serialization, account export/deletion layout, uncertain delivery copy and CSV formula prefixes are fixed locally. Final database/browser and hosted acceptance remain open.
+
+### Full-stack remediation, October 7, 2026
+
+This is the current status of the October audit. Earlier dated narratives remain
+historical evidence. The original September 28 additions are preserved below.
+Remediation has not been deployed. APP-09 and DB-02 describe the same defect.
+
+[Root draft PR 867](https://github.com/riddhimanrana/lets-assist/pull/867)
+contains the integrated changes through `dc4ef914`, based on Development
+`fb326cb3`. The follow-ups include the exact Storage architecture rule, accepted
+708 catalog, status fields and Development cutover coordinator. The
+request guard, durable image cleanup, organization authorization and application
+conflict repairs have focused local acceptance. The root retains published
+private gitlink `a1d5836f` until the signed batch integration.
+
+Both CodeQL analyses and their aggregate pass on published `35341eaa`.
+GitGuardian still reports two historical synthetic fixtures. Incident 37947219
+is a UUID in a mocked calendar test; 37948874 is a test-only PostgreSQL URI in
+maintenance tests. Neither came from a provider credential. Both fixtures now
+clearly identify their test values, with no detector or file exclusion.
+Historical false-positive disposition remains pending. Vercel deployment
+`dpl_Fuj1tQF3FwBX6bmBpRtaSZuJyx7r` is canceled by the ignored build step.
+Supabase still lists only main and persistent Development. No application
+deployment is claimed.
+
+[Private PR 640](https://github.com/riddhimanrana/lets-assist-plugins/pull/640)
+merged as `4af6f732` with an identical tested tree. Its older prepared candidate
+`5f3564c1` is superseded by
+[private PR 642](https://github.com/riddhimanrana/lets-assist-plugins/pull/642)
+at `86f0b58d`, paired with host `6af61c9e`. The new candidate preserves request
+identity after unknown outcomes and validates exact import receipt coverage.
+Its full local private unit gate passed 6,080 tests and 30,598 assertions across
+554 files and 209 process groups. Hosted plugin quality repeated those counts, and static analysis and
+GitGuardian pass at that exact commit. PR 642 merged into Development as
+`ece8afec` with the identical tested tree. Private main and release tags remain
+unchanged. Updated promotion PR 641 also passes quality, both static scans and
+GitGuardian on `ece8afec`. Separate main/tag approval and signed-version
+acceptance remain pending.
+
+The fresh 708 replay applied all migrations and ran 464 SQL files with 11,737
+assertions. One old test expected a privilege error where the new RLS policy
+correctly filters the inactive administrator's write to zero rows. The corrected
+93-assertion file passes. Keep the original failed full-run transcript alongside
+that correction; there is no single all-green full-run transcript for 708 yet.
+Thirteen follow-on gates passed, including CSF workflows, both scale gates and
+DV database checks. The architecture rule now recognizes only the exact six
+restrictive public-image denial policies. Its real PostgreSQL regression rejects
+changed names, buckets, commands, roles and predicates. The architecture check now passes. The accepted catalog contains 1,364 objects
+and returns one exact match; nine tamper cases reject altered hooks, grants or
+policies. The runtime check at private `2e0382b` refused its unprepared version
+metadata. Final acceptance requires the actual signed batch.
+
+The canonical root unit run now passes at `296253ea`, whose full tree equals
+parent `21404ba5`: 4,414 tests, 29,173 assertions, 555 files and 140 process
+groups, with zero failures or skips. Full lint, source guards and typecheck pass.
+The initial failures remain in their saved logs. They exposed stale worker
+assertions, the new guard's intentional client ACLs, the missing disabled
+image-cleanup flag and a disposable PostgreSQL locale issue.
+
+The Development coordinator is integrated as `c9e76128`. Its 78 Node cases pass
+on the combined source. The canonical Bun follow-on and affected workflow
+contracts pass 145 tests and 830 assertions across nine files. Full lint and
+typecheck pass with the coordinator; its final test-only credential-scope repair
+also passes focused lint. Review fixed recovery receipt disagreement, inherited
+image/alert worker settings and duplicate maintenance creation after an older
+unknown outcome. Nine real local SQL cases prove fresh write refusal, reads,
+transaction settling, retention drift rollback, exact restoration and reopening.
+Protected Development review rules and the required owner credential remain
+unconfigured; no hosted coordinator ran. Final signed build and browser gates
+remain separate. Historical results below retain their original source pins.
+
+The canonical root unit runner passed at `eda468bc`: 4,295 tests, 28,633 reported
+expect assertions and 538 files across 133 process groups. Installed Next.js
+16.3.8 matches the source pin. Bun is 1.3.14; local Node 22.23.3 differs from the
+pinned 22.23.2. Full root lint and typecheck passed after the maintenance and Maps changes.
+The later workflow, controller and candidate checks passed 61 tests; the 13 new
+workflow tests also passed in the canonical runner's Bun runtime. Agent policy
+and migration-file checks pass. The production build passed at `ec24c995` /
+private `151c3d7c`, including the server-only logger and exporter. The hydration
+repair passed 21 adjacent private tests/86 assertions, paired typecheck and lint.
+The full private corpus passed at `1e5fd36a` / private `18cbd1c1`: 6,038 tests,
+30,477 reported expect assertions, 551 files and 206 isolated groups. Paired
+typecheck, private formatting, zero-warning lint and source-organization checks passed. Hosted quality has now repeated this result on prepared private `5f3564c1` / host `efe346d1`.
+
+Fresh schema 701 acceptance at `a6257a20` / private `151c3d7c` passed all 456 SQL
+files, 11,416 assertions and all 15 following API, access, concurrency, isolation,
+seed, scale and runtime gates. The exact accepted catalog query returned `1`.
+Migration 701 adds one service-only calendar function; all previous 700 file
+hashes and 1,350 schema objects are unchanged. All 687 published migrations remain
+unchanged. Earlier consolidation of unpublished drafts reduced the ledger from 705 to
+699 entries while preserving the full schema byte for byte. Historical results remain below.
+
+The replay exposed an older index assertion that depended on an empty table
+and disabled sequential scans. Its replacement uses 6,150 fictional rows, default
+planner settings and actual results. A rolled-back negative control proves the
+test detects a missing index. No production index change was needed. Existing
+concurrency fixtures require a fresh owned replay before repeating the full suite.
+
+Full CSF at `80600795` / private `151c3d7c` finished with 152 passes, one failure
+and four documented skips. Draft, course selection, account export/deletion and
+calendar checks passed. The connected-calendar case verified nonempty HTML/RSC
+without credential fields, own-row browser REST denial, retained credentials
+after denial, real provider-free disconnect and disconnected UI.
+
+The remaining failure exposed an enabled term button before its handler was
+ready. Holding same-origin Next scripts reproduced the defect. Private
+`696aec21` keeps that control disabled until hydration and while its action is
+pending. Both controlled readiness and the original next-term lifecycle passed
+in the real browser. The full suite then passed at `1e5fd36a` / private `696aec21`: 154 passed,
+zero failed and four skipped cases in 7.4 minutes. The four skips cover a retired uploader and three opt-in galleries.
+The active test verifies that the old importer is absent; authorized Google
+Sheets import remains a browser coverage gap. Earlier DV passed 4/4; cron auth
+smoke passed 633 assertions without dispatch or provider egress.
+
+The full browser run recorded four attempts to call `vector.profanity.dev`;
+the local guard blocked all four before dispatch. The endpoint ledger does not
+identify the calling module. The export worker recorded zero provider attempts.
+Both existing profanity callers now use the bounded local dictionary. Project
+checks require fresh authentication and the deletion guard, validate the existing
+field limits, and return explicit failure to the form. Nine tests/43 reported
+Bun assertions, typecheck, targeted lint, formatting and source checks pass at
+`a5b0a5f2`. The real action-rejection/retry case passed in the rebuilt full 702 CSF suite.
+This remains an advisory word check, not a new publication moderation policy.
+
+A further pre-existing P2 permission gap is being repaired with forward migration 702. Browser roles can read three documented staff fields on visible projects,
+and owners can currently forge those fields through direct writes. No dedicated
+current project-review writer or populated hosted values have been established.
+The draft migration makes those fields service-only for reads and writes while
+preserving the other 43 columns and row policies. Nineteen platform query sites
+use a compatible explicit projection. No private plugin query requires a change.
+Eleven projection, query and hours-card tests/86 assertions and seven generic
+update tests/43 assertions pass. The explicit types also exposed a nonexistent
+hours-publication property; cards now use the stored per-schedule map and require
+an own property with the value `true`.
+Fresh 702 acceptance passed 457 SQL files, 11,501 assertions and all 15 following
+gates. The exact accepted query returned `1`; `eda468bc` records the measured
+catalog. The 1,351-object inventory changes only the grant-catalog function and
+the two intended relation grants. All earlier migration bytes are unchanged.
+Full CSF acceptance passed at `efe346d1` / private `696aec21`, with 155 passes,
+zero failures and four documented skips in 7.1 minutes. Historical review values are not reclassified as
+trusted by this permission repair. The [cutover order](../architecture/data.md#project-review-metadata)
+requires compatible queries before the privilege change or a reviewed maintenance window.
+
+The focused browser run passed seven existing draft and project cases. The new
+case passed real content-check rejection/retry, private-review HTML exclusion,
+anonymous discovery and six owner/outsider REST denials. It then failed on an
+empty-key Google Maps script request; editing and deletion were not reached.
+That worktree also had Next.js 16.3.3 installed. Its frozen installation now
+matches Next.js 16.3.8 in both root and child, with unchanged lockfiles. Normal
+map/address fallbacks passed focused tests and the rebuilt full CSF run. The
+new project case completed rejection/retry, privacy, editing and deletion in
+that run. App and export-worker egress logs were empty. The server log retained
+18 stream-closed diagnostics, two fetch diagnostics during CRUD and an expected
+invalid-verification refusal. This does not claim an empty server log. Earlier
+browser receipts remain evidence for their actual installed runtime. All four DV
+cases also passed, with zero failures or skips and no provider egress.
+
+The expanded project browser case passed at root `5c622e38` / private `696aec21`,
+integrated locally as `9b8387b0`. It verified all three staff fields were absent
+from HTML, the observed edit-route RSC response and the real update-action
+response. Six direct read denials and six owner INSERT/PATCH denials passed;
+an ordinary title update succeeded, private metadata stayed unchanged and no
+forged row appeared. The case completed creation, editing and deletion with
+zero external requests. The earlier full-suite results retain their source pins.
+
+That case exposed an enabled Delete Project button before its handler loaded.
+A separate delayed-script negative control reproduced the defect. A 29-line
+trigger now uses the existing hydration hook and preserves permission and pending
+states. Four component tests and the full focused browser case pass. The new
+case proves the disabled pre-hydration state, working confirmation after script
+release and actual deletion. No owned project fixtures or app listeners remain.
+
+Project reads now pass structured errors to the safe logger. Focused regressions
+retain approved error codes without evaluating private getters or printing
+private fields. The combined logger/trigger checks passed 15 tests and 30 Bun
+assertions, plus 11 isolated logging assertions. The latest browser log has zero
+stream-closed errors and two PGRST116 read errors during CRUD. Their request-level
+cause is not yet attributed; they do not establish the cause of older diagnostics.
+
+The subsequent missing-project repair uses a nullable single-row read while
+preserving the existing generic response and genuine query-error logging.
+Installed SDK transport tests distinguish absent rows, valid rows, permission
+failures, multiple rows and network failures. The absence regression failed
+before the repair. All 13 related tests passed afterward, and the focused
+privacy/CRUD browser case passed at `fae72871`, integrated as `4544ad78`.
+Its log contains no project-fetch, PGRST116 or stream-closed errors; outbound
+request logs remain empty. The earlier two errors are consistent with the
+post-deletion route render, but the older log lacks request correlation.
+
+The hours and capacity browser cases passed at root `158c51aa` / private
+`696aec21`, integrated through `e1f58b69`. The real hours form rejected the
+nonexistent March 8 Pacific 02:30 time without creating a certificate; retrying
+01:30 to 03:30 stored 09:30Z to 10:30Z and one hour. Capacity correctly displayed
+1,205 active signups and 795 remaining places across 1,235 rows, beyond the API's
+1,000-row limit. A narrowly simulated HTTP 503 showed the unavailable state;
+retry returned the real aggregate. This does not claim an induced database
+failure. Both browser/server egress logs were empty and scoped fixtures were removed.
+
+Four additional DV browser cases passed across two real compiled runs at
+`9616fc69` / private `696aec21`, with final test source `f8f1fbfc`, integrated as
+`c5469eb0`. They cover correction, resubmission, a lost actual response and
+same-request retry with one receipt/audit, staff approval, stale status and revoked
+access without canonical-record changes. The roster returned exactly 51 current
+members across two pages and excluded 52 prior-season memberships. The initial
+roster failures were fixture timestamps and reading rows before loading completed;
+those test defects were repaired before the passing narrow rerun. All 702 migration
+hashes and the applied ledger remained unchanged, outbound logs were empty,
+fixtures were removed, and the private checkout returned cleanly to prepared `5f3564c1`.
+
+The online migration controller now refuses pending credential and project-column
+permission contractions before any mutation. The maintenance workflow now uses
+measured accepted catalogs instead of its obsolete 414/444 preflight. A separate
+owned 687-to-702 database proof passed 22 acceptance/refusal cases. The integrated
+maintenance, online refusal, workflow and documentation checks passed 47 tests
+and 726 assertions. Runtime catalogs and migration bytes are unchanged. The
+disposable stack was removed. Those SQL checks did not prove a fresh PostgREST
+write refusal. The subsequent real API probe caught the ineffective role-default
+guard and refused cutover. PostgREST chooses writable mutation transactions, and
+the role default also prevents its schema listener from reconnecting. The new
+permanent request hook uses an operator-owned custom flag. A connection-drain
+prototype then exposed loss of the effective hook configuration. Its replacement
+uses shared request locks and an exclusive activation lock. A second real API
+reproduction showed REPEATABLE READ and SERIALIZABLE writes could keep an old
+snapshot after waiting. The guard now refuses those writable isolation modes,
+even with maintenance off, while preserving read-only requests. Normal writable
+requests and the operator transaction use READ COMMITTED.
+
+Guard integration `c741bcdb` passed 18 real API concurrency, reload and timeout
+cases, seven isolation cases, nine catalog-isolation checks, six legacy-transaction
+barrier cases and ten API mode cases. The queued higher-isolation mutations now
+return SQLSTATE `25006` and leave fixture values unchanged. The legacy barrier
+waits for exact backend and transaction identities without terminating pooled
+connections. Its measured 20-second timeout keeps the guard active. Thirty
+pgTAP assertions, three Node tests and 15 workflow cases/373 assertions pass.
+The recovery-budget test includes the new barrier and retains its 71-minute
+ceiling. Independent recovery `c12f539d` runs the same barrier before alias
+operations and a success receipt, within its existing 60-minute budget. The
+combined workflow/recovery suite passes 17 cases and 426 assertions. The exact 687-to-688 bootstrap now passes, including a four-second wait for a
+legacy request and disabled/active/reopened API checks. Its accepted catalog has
+1,299 objects and only the intended new hook; 14 catalog tamper cases pass.
+Production bootstrap source and shared-plan tests pass 14 integrated cases.
+Final ledger acceptance remains in progress. Hosted Development still has no
+proven app-before-schema ordering.
+The application must not be rolled back to incompatible code after these grants change.
+
+Worker observation at `3bcfba4c` adds fixed aggregate classifiers for the remaining
+active platform routes, with no raw job identities or diagnostics in receipts.
+Forty health/classifier tests passed with 205 assertions, along with route,
+auth-probe and activation checks, full lint, typecheck and 704 migration-file
+validation. The expanded SQL scope and 900-second duration ceiling still need
+the final owned replay. The new image worker remains disabled by default.
+A failed automatic-hours query now returns failure instead of reporting an empty
+queue; the regression exercises the actual handler and start/finish receipt path.
+No schedule, alert destination or worker switch was changed.
+
+Independent review found that the bounded response reader could report a valid
+large sync as failed, and recurring checks could count an unsuccessful parent as
+completed. Follow-up `1e1b51e8` captures fixed aggregates before serializing large
+business responses and counts each recurring parent once after it settles.
+Forty-three health/classifier tests passed with 214 assertions; five real service
+cases cover lookup failure, multiple errors for one parent, paging and catch-up.
+The shared cron probe suite passes 611 assertions, including strict credential
+grammar across all covered routes. Full typecheck and zero-warning lint pass.
+The hours processor moved into a 486-line service; its route is 123 lines.
+The independent reviewer confirmed both reported monitoring defects are closed.
+
+Both changed embedded plugins require signed publication: CSF 1.2.86 and DV
+2.0.3, with schema floor `20261007220000`. Prepared candidate `5f3564c1` contains
+the hydration fix, preserves existing install minima and produces identical
+unsigned outputs across two preparations, 1,322 CSF files and 92 DV files.
+Host-import generation and boundary checks pass for 133 modules. The generated
+catalog patch is held for signed integration with the new gitlink. The browser
+rehearsal retains the older manifest versions and does not prove acceptance of
+the future signed versions.
+
+The single-release controller refuses a source that changes another published
+embedded plugin. The new batch controller verifies both signatures, exact source,
+SBOMs, promotion ancestry and complete changed-tree coverage before one root
+update. The existing registered workflow calls its batch implementation from
+the same reviewed commit. Exact PR/head checks and an expected-head lease refuse
+concurrent forward updates or rewinds. The single-release restrictions remain.
+No future publication migration is preapproved in the accepted catalog.
+
+Private main promotion and both tags require separate release authorization.
+The root PR stays draft until signed publication and final integration gates
+pass. Child deployment separately verifies its target, complete accepted schema
+and immutable publication before Vercel. Development requires its own reviewed
+management credential. Earlier provider readback showed only main and persistent
+Development databases and a canceled feature build; it did not establish hosted
+application acceptance.
+
+Google refresh and revocation requests have timeouts, refuse redirects and keep
+revocation tokens in the form body. Temporary failures preserve connections.
+Subject, binding and revision checks protect reconnects from stale responses.
+Disconnect preserves bounded cleanup metadata without removing Google events.
+Focused credential tests pass 42 cases/156 assertions, route tests 12/41 and
+preparation tests 29/108. Removal verifies ownership of the saved calendar before
+accepting absence; 61 related tests/217 assertions passed. Missing or inaccessible
+calendars keep their receipts for reviewed recovery. Google revocation and local
+writes cannot be atomic, so a purpose linked during revocation may need another
+reconnect even though its replacement row survives.
+
+The static private response-header configuration passed the existing dependency
+exception's source/input review. All three lockfile hashes remain unchanged.
+The `braces` advisory still has no upstream fix; its acceptance expires October
+21, 2026 at 00:00 UTC. This review does not bypass the final exact-gitlink audit.
+
+October 22 dependency repair: private PR661 removes both registry fast-glob
+resolutions and their braces/micromatch chain, using a private-owned copy of the
+host's reviewed compatibility package. It also pins follow-redirects 1.16.1.
+The full child audit, lint, typecheck, tests, build and fresh production-only
+caller check pass. The root keeps the CSF owner graph audited while allowing
+only that exact local dependency to share its owner's lockfile. Orphaned,
+changed or unrelated vendor packages fail. No advisory exception is extended;
+exact integrated CI and hosted acceptance remain pending.
+
+| Finding        | Priority                             | Current repository result                                                                                                                                                                                                                                                         | Remaining acceptance or work                                                                                                                                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| APP-01         | P2                                   | Calendar operations validate owned provider identifiers and paths.                                                                                                                                                                                                                | Exercise provider failures and read back real owned event identities after approved rollout.                                                                                                                                                                                                                                                                                             |
+| APP-02         | P1 before payment activation         | The unfinished Stripe purchase flow is unavailable; valid unhandled webhooks receive a retryable error.                                                                                                                                                                           | Decide whether to implement billing. Inventory any existing provider endpoint before retiring it.                                                                                                                                                                                                                                                                                        |
+| APP-03         | P2                                   | Calendar changes have durable receipts, bounded paging, retry identities and conflict checks. Browser responses exclude stored credentials.                                                                                                                                       | 701 SQL and connected-calendar browser privacy/disconnect passed. Reconcile historical provider events separately after an approved rollout.                                                                                                                                                                                                                                             |
+| APP-04         | P2                                   | Self-reported hours preserve the selected timezone and validate date/time inputs. The real DST rejection and retry journey passed locally.                                                                                                                                        | Verify the accepted hosted deployment; local proof preserved UTC instants and the one-hour elapsed duration.                                                                                                                                                                                                                                                                             |
+| APP-05         | P2                                   | Certificate verification uses published certificate facts and a consistent access decision.                                                                                                                                                                                       | Verify public and denied cases on the accepted deployment.                                                                                                                                                                                                                                                                                                                               |
+| APP-06         | P2                                   | Capacity uses an authorization-scoped aggregate RPC and an explicit unavailable UI state. SQL and browser coverage passed beyond the 1,000-row API limit.                                                                                                                         | The browser also passed a simulated HTTP 503 and real retry. Hosted acceptance remains pending.                                                                                                                                                                                                                                                                                          |
+| APP-07         | P2                                   | The account export declares 48 datasets, uses verified plugin identities and fails on count/byte limits instead of truncating.                                                                                                                                                    | Snapshot SQL and the real worker/browser check passed for all 48 datasets. Binary attachments and unlinked historical records remain explicit scope exclusions.                                                                                                                                                                                                                          |
+| APP-08         | P2                                   | Export jobs have leases, artifact identity, crash recovery, private expiring downloads and separate email outcomes.                                                                                                                                                               | SQL, real Storage, owner download, cross-account denial and expiry denial passed locally. Deployed cadence and cleanup still need readback.                                                                                                                                                                                                                                              |
+| APP-09 / DB-02 | P1                                   | Deletion has preflight checks, atomic intent, resumable cleanup, writer fences and Auth deletion last.                                                                                                                                                                            | SQL, concurrency, real deletion and actionable retained-record refusal passed locally. Hosted acceptance remains pending.                                                                                                                                                                                                                                                                |
+| APP-10         | P2                                   | Private Development reads canonical season membership, pages the roster and uses atomic staff decisions. SQL and real browser paging passed.                                                                                                                                      | Signed-version and hosted acceptance remain pending. Reconcile legacy records through a separate reviewed operation.                                                                                                                                                                                                                                                                     |
+| APP-11         | P2                                   | Private Development supports needs-action corrections and stable retry identity. The real staff/member browser journey passed, including a lost response and one persisted receipt/audit.                                                                                         | Verify signed-version and hosted behavior after release.                                                                                                                                                                                                                                                                                                                                 |
+| APP-12         | P1 development safety                | The unsafe private DV seed action and plaintext-password export are retired.                                                                                                                                                                                                      | Verify the private release and inspect historical exports through the credential-custody process.                                                                                                                                                                                                                                                                                        |
+| APP-13         | P2                                   | Route/component limits are enforced again; account export/deletion UI was split.                                                                                                                                                                                                  | 43 root and five private modules remain explicit size debt. The baseline blocks growth; it does not close the refactoring work. See [source maintenance](source-maintenance.md).                                                                                                                                                                                                         |
+| APP-14         | P2                                   | Draft isolation, export, project privacy, hours, capacity and DV transition browser cases now have local acceptance.                                                                                                                                                              | Full 702 CSF passed 155 cases with four documented skips; eight DV cases passed across recorded runs. Authorized Sheets import, signed-version and hosted acceptance remain pending.                                                                                                                                                                                                     |
+| APP-15         | P2                                   | Private Development refuses stale submissions before identity changes. SQL and browser stale-status/revoked-access cases preserve canonical identity, household, membership, receipts and audits.                                                                                 | Verify signed-version and hosted behavior after release.                                                                                                                                                                                                                                                                                                                                 |
+| APP-16         | P2 hardening                         | Root and private child source define reviewed response headers.                                                                                                                                                                                                                   | Verify headers on each served runtime; edge challenge responses do not prove application headers.                                                                                                                                                                                                                                                                                        |
+| APP-17         | P2                                   | Durable image reservations and lease-fenced cleanup preserve referenced assets and reject retired keys. Source `275bb712` passes 52 SQL assertions, 56 unit tests and real Storage/Auth lifecycle and concurrency proofs.                                                         | Complete the integrated replay and browser gate, then verify hosted recovery and monitoring before enabling the worker. See [image cleanup](public-image-cleanup.md).                                                                                                                                                                                                                    |
+| APP-18         | P1                                   | New projects start independently, explicit resume selects a draft, and save-copy changes the autosave target.                                                                                                                                                                     | All three draft journeys passed in the full integrated suite, including in-flight autosave. Historical draft recovery and hosted acceptance remain separate.                                                                                                                                                                                                                             |
+| APP-19         | P2                                   | Start next term now stays disabled until its client handler is ready and while its action is pending.                                                                                                                                                                             | Focused render tests, both controlled delayed-JavaScript and original lifecycle browser cases, and full CSF passed. Signed-version and hosted acceptance remain pending.                                                                                                                                                                                                                 |
+| APP-20         | P2                                   | Project and identity content checks sent text to an external profanity endpoint without a request bound and treated provider failures as clean results. Both paths now use a bounded local word list; the project form handles explicit check failure.                            | Nine focused tests/43 assertions and static checks pass. Real rejection/retry and full 702 CSF acceptance passed; hosted acceptance remains pending.                                                                                                                                                                                                                                     |
+| APP-21         | P2                                   | Published project grants allowed browser reads of three documented staff fields and owner writes could forge them. Forward 702 service-only column permissions and 19 compatible query projections passed local acceptance.                                                       | Full isolated replay and real API/privacy/CRUD browser checks passed. Hosted acceptance remains pending; no populated hosted data or incident is claimed.                                                                                                                                                                                                                                |
+| APP-22         | P2                                   | Volunteer project cards read a nonexistent hours-publication field. They now read the canonical per-schedule map and require an own true flag.                                                                                                                                    | Focused cases cover true, false, missing, malformed and inherited values. Verify the accepted application UI after rollout.                                                                                                                                                                                                                                                              |
+| APP-23         | P2                                   | Public project maps and address autocomplete mount a Google provider without a configured key. The browser run caught the resulting blocked script request.                                                                                                                       | Normal address/map fallbacks passed component tests and full CSF on the pinned dependencies. Configured Maps behavior remains available; hosted acceptance is pending.                                                                                                                                                                                                                   |
+| APP-24         | P2                                   | Delete Project accepted clicks before its client handler loaded. The extracted trigger stays disabled until hydration and preserves permission and pending states.                                                                                                                | Controlled delayed-script reproduction failed before the repair. Four component cases and the expanded privacy/CRUD browser case passed after it; hosted acceptance remains pending.                                                                                                                                                                                                     |
+| APP-25         | P2 hardening                         | Automatic-hours, recurring-project, organization-calendar and organization-sheet routes accepted a correct secret without the required Bearer scheme. Strict token parsing now rejects malformed authorization before execution or status reads.                                  | The first two real-handler regressions returned 200 before the repair and pass with 401 afterward. The shared route probe suite now rejects bare and malformed credentials for every covered GET/POST handler. Exact bearer requests remain covered. This defect still required knowledge of the correct secret; it was not an authentication bypass. Hosted acceptance remains pending. |
+| APP-26         | P1 authorization                     | Forward 707 and request-scoped profile mutations close inactive-admin and membership-revocation races. Staff-invite operations recheck actor authority under the membership lock.                                                                                                 | Source `9823e2a1` passes 20 SQL assertions, 27 caller tests and actual API/concurrent-revocation checks. Integrated replay and hosted acceptance remain pending.                                                                                                                                                                                                                         |
+| APP-27         | P2 validation                        | A user JWT could upload non-image bytes tagged as WebP and serve them from the public avatar bucket. Migration 708 requires server image writes after decoding and reservation, with restrictive browser policies for both image buckets.                                         | Source `eb94ff5a` passes 85 SQL assertions, actual avatar/logo API refusal and authorized server upload/public-read checks. Fixtures were removed and external request count was zero. Existing objects were not revalidated. Integrated and hosted acceptance remain pending.                                                                                                           |
+| DB-01          | P1                                   | Forward repairs address broken anonymous-retention references and preserve cleanup paths through the atomic archive outbox.                                                                                                                                                       | Retention, certificate and shared-file SQL regressions passed. Hosted migration and worker recovery remain separate; the hosted job still fails.                                                                                                                                                                                                                                         |
+| DB-03          | P2                                   | Impossible SET NULL constraints have forward repairs and focused assertions.                                                                                                                                                                                                      | The complete fresh schema and SQL suite passed. Verify hosted constraints after release.                                                                                                                                                                                                                                                                                                 |
+| DB-04          | P2                                   | Audit failures redact connection strings and password-bearing diagnostics.                                                                                                                                                                                                        | Keep regression coverage for every database CLI entrypoint.                                                                                                                                                                                                                                                                                                                              |
+| DB-05          | P2                                   | Readiness checks distinguish reviewed service-only RPCs from browser exposure.                                                                                                                                                                                                    | Local effective grants, architecture and access checks passed. Hosted schema readback remains required.                                                                                                                                                                                                                                                                                  |
+| DB-06          | P2                                   | Raw package-script database write shortcuts are retired or routed through the owned/reviewed workflow.                                                                                                                                                                            | Verify local and hosted runbooks independently; no shared reset is authorized.                                                                                                                                                                                                                                                                                                           |
+| DB-07          | P2 performance                       | A shared scope-observation RPC and private caller avoid full snapshots for scope-only checks.                                                                                                                                                                                     | Synthetic scope payload fell 95.7%; local time was 4.950 ms versus 50.531 ms. Complete private integration and hosted measurement before claiming a live reduction.                                                                                                                                                                                                                      |
+| DB-08          | P2                                   | Schedule-health results expose invalid published schedules, and publication validates required fields.                                                                                                                                                                            | Schedule-health SQL assertions passed. Browser correction paths and operator review of existing invalid records remain pending.                                                                                                                                                                                                                                                          |
+| DB-09          | Planned advisor triage               | All advisor notices have evidence-based triage; one tenant/run receipt index has a measured plan rationale and a forward candidate.                                                                                                                                               | Synthetic plan/receipt tests passed; local p95 was 0.303 ms over 30 samples. Other suggestions remain evidence-gated; no blind index drops.                                                                                                                                                                                                                                              |
+| DB-10          | Planned retention/capacity policy    | [Database operations plan](database-operations-plan.md) assigns proposed budgets and distinguishes evidence, payloads and cleanup receipts.                                                                                                                                       | Approve retention ownership/periods, verify scheduler execution and rehearse recovery. A proposal does not establish backups or permit purges.                                                                                                                                                                                                                                           |
+| DB-11          | P2                                   | Migration 700 makes OAuth credential rows service-only. Default server helpers verify fresh Auth subject equality before exact binding reads and writes.                                                                                                                          | Fresh 701 replay, direct browser Data API denial and connected-calendar acceptance passed. Hosted credential grants remain unverified.                                                                                                                                                                                                                                                   |
+| DB-12          | P1 reliability                       | Forward 706 replaces 63 explicit application conflict raises in 39 reviewed routines with `PT409`, preserving attributes, ACLs and genuine engine errors. The extra five routines came from expanding the original inventory to the private schema.                               | Source `4b8d3397` passes 1,315 SQL assertions and actual RPC timeout-before/409-after proof. Private compatibility `2e0382b` preserves prior uncertain outcomes and validates exact import receipt coverage. Full paired acceptance and signed integration remain pending. Hosted metadata showed PostgREST 14.5; no hosted failure was induced or active incident established.          |
+| D02            | P1                                   | Root and private dependency candidates address known fixed advisories.                                                                                                                                                                                                            | Private integration is pending. The exact `braces` exception expires October 21, 2026; it is accepted risk, not a clean scan.                                                                                                                                                                                                                                                            |
+| D03            | P2                                   | Dependency audit covers independent package graphs and verifies the exception against lock/source evidence.                                                                                                                                                                       | Run against the final paired gitlink and lockfiles.                                                                                                                                                                                                                                                                                                                                      |
+| D04            | P2                                   | Scheduled source/dependency security checks are defined.                                                                                                                                                                                                                          | Observe a trusted hosted run and assign an alert owner.                                                                                                                                                                                                                                                                                                                                  |
+| D05            | P2                                   | The private candidate adds pinned, offline SAST rules and synthetic rule tests.                                                                                                                                                                                                   | Private PR 640 static-analysis run passed. Disabled native private GitHub code scanning is not reported as enabled.                                                                                                                                                                                                                                                                      |
+| D07            | P2                                   | Private build, signing and dispatch authority are separated. Child deployment verifies the target schema and publication before provider writes.                                                                                                                                  | Publish the paired host and private review. Configure a reviewed Development management credential before child deployment. Signed release remains separate.                                                                                                                                                                                                                             |
+| D08            | P2                                   | Pull requests run affected behavior tests as well as tooling contracts.                                                                                                                                                                                                           | Private PR 640 quality passed. Root remains a draft with quality checks skipped; final integrated database/browser gates are required.                                                                                                                                                                                                                                                   |
+| D11            | P2                                   | Broad local release overrides require expiring candidate-bound evidence, report hashes and actor checks before provider steps.                                                                                                                                                    | Preserve the distinction between operator attestation and independently executed CI. No override was used for this audit.                                                                                                                                                                                                                                                                |
+| D12            | P2                                   | All 17 existing active platform cron routes now record aggregate execution health; the registry includes the pending image-cleanup route. Every active Production CSF enable control requires worker-specific monitoring evidence.                                                | Focused health, route, auth-probe and activation tests pass at `3bcfba4c`; expanded receipt SQL awaits the final replay. Hosted schedule readback and a tested independent missed-run alert remain required. See [worker health](worker-health.md).                                                                                                                                      |
+| D14            | P2 maintainability                   | Release override and worker contracts are documented; historical release fixtures use their reviewed ledgers without widening release authority.                                                                                                                                  | Consolidate remaining historical release-controller complexity in a scoped follow-up, preserving accepted schema evidence.                                                                                                                                                                                                                                                               |
+| D15            | P2 release safety                    | The single-release workflow cannot integrate a source that changes both published embedded plugins. A verified batch controller and same-commit workflow entry now cover that case without relaxing the single-release checks.                                                    | 61 controller/workflow/candidate tests passed, including branch-race refusals. Actual signed publication and its generated ledger acceptance remain pending.                                                                                                                                                                                                                             |
+| D16            | P1 before contract migration release | The online controller now refuses pending credential/project permission contractions. Maintenance validates reviewed catalogs, with recovery and fresh API guards.                                                                                                                | The 22 earlier database checks did not prove PostgREST write refusal. New Development bootstrap/cutover and actual API guard acceptance are in progress; hosted ordering remains unverified.                                                                                                                                                                                             |
+| D17            | P1 release safety                    | The request hook now uses an advisory transaction gate and refuses writable stale-snapshot isolation. Real API concurrency, reload, isolation and legacy-transaction barrier proofs pass locally. Exact 688 bootstrap acceptance passes; final ledger acceptance remains pending. | Require exact bootstrap and final catalog acceptance, integrated release gates and provider-specific approval before hosted execution.                                                                                                                                                                                                                                                   |
+| OPS-02         | P1                                   | Analytics accepts only reviewed public-page payloads and strips sensitive URL/person fields.                                                                                                                                                                                      | Verify actual deployed network payloads; historical provider data needs a separate retention/deletion decision.                                                                                                                                                                                                                                                                          |
+| OPS-03         | P2                                   | Root console diagnostics share a field allowlist; private logging has a paired candidate and bypass guard. Request failures and worker outcomes are distinct.                                                                                                                     | The server-only boundary passed focused privacy checks and the paired build. Deployed telemetry and independent alert coverage remain unverified.                                                                                                                                                                                                                                        |
+| OPS-04         | P2                                   | Reviewed invitation, moderation, certificate and account-email callers distinguish accepted, skipped, failed and unknown sends.                                                                                                                                                   | Verify end-to-end receipts and delivery behavior in the accepted environment. Provider acceptance does not prove inbox delivery.                                                                                                                                                                                                                                                         |
+| OPS-05         | P2 structural                        | Recipient preferences resolve against the intended recipient and fail conservatively.                                                                                                                                                                                             | Confirm deployed behavior with fictional recipients and suppression cases.                                                                                                                                                                                                                                                                                                               |
+| OPS-08         | P2 hardening                         | Turnstile validates hostname, action and token response under explicit environment policy.                                                                                                                                                                                        | Reconcile provider widgets/keys per environment and execute hosted signup/login acceptance.                                                                                                                                                                                                                                                                                              |
+
+#### Provider and account dependencies
+
+These have separate authority and cannot be closed by a repository commit.
+
+| Finding | Priority | Observed state                                                                                                                                                                                 | Concrete next action                                                                                                                                                                                |
+| ------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D01     | P1       | Older anonymous/paper runs remain Waiting on Production approval and hold their concurrency groups. New schedules replace pending runs without executing. Waiver cleanup is manually disabled. | Reuse scheduler PR #858. Retire old waiting/pending runs through a reviewed hold, inspect backlog counts, then authorize current-code activation only after schema, auth, cadence and alert checks. |
+| D06     | P2       | Release authority remains concentrated in one account.                                                                                                                                         | Name a second accountable maintainer, establish independent recovery, then review GitHub environment and signing authority. No account or reviewer was invented.                                    |
+| D09     | P2       | Branch/worktree inventory found unique commits, dirty work and a few proven ancestry candidates.                                                                                               | Preserve unique/dirty work, reuse open PRs #857, #858, #859, #860, #865, #766 and private #635/#639 as applicable. Revalidate ancestry and activity before retirement.                              |
+| D10     | P2       | Child source pins Node 22, but provider metadata still reports Node 24 and an older child deployment.                                                                                          | Choose the intended child runtime/release and verify project setting, built functions, alias and organization selection after approval.                                                             |
+| D13     | P2       | `www.lets-assist.com` remains unverified; trusted TLS failed with an expired certificate.                                                                                                      | Review DNS ownership with the actual Cloudflare account, perform the scoped verification/certificate repair, then verify valid TLS and one canonical redirect.                                      |
+| OPS-01  | P1       | Credential files are owner-only, but the plaintext vault and backup copy remain.                                                                                                               | Select the password-manager destination, import without exposing values, verify recovery, then rotate/revoke by provider and retire copies only after readback.                                     |
+| OPS-06  | P2       | Operational email and recovery ownership still need the chosen account/profile and responsibility model.                                                                                       | Use the named Chrome profile for `letsassist.app@gmail.com`; verify mailbox/domain/MFA/recovery roles, then apply a reviewed mailbox and transactional-sender plan. No mail was sent.               |
+| OPS-07  | P2       | Domain ownership differs from the named Cloudflare organization.                                                                                                                               | Confirm source and destination owners, inventory DNS/workers/routes/billing, prepare rollback and continuity checks, then obtain approval for the exact transfer.                                   |
+
+Existing release evidence and source references remain below. These historical
+entries do not override the local-only and unexecuted-test boundaries above.
+
+### New project restores and consumes an unrelated draft, September 28, 2026
+
+PROJECT-DRAFT-RESTORE-20260928, P1, open: opening the organization New Project route without an explicit draft ID loads the user's most recently updated draft. Editing then autosaves into that draft, and publishing deletes it. The restored organization can also override the organization selected by the route. Chrome reproduced draft replacement during demo creation. Source confirmation: `app/projects/create/page.tsx` selects `drafts[0]`; `ProjectCreator.tsx` initializes `autosaveDraftId` from that selection, autosaves changes, and deletes it after publication. Save as New Draft creates a copy but does not switch the active autosave target.
+
+Closure requires an explicit new-project path that starts empty and respects the selected organization, a separate resume-draft action, and regression coverage proving that new creation and publication preserve existing drafts. Verify with fictional drafts in Development before a separately authorized Production release. Recovery of affected live drafts remains an operational follow-up; no private draft content belongs in this register.
+
+### Login challenge submission, September 28, 2026
+
+| Finding               | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-CHALLENGE-SUBMIT | P2, fixed in review | Password login could contact Auth with no CAPTCHA token while its widget was loading, resetting or expired. Two missing-token refusals appeared in sampled Production logs. The handler now uses the same `isSecureCheckBlockingSubmit` gate as signup before creating an Auth client. Handler tests prove blocked requests never contact Auth and ready tokens preserve the normal and local fixture paths. Hosted verification remains pending. |
+
+### Production scheduled jobs, September 28, 2026
+
+GitHub scheduled workflows that declare `environment: production` wait for a reviewer, and the next scheduled run in the same concurrency group cancels the waiting one. Scheduled runs therefore never executed. Six more schedules were disabled manually on July 15 with no replacement. Read-only Production counts on September 28 found small backlogs for every job.
+
+| Finding                  | Status              | Evidence or remaining work                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SCHED-CRON-APPROVAL-GATE | P1, fixed in review | Data exports, AI moderation and anonymous cleanup last succeeded on August 18. Paper signup notifications and paper scan cleanup never ran on schedule. Auto-publish hours, recurring projects, calendar sync, sheet sync, cancellation email and waiver cleanup stopped on July 15. Nine jobs now run through Vercel Cron in `vercel.json` with their previous cadence. Each GitHub workflow keeps only its approval-gated manual dispatch. `scripts/scheduled-jobs-cadence.test.ts` pins the schedules. The fix takes effect with the next Production application release. |
+| SCHED-CRON-AUTH          | P1, fixed in review | Most cron routes compared against `CRON_TOKEN ?? CRON_SECRET`, and paper signup notifications preferred its worker token. Vercel Cron sends only `CRON_SECRET`, so a differing `CRON_TOKEN` or worker token would reject every scheduled call. `lib/cron/cron-auth.ts` now accepts any configured worker token, `CRON_TOKEN` or `CRON_SECRET` with one anchored grammar and a timing-safe comparison, and denies when none is configured.                                                                                                                                    |
+| SCHED-CLEANUP-HOLD       | P1, open            | `anonymous-cleanup` hard-deletes anonymous signups, certificates and waivers 30 days after an event. Seventeen signups from an August 29 event are eligible, and 14 are `attended` with no certificate because auto-publish was not running. `paper-scan-cleanup` would delete an August 23 batch still in `review`. Both stay unscheduled. Before scheduling them, publish or explicitly abandon those records, and make the anonymous candidate filter skip attended or approved signups with no certificate.                                                              |
+| SCHED-AUTO-PUBLISH-GAP   | P2, open            | Auto-publish only considers sessions whose checkout was 48 to 72 hours ago, so sessions that ended while it was stopped are never picked up. One Production session from August 22 is outside the window and needs manual publication by its organizer.                                                                                                                                                                                                                                                                                                                      |
+
 ### CSF 1.2.81 Production observations, September 25, 2026
 
 [Release evidence](../csf/experience-audit-20260925.md) records accepted Development `36267d05`, Production `f48ab77f`, deployment `dpl_3CdK3yLh3V5H1oPczbtrC68SUSxi`, and chapter installation 1.2.81. Full quality and hosted acceptance passed. The four previously enabled workers were restored through approved controls after chapter Update.
@@ -2796,6 +3854,119 @@ P2 `CSF-SIGNUP-CLOSE`: the activity menu allowed officers to close signups but p
 | Private UI/action patch and forward migration in `codex/csf-remove-signup-close` | No       | 20 restoration pgTAP assertions; 120 related database assertions; 124 focused action/contract tests; TypeScript and affected ESLint | Integrate the private patch and migration, run hosted release acceptance, then restore any reviewed live activity through its menu |
 
 Local test output is retained in the isolated worktree's ignored `.artifacts/signup-status/` directory. No live activity, signup, credit, notification, or semester was changed.
+
+### Paper attendance delivery, September 20, 2026
+
+| Finding                                                                                                    | Current state           | Evidence and remaining work                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ATTENDANCE-20260920-01, P1: unverified profile email could claim guest credit                              | Fixed locally           | Account matching now requires a current verified Auth email or a verified alias. Six database identity assertions pass.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ATTENDANCE-20260920-02, P1: replay could restore rejected attendance                                       | Fixed locally           | Replayed requests return the recorded result without changing later status. The attendance and correction suite passes 83 assertions.                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ATTENDANCE-20260920-03, P1: guest account linking could leave partial ownership                            | Fixed locally           | One authorized transaction transfers signups, waivers, certificates, and the guest link. All 21 rollback-scoped assertions pass, including injected failure and retry recovery.                                                                                                                                                                                                                                                                                                                                                                             |
+| ATTENDANCE-20260920-04, P2: refreshed review could close an active editor                                  | Fixed locally           | Explicit saved-draft navigation changes the client key; ordinary refreshes preserve the active editor. The complete production-runtime browser journey passes.                                                                                                                                                                                                                                                                                                                                                                                              |
+| ATTENDANCE-20260920-05, P2: guest certificate detail required login                                        | Fixed locally           | Exact UUID certificate details use the existing public verification model and private no-store response. Collection and management routes remain protected. Public guest access and subsequent account linking pass in the browser.                                                                                                                                                                                                                                                                                                                         |
+| ATTENDANCE-20260920-06, P2: early print selections could be lost                                           | Fixed locally           | Print controls wait until client interaction is ready. Browser navigation, selection changes, and sheet preparation pass without a reload.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ATTENDANCE-20260920-07, P2: lost partial-save responses could trap later retries                           | Fixed locally           | Request keys now include reviewed revisions and operation scope. Unchanged uncertain retries replay; corrected inputs get a new key. The error message no longer claims nothing was saved. Focused retry tests pass.                                                                                                                                                                                                                                                                                                                                        |
+| ATTENDANCE-20260920-08, P2: empty photo extraction could block rescanning                                  | Fixed locally           | Zero readable rows now fail retryably while retaining the original photos. Nine real handler scenarios pass with mocked external services, including duplicate photos, leases, separate pages, and repeated visits. Live OCR quality is not established by these tests.                                                                                                                                                                                                                                                                                     |
+| ATTENDANCE-20260920-09, P2: saved scan failures required another upload                                    | Fixed locally           | Draft and failed batches with saved photos expose Retry scan. The action reuses the batch, skips uploads, and recovers from lost responses through durable status. Seven component behavior scenarios and existing authorization checks pass.                                                                                                                                                                                                                                                                                                               |
+| ATTENDANCE-20260920-10, P2: saved name-only rows stayed ready to submit                                    | Fixed locally           | Saved roster entries remain editable but are excluded from unchanged saves and row combinations. They show Saved without credit. Four review-state regressions and three retry tests pass.                                                                                                                                                                                                                                                                                                                                                                  |
+| ATTENDANCE-20260920-11, P2: failed scans disappeared after reload                                          | Fixed locally           | Failed batches are included in current and saved-draft queries. The production-runtime browser journey passes direct reopening, reload, and ordinary route recovery before continuing attendance review.                                                                                                                                                                                                                                                                                                                                                    |
+| ATTENDANCE-20260920-12, P2: printed matches beyond the first roster page were lost                         | Fixed locally           | Stable bounded pagination covers 5,000-person rosters. Validated references supply their exact signup independently of fuzzy candidates. Focused regressions pass.                                                                                                                                                                                                                                                                                                                                                                                          |
+| ATTENDANCE-20260920-13, P1: printed references repeated database requests per row                          | Fixed locally           | Scan authorization runs once. Bulk resolution validates project, session, and exact sheet-row pairs in at most 18 requests for 300 distinct references. Focused regressions pass.                                                                                                                                                                                                                                                                                                                                                                           |
+| ATTENDANCE-20260920-14, P1: future service could receive published credit                                  | Fixed locally           | Canonical attendance rejects future endpoints; publication and supplemental issuance require an ended session. Completed visits during an ongoing session remain saveable, and erroneous scan drafts remain editable. Time and row-limit tests pass 16 assertions.                                                                                                                                                                                                                                                                                          |
+| ATTENDANCE-20260920-15, P2: concurrent manual additions could exceed the visible row limit                 | Fixed locally           | The batch lock enforces 300 rows. Successful requests replay at the cap; competing additions cannot create an invisible 301st row. The real two-connection race passes.                                                                                                                                                                                                                                                                                                                                                                                     |
+| ATTENDANCE-20260920-16, P1: legacy null-type certificates could receive a second award                     | Fixed locally           | Existing awards remain visible in Hours and exports. Corrections preserve their certificate ID and type, and explicit resend supports corrected totals. Unlinked historical awards fail closed for reconciliation. Legacy database tests pass 23 assertions; seven Hours UI cases and focused export tests pass.                                                                                                                                                                                                                                            |
+| ATTENDANCE-20260920-17, P2: public certificate client props included internal identifiers                  | Fixed locally           | The public page selects only needed fields and passes an explicit display-only print object. Regression tests inspect client props for canonical, legacy, and self-reported records. All 41 projection and test-runner contract checks pass.                                                                                                                                                                                                                                                                                                                |
+| ATTENDANCE-20260920-18, P2: reopened roster drafts lost saved-attendance protection                        | Fixed locally           | Server review data retains a persisted-attendance marker. Discard and row combination check saved records atomically, including partial batches and reopened roster entries. The attendance suite passes 89 database assertions; atomic discard, review update, retention, and waiver tests also pass. PostgREST relation checks verify organizer access and reject an unrelated account.                                                                                                                                                                   |
+| ATTENDANCE-20260920-19, P2: changed time explanations retained review approval                             | Fixed locally           | Reason edits clear the review checkbox. Successful editor saves reset the working outcome to pending while preserving saved-attendance protection, so renewed review can proceed without a refresh. Actual component-handler regressions cover both changes.                                                                                                                                                                                                                                                                                                |
+| ATTENDANCE-20260920-20, P2: saved roster attendance could be excluded without removing its saved record    | Fixed locally           | The checkbox and event handler protect saved rows. The locked update rejects excluded or pending decisions, preserves stale-revision errors, and rolls back the batch transition. Focused UI/action tests and 146 database assertions pass.                                                                                                                                                                                                                                                                                                                 |
+| ATTENDANCE-20260920-21, P2: exports used unsaved draft times for saved roster entries                      | Fixed locally           | Exports read the saved roster interval snapshot. Editing a draft does not change exported attendance; historical empty interval arrays retain the prior envelope fallback. All 24 focused export tests pass.                                                                                                                                                                                                                                                                                                                                                |
+| ATTENDANCE-20260920-22, P2: saved unidentified duplicates had no resolution path                           | Fixed locally           | Reviewed roster entries can reconcile only to time already covered by the matched participant. The audit receipt preserves the prior roster and both revisions. No award or delivery is changed. All 234 focused SQL assertions and seven lock races pass; the expanded browser journey also passes.                                                                                                                                                                                                                                                        |
+| ATTENDANCE-20260920-23, P1: one historical award hid publication for other attendees                       | Fixed locally           | A session without a published ledger flag offers publication until every attendee has an award. Publication selects only eligible uncertified attendees. Nine Hours UI cases pass, including mixed legacy and verified awards.                                                                                                                                                                                                                                                                                                                              |
+| ATTENDANCE-20260920-24, P2: Hours reason edits retained review approval                                    | Fixed locally           | Editing either a correction reason or a time exception clears confirmation and disables saving until renewed review. Both component-handler regressions pass.                                                                                                                                                                                                                                                                                                                                                                                               |
+| ATTENDANCE-20260920-25, P2: legacy regression expected an error superseded by the earlier duplicate guard  | Fixed in tests          | Full CI confirmed that the existing duplicate guard rejects the replacement and preserves the revision. The fixture now expects that error and also compares the complete certificate and canonical intervals. No application or SQL function changed.                                                                                                                                                                                                                                                                                                      |
+| ATTENDANCE-20260920-26, P2: an unlinked historical award rolled back other scan rows                       | Fixed locally           | Only the exact unlinked-award conflict fails its row; valid rows before and after it save. Unknown unique violations still roll back the request. The UI explains resolution and keeps the row editable. Fourteen UI/action tests, 243 SQL assertions, six catalog checks, lint, and type checking pass. Fresh replay changes only the commit RPC fingerprint.                                                                                                                                                                                              |
+| ATTENDANCE-20260920-27, P1: supported historical session IDs failed review or publication                  | Fixed locally           | Known aliases resolve consistently in manual selection, review, interval validation, capacity checks, and late credit. Ambiguous identities stay unresolved, and raw IDs remain unchanged. Seventy-two application tests and 385 SQL assertions pass, including 91 alias regressions.                                                                                                                                                                                                                                                                       |
+| ATTENDANCE-20260920-28, P2: printed rosters and session exports omitted legacy signups                     | Fixed locally           | Print snapshots include each approved or attended legacy signup with its own opaque row reference. Export session filters and service dates normalize aliases while retaining stored IDs. Fresh 636 replay passes six catalog checks and changes only the six reviewed function fingerprints.                                                                                                                                                                                                                                                               |
+| ATTENDANCE-20260920-29, P2: guest account linking missed duplicate sessions stored under different aliases | Fixed locally           | Canonical session comparison rejects duplicate account signups before transfer. The new 34-assertion regression covers eight alias pairs, unchanged rejected snapshots, valid separate sessions, retries, and overlap denial. All 313 focused SQL assertions pass on a fresh 639 replay.                                                                                                                                                                                                                                                                    |
+| ATTENDANCE-20260920-30, P2: extracted phone numbers were hidden from review                                | Fixed locally           | The row editor displays an optional phone field. Corrections and removal clear review confirmation and save the reviewed value. Five editor scenarios and seven action-boundary tests pass.                                                                                                                                                                                                                                                                                                                                                                 |
+| ATTENDANCE-20260920-31, P2: historical export awards were not paired across session aliases                | Fixed locally           | Unique account and canonical-session pairs preserve the historical certificate and credit. Ambiguous pairs retain separate original awards without reusing credit. Thirty-eight export tests and affected static checks pass.                                                                                                                                                                                                                                                                                                                               |
+| ATTENDANCE-20260920-32, P2: legacy certificate resend omitted grouped session aliases                      | Fixed locally           | Authorized legacy resends query the complete supported alias set. Seven behavior tests cover all event types, project isolation, unknown sessions, denied access, and durable retries after schedule edits.                                                                                                                                                                                                                                                                                                                                                 |
+| ATTENDANCE-20260920-33, P2: session validation could block an existing durable retry after schedule edits  | Fixed locally           | The authorized durable receipt lookup runs before current-schedule validation. A focused test proves a removed role can retry its existing publication without reading or sending legacy certificates.                                                                                                                                                                                                                                                                                                                                                      |
+| ATTENDANCE-20260920-34, P2: scanned print references lost roster identity across session aliases           | Fixed locally           | Both sheet and signup lookups use the authorized project and complete supported alias set. Nineteen behavior tests cover all requested, sheet, and signup alias combinations, active status, exact row pairs, bounded reads, and cross-project/session denial.                                                                                                                                                                                                                                                                                              |
+| ATTENDANCE-20260920-35, P2: resumed alias scan batches lost capture and retry controls                     | Fixed locally           | Session options carry supported aliases and the publication key. Saved batches reopen the current slot while preserving the stored batch ID and session ID. Eleven component tests cover retry without another upload, failure recovery, draft/review selection, and publication state.                                                                                                                                                                                                                                                                     |
+| ATTENDANCE-20260920-36, P2: late attendance undercounted the canonical publication receipt                 | Fixed locally           | The receipt counts verified certificates across the canonical session. Eighty new assertions prove initial two plus late one equals three, matching delivery totals, unchanged prior awards, retry safety, and distinct-session exclusion. All 328 focused SQL assertions pass; only the late-attendance function fingerprint changed in the fresh 639 catalog.                                                                                                                                                                                             |
+| ATTENDANCE-20260920-37, P2: terminal row decisions could leave batch completion inconsistent               | Fixed locally           | Update, combine, and commit share the same locked completion rule: saved attendance exists and no included row remains unresolved. Forty lifecycle and nine two-connection assertions pass, including stale edits, retries, preserved awards, and unsaved draft discard. All 226 focused SQL assertions pass; the fresh 639 catalog changes only the three reviewed function fingerprints.                                                                                                                                                                  |
+| ATTENDANCE-20260920-38, P2: combined source rows incorrectly blocked draft discard                         | Fixed locally           | Combined sources remain terminal review rows but count as persisted only with an actual saved-attendance marker. The UI labels them Combined and excludes them from editing, readiness, and further combinations. Seventeen focused tests, TypeScript, scoped lint, formatting, and independent review pass.                                                                                                                                                                                                                                                |
+| ATTENDANCE-20260920-39, P2: print authorization could race membership revocation                           | Fixed locally           | Single and multi-sheet creation lock the project and current management permission before reading roster names or replaying a receipt. Eighteen real two-session assertions prove both revocation orderings, retained permission locks, and concurrent retry behavior.                                                                                                                                                                                                                                                                                      |
+| ATTENDANCE-20260920-40, P2: later session failures could hide earlier prepared sheets                      | Fixed locally           | One atomic request creates selected sheets; a durable request key recovers the same references after failed reads. Twelve action/client tests and 161 focused SQL assertions pass, covering rollback, lost responses, stable retries, current authorization, and cleanup. The fresh 639 catalog contains 31 added and 18 changed objects over 635. Static checks and independent caller review pass.                                                                                                                                                        |
+| ATTENDANCE-20260920-41, P2: completed history could hide older unresolved drafts                           | Fixed locally           | Unfinished drafts and saved history have separate stable cursor pages. Five tests prove 45 older unresolved drafts stay reachable behind 65 newer completed batches, including timestamp ties and project isolation. Existing focused checks, TypeScript, lint, formatting, and exact submodule checks pass.                                                                                                                                                                                                                                                |
+| ATTENDANCE-20260920-42, P2: extracted signature evidence was hidden from review                            | Fixed locally           | The editor exposes the extracted signature flag and allows correction for no-email attendance. Changing it clears review acknowledgement. Six component behavior scenarios, TypeScript, scoped lint, and formatting pass.                                                                                                                                                                                                                                                                                                                                   |
+| ATTENDANCE-20260920-43, P2: organization pending-hour reports counted breaks                               | Fixed locally           | Reports hydrate reviewed intervals only for authorized signup IDs and organization projects, paginate completely, and fail on read errors. Active role and current identity are checked again before returning data. Totals sum raw values before presentation rounding. Twenty-two service tests and seven related tests pass, with static checks.                                                                                                                                                                                                         |
+| ATTENDANCE-20260920-44, P2: publication could accept stale historical certificate minutes or revision      | Fixed locally           | Publication rejects conflicting canonical totals, intervals, or revisions and preserves exact historical duration. The correction workflow repairs conflicts without replacing certificate URLs. All 248 focused SQL assertions pass, including 67 consistency regressions. The fresh integrated 642 catalog passes against Development's exact 638 prefix.                                                                                                                                                                                                 |
+| ATTENDANCE-20260920-45, P2: volunteer project summaries counted breaks                                     | Fixed locally           | Published totals wait for a matching scoped certificate; unpublished totals sum reviewed visits and use legacy duration only without intervals. The server hydrates only authorized signup endpoints with complete bounded pagination. Fourteen tests cover corrected totals, aliases, reduced page caps, errors, and scope. Integrated TypeScript, lint, and formatting pass.                                                                                                                                                                              |
+| ATTENDANCE-20260920-46, P2: terminal account signup history blocked valid guest claims                     | Fixed locally           | Guest linking preserves cancelled/rejected signup and waiver history while transferring the guest award exactly once. Active/pending signups and terminal rows with platform awards remain blockers. All 377 focused SQL assertions pass, including 74 terminal-history regressions. Fresh 642 replay changes only the reviewed guest-link function fingerprint.                                                                                                                                                                                            |
+| ATTENDANCE-20260920-47, P2: larger clock changes could silently choose the wrong attendance instant        | Fixed locally           | Candidate discovery reads actual timezone offsets across the full possible UTC date window and requires an exact offset roundtrip. A bounded date cache keeps review edits inexpensive. Nineteen tests cover half-hour, two-hour, and date-line folds, historical second offsets, gaps, invalid dates, and cache order. The review editor, static checks, and independent review pass.                                                                                                                                                                      |
+| ATTENDANCE-20260920-48, P2: direct publication lost its reviewed time-exception reason                     | Fixed locally           | Publication stores the reason, actor, exact intervals, revisions, and receipt linkage in private attendance history. Retries do not duplicate history, failed publication rolls back the audit, and inherited reasons must match their stored intervals. Publication does not enable correction resend. Fresh 642 replay passes 296 SQL assertions, including 48 provenance regressions. Prior award values are captured before attendance writes can create a late award. Ten action tests verify reason forwarding, request identity, and authentication. |
+| ATTENDANCE-20260920-49, P2: concurrent combines could consume the same paper row twice                     | Source fixed            | Source fix: immutable combine receipts reject consumed sources and targets, review reactivation, and legacy reactivated commits. Exact retry binds actor, project and batch and survives finalization. Local regressions and real concurrent calls pass. Forward drafts are 20261009010000 through 20261009010003; combined replay, catalog and hosted acceptance remain pending.                                                                                                                                                                           |
+| ATTENDANCE-20260920-50, P2: scan staging retained stale manager authorization                              | Fixed locally           | Revalidate the authenticated identity, current project policy, and active organization role before staging and settlement. Twenty route tests pass, including seven revocation cases. The original route reproduces the denied-write defect. TypeScript and scoped lint pass.                                                                                                                                                                                                                                                                               |
+| ATTENDANCE-20260920-51, P2: concurrent writes could make paginated exports incomplete                      | Source fixed            | Source fix: exact counts, strict keyset pages, and two complete raw-source reads share a 100,000-row budget per pass. Final identity, role and project-containment checks remain. Focused export tests pass. Validation detects observed drift but cannot exclude changes that revert between reads; it does not claim a transaction snapshot. Archived c1304f5f was not integrated.                                                                                                                                                                        |
+| Attendance feature delivery                                                                                | Verified locally        | Print, manual/scan review, intervals, audited corrections, durable corrected-certificate delivery, and project/organization exports are integrated. Clean migration replay, focused tests, lint, typecheck, formatting, and architecture/data-access audits pass. The prior attendance candidate passed full CI. PR #766 records the current combined candidate, release-gate results, and hosted Development evidence. Production feature release remains separate.                                                                                        |
+| Requested organization associations                                                                        | Completed operationally | The reviewed two-project operation passed 17 rollback assertions, then committed atomically in Production. Independent database and organization-page readback confirmed the target organization and active-admin management. Protected state fingerprints and counts stayed unchanged. The private audit receipt remains under ignored `.artifacts`; no attendance feature was released.                                                                                                                                                                   |
+
+The September 28 refresh merges Development at `496e5682`. The four attendance
+migrations were renumbered to `20260929120000`-`20260929120003` with unchanged
+bytes, after Development's 683-entry ledger. `final-schema-687.json` applies the
+reviewed 638-to-642 attendance delta to the 683 inventory; the two deltas share
+no objects. That manifest is derived, not replayed, so the next isolated replay
+must confirm it. Historical release tests that read the real ledger now use the
+approved-ledger fixture, keeping attendance out of Production approval.
+
+The latest focused production-runtime journey at `4357db97` passes signature
+review, split visits, failed-scan recovery, publication, correction, guest access,
+and account linking with exactly one award. The linked volunteer sees the
+corrected 2h 30m certificate total instead of the 3h 30m attendance span. All 18
+fixture groups returned to zero, no provider delivery occurred, and the owned
+test stack was removed. The final integrated candidate now includes Development
+`fac55f66` and its exact private-plugin pin. Its four unpublished attendance
+migrations follow the 638-entry baseline. The fresh 642 replay, exact catalog,
+248 focused SQL assertions, and 51 release-catalog tests pass. The integrated
+release gate and hosted attendance acceptance remain pending.
+
+The production-runtime browser journey passes printing, mobile review, partial
+completion, publication, matching CSV/JSON totals, correction, public guest
+certificate access, and account linking with exactly one award. Four real
+two-connection races pass, and the attendance/correction pgTAP suite passes
+83 assertions. Separate sign-in/out pages pass 19 assertions and waiver
+restrictions pass 14. All 401 root and 509 plugin test files pass locally.
+
+CI run [35534147266](https://github.com/riddhimanrana/lets-assist/actions/runs/35534147266)
+passed the full release gate at `e34fe721`: quality, production build, 389 database
+files with 10,101 assertions, the complete concurrency command, workflow and
+scale checks, three DV browser tests, and 161 CSF/browser tests with four existing
+skips. The latter includes the full attendance guest journey. Both CodeQL
+analyses passed. Local owned stacks were removed after verification.
+
+The earlier legacy concurrency fixture failure was repaired by recreating fresh
+synthetic attendance between independent scenarios. Runtime guards remain
+unchanged. [PR #766](https://github.com/riddhimanrana/lets-assist/pull/766)
+records the exact integrated candidate and hosted Development results. The
+attendance feature has not been released to Production.
+
+The feature branch includes Development `3b412698` and its exact private
+plugin revision. Historical release tests still use only their approved ledger;
+46 focused release tests pass. The hosted workflow now includes a guarded
+fictional attendance journey before the existing CSF load acceptance. Target,
+authorization, cookie, reporter, and cleanup tests pass. Hosted execution is
+recorded separately from local proof in the integration PR. This acceptance
+addition does not authorize a Production release.
+
+The refreshed local candidate `0c17987e` passed a fresh 635-version migration
+replay, production build, and the complete attendance browser journey, including
+failed-scan recovery and cleanup. Readback found no remaining fictional records
+across the 15 checked tables, Auth users, and profiles. Seven review/retry tests
+also pass. The separate CSF browser fixture repairs are integrated, and that
+task released the shared Development hold after its focused browser proof and
+short CI passed. The combined attendance release gate follows that final base.
 
 ### Development-only staff and member follow-up, September 16, 2026
 
@@ -9681,3 +10852,1281 @@ Local proof: 20 activity-removal database assertions, 69 existing Unsubmit asser
 ### P2: Removed activities block preserved point reviews, September 28
 
 Fixed locally in the activity removal release follow-up. The archived activity guard prevented pending point approval and correction. Forward migration 687 keeps existing claims reviewable without reopening new submissions. Ten new pgTAP assertions and 192 existing point and activity assertions pass. Production remains pending the updated release checks.
+
+### P2 review: Verified-account collision lookup scale, September 28
+
+The verified-account predicate still normalizes login emails while checking contact collisions. The exact query completed in 25.749 ms with 20,000 synthetic confirmed Auth users, active profiles, and verified connections on an owned isolated stack. This measurement does not establish a release-blocking latency defect. The existing profile and application contact indexes remain covered separately. A trial using lower(email) still scanned Auth rows because the managed index begins with instance_id; the unpublished trial was discarded. Future account lookup optimization must preserve normalization and avoid modifying provider-owned Auth indexes. Evidence and disposition are recorded in Production PR #854, comment 4130085030.
+
+The same review's announcement concern is disproved by the current dispatch authorization, which calls csf_publication_email_recipient_allowed before releasing the provider payload. The helper rejects non-published source activities. All 22 publication preference assertions passed again locally, including source withdrawal and durable suppression. Existing drafts may finish proof upload after removal as part of preserving already started student records; creation of new claims remains blocked.
+
+### Production verification, September 28 activity and contact release
+
+Production now serves accepted commit `fb326cb335e5ccd90244ba304891180d1c5bc4ca`, deployment `dpl_7apJ4wwUYWChsd31yN7M3BokJXLm`, with CSF 1.2.85 installed through the organization Update action. Migration run 36532207810 and app run 36532329191 succeeded. Full CI passed 10,792 database assertions, 144 CSF browser journeys, and 3 DV browser journeys. Hosted acceptance run 36526563004 passed on attempt 2 after an initial review-navigation timeout. All four previously enabled workers are restored; scheduled post publishing remains disabled.
+
+Chrome verified that the archived activity is absent from the staff catalog. Its retained campaign remains present. All 252 approved contact fills match independent read-only database checks, with all other contact fields and verified account connections preserved. The 18 user-verified account links are complete. Three new requests await separate ownership confirmation and remain pending. No student decisions, earned credits, or proof files were deleted to test this release.
+
+## P1: Retained signups disappear after schedule edits, October 11
+
+Finding: `PROJECT-ROSTER-REMOVED-SCHEDULE-20261011`. Authorized attendee
+reads still contain approved signups on removed days or slots, but the details
+page renders only the current schedule. Older unambiguous schedule aliases
+also fail to contribute to current slot capacity.
+
+Status: implemented and verified locally; no hosted or Production deployment.
+The read index recognizes existing aliases without rewriting saved IDs. The
+roster lists remaining authorized attendees under Previous schedule without
+assigning them to current capacity or providing a signup action. Pending and
+cancelled records retain the existing visibility and occupancy rules. Loading,
+read failure, retry and restricted states are distinct. Twenty-five focused
+regressions cover legacy and current IDs, role-based schedules, completed and
+archived projects, participant and manager policy, ambiguous repeated dates,
+previous slots, and stale attendee requests.
+
+Missing historical records are a separate unresolved finding. Production's
+guest cleanup deletes signup rows with expired unlinked profiles. The existing
+foreign-key repair does not preserve those rows. Historical deletion attribution
+and recoverability require a prior snapshot; a visibility fix does not recover
+missing data. A reviewed retention transition and forward migration, isolated
+pgTAP verification, backup availability and separate authorization for any
+Production action remain necessary. No scheduler or retention policy was changed.
+
+## P2: Project discovery failures look like an empty feed, October 11
+
+Finding: `PROJECT-FEED-FAILURE-EMPTY-20261011`. Discovery reads returned an
+empty successful response after a database error. The local repair propagates
+a sanitized failure to the existing retryable API response. Regressions cover
+both public discovery and organization discovery failures.
+
+The disabled home demo previews distinct empty, filtered, restricted, error
+and loading layouts. Only actual HTTP 401/403 responses select restricted copy.
+The fictional six-project list and sample counters stay outside the real feed,
+signup data and activity counts. Production refuses the demo flag. The preview
+and local checks do not establish hosted acceptance or authenticated workflow
+coverage.
+
+## P2: Navigation hierarchy and organization empty states, October 11
+
+Finding: `NAVIGATION-HIERARCHY-20261011`. Six supplied desktop screenshots
+show a left-clustered public navbar, narrow discovery/directory layouts, quiet
+organization roles and entity tabs, and ambiguous account versus project Sign up
+labels. Historical centered navigation and wider organization layouts provide
+useful comparison evidence. An isolated design candidate was implemented and
+independently reviewed with actual Claude Opus 5.5. It clarifies account and
+upcoming navigation, widens discovery/workspace layouts, adds eligible empty
+actions, shares readable role labels and restores generic entity line tabs.
+Compact plugin styling, account routes, trusted creation eligibility,
+member/staff/admin checks and the separately tested roster repair are preserved.
+Local source/render regressions pass; mobile, selected/focus, contrast and
+authenticated browser acceptance are open.
+
+Finding: `LIGHT-TOKEN-CONTRAST-20261011`, P2. Source token arithmetic at the
+preceding candidate gives approximately 3.00:1 for light primary text against
+its fill and 4.28:1 for info text against its ten-percent tint on white. These
+small-text pairs need rendered measurement and a reviewed primitive/token fix.
+The calculation excludes gloss and varying backgrounds and is not a complete
+accessibility audit. Avoid adding small low-contrast colored text in the design
+candidate. No global token or theme preference was changed for this finding.
+
+Finding: `ADMIN-QUEUE-READ-FAILURE-20261011`, P1, repaired locally. The four
+content report statistics queries and the moderation view or fifteen compatible
+legacy queries now require complete successful responses. An error, rejected
+query, absent count or missing row response returns a sanitized load error;
+valid empty responses still return zero. Exact counts on the view and status
+reads detect API row-limit truncation instead of accepting partial aggregates.
+Only `42P01`, `42703` and `PGRST205` permit legacy reads. Permission, timeout and
+unrelated query errors cannot trigger that fallback.
+Both existing admin pages show their load-error boundary instead of rendering a
+successful queue snapshot. Fresh server-managed super-admin authorization and
+enrolled MFA checks remain in place; no RLS, grants or production data changed.
+
+The initial regression reproduced 34 failures across 50 cases before repair.
+Reader tests include denied volunteer, trusted-member, organization staff/admin,
+forged metadata, demoted and MFA-pending actors, individual query failures and
+successful nonzero/empty reads. Page tests cover both statistics errors on both
+admin pages and deny unauthorized access before reads. Hosted and rendered
+authenticated checks remain pending. Historical high-priority totals still
+include resolved reports; the overview retains neutral zero-count helpers and
+does not treat every historical high-priority report as open.
+
+## Landing motion closeout, October 11
+
+The three scoped Emil plans are implemented locally with actual Claude Opus 5.5.
+The comparison advert label uses readable steady foreground text. The headline
+retains its ordinary cadence and transition while reduced motion renders a plain
+word; hidden documents and zero/one-word lists create no flip timer. The QR
+detection cycle clears both interval and pending timeout when hidden, disabled
+or reduced, and returns to idle before a fresh visible cycle. Existing initial
+content remains legible, with no new live-region announcements or dependencies.
+
+Lifecycle regressions exercise the actual components and effects with fictional
+timers and visibility/preference stand-ins, including cleanup/setup replay. They
+do not replace real React reconciliation, hydration or in-flight frame checks.
+The known dim-phase label contrast issue needs remeasurement in both rendered
+themes before accessibility signoff. Current native local navigation is blocked;
+no complete animation, accessibility or redesigned-screen audit is claimed.
+
+## Applications rendered roster budget — October 11, 2026
+
+`CSF-APPLICATIONS-PAYLOAD-20261011`, P2, source repair; hosted validation pending. Hosted Development `accba0cf` returned all 9,531 requests successfully but failed only officer Applications p95 (2,850.83 ms against 2,500) and p99 (5,519.97 ms against 5,000), following another route-specific failure on `6d2ec8cb`. The budgets and required 100 distinct identities, 1,000 applications, 15-minute load and 25 review navigations remain unchanged.
+
+Private PR #649 pages only the rendered Applications list in groups of 50. The complete authorized roster still supplies search, pending/all counts, stable coordinates, assignments, evidence and the review queue. Point campaigns remain unpaged. The workspace owns page position so returning from review retains it; scope/filter changes reset it and a shrinking list clamps it. Paging announces the range and focuses/scrolls to its first row without animation. No authorization, RLS, database read or mutation contract changes.
+
+The same real authenticated route on an owned isolated Supabase stack with the repository's 1,000-application fixture returned about 3.62 MB before and 1.25 MB after (65% less). The real roster component's SSR markup dropped from 1,246,109 bytes/1,000 rows to about 71 KB/50 rows. Development-mode wall times were noisy during concurrent compilation and do not prove a hosted latency improvement. Eleven focused regressions, affected static checks and the complete plugin gate passed locally. A synthetic browser check visited all 20 pages/1,000 unique applications, retained the full review queue, checked keyboard paging/search/reset and page-20 return persistence, and recorded zero browser errors. Actual Claude Opus 5.5 review found a page-state regression, which was corrected; its follow-up found no actionable P0–P2.
+
+This is an ordinary embedded Development integration. Fresh exact-head short, full integrated and hosted gates are required before acceptance. Main, Production, signed release tags, organization activation and the held Production guest-signup cleanup job remain unchanged. This record does not claim complete visual audit coverage.
+
+### Server paging review and expanded platform audit, October 11
+
+`CSF-APPLICATIONS-PAYLOAD-20261011` remains **open**. PR #873 review identified
+that the rendered-page change above still fetches and serializes the complete
+roster and performs list filtering in the client. It therefore does not satisfy
+V51. A private correction is implementing bounded server pages, lightweight
+counts, explicit frozen review/split snapshots and lazy authorized detail.
+Neither the earlier green short gate nor the local payload reduction closes
+this finding. Integrated SQL, browser and unchanged hosted performance evidence
+are pending; PR #873 must not merge on its earlier row-only head.
+
+The independent platform audit reproduced the following repository defects.
+Each is **open, under local repair** until its focused regression and integrated
+boundary checks pass. These observations do not authorize provider calls,
+historical award processing, scheduler activation or Production changes.
+
+| Finding                                  | Priority | Reproduced behavior and required correction                                                                                                                                                                                                                    |
+| ---------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WAIVER-CONTENT-VALIDATION-20261011`     | P1       | Arbitrary bytes accepted as PDF/image, and a failed signature-image decode can produce a successful blank signed PDF. Validate actual content on both upload paths and fail closed during rendering.                                                           |
+| `WAIVER-UPLOAD-RETRY-20261011`           | P2       | A failed second file followed by retry can link the first file twice. Preserve completed upload identity and retry only unresolved files.                                                                                                                      |
+| `FILE-PREVIEW-FALLBACK-20261011`         | P2       | Supported download-only files remain behind a loading overlay; signature UI also advertises a larger limit than the server. Use usable truthful preview/fallback and one signature limit.                                                                      |
+| `PROJECT-ACTIVE-MEMBERSHIP-20261011`     | P1       | Inactive organization staff pass role-only project creation and restricted-read checks, including SQL policy. Require active membership while preserving creator and public access.                                                                            |
+| `DRAFT-PUBLICATION-RETRY-20261011`       | P2       | Concurrent or response-loss publication can create duplicate projects; ignored draft deletion leaves a republishable draft. Use a durable attempt identity and affirmative completion.                                                                         |
+| `INVITATION-ROLE-ACK-20261011`           | P2       | A failed member-to-staff update can consume an admin invitation and return success. Require affirmative authorized role transition.                                                                                                                            |
+| `CERTIFICATE-VERIFY-TRUTH-20261011`      | P2       | CSV accepts altered recipient/organization fields and numeric suffixes; database verification failure can appear as missing certificate. Compare complete canonical fields and distinguish retryable backend failure from private absence.                     |
+| `HOURS-DISCOVERY-RECOVERY-20261011`      | P2       | Only48–72h sessions are discovered; old or capped sessions can be omitted and repeated failures can starve others. Use fair complete bounded discovery with explicit approved scope and truthful holds.                                                        |
+| `CERTIFICATE-OUTBOX-RECOVERY-20261011`   | P2       | Committed awards are not independently revisited for queued email; supplemental retry can leave delivery unledgered. Use transactional enqueue and recovery restricted to immutable original approval, never replay accepted/unknown results.                  |
+| `GOOGLE-EFFECT-AUTHORITY-FENCE-20261011` | P1       | Revoked or retargeted report authority can still write the previous Sheet, and stale Calendar completion can affect changed configuration. Revalidate exact authority/binding before writes and require fenced affirmative completion.                         |
+| `WORKER-FAILURE-HEALTH-20261011`         | P2       | Per-organization failure returns HTTP200 while run receipts classify failure, misleading fallback/heartbeat health. Preserve truthful status and sanitized outcome counters.                                                                                   |
+| `PERSONAL-CALENDAR-EDIT-20261011`        | P2       | Project-edit transport loses caller authorization and settled receipts block changed-payload reconciliation. Implement durable same-event updates with fresh authority and truthful recovery; cancellation/volunteer propagation also needs explicit coverage. |
+
+`PERSONAL-CALENDAR-DELETE-AUTHORITY-20261011`, P1, open under local repair:
+an exported Server Action accepts a caller-supplied user/event deletion
+snapshot and invokes service-backed Google deletion before authenticating or
+proving ownership. Supplied identifiers are not authority. The repair must
+derive immutable owned destinations from the authorized durable removal path.
+
+`HOURS-PUBLICATION-ORIGIN-REPLAY-20261011`, P1, open under local repair:
+the automatic wrapper can relabel an already committed manual publication as
+automatic on replay. Original approval and immutable email scope must survive
+manual/automatic races; only newly accepted automatic receipts may receive that
+origin. No historical receipt may be rewritten to enable recovery.
+
+`WAIVER-REQUIRED-PLACEMENT-20261011`, P2, open under local repair:
+the renderer's existing test accepts an actual signer placed on a page absent
+from the source PDF and produces a successful document without that signer.
+Invalid required signer placement must fail privately rather than create a
+false signed result. Historical definitions remain unchanged.
+
+`PROJECT-CLONE-ASSET-RETENTION-20261011`, P2, open, source-ledger evidence:
+cloning copies source document and cover URLs, while deletion removes the
+source folder and cover without checking surviving references. Source deletion
+can break a clone's files; clone deletion can remove the source cover. A
+reference-safe ownership/clone/delete transition and concurrency coverage are
+required before claiming this lifecycle safe. No real deletion was performed
+to reproduce it. Failed unlinked uploads also require scoped cleanup rather
+than unconditional source-folder deletion.
+
+Production's three background GitHub workflows are manually disabled. The
+latest historical jobs each failed five HTTP429 edge-checkpoint attempts.
+Current Development includes a Vercel schedule replacement, but the served
+Production revision does not. The three corresponding Better Stack monitors
+are paused; their old pings do not prove successful job execution. Monitor and
+account evidence is tracked separately from repository repairs. Production
+guest-cleanup job5 and retention remain untouched.
+
+### Analytics metadata audit, October 11, 2026
+
+PH-001, P1: AI telemetry disabled prompt/output recording but still forwarded
+arbitrary metadata, user identities and organization IDs. Fixed locally on
+`codex/posthog-privacy-20261011` with closed operation contracts, no caller metadata
+reads and the existing hosted-Production runtime gate. AI billing and gateway
+attribution remain separate. The patch is not deployed and does not enable new
+collection. See [analytics audit](analytics-audit.md) for focused source checks,
+deployment limits and proposed aggregate workflow metrics. Existing OPS-02 still
+requires served privacy-payload verification; no historical-data or release
+action was taken.
+
+### Correction readback and rendered component follow-up, October 12, 2026
+
+`CSF-CORRECTION-READBACK-20261012`, P2: full root CI at `1e2ecfd2` displayed
+the submitted correction after a successful officer acknowledgement closed its
+dialog. The dialog did not invalidate the open application detail cache.
+Private PR653 adds a confirmed-success callback to the existing visit-scoped
+refresh; independent review, private quality, 12 focused Chromium outcomes and
+queue/cache regressions pass. The reviewed fix is in private Development and
+Main as version1.2.89. A new immutable signed release and root integration must
+precede the full database-backed journey check. Signed1.2.88 remains unchanged.
+
+`LANDING-SAMPLE-LABEL-20261012`, P2: actual Development hero pixels had no
+persistent sample label despite presenting a fictional project. The candidate's
+window chrome now labels it "Sample project" at all reviewed component widths.
+Organization Admin/Staff colors also match the supplied green/blue reference.
+Actual compiled components and repository CSS were inspected at1440,390 and320
+pixels in both themes with fictional props. Phone feed/directory empty padding
+is reduced at its call sites while desktop and shared-primitive defaults remain
+unchanged. The passive URL chip is hidden on phones, and membership cards use a
+decorative brand wash with semantic role text and focus rings.
+
+Component captures show no page errors or horizontal overflow. Computed-color
+contrast arithmetic clears4.5:1 for the reviewed12px role labels, including the
+light filled-primary gloss endpoint. These are component and nominal-color
+proofs, not whole-app, interaction, hosted or Production acceptance. Final
+candidate landing, mobile navbar, generic tabs, all roles/states and matched old
+counterparts remain incomplete.
+
+### Final-candidate retained CI visual review, October 12, 2026
+
+`ATTENDANCE-MATCH-LABEL-20261012`, P2: authentic passing CI phone captures
+at root0491ae55 clipped the attendance review's native select default label.
+The candidate shortens it to "No existing signup", links the existing help text
+through aria-describedby and rounds the select to match its neighboring inputs.
+Matching values, identity resets and save behavior remain unchanged. Existing
+14 focused review/consistency cases, affected lint and full TypeScript pass.
+Six actual-component captures at1280/390/320 in light/dark show the label fits, with native focus and option changes passing. The native option and visit-date grids also required scoped min-w-0 constraints: at320 the dialog previously had273px client width but291px scroll width. Current captures have273/273 with zero horizontal scrolling, in both themes. Arrow-key native-menu selection remains unproved by the macOS/headless fixture; source behavior is unchanged. The new exact-candidate full gate remains required.
+
+Actual Claude Opus5.5 inspected all12 retained final-candidate CI PNGs, covering
+light desktop/phone proof review, student matching, attendance review and
+corrected certificate/hour pages. Navbar centering, wrapping of long fictional
+labels and primary dialog/page hierarchy are confirmed in those frames. This
+adds actual rendered surfaces, not dark/full-role/matched-old or whole-route
+coverage. The black proof block is a deliberately one-pixel black test image,
+not evidence of a blank document renderer.
+
+Smaller P3 findings remain scoped follow-ups: singular point-count grammar and
+phone proof-toolbar wrapping/shared refresh/rotate icon in private CSF;
+"Main event" versus "Main session" and missing displayed timezone in the
+volunteer's status; lowercase "manual" in the certificate helper's fallback.
+The timezone source attribution in the first review needs verification before
+changing a formatter. Faded buttons, comfortable modal scrolling and a
+mid-transition paging frame are unconfirmed observations. Existing immutable
+private1.2.89 is preserved; these observations do not authorize modifying its
+signed bytes or enabling any provider flow.
+
+The attendance review also exposes each current local date/time as an explicit
+24-hour value beneath phone inputs, associated through aria-describedby.
+Native datetime widgets can clip the AM/PM segment at320px; the readable local
+value prevents that crop from hiding the time being reviewed. Native input
+values, timezone parsing, DST choices and save behavior remain unchanged.
+
+### Concurrency fixture and browser assertion repairs, October 12, 2026
+
+`HOURS-FIXTURE-MAINTENANCE-20261012`, P2: full run38191711867 at
+`a14acff1` failed the Hours concurrency fixture at01:35:05. Its past-dated
+2021 project could become completed during the five-minute status maintenance
+tick, before a later independently committed signup approval. The active-project
+approval guard correctly refused it. Fixture setup and each independent legacy
+reapproval now hold the project in one transaction through enrollment. Real
+`process_projects()` runs after each commit while holding the same maintenance
+advisory lock, with a10-second lock timeout and a required completed-state
+assertion. This waits for competing cron maintenance instead of silently skipping
+it. Only the synthetic fixture is restored between races.
+No lifecycle function, cancellation guard, migration or worker schedule changed.
+An owned native PostgreSQL probe reproduced the old refusal, waited behind a real
+competing maintenance lock, passed the initial
+enrollment and both exact repaired reset blocks, and confirmed cancelled projects
+still refuse approval. The probe used the three actual repository SQL functions
+with minimal supporting tables. It does not replace the full Supabase replay or
+publication-lock gate.
+
+`CSF-BROWSER-ASSERTIONS-20261012`, P2: run38191042614 at`d973c6ee`
+exposed three brittle acceptance assumptions. Released applicants could fall
+beyond the first50-row server page as fictional fixtures accumulated. The test
+now reaches each released applicant through committed name search. Profile tests
+select the accessible term panel and require exactly one visible matching panel.
+Post tests require exactly one accessible class heading, avoiding hidden retained
+markup. All database state, release, role-revocation and whole-DOM privacy
+exclusions remain. No `.first()` selection, test budget increase or business
+behavior change was used. Full TypeScript, affected lint and shell syntax pass;
+the repaired browser journeys and complete database concurrency suite require the
+new exact-source full CI run.
+
+`ACCOUNT-EXPORT-ZIP-TIME-20261012`, P2: full run38193536706 at
+`5663d120` failed account export byte equality. JSON file entries already used
+the database snapshot timestamp, but JSZip's implicitly created directory
+entries used the current clock. Rebuilding the same snapshot across a ZIP clock
+tick could therefore change its bytes. Parent directories now receive the same
+snapshot timestamp explicitly. File paths, directory entries, dataset contents,
+redaction and size bounds remain unchanged. The regression requires every
+directory entry to carry the fixture snapshot timestamp. It failed consistently
+before the fix and passes afterward, along with all11 export cases and30
+assertions. The original archive byte-equality assertion remains. Full TypeScript
+and affected lint pass; fresh exact-source full CI remains required.
+
+### Public-page design readback, October 12, 2026
+
+Actual Claude Opus5.5 reviewed the served Development landing, Help, Contact
+and Acknowledgements in the explicitly confirmed Chrome connection. Captures
+use1480x1329, light theme, existing fictional signed-in state and sourceaccba0cf.
+No setting, form, provider, demo mode or other tab changed. The owned tab closed.
+FAQ redirected to Home; that route and signed-out/mobile/dark states were not
+reviewed. Eleven public-page frames are retained; the incidental fictional Home
+redirect frame is excluded. This is additional bounded visual evidence, not a
+complete redesign or matched old/new audit.
+
+`PUBLIC-CERTIFICATE-PROMISE-20261012`, P1: landing and Help promised automatic
+certificate publication within48–72 hours or immediately after participation,
+while live worker execution was unverified. Landing, Help, FAQ and QR completion
+copy now tie availability to verified attendance and published hours. They make
+no delivery-time promise. The FAQ also leaves acceptance for school or CSF
+requirements to the relevant school or chapter. Provider scheduling, publication
+logic, data and signed private1.2.89 remain unchanged.
+
+`HELP-CERTIFICATE-NAVIGATION-20261012`, P2: Help directed volunteers to a
+missing Certificates navigation item. It now points to its existing certificate
+link and the actual Volunteer dashboard, All hours and Export labels.
+
+`FAQ-AUTHENTICATED-ACCESS-20261012`, P2: FAQ was incorrectly grouped with
+login/signup in the authenticated redirect list. Removing only FAQ makes this
+public information page accessible when signed in. The new request regression
+reproduced307 before and passes200/private no-store afterward; login still
+redirects to Home. Existing protected routes, fresh authentication, MFA and
+management permissions remain.21 proxy cases,41 landing accessibility cases,
+3 first-render cases and3 Help cases pass, as do TypeScript and affected lint.
+Independent engineering review and actual Opus source readback found no blocker.
+Exact-source full CI and final hosted rendered proof remain required.
+
+Unverified P3 follow-ups remain: help metadata, scroll-time reveal/layout changes,
+phone wrapping of the longer copy, reduced motion, and competitive feature
+claims. The apparently duplicated closing heading is not an established defect:
+existing accessibility tests verify its exposed text once, but the full route
+still needs rendered assistive-technology inspection. Neither a source test nor
+these desktop captures completes the requested whole-site accessibility audit.
+
+### Build-window teardown ownership, October 12, 2026
+
+`ISOLATED-BUILD-TEARDOWN-20261012`, P2: full run38196088865 at
+`4b5be941` failed the pre-child teardown fixture. A group shutdown could land
+after readiness but before the blocking build child existed. That child missed
+the group signal, while its parent's handler could not run during `spawnSync`.
+The same narrow gap existed around real isolated builds.
+
+Platform and plugin builds now use the existing asynchronous owned-child
+supervisor. Signals reach the build group while the parent waits. The helper
+waits for exit, checks pending shutdown and removes exactly that completed
+build's child and exit registrations, so it cannot terminate a later runtime
+drain or receive stale-PID signals. The claim remains owned by the launcher and
+is released through its existing finalizer. Working directories, positive
+environment allowlists and provider guards are unchanged.
+
+A250ms pre-spawn fixture hold reproduced the old20-second failure locally.
+The repaired actual supervisor passes all10 teardown cases/44 assertions,
+including the unchanged aborted-build,20-second deadline and empty-claim
+checks. A new regression proves a completed build cannot end or signal the
+subsequent runtime. Existing41 runner cases/271 assertions, TypeScript and
+affected lint pass. Independent source review found no blocker. Current-head
+full CI remains required; no timeout or acceptance assertion was relaxed.
+
+## P2: Settled landing copy and phone layout, October 12
+
+Actual Claude Opus 5.5 reviewed all five settled native landing captures from
+full run 38253378376, including light, dark and reduced motion. The prior blank
+organization reveal, QR image delay and long footer capture were settlement
+artifacts. This is landing evidence, not complete redesigned-screen acceptance.
+
+Findings `LANDING-PROVIDER-CLAIMS-20261012` and
+`LANDING-SAMPLE-IDENTITY-20261012`, P2, are corrected in the frontend candidate.
+The competitor table cites dated official provider pages and no longer asserts
+unverified feature absences. The hand-drawn provider panel is labelled
+illustrative. Hours CSV reports are described specifically, and parental
+consent is not presented as a legal compliance certification. The organization
+preview says Sample organization, uses a reserved example domain and shows no
+verified badge. Permissions, actions, fixture records and private integration
+are unchanged.
+
+Findings `LANDING-TESTIMONIAL-DISCOVERY-20261012` and
+`ORGANIZATION-RECENT-TITLE-WRAP-20261012`, P2, have candidate fixes. Testimonial
+cards use a responsive width and arrow movement follows the measured card;
+Home, End and modifier handling remain. Recent project titles can wrap to two
+lines on phones and remain one line on desktop. Focused tests and component measurements verify keyboard movement and title
+wrapping. The phone render found a 13px blank peek under a 15px scrollbar
+gutter. The revised 96px subtraction shows 33px and part of the quote icon.
+Fresh exact-source rendering and full CI are required before closure.
+
+The scoped orange headline uses orange-700 in light mode and retains
+orange-400 in dark mode. Component rendering measures at least 5.18:1 in light and 7.75:1 in dark.
+This is scoped headline evidence. The existing shared primary token issue
+remains separate. No global palette changes or
+complete accessibility signoff are claimed.
+
+## Cloud continuation and layout capture quota, October 12
+
+The local owner stopped owned watchers, browsers and servers and handed off
+frontend PR874 at `d3b62e82836388680f299f02bfa61c91cf56775d`. Cloud work uses
+that existing branch and exact private gitlink `38dc7c7aff6fd101c87f92eebfae822d1726f2b4`.
+Backend PR873 remains separate and unmerged. No branches were deleted.
+
+Full run [38264156631](https://github.com/riddhimanrana/lets-assist/actions/runs/38264156631)
+passed all 12 baseline jobs, including database replay and four browser shards.
+Layout and the dependent aggregate gate failed. Its validated upload list names
+62 PNGs, including all four home-member modes. This proves retained captures,
+not loaded receipt states or inspected pixels. The cloud artifact download
+returned HTTP403; the precise failed guard and old-versus-new pixel acceptance
+remain unverified. No cause is inferred from filenames alone.
+
+Finding `LAYOUT-AUTH-QUOTA-20261012`, P2: the capture loop repeats password
+sign-in per viewport/theme despite the local 30-per-five-minute quota. The cloud
+repair caches at most 22 exact baseline actor sessions in process memory and
+validates each exact JWT through Auth before every capture. Foreign identities,
+revocation, expiration and quota overflow fail closed. No retry, token refresh,
+sign-out, persisted cookie/session file or broader browser traffic allowance is
+introduced. Twelve focused Node/Bun tests cover 266 capture accesses with 22
+sign-ins and 266 identity checks. A fixed-field summary logs validated receipt
+state counts and failed-scene fault counters without private errors or traffic,
+so diagnosis does not depend solely on artifact transport. Seven adversarial
+summary tests cover privacy, unknown fields and loading-state separation.
+The owned staged package digest, 266 Linux adapter checks, 568 original guards,
+52 settlement checks, 65 notification/privacy checks, changed-file formatting,
+zero-warning lint, agent policy and source organization pass in cloud. The
+broader four-file tooling run reports 52 passes and eight fixture failures;
+an isolated reproduction identifies the missing cloud `rsync` executable
+(exit127). These failures are not credited as a pass or changed to skip.
+
+Fresh cloud read-only metadata confirms Development ledger723 and all landing
+switch objects, and Production ledger687 with all four objects absent.
+Development has four active database cron schedules and no enabled CSF worker
+control rows. Production has six active schedules, one enabled worker-control
+row and no configured application write block. Neither has a running cron row
+or active publication-notification lease at this observation. These checks are
+not the complete catalog, credential capability, external-writer hold or live
+PostgREST enforcement gates. The last READY Development deployment remains
+`accba0cfc2cd2f880b5632f4535cea822947da94`; Production remains
+`fb326cb335e5ccd90244ba304891180d1c5bc4ca`.
+
+Cloud Node24.21.0 and Bun1.4.2 are installed. The frozen dependency installation
+is blocked by HTTP403 from the committed SheetJS archive URL; root typecheck
+reports its missing module and resulting inferred-type errors. The dependency
+URL and lockfile remain unchanged. The cloud GitHub CLI cannot use its supplied
+token for Actions; connected GitHub read tools work. Exact-head full CI,
+receipt/pixel review, remaining fixtures and old-runtime parity, hosted
+Development acceptance and all conditional Production gates remain open. No
+merge, deployment, secret transfer, provider activation or policy bypass occurred.
+
+## Cloud layout corrections and signup restoration, October 12
+
+Full run [38300762442](https://github.com/riddhimanrana/lets-assist/actions/runs/38300762442),
+at `28e791a7b5acc9450f9e20613c2877341759e5c0`, passed all twelve baseline
+jobs and failed layout and the aggregate gate. Its receipt has 67 attempts,
+66 retained PNGs, 64 awaiting pixel review, two loading states and one blocked
+integration scene. Two invitation modes still contain loading markers; four
+retained invitation PNGs do not establish four settled interiors. The integration
+scene refused two initial POSTs. Remaining scenes and native old-versus-new
+acceptance are open.
+
+The consolidated frontend correction restores the source-backed old project
+layout: About, Volunteer opportunities and Project details cards, individual
+slot rows with inline signup and the image inside the right-hand details card.
+Shared ProjectDetails supplies both actual project pages and the embedded
+Santa Cruz Beach Cleanup demo. Current authorization, waiver, status, capacity,
+confirmation and roster behavior remain. Controlled rendering covers 1280px,
+390px and 320px in both themes and the guest authentication dialog. Seven new
+regressions cover slot actions, disabled states, creator behavior and card
+structure. This is component evidence, not native authenticated acceptance.
+
+The member visibility switch has an explicit accessible name and description.
+Phone moderation tabs use two columns so all four labels fit. Resting capture
+requires a continuous quiet period across both tooltip roles and Base UI portal
+slots, including the exit phase after role removal. Invitations and integrations
+must finish visible loading within a fixed twelve-second bound. Unresolved
+loading still fails.
+
+The exact initial integration getters are admitted only for independently
+observed empty fictional configuration, organization bindings and viewer
+connections. Identity-column queries are bounded to the first row; no credential
+columns are selected. Seventeen literal source hashes, compiled manifest bytes,
+exact action IDs, exports, workers, route, actor, body and organization are
+required, with renewed disconnected proof before each mode. Connected getters
+can refresh credentials or probe providers and remain refused, as do owner
+lists and every mutation. Forty-one adversarial tests cover these boundaries.
+
+Public landing capture now observes its live comparison word and demo phase
+before and after each PNG, retries at most three times and rejects transition
+frames. It never freezes animation. Controlled actual HeroHeading and
+PlatformFeaturesSection traces and compositor recordings demonstrate normal
+letter and word movement and reduced-motion still states. Scoped comparison
+button, provider-note and badge colors address measured weak text; shared
+theme tokens are unchanged. Component contrast measurements include explicit
+gradient bounds because axe alone cannot establish those colors. Native
+exact-head motion, full-scene contrast and complete pixel acceptance remain open.
+
+The frozen SheetJS archive still returns HTTP403 in cloud. Typecheck has ten
+missing-xlsx or dependent-inference errors; a landing accessibility module also
+cannot import that dependency. No lockfile substitution or waiver is made.
+Hosted Development and Production have not been changed. Production remains
+ledger687 with the landing objects absent; its real bootstrap, credentials,
+writer holds, recovery capture and schema/application compatibility gates are
+required before the authorized release. PR873 and all feature branches remain
+preserved.
+
+Cloud validation for this correction: the refreshed owned package passes all
+266 Linux adapter checks, 568 original guards, 52 landing settlement checks,
+65 notification/privacy checks and 99 focused capture tests. Four signup UI
+modules pass 14 tests; the isolated member-switch module passes one test.
+Changed component lint, formatting, agent policy, root/private source layout and
+strict private-submodule checks pass. The broader five-module CI tooling run
+passes 76 tests and fails four replay-fixture tests because `rsync` is absent
+(exit127). This is not full CI. Controlled comparison captures settle in all
+four desktop/phone theme modes; all six phone demo phases in both themes show
+no axe contrast violation or conservative gradient-bound failure. Native
+application coverage and release acceptance are still pending.
+
+## Short CI review correction, October 12
+
+Automatic short run
+[38309488545](https://github.com/riddhimanrana/lets-assist/actions/runs/38309488545)
+failed at `c07d407194af421d6f837b2b97f239554dbb939b`: zero-warning lint
+found an unused integration-test import, and two landing markup assertions
+expected the prior badge color and demo title classes. Unit shard2 passed.
+The correction removes that import, requires the Open badge to retain its
+neutral variant with foreground text and no filled gradient, and expects the
+restored bold responsive demo heading while preserving its h2 semantics.
+Product markup is unchanged. The frozen test package and CI digest are refreshed.
+
+Fresh controlled actual-component/CSS measurements at1280px and390px show
+18.10:1 badge contrast in light and9.69:1 in dark, neutral variant and no
+background image, with no axe contrast findings or page errors. Colors are
+composited through the actual ancestor backgrounds; samples are taken only
+while the badge is fully visible. This is scoped contrast evidence, not native
+full-page acceptance.
+
+Full zero-warning lint, formatting and agent policy pass. The owned package
+passes266 Linux checks,568 original guards,52 settlement checks,65 notification
+checks and99 focused tests. The integration suite passes41 tests; actual project
+header/signup suites pass10 tests. Landing accessibility passes52 tests; its
+hero import remains blocked by the locked xlsx archive returning403 in cloud.
+No mock replacement or skip hides that missing dependency. The corrected
+automatic short gate must pass before a full-run request; no full-run trigger
+or deployment occurs for this correction.
+
+## Phone moderation tab height, October 12
+
+Review [4252427910](https://github.com/riddhimanrana/lets-assist/pull/874#discussion_r4252427910)
+identified a height risk at `907b20e40646a590aef45ccc73226b598977e7b6`.
+Fresh actual-component/CSS rendering reproduces it at320px and390px in both
+themes: the shared horizontal list is36px tall with71px of scroll content.
+Confirmed and Dismissed are outside the visible list and fail center hit tests.
+The earlier horizontal-bound checks did not establish vertical visibility.
+Playwright can scroll the list to click those tabs, so click success by itself
+also cannot establish resting visibility.
+
+A scoped list override uses automatic height below sm and retains the shared
+36px single-row height from sm upward. The shared Tabs primitive and moderation
+reads/authorization are unchanged. The controlled browser regression in
+`tests/e2e/moderation/moderation-tabs.browser.ts` fails against the previous
+36px phone list and passes the correction at320px,390px,640px and1280px in both
+themes. It checks actual list/label rectangles, two phone rows or one desktop
+row, unclipped text, center hit targets and all four clicks without hidden-row
+scrolling. The three changed-status callbacks retain the exact fictional
+organization and statuses. Only that read is an explicit stand-in; React, Base
+UI, Tailwind and app CSS remain actual. No external requests or page errors
+occur. Native authenticated acceptance remains separate and pending.
+
+Phone lists now measure71px; desktop/breakpoint lists remain36px. Full
+zero-warning lint and formatting pass. Typecheck remains blocked by the ten
+existing missing-xlsx/dependent-inference errors; the correction introduces no
+additional TypeScript error. No full CI, merge or deployment was triggered.
+The corrective head must pass the automatic short gate before a full-run
+request. The private pin, PR873 and all feature branches remain preserved.
+
+## Bounded landing PNG failure diagnostics, October 12
+
+Full run [38317158161](https://github.com/riddhimanrana/lets-assist/actions/runs/38317158161)
+at `cd7a0b92d580152eab4509516610020af050f4d6` passed all twelve baseline
+jobs and failed the first desktop-light landing capture with no retained PNG.
+The parent receipt review reports HTTP200, zero browser/network/mutation faults,
+no loading markers, broken images, overflow or accessibility findings, settled
+landing/tooltips and a ready comparison word check-ins with demo phase details.
+The suppressed failure leaves the PNG path unresolved; screenshot duration or
+state changes are hypotheses, not an established native cause.
+
+The diagnostic correction records at most three public PNG attempts: fixed
+failure/rejection categories, reviewed before/after words and phases, bounded
+document/viewport dimensions and elapsed milliseconds. Private error strings,
+URLs and unrelated fields are excluded. Output-preflight, capture and exclusive
+write stages distinguish a file/guard failure from the screenshot path. The
+existing three-attempt limit, five-second readiness wait,2.5-second image bound
+and actual readiness predicates remain. Animations run normally; no permission,
+traffic allowance, loader or image-policy change is introduced.
+
+Seven additional adversarial tests cover timing rejection, changed word/phase/
+height, failed screenshot/evaluation/wait, diagnostic privacy and isolation from
+private interiors. Thirteen comparison tests pass; the focused capture package
+passes106 tests. A bounded tall synthetic page runs the exact axe,16-keyboard,
+resting, landing, comparison and PNG helper order with actual HeroHeading,
+ComparisonSection and app CSS. Three desktop timings settle and retain actual
+PNGs. Its phone fixture detects a document-height change during the live word
+flip; that remains an open finding, not a waived or native passed capture.
+The previous native desktop failure is not reproduced by these fixtures.
+No full-run request, merge or deployment is made by this correction.
+
+### October12 full899 landing page-error evidence
+
+Full Code quality38321503995 on899369d8 passes all12 baseline jobs but fails
+layout-audit before its first PNG. The parent receipt records output-preflight,
+one page error and zero other browser/network/mutation faults; landing,
+comparison, assets and accessibility settlement pass. The decoded job log
+retains only the fault count. This is a different observation from the previous
+zero-fault helper failure; the actual exception and its cause remain unproved.
+
+The capture now preserves at most three public page-error diagnostics: fixed
+error kind/category, known capture phase, optional React error number, and a
+bounded line/column in a delivered local Next chunk with a generated filename.
+Messages, arbitrary stack/function/path/query text and actor values are omitted.
+Authenticated interiors still count every error without inspecting its text.
+Every event increments the fatal counter even after the diagnostic limit. No
+traffic, animation, readiness or error allowance is changed. Native reproduction
+through the owned cloud launcher is blocked by PostgreSQL image registration
+running out of Docker storage; no migrations ran. The lockedxlsx0.20.2 archive
+also returnsHTTP403 in this cloud environment. No additional full run or
+deployment is dispatched and the landing failure is not claimed fixed.
+
+A separate disposable PostgreSQL17 function harness checks actual QR generation,
+redemption, check-in and checkout actions, with the current SQL checkout RPC and
+committed row readbacks. Missing/tampered/wrong-project challenges, unauthorized
+checkout, canceled-project redemption and immutable retries pass. Actual typed
+and drawn SignatureCapture interactions at1280/390 light mode pass through
+waiver preparation, atomic signup/evidence SQL, matching project/signup/actor
+readbacks, retry and signed PDF generation. Missing evidence/signers are refused;
+an injected evidence constraint failure rolls back the signup. These use minimal
+fictional test tables and a local transport/storage adapter, not a full Supabase
+ledger/RLS or deployed product route. No real agreement or email is involved.
+
+Repository findings PLATFORM-AUTO-20261012-01/02/03, P2, open: current canonical
+automatic functions omit sameDayMultiArea, filter scheduled checkout to auto
+rather than providing the documented QR fallback, and turn a blank start into
+midnight attendance. The current verbatim function closure reproduces all three
+in disposable PostgreSQL; eight other automatic semantics checks pass. No
+historical migration or backend PR873 file is changed. Add full-stack pgTAP and
+browser regressions before claiming these workflows accepted.
+
+Read-only provider metadata shows zero marked CSF Sheet test workspaces/files in
+Production687 and zero marked workspaces in Development723. Development retains
+onecsf-load-fixture organization, which does not establish Google-write authority.
+Historical copied-workbook connection reports are not current resource proof.
+No live test Calendar/Sheet ID, fresh OAuth or provider write is claimed.
+
+### October12 landing demo calendar hydration correction
+
+The exact899 helper at the failed run's2026-10-12T23:41:01.616Z produces
+November12/13 on a UTC server and November13/14 in Los Angeles. Adding31/32
+local days crosses the daylight-saving change, then toISOString changes the
+calendar dates. This changes the real demo's dates and schedule IDs during
+hydration. A controlled production React reproduction using the source-derived
+factory, actual date formatter and actual ProjectDetailsHeader emits one page
+error, React418, with zero console or external-request errors. Reusing the server
+snapshot emits zero errors. This reproduces a concrete source defect with the
+same failure profile and clock; the original CI exception text was discarded,
+so its precise identity still requires native confirmation.
+
+The server now computes one Pacific calendar anchor and serializes it through
+Hero and HeroContent. Demo dates use UTC calendar arithmetic on that anchor;
+the legacy Saturday preview also formats its anchored calendar date explicitly.
+The corrected factory produces zero page/console errors in the same controlled
+hydration reproduction. Five calendar tests cover the failed instant, UTC/Pacific
+midnight, DST, leap/month/year boundaries and invalid inputs. Two native browser
+regressions compare the rendered demo date range with the server anchor in UTC
+and Pacific contexts and exercise the real demo-scroll toggle. They await the
+full owned runtime gate; no cloud-native Next/Supabase acceptance is claimed.
+
+Cloud validation passes122 capture tests,266 Linux adapter checks and568 original
+guards,52 landing settlement checks,61 notification/color checks, full lint and
+81 focused landing tests. One existing full Hero import test and standalone
+typecheck remain blocked by the unavailable lockedxlsx dependency; the ten
+reported typecheck diagnostics are the existing missing-module/dependent errors.
+No substitute package, waived check, second full dispatch or deployment is used.
+The three automatic-attendance findings above remain open and separate.
+
+### October13 approved Production preflight connection reuse
+
+The user approved reuse of the existing protected bootstrap owner connection
+for fixed Production preflight reads. The schema workflow now prefers a
+configured PRODUCTION_READONLY_URL and otherwise selects
+PRODUCTION_BOOTSTRAP_DATABASE_URL. An invalid configured URL fails without a
+fallback. Project, host, owner fallback, database, port and TLS checks remain;
+no role, credential, persistent grant or duplicate secret is created. Receipts
+label owner authority and read-only execution separately, and never describe
+the owner connection as a restricted login. Binding-only validation does not
+prove live connectivity.
+
+Fixed ledger/catalog/posture/data checks retain their explicit read-only
+transactions. The child session also defaults to read-only with a safe search
+path and bounded timeouts. The quiescence mode uses its reviewed SQL through
+the same secret-suppressing transport, replacing the shell URL argument while
+retaining its30-second process limit. Arbitrary SQL and extra CLI arguments
+are refused. Bootstrap mutation and schema-push paths remain separate. Exact
+source, protected review, application fence, fresh API proof, external-writer
+hold, SHA-bound recovery capture, schema/catalog and acceptance gates remain.
+
+Focused controller/bootstrap/fence tests pass37 checks; release and recovery
+contracts pass30 tests. A disposable PostgreSQL17 owner fixture passes nine
+actual CLI/quiescence checks, including DDL/DML refusal, no committed writes,
+active/running cron refusal and a disabled write-block flag refusal. The fixture
+uses minimal fictional tables and a bounded local transport adapter, proving
+transaction behavior rather than Supabase or saved Production credential
+capability. Its server and files are removed. No Production connection,
+writer change, recovery export, manual CI dispatch, merge or deployment is made.
+The integrated candidate still requires exact-head full CI and hosted
+Development acceptance, followed by the actual Production compatibility and
+recovery gates.
+
+The current PR review identified that a visible landmark could coexist with
+loading markers while the capture still reported success. The output preflight
+now requires an explicit zero visible skeleton/aria-busy count before any PNG
+write. Such incomplete scenes use the existing fatal blocked receipt and stop
+the run. Historical captured-loading-present receipts are no longer accepted
+by upload validation; successful PNG receipts must also prove zero loading
+markers. No time, traffic or mutation allowance is added. Focused regressions
+cover a visible landmark/PNG with a remaining marker and malformed or missing
+counts. Full native scene acceptance remains pending.
+
+Short CI38329529088 on0874a449 fails five new transport tests under Bun1.4.2,
+although their earlier Node execution passed. Bun executes the synthetic psql
+fixture when given --check, adding an unexpected call or triggering its fictional
+error. The syntax-only check now explicitly uses Node and verifies that zero
+transport calls occurred. All37 focused controller/bootstrap/fence tests pass
+under Bun1.4.2 with the repository preload. No Production code or credential
+changes accompany this test repair. The full dispatch was held; new exact-head
+short CI must pass before the parent starts full acceptance.
+
+### October13 scheduled attendance and comparison-cycle repair
+
+The three PLATFORM-AUTO-20261012 findings are source-fixed and locally verified;
+hosted/Production acceptance remains pending. Reproduction temporarily restores
+the exact original worker SQL inside a rollback-only transaction on an owned
+Supabase PostgreSQL17.11 database. A valid published named-role schedule remains
+approved with no attendance; QR arrival10:15 retains no departure after its12:00
+end; a legacy blank start incorrectly records00:00–12:00. The earlier named-role
+fixture lacked required overall times; the corrected valid fixture reproduces
+the omission, so this is a source defect rather than a changed expectation.
+
+Forward migration20261013010957_repair_scheduled_attendance_windows reuses the
+published-schedule validator through a private selected-session parser. Named
+roles and both multi-day ID forms use their exact slot instants. QR checkout
+fills only a missing departure at the scheduled end after a recorded arrival;
+explicit early departures remain unchanged. Blank/missing/invalid times and
+malformed legacy schedules are skipped without inventing midnight credit or
+aborting healthy rows. Started/completed published projects remain eligible
+after the scheduled status worker runs. Draft, cancelled/inactive, unapproved
+and future attendance stays unchanged. Manual attendance remains staff-owned.
+The workers lock project/signup boundaries without waiting on busy rows and
+retain explicit service execution with browser roles denied. They record
+attendance only; certificate publication and CSF points remain separate.
+
+All724 migrations replay successfully. The full existing pgTAP run passes500
+files and12,991 assertions, including45 new worker/window/authorization checks.
+The added two-session lock regression passes four assertions through the normal
+Supabase test runner. Clean catalog capture uses the exact fixture teardown in
+a rollback-only transaction:1440 objects, one new private parser and two changed
+worker definitions, with every other723 fingerprint unchanged. The complete724
+catalog and its prior release-boundary wrappers verify on that replay. No old
+migration or private gitlink is changed. Production remains687; Development723.
+
+ComparisonTextFlip's5ch reservation is independently reproduced as a phone
+rewrap: at390/414px, heading40.8→81.6px changes document height by41px. The live
+word animation keeps its2500ms timing; an aria-hidden grid of the actual phrases
+reserves the largest font-measured footprint. Capture readiness reads only the
+live phrase. Seven controlled Chromium width/theme combinations see every phrase
+and have invariant heading/document height, zero overflow and zero browser
+faults after the fix. This uses the real section, app CSS and Geist with Next
+link/image adapters; full Next route acceptance is separate. Three native phone
+browser regressions await the integrated full run.
+
+The image-registration obstacle is resolved locally by exporting the verified
+official PostgreSQL17.11 filesystem into one cache layer with all runtime
+configuration preserved; provenance is retained outside source. No registry,
+Docker daemon/security or provider setting is changed. Full local app startup
+still fails Auth/Storage health checks, which are not bypassed; the supported
+fresh database-only start supplies the SQL replay evidence above. The lockedxlsx
+archive remains unavailable:52 landing assertions pass while the existing Hero
+import and ten dependency-related type diagnostics remain blocked. No substitute
+or waiver. Exact-candidate short/full CI, full layout/pixel review, Development
+deployment/acceptance and the actual Production compatibility/writer/recovery
+gates remain mandatory.
+
+Short CI38337052343 on843f5f55 passes static checks and the first unit shard,
+but six headline lifecycle scenarios fail: the fixture counts the new hidden
+measurement phrases as live words. The fixture now checks the one invisible,
+aria-hidden measurement ancestor, every expected sizing phrase and its shared
+grid cell, then requires exactly one exposed live phrase. It retains all cycle,
+visibility, reduced-motion, zero/one-word, effect-replay and timer/listener cleanup
+assertions. All12 lifecycle scenarios pass on Bun1.4.2/Node24.21.0, alongside nine
+focused markup/accessibility tests with114 expectations. The product component,
+animation and verified heading geometry are unchanged. Exact-head short/full CI
+and hosted release acceptance remain pending; the full dispatch stays held.
+
+### October12 integrated browser and plugin-reader follow-up
+
+Full CI38338528368 on25242dd2 passes all501 database files/12,995 assertions,
+release/scale/concurrency and633 cron assertions, static/build/all three unit
+shards/full-quality. Browser shard2 fails the three comparison-cycle widths;
+layout stops at the plugin-settings scene after70 images. Neither is accepted
+as a complete UI audit or pixel review; no merge or deployment occurred.
+
+Comparison heading height stays constant through every word, but two document
+heights are recorded. The old test starts before client-only partner tiles,
+organization demo replacement and closing section are required to exist. A
+controlled real-component composition with deliberately delayed lazy regions
+reproduces this exact assertion shape at320/390/414px: organization content and
+inserted sections change page height while the heading remains constant. The
+same native-test measurement callback reports one document height after the
+new bounded presence/font prerequisites. It uses a fixed hero placeholder and
+Next/action/navigation adapters, so it proves the harness phase gap rather than
+the historical full-Next error identity. The native test retains strict all-word,
+one heading height, one page height, no overflow and zero fault assertions.
+Numeric initial presence/dimensions and bounded section-height transitions are
+attached for fresh native diagnosis; both geometry and fault assertions execute.
+
+The plugin-settings component calls getOrganizationPluginSettings on mount,
+but the scene previously declared no reader. Its source path revalidates active
+organization-admin access and only selects plugin catalog/access/install rows,
+with pure registry/release transformations and a STABLE local status getter
+chain. The new policy admits only that exact compiled export/worker, reviewed
+29-file snapshot, fixed fictional developer/admin organization, route and single
+argument. Twenty-five contract tests retain strict mutation/unknown-action/
+wrong-actor/organization/mapping/dependency rejection. All other POSTs remain
+fatal. The scene now uses the existing bounded loading-marker check. Fixed
+request-refusal categories improve future diagnosis without exposing IDs, bodies
+or private console text. The original blocked request/console identity remains
+unproved; fresh full scene coverage is mandatory.
+
+Reviewer finding4254134963 is repaired in dashboard certificate export and hours
+rows. Project wall clocks, dates and abbreviations now use one project timezone
+with the existing Pacific legacy fallback, so a Pacific viewer never sees a
+local time labeled EDT. Overnight CSV rows use the actual project end date.
+Picker date labels compare against project calendar labels without UTC parsing.
+Five formatter/export tests pass under both Pacific and UTC host timezones,
+including spring-forward, repeated fall-back times and cross-midnight dates;
+actual dashboard rendering verifies the New York date beside EDT. Credited
+durations, publication and certificate authorization stay unchanged.
+
+Source changes await exact-head short/full CI, complete layout/pixel review,
+parent-owned Development prepare/merge/complete and hosted acceptance. Production
+remains subject to actual compatibility, writer/fence and recovery gates.
+
+## Current landing PNG timing and historical palette restoration
+
+P2 LANDING-PNG-FRESH-INTERVAL-20261013: fullCI38342965362 on5d98d999
+passes all non-layout jobs, including native320/390/414 comparison journeys and
+DST certificate coverage. Layout fails on its first landing PNG. The retained
+receipt has zero faults, status200, no loading/broken images/axe findings and
+constant7793px document height. All three838–926ms PNG attempts end during a
+live word or demo transition. This is the identified current capture failure;
+it does not establish identities for historical failures.
+
+The capture helper now observes fresh live transitions and an80ms quiet interval
+before each PNG. Source-reviewed phase holds determine conservative capture
+windows; a fifteen-second observation bound and three-attempt limit remain.
+Natural reduced motion preserves its still headline. Same-state, geometry,
+duration, loading and fault guards remain fatal. Controlled real-component
+Chromium first accepts four desktop/mobile light/dark PNGs in423–747ms with
+unchanged public word/phase/height. Longer artificial stress captures remain
+rejected when they cross transitions. Framework/hero/action adapters and one
+controlled console error limit this evidence to timing diagnosis; exact-head
+native layout and full pixel acceptance remain required.
+
+P2 HISTORICAL-PALETTE-RESTORE-20261013: the existing palette contract explicitly
+names historical source d95a0aa9846bc02e611f67f0f9017245c08821d8. Its exact raw
+source and tree were verified remotely. Repository tags/releases do not contain
+an app v1.5 label; the chosen historical source is documented rather than
+inventing a release association. Light palette values already match that source.
+Seven dark tokens had changed in060ea012: background, muted, popover, card,
+border, primary foreground and destructive foreground. They are restored exactly;
+shared tests now lock dark surfaces and semantic colors as well as light values.
+Dark contrast and the private light-palette contract remain passing. Functional
+hydration, geometry, reader, attendance and certificate repairs, the approved
+gloss finish and existing opt-in accessible content-link remain. The active
+landing video has no historical purple glow; a legacy unused Highlight helper
+still contains its historical purple defaults and is not mounted by a route.
+New full route and old-versus-new pixel acceptance must use this palette candidate;
+prior captures do not establish final acceptance.
+
+Controlled palette comparison renders actual HomeHeaderActions, ProjectCard,
+OrganizationHeader and ExportSection with fictional inputs. Eight1280/390px
+before/after captures in both themes have zero page/console/external faults,
+zero server-action calls, no overflow and unchanged1122/1632px heights. Root
+inspected all eight: light white/green surfaces remain stable; dark surfaces and
+borders return to the verified historical levels without wrapping drift. These
+framework-adapted components do not prove complete authenticated route or old
+whole-page acceptance, and no Claude pixel-review receipt is claimed.
+
+## Corrected project scope: preserve Let's Assist palette
+
+The user clarified that the v1.5 color restoration request was for Dicy.
+Let's Assist's palette rollback in70180c3d was based on a misinterpreted project
+scope. Only that rollback is undone: globals.css, its palette-specific root test
+additions and design-system provenance paragraph return exactly to5d98d999.
+The approved prior palette, gloss, content-link and earlier layout/accessibility
+fixes remain. All screenshot fresh-interval, hydration, heading/lifecycle,
+notification/plugin reader, scheduled-attendance and certificate timezone fixes
+remain. Historical palette/component reports are retained as superseded evidence;
+they cannot be final acceptance for the corrected candidate or evidence for Dicy.
+No wrong-palette Development or Production release occurred in this source task.
+Fresh exact-head CI/layout/pixel review and actual release gates remain required.
+
+## Cron history retention test isolation
+
+P2 CRON-HISTORY-TEST-ISOLATION-20261013: full38349434485 on obsolete8c7
+passes all browser/build/static/typecheck/unit jobs but fails one of12995 database
+assertions. At the05:05UTC minute boundary cron_history_retention assertion8
+counts6 total rows while expecting its three retained fixtures. The test replaces
+the whole history relation in a transaction but previously allowed pg_cron's
+independent logging transactions to insert new rows before the final count.
+The identities of the three historical CI rows were not retained and remain
+unproved; all three canonical project/attendance cron schedules are eligible at
+that minute boundary.
+
+A focused owned PostgreSQL17.11/pg_cron1.6.4 database with three real one-second
+noop cron jobs reproduces the same assertion8 failure (12 rows vs3). A bounded
+transaction-scoped SHARE ROW EXCLUSIVE lock before fixture replacement preserves
+all eight original assertions, including the global final count and50000-row
+batch limit. Three delayed concurrent-writer runs and one unchanged-runtime run
+pass32 assertions. pg_locks observes the fixture lock and a queued native cron
+writer; after rollback logging continues, all four scheduled jobs remain active,
+and no negative fixture rows persist. The test changes no cron schedule, worker
+control, production retention command, migration, role, provider or application
+behavior. Focused SQL proof does not replace full exact-head database/layout CI.
+
+The first disposable CLI startup could not create its outside-workspace cache;
+no database or source change resulted. The focused proof instead used the cached
+official PostgreSQL filesystem on a new network-disabled Unix-socket-only
+container. It does not claim full Supabase stack health or application acceptance.
+Let’s Assist retains its pre-rollback palette; the Dicy color task remains separate.
+
+## Frontend acceptance follow-up: Help semantic capture readiness
+
+Full CI38352517704 on80c91ee08e358333c8e9c2f1eb43d07a0f99d881 passed all browser, database/replay, typecheck, build, static, unit and quality jobs. The corrected cron-history fixture passed in the501-file/12,995-assertion database suite. Layout retained114 images and stopped at signed-out Help with HTTP200 and zero fault counters, before axe/keyboard/DOM evidence. Its omitted private error does not prove an individual selector timeout.
+
+Source review identified an independent, reproducible readiness defect: the frozen Help landmark requested a textbox while the real labelled input uses type=search and exposes searchbox. Help center already matches the exact heading case. The template now requires the correct searchbox with the same accessible name. All capture/effect/loading/geometry guards remain unchanged. A native-route browser regression checks the frozen landmarks and search/clear behavior. Controlled Chromium rendering of the actual Help component, with only a Next Link adapter, confirmed old-locator refusal and the visible searchbox in desktop/phone light/dark and reduced motion, with zero page/console/external errors; this is focused semantic proof, not full Next route acceptance.
+
+All21 signed-out scene landmarks were compared with current source names, heading semantics and relevant fictional fixture bindings; no other discrepancy was identified. Fresh exact-head full capture and complete authentic old-versus-new root/Claude pixel review remain required. The114 predecessor PNGs are incomplete evidence, and newly reported accessibility findings still require actionable node evidence and review. No merge, deployment, new credential or palette change accompanies this correction.
+
+## Frontend acceptance follow-up: scoped heading and contrast repairs
+
+The retained80c layout receipts identified12 missing-h1 observations across signup, signup success and email-expired, plus four FAQ heading-order observations. The actual titles were CardTitle divs; route-specific h1 children now expose each title (including staff-invite and invalid-success branches) without changing shared CardTitle. FAQ opts its accordion question headers into h2; other accordion callers keep the h3 default. Focused source-component SSR/Chromium checks reproduced the defects before correction and passed24 heading checks after correction. Title font size, weight, line height, color, width and height were identical before/after in all24 controlled cases. Full Next hydration/native-route acceptance remains required.
+
+The same controlled actual-CSS DOM recheck reproduced the four signup-success instruction nodes and the expired-link notice at4.39:1: muted foreground #71717a on #f4f4f5. Those specific muted surfaces now use foreground at70% opacity. Neutral Badge status text used the same failing combination; its foreground is strengthened for that variant while keeping fill, borders and all global palette tokens unchanged. These measurements do not establish the identity or resolution of every predecessor signed-in contrast finding. The remaining native scene findings require exact-head capture and actual node/pixel review. All fictional captures now retain capped fixed-region/tag and validated hex/ratio diagnostics, never selectors, text, HTML or raw axe payloads; no fault, loading, geometry or accessibility finding is waived.
+
+The manual Main layout request was also inconsistent: capture excluded Main, but the aggregate gate demanded its success. Execution and required-result predicates now agree on explicit non-Main workflow dispatch. The first static step rejects layout_audit=true on Main with a fixed actionable error; a Main request cannot become an accepted skipped audit. The actual rejection exits1 and all16 event/ref/input combinations are covered. Normal Main full validation remains unchanged. Current exact-head short/full CI, complete capture, authentic historical counterparts, root/actual Claude pixel review and all hosted/release compatibility gates are still pending.
+
+## P2: Self-reported volunteer-hour timezone loss, October 14
+
+Finding `SELF-REPORTED-TIMEZONE-20261014`: the hours form sends an IANA zone,
+but POST stored only UTC instants with `project_id = null`. The list and CSV
+therefore relabeled non-Pacific hours using the legacy Pacific fallback.
+The candidate persists `event_timezone`, retains it through dashboard reads,
+and uses it when no project zone exists. New York API-to-export and Tokyo
+render/date-boundary regressions pass. The forward nullable-column migration
+and 12 ownership/storage pgTAP assertions are prepared; schema replay and
+whole-catalog acceptance remain blocked, so this finding is fixed in source
+only and open for deployed verification. See the current
+[v4 feedback status](v4-development-feedback-status.md) for exact provider,
+source and test evidence. Production and the separate points release were not
+changed.
+
+### Self-reported timezone review follow-up, October 14
+
+`SELF-REPORTED-TIMEZONE-20261014` remains open for deployment/SQL verification.
+The follow-up corrects two supported gaps: browser-role certificate writes could
+persist a nonblank unknown zone, and detail/individual print pages ignored the
+stored zone. A forward migration validates catalog membership with a private
+security-invoker trigger and appends timezone fields to the existing invoker
+views. The narrow detail props, list, individual and bulk print now carry that
+zone. Focused server and actual-component browser regressions pass; 23 pgTAP
+assertions and the 727 catalog still require the owned replay. Three focused
+synthetic PNGs exist outside source; whole-site and hosted acceptance remain
+pending. Current target and provider/dispatch blockers are in the
+[v4 feedback status](v4-development-feedback-status.md).
+
+## P2: Incomplete waiver definition passes create-step readiness, October 14
+
+`WAIVER-CREATE-READINESS-20261014`: the client checked only whether a waiver
+definition object existed. Empty or stale objects passed and could fail after
+staging at the server publication gate. The candidate now uses the same
+bounded definition schema as the save action and checks signing placements.
+Synthetic readiness, real settings renders, creation retry and organizer status
+cases pass. Waivers switched off stay unblocked, and participant signature
+metadata is never used to infer configuration readiness or legal consent.
+The user's reference caption/OCR confirms the saved-but-unpublished warning;
+its pixels were denied by the Library transfer proxy, so its exact toggle state
+and linkage to this defect remain unconfirmed. See the current v4 status for
+that blocker and the still-unaccepted 727 catalog. No real records were changed.
+
+### Certificate verification review follow-up, October 16
+
+`CERTIFICATE-VERIFY-TRUTH-20261011`, P2, source correction for review
+5546206114: the verification API classified SQLSTATE `22P02` from a malformed
+UUID such as `abc123` as a retryable backend outage. The actual GET and POST
+handlers reproduced 503 with Retry-After 5. They now return the same private 404
+as the certificate page, without a retry hint. Connection failures retain 503.
+Focused returned-error regressions cover both methods. This is a source fix;
+hosted deployment verification remains open. No migration or provider write
+was needed.
+
+### Project deletion and mobile file recovery review follow-up, October 16
+
+`PROJECT-ADMIN-CALENDAR-RETENTION-20261016`, P2, source correction for
+review 5545155793: an organization admin deleting another creator's project
+passed their own actor identity to creator-only calendar cleanup. It failed
+after Storage cleanup and could not reach finalization. The deletion path now
+retains the exact creator-owned removal receipt before removing files, then
+finishes the authorized project deletion. The creator's calendar settings can
+discover and finish that retained cleanup. No Google request or credential
+lookup runs as the admin, and an unconfirmed receipt stops before asset
+removal. Creator-initiated inline cleanup keeps its existing behavior. This
+uses the existing service-only SQL and keeps the 739-migration ledger unchanged.
+Focused helper, deletion-boundary and pgTAP cases cover ownership, plan
+retention, discovery after deletion and failed retention.
+
+`FILE-PREVIEW-FALLBACK-20261011`, P2, source correction for review
+5544404947: a failed download told phone users to open a new tab while hiding
+that action below the small breakpoint. The explicit action is now visible at
+all widths. Its returned-error regression exercises navigation, and the native
+375 px browser case checks visibility, viewport fit and successful navigation
+after a failed fetch. These source corrections still require exact-head CI
+and hosted verification; no real project or provider data was changed.
+
+### CSF Settings capture contract follow-up, October 16
+
+`LAYOUT-CSF-SETTINGS-READER-20261016`, P2: full CI run 38889998282 captured
+340 fictional layouts, then stopped at Settings with two refused mount
+requests. The private runtime source mounts a Google status getter and Sheet
+workspace getter, followed by a semester worklist in the normal fixture.
+Their exact compiled actions are admitted only after successful independent
+metadata reads prove the current fictional administrator, active membership,
+install/runtime access, and absent Google connections, bindings, export
+destinations and test workspace. These facts are rechecked before each
+request. The connected Google getter can refresh credentials and remains
+outside this contract. Test-copy recovery, writes, direct RPCs and provider
+traffic remain refused. The original four-request bound and all capture
+guards remain. Historical refused action IDs were not retained, so their
+identity is not inferred from this source correction. Fresh exact-head capture
+and visual acceptance remain required. No hosted data or setting changed.
+
+`LAYOUT-CSF-SEEDED-CONTRACT-20261016`, P2: run 38897405700 passed the build,
+unit, database and four browser shards, then stopped before any PNG at the
+new Settings metadata proof. The canonical platform seed installs contract
+1.1.0 while retaining the migrated catalog release 1.2.89. The proof incorrectly
+required both versions to be 1.2.89. A regression using the actual seed
+definitions reproduces the refusal. The corrected proof requires the exact
+seeded pair and rejects a forced minimum above 1.1.0. Unknown installs and all
+existing connected-provider/write refusals remain rejected. This changes no
+seed, runtime, private gitlink, migration or provider setting. Fresh capture
+and visual acceptance are still required.
+
+### Project attendance timezone review follow-up, October 16
+
+`PROJECT-ATTENDANCE-TIMEZONE-20261016`, P2: native fictional layout frames
+showed a 9:00 AM Pacific project as starting at 1:00 AM on its Attendance
+page. The page constructed schedule instants in the server timezone, opening
+its UI eight hours early on a UTC server. The corrected page uses the existing
+project-timezone attendance window helper for all three schedule kinds and
+formats its start label in that same zone. Invalid schedules stay closed.
+Focused boundary tests cover exact opening time, legacy defaults, invalid
+dates and zones, daylight-saving gaps, and a project date crossing UTC
+midnight. A native phone browser case uses a Tokyo viewer timezone and creates
+its own project two years ahead, then removes only that owned row. This avoids
+requiring the fixed December 2026 seed to remain in the future. CI38907032269
+then exposed a fixture mismatch: the first organization admin need not be the
+named login actor. The owned project now uses that exact fictional login
+actor as creator and cleanup owner; application permissions are unchanged. The page
+availability check remains presentation logic; server write authorization and
+challenge windows are unchanged. CI38913356358 reached the closed page and
+passed its Pacific start-label assertion, then exposed an incorrect heading
+locator for the existing div-based empty-state title. The locator now requires
+the exact visible text without changing that component's semantics. The
+remaining native print-page assertion and hosted proof remain open.
+
+`PROJECT-HOURS-MOBILE-ROSTER-20261016`, P2: the fictional Hours phone captures
+showed the session heading and summary clipped after keyboard traversal. The
+table wrapper was a grid item with its automatic content minimum, so focusing
+an offscreen row action could scroll the enclosing clipped card. The wrapper
+now permits shrinking so horizontal scrolling stays inside the existing
+table region. A native 375 px regression checks keyboard focus, local table
+scroll, heading bounds, card scroll position and document width. That native
+case passed on e4fff0fc in CI38907032269. Hosted verification remains pending.
+The Hours header also names the stored project
+timezone instead of today's abbreviation, which labelled December attendance
+as PDT in the October capture. No attendance, hours or certificate write was
+performed by these layout checks.
+
+`PROJECT-EDIT-PRISTINE-STATE-20261016`, P2: an untouched fictional project
+showed an unsaved-changes warning and enabled Save. Initialization supplied
+fallback location metadata but change detection compared it with the missing
+stored metadata. The forced backup-upload default could also differ from a
+legacy stored flag. Initialization and both change detectors now use the
+same canonical form defaults. Focused cases preserve real field changes and
+recognize reversion; a phone browser case edits and reverts a title without
+saving. Schedule and recurrence comparison and server save/publication checks
+are unchanged. The native pristine/edit/revert and attendee-switch focus case
+passed on e4fff0fc in CI38907032269. Hosted verification remains pending.
+
+`LAYOUT-RESTING-DIAGNOSTICS-20261016`, P2: full CI38900770343 passed ordinary
+gates and the controller rehearsal, then stopped at dark CSF Home resting
+state after277 PNGs. No runtime or request-refusal fault was recorded, but
+the receipt omitted which resting condition failed. The guard now retains
+only fixed booleans for viewport position, tooltip visibility and skip-link
+focus on a deadline failure. Unknown fields and non-boolean values are
+refused before CI summary output. The three-second deadline, 400 ms quiet
+period and stop-on-failure behavior are unchanged. The original cause remains
+unknown and a fresh capture is required; this is no waiver or claim of repair.
+
+`PROJECT-CREATE-FOCUS-OCCLUSION-20261016`, P2: CI38907032269 focused the
+Project timezone control by phone keyboard, but its center was obscured on
+both attempts. The retained failure screenshot confirms the floating action
+bar covers it. Project creation controls now reserve vertical scroll margins
+for focus-driven scrolling, preserving the existing action bar. The original
+native regression passed unchanged on 2d82e236 in CI38913356358.
+
+`ADMIN-PLUGINS-MOBILE-OVERFLOW-20261016`, P2: retained phone captures clipped
+the whole plugin console after keyboard traversal. Its Tabs root retained a
+grid item's automatic content minimum, expanding beyond the page width. The
+root now permits shrinking so the existing horizontal tab strip owns its
+overflow. A native phone regression checks heading bounds, focus, local tab
+scroll, document width and the admin content scroll position. The native case
+passed on 2d82e236 in CI38913356358; no entitlement or plugin setting was changed.
+
+`ATTENDANCE-PRINT-SESSION-TIMEZONE-20261016`, P2: retained December print
+setup captures labelled a Pacific session PDT because the abbreviation came
+from the current date. Each session now supplies its own start timestamp to
+the zone formatter. A behavioral render case checks winter PST and summer
+PDT together, independent of today's season. All five print-preview behavior
+cases passed native Bun on 2d82e236 in CI38913356358. The Tokyo-viewer native
+print-page assertion remains pending. No print preparation, attendance or
+roster write is part of this correction.
+
+`POLICY-MOBILE-LONG-TOKEN-20261016`, P2: both retained phone privacy frames
+expanded to 493 px because a long Google permission URL could not wrap inside
+the reading column. The shared prose wrapper now permits long tokens to break
+within the available width. Native phone cases in both color schemes inspect
+the actual permission text rectangles and document width. Both native cases
+passed on 2d82e236 in CI38913356358. Policy wording and link destinations are
+unchanged.
+
+`LAYOUT-LATE-VIEWPORT-DRIFT-20261016`, P2: CI38907032269 stopped after279
+PNGs on phone-dark CSF Home. Its fixed diagnostic flags prove the viewport
+was away from the top, with no tooltip or focused skip link; the exact
+initiating callback is not proved. The tour implementation can initiate a
+late smooth scroll after its identity read. Capture now allows one additional
+real restoration to zero, then requires a new 400 ms quiet interval under the
+same three-second deadline. Continued drift still fails and tours remain open.
+Focused adversarial and native browser cases cover one delayed scroll and
+continued movement. Both native cases passed on 2d82e236 in CI38913356358;
+fresh exact-head capture remains required.
+
+`ATTENDANCE-NAMED-ROLE-AVAILABILITY-20261018`, P2: a later role named
+`role-0` collided with the first role's positional alias. Availability read
+the first role twice and could open four hours late in the focused fixture.
+Attendance session resolution now gives exact stored names precedence over
+positional aliases, matching migration `20261016063427`. Regressions cover the
+two-hour opening boundary, the literal name, the remaining positional alias
+and the other role's separate window. The existing hours-publication identity
+contract is unchanged. All 74 focused attendance, alias and print tests pass
+locally; exact-candidate CI and hosted release acceptance remain pending.
+
+`DEVELOPMENT-RECONCILED-PREFLIGHT-20261018`, P2: local reproduction shows
+the combined 739 controller rejecting Development's already reviewed 729
+history because it is not a simple prefix. The Development selector now binds
+that exact ordered history to its exact 739 target and accepted catalog;
+Production selection and full maintenance-posture checks are unchanged.
+Protected read-only inspection retains source/reviewer checks and records
+provider/database identity failures before a maintenance window is opened.
+Its receipt cannot authorize a merge or consume a preparation/recovery path.
+Focused refusal and read-only transport tests cover these boundaries; hosted
+inspection and release results remain separate.
+
+`ADMIN-ORGANIZATION-DATE-HYDRATION-20261018`, P2: CI39087826464 stopped
+layout capture on a page error at `/admin/organizations`. The component's
+creation-date label used the runtime timezone. A focused render of the same
+fictional timestamp reproduced October 18 in UTC and October 17 in Pacific
+time; a late UTC timestamp became October 19 in Tokyo. The label now pins UTC
+while retaining its existing short date format. Regression renders run in
+isolated subprocesses for all three timezones, with actions mocked to refuse
+mutations. The capture fault guard and private-error privacy boundary remain
+unchanged. Fresh candidate CI and hosted acceptance are still required.
+
+`ADMIN-SERVER-TIMESTAMP-HYDRATION-20261018`, P2: CI39090134861 captured
+all four organization modes without faults, then stopped at the trusted-member
+table's equivalent runtime-local date label. A batch of rendered UTC, Pacific
+and Tokyo probes reproduced different calendar days or clock times in trusted
+applications, report and flag columns, overview queues, feedback details,
+waiver definitions, plugin grant windows and saved banner timestamps. Those
+server-rendered metadata labels now pin UTC and English formatting while
+retaining their existing date/time shapes. Client-only access-state formatting
+and date-entry controls are unchanged. Probes use fictional values, isolated
+processes and mutation-refusing action mocks; capture guards and private error
+handling remain unchanged. Fresh CI and hosted acceptance remain required.
+
+`SERVER-INITIALIZED-TIMESTAMP-LABELS-20261018`, P2: proactive render
+probes beyond the admin capture found the same server/browser timezone
+mismatch in saved drafts, project feedback, organization member dates and
+moderation, calendar connection dates, timed calendar rows and populated
+date/time pickers. Metadata labels now use UTC. Browser-local calendar times
+and picker labels use the existing hydration snapshot before showing their
+unchanged local format; their stored values and callbacks are unchanged.
+Regression probes cover UTC, Pacific and Tokyo server snapshots and ready
+client labels. They also retain the same all-day calendar and draft schedule
+days, and refuse any render-time action or network request. Feedback queue
+labels show a stable UTC date during the server snapshot, then retain their
+relative labels after hydration. Controlled clock probes cover a minute
+boundary and invalid dates. Server-only text, client-fetched panels and
+project-timezone displays were inspected separately;
+this is not a claim of complete timestamp coverage. Fresh integrated CI and
+hosted acceptance remain required.
+
+`DEVELOPMENT-729-CRON-CONTROL-20261020`, P2: the legacy bootstrap cron
+shutdown accepts only the 687/688 inventory and cannot pause Development's
+reviewed 729 four-job history. A separate candidate-bound protected pause and
+abort-restoration path now validates that exact ledger, catalog and job
+inventory, uses the supported `cron.alter_job` function, records original flags
+before mutation and verifies fresh readback. Unknown outcomes never retry.
+Restoration refuses a changed application, alias, request fence or job state.
+All 138 focused controller tests pass locally. Hosted SQL execution, changed
+candidate CI and the factual external-writer hold remain pending; no live job
+has been paused by this change.
+
+`MEMBER-HISTORICAL-COMPLETION-LABEL-20261020`, P2: a past active membership
+with attendance could display "In progress" without a completion result. A
+private-plugin correction displays "Completion not recorded" for a historical
+record without a settled outcome. Explicit semester results and application
+decisions keep their precedence, and current progress labels remain intact.
+The member ledger now carries lifecycle state into its term records, and closure
+takes precedence even while a semester remains marked current. The focused
+profile/ledger suite passes 60 tests and 262 assertions with fictional data;
+private quality runs 39359984129 and 39359984550 pass for the reviewed source.
+Root integration and hosted verification remain pending. No membership,
+credits, eligibility or report records changed.
+
+`PRIVATE-CSF-DEPENDENCY-GRAPH-20261022`, P1: the integrated audit refused the
+expired braces exception in the private CSF application graph. Private PR661
+replaces both fast-glob parser paths with the application's own exact local
+compatibility package and updates follow-redirects to 1.16.1. The application
+remains an audited graph; its local compatibility package is covered by that
+owner's tracked lockfile. No advisory is waived or exception extended. Local
+full dependency audit, application tests, lint, typecheck and production build
+pass; private hosted quality passed. Exact root CI and release acceptance remain
+required.
+
+`NEXT-RELATIVE-GLOBSTAR-ROOT-20261022`, P2: private promotion review reproduced
+the compatibility shim retaining the container directory for `./apps/**`.
+Normalize both comparison paths in both shim copies while preserving returned
+paths. Actual Next resolver tests cover leading-dot and repeated-separator
+forms; a Windows path-adapter regression also reproduces and fixes a UNC root
+leak without claiming native Windows execution. The six private caller tests
+and eight root compatibility tests pass. Private PR663 merged to Development
+after its hosted quality checks passed; source promotion PR662 and exact root
+integration remain separate. No runtime authorization or provider state changes.
+
+`HOURS-FALLBACK-PARTIAL-HEARTBEAT-20261022`, P2: review found that the manual
+hours fallback accepted HTTP 200 for a partial certificate-email recovery and
+could send its success heartbeat. The route now returns 503 when its existing
+worker summary is blocked, partial or failed. The response counters, execution
+receipts, publication rules and heartbeat ownership are unchanged. Regression
+coverage exercises pending and held recovery followed by a confirmed empty
+retry; scheduled failure signaling and approval refusals remain covered.
+Exact successor CI and hosted release acceptance remain required.

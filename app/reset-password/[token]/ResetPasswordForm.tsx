@@ -7,7 +7,6 @@ import { z } from "zod";
 import { passwordSchema } from "@/lib/auth/password-policy";
 import { updatePassword } from "./actions";
 import { passwordRecoveryPath } from "../continuation";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Field,
+  FieldDescription,
   FieldLabel,
   FieldError as FormMessage,
 } from "@/components/ui/field";
@@ -93,10 +93,10 @@ export default function ResetPasswordForm({
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-sm mx-auto mb-12">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Set new password</CardTitle>
+    <div className="flex min-h-[70vh] items-center justify-center px-4 py-12 sm:px-6">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Set new password</CardTitle>
           <CardDescription>
             Please enter your new password below.
           </CardDescription>
@@ -108,10 +108,11 @@ export default function ResetPasswordForm({
               name="password"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>New Password</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>New password</FieldLabel>
                   <Input
                     id={field.name}
                     type="password"
+                    autoComplete="new-password"
                     placeholder="Enter your new password"
                     {...field}
                     aria-invalid={fieldState.invalid}
@@ -119,26 +120,10 @@ export default function ResetPasswordForm({
                   {fieldState.invalid && (
                     <FormMessage errors={[fieldState.error]} />
                   )}
-                  <div className="mt-3 space-y-2">
-                    <div className="rounded-lg bg-warning/15 border border-warning/40 p-3 shadow-xs">
-                      <p className="text-xs font-semibold text-warning mb-2 flex items-center gap-2">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        Password Requirements
-                      </p>
-                      <ul className="space-y-1.5 text-xs text-warning opacity-90">
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>At least 8 characters long</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          <span>
-                            Cannot be a commonly used or compromised password
-                          </span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+                  <FieldDescription>
+                    At least 8 characters long. Cannot be a commonly used or
+                    compromised password.
+                  </FieldDescription>
                 </Field>
               )}
             />
@@ -148,11 +133,12 @@ export default function ResetPasswordForm({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>
-                    Confirm New Password
+                    Confirm new password
                   </FieldLabel>
                   <Input
                     id={field.name}
                     type="password"
+                    autoComplete="new-password"
                     placeholder="Confirm your new password"
                     {...field}
                     aria-invalid={fieldState.invalid}
@@ -164,7 +150,7 @@ export default function ResetPasswordForm({
               )}
             />
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Setting New Password..." : "Set New Password"}
+              {isLoading ? "Setting new password..." : "Set new password"}
             </Button>
           </form>
         </CardContent>

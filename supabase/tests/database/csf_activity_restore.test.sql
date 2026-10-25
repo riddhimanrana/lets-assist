@@ -68,12 +68,17 @@ CREATE TEMP TABLE original_notices AS SELECT to_jsonb(d) AS data FROM plugin_dat
 
 SET LOCAL ROLE service_role;
 
-SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000001',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000099','b8300000-0000-4000-8000-000000000003',false,NULL)$q$,'P0001','Not authorized to manage CSF activities.','unknown actor cannot restore');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000001',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000099','b8300000-0000-4000-8000-000000000003',false,NULL)$q$,'42501','Not authorized to manage CSF activities.','unknown actor cannot restore');
 
-SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000099',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000001','b8300000-0000-4000-8000-000000000003',false,NULL)$q$,'P0001','Not authorized to manage CSF activities.','restoration is organization scoped');
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000099',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000001','b8300000-0000-4000-8000-000000000003',false,NULL)$q$,'42501','Not authorized to manage CSF activities.','restoration is organization scoped');
 
 SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000001',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000001','b8300000-0000-4000-8000-000000000003',true,NULL)$q$,'22023','Restoring an activity cannot request another announcement.','restoration refuses notification requests');
 
+SELECT extensions.throws_ok($q$SELECT plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000001',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000001','b8300000-0000-4000-8000-000000000003',NULL,NULL)$q$,'22023','Restoring an activity cannot request another announcement.','restoration requires an explicit no-announcement choice');
+
+RESET ROLE;
+SELECT extensions.is((SELECT status FROM plugin_data.csf_opportunities WHERE id=(SELECT id FROM restore_fixture)),'closed','refused announcement requests leave the activity closed');
+SELECT extensions.is((SELECT count(*)::integer FROM plugin_data.csf_admin_audit_events WHERE target_id=(SELECT id FROM restore_fixture) AND reason_code='activity_restored'),0,'refused restoration requests leave no success receipt');
 SET LOCAL ROLE service_role;
 
 SELECT extensions.is((plugin_data.csf_set_activity_status_with_email('b8100000-0000-4000-8000-000000000001',(SELECT id FROM restore_fixture),'restored',NULL,'b8000000-0000-4000-8000-000000000001','b8300000-0000-4000-8000-000000000003',false,NULL)->>'status'),'published','closed activity restores to published');

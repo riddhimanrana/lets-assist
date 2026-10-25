@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { extname, join } from "node:path";
 
 const repositoryRoot = join(import.meta.dir, "../../..");
@@ -47,24 +47,34 @@ function nonPolicyCallers() {
     "supabase/tests/database/private_dv_policy_helper_acls.test.sql",
   ]);
 
-  return ["app", "lib", "services", "supabase"]
-    .flatMap((root) =>
-      readdirSync(join(repositoryRoot, root), {
-        encoding: "utf8",
-        recursive: true,
-        withFileTypes: false,
-      }).map((name) => join(root, name)),
-    )
-    .filter(
-      (name) =>
+  const generatedDirectories = new Set([
+    "node_modules",
+    ".next",
+    ".next-csf-isolated",
+    ".artifacts",
+    ".git",
+  ]);
+  const files: string[] = [];
+  function visit(directory: string) {
+    for (const entry of readdirSync(join(repositoryRoot, directory), {
+      withFileTypes: true,
+    })) {
+      const name = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (!generatedDirectories.has(entry.name)) visit(name);
+      } else if (
+        entry.isFile() &&
         searchableExtensions.has(extname(name)) &&
-        statSync(join(repositoryRoot, name)).isFile() &&
-        !ignored.has(name) &&
-        helperNames.some((helperName) =>
-          readFileSync(join(repositoryRoot, name), "utf8").includes(helperName),
-        ),
-    )
-    .sort();
+        !ignored.has(name)
+      ) {
+        const source = readFileSync(join(repositoryRoot, name), "utf8");
+        if (helperNames.some((helperName) => source.includes(helperName)))
+          files.push(name);
+      }
+    }
+  }
+  for (const root of ["app", "lib", "services", "supabase"]) visit(root);
+  return files.sort();
 }
 
 describe("private DV policy helper ACL source contract", () => {

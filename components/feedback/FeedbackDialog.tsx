@@ -1,26 +1,31 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Lightbulb,
   AlertTriangle,
   MoreHorizontal,
   Loader2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,36 +52,14 @@ export function FeedbackDialog({
     null,
   );
 
-  const feedbackTypes = [
-    {
-      id: "issue" as FeedbackType,
-      label: "Issue",
-      icon: AlertTriangle,
-      selectedColor:
-        "bg-destructive/10 border-destructive text-destructive ring-1 ring-destructive",
-      defaultColor:
-        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
-      iconColor: "text-destructive",
-    },
-    {
-      id: "idea" as FeedbackType,
-      label: "Idea",
-      icon: Lightbulb,
-      selectedColor:
-        "bg-warning/10 border-warning text-warning ring-1 ring-warning",
-      defaultColor:
-        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
-      iconColor: "text-warning",
-    },
-    {
-      id: "other" as FeedbackType,
-      label: "Other",
-      icon: MoreHorizontal,
-      selectedColor: "bg-info/10 border-info text-info ring-1 ring-info",
-      defaultColor:
-        "bg-background border-input hover:bg-accent hover:text-accent-foreground",
-      iconColor: "text-info",
-    },
+  const feedbackTypes: Array<{
+    id: FeedbackType;
+    label: string;
+    icon: typeof Lightbulb;
+  }> = [
+    { id: "issue", label: "Issue", icon: AlertTriangle },
+    { id: "idea", label: "Idea", icon: Lightbulb },
+    { id: "other", label: "Other", icon: MoreHorizontal },
   ];
 
   React.useEffect(() => {
@@ -176,7 +159,7 @@ export function FeedbackDialog({
 
       onOpenChangeAction(false);
     } catch (error) {
-      console.error("Error submitting feedback:", error);
+      safeConsole.error("Error submitting feedback:", error);
       toast.error("Error sending feedback", {
         description: "Please try again later.",
       });
@@ -187,95 +170,76 @@ export function FeedbackDialog({
 
   return (
     <Dialog open={true} onOpenChange={onOpenChangeAction}>
-      <DialogContent className="p-0 border-0 bg-transparent shadow-none sm:max-w-[500px]">
-        <DialogTitle className="sr-only">Detail</DialogTitle>
-        <Card className="w-full border-border shadow-lg gap-0">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <Lightbulb className="h-4 w-4 text-primary" />
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Send feedback</DialogTitle>
+          <DialogDescription>
+            Help us improve Let&apos;s Assist by sharing your thoughts, ideas,
+            or reporting issues.
+          </DialogDescription>
+        </DialogHeader>
+
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldTitle id="feedback-type-label">Feedback type</FieldTitle>
+            <ToggleGroup
+              aria-labelledby="feedback-type-label"
+              variant="outline"
+              className="w-full"
+              value={[selectedType]}
+              onValueChange={(value) => {
+                const next = value[0] as FeedbackType | undefined;
+                if (next) setSelectedType(next);
+              }}
+            >
+              {feedbackTypes.map((type) => {
+                const Icon = type.icon;
+
+                return (
+                  <ToggleGroupItem
+                    key={type.id}
+                    value={type.id}
+                    className="flex-1"
+                  >
+                    <Icon aria-hidden="true" />
+                    {type.label}
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="title">Subject</FieldLabel>
+            <Input
+              id="title"
+              placeholder="What's on your mind?"
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 100))}
+            />
+          </Field>
+
+          <Field>
+            <div className="flex items-baseline justify-between gap-2">
+              <FieldLabel htmlFor="feedback">Description</FieldLabel>
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {feedback.length}/2000
               </span>
-              Send Feedback
-            </CardTitle>
-            <CardDescription>
-              Help us improve Let's Assist by sharing your thoughts, ideas, or
-              reporting issues.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-0">
-            {user && profile && (
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-2.5 text-sm text-muted-foreground">
-                <div className="h-2 w-2 rounded-full bg-success shrink-0" />
-                <span className="truncate">
-                  Sending as{" "}
-                  <span className="font-medium text-foreground">
-                    {profile.full_name}
-                  </span>
-                </span>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Feedback Type
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                {feedbackTypes.map((type) => {
-                  const Icon = type.icon;
-                  const isSelected = selectedType === type.id;
-
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => setSelectedType(type.id)}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-2 rounded-xl border p-3 transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                        isSelected ? type.selectedColor : type.defaultColor,
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "h-5 w-5 transition-colors",
-                          isSelected ? type.iconColor : "text-muted-foreground",
-                        )}
-                      />
-                      <span className="text-xs font-medium">{type.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
+            <Textarea
+              id="feedback"
+              placeholder="Please include as much detail as possible..."
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value.slice(0, 2000))}
+              className="min-h-30 resize-none"
+            />
+          </Field>
+        </FieldGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="title">Subject</Label>
-              <Input
-                id="title"
-                placeholder="What's on your mind?"
-                value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 100))}
-                className="bg-background"
-              />
-            </div>
-
-            <div className="space-y-2 pb-4">
-              <div className="flex justify-between">
-                <Label htmlFor="feedback">Description</Label>
-                <span className="text-xs text-muted-foreground">
-                  {feedback.length}/2000
-                </span>
-              </div>
-              <Textarea
-                id="feedback"
-                placeholder="Please include as much detail as possible..."
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value.slice(0, 2000))}
-                className="min-h-[120px] resize-none bg-background"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex h-14 py-0 items-center justify-end gap-2">
+        <DialogFooter className="sm:items-center sm:justify-between">
+          <div className="flex flex-col-reverse gap-2 sm:order-last sm:flex-row">
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={() => onOpenChangeAction(false)}
               disabled={isSubmitting}
             >
@@ -292,12 +256,26 @@ export function FeedbackDialog({
               }
             >
               {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
               )}
-              Submit Feedback
+              Submit feedback
             </Button>
-          </CardFooter>
-        </Card>
+          </div>
+          <p className="text-muted-foreground min-w-0 truncate text-sm">
+            {user && profile ? (
+              <>
+                Sending as{" "}
+                <span className="text-foreground font-medium">
+                  {profile.full_name}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

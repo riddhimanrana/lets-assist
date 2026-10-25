@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import { supabaseCliEnvironment } from "./supabase-cli-environment.mjs";
 
 const PRODUCTION_SUPABASE_PROJECT_REF = "fotdmeakexgrkronxlof";
 const UUID_PATTERN =
@@ -31,6 +32,7 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     maxBuffer: 16 * 1024 * 1024,
     ...options,
+    env: supabaseCliEnvironment(options.env),
   });
 
   if (result.error) throw result.error;

@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ShieldCheck, Search, Loader2 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useRouter } from "next/navigation";
+import { Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { ShieldCheckIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -14,10 +19,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+
 import { searchUsers, addTrustedMember } from "../actions";
-import { toast } from "sonner";
 import { DataTable } from "./trusted-members/data-table";
 import { columns, TrustedMember } from "./trusted-members/columns";
 
@@ -40,6 +48,7 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
     }[]
   >([]);
   const [isAdding, setIsAdding] = useState(false);
+  const addIcon = useAnimatedIcon();
 
   useEffect(() => {
     if (!addMemberOpen) {
@@ -104,124 +113,129 @@ export function TrustedMembersTab({ trustedMembers }: TrustedMembersTabProps) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Trusted Members</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage and approve trusted member applications.
-          </p>
-        </div>
-        <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
-          <DialogTrigger
-            render={
-              <Button className="w-full sm:w-auto">
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                Add Trusted Member
-              </Button>
-            }
-          />
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Trusted Member</DialogTitle>
-              <DialogDescription>
-                Search for a user by email to grant them trusted status.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="relative py-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <div className="flex gap-2">
-                <Input
-                  placeholder="user@example.com"
-                  className="pl-9"
-                  value={searchEmail}
-                  onChange={(e) => setSearchEmail(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSearch();
-                    }
-                  }}
+    <>
+      <PageHeader
+        title="Trusted members"
+        description="Review applications and manage trusted member status for users."
+        actions={
+          <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+            <DialogTrigger
+              render={
+                <Button
+                  className="w-full sm:w-auto"
+                  {...addIcon.triggerProps}
                 />
+              }
+            >
+              <ShieldCheckIcon
+                ref={addIcon.ref}
+                size={16}
+                aria-hidden="true"
+                data-icon="inline-start"
+              />
+              Add trusted member
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add trusted member</DialogTitle>
+                <DialogDescription>
+                  Search for a user by email to grant them trusted status.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex gap-2">
+                <InputGroup>
+                  <InputGroupAddon>
+                    <Search aria-hidden="true" />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    aria-label="User email"
+                    placeholder="user@example.com"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSearch();
+                      }
+                    }}
+                  />
+                </InputGroup>
                 <Button
                   onClick={handleSearch}
                   disabled={isSearching || !searchEmail.trim()}
-                  size="icon"
-                  variant="secondary"
+                  variant="outline"
                 >
                   {isSearching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Search className="h-4 w-4" />
-                  )}
+                    <Loader2
+                      data-icon="inline-start"
+                      className="animate-spin"
+                    />
+                  ) : null}
+                  Search
                 </Button>
               </div>
-            </div>
 
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {searchResults.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 border rounded-xl hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage
-                        src={user.avatar_url || undefined}
-                        alt={user.full_name || "User"}
-                      />
-                      <AvatarFallback>
-                        <NoAvatar
-                          fullName={user.full_name || user.email.split("@")[0]}
-                        />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">
-                        {user.full_name || user.email.split("@")[0]}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {user.email}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleAddMember(user)}
-                    disabled={isAdding}
-                    className="ml-2 shrink-0"
+              <ul className="max-h-75 divide-y overflow-y-auto">
+                {searchResults.map((user) => (
+                  <li
+                    key={user.id}
+                    className="flex items-center justify-between gap-3 py-2.5"
                   >
-                    {isAdding ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Add"
-                    )}
-                  </Button>
-                </div>
-              ))}
-              {searchResults.length === 0 && searchEmail && !isSearching && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarImage
+                          src={user.avatar_url || undefined}
+                          alt={user.full_name || "User"}
+                        />
+                        <AvatarFallback>
+                          <NoAvatar
+                            fullName={
+                              user.full_name || user.email.split("@")[0]
+                            }
+                          />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {user.full_name || user.email.split("@")[0]}
+                        </p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {user.email}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleAddMember(user)}
+                      disabled={isAdding}
+                      className="shrink-0"
+                    >
+                      {isAdding ? <Loader2 className="animate-spin" /> : "Add"}
+                    </Button>
+                  </li>
+                ))}
+                {searchResults.length === 0 && searchEmail && !isSearching && (
+                  <li className="text-muted-foreground py-6 text-center text-sm">
                     No users found.
-                  </p>
-                </div>
-              )}
-            </div>
+                  </li>
+                )}
+              </ul>
 
-            <DialogFooter>
-              <Button
-                variant="ghost"
-                onClick={() => setAddMemberOpen(false)}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setAddMemberOpen(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <DataTable columns={columns} data={trustedMembers} />
-    </div>
+    </>
   );
 }

@@ -96,7 +96,7 @@ export function FieldListPanel({
   };
 
   const getSignerLabel = (roleKey: string | undefined) => {
-    if (!roleKey || roleKey === "unassigned") return "Unassigned (Optional)";
+    if (!roleKey || roleKey === "unassigned") return "Unassigned";
     const signer = signers.find((s) => s.roleKey === roleKey);
     return signer?.label || roleKey;
   };
@@ -147,15 +147,13 @@ export function FieldListPanel({
               {field.fieldName}
             </span>
           </div>
-          <Badge variant="outline" className="text-[10px]">
-            Page {field.pageIndex + 1}
-          </Badge>
+          <Badge variant="outline">Page {field.pageIndex + 1}</Badge>
         </div>
 
         <div className="grid gap-2 text-sm">
           {field.fieldType === "signature" && (
             <div className="space-y-1">
-              <Label className="text-xs">Assigned Signer</Label>
+              <Label className="text-xs">Assigned signer</Label>
               <Select
                 value={mapping.signerRoleKey || "unassigned"}
                 onValueChange={(val) =>
@@ -166,7 +164,7 @@ export function FieldListPanel({
                 }
               >
                 <SelectTrigger className="h-8">
-                  <SelectValue placeholder="Assign Role">
+                  <SelectValue placeholder="Assign role">
                     {getSignerLabel(mapping.signerRoleKey)}
                   </SelectValue>
                 </SelectTrigger>
@@ -175,7 +173,7 @@ export function FieldListPanel({
                     value="unassigned"
                     className="text-muted-foreground"
                   >
-                    Unassigned (Optional)
+                    Unassigned
                   </SelectItem>
                   {signers.map((signer) => (
                     <SelectItem key={signer.roleKey} value={signer.roleKey}>
@@ -222,19 +220,16 @@ export function FieldListPanel({
       <div className="shrink-0 flex items-center gap-2 mb-3 px-1 overflow-x-auto pb-2 scrollbar-none">
         <Badge
           variant={unassignedSignaturesCount > 0 ? "destructive" : "secondary"}
-          className="text-[10px] whitespace-nowrap h-5"
+          className="whitespace-nowrap"
         >
-          {mappedSignaturesCount}/{signatureFields.length} Signatures Mapped
+          {mappedSignaturesCount}/{signatureFields.length} signatures mapped
         </Badge>
-        <Badge variant="outline" className="text-[10px] whitespace-nowrap h-5">
-          {requiredFieldsCount} Required Fields
+        <Badge variant="outline" className="whitespace-nowrap">
+          {requiredFieldsCount} required fields
         </Badge>
         {unassignedSignaturesCount > 0 && (
-          <Badge
-            variant="outline"
-            className="text-[10px] whitespace-nowrap h-5 text-warning border-warning/40 bg-warning/10"
-          >
-            {unassignedSignaturesCount} Unassigned
+          <Badge variant="warning" className="whitespace-nowrap">
+            {unassignedSignaturesCount} unassigned
           </Badge>
         )}
       </div>
@@ -259,7 +254,7 @@ export function FieldListPanel({
             <AccordionTrigger className="sticky top-0 bg-background z-10 py-2">
               <div className="flex items-center gap-2">
                 <FileSignature className="h-4 w-4" />
-                <span>Signature Fields</span>
+                <span>Signature fields</span>
                 <Badge variant="secondary" className="ml-auto">
                   {signatureFields.length}
                 </Badge>
@@ -281,7 +276,7 @@ export function FieldListPanel({
             <AccordionTrigger className="sticky top-0 bg-background z-10 py-2">
               <div className="flex items-center gap-2">
                 <Type className="h-4 w-4" />
-                <span>Other Fields</span>
+                <span>Other fields</span>
                 <Badge variant="secondary" className="ml-auto">
                   {otherFields.length}
                 </Badge>

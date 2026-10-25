@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
@@ -29,7 +30,7 @@ export async function GET(
       status: result.success ? 200 : 400,
     });
   } catch (error) {
-    console.error("Error fetching contact import job status:", error);
+    safeConsole.error("Error fetching contact import job status:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 },

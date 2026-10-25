@@ -13,11 +13,13 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    --success: hsl(142.1 76.2% 36.3%);
+    /* Each semantic colour sits at a darker step of its own hue so small text
+       reads at 4.5:1 on white and on its own 10 to 20% tint. */
+    --success: hsl(142.1 76.2% 23%);
     /* green */
-    --warning: hsl(35 77% 49%);
-    /* yellow */
-    --info: hsl(220 91% 54%);
+    --warning: hsl(35 77% 27%);
+    /* amber */
+    --info: hsl(220 91% 42%);
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -31,28 +33,60 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --primary: hsl(142.1 76.2% 36.3%);
+    --content-link: hsl(142.1 76.2% 23%);
+    --primary: hsl(142.1 76.2% 23%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
-    /* green #16a34a — compatibility token for decorative brand washes. It
-       intentionally matches the restored light-mode primary. Decorative only: never
-       put text, an icon that carries meaning, a filled control, or a focus ring
-       on --brand. Interactive and status surfaces use --primary. */
+    /* green #16a34a, the identity green for decorative brand washes. It stays
+       lighter than --primary on purpose. Decorative only: never put text, an
+       icon that carries meaning, a filled control, or a focus ring on --brand.
+       Interactive and status surfaces use --primary. */
     --primary-foreground: hsl(355.7 100% 97.3%);
     /* base */
+    /* Gloss, not lift. Nothing casts a drop shadow. A control earns its
+       finish from a faint top-to-bottom sheen on its own fill and a 1px inner
+       edge. Read these through the ui primitives, never inline.
+       - button-primary: the filled action.
+       - control: outline buttons, select triggers, toggles.
+       - surface: text fields, which stay flat.
+       The sheen lightens the fill under the label, so its strongest stop is
+       part of the label's contrast. Change it together with --primary. */
+    --button-primary-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 12%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
+    --button-primary-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 30%), inset 0 0 0 1px rgb(0 0 0 / 10%);
+    --button-pressed-shadow: inset 0 1px 2px rgb(0 0 0 / 20%);
+    --control-gloss: linear-gradient(
+      180deg,
+      rgb(0 0 0 / 0%) 0%,
+      rgb(0 0 0 / 3.5%) 100%
+    );
+    --control-shadow: inset 0 -1px 0 rgb(0 0 0 / 3%);
+    --surface-shadow: 0 0 #0000;
+    /* Cards: a soft surface. A barely-there sheen and a hairline drop so a
+       card reads as a sheet resting on the page, without lifting. */
+    --card-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0%) 0%,
+      rgb(0 0 0 / 1.5%) 100%
+    );
+    --card-shadow: 0 1px 2px rgb(0 0 0 / 5%), 0 1px 0 rgb(0 0 0 / 2%);
     --secondary: hsl(240 4.8% 95.9%);
     /* surface0 */
     --secondary-foreground: hsl(240 5.9% 10%);
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    /* subtext1 */
+    --muted-foreground: hsl(240 3.8% 45%);
+    /* subtext1, one step down so it also reads on the muted surface */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 60.2%);
+    --destructive: hsl(0 84.2% 36%);
     /* red */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
@@ -60,7 +94,7 @@
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 36.3%);
+    --ring: hsl(142.1 76.2% 23%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
@@ -119,26 +153,27 @@
     /* yellow */
     --info: hsl(217 92% 76%);
 
-    --background: hsl(240 21% 12%);
-    /* base */
+    --background: hsl(240 23% 9%);
+    /* crust */
     --foreground: hsl(226 64% 88%);
     /* text */
-    --muted: hsl(237 16.239316761493683% 23%);
-    /* surface0 */
+    --muted: hsl(240 21% 15%);
+    /* base */
     --muted-foreground: hsl(227 35.29411852359772% 80%);
     /* subtext1 */
-    --popover: hsl(240 21% 15%);
-    /* base */
+    --popover: hsl(240 21% 12%);
+    /* mantle */
     --popover-foreground: hsl(226 64% 88%);
     /* text */
-    --card: hsl(240 21% 15%);
-    /* base */
+    --card: hsl(240 21% 12%);
+    /* mantle */
     --card-foreground: hsl(226 64% 88%);
     /* text */
-    --border: hsl(234 13% 31%);
-    /* surface1 */
+    --border: hsl(237 16% 23%);
+    /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
+    --content-link: hsl(115 54% 76%);
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);
@@ -146,8 +181,30 @@
        they did before --brand existed. The light-theme split exists because AA
        forced --primary away from the identity green; dark mode never had that
        conflict, so it needs no second hue. */
-    --primary-foreground: hsl(240 21% 15%);
-    /* base */
+    --primary-foreground: hsl(240 23% 9%);
+    /* crust */
+    --button-primary-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 30%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
+    --button-primary-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 55%), inset 0 0 0 1px rgb(0 0 0 / 12%);
+    --button-pressed-shadow: inset 0 1px 2px rgb(0 0 0 / 30%);
+    --control-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 5%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
+    --control-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+    --surface-shadow: 0 0 #0000;
+    --card-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 3.5%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
+    --card-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 6%), 0 1px 2px rgb(0 0 0 / 30%);
     --secondary: hsl(237 16% 23%);
     /* surface0 */
     --secondary-foreground: hsl(226 64% 88%);
@@ -156,10 +213,10 @@
     /* surface0 */
     --accent-foreground: hsl(226 64% 88%);
     /* text */
-    --destructive: hsl(343 81% 75%);
-    /* red */
-    --destructive-foreground: hsl(240 21% 12%);
-    /* mantle */
+    --destructive: hsl(343 81% 80%);
+    /* red, one step lighter than --chart-1 so it reads on its own tint */
+    --destructive-foreground: hsl(240 23% 9%);
+    /* crust */
     --ring: hsl(226 64% 88%);
     /* text */
     --radius: 1rem;
@@ -225,6 +282,7 @@
   --color-primary-foreground: var(--primary-foreground);
 
   --color-brand: var(--brand);
+  --color-content-link: var(--content-link);
 
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -354,6 +412,29 @@
     }
   }
 
+  /* Landing headline letters. The resting state is the final one, so the
+     heading is readable with no script and where animations do not run. The
+     entrance plays once per mount and only when motion is welcome. */
+  @keyframes la-hero-letter-in {
+    from {
+      opacity: 0;
+      filter: blur(10px);
+      transform: translate3d(0, 20px, 0);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .la-hero-letter {
+      animation: la-hero-letter-in 0.62s cubic-bezier(0.16, 1, 0.3, 1)
+        var(--la-delay, 0s) 1 both;
+    }
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -461,5 +542,41 @@
     );
     background-size: 24px 24px;
     opacity: 0.2;
+  }
+}
+
+/*
+  Native disclosures. Every <details> gets the same quiet chevron in place of
+  the browser triangle, so a "Show more" row looks designed without each screen
+  restating it. A summary that draws its own indicator opts out with list-none.
+*/
+@layer base {
+  details > summary:not([class*="list-none"]) {
+    cursor: pointer;
+    list-style: none;
+  }
+  details > summary:not([class*="list-none"])::-webkit-details-marker {
+    display: none;
+  }
+  details > summary:not([class*="list-none"])::before {
+    content: "";
+    display: inline-block;
+    width: 0.4em;
+    height: 0.4em;
+    margin-right: 0.6em;
+    margin-left: 0.15em;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.7;
+    transform: translateY(-0.15em) rotate(-45deg);
+    transition: transform 150ms ease;
+  }
+  details[open] > summary:not([class*="list-none"])::before {
+    transform: translateY(-0.25em) rotate(45deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    details > summary:not([class*="list-none"])::before {
+      transition: none;
+    }
   }
 }

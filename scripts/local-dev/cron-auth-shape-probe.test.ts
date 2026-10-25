@@ -53,6 +53,17 @@ const workbookRefreshCalls: unknown[] = [];
 const importCommitCalls: unknown[] = [];
 const automaticSheetWorkerCalls: unknown[] = [];
 const publicationNotificationCalls: unknown[] = [];
+const workerObservationCalls: unknown[] = [];
+
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    workerObservationCalls.push(worker);
+    return operation();
+  },
+}));
 
 function dangerCallTotals() {
   return {
@@ -71,6 +82,7 @@ function dangerCallTotals() {
     executeCsfImportCommitClaim: importCommitCalls.length,
     automaticSheetWorkers: automaticSheetWorkerCalls.length,
     publicationNotifications: publicationNotificationCalls.length,
+    workerObservations: workerObservationCalls.length,
   };
 }
 
@@ -90,6 +102,7 @@ const ZERO_DANGER_CALLS = {
   executeCsfImportCommitClaim: 0,
   automaticSheetWorkers: 0,
   publicationNotifications: 0,
+  workerObservations: 0,
 };
 
 // `processExpiredSessions()` and `processPendingJobs()` are module-local, so
@@ -456,6 +469,7 @@ function makeRequest(
 }
 
 function resetCounters() {
+  workerObservationCalls.length = 0;
   for (const list of [
     createClientCalls,
     sendEmailCalls,
@@ -525,7 +539,7 @@ const EXACT_PROBE_HEADERS = headersWith({
 // ---------------------------------------------------------------------------
 
 describe("cron auth/shape probe helper contract", () => {
-  test("exposes exactly the twelve stable route IDs", () => {
+  test("exposes the reviewed stable route IDs", () => {
     expect([...CRON_PROBE_ROUTE_IDS]).toEqual([
       "auto-publish-hours",
       "project-cancellations",
@@ -539,6 +553,7 @@ describe("cron auth/shape probe helper contract", () => {
       "project-feedback-followups",
       "paper-signup-notifications",
       "csf-publication-notifications",
+      "public-image-cleanup",
     ]);
     expect(CRON_AUTH_SHAPE_PROBE_ENV).toBe("CRON_AUTH_SHAPE_PROBE_ONLY");
     expect(CRON_AUTH_SHAPE_PROBE_MODE).toBe("auth-shape-v1");
@@ -887,15 +902,21 @@ describe("cron routes fail closed under the probe without dispatching", () => {
         const noAuth = await handler(makeRequest(routeId, method));
         expect(noAuth.status, `${method} ${routeId} without auth`).toBe(401);
 
-        const wrongAuth = await handler(
-          makeRequest(routeId, method, {
-            authorization: "Bearer wrong-secret",
-          }),
-        );
-        expect(
-          wrongAuth.status,
-          `${method} ${routeId} with a wrong bearer`,
-        ).toBe(401);
+        for (const authorization of [
+          "Bearer wrong-secret",
+          CRON_SECRET,
+          `bearer ${CRON_SECRET}`,
+          `Bearer  ${CRON_SECRET}`,
+          `Bearer ${CRON_SECRET} extra`,
+        ]) {
+          const wrongAuth = await handler(
+            makeRequest(routeId, method, { authorization }),
+          );
+          expect(
+            wrongAuth.status,
+            `${method} ${routeId} with malformed or wrong credentials`,
+          ).toBe(401);
+        }
       }
     }
 
@@ -1001,6 +1022,7 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     );
     expect(dispatched.status).toBe(500);
     expect(dataExportCalls.length).toBe(1);
+    expect(workerObservationCalls).toEqual(["data-exports"]);
 
     resetCounters();
 
@@ -1011,5 +1033,6 @@ describe("cron routes fail closed under the probe without dispatching", () => {
     );
     expect(cancellations.status).toBe(500);
     expect(adminClientCalls.length).toBe(1);
+    expect(workerObservationCalls).toEqual(["project-cancellations"]);
   });
 });

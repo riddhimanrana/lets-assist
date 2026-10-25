@@ -12,6 +12,10 @@ const projectDetails = readFileSync(
   resolve(import.meta.dir, "../[id]/ProjectDetails.tsx"),
   "utf8",
 );
+const projectStatusSync = readFileSync(
+  resolve(import.meta.dir, "../[id]/useProjectStatusSync.ts"),
+  "utf8",
+);
 const controller = readFileSync(
   resolve(import.meta.dir, "useSignupConfirmationAction.ts"),
   "utf8",
@@ -90,12 +94,14 @@ describe("authenticated project signup confirmation", () => {
   });
 
   test("automatic status persistence uses the authorized action and exposes rejection", () => {
-    const statusWriter = projectDetails.slice(
-      projectDetails.indexOf("const updateProjectStatusInDB = async"),
-      projectDetails.indexOf(
-        "// Helper function to get attendees for a specific schedule slot",
+    const statusWriter = projectStatusSync.slice(
+      projectStatusSync.indexOf("const updateProjectStatusInDB = async"),
+      projectStatusSync.indexOf(
+        "// Modify status check effect to avoid unnecessary updates",
       ),
     );
+
+    expect(statusWriter.length).toBeGreaterThan(0);
 
     expect(statusWriter).toContain(
       "await updateProjectStatus(project.id, newStatus)",

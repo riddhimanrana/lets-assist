@@ -263,3 +263,19 @@ export async function register() {
     await registerNodeInstrumentation();
   }
 }
+
+export const onRequestError: import("next").Instrumentation.onRequestError =
+  async (error, request, context) => {
+    if (process.env.NEXT_RUNTIME !== "nodejs") return;
+    try {
+      const { reportRequestError } =
+        await import("./lib/request-error-reporter");
+      await reportRequestError(error, {
+        method: request.method,
+        routeType: context.routeType,
+        routerKind: context.routerKind,
+      });
+    } catch {
+      // Exporter initialization must not replace the application failure.
+    }
+  };

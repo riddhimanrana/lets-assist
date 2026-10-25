@@ -3,7 +3,13 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { basename, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { updateEmbeddedServingExpectations } from "./release-serving-contracts.mjs";
+import { prepareEmbeddedServingExpectations } from "./release-serving-contracts.mjs";
+import {
+  buildMigration,
+  buildMigrationTest,
+  nextMigrationVersion,
+} from "./private-release-publication.mjs";
+export { nextMigrationVersion } from "./private-release-publication.mjs";
 
 const PLUGIN_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 // The automatic integration lane accepts stable releases only. Supporting
@@ -168,7 +174,7 @@ function assertRelativePath(value, label) {
   }
 }
 
-function compareVersions(left, right) {
+export function compareVersions(left, right) {
   const a = left.split(".").map((part) => Number.parseInt(part, 10));
   const b = right.split(".").map((part) => Number.parseInt(part, 10));
   for (let index = 0; index < 3; index += 1) {
@@ -213,7 +219,7 @@ function listReleaseFiles(privateRoot, manifest) {
   return records;
 }
 
-function validateManifestShape(manifest) {
+export function validateManifestShape(manifest) {
   assertExactKeys(manifest, RELEASE_KEYS, "release manifest");
   if (![1, 2, 3].includes(manifest.schemaVersion))
     fail("unsupported release schema version");
@@ -473,230 +479,7 @@ function extractReleaseNotes(privateRoot, manifest) {
     .concat("\n");
 }
 
-function sqlString(value) {
-  return `'${String(value).replaceAll("'", "''")}'`;
-}
-
-function sqlJson(value) {
-  return `${sqlString(JSON.stringify(value))}::jsonb`;
-}
-
-function formatMigrationDate(date) {
-  const part = (value) => String(value).padStart(2, "0");
-  return `${date.getUTCFullYear()}${part(date.getUTCMonth() + 1)}${part(date.getUTCDate())}${part(date.getUTCHours())}${part(date.getUTCMinutes())}${part(date.getUTCSeconds())}`;
-}
-
-function parseMigrationDate(value) {
-  if (!MIGRATION_VERSION.test(value))
-    fail("invalid migration ledger timestamp");
-  const date = new Date(
-    Date.UTC(
-      Number.parseInt(value.slice(0, 4), 10),
-      Number.parseInt(value.slice(4, 6), 10) - 1,
-      Number.parseInt(value.slice(6, 8), 10),
-      Number.parseInt(value.slice(8, 10), 10),
-      Number.parseInt(value.slice(10, 12), 10),
-      Number.parseInt(value.slice(12, 14), 10),
-    ),
-  );
-  if (formatMigrationDate(date) !== value)
-    fail("invalid migration ledger date");
-  return date;
-}
-
-export function nextMigrationVersion(migrationsDir, now = new Date()) {
-  const versions = readdirSync(migrationsDir)
-    .map((file) => /^(\d{14})_/u.exec(file)?.[1])
-    .filter(Boolean)
-    .sort();
-  const latest = versions.at(-1);
-  if (!latest) return formatMigrationDate(now);
-  const afterLatest = new Date(parseMigrationDate(latest).getTime() + 1000);
-  return formatMigrationDate(afterLatest > now ? afterLatest : now);
-}
-
-function buildMigration(
-  manifest,
-  releaseNotes,
-  catalogRelease,
-  attestationRef,
-) {
-  const manifestHash = manifest.manifestDigest.slice("sha256:".length);
-  const signer = {
-    identity: manifest.signerIdentity.subject,
-    issuer: manifest.signerIdentity.issuer,
-    attestationRef,
-  };
-  const compatibility = { host: "lets-assist", automaticUpdate: false };
-  const catalogUpdate =
-    manifest.runtimeProfile === "embedded"
-      ? `UPDATE public.plugins
-  SET latest_version = ${sqlString(manifest.version)},
-      code_reference = ${sqlString(manifest.sourceCommit)},
-      updated_at = now()
-  WHERE key = ${sqlString(manifest.pluginKey)}
-    AND latest_version = ${sqlString(catalogRelease.version)}
-    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
-
-  IF NOT FOUND AND NOT EXISTS (
-    SELECT 1 FROM public.plugins
-    WHERE key = ${sqlString(manifest.pluginKey)}
-      AND latest_version = ${sqlString(manifest.version)}
-      AND code_reference = ${sqlString(manifest.sourceCommit)}
-  ) THEN
-    RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
-  END IF;`
-      : `PERFORM 1
-  FROM public.plugins
-  WHERE key = ${sqlString(manifest.pluginKey)}
-    AND latest_version = ${sqlString(catalogRelease.version)}
-    AND code_reference = ${sqlString(catalogRelease.sourceCommit)};
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Plugin catalog moved since this signed integration was prepared';
-  END IF;`;
-
-  return `-- Publish a signed private plugin release without changing organization installs.
-
-BEGIN;
-
-DO $$
-DECLARE
-  v_existing public.plugin_versions%ROWTYPE;
-BEGIN
-  SELECT * INTO v_existing
-  FROM public.plugin_versions
-  WHERE plugin_key = ${sqlString(manifest.pluginKey)}
-    AND version = ${sqlString(manifest.version)};
-
-  IF FOUND THEN
-    IF v_existing.status IS DISTINCT FROM 'published'
-      OR v_existing.commit_sha IS DISTINCT FROM ${sqlString(manifest.sourceCommit)}
-      OR v_existing.manifest_hash IS DISTINCT FROM ${sqlString(manifestHash)}
-      OR v_existing.source_tree IS DISTINCT FROM ${sqlString(manifest.sourceTree)}
-      OR v_existing.content_digest IS DISTINCT FROM ${sqlString(manifest.contentDigest)}
-      OR v_existing.release_inputs IS DISTINCT FROM ${sqlJson(manifest.releaseInputs)}
-      OR v_existing.build_digest IS DISTINCT FROM ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)}
-      OR v_existing.sbom_digest IS DISTINCT FROM ${sqlString(manifest.sbomDigest)}
-      OR v_existing.signer_identity IS DISTINCT FROM ${sqlJson(signer)}
-      OR v_existing.host_api_range IS DISTINCT FROM ${sqlJson(manifest.hostApiRange)}
-      OR v_existing.plugin_data_schema_version IS DISTINCT FROM ${manifest.pluginDataSchemaVersion}
-      OR v_existing.required_platform_schema_version IS DISTINCT FROM ${sqlString(manifest.requiredPlatformSchemaVersion)}
-      OR v_existing.supported_install_contracts IS DISTINCT FROM ${sqlJson(manifest.supportedInstallContracts)}
-      OR v_existing.runtime_profile IS DISTINCT FROM ${sqlString(manifest.runtimeProfile)}
-      OR v_existing.rollout_percentage IS DISTINCT FROM 0
-    THEN
-      RAISE EXCEPTION 'Existing plugin release conflicts with the signed release identity';
-    END IF;
-  ELSE
-    INSERT INTO public.plugin_versions (
-      plugin_key, version, status, changelog, commit_sha, manifest_hash,
-      compatibility_contract, rollout_percentage, source_tree, content_digest,
-      release_inputs, build_digest, sbom_digest, signer_identity, host_api_range,
-      plugin_data_schema_version, required_platform_schema_version,
-      supported_install_contracts, runtime_profile, published_at
-    ) VALUES (
-      ${sqlString(manifest.pluginKey)},
-      ${sqlString(manifest.version)},
-      'published',
-      ${sqlString(releaseNotes)},
-      ${sqlString(manifest.sourceCommit)},
-      ${sqlString(manifestHash)},
-      ${sqlJson(compatibility)},
-      0,
-      ${sqlString(manifest.sourceTree)},
-      ${sqlString(manifest.contentDigest)},
-      ${sqlJson(manifest.releaseInputs)},
-      ${manifest.buildDigest === null ? "NULL" : sqlString(manifest.buildDigest)},
-      ${sqlString(manifest.sbomDigest)},
-      ${sqlJson(signer)},
-      ${sqlJson(manifest.hostApiRange)},
-      ${manifest.pluginDataSchemaVersion},
-      ${sqlString(manifest.requiredPlatformSchemaVersion)},
-      ${sqlJson(manifest.supportedInstallContracts)},
-      ${sqlString(manifest.runtimeProfile)},
-      now()
-    );
-  END IF;
-
-  ${catalogUpdate}
-END;
-$$;
-
-COMMIT;
-`;
-}
-
-function buildMigrationTest(manifest, catalogRelease) {
-  const manifestHash = manifest.manifestDigest.slice("sha256:".length);
-  const expectedCatalogVersion =
-    manifest.runtimeProfile === "embedded"
-      ? manifest.version
-      : catalogRelease.version;
-  const expectedCodeReference =
-    manifest.runtimeProfile === "embedded"
-      ? manifest.sourceCommit
-      : catalogRelease.sourceCommit;
-
-  return `BEGIN;
-
-CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT extensions.plan(8);
-
-SELECT extensions.is(
-  (SELECT status::text FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  'published',
-  'signed plugin release is published'
-);
-
-SELECT extensions.is(
-  (SELECT commit_sha FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  ${sqlString(manifest.sourceCommit)},
-  'signed source commit is recorded'
-);
-
-SELECT extensions.is(
-  (SELECT manifest_hash FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  ${sqlString(manifestHash)},
-  'signed manifest hash is recorded'
-);
-
-SELECT extensions.is(
-  (SELECT source_tree FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  ${sqlString(manifest.sourceTree)},
-  'signed source tree is recorded'
-);
-
-SELECT extensions.is(
-  (SELECT content_digest FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  ${sqlString(manifest.contentDigest)},
-  'signed content digest is recorded'
-);
-
-SELECT extensions.is(
-  (SELECT supported_install_contracts FROM public.plugin_versions WHERE plugin_key = ${sqlString(manifest.pluginKey)} AND version = ${sqlString(manifest.version)}),
-  ${sqlJson(manifest.supportedInstallContracts)},
-  'install compatibility range is recorded'
-);
-
-SELECT extensions.is(
-  (SELECT latest_version FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
-  ${sqlString(expectedCatalogVersion)},
-  'plugin catalog keeps the serving embedded release truthful'
-);
-
-SELECT extensions.is(
-  (SELECT code_reference FROM public.plugins WHERE key = ${sqlString(manifest.pluginKey)}),
-  ${sqlString(expectedCodeReference)},
-  'plugin catalog keeps the serving embedded source truthful'
-);
-
-SELECT * FROM extensions.finish();
-ROLLBACK;
-`;
-}
-
-export function integratePrivateRelease({
+export function preparePrivateReleaseIntegration({
   manifestPath,
   sbomPath,
   buildPath,
@@ -733,12 +516,18 @@ export function integratePrivateRelease({
       file.startsWith(`${manifest.requiredPlatformSchemaVersion}_`),
     )
   ) {
+    // A correct refusal: the release depends on a host migration that this
+    // root source does not contain yet. Name the version and the two ways out.
     fail(
-      "required platform schema migration is not present in the root ledger",
+      `required platform schema migration ${manifest.requiredPlatformSchemaVersion} is not present in the root ledger. ` +
+        "Merge the host migration into development and rerun this integration, " +
+        "or dispatch plugin-release-integration.yml from the root candidate commit " +
+        "with candidate_sha set to that commit (see docs/development/plugin-release-integration.md).",
     );
   }
 
   const registry = JSON.parse(readFileSync(registryPath, "utf8"));
+  const originalRegistry = structuredClone(registry);
   if (!Array.isArray(registry))
     fail("published release registry must be an array");
   if (servingPrivateCommit && !GIT_SHA.test(servingPrivateCommit)) {
@@ -764,21 +553,6 @@ export function integratePrivateRelease({
   if (!catalogRelease) {
     fail("plugin has no embedded catalog release");
   }
-  verifyPublishedEmbeddedTrees(
-    privateRoot,
-    registry,
-    manifest.runtimeProfile === "application"
-      ? servingPrivateCommit
-      : manifest.sourceCommit,
-    manifest.pluginKey,
-    servingPrivateCommit,
-    manifest.runtimeProfile === "application"
-      ? [
-          `plugins/${manifest.pluginKey}/CHANGELOG.md`,
-          `plugins/${manifest.pluginKey}/release.json`,
-        ]
-      : null,
-  );
   if (compareVersions(manifest.version, previous.version) <= 0) {
     fail(
       "signed release version must be newer than the published runtime release",
@@ -859,23 +633,71 @@ export function integratePrivateRelease({
   if (existsSync(migrationTestPath)) {
     fail(`migration test already exists: ${basename(migrationTestPath)}`);
   }
-  if (manifest.runtimeProfile === "embedded") {
-    updateEmbeddedServingExpectations(
-      resolve(migrationsDir, "../tests/database"),
-      manifest.pluginKey,
-      manifest.version,
-      manifest.sourceCommit,
-    );
-  }
-  writeFileSync(registryPath, `${JSON.stringify(registry, null, 2)}\n`);
-  writeFileSync(
-    migrationPath,
-    buildMigration(manifest, releaseNotes, catalogRelease, attestationRef),
+  return {
+    manifest,
+    originalRegistry,
+    registry,
+    nextRelease,
+    releaseNotes,
+    catalogRelease,
+    attestationRef,
+    registryPath,
+    privateRoot,
+    servingPrivateCommit,
+    migrationsDir,
+    migrationSql: buildMigration(
+      manifest,
+      releaseNotes,
+      catalogRelease,
+      attestationRef,
+    ),
+    migrationTestSql: buildMigrationTest(manifest, catalogRelease),
+    summary: {
+      pluginKey: manifest.pluginKey,
+      version: manifest.version,
+      previousVersion: previous.version,
+      sourceCommit: manifest.sourceCommit,
+      migrationPath: resolve(migrationPath),
+      migrationTestPath: resolve(migrationTestPath),
+    },
+  };
+}
+
+export function integratePrivateRelease(options) {
+  const plan = preparePrivateReleaseIntegration(options);
+  const { manifest, originalRegistry, privateRoot, servingPrivateCommit } =
+    plan;
+  verifyPublishedEmbeddedTrees(
+    privateRoot,
+    originalRegistry,
+    manifest.runtimeProfile === "application"
+      ? servingPrivateCommit
+      : manifest.sourceCommit,
+    manifest.pluginKey,
+    servingPrivateCommit,
+    manifest.runtimeProfile === "application"
+      ? [
+          `plugins/${manifest.pluginKey}/CHANGELOG.md`,
+          `plugins/${manifest.pluginKey}/release.json`,
+        ]
+      : null,
   );
+  const updates =
+    manifest.runtimeProfile === "embedded"
+      ? prepareEmbeddedServingExpectations(
+          resolve(plan.migrationsDir, "../tests/database"),
+          manifest.pluginKey,
+          manifest.version,
+          manifest.sourceCommit,
+        )
+      : [];
+  for (const [path, source] of updates) writeFileSync(path, source);
   writeFileSync(
-    migrationTestPath,
-    buildMigrationTest(manifest, catalogRelease),
+    plan.registryPath,
+    `${JSON.stringify(plan.registry, null, 2)}\n`,
   );
+  writeFileSync(plan.summary.migrationPath, plan.migrationSql);
+  writeFileSync(plan.summary.migrationTestPath, plan.migrationTestSql);
   git(privateRoot, [
     "checkout",
     "--detach",
@@ -883,15 +705,7 @@ export function integratePrivateRelease({
       ? servingPrivateCommit
       : manifest.sourceCommit,
   ]);
-
-  return {
-    pluginKey: manifest.pluginKey,
-    version: manifest.version,
-    previousVersion: previous.version,
-    sourceCommit: manifest.sourceCommit,
-    migrationPath: resolve(migrationPath),
-    migrationTestPath: resolve(migrationTestPath),
-  };
+  return plan.summary;
 }
 
 function parseArguments(argv) {

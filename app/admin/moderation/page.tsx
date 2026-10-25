@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { checkSuperAdmin } from "../actions";
+import { AdminLoadError, AdminPage } from "../components/AdminPage";
 import ModerationDashboard from "./ModerationDashboardWrapper";
 import {
   getModerationStats,
@@ -9,7 +11,7 @@ import {
 } from "./actions";
 
 export const metadata = {
-  title: "Content Moderation | Admin",
+  title: "Admin moderation",
   description: "Platform-wide content moderation dashboard",
 };
 
@@ -37,17 +39,18 @@ export default async function AdminModerationPage() {
     reportsStats.error
   ) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-8">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-destructive">
-          <p className="font-medium">Error loading moderation data</p>
-          <p className="mt-2 text-sm opacity-90">
-            {stats.error ||
-              flaggedContent.error ||
-              contentReports.error ||
-              reportsStats.error}
-          </p>
-        </div>
-      </div>
+      <AdminPage>
+        <PageHeader title="Content moderation" />
+        <AdminLoadError
+          title="Error loading moderation data"
+          message={
+            stats.error ||
+            flaggedContent.error ||
+            contentReports.error ||
+            reportsStats.error
+          }
+        />
+      </AdminPage>
     );
   }
 

@@ -1,4 +1,6 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
+
 import React, {
   useState,
   useEffect,
@@ -11,19 +13,25 @@ import { ProjectViewToggle } from "./ProjectViewToggle";
 import { ProjectCardSkeleton } from "./ProjectCardSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ArrowUp, CircleAlert } from "lucide-react";
 import {
-  Search,
-  Loader2,
-  X,
-  CheckCircle2,
-  ArrowUp,
-  Plus,
-  PackageX,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  CalendarDaysIcon,
+  PlusIcon,
+  SearchIcon,
+  useAnimatedIcon,
+} from "@/components/icons/animated";
+import { EmptyStateIcon } from "./EmptyStateIcon";
 import { DateRange } from "@daypicker/react";
 import { formatDateRangeLabel } from "@/components/ui/date-range-picker";
-import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ProjectsMapView } from "./ProjectsMapView";
 import {
@@ -33,8 +41,17 @@ import {
 import { ProjectFeedFilters } from "./project-feed/ProjectFeedFilters";
 import { filterAndSortProjects } from "./project-feed/project-feed-filtering";
 import type { ProjectFeedView, ProjectWithSignups } from "./project-feed/types";
+import { ProjectFeedEmpty } from "@/components/home/ProjectFeedEmpty";
 
-export const ProjectsInfiniteScroll: React.FC = () => {
+class ProjectFeedHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`Failed to load projects (${status})`);
+  }
+}
+
+export const ProjectsInfiniteScroll: React.FC<{ demoEnabled?: boolean }> = ({
+  demoEnabled = false,
+}) => {
   const limit = 20;
   const [searchTerm, setSearchTerm] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState<string | undefined>(
@@ -58,9 +75,11 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   const [isValidating, setIsValidating] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const latestRequestIdRef = useRef(0);
   const activeRequestAbortRef = useRef<AbortController | null>(null);
   const pageTeardownRef = useRef(false);
+  const createIcon = useAnimatedIcon();
 
   // Debug local storage issue with hydration
   useEffect(() => {
@@ -92,6 +111,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
       setIsValidating(true);
       setError(null);
+      setErrorStatus(null);
 
       const params = new URLSearchParams({
         limit: String(limit),
@@ -115,7 +135,7 @@ export const ProjectsInfiniteScroll: React.FC = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to load projects (${response.status})`);
+          throw new ProjectFeedHttpError(response.status);
         }
 
         const nextProjects = (await response.json()) as ProjectWithSignups[];
@@ -142,7 +162,10 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           return;
         }
 
-        console.error("Error loading project feed:", fetchError);
+        safeConsole.error("Error loading project feed:", fetchError);
+        setErrorStatus(
+          fetchError instanceof ProjectFeedHttpError ? fetchError.status : null,
+        );
         setError(
           fetchError instanceof Error
             ? fetchError.message
@@ -263,19 +286,14 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   // Loading skeletons
   if (showInitialSkeleton) {
     return (
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="w-full">
-            <Skeleton className="h-10 w-full" />
-          </div>
-          <div className="shrink-0">
-            <Skeleton className="h-10 w-32" />
-          </div>
+      <div aria-busy="true">
+        <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-center">
+          <Skeleton className="h-9 w-full md:w-72 lg:w-80" />
+          <Skeleton className="h-9 w-full md:w-36" />
+          <Skeleton className="hidden h-9 w-56 md:ml-auto md:block" />
         </div>
 
-        <Skeleton className="h-10 w-48 mb-8" />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,19rem),1fr))] gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <ProjectCardSkeleton key={`project-skeleton-${i}`} />
           ))}
@@ -285,23 +303,34 @@ export const ProjectsInfiniteScroll: React.FC = () => {
   }
 
   if (error && !isLoading && allProjects.length === 0) {
+    if (demoEnabled) {
+      return (
+        <ProjectFeedEmpty
+          className="p-6 sm:p-12"
+          state={
+            errorStatus === 401 || errorStatus === 403 ? "restricted" : "error"
+          }
+          onRetry={() => {
+            void fetchProjectsPage(0, "replace");
+          }}
+        />
+      );
+    }
     return (
-      <Card className="bg-muted/40 border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-16">
-          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
-            <PackageX className="h-10 w-10 text-muted-foreground opacity-80" />
-          </div>
-          <h3 className="text-xl font-medium mb-2">
-            Couldn&apos;t load projects
-          </h3>
-          <p className="text-muted-foreground text-center max-w-md mb-8">
-            {error}
-          </p>
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <CircleAlert aria-hidden="true" />
+          </EmptyMedia>
+          <EmptyTitle>Couldn&apos;t load projects</EmptyTitle>
+          <EmptyDescription>{error}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
           <Button onClick={() => void fetchProjectsPage(0, "replace")}>
             Try again
           </Button>
-        </CardContent>
-      </Card>
+        </EmptyContent>
+      </Empty>
     );
   }
 
@@ -328,52 +357,59 @@ export const ProjectsInfiniteScroll: React.FC = () => {
           clearAllFilters={clearAllFilters}
         />
 
-        <Card
-          className="bg-muted/40 border-dashed"
-          data-tour-id="home-project-list"
-        >
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+        {demoEnabled ? (
+          <ProjectFeedEmpty
+            className="p-6 sm:p-12"
+            state={activeFilterCount > 0 ? "filtered" : "empty"}
+            onClear={clearAllFilters}
+          />
+        ) : (
+          <Empty
+            className="border p-6 sm:p-12"
+            data-tour-id="home-project-list"
+          >
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <EmptyStateIcon
+                  icon={activeFilterCount > 0 ? SearchIcon : CalendarDaysIcon}
+                />
+              </EmptyMedia>
+              <EmptyTitle>No projects found</EmptyTitle>
+              <EmptyDescription>
+                {activeFilterCount > 0
+                  ? "Try changing or clearing your filters."
+                  : "No public projects are scheduled right now. Some groups share sign-up links directly, so check with your club or school too."}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
               {activeFilterCount > 0 ? (
-                <Search className="h-10 w-10 text-muted-foreground opacity-80" />
+                <Button onClick={clearAllFilters}>Clear all filters</Button>
               ) : (
-                <PackageX className="h-10 w-10 text-muted-foreground opacity-80" />
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/organization"
+                    className={buttonVariants({ variant: "outline" })}
+                  >
+                    Explore organizations
+                  </Link>
+                  <Link
+                    href="/projects/create"
+                    className={buttonVariants()}
+                    {...createIcon.triggerProps}
+                  >
+                    <PlusIcon
+                      ref={createIcon.ref}
+                      size={16}
+                      data-icon="inline-start"
+                      aria-hidden="true"
+                    />
+                    Create a project
+                  </Link>
+                </div>
               )}
-            </div>
-            <h3 className="text-xl font-medium mb-2">No projects found</h3>
-            <p className="text-muted-foreground text-center max-w-md mb-8">
-              {activeFilterCount > 0
-                ? "Try changing or clearing your filters."
-                : "No projects are available yet."}
-            </p>
-
-            <div className="flex gap-4 flex-wrap justify-center">
-              {activeFilterCount > 0 && (
-                <Button
-                  variant="default"
-                  onClick={clearAllFilters}
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Clear all filters
-                </Button>
-              )}
-
-              <Link
-                href="/projects/create"
-                className={cn(
-                  buttonVariants({
-                    variant: activeFilterCount > 0 ? "outline" : "default",
-                  }),
-                  "gap-2",
-                )}
-              >
-                <Plus className="h-4 w-4" />
-                Create a project
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+            </EmptyContent>
+          </Empty>
+        )}
       </>
     );
   }
@@ -422,46 +458,39 @@ export const ProjectsInfiniteScroll: React.FC = () => {
 
       {/* Loading indicator at the bottom */}
       {hasMore && view !== "map" && (
-        <div className="py-6 flex justify-center" ref={ref}>
+        <div className="flex h-16 items-center justify-center" ref={ref}>
           {isValidating ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">
-                Loading more projects...
-              </span>
-            </div>
-          ) : (
-            <div className="h-16" />
-          )}
+            <p
+              className="text-muted-foreground flex items-center gap-2 text-sm"
+              role="status"
+            >
+              <Spinner />
+              Loading more projects...
+            </p>
+          ) : null}
         </div>
       )}
 
       {/* Show end of results message when we've reached the end */}
-      {!hasMore && sortedProjects.length > 0 && view !== "map" && (
-        <div className="py-8 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/40">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <span className="font-medium">
-              You&apos;ve seen all available projects
-            </span>
-          </div>
-
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={(e) => {
-                e.preventDefault();
-                window.scrollTo({
-                  top: 0,
-                  behavior: "smooth",
-                });
-              }}
-            >
-              <ArrowUp className="h-4 w-4" />
-              Back to top
-            </Button>
-          </div>
+      {/* Only after a full page of results: a short list never scrolled. */}
+      {!hasMore && sortedProjects.length >= limit && view !== "map" && (
+        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-8 text-sm">
+          <p>You&apos;ve seen all available projects</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9"
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({
+                top: 0,
+                behavior: "smooth",
+              });
+            }}
+          >
+            <ArrowUp data-icon="inline-start" aria-hidden="true" />
+            Back to top
+          </Button>
         </div>
       )}
     </div>

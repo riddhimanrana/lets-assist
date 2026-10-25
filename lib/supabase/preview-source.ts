@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import {
   createClient as createSupabaseClient,
   type SupabaseClient,
@@ -49,7 +50,7 @@ export function getRemoteUserIdForLocalUser(
         return parsed[email];
       }
     } catch (e) {
-      console.error("Error parsing REMOTE_PREVIEW_USER_ID_MAP:", e);
+      safeConsole.error("Error parsing REMOTE_PREVIEW_USER_ID_MAP:", e);
     }
   }
 

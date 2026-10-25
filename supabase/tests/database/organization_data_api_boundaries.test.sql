@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
-SELECT extensions.plan(92);
+SELECT extensions.plan(93);
 
 -- Organization bearer capabilities must never be readable through the Data API.
 WITH client_roles(role_name) AS (
@@ -267,9 +267,9 @@ VALUES (
   'Organization Boundary Project',
   'Local',
   'Project ownership boundary fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true
 );
 
@@ -400,7 +400,7 @@ SELECT extensions.throws_ok(
     WHERE id = 'fd200000-0000-4000-8000-000000000001'
   $$,
   '23514',
-  'cannot demote the final organization admin',
+  'cannot remove the final active organization admin',
   'the database prevents demoting the final organization admin'
 );
 
@@ -771,25 +771,32 @@ SELECT extensions.is(
   'service-role issuer binding is persisted'
 );
 
-UPDATE public.organization_members
+SELECT extensions.throws_ok($$UPDATE public.organization_members
 SET status = 'inactive'
 WHERE organization_id = 'fd100000-0000-4000-8000-000000000001'
-  AND user_id = 'fd000000-0000-4000-8000-000000000001';
+  AND user_id = 'fd000000-0000-4000-8000-000000000001'$$,
+ '23514', 'cannot remove the final active organization admin',
+ 'service writes cannot deactivate the final active admin');
+
+-- Model a legacy inactive-admin row with the fixture owner for the issuer test.
+RESET ROLE;
+UPDATE public.organization_members SET status='inactive'
+WHERE organization_id='fd100000-0000-4000-8000-000000000001'
+ AND user_id='fd000000-0000-4000-8000-000000000001';
 
 RESET ROLE;
 SET LOCAL request.jwt.claims =
   '{"sub":"fd000000-0000-4000-8000-000000000001","role":"authenticated"}';
 SET LOCAL ROLE authenticated;
 
-SELECT extensions.throws_ok(
+SELECT extensions.is_empty(
   $$
     UPDATE public.organizations
     SET staff_join_token_issued_by = 'fd000000-0000-4000-8000-000000000002'
     WHERE id = 'fd100000-0000-4000-8000-000000000001'
+    RETURNING id
   $$,
-  '42501',
-  'staff invite token issuer requires a server-authorized operation',
-  'an inactive admin retaining organization update access cannot rebind the issuer'
+  'RLS prevents an inactive admin from reaching the issuer update'
 );
 
 RESET ROLE;

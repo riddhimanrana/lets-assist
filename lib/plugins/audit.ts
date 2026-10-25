@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 
@@ -82,7 +83,7 @@ export async function logPluginAudit(
   });
 
   if (error) {
-    console.error("Failed to log plugin audit:", error);
+    safeConsole.error("Failed to log plugin audit:", error);
     return null;
   }
 
@@ -153,7 +154,7 @@ export async function trackPluginExecution(
   });
 
   if (error) {
-    console.error("Failed to track plugin execution metrics:", error);
+    safeConsole.error("Failed to track plugin execution metrics:", error);
   }
 }
 
@@ -196,7 +197,7 @@ export async function getOrganizationPluginAuditLogs(
   const { data, error } = await query;
 
   if (error) {
-    console.error("Failed to get audit logs:", error);
+    safeConsole.error("Failed to get audit logs:", error);
     return [];
   }
 

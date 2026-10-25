@@ -1,5 +1,7 @@
 # DV Speech & Debate System
 
+> Archived reference. Speech and Debate is no longer registered or offered by the app. The implementation and database history remain for reference; the instructions below describe its former operation.
+
 This is the authoritative domain and architecture specification for the DV Speech & Debate private plugin.
 
 ## Domain rules

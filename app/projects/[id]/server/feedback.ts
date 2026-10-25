@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { z } from "zod";
@@ -66,7 +67,7 @@ async function consumeFeedbackQuota(userId: string): Promise<boolean> {
     return quota.allowed;
   } catch (error) {
     // Metering being down must not block a volunteer's feedback.
-    console.error("Feedback rate-limit check failed:", error);
+    safeConsole.error("Feedback rate-limit check failed:", error);
     return true;
   }
 }
@@ -120,7 +121,7 @@ async function moderateFeedbackComment(
       ).catch(() => undefined);
     }
   } catch (error) {
-    console.error("Feedback moderation failed:", error);
+    safeConsole.error("Feedback moderation failed:", error);
   }
 }
 
@@ -278,7 +279,7 @@ export async function submitProjectFeedbackWithToken(input: {
       };
     }
   } catch (error) {
-    console.error("Token feedback rate-limit check failed:", error);
+    safeConsole.error("Token feedback rate-limit check failed:", error);
   }
 
   // The service-role bearer path must not bypass the same eligibility that

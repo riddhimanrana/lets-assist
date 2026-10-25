@@ -379,8 +379,8 @@ INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description,
   event_type, verification_method, schedule, require_login
 ) VALUES
-  ('f9400000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000001', 'f9100000-0000-4000-8000-000000000001', 'Fence Project', 'Local', 'Synthetic project.', 'single', 'manual', '{}'::jsonb, true),
-  ('f9400000-0000-4000-8000-000000000002', 'f9000000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000002', 'Independent Project', 'Local', 'Synthetic project.', 'single', 'manual', '{}'::jsonb, true);
+  ('f9400000-0000-4000-8000-000000000001', 'f9000000-0000-4000-8000-000000000001', 'f9100000-0000-4000-8000-000000000001', 'Fence Project', 'Local', 'Synthetic project.', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true),
+  ('f9400000-0000-4000-8000-000000000002', 'f9000000-0000-4000-8000-000000000007', 'f9100000-0000-4000-8000-000000000002', 'Independent Project', 'Local', 'Synthetic project.', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true);
 
 INSERT INTO plugin_data.csf_opportunities (
   id, organization_id, term_id, title, body, starts_at, status,

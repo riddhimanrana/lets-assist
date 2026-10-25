@@ -5,27 +5,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Users2,
-  BadgeCheck,
-  Shield,
-  UserRoundCog,
-  UserRound,
-  EyeOff,
-} from "lucide-react";
+import { BadgeCheck, EyeOff, Users } from "lucide-react";
 import { NoAvatar } from "@/components/shared/NoAvatar";
+import { cn } from "@/lib/utils";
 import type { Organization } from "@/types";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { MemberRoleBadge } from "./[id]/MemberRoleBadge";
 
 type OrganizationCardOrg = Omit<
   Organization,
@@ -38,16 +28,50 @@ type OrganizationCardOrg = Omit<
   verified?: boolean;
 };
 
+export type OrganizationRole = "admin" | "staff" | "member";
+
 interface OrganizationCardProps {
   org: OrganizationCardOrg;
   /**
    * Visible member count. `null` means the organization keeps its member list
-   * private, which is different from genuinely having no members — the card
+   * private, which is different from genuinely having no members. The card
    * says so instead of rendering a misleading "0 members".
    */
   memberCount: number | null;
   isUserMember?: boolean;
-  userRole?: "admin" | "staff" | "member";
+  userRole?: OrganizationRole;
+  /**
+   * Tints the card with the primary wash and edge. The directory sets it for
+   * the viewer's own organizations; other callers stay neutral.
+   */
+  highlightMembership?: boolean;
+}
+
+const ORGANIZATION_TYPE_LABELS: Record<string, string> = {
+  nonprofit: "Nonprofit",
+  school: "Educational",
+  company: "Company",
+  government: "Government",
+  other: "Other",
+};
+
+/** Short label for an organization type, matching the organization header. */
+export function organizationTypeLabel(type?: string | null): string | null {
+  if (!type) return null;
+  return (
+    ORGANIZATION_TYPE_LABELS[type] ??
+    type.charAt(0).toUpperCase() + type.slice(1)
+  );
+}
+
+export function memberCountLabel(memberCount: number | null): string {
+  if (memberCount === null) return "Members private";
+  return `${memberCount.toLocaleString("en-US")} member${memberCount !== 1 ? "s" : ""}`;
+}
+
+/** The directory's role badge. One presentation, owned by `MemberRoleBadge`. */
+export function OrganizationRoleBadge({ role }: { role: OrganizationRole }) {
+  return <MemberRoleBadge role={role} />;
 }
 
 export default function OrganizationCard({
@@ -55,91 +79,82 @@ export default function OrganizationCard({
   memberCount,
   isUserMember = false,
   userRole,
+  highlightMembership = false,
 }: OrganizationCardProps) {
+  const typeLabel = organizationTypeLabel(org.type);
+  const role = isUserMember ? userRole : undefined;
+  const FooterIcon = memberCount === null ? EyeOff : Users;
+
   return (
     <Link
       href={`/organization/${org.username}`}
-      className="block h-full group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      className="group focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-[3px]"
     >
+      {/* Hover changes the ring and the title colour only. The card never
+          lifts or gains a shadow. */}
       <Card
-        className={`h-full flex flex-col transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${isUserMember ? "ring-primary/30 bg-primary/5" : "hover:ring-primary/25"}`}
+        className={cn(
+          "h-full transition-colors",
+          highlightMembership
+            ? "bg-primary/5 ring-primary/30 group-hover:bg-primary/10 group-hover:ring-primary/40"
+            : "group-hover:ring-primary/30",
+        )}
       >
         <CardHeader className="flex flex-row items-start gap-3">
-          <Avatar className="h-12 w-12 border border-border shrink-0">
-            <AvatarImage src={org.logo_url || undefined} alt={org.name} />
+          <Avatar
+            size="lg"
+            className="size-12 border border-border data-[size=lg]:size-12"
+          >
+            <AvatarImage src={org.logo_url || undefined} alt="" />
             <AvatarFallback>
               <NoAvatar fullName={org.name} />
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <CardTitle className="text-base font-bold truncate leading-tight group-hover:text-primary transition-colors">
+          <div className="grid min-w-0 flex-1 gap-0.5">
+            <div className="flex min-w-0 items-start gap-1.5">
+              <CardTitle className="group-hover:text-content-link line-clamp-2 text-base font-semibold leading-tight break-words transition-colors">
                 {org.name}
               </CardTitle>
               {org.verified && (
-                <Tooltip>
-                  <TooltipTrigger aria-label="Verified organization">
-                    <BadgeCheck className="h-4 w-4 shrink-0 text-primary" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    <p>Verified Organization</p>
-                  </TooltipContent>
-                </Tooltip>
+                <BadgeCheck
+                  role="img"
+                  aria-label="Verified organization"
+                  className="text-primary mt-0.5 size-4 shrink-0"
+                />
               )}
             </div>
-            <CardDescription className="text-xs truncate">
+            <CardDescription className="truncate">
               @{org.username}
             </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="flex flex-wrap gap-2 mb-2">
-            <Badge
-              variant="outline"
-              className="text-[10px] h-5 px-1.5 capitalize"
-            >
-              {org.type}
-            </Badge>
-            {isUserMember && userRole && (
-              <Badge
-                variant={
-                  userRole === "admin"
-                    ? "default"
-                    : userRole === "staff"
-                      ? "info"
-                      : "outline"
-                }
-                className="text-[10px] h-5 px-1.5 flex items-center gap-1"
-              >
-                {userRole === "admin" && <Shield className="h-3 w-3" />}
-                {userRole === "staff" && <UserRoundCog className="h-3 w-3" />}
-                {userRole === "member" && <UserRound className="h-3 w-3" />}
-                {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-              </Badge>
-            )}
-          </div>
-
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-words min-h-[2.4rem]">
+        <CardContent className="flex flex-1 flex-col gap-3">
+          {typeLabel || role ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {typeLabel ? <Badge variant="outline">{typeLabel}</Badge> : null}
+              {role ? <OrganizationRoleBadge role={role} /> : null}
+            </div>
+          ) : null}
+          {/* Two lines are always reserved, so cards in a row share one
+              rhythm whether or not an organization wrote a description. */}
+          <p className="text-muted-foreground line-clamp-2 min-h-10 text-sm break-words">
             {org.description || "No description provided."}
           </p>
         </CardContent>
 
-        <CardFooter className="px-4 py-0 h-10 text-[11px] font-medium text-muted-foreground flex items-center justify-start bg-muted/10">
-          {memberCount === null ? (
-            <div className="flex items-center gap-1.5">
-              <EyeOff className="h-3.5 w-3.5" />
-              <span>Members private</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <Users2 className="h-3.5 w-3.5" />
-              <span>
-                {memberCount.toLocaleString()} member
-                {memberCount !== 1 ? "s" : ""}
-              </span>
-            </div>
+        {/* The count sits in its own footer band. A private member list keeps
+            its own icon and wording and never reads as zero. The membership
+            wash shows through its footer; neutral cards keep the primitive's
+            muted band. */}
+        <CardFooter
+          className={cn(
+            "text-muted-foreground gap-2 py-3 text-sm",
+            highlightMembership && "border-primary/15 bg-transparent",
           )}
+        >
+          <FooterIcon className="size-4 shrink-0" aria-hidden="true" />
+          <span>{memberCountLabel(memberCount)}</span>
         </CardFooter>
       </Card>
     </Link>

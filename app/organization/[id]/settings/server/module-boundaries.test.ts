@@ -39,9 +39,14 @@ describe("organization settings action modules", () => {
   });
 
   test("application runtime changes keep retry identity and selected version distinct", () => {
-    const component = read(
+    // The plugin settings surface is split by section: the section owns the
+    // runtime handler, the rows own the per-plugin controls.
+    const component = [
       "app/organization/[id]/settings/OrganizationPluginSettings.tsx",
-    );
+      "app/organization/[id]/settings/OrganizationPluginRows.tsx",
+    ]
+      .map(read)
+      .join("\n");
     const mutations = read(
       "app/organization/[id]/settings/server/plugin-mutations.ts",
     );

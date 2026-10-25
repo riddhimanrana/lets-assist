@@ -69,7 +69,7 @@ export function MiniDashboard({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground">
-                  Total Hours
+                  Total hours
                 </p>
                 <p className="text-xl font-semibold">{totalHours}h</p>
               </div>

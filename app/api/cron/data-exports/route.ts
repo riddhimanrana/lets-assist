@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
 
 import { processPendingDataExportJobs } from "@/lib/supabase/data-export-jobs";
+import { logError } from "@/lib/logger";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { classifyDataExportResponse } from "@/lib/cron/data-export-outcome";
 
 function authorizeCronRequest(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
+  const tokens = cronTokens();
 
-  if (!cronSecret) {
+  if (tokens.length === 0) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -17,7 +20,7 @@ function authorizeCronRequest(request: NextRequest) {
     };
   }
 
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!isCronBearerAuthorized(request.headers.get("authorization"), tokens)) {
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -37,25 +40,28 @@ async function runProcessor(request: NextRequest) {
   const probe = cronAuthShapeProbe("data-exports", request);
   if (probe) return probe;
 
-  const limitParam = Number(request.nextUrl.searchParams.get("limit") || "5");
+  const limitParam = Number(request.nextUrl.searchParams.get("limit") || "1");
   const limit =
     Number.isFinite(limitParam) && limitParam > 0
-      ? Math.min(limitParam, 25)
-      : 5;
+      ? Math.min(Math.floor(limitParam), 5)
+      : 1;
 
-  try {
-    const result = await processPendingDataExportJobs(limit);
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("Data export cron failed:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : "Internal server error",
-      },
-      { status: 500 },
-    );
-  }
+  return observeWorkerRun(
+    "data-exports",
+    async () => {
+      try {
+        const result = await processPendingDataExportJobs(limit);
+        return NextResponse.json({ ok: true, ...result });
+      } catch (error) {
+        logError("Data export cron failed", error);
+        return NextResponse.json(
+          { ok: false, error: "Data export processing could not be confirmed" },
+          { status: 500 },
+        );
+      }
+    },
+    classifyDataExportResponse,
+  );
 }
 
 export async function GET(request: NextRequest) {

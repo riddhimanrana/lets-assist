@@ -72,7 +72,7 @@ SELECT extensions.throws_ok(
       'image/jpeg'
     )
   $$,
-  '40001',
+  'PT409',
   'paper scan storage cleanup is in progress',
   'a scan photo cannot become registered while cleanup can delete it'
 );

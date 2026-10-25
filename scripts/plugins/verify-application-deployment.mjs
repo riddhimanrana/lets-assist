@@ -79,6 +79,9 @@ export function verifyApplicationDeployment({
     );
   }
   if (
+    !/^\d{14}$/u.test(manifest.requiredPlatformSchemaVersion ?? "") ||
+    release.requiredPlatformSchemaVersion !==
+      manifest.requiredPlatformSchemaVersion ||
     release.sourceCommit !== manifest.sourceCommit ||
     release.buildDigest !== manifest.buildDigest ||
     release.signer.identity !== manifest.signerIdentity.subject ||
@@ -112,6 +115,8 @@ export function verifyApplicationDeployment({
     version: manifest.version,
     releaseTag,
     sourceCommit: manifest.sourceCommit,
+    requiredPlatformSchemaVersion: manifest.requiredPlatformSchemaVersion,
+    releaseBuildDigest: manifest.buildDigest,
     buildDigest: digest,
     artifactName: manifest.buildArtifact.artifacts[environment].name,
     buildArtifact: manifest.buildArtifact,

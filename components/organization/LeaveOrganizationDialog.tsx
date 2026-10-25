@@ -1,31 +1,40 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { leaveOrganization } from "@/app/organization/actions";
-import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { Organization } from "@/types";
 
+/**
+ * Confirmation for leaving an organization. Opened from the organization
+ * header menu, so it carries no trigger of its own.
+ */
 export function LeaveOrganizationDialog({
   organization,
   userRole,
+  open,
+  onOpenChange,
 }: {
   organization: Organization;
   userRole: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const router = useRouter();
 
@@ -41,49 +50,33 @@ export function LeaveOrganizationDialog({
       toast.success("Successfully left the organization");
       router.push("/organization");
     } catch (error) {
-      console.error("Error leaving organization:", error);
+      safeConsole.error("Error leaving organization:", error);
       toast.error("Failed to leave organization");
     } finally {
       setIsLeaving(false);
-      setIsOpen(false);
+      onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger
-        render={
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Leave Organization
-          </Button>
-        }
-      />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Leave Organization</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to leave this organization? You will lose
-            access to all organization resources.
-            {userRole === "admin" && (
-              <div className="mt-2 p-3 bg-destructive/10 text-destructive rounded-md text-sm">
-                As an admin, you cannot leave if you are the last admin. Please
-                promote another member to admin first.
-              </div>
-            )}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => setIsOpen(false)}
-            disabled={isLeaving}
-          >
-            Cancel
-          </Button>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Leave {organization.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            You will lose access to all organization resources.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {userRole === "admin" ? (
+          <Alert variant="warning">
+            <AlertDescription>
+              The last admin cannot leave. Promote another member to admin
+              first.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLeaving}>Cancel</AlertDialogCancel>
           <Button
             variant="destructive"
             onClick={handleLeave}
@@ -91,15 +84,15 @@ export function LeaveOrganizationDialog({
           >
             {isLeaving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner data-icon="inline-start" />
                 Leaving…
               </>
             ) : (
-              "Leave Organization"
+              "Leave organization"
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

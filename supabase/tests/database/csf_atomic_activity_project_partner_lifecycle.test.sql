@@ -101,10 +101,10 @@ VALUES
 
 INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description,
-  event_type, verification_method, schedule, require_login
+  event_type, verification_method, schedule, require_login, visibility
 ) VALUES
-  ('fc400000-0000-4000-8000-000000000001', 'fc000000-0000-4000-8000-000000000001', 'fc100000-0000-4000-8000-000000000001', 'Local Project', 'Local', 'Local project', 'single', 'manual', '{}'::jsonb, true),
-  ('fc400000-0000-4000-8000-000000000002', 'fc000000-0000-4000-8000-000000000003', 'fc100000-0000-4000-8000-000000000002', 'Other Project', 'Local', 'Other project', 'single', 'manual', '{}'::jsonb, true);
+  ('fc400000-0000-4000-8000-000000000001', 'fc000000-0000-4000-8000-000000000001', 'fc100000-0000-4000-8000-000000000001', 'Local Project', 'Local', 'Local project', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true, 'public'),
+  ('fc400000-0000-4000-8000-000000000002', 'fc000000-0000-4000-8000-000000000003', 'fc100000-0000-4000-8000-000000000002', 'Other Project', 'Local', 'Other project', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true, 'organization_only');
 
 INSERT INTO plugin_data.csf_opportunities (
   id, organization_id, term_id, cohort_id, title, body, starts_at, status, created_by_user_id
@@ -142,7 +142,7 @@ SELECT extensions.throws_ok(
     '{"title":"Wrong project","startsAt":"2040-09-10T17:00:00Z","status":"draft","signupMode":"lets_assist_project","linkedProjectId":"fc400000-0000-4000-8000-000000000002"}'::jsonb,
     'fc000000-0000-4000-8000-000000000001', 'fc900000-0000-4000-8000-000000000003'
   )$$,
-  'P0001', 'Linked project was not found in this organization.',
+  'P0001', 'Linked project is not available to this organization.',
   'activity creation rejects a linked project from another organization'
 );
 SELECT extensions.lives_ok(
@@ -235,7 +235,7 @@ SELECT extensions.throws_ok(
     'fc100000-0000-4000-8000-000000000001', 'fc500000-0000-4000-8000-000000000001', 'fc400000-0000-4000-8000-000000000002',
     'fc000000-0000-4000-8000-000000000001', 'fc900000-0000-4000-8000-000000000008'
   )$$,
-  'P0001', 'Linked project was not found in this organization.',
+  'P0001', 'Linked project is not available to this organization.',
   'project linking rejects a public project from another organization'
 );
 SELECT extensions.lives_ok(

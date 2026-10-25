@@ -1,18 +1,27 @@
 "use client";
 
-import { Blocks } from "lucide-react";
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SettingsSection } from "@/components/layout/SettingsSection";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemSeparator,
+  ItemTitle,
+} from "@/components/ui/item";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import type { PlatformPluginSource } from "@/types";
 
@@ -20,6 +29,7 @@ import {
   setPluginContentVisibility,
   setPluginSourceVisibility,
 } from "./actions";
+import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 
 interface PluginContentSettingsProps {
   showPluginContent: boolean;
@@ -33,9 +43,11 @@ export function PluginContentSettings({
   sources,
 }: PluginContentSettingsProps) {
   // Optimistic local state: the switch moves on click and rolls back only if
-  // the server rejects the change.
+  // the server rejects the change. Success is silent; the switch is the
+  // confirmation.
   const [showAll, setShowAll] = useState(showPluginContent);
   const [hidden, setHidden] = useState(() => new Set(hiddenPluginKeys));
+  // One save at a time: each source save rewrites the whole hidden list.
   const [pending, startTransition] = useTransition();
 
   const saveGlobal = (next: boolean) => {
@@ -46,11 +58,7 @@ export function PluginContentSettings({
       if ("error" in result) {
         setShowAll(previous);
         toast.error(result.error);
-        return;
       }
-      toast.success(
-        next ? "Organization content is on" : "Organization content is off",
-      );
     });
   };
 
@@ -67,128 +75,113 @@ export function PluginContentSettings({
       if ("error" in result) {
         setHidden(previous);
         toast.error(result.error);
-        return;
       }
-      toast.success(
-        next ? `${source.name} is showing` : `${source.name} is hidden`,
-      );
     });
   };
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="max-w-6xl">
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Organization content
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Choose which organization updates appear on your home and dashboard.
+    <>
+      <PageHeader
+        title="Organization content"
+        description="Choose which organization updates appear on your home and dashboard."
+      />
+
+      <SettingsSection
+        title="Home and dashboard"
+        description="These settings do not change your membership or access."
+        contentClassName="gap-0 px-0"
+        footerHint="Changes save automatically and apply when you reload those pages."
+      >
+        <Item className="flex-nowrap">
+          <ItemContent className="min-w-0">
+            <ItemTitle className="line-clamp-none">
+              <Label htmlFor="show-plugin-content" className="leading-snug">
+                Show organization content on your home and dashboard
+              </Label>
+            </ItemTitle>
+          </ItemContent>
+          <ItemActions>
+            <Switch
+              id="show-plugin-content"
+              checked={showAll}
+              disabled={pending}
+              onCheckedChange={saveGlobal}
+              aria-describedby="plugin-content-consequence"
+            />
+          </ItemActions>
+        </Item>
+
+        <ItemSeparator className="my-0" />
+
+        <div className="grid gap-1 px-4 pt-4">
+          <h2 className="text-sm font-medium">Sections</h2>
+          <p
+            id="plugin-content-consequence"
+            className="text-muted-foreground text-sm"
+          >
+            {showAll
+              ? "Choose which sections appear."
+              : "These stay hidden while the setting above is off."}
           </p>
         </div>
 
-        <Card className="border shadow-xs">
-          <CardHeader>
-            <CardTitle className="text-xl">Home and dashboard</CardTitle>
-            <CardDescription>
-              These settings do not change your membership or access.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-start justify-between gap-4 rounded-md border p-4">
-              <div className="min-w-0 space-y-0.5">
-                <Label htmlFor="show-plugin-content" className="text-base">
-                  Show organization content on your home and dashboard
-                </Label>
-              </div>
-              <Switch
-                id="show-plugin-content"
-                className="shrink-0"
-                checked={showAll}
-                disabled={pending}
-                onCheckedChange={saveGlobal}
-                aria-describedby="plugin-content-consequence"
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <h2 className="text-sm font-medium">
-                  Your organization sections
-                </h2>
-                <p
-                  id="plugin-content-consequence"
-                  className="text-sm text-muted-foreground"
-                >
-                  {showAll
-                    ? "Choose which sections appear."
-                    : "These stay hidden while the setting above is off."}
-                </p>
-              </div>
-
-              {sources.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-8 text-center">
-                  <Blocks
-                    className="h-5 w-5 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <p className="text-sm font-medium">Nothing to manage yet</p>
-                  <p className="max-w-sm text-sm text-muted-foreground">
-                    Your organizations have no home or dashboard sections yet.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y rounded-md border">
-                  {sources.map((source) => {
-                    const visible = !hidden.has(source.pluginKey);
-                    // Naming the organization only helps when it says
-                    // something the plugin name has not already said.
-                    const sourceLine =
-                      source.organizationNames.length === 1 &&
-                      source.organizationNames[0] === source.name
-                        ? null
-                        : source.organizationNames.join(", ");
-                    return (
-                      <div
-                        key={source.pluginKey}
-                        className="flex items-start justify-between gap-4 p-4"
-                      >
-                        <div className="min-w-0 space-y-0.5">
-                          <Label
-                            htmlFor={`plugin-${source.pluginKey}`}
-                            className="text-base"
-                          >
-                            {source.name}
-                          </Label>
-                          {sourceLine && (
-                            <p className="text-sm text-muted-foreground">
-                              From {sourceLine}
-                            </p>
-                          )}
-                        </div>
-                        <Switch
-                          id={`plugin-${source.pluginKey}`}
-                          className="shrink-0"
-                          checked={showAll && visible}
-                          disabled={pending || !showAll}
-                          onCheckedChange={(checked) =>
-                            saveSource(source, checked)
-                          }
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <Separator />
-            <p className="text-sm text-muted-foreground">
-              Changes save automatically and apply when you reload those pages.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        {sources.length === 0 ? (
+          <Empty className="p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <EmptyStateIcon name="blocks" />
+              </EmptyMedia>
+              <EmptyTitle>Nothing to manage yet</EmptyTitle>
+              <EmptyDescription>
+                Your organizations have no home or dashboard sections yet.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ItemGroup className="gap-0">
+            {sources.map((source, index) => {
+              const visible = !hidden.has(source.pluginKey);
+              // Naming the organization only helps when it says
+              // something the plugin name has not already said.
+              const sourceLine =
+                source.organizationNames.length === 1 &&
+                source.organizationNames[0] === source.name
+                  ? null
+                  : source.organizationNames.join(", ");
+              return (
+                <Fragment key={source.pluginKey}>
+                  {index > 0 ? <ItemSeparator className="my-0" /> : null}
+                  <Item className="flex-nowrap">
+                    <ItemContent className="min-w-0">
+                      <ItemTitle className="line-clamp-none">
+                        <Label
+                          htmlFor={`plugin-${source.pluginKey}`}
+                          className="leading-snug"
+                        >
+                          {source.name}
+                        </Label>
+                      </ItemTitle>
+                      {sourceLine && (
+                        <ItemDescription>From {sourceLine}</ItemDescription>
+                      )}
+                    </ItemContent>
+                    <ItemActions>
+                      <Switch
+                        id={`plugin-${source.pluginKey}`}
+                        checked={showAll && visible}
+                        disabled={pending || !showAll}
+                        onCheckedChange={(checked) =>
+                          saveSource(source, checked)
+                        }
+                      />
+                    </ItemActions>
+                  </Item>
+                </Fragment>
+              );
+            })}
+          </ItemGroup>
+        )}
+      </SettingsSection>
+    </>
   );
 }

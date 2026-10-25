@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getPublishStateKey } from "./hours-publish-key";
+import { getPublishStateKey, getScheduleIdAliases } from "./hours-publish-key";
 
 test("multi-day aliases share the database canonical key", () => {
   const project = {
@@ -62,4 +62,30 @@ test("one-time and role aliases mirror the database contract", () => {
     },
   };
   assert.equal(getPublishStateKey(multiArea, "role-0"), "Welcome Desk");
+});
+
+test("session alias queries include every supported spelling and exclude other sessions", () => {
+  const project = {
+    event_type: "multiDay" as const,
+    schedule: {
+      multiDay: [
+        {
+          date: "2030-08-18",
+          slots: [
+            { startTime: "09:00", endTime: "11:00", volunteers: 5 },
+            { startTime: "12:00", endTime: "14:00", volunteers: 5 },
+          ],
+        },
+      ],
+    },
+  };
+  const expected = ["2030-08-18-0-1", "0-1", "2030-08-18-1", "day-0-slot-1"];
+  for (const alias of expected)
+    assert.deepEqual(getScheduleIdAliases(project, alias), expected);
+  assert.deepEqual(getScheduleIdAliases(project, "day-0-slot-2"), []);
+  assert.deepEqual(getScheduleIdAliases(project, "oneTime"), []);
+  assert.deepEqual(
+    getScheduleIdAliases({ event_type: "oneTime", schedule: {} }, "0"),
+    [],
+  );
 });

@@ -1,196 +1,150 @@
 import { logError } from "@/lib/logger";
 import {
   writeThenClearStaleSpreadsheetValues,
-  type SpreadsheetReplaceResult,
+  type SpreadsheetReplaceStage,
 } from "@/lib/organization/spreadsheet-replace-core";
 import {
   GOOGLE_SHEETS_API,
   type SpreadsheetValueInputOption,
 } from "./google-drive";
 
-export const GOOGLE_SHEETS_MAX_COLUMN_INDEX = 18_278; // ZZZ
-export const CSF_SHEET_MAX_BOUNDED_CELLS = 250_000;
+import {
+  buildWriteRange,
+  buildStaleClearRanges,
+} from "@/lib/google-sheets/ranges";
+export {
+  describeReportRangeOverflow,
+  GOOGLE_SHEETS_MAX_COLUMN_INDEX,
+  CSF_SHEET_MAX_BOUNDED_CELLS,
+  columnToIndex,
+  indexToColumn,
+  parseA1Range,
+  formatSheetNameForA1,
+  buildWriteRange,
+  buildClearRange,
+  buildStaleClearRanges,
+} from "@/lib/google-sheets/ranges";
 
-export const columnToIndex = (column: string) => {
-  const normalized = column.toUpperCase();
-  if (!/^[A-Z]{1,3}$/u.test(normalized)) return Number.NaN;
+/** Every Sheets request is bounded so one stalled call cannot hold a worker. */
+export const GOOGLE_SHEETS_REQUEST_TIMEOUT_MS = 10_000;
 
-  const index = normalized
-    .split("")
-    .reduce((acc, char) => acc * 26 + (char.charCodeAt(0) - 64), 0);
-  return Number.isSafeInteger(index) && index <= GOOGLE_SHEETS_MAX_COLUMN_INDEX
-    ? index
-    : Number.NaN;
+export type SheetsFailureReason =
+  | "timeout"
+  | "access_denied"
+  | "not_found"
+  | "rate_limited"
+  | "invalid_request"
+  | "unavailable";
+
+/** A report cell. Numbers are sent as JSON numbers so Sheets can sum them. */
+export type SheetCellValue = string | number;
+
+/** Bulk reads feed imports of large sheets, so they get a longer bound. */
+const GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS = 60_000;
+
+/**
+ * `signal` lets a caller end a request early, for example at a per-tenant
+ * deadline. `budget` caps how many Sheets requests one piece of work may
+ * make: each request spends one, and a request past the cap is refused.
+ */
+/**
+ * What is known about a mutation after `beforeWrite` passed. `unsent` means
+ * the request was never dispatched. A timeout, a transport failure or any
+ * other status is not an outcome: nothing is acknowledged for it.
+ */
+export type SheetsWriteOutcome = "completed" | "rejected" | "unsent";
+
+export type SheetsRequestOptions = {
+  signal?: AbortSignal;
+  budget?: { remaining: number };
+  /**
+   * Revalidate the caller's authority immediately before each mutation. It
+   * runs after the deadline and budget checks, so passing it means the
+   * request is the next thing sent.
+   */
+  beforeWrite?: () => Promise<void>;
+  /**
+   * Records a mutation's known outcome. Called once after an accepted or a
+   * definitively rejected request, or when nothing was sent after
+   * `beforeWrite`. If it throws, the request fails and the outcome stays
+   * unrecorded.
+   */
+  acknowledgeWrite?: (outcome: SheetsWriteOutcome) => Promise<void>;
 };
 
-export const indexToColumn = (index: number) => {
-  if (
-    !Number.isSafeInteger(index) ||
-    index < 1 ||
-    index > GOOGLE_SHEETS_MAX_COLUMN_INDEX
-  ) {
-    throw new RangeError(
-      "Google Sheets column index is outside the supported A1 range.",
-    );
-  }
+/** Statuses that prove Sheets refused a mutation without applying it. */
+const DEFINITE_WRITE_REJECTIONS = new Set([400, 401, 403, 404, 429]);
 
-  let value = index;
-  let column = "";
-  while (value > 0) {
-    const modulo = (value - 1) % 26;
-    column = String.fromCharCode(65 + modulo) + column;
-    value = Math.floor((value - 1) / 26);
-  }
-  return column;
-};
-
-const parseA1Cell = (cell: string) => {
-  const match = cell.match(/^([A-Za-z]+)(\d+)$/);
-  if (!match) return null;
-  const columnIndex = columnToIndex(match[1]);
-  const row = Number.parseInt(match[2], 10);
-  if (
-    !Number.isSafeInteger(columnIndex) ||
-    !Number.isSafeInteger(row) ||
-    row < 1
-  ) {
-    return null;
-  }
-  return {
-    column: match[1].toUpperCase(),
-    row,
-  };
-};
-
-export const parseA1Range = (range: string) => {
-  const trimmed = range.trim();
-  if (!trimmed) return null;
-  // Numbered groups rather than named ones: this project's TypeScript target
-  // predates ES2018, so a named capture group is a compile error here.
-  // Group 1 is the optional tab, 2 the start cell, 3 the optional end cell.
-  const match =
-    /^(?:('(?:[^']|'')*'|[^'!]+)!)?([A-Za-z]+\d+)(?::([A-Za-z]+\d+))?$/u.exec(
-      trimmed,
-    );
-  if (!match) return null;
-  const start = parseA1Cell(match[2]);
-  const end = match[3] ? parseA1Cell(match[3]) : null;
-  if (!start) return null;
-  const rawTabPart = match[1];
-  const tabPart = rawTabPart?.startsWith("'")
-    ? rawTabPart.slice(1, -1).replace(/''/g, "'")
-    : rawTabPart;
-  return {
-    tabName: tabPart || null,
-    start,
-    end,
-  };
-};
-
-export const formatSheetNameForA1 = (tabName: string) => {
-  const escaped = tabName.replace(/'/g, "''");
-  return `'${escaped}'`;
-};
-
-export function buildWriteRange(
-  tabName: string,
-  rangeA1: string | null | undefined,
-  rows: string[][],
+async function sheetsFetch(
+  url: string,
+  init: RequestInit = {},
+  options: SheetsRequestOptions = {},
+  timeoutMs = GOOGLE_SHEETS_REQUEST_TIMEOUT_MS,
 ) {
-  const totalRows = Math.max(rows.length, 1);
-  const totalColumns = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startIndex = columnToIndex(startColumn);
-  const endColumn = indexToColumn(startIndex + totalColumns - 1);
-  const endRow = startRow + totalRows - 1;
-  const resolvedTab = parsed?.tabName || tabName;
-
-  return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+  options.signal?.throwIfAborted();
+  if (options.budget) {
+    if (options.budget.remaining <= 0) {
+      throw new Error("Sheets request budget spent");
+    }
+    options.budget.remaining -= 1;
+  }
+  const mutation = Boolean(init.method && init.method !== "GET");
+  if (mutation) {
+    await options.beforeWrite?.();
+    if (options.signal?.aborted) {
+      await options.acknowledgeWrite?.("unsent");
+      options.signal.throwIfAborted();
+    }
+  }
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const response = await fetch(url, {
+    ...init,
+    signal: options.signal
+      ? AbortSignal.any([timeout, options.signal])
+      : timeout,
+  });
+  if (mutation) {
+    if (response.ok) await options.acknowledgeWrite?.("completed");
+    else if (DEFINITE_WRITE_REJECTIONS.has(response.status))
+      await options.acknowledgeWrite?.("rejected");
+  }
+  return response;
 }
 
-export function buildClearRange(
-  tabName: string,
-  rangeA1: string | null | undefined,
-  rows: string[][],
-) {
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startIndex = columnToIndex(startColumn);
-  const totalColumns = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
-  const resolvedTab = parsed?.tabName || tabName;
-
-  if (parsed?.end) {
-    return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${parsed.end.column}${parsed.end.row}`;
-  }
-
-  const endColumn = indexToColumn(Math.max(startIndex + totalColumns - 1, 26));
-  const endRow = Math.max(startRow + rows.length + 50, 1000);
-  return `${formatSheetNameForA1(resolvedTab)}!${startColumn}${startRow}:${endColumn}${endRow}`;
+function failureReasonForError(error: unknown): SheetsFailureReason {
+  const name = error instanceof Error ? error.name : "";
+  return name === "TimeoutError" || name === "AbortError"
+    ? "timeout"
+    : "unavailable";
 }
 
-export function buildStaleClearRanges(
-  tabName: string,
-  rangeA1: string | null | undefined,
-  rows: string[][],
-): string[] {
-  const parsed = rangeA1 ? parseA1Range(rangeA1) : null;
-  const startColumn = parsed?.start.column ?? "A";
-  const startRow = parsed?.start.row ?? 1;
-  const startColumnIndex = columnToIndex(startColumn);
-  const rowCount = Math.max(rows.length, 1);
-  const columnCount = Math.max(
-    rows.reduce((max, row) => Math.max(max, row.length), 0),
-    1,
-  );
-  const writeEndColumnIndex = startColumnIndex + columnCount - 1;
-  const writeEndRow = startRow + rowCount - 1;
-  const clearEndColumnIndex = parsed?.end
-    ? Math.max(startColumnIndex, columnToIndex(parsed.end.column))
-    : Math.max(writeEndColumnIndex, 26);
-  const clearEndRow = parsed?.end
-    ? Math.max(startRow, parsed.end.row)
-    : Math.max(startRow + rows.length + 50, 1000);
-  const resolvedTab = parsed?.tabName || tabName;
-  const formattedTab = formatSheetNameForA1(resolvedTab);
-  const clearEndColumn = indexToColumn(clearEndColumnIndex);
-  const staleRanges: string[] = [];
-
-  // Clear cells to the right of a newly narrower report without touching any
-  // values that were just written.
-  if (clearEndColumnIndex > writeEndColumnIndex && clearEndRow >= startRow) {
-    const rightStartColumn = indexToColumn(writeEndColumnIndex + 1);
-    const rightEndRow = Math.min(writeEndRow, clearEndRow);
-    staleRanges.push(
-      `${formattedTab}!${rightStartColumn}${startRow}:${clearEndColumn}${rightEndRow}`,
-    );
+function failureReasonForResponse(
+  status: number,
+  body: string,
+): SheetsFailureReason {
+  if (status === 429) return "rate_limited";
+  if (status === 404) return "not_found";
+  if (status === 401) return "access_denied";
+  if (status === 403) {
+    return /rate.?limit|quota|RESOURCE_EXHAUSTED/iu.test(body)
+      ? "rate_limited"
+      : "access_denied";
   }
-
-  // Clear rows left behind by a newly shorter report.
-  if (clearEndRow > writeEndRow) {
-    staleRanges.push(
-      `${formattedTab}!${startColumn}${writeEndRow + 1}:${clearEndColumn}${clearEndRow}`,
-    );
-  }
-
-  return staleRanges;
+  if (status === 400) return "invalid_request";
+  return "unavailable";
 }
 
-export async function clearSpreadsheetValues(
+type SheetsWriteResult =
+  { ok: true } | { ok: false; reason: SheetsFailureReason };
+
+async function clearSpreadsheetValuesResult(
   accessToken: string,
   sheetId: string,
   range: string,
-): Promise<boolean> {
+  options: SheetsRequestOptions = {},
+): Promise<SheetsWriteResult> {
   try {
-    const response = await fetch(
+    const response = await sheetsFetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
       )}/values/${encodeURIComponent(range)}:clear`,
@@ -202,6 +156,7 @@ export async function clearSpreadsheetValues(
         },
         body: JSON.stringify({}),
       },
+      options,
     );
 
     if (!response.ok) {
@@ -209,18 +164,30 @@ export async function clearSpreadsheetValues(
       logError("Failed to clear Google spreadsheet values", new Error(error), {
         sheet_id: sheetId,
         range,
+        status: response.status,
       });
-      return false;
+      return {
+        ok: false,
+        reason: failureReasonForResponse(response.status, error),
+      };
     }
 
-    return true;
+    return { ok: true };
   } catch (error) {
     logError("Exception while clearing Google spreadsheet values", error, {
       sheet_id: sheetId,
       range,
     });
-    return false;
+    return { ok: false, reason: failureReasonForError(error) };
   }
+}
+
+export async function clearSpreadsheetValues(
+  accessToken: string,
+  sheetId: string,
+  range: string,
+): Promise<boolean> {
+  return (await clearSpreadsheetValuesResult(accessToken, sheetId, range)).ok;
 }
 
 export async function createSpreadsheet(
@@ -234,7 +201,7 @@ export async function createSpreadsheet(
   sheetTitle: string;
 } | null> {
   try {
-    const response = await fetch(GOOGLE_SHEETS_API, {
+    const response = await sheetsFetch(GOOGLE_SHEETS_API, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -290,10 +257,7 @@ export function buildSpreadsheetUrl(sheetId: string) {
   return `https://docs.google.com/spreadsheets/d/${sheetId}`;
 }
 
-export async function getSpreadsheetMetadata(
-  accessToken: string,
-  sheetId: string,
-): Promise<{
+export type SpreadsheetMetadata = {
   sheetId: string;
   sheetTitle: string;
   tabs: string[];
@@ -301,9 +265,24 @@ export async function getSpreadsheetMetadata(
   timeZone: string | null;
   /** Grid extent per tab title, so callers can build bounded A1 ranges. */
   tabGrids: Record<string, { rowCount: number; columnCount: number }>;
-} | null> {
+};
+
+export type SpreadsheetInspection =
+  | { ok: true; metadata: SpreadsheetMetadata }
+  | { ok: false; reason: SheetsFailureReason };
+
+/**
+ * Reads a spreadsheet's title and tabs, and says why when it cannot. This is
+ * the access probe: under the `drive.file` scope a file the connected person
+ * did not pick or create answers as not found or forbidden.
+ */
+export async function inspectSpreadsheet(
+  accessToken: string,
+  sheetId: string,
+  options: SheetsRequestOptions = {},
+): Promise<SpreadsheetInspection> {
   try {
-    const response = await fetch(
+    const response = await sheetsFetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
       )}?fields=spreadsheetId,properties(title,timeZone),sheets.properties(sheetId,title,gridProperties(rowCount,columnCount))`,
@@ -312,6 +291,7 @@ export async function getSpreadsheetMetadata(
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      options,
     );
 
     if (!response.ok) {
@@ -322,7 +302,11 @@ export async function getSpreadsheetMetadata(
           status: response.status,
         },
       );
-      return null;
+      // The body is never read here: the status alone classifies the failure.
+      return {
+        ok: false,
+        reason: failureReasonForResponse(response.status, ""),
+      };
     }
 
     const data = await response.json();
@@ -366,23 +350,34 @@ export async function getSpreadsheetMetadata(
     }
 
     return {
-      sheetId: data.spreadsheetId,
-      sheetTitle: data.properties?.title || "Untitled Spreadsheet",
-      timeZone:
-        typeof data.properties?.timeZone === "string"
-          ? data.properties.timeZone
-          : null,
-      tabs,
-      tabIds: { ...tabIds },
-      tabGrids: { ...tabGrids },
+      ok: true,
+      metadata: {
+        sheetId: data.spreadsheetId,
+        sheetTitle: data.properties?.title || "Untitled Spreadsheet",
+        timeZone:
+          typeof data.properties?.timeZone === "string"
+            ? data.properties.timeZone
+            : null,
+        tabs,
+        tabIds: { ...tabIds },
+        tabGrids: { ...tabGrids },
+      },
     };
-  } catch {
+  } catch (error) {
     logError(
       "Exception while fetching Google spreadsheet metadata",
       new Error("Sheets metadata request failed"),
     );
-    return null;
+    return { ok: false, reason: failureReasonForError(error) };
   }
+}
+
+export async function getSpreadsheetMetadata(
+  accessToken: string,
+  sheetId: string,
+): Promise<SpreadsheetMetadata | null> {
+  const inspection = await inspectSpreadsheet(accessToken, sheetId);
+  return inspection.ok ? inspection.metadata : null;
 }
 
 export async function ensureSpreadsheetTab(
@@ -395,7 +390,7 @@ export async function ensureSpreadsheetTab(
     if (!metadata) return false;
     if (metadata.tabs.some((tab) => tab === tabName)) return true;
 
-    const response = await fetch(
+    const response = await sheetsFetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}:batchUpdate`,
       {
         method: "POST",
@@ -436,16 +431,17 @@ export async function ensureSpreadsheetTab(
   }
 }
 
-export async function updateSpreadsheetValues(
+async function updateSpreadsheetValuesResult(
   accessToken: string,
   sheetId: string,
   range: string,
-  rows: string[][],
-  valueInputOption: SpreadsheetValueInputOption = "USER_ENTERED",
-): Promise<boolean> {
+  rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  valueInputOption: SpreadsheetValueInputOption,
+  options: SheetsRequestOptions = {},
+): Promise<SheetsWriteResult> {
   const resolvedRange = range || "A1";
   try {
-    const response = await fetch(
+    const response = await sheetsFetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(
         sheetId,
       )}/values/${encodeURIComponent(resolvedRange)}?valueInputOption=${valueInputOption}`,
@@ -461,6 +457,7 @@ export async function updateSpreadsheetValues(
           values: rows,
         }),
       },
+      options,
     );
 
     if (!response.ok) {
@@ -469,38 +466,134 @@ export async function updateSpreadsheetValues(
         sheet_id: sheetId,
         range: resolvedRange,
         rows_count: rows.length,
+        status: response.status,
       });
-      return false;
+      return {
+        ok: false,
+        reason: failureReasonForResponse(response.status, error),
+      };
     }
 
-    return true;
+    return { ok: true };
   } catch (error) {
     logError("Exception while updating Google spreadsheet values", error, {
       sheet_id: sheetId,
       range: resolvedRange,
       rows_count: rows.length,
     });
-    return false;
+    return { ok: false, reason: failureReasonForError(error) };
   }
 }
 
+export async function updateSpreadsheetValues(
+  accessToken: string,
+  sheetId: string,
+  range: string,
+  rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  valueInputOption: SpreadsheetValueInputOption = "USER_ENTERED",
+): Promise<boolean> {
+  const result = await updateSpreadsheetValuesResult(
+    accessToken,
+    sheetId,
+    range,
+    rows,
+    valueInputOption,
+  );
+  return result.ok;
+}
+
+/** Cells right of the report, and rows below it. */
+export const MAX_REPORT_STALE_CLEAR_REQUESTS = 2;
+
+export type SpreadsheetReportReplaceResult =
+  | { success: true }
+  | {
+      success: false;
+      stage: SpreadsheetReplaceStage;
+      reason: SheetsFailureReason;
+    };
+
+/**
+ * Writes the report, then clears what an earlier, larger report left behind.
+ * Throws a RangeError when the report does not fit a bounded range, so check
+ * `describeReportRangeOverflow` first to report that to a person.
+ */
 export async function replaceSpreadsheetReportValues(
   accessToken: string,
   sheetId: string,
   tabName: string,
   rangeA1: string | null | undefined,
-  rows: string[][],
-): Promise<SpreadsheetReplaceResult> {
-  const writeRange = buildWriteRange(tabName, rangeA1, rows);
-  const staleRanges = buildStaleClearRanges(tabName, rangeA1, rows);
+  rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  options: SheetsRequestOptions = {},
+  /**
+   * The range that bounds stale-cell clearing, when it differs from the write
+   * range. Only a sync saved with the legacy default range passes it.
+   */
+  staleClearRangeA1: string | null | undefined = rangeA1,
+): Promise<SpreadsheetReportReplaceResult> {
+  return replaceSpreadsheetReportRanges(
+    accessToken,
+    sheetId,
+    buildWriteRange(tabName, rangeA1, rows),
+    buildStaleClearRanges(tabName, staleClearRangeA1, rows),
+    rows,
+    options,
+  );
+}
 
-  return writeThenClearStaleSpreadsheetValues(staleRanges, {
+/**
+ * The same replacement for ranges that are already resolved. A caller that
+ * saved its ranges before writing passes them back here, so a retry mutates
+ * exactly what was saved instead of what a new calculation would give.
+ */
+export async function replaceSpreadsheetReportRanges(
+  accessToken: string,
+  sheetId: string,
+  writeRange: string,
+  staleRanges: readonly string[],
+  rows: ReadonlyArray<ReadonlyArray<SheetCellValue>>,
+  options: SheetsRequestOptions = {},
+): Promise<SpreadsheetReportReplaceResult> {
+  // One write and a fixed number of clears: a report can never fan out into
+  // an unbounded number of Sheets requests.
+  if (staleRanges.length > MAX_REPORT_STALE_CLEAR_REQUESTS) {
+    throw new RangeError("Report replacement exceeds its Sheets request cap.");
+  }
+  let failure: SheetsFailureReason = "unavailable";
+  const remember = (result: SheetsWriteResult) => {
+    if (!result.ok) failure = result.reason;
+    return result.ok;
+  };
+
+  const replacement = await writeThenClearStaleSpreadsheetValues(staleRanges, {
     // Report cells are untrusted data, never formulas. RAW prevents names,
     // emails, project titles, or custom labels from being evaluated by Sheets.
-    write: () =>
-      updateSpreadsheetValues(accessToken, sheetId, writeRange, rows, "RAW"),
-    clear: (range) => clearSpreadsheetValues(accessToken, sheetId, range),
+    // RAW also stores a JSON number as a number, so totals stay summable.
+    write: async () =>
+      remember(
+        await updateSpreadsheetValuesResult(
+          accessToken,
+          sheetId,
+          writeRange,
+          rows,
+          "RAW",
+          options,
+        ),
+      ),
+    clear: async (range) =>
+      remember(
+        await clearSpreadsheetValuesResult(
+          accessToken,
+          sheetId,
+          range,
+          options,
+        ),
+      ),
   });
+
+  return replacement.success
+    ? replacement
+    : { ...replacement, reason: failure };
 }
 
 export async function batchGetSpreadsheetValues(
@@ -518,13 +611,15 @@ export async function batchGetSpreadsheetValues(
   params.set("valueRenderOption", "FORMATTED_VALUE");
 
   try {
-    const response = await fetch(
+    const response = await sheetsFetch(
       `${GOOGLE_SHEETS_API}/${encodeURIComponent(sheetId)}/values:batchGet?${params.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       },
+      {},
+      GOOGLE_SHEETS_BULK_READ_TIMEOUT_MS,
     );
 
     if (!response.ok) {

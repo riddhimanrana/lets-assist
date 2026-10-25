@@ -13,20 +13,26 @@ import {
   runVerifier,
 } from "./csf-browser-harness-verifier.fixture";
 
-function dbReplayJob() {
+// The database validations and the browser suite run in separate jobs, each on
+// its own isolated stack. Every assertion names the job it is about, so it
+// cannot be satisfied by a step in the other one.
+function workflowJob(name: string) {
   const workflow = readFileSync(
     join(repositoryRoot, ".github/workflows/ci.yml"),
     "utf8",
   );
-  const marker = "\n  db-replay-validation:\n";
+  const marker = `\n  ${name}:\n`;
   const start = workflow.indexOf(marker);
-  if (start === -1)
-    throw new Error("db-replay-validation job is missing from ci.yml");
+  if (start === -1) throw new Error(`${name} job is missing from ci.yml`);
   const body = workflow.slice(start + marker.length);
   const nextJob = /^ {2}[A-Za-z][A-Za-z0-9_-]*:\s*$/mu.exec(body);
   return nextJob ? body.slice(0, nextJob.index) : body;
 }
-describe("local replay gate is separated from blocked remote readiness", () => {
+const databaseJob = () => workflowJob("database");
+const browserJob = () => workflowJob("browser");
+const FULL_PATH =
+  "github.event_name != 'pull_request' && github.event_name != 'merge_group'";
+describe("local replay gate is separated from hosted readiness", () => {
   test("by default the audit does not run and the gate says so explicitly", async () => {
     const sandbox = await createSandbox("csf-verifier-");
     const root = await createFakeRepository(sandbox);
@@ -35,7 +41,7 @@ describe("local replay gate is separated from blocked remote readiness", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain(
-      "Remote readiness: NOT EVALUATED — separate blocked release gate.",
+      "Service-only access audit: NOT EVALUATED. Hosted readiness requires separate evidence.",
     );
     const bunCalls = await readCalls(join(sandbox.directory, "bun-calls.log"));
     expect(bunCalls).not.toContain("run db:audit:remote-readiness");
@@ -49,7 +55,7 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     );
   }, 60_000);
 
-  test("exactly 1 opts in and runs the unchanged audit", async () => {
+  test("exactly 1 opts in and runs the access audit", async () => {
     const sandbox = await createSandbox("csf-verifier-");
     const root = await createFakeRepository(sandbox);
 
@@ -58,9 +64,11 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     });
 
     expect(result.exitCode).toBe(0);
-    expect(result.output).not.toContain("Remote readiness: NOT EVALUATED");
+    expect(result.output).not.toContain(
+      "Service-only access audit: NOT EVALUATED",
+    );
     expect(result.output).toContain(
-      "Supabase Remote Server-Only Readiness Audit (explicitly required)",
+      "Supabase Service-Only Access Audit (explicitly required)",
     );
     const bunCalls = await readCalls(join(sandbox.directory, "bun-calls.log"));
     expect(bunCalls).toContain("run db:audit:remote-readiness");
@@ -108,19 +116,6 @@ describe("local replay gate is separated from blocked remote readiness", () => {
     }
   }, 120_000);
 
-  test("the audit script itself is untouched by this wave", () => {
-    const auditSource = readFileSync(
-      join(repositoryRoot, "scripts/audit-supabase-remote-readiness.sh"),
-      "utf8",
-    );
-    const digest = new Bun.CryptoHasher("sha256")
-      .update(auditSource)
-      .digest("hex");
-    expect(digest).toBe(
-      "058ef50ce10b130482fc3b9d57216102a04bdd728e1146523fd713533db86bad",
-    );
-  });
-
   test("the gate names its omissions rather than implying full coverage", async () => {
     const sandbox = await createSandbox("csf-verifier-");
     const root = await createFakeRepository(sandbox);
@@ -159,69 +154,82 @@ describe("local replay gate is separated from blocked remote readiness", () => {
 
 describe("CI db-replay-validation uses the recovery topology and isolated seed", () => {
   test("pins the recovery base port and the isolated seed script", () => {
-    const job = dbReplayJob();
-
-    expect(job).toMatch(/CSF_ISOLATED_BASE_PORT:\s*["']25320["']/u);
-    expect(job).not.toContain("56350");
-    expect(job).toContain("bun run csf:seed:platform:isolated");
-    expect(job).not.toContain("bun run supabase:seed:local-dev");
+    for (const job of [databaseJob(), browserJob()]) {
+      expect(job).toMatch(/CSF_ISOLATED_BASE_PORT:\s*["']25320["']/u);
+      expect(job).not.toContain("56350");
+      expect(job).toContain("bun run csf:seed:platform:isolated");
+      expect(job).not.toContain("bun run supabase:seed:local-dev");
+    }
   });
 
   test("installs the independently locked CSF application before browser validation", () => {
-    const job = dbReplayJob();
+    const job = browserJob();
     const rootInstall = job.indexOf("run: bun install --frozen-lockfile");
     const pluginInstall = job.indexOf(
       "run: bun run plugin:apps:check -- --install-only",
     );
-    const dvBrowser = job.indexOf("run: bun run dv:test:e2e");
     const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
 
     expect(rootInstall).toBeGreaterThan(-1);
     expect(pluginInstall).toBeGreaterThan(rootInstall);
-    expect(pluginInstall).toBeLessThan(dvBrowser);
+    expect(csfBrowser).toBeGreaterThan(-1);
     expect(pluginInstall).toBeLessThan(csfBrowser);
+    // The database job keeps the install it had as part of the single job,
+    // once, after the root install and before its server-backed cron probe.
+    const database = databaseJob();
     expect(
-      job.match(/bun run plugin:apps:check -- --install-only/gu)?.length,
-    ).toBe(1);
-    expect(job).not.toContain(
-      "bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
-    );
+      database.indexOf("run: bun run plugin:apps:check -- --install-only"),
+    ).toBeGreaterThan(database.indexOf("run: bun install --frozen-lockfile"));
+    expect(
+      database.indexOf("run: bun run plugin:apps:check -- --install-only"),
+    ).toBeLessThan(database.indexOf("run: bun run dev:test:cron"));
+    for (const each of [job, database]) {
+      expect(
+        each.match(/bun run plugin:apps:check -- --install-only/gu)?.length,
+      ).toBe(1);
+      expect(each).not.toContain(
+        "bun install --frozen-lockfile --cwd lib/plugins/private/apps/csf",
+      );
+    }
   });
 
-  test("runs both fictional scale checks after workflow validation and before browsers", () => {
-    const job = dbReplayJob();
+  test("runs both fictional scale checks after workflow validation and never beside a browser run", () => {
+    const job = databaseJob();
     const workflows = job.indexOf("run: bun run csf:test:workflows");
     const memberScale = job.indexOf("bun run csf:test:scale");
     const importScale = job.indexOf("bun run csf:test:import:scale");
-    const playwrightInstall = job.indexOf(
-      "- name: Install Playwright Chromium",
-    );
 
     expect(workflows).toBeGreaterThan(-1);
     expect(memberScale).toBeGreaterThan(workflows);
     expect(importScale).toBeGreaterThan(memberScale);
-    expect(playwrightInstall).toBeGreaterThan(importScale);
     expect(job.match(/bun run csf:test:scale/gu)?.length).toBe(1);
     expect(job.match(/bun run csf:test:import:scale/gu)?.length).toBe(1);
+    // The scale checks used to finish before Playwright started on the same
+    // stack. They now own a stack no browser ever reaches.
+    expect(job).not.toContain("- name: Install Playwright Chromium");
+    expect(job).not.toContain("csf:test:e2e");
+    const browser = browserJob();
+    expect(browser).not.toContain("csf:test:scale");
+    expect(browser).not.toContain("csf:test:import:scale");
+    expect(browser).not.toContain("csf:test:workflows");
   });
 
-  test("both isolated production browser builds skip only their redundant typecheck", () => {
-    const job = dbReplayJob();
-    const dvStep = job.slice(
-      job.indexOf("- name: Validate DV browser workflows"),
-      job.indexOf("- name: Skip private DV browser workflows"),
-    );
+  test("the CSF browser build skips only its redundant typecheck", () => {
+    const job = browserJob();
     const csfStep = job.slice(
       job.indexOf("- name: Validate CSF browser workflows"),
       job.indexOf("- name: Verify isolated Supabase remains healthy"),
     );
 
-    for (const step of [dvStep, csfStep]) {
+    for (const step of [csfStep]) {
       expect(step).toContain('CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"');
     }
     expect(job.match(/CSF_BROWSER_SKIP_BUILD_TYPECHECK: "1"/gu)?.length).toBe(
-      2,
+      1,
     );
+    expect(
+      ciWorkflowSource().match(/CSF_BROWSER_SKIP_BUILD_TYPECHECK/gu)?.length,
+    ).toBe(1);
   });
 });
 
@@ -255,22 +263,31 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
     "scripts/local-dev/run-dvhs-csf-isolated-app.test.ts",
   ];
 
-  test("the quality job separates pull request and release validation", () => {
-    const job = ciJob("quality");
-    expect(job).toContain("run: bun run format:check");
-    expect(job).toContain("run: bun run test");
-    expect(job).toContain("run: bun run build");
-    expect(job).toMatch(
-      /- name: Root and plugin tests\n\s+if: github\.event_name != 'pull_request'/u,
+  test("the quality jobs separate pull request and release validation", () => {
+    const staticChecks = ciJob("static");
+    const unit = ciJob("unit");
+    const build = ciJob("build");
+    expect(staticChecks).toContain("run: bun run format:check");
+    expect(unit).toContain("run: bun run test --shard=");
+    expect(build).toContain("run: bun run build");
+    expect(unit).toContain(
+      `- name: Root and plugin tests\n        if: ${FULL_PATH}\n`,
     );
-    expect(job).toMatch(
-      /- name: Production build\n\s+if: github\.event_name != 'pull_request'/u,
-    );
-    expect(job).toContain("run: bun run plugin:apps:contract");
-    expect(job).toContain(
+    // The build is its own job, so the whole job carries the condition.
+    expect(build).toContain(`    if: ${FULL_PATH}\n`);
+    expect(staticChecks).toContain("run: bun run plugin:apps:contract");
+    expect(staticChecks).toContain(
       "run: bun test scripts/ci/*.test.mjs scripts/audit-agent-tooling.test.mjs",
     );
-    expect(job).not.toContain("bun test \\");
+    for (const job of [staticChecks, unit, build]) {
+      expect(job).not.toContain("bun test \\");
+    }
+    // The named quality check still fails unless all three succeeded.
+    const quality = ciJob("quality");
+    for (const id of ["static", "unit", "build"]) {
+      expect(quality).toContain(`      - ${id}\n`);
+      expect(quality).toContain(`\${{ needs.${id}.result }}`);
+    }
   });
 
   test("the orchestrator names each sensitive suite once and isolates grouped mocks", () => {
@@ -329,6 +346,14 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
       "scripts/local-dev/server-only-test-preload.ts",
       "scripts/local-dev/test-plugin-registry-gates.ts",
       "scripts/local-dev/test-plugin-runtime-contracts.mjs",
+      // Their discoverable behavior tests execute these fixtures in child
+      // processes, so provider and component mocks cannot affect other suites.
+      "app/api/ai/scan-signup-sheet/route-behavior.fixture.ts",
+      "app/projects/[id]/paper-signups/CaptureStep.behavior.fixture.tsx",
+      "app/projects/[id]/paper-signups/PaperSignupsClient.aliases.fixture.tsx",
+      "app/projects/[id]/paper-signups/ReviewRowEditor.behavior.fixture.ts",
+      "app/projects/[id]/hours/HoursClient.behavior.fixture.tsx",
+      "app/certificates/[id]/public-projection.fixture.ts",
     ]);
     const testFilePattern = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
     const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
@@ -376,25 +401,35 @@ describe("CI runs mock-sensitive tests through the shared process orchestrator",
 });
 
 describe("CI replays the twelve-route cron smoke in the right order", () => {
-  test("dev:test:cron runs after seeding and before Playwright", () => {
-    const job = dbReplayJob();
-    const seed = job.indexOf("- name: Seed fictional platform and DV fixtures");
+  test("dev:test:cron runs after seeding on a stack no browser run touches", () => {
+    const job = databaseJob();
+    const seed = job.indexOf("- name: Seed fictional platform fixtures");
     const cron = job.indexOf("run: bun run dev:test:cron");
-    const playwrightInstall = job.indexOf(
-      "- name: Install Playwright Chromium",
-    );
-    const csfBrowser = job.indexOf("run: bun run csf:test:e2e");
 
     expect(seed).toBeGreaterThan(-1);
     expect(cron).toBeGreaterThan(seed);
-    expect(playwrightInstall).toBeGreaterThan(cron);
-    expect(csfBrowser).toBeGreaterThan(playwrightInstall);
     expect(job.match(/bun run dev:test:cron/gu)?.length).toBe(1);
+    // It used to run before Playwright on a shared stack. The browser shards
+    // now start their own stacks, so the probe can never follow a browser run.
+    expect(job).not.toContain("- name: Install Playwright Chromium");
+    expect(job).not.toContain("csf:test:e2e");
+
+    const browser = browserJob();
+    const browserSeed = browser.indexOf(
+      "- name: Seed fictional platform fixtures",
+    );
+    const playwrightInstall = browser.indexOf(
+      "- name: Install Playwright Chromium",
+    );
+    const csfBrowser = browser.indexOf("run: bun run csf:test:e2e");
+    expect(browserSeed).toBeGreaterThan(-1);
+    expect(playwrightInstall).toBeGreaterThan(browserSeed);
+    expect(csfBrowser).toBeGreaterThan(playwrightInstall);
+    expect(browser).not.toContain("dev:test:cron");
   });
 
   test("the full DB replay runs only for candidate rehearsals and release calls", () => {
     const workflow = ciWorkflowSource();
-    const job = dbReplayJob();
 
     expect(workflow).toContain("  workflow_dispatch:");
     expect(workflow).toContain("  workflow_call:");
@@ -402,8 +437,14 @@ describe("CI replays the twelve-route cron smoke in the right order", () => {
       "  push:\n    branches:\n      - development",
     );
     expect(workflow).not.toContain("dorny/paths-filter");
-    expect(job).toContain("if: github.event_name != 'pull_request'");
-    expect(job).not.toContain("github.event.pull_request.draft");
+    // Pull requests and queued merges both skip the replay.
+    for (const job of [databaseJob(), browserJob()]) {
+      expect(job).toContain(`    if: ${FULL_PATH}\n`);
+      expect(job).not.toContain("github.event.pull_request.draft");
+    }
+    const summary = workflowJob("db-replay-validation");
+    expect(summary).toContain(`      always() &&\n      (${FULL_PATH})\n`);
+    expect(summary).not.toContain("github.event.pull_request.draft");
   });
 
   test("CI still contacts neither Production nor preview", () => {
@@ -613,7 +654,9 @@ describe("runbooks lead with the isolated contract", () => {
     expect(gate).not.toContain("then run `bun run supabase`");
     // Remote readiness is opt-in only, with the default stated.
     expect(gate).toContain("Remote readiness is **not** part of this gate");
-    expect(gate).toContain("NOT EVALUATED — separate blocked release gate.");
+    expect(gate).toContain(
+      "NOT EVALUATED. Hosted readiness requires separate evidence.",
+    );
     expect(gate).toContain("exactly `CSF_REQUIRE_REMOTE_READINESS=1`");
     expect(gate).not.toMatch(/^\d+\.\s+`bun run db:audit:remote-readiness`$/mu);
   });
@@ -688,7 +731,7 @@ describe("browser package installation", () => {
     for (const [name, content] of Object.entries(fixtures)) {
       writeFileSync(join(sources, name), content);
     }
-    const job = dbReplayJob();
+    const job = browserJob();
     const start = job.indexOf("      - name: Install Playwright Chromium");
     const end = job.indexOf("      - name:", start + 1);
     const step = job.slice(start, end);

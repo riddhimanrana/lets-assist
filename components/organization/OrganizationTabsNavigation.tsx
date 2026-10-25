@@ -2,15 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  BarChart3,
-  Check,
-  ChevronDown,
-  Folders,
-  LayoutDashboard,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +25,6 @@ import {
   type OrganizationNavigationDestination,
 } from "./organization-navigation-destinations";
 
-type CoreTab = "overview" | "members" | "projects" | "reports";
-
 type Props = {
   usesFullSectionMobileNav: boolean;
   switcherDestinations: OrganizationNavigationDestination[];
@@ -47,14 +37,7 @@ type Props = {
   renderSectionSwitcherItem: (
     destination: OrganizationNavigationDestination,
   ) => ReactNode;
-  showOverviewTab: boolean;
-  showMembersTab: boolean;
-  showProjectsTab: boolean;
-  showReportsTab: boolean;
-  getCoreLabel: (tab: CoreTab, fallback: string) => string;
   pluginNavigationOverrides: OrganizationNavigationBehavior;
-  primaryPluginTabs: OrganizationTabBehavior[];
-  visiblePluginRouteTabs: Array<{ value: string; label: string }>;
   activePluginParentValue?: string;
   morePluginTabs: OrganizationTabBehavior[];
   hasActiveMoreTab: boolean;
@@ -74,14 +57,7 @@ export function OrganizationTabsNavigation(props: Props) {
     sectionGroupLabel,
     utilityGroupLabel,
     renderSectionSwitcherItem,
-    showOverviewTab,
-    showMembersTab,
-    showProjectsTab,
-    showReportsTab,
-    getCoreLabel,
     pluginNavigationOverrides,
-    primaryPluginTabs,
-    visiblePluginRouteTabs,
     activePluginParentValue,
     morePluginTabs,
     hasActiveMoreTab,
@@ -94,11 +70,58 @@ export function OrganizationTabsNavigation(props: Props) {
   const renderNavigationAnchor = (href: string) =>
     fullDocumentTabNavigation ? <a href={href} /> : <Link href={href} />;
 
+  // A generic organization gets page-level line tabs straight on the page. A
+  // compact plugin workspace keeps its segmented switch on the workspace
+  // sheet. The controller derives the flag from `compactHeader`.
+  const usesLineTabs = !usesFullSectionMobileNav;
+
+  const tabTriggers = (
+    <>
+      {/*
+        One trigger per destination, from the same deduplicated list that
+        feeds the phone switcher, so the two can never disagree.
+      */}
+      {workspaceDestinations.map((destination) => {
+        const ownsActiveChild = activePluginParentValue === destination.value;
+
+        return (
+          <TabsTrigger
+            key={destination.value}
+            value={destination.value}
+            aria-current={ownsActiveChild ? "page" : undefined}
+            className={cn(
+              "flex-none gap-2 px-3",
+              // The focus ring is inset because the line strip scrolls
+              // sideways and would clip an outer ring.
+              usesLineTabs &&
+                "h-10 shrink-0 rounded-none focus-visible:ring-inset group-data-[orientation=horizontal]/tabs:after:bottom-0",
+              // A child route keeps its parent tab marked the same way the
+              // active tab is: underlined on a line strip, raised on a
+              // segmented one.
+              ownsActiveChild &&
+                (usesLineTabs
+                  ? "text-foreground dark:text-foreground after:opacity-100"
+                  : "bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm"),
+            )}
+          >
+            {destination.icon ? (
+              <span className="hidden sm:contents">{destination.icon}</span>
+            ) : null}
+            {destination.label}
+          </TabsTrigger>
+        );
+      })}
+    </>
+  );
+
   return (
     <div
       className={cn(
         "flex min-w-0 items-center gap-2",
-        pluginNavigationOverrides.compactHeader ? "mb-2" : "mb-5",
+        // The hairline belongs to the row, so the utility menu beside a line
+        // strip shares it.
+        usesLineTabs && "border-b",
+        usesLineTabs ? "mb-6" : "mb-3",
       )}
     >
       {usesFullSectionMobileNav && switcherDestinations.length > 0 ? (
@@ -107,7 +130,6 @@ export function OrganizationTabsNavigation(props: Props) {
             render={
               <Button
                 variant="outline"
-                size="sm"
                 // Disclosure trigger, not a navigation item: Base UI supplies the
                 // expanded/controls semantics and aria-current stays on the
                 // selected menu item.
@@ -140,101 +162,36 @@ export function OrganizationTabsNavigation(props: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      <TabsList
-        className={cn(
-          "flex h-auto min-w-0 w-full sm:w-fit max-w-full items-center justify-start overflow-x-auto bg-muted p-1 text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
-          usesFullSectionMobileNav && "hidden sm:flex",
-        )}
-      >
-        {showOverviewTab && (
-          <TabsTrigger
-            value="overview"
-            className="flex-1 sm:flex-none min-w-0 gap-2 px-3"
-          >
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span className="truncate">
-              {getCoreLabel("overview", "Overview")}
-            </span>
-          </TabsTrigger>
-        )}
-        {showMembersTab && (
-          <TabsTrigger
-            value="members"
-            className="flex-1 sm:flex-none min-w-0 gap-2 px-3"
-          >
-            <Users className="h-4 w-4 shrink-0" />
-            <span className="truncate">
-              {getCoreLabel(
-                "members",
-                pluginNavigationOverrides.membersTabLabel || "Members",
-              )}
-            </span>
-          </TabsTrigger>
-        )}
-        {showProjectsTab && (
-          <TabsTrigger
-            value="projects"
-            className="flex-1 sm:flex-none min-w-0 gap-2 px-3"
-          >
-            <Folders className="h-4 w-4 shrink-0" />
-            <span className="truncate">
-              {getCoreLabel(
-                "projects",
-                pluginNavigationOverrides.projectsTabLabel || "Projects",
-              )}
-            </span>
-          </TabsTrigger>
-        )}
-        {showReportsTab && (
-          <TabsTrigger
-            value="reports"
-            className="flex-1 sm:flex-none min-w-0 gap-2 px-3"
-          >
-            <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="truncate">
-              {getCoreLabel("reports", "Reports")}
-            </span>
-          </TabsTrigger>
-        )}
-        {primaryPluginTabs.map((pt) => {
-          return (
-            <TabsTrigger
-              key={pt.value}
-              value={pt.value}
-              aria-current={
-                activePluginParentValue === pt.value ? "page" : undefined
-              }
-              className={cn(
-                "min-w-max flex-none shrink-0 gap-2 px-3",
-                activePluginParentValue === pt.value &&
-                  "bg-background text-foreground shadow-sm",
-              )}
-            >
-              {pt.icon}
-              <span className="truncate">{pt.label}</span>
-            </TabsTrigger>
-          );
-        })}
-        {visiblePluginRouteTabs.map((pt) => {
-          return (
-            <TabsTrigger
-              key={pt.value}
-              value={pt.value}
-              className="flex-1 sm:flex-none min-w-0 gap-2 px-3"
-            >
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span className="truncate">{pt.label}</span>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+      {usesLineTabs ? (
+        <TabsList
+          variant="line"
+          className="min-w-0 flex-1 gap-0 p-0 group-data-horizontal/tabs:h-10"
+        >
+          {tabTriggers}
+        </TabsList>
+      ) : (
+        <TabsList
+          className={cn(
+            "w-full min-w-0 sm:w-fit",
+            usesFullSectionMobileNav && "hidden sm:flex",
+          )}
+        >
+          {tabTriggers}
+        </TabsList>
+      )}
 
       {morePluginTabs.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
-                variant={activeMoreTab ? "secondary" : "outline"}
+                variant={
+                  activeMoreTab
+                    ? "secondary"
+                    : usesLineTabs
+                      ? "ghost"
+                      : "outline"
+                }
                 size="sm"
                 className={cn(
                   "shrink-0",

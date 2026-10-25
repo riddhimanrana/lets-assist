@@ -305,9 +305,9 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
       - menu "More":
         - group "More":
-          - text: More
           - separator
           - menuitem "Terms"
+          - menuitem "Point submissions"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
           - menuitem "Officers & access"
@@ -327,16 +327,15 @@ test.describe("DVHS CSF accessibility acceptance", () => {
 
     await switcher.click();
     await expect(page.getByRole("menu")).toMatchAriaSnapshot(`
-      - menu:
+      - menu /Home .* change section/:
         - group "Workspace":
-          - text: Workspace
           - menuitem "Home"
           - menuitem "Classes"
           - menuitem "Applications"
         - separator
         - group "More":
-          - text: More
           - menuitem "Terms"
+          - menuitem "Point submissions"
           - menuitem "Meetings"
           - menuitem "Partner clubs"
           - menuitem "Officers & access"
@@ -350,37 +349,44 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     expectNoBrowserFailures(failures);
   });
 
-  test("reduced motion disables the landing reveal animation in the browser", async ({
+  test("reduced motion disables the landing hero animation in the browser", async ({
     page,
   }) => {
-    // Non-vacuous baseline first: with full motion the reveal items really
+    // Non-vacuous baseline first: with full motion the hero letters really
     // animate, so the reduced-motion assertion cannot pass by absence.
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    const items = page.locator(".la-text-reveal-item");
-    await expect(items.first()).toBeAttached();
-    const animatedDuration = await items
-      .first()
-      .evaluate((element) => getComputedStyle(element).transitionDuration);
-    expect(animatedDuration).not.toBe("0s");
+    const heading = page.getByRole("heading", {
+      level: 1,
+      name: "A workspace for your volunteer organization.",
+    });
+    await expect(heading).toBeVisible();
+    const letters = heading.locator(".la-hero-letter");
+    await expect(letters.first()).toBeAttached();
+    const animated = await letters.first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        name: style.animationName,
+        duration: style.animationDuration,
+      };
+    });
+    expect(animated.name).toBe("la-hero-letter-in");
+    expect(animated.duration).not.toBe("0s");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(items.first()).toBeAttached();
-    const reduced = await items.first().evaluate((element) => {
+    await expect(heading).toBeVisible();
+    await expect(letters.first()).toBeAttached();
+    const reduced = await letters.first().evaluate((element) => {
       const style = getComputedStyle(element);
       return {
-        transitionDuration: style.transitionDuration,
+        name: style.animationName,
         opacity: style.opacity,
         transform: style.transform,
       };
     });
-    // The stylesheet's reduced-motion branch removes the transition and shows
-    // the text immediately, without movement. The `data-visible` rule still
-    // applies an explicit no-op transform, so the computed value may be the
-    // identity matrix rather than "none".
-    expect(reduced.transitionDuration).toBe("0s");
+    expect(reduced.name).toBe("none");
     expect(reduced.opacity).toBe("1");
-    expect(["none", "matrix(1, 0, 0, 1, 0, 0)"]).toContain(reduced.transform);
+    expect(reduced.transform).toBe("none");
   });
 });

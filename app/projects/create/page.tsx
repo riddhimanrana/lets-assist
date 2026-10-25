@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import type { ProjectCreateAdditionalStep } from "@/types/plugin";
 import { headers } from "next/headers";
+import { projectCreationSessionId } from "@/lib/projects/creation-session";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
 export default async function CreateProjectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string; draft?: string }>;
+  searchParams: Promise<{ org?: string; draft?: string; creation?: string }>;
 }) {
   // Defensive: if this route is accidentally served on the Supabase API custom domain,
   // redirect back to the primary site domain where Next routes are hosted.
@@ -139,6 +140,7 @@ export default async function CreateProjectPage({
   const search = await searchParams;
   const orgIdFromUrl = search?.org || undefined;
   const draftIdFromUrl = search?.draft || undefined;
+  const creationSessionId = projectCreationSessionId(search?.creation);
 
   // If org ID is provided, verify permission and assign initialOrgId
   let initialOrgId = undefined;
@@ -202,7 +204,7 @@ export default async function CreateProjectPage({
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
 
-  // Load specific draft if requested, otherwise load most recent autosaved draft
+  // Resuming requires an explicit draft ID. New projects never consume older drafts.
   let loadedDraft: Partial<EventFormState> | null = null;
   let loadedDraftId: string | null = null;
   if (draftIdFromUrl) {
@@ -213,14 +215,10 @@ export default async function CreateProjectPage({
       .eq("user_id", user.id)
       .single();
 
-    if (draft) {
-      loadedDraft = draft.draft_data;
-      loadedDraftId = draft.id;
-    }
-  } else if (drafts && drafts.length > 0) {
-    // Load the most recently updated draft (autosaved)
-    loadedDraft = drafts[0].draft_data;
-    loadedDraftId = drafts[0].id;
+    if (!draft) notFound();
+    loadedDraft = draft.draft_data;
+    loadedDraftId = draft.id;
+    initialOrgId = loadedDraft?.basicInfo?.organizationId || undefined;
   }
 
   // Fetch plugin steps if an organization is selected
@@ -247,8 +245,10 @@ export default async function CreateProjectPage({
   }
 
   return (
-    <div className="w-full mx-auto p-4 sm:p-8 max-w-4xl">
+    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
       <ProjectCreator
+        key={creationSessionId}
+        creationSessionId={creationSessionId}
         initialOrgId={initialOrgId}
         initialOrgOptions={orgOptions}
         canUsePublicVisibility={canUsePublicVisibility}

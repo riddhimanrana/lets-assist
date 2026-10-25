@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 /**
  * AuthProvider: Global auth state initialization
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (process.env.NODE_ENV === "development") {
-        console.log("[AuthProvider] Auth state changed:", event);
+        safeConsole.log("[AuthProvider] Auth state changed:", event);
       }
     });
 

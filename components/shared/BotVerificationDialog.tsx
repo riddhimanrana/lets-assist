@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Shield, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { TurnstileComponent } from "@/components/ui/turnstile";
 import { SecureCheckPanel } from "@/components/auth/SecureCheckPanel";
 import { useBotVerification } from "@/hooks/useBotVerification";
@@ -70,14 +70,11 @@ export function BotVerificationDialog({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <DialogTitle>{title}</DialogTitle>
-          </div>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex justify-center py-6">
+        <div className="flex justify-center">
           <SecureCheckPanel
             phase={verification.phase}
             onRetry={verification.retry}
@@ -96,7 +93,7 @@ export function BotVerificationDialog({
         </div>
 
         {verification.error && (
-          <p className="text-sm text-destructive text-center">
+          <p role="alert" className="text-destructive text-sm">
             {verification.error}
           </p>
         )}
@@ -117,7 +114,11 @@ export function BotVerificationDialog({
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2
+                  data-icon="inline-start"
+                  aria-hidden="true"
+                  className="animate-spin"
+                />
                 {submitLabel}...
               </>
             ) : (

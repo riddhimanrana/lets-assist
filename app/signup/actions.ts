@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -163,7 +164,7 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
         .maybeSingle();
 
       if (blacklistError) {
-        console.error("Signup blacklist lookup failed:", blacklistError);
+        safeConsole.error("Signup blacklist lookup failed:", blacklistError);
         return signupSuccess(validatedFields.data.email);
       }
 
@@ -263,7 +264,7 @@ export async function signup(formData: FormData): Promise<SignupActionResult> {
       // environment variables are missing). Known, user-facing error conditions
       // are returned explicitly above this catch block; anything reaching here
       // is unexpected and should be retried or escalated to support.
-      console.error("Signup error:", error);
+      safeConsole.error("Signup error:", error);
       return {
         error: {
           server: [
@@ -295,7 +296,7 @@ export async function resendVerificationEmail(
         .maybeSingle();
 
       if (blacklistError) {
-        console.error("Resend blacklist lookup failed:", blacklistError);
+        safeConsole.error("Resend blacklist lookup failed:", blacklistError);
         return resendSuccess();
       }
       if (blacklisted) return resendSuccess();
@@ -315,13 +316,13 @@ export async function resendVerificationEmail(
       });
 
       if (error) {
-        console.error("Error resending verification email:", error);
+        safeConsole.error("Error resending verification email:", error);
         return resendSuccess();
       }
 
       return resendSuccess();
     } catch (error) {
-      console.error("Exception in resendVerificationEmail:", error);
+      safeConsole.error("Exception in resendVerificationEmail:", error);
       return resendSuccess();
     }
   });
@@ -376,7 +377,7 @@ export async function signInWithGoogle(
     });
 
     if (error) {
-      console.error("Google OAuth error:", error);
+      safeConsole.error("Google OAuth error:", error);
       return {
         error: {
           server: ["Unable to start Google sign-in. Please try again."],

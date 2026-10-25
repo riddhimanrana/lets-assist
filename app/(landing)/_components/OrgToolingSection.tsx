@@ -23,7 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +32,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   Activity,
-  ArrowRight,
   AlertTriangle,
   BarChart3,
   Check,
@@ -53,7 +52,6 @@ import {
   Workflow,
   Wrench,
 } from "lucide-react";
-import Link from "next/link";
 import OrganizationHeader from "@/components/organization/OrganizationHeader";
 import OrganizationTabs from "@/components/organization/OrganizationTabs";
 import {
@@ -79,32 +77,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { OrganizationTabBehavior, Project } from "@/types";
 import { getProjectStatus } from "@/utils/project";
-import { AnimatedText } from "./AnimatedText";
-
-const orgFeatures = [
-  {
-    icon: FileSpreadsheet,
-    title: "Google Sheets + Calendar syncing",
-    desc: "Keep member hours, project summaries, volunteer slots, and shared calendar reminders connected to the tools your team already uses.",
-    logos: [
-      { src: "/resources/google-sheets-logo-2026.png", alt: "Google Sheets" },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
-  },
-  {
-    icon: Plug,
-    title: "Custom plugins",
-    desc: "Connect membership rules, school workflows, imports, approvals, paid events, and private operational tools.",
-  },
-  {
-    icon: BarChart3,
-    title: "Analytics dashboards",
-    desc: "See verified hours, member progress, project turnout, exports, and CSF-ready reporting from one dashboard.",
-  },
-];
 
 const analyticsBars = [
   { month: "Feb", verified: 42, pending: 10 },
@@ -191,9 +163,9 @@ const reportMetricCards = [
 ];
 
 const topVolunteersThisMonth = [
-  { name: "Maya Chen", hours: "42.5h", projects: "8 projects" },
-  { name: "Noah Patel", hours: "37.0h", projects: "7 projects" },
-  { name: "Priya Shah", hours: "31.5h", projects: "6 projects" },
+  { name: "Volunteer 01", hours: "42.5h", projects: "8 projects" },
+  { name: "Volunteer 02", hours: "37.0h", projects: "7 projects" },
+  { name: "Volunteer 03", hours: "31.5h", projects: "6 projects" },
 ];
 
 type DemoMemberHours = {
@@ -559,8 +531,10 @@ const mockOrganization = {
   name: "San Ramon City Alliance",
   username: "sanramon",
   type: "nonprofit",
-  website: "https://sanramon.ca.gov/",
-  verified: true,
+  // A reserved example domain and no verified mark: this organization is a
+  // sample, and the section's eyebrow says so.
+  website: "https://sanramon.example/",
+  verified: false,
   logo_url: "/logos/sanramon.jpg",
   description:
     "A community coalition connecting residents, schools, and local nonprofits to improve San Ramon through service and events. Note that this is a mock and is not affiliated with the actual City of San Ramon.",
@@ -581,42 +555,10 @@ type OrganizationMember = {
   };
 };
 
-const memberSeeds = [
-  ["Riddhiman", "Rana"],
-  ["Maya", "Chen"],
-  ["Liam", "O'Connor"],
-  ["Avery", "Nguyen"],
-  ["Noah", "Patel"],
-  ["Sofia", "Martinez"],
-  ["Ethan", "Kim"],
-  ["Aria", "Singh"],
-  ["Mateo", "Garcia"],
-  ["Zoe", "Hughes"],
-  ["Julian", "Bennett"],
-  ["Priya", "Shah"],
-  ["Amir", "Hassan"],
-  ["Leah", "Carter"],
-  ["Caleb", "Wright"],
-  ["Nora", "Diaz"],
-  ["Owen", "Brooks"],
-  ["Mina", "Park"],
-  ["Elena", "Flores"],
-  ["Jonah", "Baker"],
-  ["Iris", "Young"],
-  ["Theo", "Ramirez"],
-  ["Anika", "Desai"],
-  ["Miles", "Foster"],
-] as const;
-
 const mockMembers: OrganizationMember[] = Array.from(
   { length: 147 },
   (_, index) => {
-    const [firstName, lastName] = memberSeeds[index % memberSeeds.length];
-    const sequence = Math.floor(index / memberSeeds.length) + 1;
-    const name =
-      sequence === 1
-        ? `${firstName} ${lastName}`
-        : `${firstName} ${lastName} ${sequence}`;
+    const name = `Volunteer ${String(index + 1).padStart(3, "0")}`;
     const role: OrganizationMember["role"] =
       index === 0 ? "admin" : index < 8 ? "staff" : "member";
     const month = String((index % 12) + 1).padStart(2, "0");
@@ -647,10 +589,10 @@ function oneTime(dateISO: string, start: string, end: string) {
 }
 
 const mockProfile = {
-  full_name: "Riddhiman Rana",
-  email: "hello@lets-assist.com",
+  full_name: "Example Coordinator",
+  email: "coordinator@example.org",
   avatar_url: null,
-  username: "riddhiman",
+  username: "example-coordinator",
   created_at: "2025-01-01T00:00:00.000Z",
 };
 
@@ -1635,7 +1577,14 @@ function DemoPluginMarketplace() {
   );
 }
 
+// The mock uses the phone section switcher, so the tab strip is never cut off.
+const DEMO_NAVIGATION = { compactHeader: true };
+
+// Only the mock lives here. OrgToolingIntro renders the section, heading,
+// features and links around it.
 export default function OrgToolingSection() {
+  // Below `sm` the mock drops Invite so the header actions stay on one line.
+  const isWide = useMediaQuery("(min-width: 640px)");
   const handleMockOrganizationClick = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     const projectLink = target.closest('a[href^="/projects"]');
@@ -1651,139 +1600,44 @@ export default function OrgToolingSection() {
   };
 
   return (
-    <section id="org-tooling" className="py-16 sm:py-20">
-      <div className="container mx-auto px-4 sm:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mx-auto max-w-3xl"
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.5 }}
+      className="relative mx-auto mt-12 w-full max-w-6xl"
+    >
+      <div className="relative rounded-2xl border bg-card shadow-(--card-shadow)">
+        <div
+          className="p-4 sm:p-6"
+          onClickCapture={handleMockOrganizationClick}
         >
-          <Badge
-            variant="outline"
-            className="mb-3 border-primary/40 bg-primary/10 text-primary"
-          >
-            For organizations
-          </Badge>
-          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText
-              text="The workspace SignUpGenius never built"
-              mode="words"
+          <OrganizationHeader
+            organization={mockOrganization}
+            userRole="admin"
+            memberCount={mockMembers.length}
+            showInviteAction={isWide}
+            headingLevel={2}
+          />
+          <div className="mt-6">
+            <OrganizationTabs
+              organization={mockOrganization}
+              members={mockMembers}
+              projects={mockProjects}
+              userRole="admin"
+              currentUserId="u1"
+              reportSummary={demoReportSummary}
+              organizationCreatedLabel="January 1, 2025"
+              demoReportsContent={<OrganizationAnalyticsDemo />}
+              demoAdminToolsContent={<DemoPluginMarketplace />}
+              pluginTabs={demoPluginTabs}
+              pluginNavigationOverrides={DEMO_NAVIGATION}
+              demoMemberHours={demoMemberHours}
+              demoMemberDetails={demoMemberDetails}
             />
-          </h2>
-          <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
-            Run your volunteer program from one simple dashboard - no
-            spreadsheets, no guesswork. Manage members and roles, verify hours
-            with QR check-ins, auto-issue certificates, and export
-            compliance-ready reports in seconds. Built for schools and
-            nonprofits that need reliable, auditable volunteer records.
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.5 }}
-          className="relative mx-auto mt-12 w-full max-w-6xl"
-        >
-          <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-3xl bg-[radial-gradient(40%_30%_at_30%_20%,--theme(--color-emerald-400/18%),transparent_70%),radial-gradient(30%_25%_at_70%_10%,--theme(--color-primary/16%),transparent_70%)] blur-2xl" />
-          <div className="relative rounded-2xl border border-primary/20 bg-card/90 shadow-2xl backdrop-blur-xs">
-            <div
-              className="p-4 sm:p-6"
-              onClickCapture={handleMockOrganizationClick}
-            >
-              <OrganizationHeader
-                organization={mockOrganization}
-                userRole="admin"
-                memberCount={mockMembers.length}
-              />
-              <div className="mt-6">
-                <OrganizationTabs
-                  organization={mockOrganization}
-                  members={mockMembers}
-                  projects={mockProjects}
-                  userRole="admin"
-                  currentUserId="u1"
-                  reportSummary={demoReportSummary}
-                  organizationCreatedLabel="January 1, 2025"
-                  demoReportsContent={<OrganizationAnalyticsDemo />}
-                  demoAdminToolsContent={<DemoPluginMarketplace />}
-                  pluginTabs={demoPluginTabs}
-                  demoMemberHours={demoMemberHours}
-                  demoMemberDetails={demoMemberDetails}
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="mt-12 space-y-10">
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-3">
-            {orgFeatures.map((feat) => (
-              <Card
-                key={feat.title}
-                className="h-full border-border/60 bg-background/90 shadow-xs"
-              >
-                <CardContent className="p-4">
-                  {feat.logos ? (
-                    <div className="mb-2 flex items-center gap-2">
-                      {feat.logos.map((logo) => (
-                        <span
-                          key={logo.src}
-                          className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-xs"
-                        >
-                          <Image
-                            src={logo.src}
-                            alt={logo.alt}
-                            width={22}
-                            height={22}
-                            className="size-5 object-contain"
-                          />
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mb-2 inline-flex rounded-lg bg-primary/10 p-2 text-primary">
-                      <feat.icon className="h-4 w-4" />
-                    </div>
-                  )}
-                  <p className="text-sm font-semibold text-foreground">
-                    {feat.title}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                    {feat.desc}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <Link
-              href="/contact"
-              className={cn(buttonVariants({ size: "lg", className: "gap-2" }))}
-            >
-              Contact us for integrations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/organization"
-              className={cn(
-                buttonVariants({
-                  size: "lg",
-                  variant: "outline",
-                  className: "gap-2",
-                }),
-              )}
-            >
-              Explore connected organizations
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
         </div>
       </div>
-    </section>
+    </motion.div>
   );
 }

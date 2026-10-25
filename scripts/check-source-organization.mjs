@@ -49,10 +49,14 @@ const BINARY_EXTENSIONS = new Set([
 // Temporary ratchet for files that predate this gate. New oversized files and
 // growth beyond these reviewed line counts fail immediately; cleanup PRs remove
 // entries as modules are split below their category limit.
-const OVERSIZED_BASELINE = Object.freeze({
-  "lets-assist": Object.freeze({}),
-  private: Object.freeze({}),
-});
+const OVERSIZED_BASELINE = Object.freeze(
+  JSON.parse(
+    readFileSync(
+      new URL("./source-maintainability-baseline.json", import.meta.url),
+      "utf8",
+    ),
+  ).repositories,
+);
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".ts", ".tsx"]);
 const SOURCE_ROOTS = new Set([
@@ -171,10 +175,7 @@ function maintainabilityLimit(file) {
   if (/(?:^|\/)components\/CsfDashboard[A-Za-z]*Phase\.[jt]sx?$/u.test(file))
     return 800;
   if (/(?:^|\/)(?:actions?|services?)(?:\/|\.|$)/u.test(file)) return 800;
-  // Route and component modules are no longer length-capped. The cap was a
-  // proxy for reviewability, and it kept failing the build on files that were
-  // fine, so splitting is left to review judgment. Service/action and test
-  // budgets stay, because other gates depend on them.
+  if (/(?:^|\/)(?:app|components)\//u.test(file)) return 600;
   return null;
 }
 
@@ -194,6 +195,16 @@ export function findMaintainabilityIssues(entries, repositoryName) {
       },
     ];
   });
+}
+
+export function maintainabilityRepositoryName(trackedFiles) {
+  if (
+    trackedFiles.includes("scripts/check-source-organization.mjs") &&
+    trackedFiles.includes("package.json")
+  )
+    return "lets-assist";
+  if (trackedFiles.includes("plugins/dvhs-csf/plugin.tsx")) return "private";
+  return "unknown";
 }
 
 export function getTrackedFiles(repoRoot = process.cwd()) {
@@ -229,7 +240,10 @@ function main() {
     });
   const issues = [
     ...findSourceOrganizationIssues(trackedFiles),
-    ...findMaintainabilityIssues(lineEntries, path.basename(repoRoot)),
+    ...findMaintainabilityIssues(
+      lineEntries,
+      maintainabilityRepositoryName(trackedFiles),
+    ),
   ].sort(
     (left, right) =>
       left.file.localeCompare(right.file) ||

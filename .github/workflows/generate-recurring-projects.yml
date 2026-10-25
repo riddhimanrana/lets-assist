@@ -1,9 +1,8 @@
 name: Generate Recurring Projects
 
 on:
-  schedule:
-    - cron: "10 1 * * *" # 01:10 UTC (primary)
-    - cron: "10 13 * * *" # 13:10 UTC (second pass)
+  # Vercel Cron owns the schedule (vercel.json). This approval-gated
+  # dispatch is the manual fallback.
   workflow_dispatch:
 
 permissions:

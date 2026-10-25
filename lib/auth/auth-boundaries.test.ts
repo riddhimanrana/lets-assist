@@ -6,7 +6,7 @@ import { readAdminActionSource } from "@/tests/support/admin-action-source";
 
 const ROOT = process.cwd();
 const SENSITIVE_MFA_GUARD =
-  /getAuthUser\(\{\s*sensitive:\s*true,\s*checkMfa:\s*true,?\s*\}\)/u;
+  /getAuthUser\(\{\s*sensitive:\s*true,\s*checkMfa:\s*true,?\s*(?:allowAccountDeletion:\s*true,?\s*)?\}\)/u;
 
 function read(relativePath: string) {
   return readFileSync(`${ROOT}/${relativePath}`, "utf8");

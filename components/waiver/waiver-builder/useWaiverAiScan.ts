@@ -1,4 +1,5 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { toast } from "sonner";
@@ -140,7 +141,7 @@ export function useWaiverAiScan({
         duration: 8000,
       });
     } catch (error) {
-      console.error("AI scan error:", error);
+      safeConsole.error("AI scan error:", error);
       toast.error("Network error during analysis", {
         description: "Please try again or configure manually.",
         duration: 6000,

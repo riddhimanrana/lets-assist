@@ -1,3 +1,4 @@
+import { PAGE_CONTENT_ID } from "@/components/layout/content-targets";
 import { AdminMobileNav, AdminSidebar } from "./components/AdminSidebar";
 
 export default function AdminLayout({
@@ -6,21 +7,20 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-muted/5">
+    <div className="bg-background flex min-h-screen">
       <AdminSidebar />
-      <div className="flex flex-1 flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/90 px-4 py-3 backdrop-blur-sm md:hidden">
-          <div className="flex items-center gap-2">
-            <AdminMobileNav />
-            <div>
-              <p className="text-sm font-semibold">Admin Console</p>
-              <p className="text-xs text-muted-foreground">Let&apos;s Assist</p>
-            </div>
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="bg-background sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-2 md:hidden">
+          <AdminMobileNav />
+          <p className="text-sm font-semibold">Admin console</p>
         </header>
-        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-background">
+        <div
+          id={PAGE_CONTENT_ID}
+          tabIndex={-1}
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto outline-none"
+        >
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

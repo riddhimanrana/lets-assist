@@ -1,0 +1,139 @@
+.attendance-print-sheets {
+  color: #111;
+  font-family: Arial, sans-serif;
+}
+.attendance-print-page {
+  box-sizing: border-box;
+  background: white;
+  width: 186mm;
+  min-height: 250mm;
+  margin: 1rem auto;
+  padding: 6mm;
+  border: 1px solid #bbb;
+  font-size: 10pt;
+}
+.attendance-print-page header {
+  margin-bottom: 4mm;
+}
+.attendance-print-page h2 {
+  font-size: 18pt;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 1mm 0 2mm;
+  overflow-wrap: anywhere;
+}
+.attendance-print-page p {
+  margin: 1mm 0;
+}
+.attendance-print-eyebrow {
+  font-size: 9pt;
+}
+.attendance-print-reference {
+  font-size: 8pt;
+  font-family: monospace;
+}
+.attendance-print-page table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.attendance-print-page th,
+.attendance-print-page td {
+  border: 1px solid #333;
+  padding: 1.5mm;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.attendance-print-page th {
+  font-size: 9pt;
+  height: 8mm;
+  font-weight: 700;
+}
+.attendance-print-page td {
+  height: 12mm;
+  vertical-align: top;
+  font-size: 9pt;
+}
+.attendance-print-page td small {
+  display: block;
+  font-family: monospace;
+  font-size: 6.5pt;
+  white-space: nowrap;
+}
+.attendance-col-reference {
+  width: 22mm;
+}
+.attendance-col-name {
+  width: 63mm;
+}
+.attendance-email-line {
+  display: block;
+  margin-top: 3mm;
+}
+.attendance-print-page footer {
+  margin-top: 3mm;
+  font-size: 8pt;
+  line-height: 1.35;
+}
+@media screen and (max-width: 760px) {
+  .attendance-print-sheets {
+    overflow-x: auto;
+  }
+  .attendance-print-page {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+}
+@media print {
+  body:has(.attendance-sheet-root) {
+    background: white !important;
+    color: black !important;
+  }
+  body:has(.attendance-sheet-root)
+    *:not(:has(.attendance-sheet-root)):not(.attendance-sheet-root):not(
+      .attendance-sheet-root *
+    ) {
+    display: none !important;
+  }
+  body:has(.attendance-sheet-root) *:has(.attendance-sheet-root) {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+  .attendance-sheet-root,
+  .attendance-sheet-root * {
+    visibility: visible !important;
+  }
+  .attendance-sheet-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  .attendance-print-controls {
+    display: none !important;
+  }
+  .attendance-print-page {
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+  .attendance-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .attendance-print-page thead {
+    display: table-header-group;
+  }
+  .attendance-print-page tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

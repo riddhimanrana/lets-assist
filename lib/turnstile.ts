@@ -1,90 +1,57 @@
-interface TurnstileVerificationResponse {
-  success: boolean;
-  "error-codes"?: string[];
-  challenge_ts?: string;
-  hostname?: string;
-}
+import {
+  canBypassTurnstile,
+  turnstileHostnames,
+} from "./auth/turnstile-policy";
 
-import { logError } from "@/lib/logger";
-
-export async function verifyTurnstileToken(token: string): Promise<boolean> {
-  const shouldBypass =
-    process.env.NODE_ENV !== "production" &&
-    process.env.TURNSTILE_BYPASS === "true";
-
-  if (shouldBypass) {
-    return true;
-  }
-
-  const secretKey = process.env.TURNSTILE_SECRET_KEY;
-
-  if (!secretKey) {
-    logError(
-      "Turnstile secret key is not configured",
-      new Error("Missing TURNSTILE_SECRET_KEY"),
-    );
+export async function verifyTurnstileToken(
+  token: string,
+  expectedAction: string,
+): Promise<boolean> {
+  if (canBypassTurnstile(process.env)) return true;
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const hosts = turnstileHostnames(process.env);
+  if (
+    !secret ||
+    !process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+    !hosts.size ||
+    typeof token !== "string" ||
+    !token.trim() ||
+    token.length > 2048 ||
+    !/^[a-z0-9_-]{1,32}$/.test(expectedAction)
+  )
     return false;
-  }
-
   try {
     const response = await fetch(
       "https://challenges.cloudflare.com/turnstile/v0/siteverify",
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          secret: secretKey,
-          response: token,
-        }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ secret, response: token }),
+        signal: AbortSignal.timeout(10_000),
+        redirect: "error",
+        cache: "no-store",
       },
     );
-
-    const data: TurnstileVerificationResponse = await response.json();
-
-    if (!data.success) {
-      logError(
-        "Turnstile verification failed",
-        new Error("Verification failed"),
-        {
-          error_codes: data["error-codes"]?.join(", "),
-        },
-      );
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    logError("Exception while verifying Turnstile token", error);
+    if (!response.ok) return false;
+    const data: unknown = await response.json();
+    if (!data || typeof data !== "object") return false;
+    const result = data as {
+      success?: unknown;
+      hostname?: unknown;
+      action?: unknown;
+    };
+    return (
+      result.success === true &&
+      typeof result.hostname === "string" &&
+      hosts.has(result.hostname) &&
+      result.action === expectedAction
+    );
+  } catch {
     return false;
   }
 }
 
-export function isTurnstileEnabled(): boolean {
-  const shouldBypass =
-    process.env.NODE_ENV !== "production" &&
-    process.env.TURNSTILE_BYPASS === "true";
-  return (
-    !shouldBypass &&
-    !!(
-      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY &&
-      process.env.TURNSTILE_SECRET_KEY
-    )
-  );
-}
-
-/**
- * Hosted builds always require a real challenge token. Local development can
- * use the existing bypass when explicitly enabled, and the documented shared
- * local stack falls back to it when no Turnstile configuration exists.
- */
+/** Missing hosted configuration must require verification, never waive it. */
 export function isTurnstileTokenRequired(): boolean {
-  if (process.env.NODE_ENV === "production") return true;
-  if (process.env.TURNSTILE_BYPASS === "true") return false;
-
-  return Boolean(
-    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
-    process.env.TURNSTILE_SECRET_KEY,
-  );
+  return !canBypassTurnstile(process.env);
 }

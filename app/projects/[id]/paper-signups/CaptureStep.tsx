@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { createClient as createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -23,6 +24,7 @@ import { PaperScanCameraInput } from "@/components/projects/paper-signup/PaperSc
 import { PAPER_SCAN_MAX_IMAGES } from "@/lib/ai/paper-signup-schema";
 
 import { createPaperScanBatch, queueOrphanedPaperScanUploads } from "./actions";
+import { paperScanSlotMatches } from "./slot-match";
 import type {
   PaperScanBatchView,
   PaperScanSlotOption,
@@ -119,6 +121,13 @@ export function CaptureStep({
   );
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const busy = phase.kind !== "collecting" || cleanupBusy;
+  const retryBatch =
+    existingBatch &&
+    paperScanSlotMatches(slot, existingBatch.scheduleId) &&
+    ["draft", "failed"].includes(existingBatch.status) &&
+    existingBatch.imageCount > 0
+      ? existingBatch
+      : null;
   const cleanupStorageKey = `paper-scan-orphan-cleanup:${projectId}`;
 
   useEffect(() => {
@@ -231,69 +240,74 @@ export function CaptureStep({
   };
 
   const scan = async () => {
-    if (photos.length === 0) return;
+    if (photos.length === 0 && !retryBatch) return;
     const supabase = createBrowserSupabaseClient();
     const batchDir = crypto.randomUUID();
     const cleanupToken = crypto.randomUUID();
     const uploadedPaths: string[] = [];
-    let registeredBatchId: string | null = null;
+    let registeredBatchId: string | null = retryBatch?.id ?? null;
+    let imageCount = retryBatch?.imageCount ?? 0;
 
     try {
-      setPhase({ kind: "compressing", index: 0, total: photos.length });
-      const downscaled = await downscaleImageFiles(
-        photos.map((photo) => photo.file),
-        {
-          onProgress: (index, total) =>
-            setPhase({ kind: "compressing", index, total }),
-        },
-      );
+      if (registeredBatchId === null) {
+        setPhase({ kind: "compressing", index: 0, total: photos.length });
+        const downscaled = await downscaleImageFiles(
+          photos.map((photo) => photo.file),
+          {
+            onProgress: (index, total) =>
+              setPhase({ kind: "compressing", index, total }),
+          },
+        );
 
-      const images: Array<{
-        objectPath: string;
-        sequence: number;
-        byteSize: number;
-        contentType: string;
-      }> = [];
-      for (let index = 0; index < downscaled.length; index++) {
-        setPhase({ kind: "uploading", index, total: downscaled.length });
-        const item = downscaled[index];
-        const extension =
-          item.file.type === "image/png"
-            ? "png"
-            : item.file.type === "image/webp"
-              ? "webp"
-              : "jpg";
-        const objectPath = `paper_signups/${projectId}/${batchDir}/${index}_${crypto
-          .randomUUID()
-          .replace(/-/g, "")}.${extension}`;
+        const images: Array<{
+          objectPath: string;
+          sequence: number;
+          byteSize: number;
+          contentType: string;
+        }> = [];
+        for (let index = 0; index < downscaled.length; index++) {
+          setPhase({ kind: "uploading", index, total: downscaled.length });
+          const item = downscaled[index];
+          const extension =
+            item.file.type === "image/png"
+              ? "png"
+              : item.file.type === "image/webp"
+                ? "webp"
+                : "jpg";
+          const objectPath = `paper_signups/${projectId}/${batchDir}/${index}_${crypto
+            .randomUUID()
+            .replace(/-/g, "")}.${extension}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("paper-signup-scans")
-          .upload(objectPath, item.file, {
+          const { error: uploadError } = await supabase.storage
+            .from("paper-signup-scans")
+            .upload(objectPath, item.file, {
+              contentType: item.file.type,
+              metadata: { cleanupToken },
+            });
+          if (uploadError) {
+            throw new Error("One of the photos failed to upload.");
+          }
+          uploadedPaths.push(objectPath);
+          images.push({
+            objectPath,
+            sequence: index,
+            byteSize: item.file.size,
             contentType: item.file.type,
-            metadata: { cleanupToken },
           });
-        if (uploadError) {
-          throw new Error("One of the photos failed to upload.");
         }
-        uploadedPaths.push(objectPath);
-        images.push({
-          objectPath,
-          sequence: index,
-          byteSize: item.file.size,
-          contentType: item.file.type,
-        });
-      }
 
-      const batchResult = await createPaperScanBatch({
-        projectId,
-        scheduleId: slot.id,
-        images,
-      });
-      if ("error" in batchResult) {
-        throw new Error(batchResult.error);
+        const batchResult = await createPaperScanBatch({
+          projectId,
+          scheduleId: slot.id,
+          images,
+        });
+        if ("error" in batchResult) {
+          throw new Error(batchResult.error);
+        }
+        registeredBatchId = batchResult.batchId;
+
+        imageCount = images.length;
       }
-      registeredBatchId = batchResult.batchId;
 
       setPhase({ kind: "scanning" });
       const scanController = new AbortController();
@@ -304,7 +318,7 @@ export function CaptureStep({
       const response = await fetch("/api/ai/scan-signup-sheet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchId: batchResult.batchId }),
+        body: JSON.stringify({ batchId: registeredBatchId }),
         signal: scanController.signal,
       }).finally(() => window.clearTimeout(scanTimeoutId));
       const payload = await response.json().catch(() => null);
@@ -316,10 +330,10 @@ export function CaptureStep({
         `Read ${payload.rowCount} row${payload.rowCount === 1 ? "" : "s"} from ${payload.imagesProcessed} photo${payload.imagesProcessed === 1 ? "" : "s"}.`,
       );
       onExtracted({
-        id: batchResult.batchId,
-        scheduleId: slot.id,
+        id: registeredBatchId,
+        scheduleId: retryBatch?.scheduleId ?? slot.id,
         status: "review",
-        imageCount: images.length,
+        imageCount,
       });
     } catch (error) {
       // Only uploads that never became part of a batch are orphans. Once the
@@ -405,42 +419,42 @@ export function CaptureStep({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Photograph the sheet</CardTitle>
+        <CardTitle>
+          {retryBatch ? "Retry saved scan" : "Photograph the sheet"}
+        </CardTitle>
         <CardDescription>
-          {slot.label} · Lay the sheet flat, fill the frame, and avoid shadows.
-          Add every page of the sheet before scanning.
+          {retryBatch
+            ? `${slot.label} · Your ${retryBatch.imageCount} uploaded photo${retryBatch.imageCount === 1 ? " is" : "s are"} saved. Retry reading them without uploading again.`
+            : `${slot.label} · Lay the sheet flat, fill the frame, and avoid shadows. Add every page of the sheet before scanning.`}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="grid gap-4">
         {pendingCleanup && (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
-            <p>
-              The scan failed and its uploaded photos still need to be released.
-              Retry cleanup before leaving this page.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              disabled={cleanupBusy}
-              onClick={retryOrphanCleanup}
-            >
-              {cleanupBusy ? "Retrying cleanup…" : "Retry cleanup"}
-            </Button>
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription className="grid gap-3">
+              <p>
+                The scan failed and its uploaded photos still need to be
+                released. Retry cleanup before leaving this page.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                disabled={cleanupBusy}
+                onClick={retryOrphanCleanup}
+              >
+                {cleanupBusy ? "Retrying cleanup…" : "Retry cleanup"}
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
-        {existingBatch && existingBatch.status !== "review" && (
-          <p className="text-sm text-muted-foreground">
-            A previous scan for this project didn&apos;t finish; starting a new
-            one replaces it.
-          </p>
+        {!retryBatch && (
+          <PaperScanCameraInput
+            disabled={busy || photos.length >= PAPER_SCAN_MAX_IMAGES}
+            onFiles={addFiles}
+          />
         )}
-
-        <PaperScanCameraInput
-          disabled={busy || photos.length >= PAPER_SCAN_MAX_IMAGES}
-          onFiles={addFiles}
-        />
 
         {photos.length > 0 && (
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -465,9 +479,9 @@ export function CaptureStep({
                     variant="secondary"
                     aria-label={`Remove page ${index + 1}`}
                     onClick={() => removePhoto(photo.key)}
-                    className="absolute right-1 top-1 size-7 text-destructive"
+                    className="text-destructive absolute top-1 right-1"
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 aria-hidden="true" />
                   </Button>
                 )}
               </li>
@@ -498,19 +512,23 @@ export function CaptureStep({
       </CardContent>
       <CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onBack} disabled={busy}>
-          <ArrowLeft className="size-4" />
+          <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Change session
         </Button>
         <Button
           onClick={scan}
-          disabled={busy || pendingCleanup !== null || photos.length === 0}
+          disabled={
+            busy ||
+            (!retryBatch && (pendingCleanup !== null || photos.length === 0))
+          }
           className="w-full sm:w-auto"
         >
-          <ScanText className="size-4" />
-          Scan{" "}
-          {photos.length > 0
-            ? `${photos.length} photo${photos.length === 1 ? "" : "s"}`
-            : "sheet"}
+          <ScanText data-icon="inline-start" aria-hidden="true" />
+          {retryBatch
+            ? "Retry scan"
+            : photos.length > 0
+              ? `Scan ${photos.length} photo${photos.length === 1 ? "" : "s"}`
+              : "Scan sheet"}
         </Button>
       </CardFooter>
     </Card>

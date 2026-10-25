@@ -19,6 +19,17 @@ export const paperSignupFieldSchema = z.object({
 
 export const paperSignupRowSchema = z.object({
   sheetRowNumber: z.number().int().min(1),
+  sheetReference: z.string().max(80).nullable().optional(),
+  rowReference: z.string().max(80).nullable().optional(),
+  intervals: z
+    .array(
+      z.object({
+        timeIn: paperSignupFieldSchema,
+        timeOut: paperSignupFieldSchema,
+      }),
+    )
+    .max(20)
+    .optional(),
   name: paperSignupFieldSchema,
   email: paperSignupFieldSchema,
   phone: paperSignupFieldSchema,

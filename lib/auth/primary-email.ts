@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { getAdminClient } from "@/lib/supabase/admin";
 
@@ -21,7 +22,8 @@ export async function syncPrimaryUserEmail(
   } | null;
 
   if (error || !row) {
-    if (error) console.error("Primary email synchronization failed:", error);
+    if (error)
+      safeConsole.error("Primary email synchronization failed:", error);
     return { success: false, status: "error" };
   }
 

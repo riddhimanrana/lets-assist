@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,7 +36,7 @@ export async function DELETE(
     }
 
     if (fetchError) {
-      console.error("Error fetching certificate:", fetchError);
+      safeConsole.error("Error fetching certificate:", fetchError);
       return NextResponse.json(
         { error: "Failed to fetch certificate" },
         { status: 500 },
@@ -65,7 +66,7 @@ export async function DELETE(
       .eq("id", id);
 
     if (deleteError) {
-      console.error("Error deleting certificate:", deleteError);
+      safeConsole.error("Error deleting certificate:", deleteError);
       return NextResponse.json(
         { error: "Failed to delete certificate" },
         { status: 500 },
@@ -77,7 +78,7 @@ export async function DELETE(
       message: "Self-reported hours deleted successfully",
     });
   } catch (err) {
-    console.error("Unexpected error in self-reported-hours DELETE:", err);
+    safeConsole.error("Unexpected error in self-reported-hours DELETE:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

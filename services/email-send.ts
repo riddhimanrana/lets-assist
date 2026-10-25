@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { render } from "react-email";
 import { logError, logInfo, logWarn } from "@/lib/logger";
 import { resolvePlatformSenderHeader } from "./email-sender-identity";
@@ -59,86 +58,31 @@ export async function sendEmail({
     };
   }
 
-  // 1. Check preferences if userId is provided and type is not transactional
+  // Required transactional notices bypass optional-notification preferences.
+  // Resolve optional consent with explicit recipient access, never sender cookies.
   if (userId && type !== "transactional") {
-    const supabase = await createClient();
-
-    // Fetch user's notification settings
-    const { data: settings, error } = await supabase
-      .from("notification_settings")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      if (shouldLog) {
-        logError(
-          "Failed to fetch notification settings",
-          new Error("Notification settings query failed"),
-          {
-            ...safeLogAttributes,
-            error_code: safeLogToken(error.code),
-          },
-        );
-      }
-      // If error fetching settings, default to sending (fail open) or skipping?
-      // Safest to probably send if it's important, but let's log it.
-    }
-
-    if (settings) {
-      // Check global email switch
-      if (settings.email_notifications === false) {
-        if (shouldLog) {
-          logInfo("Email skipped due to user preferences", {
-            ...safeLogAttributes,
-            reason: "global_email_disabled",
-          });
-        }
+    const { getRecipientEmailPolicy } = await import("./email-preferences");
+    const policy = await getRecipientEmailPolicy(userId, type);
+    if (!policy.allowed) {
+      if (policy.retryable) {
         return {
-          outcome: "skipped",
+          outcome: "retryable_pre_send",
           success: false,
-          skipped: true,
+          skipped: false,
           phase: "preference_check",
-          code: "global_email_disabled",
-          reason: "Global email notifications disabled",
+          code: policy.code,
+          status: null,
+          error: "Recipient preferences could not be checked",
         };
       }
-
-      // Check specific type switch
-      // Assuming the column names match the EmailType (except transactional)
-      if (type === "project_updates" && settings.project_updates === false) {
-        if (shouldLog) {
-          logInfo("Email skipped due to user preferences", {
-            ...safeLogAttributes,
-            reason: "project_updates_disabled",
-          });
-        }
-        return {
-          outcome: "skipped",
-          success: false,
-          skipped: true,
-          phase: "preference_check",
-          code: "project_updates_disabled",
-          reason: "Project updates disabled",
-        };
-      }
-
-      if (type === "general" && settings.general === false) {
-        if (shouldLog) {
-          logInfo("Email skipped due to user preferences", {
-            ...safeLogAttributes,
-            reason: "general_notifications_disabled",
-          });
-        }
-        return {
-          outcome: "skipped",
-          success: false,
-          skipped: true,
-          phase: "preference_check",
-          code: "general_notifications_disabled",
-          reason: "General notifications disabled",
-        };
-      }
+      return {
+        outcome: "skipped",
+        success: false,
+        skipped: true,
+        phase: "preference_check",
+        code: policy.code,
+        reason: "Recipient notification preferences disable this message",
+      };
     }
   }
 

@@ -1,5 +1,8 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { ReadLoadError } from "@/components/projects/ReadLoadError";
 import DraftsClient from "./DraftsClient";
 import type { ProjectSchedule, EventType } from "@/types";
 import type { EventFormState } from "@/hooks/use-event-form";
@@ -52,8 +55,18 @@ export default async function DraftsPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
+  // A failed read is unknown, not zero drafts, so it never reaches the list.
   if (draftsError) {
-    console.error("Error fetching drafts:", draftsError);
+    safeConsole.error("Error fetching drafts:", draftsError);
+    return (
+      <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8 sm:px-6">
+        <PageHeader
+          title="My drafts"
+          description="Projects you've started but haven't published yet"
+        />
+        <ReadLoadError title="We couldn't load your drafts" />
+      </div>
+    );
   }
 
   // Transform project_drafts to match the Draft interface

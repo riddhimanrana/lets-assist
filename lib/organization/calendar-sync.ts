@@ -1,28 +1,24 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { revalidatePath } from "next/cache";
 
 import {
-  createGoogleCalendarEventForCalendar,
-  deleteGoogleCalendarEventForCalendar,
   ensureOrganizationCalendar,
+  formatProjectToCalendarEvent,
   getGoogleAccessTokenForUser,
   organizationCalendarGoogleBinding,
-  updateGoogleCalendarEventForCalendar,
 } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { synchronizeCalendarEvents } from "@/lib/organization/calendar-event-sync-core";
+import { reconcileOrganizationCalendar } from "@/services/organization-calendar/reconcile";
+import {
+  loadCalendarSourcePages,
+  withCalendarDeadline,
+} from "./calendar-source-pages";
 import { syncCsfCalendarProjections } from "@/lib/organization/csf-calendar-sync";
-import { resolveCalendarSyncSources } from "@/lib/organization/calendar-sync-safety";
 import { authorizeGoogleOAuthOrganizationRequest } from "@/lib/auth/google-oauth-authorization";
 import type { Project } from "@/types";
 
-// organization_calendar_events is a generalized binding table: one row per
-// projected occurrence of some published record, tagged by source_kind. This
-// sync owns exactly one of those kinds. CSF projections live in the same table
-// and are written by a separate server-only path, so every read and every
-// tracking-row mutation here is scoped to project bindings — an unscoped
-// select would report CSF rows as stale project bindings and delete them.
 const PROJECT_SCHEDULE_SOURCE_KIND = "project_schedule";
 
 export type OrganizationCalendarSyncResult = {
@@ -58,26 +54,53 @@ function getProjectScheduleIds(project: Project): string[] {
   return [];
 }
 
+const STOPPED_AT_DEADLINE: OrganizationCalendarSyncResult = {
+  success: false,
+  // Says only that the pass stopped. A request already sent to Google is not
+  // undone by stopping, and saved progress continues on the next run.
+  error:
+    "Calendar sync stopped at its deadline. Saved progress continues on the next run.",
+};
+
 export async function syncOrganizationCalendarInternal(
   organizationId: string,
+  options: {
+    /**
+     * The worker's deadline for this organization. It is checked before each
+     * load, before provisioning, before every provider mutation and before
+     * the completion stamp, so work left running past it starts nothing new.
+     */
+    signal?: AbortSignal;
+  } = {},
 ): Promise<OrganizationCalendarSyncResult> {
+  const { signal } = options;
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   const serviceSupabase = getAdminClient();
-  const { data: org, error: orgError } = await serviceSupabase
-    .from("organizations")
-    .select("name, username")
-    .eq("id", organizationId)
-    .single();
+  const { data: org, error: orgError } = await withCalendarDeadline(
+    serviceSupabase
+      .from("organizations")
+      .select("name, username")
+      .eq("id", organizationId),
+    signal,
+  ).single();
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (orgError || !org) {
     return { success: false, error: "Organization not found" };
   }
 
-  const { data: syncConfig, error: syncConfigError } = await serviceSupabase
-    .from("organization_calendar_syncs")
-    .select("calendar_id, created_by, calendar_email, auto_sync")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
+  const { data: syncConfig, error: syncConfigError } =
+    await withCalendarDeadline(
+      serviceSupabase
+        .from("organization_calendar_syncs")
+        .select(
+          "calendar_id, created_by, calendar_email, auto_sync, updated_at",
+        )
+        .eq("organization_id", organizationId),
+      signal,
+    ).maybeSingle();
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (syncConfigError) {
     return {
       success: false,
@@ -96,42 +119,24 @@ export async function syncOrganizationCalendarInternal(
     purpose: "organization_calendar",
     requestedCapability: null,
   });
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!ownerAuthorization.allowed) {
-    await serviceSupabase
+    // Pause only the configuration this pass read. A calendar that was never
+    // provisioned is stored as NULL, which an equality filter never matches.
+    const pause = serviceSupabase
       .from("organization_calendar_syncs")
       .update({ auto_sync: false, updated_at: new Date().toISOString() })
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("created_by", syncConfig.created_by)
+      .eq("updated_at", syncConfig.updated_at);
+    await (syncConfig.calendar_id === null
+      ? pause.is("calendar_id", null)
+      : pause.eq("calendar_id", syncConfig.calendar_id));
     return {
       success: false,
       error: "Calendar owner no longer has active organization admin access",
     };
   }
-
-  // Load every source of truth before touching Google. Treating a failed query
-  // as an empty result would otherwise delete valid remote events.
-  const projectsResult = await serviceSupabase
-    .from("projects")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .neq("status", "cancelled");
-
-  // source_kind is both the filter and the returned evidence: the reconciler
-  // may only ever see rows this sync is authoritative for.
-  const existingEventsResult = await serviceSupabase
-    .from("organization_calendar_events")
-    .select("id, project_id, schedule_id, event_id, source_kind")
-    .eq("organization_id", organizationId)
-    .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND);
-
-  const sources = resolveCalendarSyncSources(
-    projectsResult,
-    existingEventsResult,
-  );
-  if (!sources.ok) {
-    return { success: false, error: sources.error };
-  }
-
-  const { projects, existingEvents } = sources;
 
   const accessToken = await getGoogleAccessTokenForUser(
     syncConfig.created_by,
@@ -142,6 +147,7 @@ export async function syncOrganizationCalendarInternal(
     },
   );
 
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!accessToken) {
     return {
       success: false,
@@ -150,171 +156,129 @@ export async function syncOrganizationCalendarInternal(
   }
 
   const calendarName = org.name
-    ? `Let's Assist — ${org.name} Volunteering`
+    ? `Let's Assist: ${org.name} Volunteering`
     : "Let's Assist Organization Volunteering";
 
   const ensured = await ensureOrganizationCalendar(
     accessToken,
     syncConfig.calendar_id,
     calendarName,
+    { organizationId, userId: syncConfig.created_by },
   );
 
+  // Provisioning has its own durable receipt. A deadline that passed while it
+  // ran stops the pass here, before any event work.
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
   if (!ensured) {
     return { success: false, error: "Failed to access organization calendar" };
   }
-
-  if (ensured.calendarId !== syncConfig.calendar_id) {
-    const { error: calendarIdError } = await serviceSupabase
-      .from("organization_calendar_syncs")
-      .update({
-        calendar_id: ensured.calendarId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("organization_id", organizationId);
-
-    if (calendarIdError) {
-      return {
-        success: false,
-        error: "Failed to save organization calendar configuration",
-      };
-    }
+  // Provisioning may update the compatibility row. Pin its resulting version
+  // before event work; a later owner or settings change must win completion.
+  const { data: currentConfig, error: currentConfigError } =
+    await withCalendarDeadline(
+      serviceSupabase
+        .from("organization_calendar_syncs")
+        .select("created_by, calendar_id, updated_at")
+        .eq("organization_id", organizationId),
+      signal,
+    ).maybeSingle();
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
+  if (
+    currentConfigError ||
+    !currentConfig ||
+    currentConfig.created_by !== syncConfig.created_by ||
+    currentConfig.calendar_id !== ensured.calendarId
+  ) {
+    return {
+      success: false,
+      error: "Calendar settings changed. Retry with the current connection.",
+    };
   }
 
-  const desiredEvents = projects.flatMap((project) => {
-    const typedProject = project as Project;
-    return getProjectScheduleIds(typedProject).map((scheduleId) => ({
-      key: `${project.id}:${scheduleId}`,
-      projectId: project.id,
-      project: typedProject,
-      scheduleId,
-    }));
-  });
-  // Re-checking source_kind in memory keeps the deletion pass safe even if the
-  // query filter above is ever weakened; a non-project row is dropped rather
-  // than handed to the reconciler as a stale project binding.
-  const trackedEvents = existingEvents
-    .filter((event) => event.source_kind === PROJECT_SCHEDULE_SOURCE_KIND)
-    .map((event) => ({
-      id: event.id,
-      key: `${event.project_id}:${event.schedule_id}`,
-      eventId: event.event_id,
-    }));
-
-  const eventSyncResult = await synchronizeCalendarEvents(
-    desiredEvents,
-    trackedEvents,
-    {
-      createRemoteEvent: (desired) =>
-        createGoogleCalendarEventForCalendar(
-          accessToken,
-          ensured.calendarId,
-          desired.project,
-          desired.scheduleId,
-        ),
-      updateRemoteEvent: (tracked, desired) =>
-        updateGoogleCalendarEventForCalendar(
-          accessToken,
-          ensured.calendarId,
-          tracked.eventId,
-          desired.project,
-          desired.scheduleId,
-        ),
-      deleteRemoteEvent: (eventId) =>
-        deleteGoogleCalendarEventForCalendar(
-          accessToken,
-          ensured.calendarId,
-          eventId,
-        ),
-      insertTrackingEvent: async (desired, eventId) => {
-        const { data, error } = await serviceSupabase
-          .from("organization_calendar_events")
-          .insert({
-            organization_id: organizationId,
-            // Legacy project coordinates stay written so existing readers,
-            // constraints, and client RLS predicates keep working.
-            project_id: desired.projectId,
-            schedule_id: desired.scheduleId,
-            // Generalized binding coordinates are declared here rather than
-            // left to the database trigger to derive.
+  const eventSyncResult = await reconcileOrganizationCalendar({
+    userId: syncConfig.created_by,
+    organizationId,
+    accessToken,
+    calendarId: ensured.calendarId,
+    sourceKinds: [PROJECT_SCHEDULE_SOURCE_KIND],
+    signal,
+    load: async () => {
+      const projects = await loadCalendarSourcePages<Project>((after, size) => {
+        let query = serviceSupabase
+          .from("projects")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .neq("status", "cancelled")
+          .or("workflow_status.is.null,workflow_status.eq.published")
+          .order("id")
+          .limit(size);
+        if (after) query = query.gt("id", after);
+        return withCalendarDeadline(query, signal);
+      }, signal);
+      return projects.flatMap((project) =>
+        getProjectScheduleIds(project).map((scheduleId) => {
+          const event = formatProjectToCalendarEvent(project, scheduleId);
+          if (!event || Array.isArray(event))
+            throw new Error("Project calendar schedule is invalid.");
+          return {
             source_kind: PROJECT_SCHEDULE_SOURCE_KIND,
-            source_id: desired.projectId,
-            occurrence_key: desired.scheduleId,
-            event_id: eventId,
-          })
-          .select("id")
-          .single();
-        if (error || !data) {
-          console.error(
-            "Failed to insert organization calendar tracking row",
-            error,
-          );
-          return false;
-        }
-        return true;
-      },
-      updateTrackingEvent: async (tracked) => {
-        const { data, error } = await serviceSupabase
-          .from("organization_calendar_events")
-          .update({ updated_at: new Date().toISOString() })
-          .eq("id", tracked.id)
-          .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND)
-          .select("id")
-          .maybeSingle();
-        if (error || !data) {
-          console.error(
-            "Failed to update organization calendar tracking row",
-            error,
-          );
-          return false;
-        }
-        return true;
-      },
-      deleteTrackingEvent: async (tracked) => {
-        const { data, error } = await serviceSupabase
-          .from("organization_calendar_events")
-          .delete()
-          .eq("id", tracked.id)
-          .eq("source_kind", PROJECT_SCHEDULE_SOURCE_KIND)
-          .select("id")
-          .maybeSingle();
-        if (error || !data) {
-          console.error(
-            "Failed to delete organization calendar tracking row",
-            error,
-          );
-          return false;
-        }
-        return true;
-      },
-      markSyncComplete: async () => {
-        // Completion covers both project and CSF projections and is recorded
-        // once, after the second reconciler succeeds below.
-        return true;
-      },
+            source_id: project.id,
+            occurrence_key: scheduleId,
+            event,
+          };
+        }),
+      );
     },
-  );
+  });
 
   if (!eventSyncResult.success) {
     return eventSyncResult;
   }
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
 
   const csfSyncResult = await syncCsfCalendarProjections({
+    userId: syncConfig.created_by,
     organizationId,
     accessToken,
     calendarId: ensured.calendarId,
+    signal,
   });
   if (!csfSyncResult.success) {
     return csfSyncResult;
   }
+  // A pass that outlived its deadline never records a healthy completion.
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
 
+  // Membership changes need not move the configuration's version. Confirm
+  // authority again before recording a healthy completion for this owner.
+  const completionAuthorization = await authorizeGoogleOAuthOrganizationRequest(
+    {
+      userId: currentConfig.created_by,
+      organizationId,
+      pluginKey: null,
+      purpose: "organization_calendar",
+      requestedCapability: null,
+    },
+  );
+  if (signal?.aborted) return STOPPED_AT_DEADLINE;
+  if (!completionAuthorization.allowed) {
+    return {
+      success: false,
+      error:
+        "Calendar events synced, but the owner no longer has organization admin access",
+    };
+  }
   const { data: completedSync, error: completionError } = await serviceSupabase
     .from("organization_calendar_syncs")
     .update({ last_synced_at: new Date().toISOString() })
     .eq("organization_id", organizationId)
+    .eq("created_by", currentConfig.created_by)
+    .eq("calendar_id", ensured.calendarId)
+    .eq("updated_at", currentConfig.updated_at)
     .select("organization_id")
     .maybeSingle();
   if (completionError || !completedSync) {
-    console.error(
+    safeConsole.error(
       "Failed to record organization calendar sync completion",
       completionError,
     );

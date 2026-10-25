@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 
@@ -39,7 +40,10 @@ export async function setOrganizationSetupChecklistDismissed(
     .eq("id", organizationId);
 
   if (error) {
-    console.error("Failed to update setup checklist dismissal:", error.message);
+    safeConsole.error(
+      "Failed to update setup checklist dismissal:",
+      error.message,
+    );
     return { error: "Could not update the checklist." };
   }
 

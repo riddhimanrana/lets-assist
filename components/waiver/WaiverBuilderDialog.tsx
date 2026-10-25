@@ -1,6 +1,7 @@
 "use client";
+import { safeConsole } from "@/lib/safe-console";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Loader2, Save, Sparkles } from "lucide-react";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
@@ -19,6 +21,10 @@ import {
   normalizeCustomPlacementFieldType,
   resizeRectToFieldType,
 } from "@/lib/waiver/custom-field-config";
+import {
+  describeMissingSignatureFields,
+  findRequiredSignersMissingSignatureField,
+} from "@/lib/waiver/definition-input";
 import { toast } from "sonner";
 import { WaiverDefinitionFull } from "@/types/waiver-definitions";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -38,6 +44,10 @@ import { useWaiverAiScan } from "./waiver-builder/useWaiverAiScan";
 import { WaiverBuilderSidebar } from "./waiver-builder/WaiverBuilderSidebar";
 import { useWaiverSampleValues } from "./waiver-builder/useWaiverSampleValues";
 import { WaiverBuilderPdfPanel } from "./waiver-builder/WaiverBuilderPdfPanel";
+
+const defaultSigners = (): WaiverDefinitionSignerInput[] => [
+  { roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 },
+];
 
 interface WaiverBuilderDialogProps {
   open: boolean;
@@ -70,9 +80,8 @@ export function WaiverBuilderDialog({
   const isCompactLayout = useMediaQuery("(max-width: 1024px)");
 
   // State
-  const [signers, setSigners] = useState<WaiverDefinitionSignerInput[]>([
-    { roleKey: "volunteer", label: "Volunteer", required: true, orderIndex: 0 },
-  ]);
+  const [signers, setSigners] =
+    useState<WaiverDefinitionSignerInput[]>(defaultSigners);
 
   const [fieldMappings, setFieldMappings] = useState<
     Record<string, FieldMapping>
@@ -115,12 +124,11 @@ export function WaiverBuilderDialog({
         setEffectivePdfUrl(url);
         return () => URL.revokeObjectURL(url);
       } catch (error) {
-        console.error("Failed to create object URL for PDF:", error);
+        safeConsole.error("Failed to create object URL for PDF:", error);
         toast.error("Error loading PDF file");
       }
     } else if (existingDefinition?.pdf_public_url) {
-      // Logic handled below in initialization effect for URL setting,
-      // but here we ensure state is sync
+      // The initialization effect below also sets this. Keep the state in sync.
       if (!effectivePdfUrl) {
         setEffectivePdfUrl(existingDefinition.pdf_public_url);
       }
@@ -135,6 +143,16 @@ export function WaiverBuilderDialog({
       detectedFields,
     );
   }, [signers, fieldMappings, customPlacements, detectedFields]);
+
+  // Nobody can e-sign for a required signer without a signature field, so the
+  // definition is not saved until every required signer has one.
+  const missingSignatureMessage = useMemo(
+    () =>
+      describeMissingSignatureFields(
+        findRequiredSignersMissingSignatureField(getCurrentDefinition()),
+      ),
+    [getCurrentDefinition],
+  );
 
   const persistDefinition = useCallback(
     async (mode: "manual" | "auto", closeAfterSave: boolean = false) => {
@@ -178,7 +196,10 @@ export function WaiverBuilderDialog({
           onOpenChange(false);
         }
       } catch (error) {
-        console.error(error);
+        safeConsole.error(
+          "Application diagnostic from components/waiver/WaiverBuilderDialog",
+          error,
+        );
         if (mode === "manual") {
           toast.error("Failed to save waiver configuration.");
         } else {
@@ -214,14 +235,7 @@ export function WaiverBuilderDialog({
     hasInitializedForOpenRef.current = true;
     setShowSamplePreview(false);
 
-    let initialSigners: WaiverDefinitionSignerInput[] = [
-      {
-        roleKey: "volunteer",
-        label: "Volunteer",
-        required: true,
-        orderIndex: 0,
-      },
-    ];
+    let initialSigners = defaultSigners();
     let initialMappings: Record<string, FieldMapping> = {};
     let initialCustomPlacements: CustomPlacement[] = [];
 
@@ -236,16 +250,7 @@ export function WaiverBuilderDialog({
         .sort((a, b) => a.orderIndex - b.orderIndex);
 
       initialSigners =
-        loadedSigners.length > 0
-          ? loadedSigners
-          : [
-              {
-                roleKey: "volunteer",
-                label: "Volunteer",
-                required: true,
-                orderIndex: 0,
-              },
-            ];
+        loadedSigners.length > 0 ? loadedSigners : defaultSigners();
       initialMappings = reconcileDetectedMappings(
         existingDraftDefinition.fields?.detected ?? {},
         detectedFields,
@@ -268,16 +273,7 @@ export function WaiverBuilderDialog({
         .sort((a, b) => a.orderIndex - b.orderIndex);
 
       initialSigners =
-        loadedSigners.length > 0
-          ? loadedSigners
-          : [
-              {
-                roleKey: "volunteer",
-                label: "Volunteer",
-                required: true,
-                orderIndex: 0,
-              },
-            ];
+        loadedSigners.length > 0 ? loadedSigners : defaultSigners();
 
       const mappings: Record<string, FieldMapping> = {};
       const custom: CustomPlacement[] = [];
@@ -396,6 +392,7 @@ export function WaiverBuilderDialog({
   );
 
   const handleSave = async () => {
+    if (missingSignatureMessage) return;
     await persistDefinition("manual", true);
   };
 
@@ -498,10 +495,10 @@ export function WaiverBuilderDialog({
               >
                 <span>
                   {showSamplePreview
-                    ? "Hide Sample Preview"
+                    ? "Hide sample preview"
                     : isPhone
                       ? "Preview"
-                      : "Preview Sample Data"}
+                      : "Preview sample data"}
                 </span>
               </Button>
 
@@ -558,6 +555,17 @@ export function WaiverBuilderDialog({
             )}
           </div>
 
+          {missingSignatureMessage && (
+            <Alert
+              id="waiver-builder-signature-rule"
+              role="status"
+              variant="warning"
+              className="shrink-0 rounded-none border-x-0 border-b-0"
+            >
+              <AlertDescription>{missingSignatureMessage}</AlertDescription>
+            </Alert>
+          )}
+
           <DialogFooter className="px-3 sm:px-5 lg:px-6 py-3 sm:py-4 border-t bg-background shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
             <Button
               variant="outline"
@@ -569,7 +577,12 @@ export function WaiverBuilderDialog({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || isAutoSaving}
+              disabled={isSaving || isAutoSaving || !!missingSignatureMessage}
+              aria-describedby={
+                missingSignatureMessage
+                  ? "waiver-builder-signature-rule"
+                  : undefined
+              }
               className="w-full sm:w-auto"
             >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

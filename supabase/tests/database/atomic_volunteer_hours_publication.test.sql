@@ -173,7 +173,7 @@ VALUES
     'ab000000-0000-4000-8000-000000000001',
     'Atomic Hours Project', 'Local', 'Synthetic publication fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2030-08-11","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2020-08-11","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, 'ab100000-0000-4000-8000-000000000001', true
   ),
   (
@@ -181,7 +181,7 @@ VALUES
     'ab000000-0000-4000-8000-000000000001',
     'Creator Only Hours Project', 'Local', 'Synthetic authorization fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2030-08-12","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2020-08-12","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, 'ab100000-0000-4000-8000-000000000001', false
   ),
   (
@@ -189,7 +189,7 @@ VALUES
     'ab000000-0000-4000-8000-000000000001',
     'Unpublished Validation Project', 'Local', 'Synthetic validation fixture',
     'oneTime', 'manual',
-    '{"oneTime":{"date":"2030-08-13","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+    '{"oneTime":{"date":"2020-08-13","startTime":"09:00","endTime":"12:00","volunteers":20}}',
     true, NULL, true
   );
 
@@ -218,8 +218,8 @@ SELECT public.publish_volunteer_hours_transactional(
   'ab200000-0000-4000-8000-000000000001',
   'oneTime',
   '[
-    {"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2030-08-11T16:00:00Z","checkOut":"2030-08-11T18:30:00Z","userId":"ab000000-0000-4000-8000-000000000005","name":"Forged","email":"forged@local.test"},
-    {"signupId":"ab300000-0000-4000-8000-000000000002","checkIn":"2030-08-11T16:15:00Z","checkOut":"2030-08-11T18:45:00Z","userId":"ab000000-0000-4000-8000-000000000005","name":"Forged","email":"forged@local.test"}
+    {"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2020-08-11T16:00:00Z","checkOut":"2020-08-11T18:30:00Z","userId":"ab000000-0000-4000-8000-000000000005","name":"Forged","email":"forged@local.test"},
+    {"signupId":"ab300000-0000-4000-8000-000000000002","checkIn":"2020-08-11T16:15:00Z","checkOut":"2020-08-11T18:45:00Z","userId":"ab000000-0000-4000-8000-000000000005","name":"Forged","email":"forged@local.test"}
   ]'::jsonb,
   'hours-publication:v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 ) AS result;
@@ -287,8 +287,8 @@ SELECT public.publish_volunteer_hours_transactional(
   'ab200000-0000-4000-8000-000000000001',
   'oneTime',
   '[
-    {"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2030-08-11T16:00:00Z","checkOut":"2030-08-11T18:30:00Z"},
-    {"signupId":"ab300000-0000-4000-8000-000000000002","checkIn":"2030-08-11T16:15:00Z","checkOut":"2030-08-11T18:45:00Z"}
+    {"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2020-08-11T16:00:00Z","checkOut":"2020-08-11T18:30:00Z"},
+    {"signupId":"ab300000-0000-4000-8000-000000000002","checkIn":"2020-08-11T16:15:00Z","checkOut":"2020-08-11T18:45:00Z"}
   ]'::jsonb,
   'hours-publication:v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 ) AS result;
@@ -317,7 +317,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000002',
     'ab200000-0000-4000-8000-000000000002', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000003","checkIn":"2030-08-12T16:00:00Z","checkOut":"2030-08-12T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000003","checkIn":"2020-08-12T16:00:00Z","checkOut":"2020-08-12T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
   )$$,
   '42501',
@@ -335,7 +335,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000005',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
   )$$,
   '42501',
@@ -353,7 +353,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'forged-session',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd'
   )$$,
   '22023',
@@ -365,7 +365,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000001","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   )$$,
   '22023',
@@ -377,7 +377,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T16:00:10Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T16:00:10Z"}]'::jsonb,
     'hours-publication:v1:1212121212121212121212121212121212121212121212121212121212121212'
   )$$,
   '22023',
@@ -389,7 +389,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-14T17:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-14T17:00:00Z"}]'::jsonb,
     'hours-publication:v1:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
   )$$,
   '22023',
@@ -423,8 +423,8 @@ BEGIN
       NEW.project_id,
       'Injected stale certificate',
       false,
-      '2030-08-13T15:00:00Z',
-      '2030-08-13T17:00:00Z',
+      '2020-08-13T15:00:00Z',
+      '2020-08-13T17:00:00Z',
       'manual',
       'ab300000-0000-4000-8000-000000000004',
       'verified'
@@ -442,7 +442,7 @@ SELECT extensions.throws_ok(
   $$SELECT public.publish_volunteer_hours_transactional(
     'ab000000-0000-4000-8000-000000000001',
     'ab200000-0000-4000-8000-000000000003', 'oneTime',
-    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T18:00:00Z"}]'::jsonb,
+    '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T18:00:00Z"}]'::jsonb,
     'hours-publication:v1:9999999999999999999999999999999999999999999999999999999999999999'
   )$$,
   '23505',
@@ -466,7 +466,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ab000000-0000-4000-8000-000000000001',
   'ab200000-0000-4000-8000-000000000003',
   '0',
-  '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2030-08-13T16:00:00Z","checkOut":"2030-08-13T17:30:30Z"}]'::jsonb,
+  '[{"signupId":"ab300000-0000-4000-8000-000000000004","checkIn":"2020-08-13T16:00:00Z","checkOut":"2020-08-13T17:30:30Z"}]'::jsonb,
   'hours-publication:v1:3434343434343434343434343434343434343434343434343434343434343434'
 ) AS result;
 
@@ -797,8 +797,8 @@ INSERT INTO public.certificates (
 VALUES (
   'Synthetic conflicting certificate',
   false,
-  '2030-08-11T16:00:00Z',
-  '2030-08-11T18:30:00Z',
+  '2020-08-11T16:00:00Z',
+  '2020-08-11T18:30:00Z',
   'manual',
   'ab300000-0000-4000-8000-000000000001',
   'verified'

@@ -82,7 +82,7 @@ export function GuardianAvailabilityForm({
                     checked={status === "available"}
                     onChange={() => setStatus("available")}
                     disabled={!hydrated}
-                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
+                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                   />
                   <FieldLabel htmlFor="available">Available</FieldLabel>
                 </Field>
@@ -96,7 +96,7 @@ export function GuardianAvailabilityForm({
                     checked={status === "limited"}
                     onChange={() => setStatus("limited")}
                     disabled={!hydrated}
-                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
+                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                   />
                   <FieldLabel htmlFor="limited">
                     Available for some rounds
@@ -112,7 +112,7 @@ export function GuardianAvailabilityForm({
                     checked={status === "unavailable"}
                     onChange={() => setStatus("unavailable")}
                     disabled={!hydrated}
-                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border shadow-xs outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
+                    className="border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 size-4 shrink-0 appearance-none rounded-full border outline-none checked:border-[5px] checked:border-primary focus-visible:ring-[3px]"
                   />
                   <FieldLabel htmlFor="unavailable">Unavailable</FieldLabel>
                 </Field>

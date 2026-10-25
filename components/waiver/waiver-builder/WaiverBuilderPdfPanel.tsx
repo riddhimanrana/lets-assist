@@ -87,7 +87,7 @@ export function WaiverBuilderPdfPanel(props: Props) {
       )}
 
       {viewerMode === "add-signature" && (
-        <div className="absolute top-3 sm:top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-lg text-[11px] sm:text-sm font-medium animate-in fade-in slide-in-from-top-4 z-30 max-w-[95%] sm:max-w-none">
+        <div className="absolute top-3 sm:top-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 sm:px-4 py-2 rounded-full shadow-md text-xs sm:text-sm font-medium z-30 max-w-[95%] sm:max-w-none">
           <span className="text-center">
             Tap/click on document to place a new field label
           </span>

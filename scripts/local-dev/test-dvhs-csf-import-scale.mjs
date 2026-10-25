@@ -199,7 +199,7 @@ BEGIN
     GET STACKED DIAGNOSTICS
       caught_message = MESSAGE_TEXT,
       caught_state = RETURNED_SQLSTATE;
-    IF caught_state IS DISTINCT FROM '40001'
+    IF caught_state IS DISTINCT FROM 'PT409'
       OR caught_message IS DISTINCT FROM
         'This CSF source changed after it was checked; preview it again before importing.'
     THEN

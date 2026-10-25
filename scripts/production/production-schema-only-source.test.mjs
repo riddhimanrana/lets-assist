@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { readReviewedHotfixFile } from "./historical-hotfix-test-fixture.mjs";
 import {
   verifyDeploymentIdentity,
   verifyLiveProductionApp,
@@ -54,6 +55,13 @@ const deployment = (appSha) => ({
 });
 const alias = (id = deploymentId) => ({
   aliases: [{ alias: "lets-assist.com", projectId, deploymentId: id }],
+});
+
+test("the combined release cannot reuse the one-time schema hotfix approval", () => {
+  assert.throws(
+    () => verifyReviewedContent(new URL("../../", import.meta.url).pathname),
+    /exact reviewed hotfix/u,
+  );
 });
 
 test("reviewed forward workflow binds the alternate gate without changing mutation controls", () => {
@@ -116,15 +124,7 @@ test("workflow rejects altered imported code before executing the verifier", (t)
     mkdirSync(dirname(resolve(release, path)), { recursive: true });
     writeFileSync(
       resolve(release, path),
-      // Keep this historical positive fixture independent of later releases.
-      execFileSync(
-        "git",
-        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
-        {
-          cwd: new URL("../../", import.meta.url),
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      ),
+      readReviewedHotfixFile("schema", path),
     );
   }
   git("add", ".");
@@ -142,7 +142,7 @@ test("workflow rejects altered imported code before executing the verifier", (t)
   ]) {
     writeFileSync(
       resolve(sourceDir, name),
-      readFileSync(new URL(name, import.meta.url)),
+      readReviewedHotfixFile("schema", `scripts/production/${name}`),
     );
   }
   const workflow = readFileSync(
@@ -334,17 +334,7 @@ test("exact schema-only release requires main, full CI, live app, and no waivers
   const productionAppSha = git("rev-parse", "HEAD");
   for (const path of reviewedFiles) {
     mkdirSync(dirname(resolve(cwd, path)), { recursive: true });
-    writeFileSync(
-      resolve(cwd, path),
-      execFileSync(
-        "git",
-        ["show", `415b8060d2466924bbb7e9567920f57455dc0aa1:${path}`],
-        {
-          cwd: new URL("../../", import.meta.url),
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      ),
-    );
+    writeFileSync(resolve(cwd, path), readReviewedHotfixFile("schema", path));
   }
   git("add", ".");
   git("commit", "-m", "Fictional schema hotfix");

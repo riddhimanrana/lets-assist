@@ -67,19 +67,19 @@ VALUES
    'ce000000-0000-4000-8000-000000000001',
    'Certificate Forgery Project', 'Local', 'Synthetic forgery fixture',
    'oneTime', 'manual',
-   '{"oneTime":{"date":"2030-09-01","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+   '{"oneTime":{"date":"2020-09-01","startTime":"09:00","endTime":"12:00","volunteers":20}}',
    true, 'ce100000-0000-4000-8000-000000000001', true),
   ('ce200000-0000-4000-8000-000000000002',
    'ce000000-0000-4000-8000-000000000001',
    'Certificate Publication Project', 'Local', 'Synthetic publication fixture',
    'oneTime', 'manual',
-   '{"oneTime":{"date":"2030-09-02","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+   '{"oneTime":{"date":"2020-09-02","startTime":"09:00","endTime":"12:00","volunteers":20}}',
    true, 'ce100000-0000-4000-8000-000000000001', true),
   ('ce200000-0000-4000-8000-000000000003',
    'ce000000-0000-4000-8000-000000000001',
    'Certificate Poisoning Project', 'Local', 'Synthetic poisoning fixture',
    'oneTime', 'manual',
-   '{"oneTime":{"date":"2030-09-04","startTime":"09:00","endTime":"12:00","volunteers":20}}',
+   '{"oneTime":{"date":"2020-09-04","startTime":"09:00","endTime":"12:00","volunteers":20}}',
    true, 'ce100000-0000-4000-8000-000000000001', true);
 
 INSERT INTO public.project_signups (id, project_id, user_id, schedule_id, status)
@@ -109,7 +109,7 @@ VALUES (
   'ce300000-0000-4000-8000-000000000001',
   'Cert Victim', 'cert-victim@local.test',
   'Certificate Forgery Project',
-  '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z',
+  '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z',
   true, 'ce000000-0000-4000-8000-000000000001', 'verified', 'manual'
 );
 
@@ -146,7 +146,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type
     )
     VALUES ('Anon Key Forgery Attempt', true,
-            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'qr-code',
+            '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z', 'qr-code',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'verified')
@@ -234,7 +234,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type, organization_name, volunteer_name
     )
     VALUES ('Totally Real Volunteering', true,
-            '2030-09-01T16:00:00Z', '2030-09-01T22:00:00Z', 'qr-code',
+            '2020-09-01T16:00:00Z', '2020-09-01T22:00:00Z', 'qr-code',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'verified', 'Synthetic Certificate Org', 'Cert Attacker')
@@ -251,7 +251,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type, signup_id, project_id
     )
     VALUES ('Squatted Session', true,
-            '2030-09-02T16:00:00Z', '2030-09-02T19:00:00Z', 'manual',
+            '2020-09-02T16:00:00Z', '2020-09-02T19:00:00Z', 'manual',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'verified',
@@ -270,7 +270,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type, signup_id
     )
     VALUES ('Self Report With A Signup', false,
-            '2030-09-02T16:00:00Z', '2030-09-02T19:00:00Z', 'self_report',
+            '2020-09-02T16:00:00Z', '2020-09-02T19:00:00Z', 'self_report',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'self-reported',
@@ -288,7 +288,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type, project_id
     )
     VALUES ('Self Report With A Project', false,
-            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'self_report',
+            '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z', 'self_report',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'self-reported',
@@ -306,7 +306,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type
     )
     VALUES ('Self Certified Hours', true,
-            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'self_report',
+            '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z', 'self_report',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'self-reported')
@@ -323,7 +323,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type
     )
     VALUES ('Scanned In, Honest', false,
-            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'qr-code',
+            '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z', 'qr-code',
             'ce000000-0000-4000-8000-000000000004',
             'ce000000-0000-4000-8000-000000000004',
             'self-reported')
@@ -340,7 +340,7 @@ SELECT extensions.throws_ok(
       user_id, creator_id, type
     )
     VALUES ('Hours For Somebody Else', false,
-            '2030-09-01T16:00:00Z', '2030-09-01T19:00:00Z', 'self_report',
+            '2020-09-01T16:00:00Z', '2020-09-01T19:00:00Z', 'self_report',
             'ce000000-0000-4000-8000-000000000003',
             'ce000000-0000-4000-8000-000000000004',
             'self-reported')
@@ -362,7 +362,7 @@ VALUES (
   NULL, 'ce000000-0000-4000-8000-000000000004', NULL,
   'Cert Attacker', 'cert-attacker@local.test',
   'Beach Cleanup I Did Myself',
-  '2030-09-03T16:00:00Z', '2030-09-03T19:00:00Z',
+  '2020-09-03T16:00:00Z', '2020-09-03T19:00:00Z',
   'Some Neighborhood Group', 'A Neighbor',
   false, 'ce000000-0000-4000-8000-000000000004', 'self_report', NULL,
   'self-reported', 'Picked up litter.'
@@ -448,7 +448,7 @@ SELECT extensions.is(
 WITH attempted AS (
   UPDATE public.certificates
   SET creator_id = 'ce000000-0000-4000-8000-000000000004',
-      event_end = '2030-09-01T23:59:00Z'
+      event_end = '2020-09-01T23:59:00Z'
   WHERE id = 'ce400000-0000-4000-8000-000000000001'
   RETURNING 1
 )
@@ -493,7 +493,7 @@ SELECT extensions.is(
   (SELECT count(*) FROM public.certificates
    WHERE creator_id = 'ce000000-0000-4000-8000-000000000001'
      AND type = 'verified'
-     AND event_end = '2030-09-01T19:00:00Z'::timestamptz),
+     AND event_end = '2020-09-01T19:00:00Z'::timestamptz),
   1::bigint,
   'the genuine verified certificate survived every attempt untouched'
 );
@@ -519,7 +519,7 @@ SELECT extensions.is(
     'ce000000-0000-4000-8000-000000000002',
     'ce200000-0000-4000-8000-000000000002',
     'oneTime',
-    '[{"signupId":"ce300000-0000-4000-8000-000000000002","checkIn":"2030-09-02T16:00:00Z","checkOut":"2030-09-02T19:00:00Z"}]'::jsonb,
+    '[{"signupId":"ce300000-0000-4000-8000-000000000002","checkIn":"2020-09-02T16:00:00Z","checkOut":"2020-09-02T19:00:00Z"}]'::jsonb,
     'hours-publication:v1:cececececececececececececececececececececececececececececececece'
   ) ->> 'outcome',
   'accepted',
@@ -554,7 +554,7 @@ VALUES (
   NULL,
   'ce000000-0000-4000-8000-000000000004',
   'ce300000-0000-4000-8000-000000000003',
-  'Squatted Session', '2030-01-01T00:00:00Z', '2030-01-01T01:00:00Z',
+  'Squatted Session', '2020-01-01T00:00:00Z', '2020-01-01T01:00:00Z',
   true, 'ce000000-0000-4000-8000-000000000004', 'verified', 'qr-code'
 );
 
@@ -569,7 +569,7 @@ SELECT extensions.throws_ok(
       'ce000000-0000-4000-8000-000000000002',
       'ce200000-0000-4000-8000-000000000003',
       'oneTime',
-      '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2030-09-04T16:00:00Z","checkOut":"2030-09-04T19:00:00Z"}]'::jsonb,
+      '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2020-09-04T16:00:00Z","checkOut":"2020-09-04T19:00:00Z"}]'::jsonb,
       'hours-publication:v1:dededededededededededededededededededededededededededededededede'
     )
   $$,
@@ -593,7 +593,7 @@ SELECT extensions.is(
     'ce000000-0000-4000-8000-000000000002',
     'ce200000-0000-4000-8000-000000000003',
     'oneTime',
-    '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2030-09-04T16:00:00Z","checkOut":"2030-09-04T19:00:00Z"}]'::jsonb,
+    '[{"signupId":"ce300000-0000-4000-8000-000000000003","checkIn":"2020-09-04T16:00:00Z","checkOut":"2020-09-04T19:00:00Z"}]'::jsonb,
     'hours-publication:v1:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef'
   ) ->> 'outcome',
   'accepted',

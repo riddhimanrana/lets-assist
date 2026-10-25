@@ -60,8 +60,8 @@ export async function setPrimaryEmail(email: string) {
 
 /**
  * Fetches the current user's linked emails from `user_emails` table.
- * Ensures the auth email is always synced and included.
- * Uses upsert to reduce from 3 queries to 2 (sync + fetch).
+ * Reads verified aliases belonging to the authenticated account. The sign-in
+ * email is managed separately under Sign-in & security.
  */
 export async function getLinkedIdentities() {
   const result = await getLinkedIdentitiesAction();

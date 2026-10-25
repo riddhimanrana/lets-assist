@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Google OAuth - Handle Callback
  * GET /api/google/oauth/callback
@@ -32,6 +33,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/encryption";
 import { ensureOrganizationCalendar } from "@/services/calendar";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { flagSheetSyncAfterOwnerChange } from "@/app/organization/[id]/reports/server/destination-probe";
 import {
   getGoogleOAuthConnectionForBinding,
   saveGoogleOAuthConnectionForBinding,
@@ -144,7 +146,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!parsedState) {
-      console.warn("Rejected Google OAuth callback: malformed state");
+      safeConsole.warn("Rejected Google OAuth callback: malformed state");
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, null, { error: "invalid_state" }),
         attemptCookieName,
@@ -210,7 +212,7 @@ export async function GET(request: NextRequest) {
     if (claim.verdict !== "claimed") {
       // unknown_attempt / cookie_mismatch / user_mismatch / session_mismatch.
       // All four are indistinguishable to the browser on purpose.
-      console.warn("Rejected Google OAuth callback claim:", claim.verdict);
+      safeConsole.warn("Rejected Google OAuth callback claim:", claim.verdict);
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, null, {
           error: "invalid_state",
@@ -246,9 +248,12 @@ export async function GET(request: NextRequest) {
       });
 
       if (!settled) {
-        console.warn("Google OAuth attempt was settled by another callback", {
-          correlationId: claim.correlationId,
-        });
+        safeConsole.warn(
+          "Google OAuth attempt was settled by another callback",
+          {
+            correlationId: claim.correlationId,
+          },
+        );
         return redirectAndConsumeAttemptCookie(
           buildCallbackRedirect(baseUrl, returnTo, {
             error: "connection_in_progress",
@@ -325,9 +330,12 @@ export async function GET(request: NextRequest) {
       claimEpoch,
     });
     if (!exchangeMarked) {
-      console.warn("Google OAuth attempt exchange marker was not committed", {
-        correlationId: claim.correlationId,
-      });
+      safeConsole.warn(
+        "Google OAuth attempt exchange marker was not committed",
+        {
+          correlationId: claim.correlationId,
+        },
+      );
       return redirectAndConsumeAttemptCookie(
         buildCallbackRedirect(baseUrl, returnTo, {
           error: "connection_in_progress",
@@ -357,7 +365,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       // Provider response bodies may include grant diagnostics. Keep callback
       // logs limited to non-sensitive transport metadata.
-      console.error("Google token exchange failed", {
+      safeConsole.error("Google token exchange failed", {
         status: tokenResponse.status,
         correlationId: claim.correlationId,
       });
@@ -404,7 +412,7 @@ export async function GET(request: NextRequest) {
     );
 
     if (!userInfoResponse.ok) {
-      console.error("Failed to get user info");
+      safeConsole.error("Failed to get user info");
       return settle({ error: "failed_to_get_email" });
     }
 
@@ -437,7 +445,7 @@ export async function GET(request: NextRequest) {
         : null;
 
     if (!encryptedRefreshToken) {
-      console.error("No refresh token available");
+      safeConsole.error("No refresh token available");
       return settle({ error: "no_refresh_token" });
     }
 
@@ -482,17 +490,13 @@ export async function GET(request: NextRequest) {
 
       // Handle organization calendar sync (separate from sheets sync)
       if (attemptBinding.purpose === "organization_calendar") {
-        const { data: org } = await serviceSupabase
+        const { data: org, error: orgError } = await serviceSupabase
           .from("organizations")
           .select("name")
           .eq("id", attemptBinding.organizationId)
           .maybeSingle();
 
-        const { data: existingSync } = await serviceSupabase
-          .from("organization_calendar_syncs")
-          .select("calendar_id, auto_sync, last_synced_at")
-          .eq("organization_id", attemptBinding.organizationId)
-          .maybeSingle();
+        if (orgError || !org) return settle({ error: "org_calendar_failed" });
 
         const calendarName = org?.name
           ? `Let's Assist — ${org.name} Volunteering`
@@ -500,27 +504,14 @@ export async function GET(request: NextRequest) {
 
         const ensured = await ensureOrganizationCalendar(
           tokens.access_token,
-          existingSync?.calendar_id,
+          null,
           calendarName,
+          { organizationId: attemptBinding.organizationId, userId },
         );
 
         if (!ensured) {
           return settle({ error: "org_calendar_failed" });
         }
-
-        await serviceSupabase.from("organization_calendar_syncs").upsert(
-          {
-            organization_id: attemptBinding.organizationId,
-            created_by: userId,
-            calendar_id: ensured.calendarId,
-            calendar_email: calendarEmail,
-            connected_at: new Date().toISOString(),
-            last_synced_at: existingSync?.last_synced_at ?? null,
-            auto_sync: existingSync?.auto_sync ?? true, // Enable auto-sync by default
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "organization_id" },
-        );
       }
 
       // Handle organization sheets sync ownership separately.
@@ -529,12 +520,12 @@ export async function GET(request: NextRequest) {
         const { data: existingSync, error: existingSyncError } =
           await serviceSupabase
             .from("organization_sheet_syncs")
-            .select("id")
+            .select("id, sheet_id")
             .eq("organization_id", attemptBinding.organizationId)
             .maybeSingle();
 
         if (existingSyncError) {
-          console.error(
+          safeConsole.error(
             "Failed to look up organization sheet sync during OAuth callback:",
             existingSyncError,
           );
@@ -548,10 +539,22 @@ export async function GET(request: NextRequest) {
             .eq("organization_id", attemptBinding.organizationId);
 
           if (ownerUpdateError) {
-            console.error(
+            safeConsole.error(
               "Failed to update organization sheet sync owner during OAuth callback:",
               ownerUpdateError,
             );
+          } else if (existingSync.sheet_id) {
+            // Taking over changes whose Google account the sync uses, and that
+            // account has usually never picked this file. Turn automatic sync
+            // off when it cannot open it, so the settings card can ask for the
+            // file to be chosen again instead of every sync failing.
+            await flagSheetSyncAfterOwnerChange({
+              supabase: serviceSupabase,
+              organizationId: attemptBinding.organizationId,
+              sheetId: existingSync.sheet_id,
+              ownerId: userId,
+              accessToken: tokens.access_token,
+            });
           }
         }
       }
@@ -565,7 +568,7 @@ export async function GET(request: NextRequest) {
         : { email: calendarEmail }),
     });
   } catch (error) {
-    console.error("Error in Google Calendar callback:", error);
+    safeConsole.error("Error in Google Calendar callback:", error);
     return redirectAndConsumeAttemptCookie(
       buildCallbackRedirect(baseUrl, null, { error: "unknown" }),
       attemptCookieName,

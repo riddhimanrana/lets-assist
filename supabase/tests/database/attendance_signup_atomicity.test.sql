@@ -73,6 +73,14 @@ SELECT extensions.ok(
   'authenticated clients cannot hard-delete project signups'
 );
 
+-- Keep the synthetic local clock near noon so a +/- one-hour window never crosses midnight.
+CREATE FUNCTION pg_temp.attendance_fixture_timezone() RETURNS text
+LANGUAGE sql STABLE AS $$
+ SELECT CASE WHEN extract(hour FROM now() AT TIME ZONE 'UTC')::integer = 12 THEN 'UTC'
+ ELSE 'Etc/GMT' || CASE WHEN extract(hour FROM now() AT TIME ZONE 'UTC')::integer > 12 THEN '+' ELSE '' END
+  || (extract(hour FROM now() AT TIME ZONE 'UTC')::integer - 12)::text END;
+$$;
+
 INSERT INTO auth.users (
   id,
   aud,
@@ -117,7 +125,8 @@ INSERT INTO public.projects (
   event_type,
   verification_method,
   schedule,
-  require_login
+  require_login,
+  project_timezone
 )
 VALUES
   (
@@ -132,21 +141,22 @@ VALUES
       'oneTime',
       jsonb_build_object(
         'date', to_char(
-          (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '1 hour',
+          (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) - interval '1 hour',
           'YYYY-MM-DD'
         ),
         'startTime', to_char(
-          (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '1 hour',
+          (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) - interval '1 hour',
           'HH24:MI'
         ),
         'endTime', to_char(
-          (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') + interval '1 hour',
+          (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) + interval '1 hour',
           'HH24:MI'
         ),
         'volunteers', 2
       )
     ),
-    true
+    true,
+    pg_temp.attendance_fixture_timezone()
   ),
   (
     'ad100000-0000-4000-8000-000000000002',
@@ -160,7 +170,7 @@ VALUES
       'oneTime',
       jsonb_build_object(
         'date', to_char(
-          (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') + interval '1 day',
+          (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) + interval '1 day',
           'YYYY-MM-DD'
         ),
         'startTime', '10:00',
@@ -168,7 +178,8 @@ VALUES
         'volunteers', 2
       )
     ),
-    true
+    true,
+    pg_temp.attendance_fixture_timezone()
   ),
   (
     'ad100000-0000-4000-8000-000000000003',
@@ -182,7 +193,7 @@ VALUES
       'oneTime',
       jsonb_build_object(
         'date', to_char(
-          (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '1 day',
+          (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) - interval '1 day',
           'YYYY-MM-DD'
         ),
         'startTime', '10:00',
@@ -190,7 +201,8 @@ VALUES
         'volunteers', 2
       )
     ),
-    true
+    true,
+    pg_temp.attendance_fixture_timezone()
   ),
   (
     'ad100000-0000-4000-8000-000000000004',
@@ -203,13 +215,14 @@ VALUES
     jsonb_build_object(
       'oneTime',
       jsonb_build_object(
-        'date', to_char(clock_timestamp() AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM-DD'),
+        'date', to_char(clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone(), 'YYYY-MM-DD'),
         'startTime', '00:00',
         'endTime', '23:59',
         'volunteers', 1
       )
     ),
-    true
+    true,
+    pg_temp.attendance_fixture_timezone()
   ),
   (
     'ad100000-0000-4000-8000-000000000005',
@@ -222,13 +235,14 @@ VALUES
     jsonb_build_object(
       'oneTime',
       jsonb_build_object(
-        'date', to_char(clock_timestamp() AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM-DD'),
+        'date', to_char(clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone(), 'YYYY-MM-DD'),
         'startTime', '00:00',
         'endTime', '23:59',
         'volunteers', 1
       )
     ),
-    false
+    false,
+    pg_temp.attendance_fixture_timezone()
   );
 
 INSERT INTO public.project_signups (
@@ -264,10 +278,10 @@ VALUES
     'attended',
     (
       to_char(
-        (clock_timestamp() AT TIME ZONE 'America/Los_Angeles') - interval '1 day',
+        (clock_timestamp() AT TIME ZONE pg_temp.attendance_fixture_timezone()) - interval '1 day',
         'YYYY-MM-DD'
       ) || ' 10:30'
-    )::timestamp AT TIME ZONE 'America/Los_Angeles'
+    )::timestamp AT TIME ZONE pg_temp.attendance_fixture_timezone()
   ),
   (
     'ad200000-0000-4000-8000-000000000004',

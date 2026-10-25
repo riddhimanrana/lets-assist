@@ -13,6 +13,7 @@ const verifiedFactor = {
 };
 
 async function runAuthenticatedRequest(options: {
+  pathname?: string;
   aal?: "aal1" | "aal2";
   factors?: Record<string, string>[];
   sessionFactors?: Record<string, string>[];
@@ -109,7 +110,7 @@ async function runAuthenticatedRequest(options: {
       );
     }) as typeof fetch;
     const request = new NextRequest(
-      "https://app.example.test/organization/fictional-csf?tab=csf-home",
+      `https://app.example.test${options.pathname ?? "/organization/fictional-csf?tab=csf-home"}`,
       {
         headers: {
           cookie: `sb-request-audit-auth-token=base64-${encode(session)}`,
@@ -132,6 +133,20 @@ async function runAuthenticatedRequest(options: {
     else process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = previousKey;
   }
 }
+
+test("signed-in volunteers can read FAQ without losing authentication redirects", async () => {
+  const faq = await runAuthenticatedRequest({ pathname: "/faq" });
+  assert.equal(faq.response.status, 200);
+  assert.equal(faq.response.headers.get("location"), null);
+  assert.equal(faq.response.headers.get("cache-control"), "private, no-store");
+
+  const login = await runAuthenticatedRequest({ pathname: "/login" });
+  assert.equal(login.response.status, 307);
+  assert.equal(
+    login.response.headers.get("location"),
+    "https://app.example.test/home",
+  );
+});
 
 test("organization requests read the authoritative auth user once", async () => {
   const result = await runAuthenticatedRequest({});

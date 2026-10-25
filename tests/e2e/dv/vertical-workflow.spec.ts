@@ -142,3 +142,126 @@ test("expired guardian links fail closed", async ({ page }) => {
     page.getByText("Link unavailable", { exact: true }).first(),
   ).toBeVisible();
 });
+
+test("staff approval commits the canonical membership, requirement, audit and receipt", async ({
+  page,
+}) => {
+  const password = process.env.DV_LOCAL_TEST_PASSWORD;
+  if (!password)
+    throw new Error(
+      "Set DV_LOCAL_TEST_PASSWORD before running DV Playwright tests.",
+    );
+  const plugin = adminClient().schema("plugin_data");
+  const { data: season, error: seasonError } = await plugin
+    .from("org_seasons")
+    .select("id")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("is_current", true)
+    .single();
+  expect(seasonError).toBeNull();
+  const { data: student, error: studentError } = await plugin
+    .from("dv_sd_students")
+    .select("id")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("school_email", "dv.student.b@local.test")
+    .single();
+  expect(studentError).toBeNull();
+  const { data: membership, error: membershipError } = await plugin
+    .from("dv_sd_seasonal_memberships")
+    .select("id")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("season_id", season!.id)
+    .eq("student_id", student!.id)
+    .single();
+  expect(membershipError).toBeNull();
+  // This fixed fictional account belongs to the validated, owned local stack.
+  const { error: fixtureError } = await plugin
+    .from("dv_sd_seasonal_memberships")
+    .update({
+      status: "submitted",
+      review_notes: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", membership!.id)
+    .eq("organization_id", ORGANIZATION_ID);
+  expect(fixtureError).toBeNull();
+  const countReceipts = () =>
+    plugin
+      .from("dv_sd_membership_write_receipts")
+      .select("request_id", { count: "exact", head: true })
+      .eq("organization_id", ORGANIZATION_ID)
+      .eq("membership_id", membership!.id);
+  const countAudits = () =>
+    plugin
+      .from("dv_sd_audit_events")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", ORGANIZATION_ID)
+      .eq("entity_id", membership!.id)
+      .eq("action", "membership.approved");
+  const beforeReceipts = await countReceipts();
+  const beforeAudits = await countAudits();
+  expect(beforeReceipts.error).toBeNull();
+  expect(beforeAudits.error).toBeNull();
+
+  const expectedPath = `/organization/${ORGANIZATION_SLUG}/plugins/dv-speech-debate`;
+  await page.goto(`/login?redirect=${encodeURIComponent(expectedPath)}`);
+  const main = page.getByRole("main");
+  await expect(main.locator('form[data-hydrated="true"]')).toBeVisible();
+  await expect(
+    main.getByText("Secure check ready", { exact: true }),
+  ).toBeVisible();
+  await main
+    .getByRole("textbox", { name: "Email" })
+    .fill("dv.staff@local.test");
+  await main.getByLabel("Password").fill(password);
+  await main.getByRole("button", { name: "Login", exact: true }).click();
+  await expect
+    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
+    .toBe(expectedPath);
+  await page.getByRole("tab", { name: "Membership", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Review Blair Student", exact: true })
+    .click();
+  const review = page.getByRole("region", { name: "Review membership" });
+  await expect(
+    review.getByRole("heading", { name: "Saved application answers" }),
+  ).toBeVisible();
+  await review.getByLabel("Decision", { exact: true }).selectOption("approved");
+  await review
+    .getByLabel("Notes for the student")
+    .fill("Approved in the fictional browser acceptance test.");
+  await review
+    .getByRole("button", { name: "Save decision", exact: true })
+    .click();
+  await expect(review).not.toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: "Blair Student" });
+  await expect(row.getByText("Approved", { exact: true })).toBeVisible();
+
+  const { data: decided, error: decidedError } = await plugin
+    .from("dv_sd_seasonal_memberships")
+    .select("status,review_notes,reviewed_by")
+    .eq("organization_id", ORGANIZATION_ID)
+    .eq("id", membership!.id)
+    .single();
+  expect(decidedError).toBeNull();
+  expect(decided?.status).toBe("approved");
+  expect(decided?.review_notes).toBe(
+    "Approved in the fictional browser acceptance test.",
+  );
+  expect(decided?.reviewed_by).toBeTruthy();
+  const { data: requirement, error: requirementError } = await plugin
+    .from("dv_sd_membership_requirements")
+    .select("status,verified_by")
+    .eq("membership_id", membership!.id)
+    .eq("requirement_type", "staff_review")
+    .single();
+  expect(requirementError).toBeNull();
+  expect(requirement?.status).toBe("verified");
+  expect(requirement?.verified_by).toBe(decided?.reviewed_by);
+  const afterReceipts = await countReceipts();
+  const afterAudits = await countAudits();
+  expect(afterReceipts.error).toBeNull();
+  expect(afterAudits.error).toBeNull();
+  expect(afterReceipts.count).toBe((beforeReceipts.count ?? 0) + 1);
+  expect(afterAudits.count).toBe((beforeAudits.count ?? 0) + 1);
+});

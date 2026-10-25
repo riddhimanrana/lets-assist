@@ -17,7 +17,7 @@ SELECT extensions.is(
   '1', 'lost response replays the same receipt');
 SELECT extensions.is((SELECT count(*) FROM app_private.csf_release_worker_receipts WHERE release_sha = repeat('a',40)), 1::bigint, 'replay writes no duplicate receipt');
 SELECT extensions.throws_ok($$SELECT app_private.set_csf_release_worker_control(repeat('b',40),'workbook_refresh',true,0,'dd010000-0000-4000-8000-000000000002','fixture-operator','fixture activation')$$, '22023', 'Worker request identity conflict', 'request IDs cannot cross releases');
-SELECT extensions.throws_ok($$SELECT app_private.set_csf_release_worker_control(repeat('a',40),'import_commit',true,0,'dd010000-0000-4000-8000-000000000003','fixture-operator','fixture activation')$$, '40001', 'Worker configuration changed', 'stale concurrent writes are refused');
+SELECT extensions.throws_ok($$SELECT app_private.set_csf_release_worker_control(repeat('a',40),'import_commit',true,0,'dd010000-0000-4000-8000-000000000003','fixture-operator','fixture activation')$$, 'PT409', 'Worker configuration changed', 'stale concurrent writes are refused');
 SELECT extensions.is(
   app_private.set_csf_release_worker_control(repeat('a',40),'import_commit',true,1,'dd010000-0000-4000-8000-000000000003','fixture-operator','fixture activation')->'workers'->>'import_commit',
   'true', 'next worker can be enabled');

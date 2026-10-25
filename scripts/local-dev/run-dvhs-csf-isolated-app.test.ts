@@ -242,8 +242,12 @@ describe("the isolated app child environment is built, not inherited", () => {
     }
   });
 
-  test("every worker flag, including both CSF workers, is false", () => {
-    const { childEnv } = build();
+  test("every worker flag stays false even when enabled in the host", () => {
+    const { childEnv } = build({
+      hostEnv: Object.fromEntries(
+        DISABLED_WORKER_ENV_KEYS.map((key: string) => [key, "true"]),
+      ),
+    });
     expect(DISABLED_WORKER_ENV_KEYS).toContain(
       "CSF_COMMUNICATIONS_WORKER_ENABLED",
     );
@@ -815,13 +819,20 @@ describe("the runner starts Next directly through Node", () => {
     expect(commands.start.command).toBe(commands.build.command);
   });
 
-  test("starts the private plugin app on its fixed second port", () => {
+  test("resolves the private plugin app command on its fixed second port", () => {
+    const pluginRoot = scratchDirectory("lets-assist-plugin-command-");
+    const nextDirectory = join(pluginRoot, "node_modules/next/dist/bin");
+    const nextBin = join(nextDirectory, "next");
+    mkdirSync(nextDirectory, { recursive: true });
+    writeFileSync(nextBin, "// Command resolution fixture. Never executed.\n");
+
     expect(LOCAL_PLUGIN_APPLICATION_PORT).toBe(3001);
     const development = resolvePluginApplicationCommands(
       "development",
-      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+      pluginRoot,
     );
     expect(development.start.command).toMatch(/(^|\/)node(\.exe)?$/u);
+    expect(development.start.args[0]).toBe(nextBin);
     expect(development.start.args.slice(1)).toEqual([
       "dev",
       "--webpack",
@@ -833,8 +844,10 @@ describe("the runner starts Next directly through Node", () => {
 
     const production = resolvePluginApplicationCommands(
       "production",
-      join(repositoryRoot, "lib/plugins/private/apps/csf"),
+      pluginRoot,
     );
+    expect(production.build?.args[0]).toBe(nextBin);
+    expect(production.start.args[0]).toBe(nextBin);
     expect(production.build?.args.slice(1)).toEqual(["build", "--webpack"]);
     expect(production.start.args.slice(1)).toEqual([
       "start",
@@ -843,6 +856,16 @@ describe("the runner starts Next directly through Node", () => {
       "--port",
       "3001",
     ]);
+  });
+
+  test("refuses a plugin command when its own Next executable is absent", () => {
+    const pluginRoot = scratchDirectory("lets-assist-plugin-missing-next-");
+    for (const mode of ["development", "production"] as const) {
+      expect(() => resolvePluginApplicationCommands(mode, pluginRoot)).toThrow(
+        `Missing the plugin application's Next executable: ${join(pluginRoot, "node_modules/next/dist/bin/next")}`,
+      );
+    }
+    expect(readdirSync(pluginRoot)).toEqual([]);
   });
 
   test("starts both application runtimes directly through Node", () => {

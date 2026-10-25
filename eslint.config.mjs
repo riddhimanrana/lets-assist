@@ -33,6 +33,8 @@ export default tseslint.config(
       // Application-profile plugins own a locked package toolchain and run the
       // required gates through plugin:apps:check.
       "lib/plugins/private/apps/**",
+      // Archived reference code is outside the active product.
+      "lib/plugins/private/plugins/dv-speech-debate/**",
     ],
   },
   js.configs.recommended,
@@ -77,6 +79,34 @@ export default tseslint.config(
       "no-dupe-else-if": "off",
     },
     ...(nextSettings ? { settings: nextSettings } : {}),
+  },
+  {
+    files: [
+      "{app,components,contexts,hooks,lib,services,utils}/**/*.{js,jsx,ts,tsx}",
+    ],
+    ignores: [
+      "**/*.{test,spec}.{js,jsx,ts,tsx}",
+      "lib/safe-console.ts",
+      "lib/plugins/private/**",
+    ],
+    rules: {
+      "no-console": "error",
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "console",
+          message: "Use the shared safeConsole privacy boundary.",
+        },
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...["globalThis", "window", "self", "global"].map((object) => ({
+          object,
+          property: "console",
+          message: "Use the shared safeConsole privacy boundary.",
+        })),
+      ],
+    },
   },
   eslintConfigPrettier,
 );

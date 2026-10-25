@@ -41,13 +41,13 @@ SELECT extensions.is(
 
 SELECT extensions.is(
   (SELECT latest_version FROM public.plugins WHERE key = 'dvhs-csf'),
-  '1.2.85',
+  '1.2.89',
   'plugin catalog keeps the serving embedded release truthful'
 );
 
 SELECT extensions.is(
   (SELECT code_reference FROM public.plugins WHERE key = 'dvhs-csf'),
-  'a1d5836fb800ad4afef7cfbfc6ed4a5f63e23f3d',
+  'f116483844d8bfc04c99899c1e38d501a01be191',
   'plugin catalog keeps the serving embedded source truthful'
 );
 

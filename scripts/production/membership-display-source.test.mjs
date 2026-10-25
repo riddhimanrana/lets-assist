@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { readReviewedHotfixFile } from "./historical-hotfix-test-fixture.mjs";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import {
@@ -79,26 +87,40 @@ test("refuses duplicate paths", () =>
   ));
 
 test("dependency repair and historical fixture support require exact reviewed bytes", () => {
-  const root = new URL("../../", import.meta.url).pathname;
-  verifyMembershipDependencies(root);
-  assert.deepEqual(Object.keys(membershipDependencyHashes).sort(), [
-    ".github/workflows/ci.yml",
-    "bun.lock",
-    "package.json",
-    "scripts/local-dev/test-cron-endpoints.test.ts",
-    "scripts/local-dev/test-cron-endpoints.ts",
-    "scripts/production/production-schema-only-source.test.mjs",
-    "scripts/production/security-only-app-source.test.mjs",
-  ]);
-  for (const file of Object.keys(membershipDependencyHashes))
-    assert.throws(() =>
-      verifyMembershipDependencies(root, (target) => {
-        const bytes = readFileSync(target);
-        return target.endsWith("/" + file)
-          ? Buffer.concat([bytes, Buffer.from("\n")])
-          : bytes;
-      }),
-    );
+  const root = mkdtempSync(join(tmpdir(), "membership-reviewed-source-"));
+  try {
+    for (const file of Object.keys(membershipDependencyHashes)) {
+      const target = join(root, file);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, readReviewedHotfixFile("membership", file));
+    }
+    verifyMembershipDependencies(root);
+    assert.deepEqual(Object.keys(membershipDependencyHashes).sort(), [
+      ".github/workflows/ci.yml",
+      "bun.lock",
+      "package.json",
+      "scripts/local-dev/test-cron-endpoints.test.ts",
+      "scripts/local-dev/test-cron-endpoints.ts",
+      "scripts/production/production-schema-only-source.test.mjs",
+      "scripts/production/security-only-app-source.test.mjs",
+    ]);
+    for (const file of Object.keys(membershipDependencyHashes))
+      assert.throws(() =>
+        verifyMembershipDependencies(root, (target) => {
+          const bytes = readFileSync(target);
+          return target.endsWith("/" + file)
+            ? Buffer.concat([bytes, Buffer.from("\n")])
+            : bytes;
+        }),
+      );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+test("the broader v4 source cannot reuse the frozen membership dependency exception", () => {
+  assert.throws(() =>
+    verifyMembershipDependencies(new URL("../../", import.meta.url).pathname),
+  );
 });
 
 function proof() {
@@ -188,7 +210,10 @@ test("workflow preserves full acceptance and original staged rollback operations
   const file = (path) =>
     readFileSync(new URL("../../" + path, import.meta.url), "utf8");
   const next = file(".github/workflows/deploy-membership-display.yml");
-  const old = file(".github/workflows/deploy-app-only.yml");
+  const old = readReviewedHotfixFile(
+    "membership",
+    ".github/workflows/deploy-app-only.yml",
+  ).toString("utf8");
   assert.match(next, /environment: development/u);
   assert.match(next, /environment: production/u);
   assert.match(next, /needs: hosted-acceptance/u);

@@ -4,18 +4,18 @@ Choose the environment before running commands. The shared local and isolated CS
 
 ## Runtime prerequisites
 
-- Node.js `22.23.2`, pinned in `.node-version`; `package.json` accepts the supported Node 22 line only.
-- Bun `1.3.14`, pinned in `packageManager` and CI.
-- Supabase CLI `2.111.0`, pinned by the isolated-stack scripts and workflows.
+- Node.js `24.21.0`, pinned in `.node-version`; `package.json` accepts the supported Node 24 LTS line only.
+- Bun `1.4.2`, pinned in `packageManager` and CI.
+- Supabase CLI `2.120.0`, pinned by the isolated-stack scripts and workflows.
 
 CI installs the declared Node runtime explicitly before Bun so every `node`-backed script uses the same supported runtime as hosted application code.
 
-| Environment         | Purpose                                    | Start                                       | Data                                         | Production impact                       |
-| ------------------- | ------------------------------------------ | ------------------------------------------- | -------------------------------------------- | --------------------------------------- |
-| Shared local        | Platform and non-CSF work                  | `bun run supabase`, then `bun run dev:next` | Deterministic fictional platform/DV fixtures | None                                    |
-| Isolated CSF local  | CSF development and acceptance             | `bun run dev`                               | Namespaced fictional CSF fixture             | None                                    |
-| Development preview | Hosted integration proof for `development` | CI/Vercel/Supabase workflow                 | Development-only resources                   | None when correctly scoped              |
-| Production          | Live product                               | Release from `main`                         | Live data                                    | Explicit release authorization required |
+| Environment         | Purpose                                    | Start                                       | Data                                      | Production impact                       |
+| ------------------- | ------------------------------------------ | ------------------------------------------- | ----------------------------------------- | --------------------------------------- |
+| Shared local        | Platform and non-CSF work                  | `bun run supabase`, then `bun run dev:next` | Deterministic fictional platform fixtures | None                                    |
+| Isolated CSF local  | CSF development and acceptance             | `bun run dev`                               | Namespaced fictional CSF fixture          | None                                    |
+| Development preview | Hosted integration proof for `development` | CI/Vercel/Supabase workflow                 | Development-only resources                | None when correctly scoped              |
+| Production          | Live product                               | Release from `main`                         | Live data                                 | Explicit release authorization required |
 
 ## Shared local
 
@@ -64,6 +64,9 @@ Development Resend variables are deliberately additive rather than fallbacks:
 - `PROJECT_FEEDBACK_WORKER_ENABLED` and
   `PAPER_SIGNUP_NOTIFICATION_WORKER_ENABLED` remain unset until their own
   Development acceptance is complete.
+- `ORG_SHEET_SYNC_WORKER_ENABLED` gates the organization Sheets auto-sync
+  worker. It defaults to off, and auto-sync runs in Production only when the
+  Production environment sets it to `true`.
 
 No Production credential is a valid generic Preview fallback.
 

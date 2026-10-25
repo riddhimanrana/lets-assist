@@ -23,7 +23,7 @@ const activeMembershipPgtap = read(
 const organizationProfileActions = read(
   "app/organization/[id]/settings/server/profile.ts",
 );
-const accountSecurityActions = read("app/account/security/actions.ts");
+
 const dataExportWorker = read("lib/supabase/data-export-jobs.ts");
 
 const storagePolicy = (sql: string, policyName: string) => {
@@ -216,56 +216,54 @@ describe("active organization storage authorization source contract", () => {
 });
 
 describe("data export relation caller and ACL source contract", () => {
-  test("audit logs have only service-client callers", () => {
-    const accountRequestAudit = accountSecurityActions.slice(
-      accountSecurityActions.indexOf("export async function emailDataExport"),
-      accountSecurityActions.indexOf("export async function getDataExportJobs"),
-    );
-    const workerAudit = dataExportWorker.slice(
-      dataExportWorker.indexOf("async function writeAuditEvent"),
-      dataExportWorker.indexOf("async function completeJob"),
-    );
-
-    expect(callersOf("account_data_export_audit_logs")).toEqual([
-      "app/account/security/actions.ts",
-      "lib/supabase/data-export-jobs.ts",
+  test("export workers use service-only transitions and do not write audit records directly", () => {
+    expect(callersOf("account_data_export_audit_logs")).toEqual([]);
+    expect(callersOf("account_data_export_jobs")).toEqual([
+      "app/account/security/data-export-actions.ts",
+      "lib/supabase/data-export-access.ts",
+      "scripts/local-dev/account-export-rehearsal.ts",
     ]);
-    expect(accountRequestAudit).toMatch(
-      /const adminClient = getAdminClient\(\);[\s\S]*?adminClient\.from\("account_data_export_audit_logs"\)\.insert\(/u,
-    );
-    expect(workerAudit).toMatch(
-      /const supabase = getAdminClient\(\);[\s\S]*?supabase\s*\.from\("account_data_export_audit_logs"\)\s*\.insert\(/u,
-    );
+    expect(dataExportWorker).not.toContain('from "./server"');
+    expect(dataExportWorker).not.toContain('from("account_data_export_jobs")');
   });
 
-  test("browser export jobs retain only the used insert and select capabilities", () => {
-    const accountEnqueue = accountSecurityActions.slice(
-      accountSecurityActions.indexOf("export async function emailDataExport"),
-      accountSecurityActions.indexOf("export async function getDataExportJobs"),
+  test("the local worker rehearsal only reads jobs and claims its verified fictional request", () => {
+    const source = read("scripts/local-dev/account-export-rehearsal.ts");
+    const reads = [
+      ...source.matchAll(
+        /\.from\("account_data_export_jobs"\)([\s\S]*?)(?:\.single\(\)|\.limit\(2\))/gu,
+      ),
+    ].map((match) => match[1]);
+    expect(reads).toHaveLength(3);
+    for (const query of reads) {
+      expect(query).toContain(".select(");
+      expect(query).not.toMatch(/\.(?:insert|upsert|update|delete)\(/u);
+    }
+    expect(reads[0]).toContain('.eq("id", jobId)');
+    expect(reads[1]).toContain(
+      '"status.in.(pending,processing),and(status.eq.completed,delivery_status.eq.not_attempted)"',
     );
-    const accountRead = accountSecurityActions.slice(
-      accountSecurityActions.indexOf("export async function getDataExportJobs"),
+    expect(reads[2]).toContain('.eq("id", jobId)');
+    expect(reads[2]).toContain('.eq("user_id", userId)');
+    expect(source).toContain("const local = getCsfIsolatedSupabaseEnv();");
+    expect(source).toContain("createClient(local.url, local.serviceRoleKey");
+    expect(source).toContain(
+      'createRequire(import.meta.url)("./cron-egress-guard.cjs")',
     );
-
-    expect(callersOf("account_data_export_jobs")).toEqual([
-      "app/account/security/actions.ts",
-      "lib/supabase/data-export-jobs.ts",
-    ]);
-    expect(accountEnqueue).toMatch(
-      /supabase\s*\.from\("account_data_export_jobs"\)\s*\.insert\(/u,
+    expect(source).toContain(
+      'process.env.CRON_EGRESS_ALLOWED_SMTP_PORTS = "";',
     );
-    expect(accountRead).toMatch(
-      /supabase\s*\.from\("account_data_export_jobs"\)\s*\.select\(/u,
-    );
-    expect(dataExportWorker).toContain("getAdminClient()");
-    expect(dataExportWorker).not.toContain('from "./server"');
-    expect(dataExportWorker).not.toContain("createClient()");
-    expect(dataExportWorker).toMatch(
-      /supabase\s*\.from\("account_data_export_jobs"\)\s*\.update\(/u,
-    );
-    expect(`${accountSecurityActions}\n${dataExportWorker}`).not.toMatch(
-      /(?:adminClient|supabase)\s*\.from\("account_data_export_jobs"\)\s*\.delete\(/u,
-    );
+    expect(source).toContain('process.env.CRON_EGRESS_SMTP_PORTS = "";');
+    const authorization = source.indexOf("  assertExportRehearsalSubject(\n");
+    const claim = source.indexOf('admin.rpc("claim_account_data_export_jobs"');
+    expect(authorization).toBeGreaterThan(0);
+    expect(claim).toBeGreaterThan(authorization);
+    expect(source).toContain("claimed.data[0].id !== jobId");
+    expect(source).toContain("claimed.data[0].user_id !== userId");
+    expect(source).toContain("message.to !== userResult.data.user.email");
+    expect(source).toContain('outcome: "skipped"');
+    expect(source).toContain('result.delivery !== "skipped"');
+    expect(source).toContain('readFileSync(ledger, "utf8") !== ""');
   });
 
   test("the reviewed relation catalog removes only server-only export grants", () => {

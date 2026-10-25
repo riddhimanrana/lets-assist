@@ -23,26 +23,26 @@ export const SECURE_CHECK_TIMEOUT_MS = 10_000;
 
 export type SecureCheckPhase = "loading" | "ready" | "unavailable";
 
+import { isLoopbackUrl } from "./turnstile-policy";
+
 export function isSecureCheckBypassed(input: {
   nodeEnv: string | undefined;
   bypass: string | undefined;
   siteKey: string | undefined;
   siteUrl?: string | undefined;
+  supabaseUrl?: string | undefined;
+  remoteSupabaseUrl?: string | undefined;
 }): boolean {
-  if (input.nodeEnv !== "production") {
-    return input.bypass === "true" || !input.siteKey;
-  }
-
-  if (input.bypass !== "true" || !input.siteUrl) {
+  if (
+    !isLoopbackUrl(input.siteUrl) ||
+    !isLoopbackUrl(input.supabaseUrl) ||
+    input.remoteSupabaseUrl
+  )
     return false;
-  }
-
-  try {
-    const hostname = new URL(input.siteUrl).hostname;
-    return hostname === "localhost" || hostname === "127.0.0.1";
-  } catch {
-    return false;
-  }
+  return (
+    input.bypass === "true" ||
+    (input.nodeEnv !== "production" && !input.siteKey)
+  );
 }
 
 export interface SecureCheckPhaseInput {

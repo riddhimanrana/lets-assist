@@ -1,9 +1,137 @@
 # Production cutover runbook
 
+## Current maintenance preflight
+
+Use `deploy-schema.yml` for a reviewed release that changes client permissions.
+The online forward-migration controller refuses outstanding credential and
+project-column contractions. Local acceptance does not authorize a Production
+release or establish hosted Development ordering.
+
+Before dispatch, prepare the exact main release and accepted Development tree,
+the signed private gitlink, recovery capture and restore evidence, and the
+workflow's candidate-bound authorization receipts. Stop external writers and
+scheduled jobs. Keep all five CSF worker flags disabled: workbook refresh,
+import commit, communications, scheduled post publishing and publication
+notifications. Prove the existing PostgREST write block with a fresh request.
+
+The current read-only preflight uses reviewed migration bytes and the accepted
+catalog for the observed ledger. Supply `EXPECTED_SUPABASE_PROJECT_REF` and
+`PRODUCTION_READONLY_URL` when configured, otherwise the existing protected
+`PRODUCTION_BOOTSTRAP_DATABASE_URL`, through the approved secret environment.
+The fallback must be the reviewed Production owner connection; it creates no
+new role, credential or grant. Its authority remains owner-level even while
+fixed checks execute in read-only transactions. An invalid configured readonly
+URL fails rather than selecting the fallback. Then run:
+
+```bash
+node scripts/production/maintenance-preflight.mjs before
+```
+
+The `before` mode accepts an exact catalogued prefix at or after migration 687,
+or one of the 52 recorded points-first states bound to the exact 739 target.
+The points-first baseline contains the first 687 migrations plus the already
+applied `20261013071100` hotfix. It rejects unknown or partial unaccepted ledgers, changed SQL bytes,
+catalog drift, enabled workers, active or running cron jobs, conflicting
+request-guard configuration and failed integrity checks. The helper checks the
+configured write-block state. The workflow's separate fresh PostgREST probe
+must still return SQLSTATE `25006` before a schema push. The workflow then waits
+for the exact transactions admitted before the hook loaded. A 20-second timeout
+keeps writes blocked and stops the release; it does not terminate connections.
+
+The hook and flag setter coordinate through shared and exclusive transaction
+locks. Writable PostgREST requests must use READ COMMITTED isolation so they see
+the committed flag after waiting. The hook refuses REPEATABLE READ and
+SERIALIZABLE writes even when maintenance is off. Read-only requests remain
+available, including those using stronger isolation.
+
+After the workflow applies migrations, it requires the complete accepted target:
+
+```bash
+node scripts/production/maintenance-preflight.mjs target
+```
+
+The workflow also uses the fixed `quiescence` mode for its cron/flag check;
+`credentials` validates binding only and does not prove live connectivity.
+All database modes use explicit read-only transactions and a read-only session
+default. Receipts distinguish owner authority from an unverified configured role.
+Both commands run their database checks in read-only transactions and print only
+a sanitized receipt. Credentials stay out of process arguments and raw database
+errors stay out of logs. Connection parameters cannot override the reviewed
+host, account or database. This is a diagnostic command, not a migration path.
+
+The workflow verifies the maintenance alias and reruns `before` immediately
+before the push. It then runs `target`, smokes the staged application, verifies
+its final alias and opens writes last. Recovery retains the recorded maintenance
+deployment and the write block. After permission contractions, an older app may
+issue forbidden queries; do not restore it as an application rollback. Cached
+browser tabs may need a reload. Preserve the database and fix forward if the
+accepted application cannot serve the new schema.
+
+## Bounded points-first rollout
+
+The current `deploy-schema.yml` release uses
+`node scripts/production/points-first-rollout.mjs plan` and `apply` instead of
+plain `db push`. This controller is restricted to the captured points-first
+688-to-739 path. Install the request fence through the separate bootstrap first;
+`apply` requires the exact 689-or-later captured state. Other histories need a
+reviewed path and are refused. The preflight's retained historical catalogs do
+not make those histories writable through this controller.
+
+The source pins every migration byte, the original 688 catalog, all 51 catalog
+changes and the final 739 catalog. Planning verifies the live catalog and full
+maintenance posture, then lists the exact remaining hashed files without writes.
+Application stays in the existing single protected Production job. It rechecks
+current Main, the clean checkout, dispatch age, actor permission, the actual
+Production approval and current reviewer policy before each file.
+The supported policy names direct User reviewers by immutable ID and login;
+other reviewer topologies fail closed pending review. It also
+requires this run's successful prior-recovery gate. No new credential,
+permission, environment setting or reviewer topology is introduced.
+
+Each file runs once in a transaction holding both release advisory locks, the
+ledger lock and the worker/publication locks. The transaction verifies exact
+before and after ledgers, complete catalogs and all applicable data checks.
+All maintenance posture checks remain enforced; the migration transaction alone
+is writable. The one reviewed project-status cron creation is paused in its
+creating transaction. Other active or running jobs fail verification. The
+retention inventory normalization does not permit active cron rows.
+
+The controller verifies committed state again through a read-only snapshot. A
+lost response stops the invocation even if exact readback proves that file
+committed. No next file, rollback or automatic retry follows. The existing
+trusted recovery workflow must reconcile the failed attempt before a fresh
+protected run can continue from a captured state. Unknown ledgers, catalog drift
+or stale authority stay blocked. An eight-minute write budget and twelve-minute database deadline leave time
+for authority readback and the existing recovery hold within the step's
+fifteen-minute timeout.
+
+The sanitized artifact is `production-points-first-rollout-<run>-<attempt>`.
+It records source, reviewer, recovery-capture digest, per-file hashes, exact
+ledger transitions and outcome. It contains no database URLs, credentials,
+provider responses or application rows. Full CI rehearses the actual controller SQL against a separate unseeded,
+launcher-owned baseline after stopping its ordinary database test stack. The
+rehearsal uses mocked GitHub responses and a fixed Docker executor; it cannot
+connect to the hosted URL in its fictional configuration. Only sanitized result
+and progress receipts are uploaded. This proves local schema/data guards on
+fictional data. It does not establish hosted approval, a restored live-data
+recovery capture or hosted Development acceptance.
+
+For current workflow prerequisites and failure handling, use
+[Supabase deployment](supabase-deployment.md) and
+[deployment boundaries](deployment.md). Hosted Development needs its own reviewed
+ordering and acceptance before Production approval. No provider change, logical
+capture, restore or hosted branch creation is authorized by this document.
+
+## Historical 414-to-444 rehearsal
+
+The remaining material records the September rehearsal. Its counts, raw SQL
+preflight and release-specific commands are historical evidence. They are not
+the current maintenance controller. Do not dispatch a current release from them.
+
 Production was verified read-only on 2026-09-01 in Supabase project
 `fotdmeakexgrkronxlof` at 414 ordered migrations through
-`20260829092823_publish_dvhs_csf_1_2_24`. The current repository
-release candidate has exactly 444 ordered migrations through
+`20260829092823_publish_dvhs_csf_1_2_24`. At that time, the repository
+release candidate had exactly 444 ordered migrations through
 `20260903050000_csf_staff_view_mode_single_rpc`, so the typed
 read-only preflight pins an exact 30-migration tail. This count is a
 repository contract, not proof of live Production state: re-run the read-only
@@ -180,6 +308,26 @@ Record the fallback's fidelity gap: local `auth`, `storage`, and `realtime` sche
 ## Backup
 
 Managed backups are not enough on their own, and a backup you have not restored is a hypothesis.
+
+**Managed-backup alternative (operator decision).** Use it only when the pending migrations destroy no rows and mutate no Storage objects, as the 688→740 audit found. The operator may then accept an existing daily physical backup as the restore point instead of the full capture. Dispatch deploy-schema with:
+
+- `managed_backup_inserted_at=<exact inserted_at from GET /v1/projects/fotdmeakexgrkronxlof/database/backups, with milliseconds; the dashboard shows only whole seconds>`;
+- `recovery_capture_sha256=<sha256 of managed-physical-backup:fotdmeakexgrkronxlof:<ISO time>>`;
+- `recovery_capture_confirmation=managed-backup-accepted:<main SHA>:<that digest>`.
+
+The workflow refuses unless the Management API lists exactly one completed physical backup at that time, no older than 36 hours.
+
+This is a weaker recovery point than the full capture:
+
+- every write after the backup time is outside it;
+- it was never restored here;
+- Storage objects are not in it.
+
+Recovery from a failed release stays a corrective forward migration. Restoring the backup would discard every later write. All other gates are unchanged:
+
+- the Production environment approval;
+- the writer and write-block receipts;
+- the exact candidate, catalog and ledger checks.
 
 ```bash
 set -euo pipefail
@@ -488,6 +636,9 @@ already included in the 414 baseline.
    Restore schedules by reconciling the snapshot with the operator-approved
    current state instead of replaying it blindly.
 3. Before the final capture, run
+   verify the installed migration-owned request hook. An older database needs a
+   separately approved bootstrap before this window; the flag command refuses
+   a missing or altered hook. Run
    `scripts/production/set-application-write-block.sh enable`, then run
    `scripts/production/verify-postgrest-write-block.sh`. Keep the block active
    through the release. Record `application-writes-blocked:<exact main SHA>`
@@ -524,7 +675,7 @@ already included in the 414 baseline.
    build, proves the staged application's embedded SHA and Production
    environment, and retains a sanitized recovery manifest before arming the
    cutover. It then reasserts
-   `authenticator.default_transaction_read_only=on`, terminates existing
+   `authenticator.pgrst.app_settings.maintenance_write_block=on`, terminates existing
    authenticator sessions, and proves a fresh PostgREST mutation returns
    SQLSTATE `25006`. It then promotes and verifies the maintenance alias before
    starting the migration push.
@@ -570,7 +721,11 @@ already included in the 414 baseline.
     deleting jobs or reversing receipts. After each enable, verify one bounded
     run. Require import receipts before communications and a controlled email
     path before scheduled publishing.
-14. Restore other cron jobs by reconciliation.
+14. Restore other cron jobs by reconciliation. Migration `20261009090000`
+    adds `process-project-statuses` and leaves it paused during the window.
+    Production already has a dashboard-created `Process project status` job
+    for the same function. Keep exactly one of the two active, preferring the
+    migration-owned job, and confirm a fresh project schedule health run.
 15. Watch advisors and logs for an hour.
 
 ---

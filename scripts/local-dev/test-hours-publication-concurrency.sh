@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Exercise the project row lock with two real PostgreSQL sessions. This script
+# Exercise publication locking with two real PostgreSQL sessions. This script
 # accepts loopback Supabase only and uses synthetic, deterministic fixtures.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT_DIR}"
 
+# Validate the owned stack and prove reviewed-attendance races before legacy cases.
+node scripts/local-dev/test-attendance-concurrency.mjs
+
 DATABASE_URL="${DATABASE_URL:-${SUPABASE_DB_URL:-}}"
 if [[ -z "${DATABASE_URL}" ]]; then
   DATABASE_URL="$(
-    bunx supabase status -o env \
-      | sed -n 's/^DB_URL=//p' \
-      | tr -d '"' \
-      | head -n 1
+    node --input-type=module -e '
+      import { getCsfIsolatedSupabaseEnv } from "./scripts/local-dev/dv-local-env.mjs";
+      process.stdout.write(getCsfIsolatedSupabaseEnv().dbUrl);
+    '
   )"
 fi
 
@@ -72,7 +75,30 @@ trap cleanup EXIT
 
 cleanup_database
 
+complete_fixture_project() {
+  psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
+SET LOCAL lock_timeout = '10s';
+-- Unlike process_projects' nonblocking scheduler entry, the proof must wait
+-- for concurrent maintenance to finish before checking the completed state.
+SELECT pg_advisory_xact_lock(hashtextextended('lets-assist-project-status-maintenance', 0));
+SELECT public.process_projects();
+DO $$
+BEGIN
+  IF (SELECT status FROM public.projects
+      WHERE id = 'ac200000-0000-4000-8000-000000000001') IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'past-dated concurrency fixture must be completed';
+  END IF;
+END;
+$$;
+COMMIT;
+SQL
+}
+
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+-- Keep the past-dated project and its initial enrollment invisible to status
+-- maintenance until both exist. A cron tick must not split fixture setup.
+BEGIN;
 INSERT INTO auth.users (
   id, aud, role, email, email_confirmed_at,
   raw_app_meta_data, raw_user_meta_data, created_at, updated_at
@@ -122,17 +148,17 @@ VALUES (
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
   verification_method, schedule, require_login, organization_id,
-  can_be_managed_by_staff
+  can_be_managed_by_staff, status
 )
 VALUES (
   'ac200000-0000-4000-8000-000000000001',
   'ac000000-0000-4000-8000-000000000001',
   'Concurrent Hours Project', 'Local', 'Synthetic concurrency fixture',
   'oneTime', 'manual',
-  '{"oneTime":{"date":"2031-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
+  '{"oneTime":{"date":"2021-08-11","startTime":"09:00","endTime":"12:00","volunteers":1}}',
   true,
   'ac100000-0000-4000-8000-000000000001',
-  true
+  true, 'upcoming'
 );
 
 INSERT INTO public.project_signups (
@@ -145,29 +171,70 @@ VALUES (
   'oneTime',
   'approved'
 );
+COMMIT;
 SQL
 
+# Control only this historical fixture. Maintenance may skip a run when another
+# maintenance transaction already holds its advisory lock; the publication and
+# reset scenarios must still deterministically begin with a completed project.
+psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+UPDATE public.projects
+SET status = 'completed'
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
+SELECT public.process_projects();
+DO $$
+BEGIN
+  IF (SELECT status FROM public.projects
+      WHERE id = 'ac200000-0000-4000-8000-000000000001') IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'historical publication fixture must begin completed';
+  END IF;
+END;
+$$;
+SQL
+# Exercise the completed state independently of the five-minute cron boundary.
+complete_fixture_project
+
 (
-  psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
+  PGAPPNAME=hours_publication_session_a \
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
 BEGIN;
 SELECT set_config('request.jwt.claim.sub', 'ac000000-0000-4000-8000-000000000001', true);
-SELECT id FROM public.projects
-WHERE id = 'ac200000-0000-4000-8000-000000000001'
-FOR UPDATE;
-SELECT pg_sleep(1);
 SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
+SELECT pg_sleep(5);
 COMMIT;
 SQL
 ) &
 SESSION_A_PID=$!
 
-sleep 0.2
+# Hold the real entrypoint's locks in their actual order. Taking the project
+# row first would invert the account-before-project order and create a deadlock.
+PUBLICATION_A_READY=false
+for ((attempt = 0; attempt < 100; attempt += 1)); do
+  PUBLICATION_A_READY="$(
+    psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
+SELECT EXISTS (
+  SELECT 1 FROM pg_catalog.pg_stat_activity
+  WHERE application_name = 'hours_publication_session_a'
+    AND state = 'active' AND wait_event_type = 'Timeout'
+    AND wait_event = 'PgSleep' AND xact_start IS NOT NULL
+);
+SQL
+  )"
+  [[ "${PUBLICATION_A_READY}" == "t" ]] && break
+  if ! kill -0 "${SESSION_A_PID}" 2>/dev/null; then break; fi
+  sleep 0.05
+done
+if [[ "${PUBLICATION_A_READY}" != "t" ]]; then
+  wait "${SESSION_A_PID}" || true
+  echo "Publication session A never reached its uncommitted hold point." >&2
+  exit 1
+fi
 
 psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_B}" <<'SQL'
 BEGIN;
@@ -176,7 +243,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 COMMIT;
@@ -217,7 +284,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:abababababababababababababababababababababababababababababababab'
 ) ->> 'outcome';
 SELECT pg_sleep(1);
@@ -416,6 +483,7 @@ if [[ "${BOUNDARY_RESULT}" != "unknown_outcome:settlement_unconfirmed" ]]; then
 fi
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+BEGIN;
 DELETE FROM public.hours_publication_email_outbox
 WHERE receipt_id IN (
   SELECT id FROM public.hours_publication_receipts
@@ -426,12 +494,37 @@ WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 DELETE FROM public.certificates
 WHERE project_id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.projects
-SET published = '{}'::jsonb
+SET published = '{}'::jsonb, status = 'upcoming'
 WHERE id = 'ac200000-0000-4000-8000-000000000001';
-UPDATE public.project_signups
-SET status = 'approved', check_in_time = NULL, check_out_time = NULL
+-- The preceding publication established reviewed intervals. The independent
+-- legacy scenarios need a new signup, not an edit that bypasses corrections.
+DELETE FROM public.project_signups
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
+INSERT INTO public.project_signups (id,project_id,user_id,schedule_id,status)
+VALUES (
+  'ac300000-0000-4000-8000-000000000001',
+  'ac200000-0000-4000-8000-000000000001',
+  'ac000000-0000-4000-8000-000000000002',
+  'oneTime',
+  'approved'
+);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.project_signups
+    WHERE id='ac300000-0000-4000-8000-000000000001'
+      AND attendance_revision=0 AND check_in_time IS NULL AND check_out_time IS NULL
+  ) OR EXISTS (
+    SELECT 1 FROM public.project_attendance_intervals
+    WHERE signup_id='ac300000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'legacy race fixture must begin without reviewed attendance';
+  END IF;
+END;
+$$;
+COMMIT;
 SQL
+complete_fixture_project
 
 # A status change that already owns the signup lock must settle before the
 # publication validates the row. The RPC must then observe rejected, not the
@@ -460,7 +553,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000001',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd'
 );
 COMMIT;
@@ -476,16 +569,25 @@ if [[ "${STATUS_RACE_EXIT}" -eq 0 ]] || ! grep -q "one or more signups" "${OUTPU
 fi
 
 psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
+-- Reset only this owned fixture for the next independent race. Hold its
+-- project lock through approval, then let real maintenance complete it again.
+BEGIN;
+UPDATE public.projects
+SET status = 'upcoming'
+WHERE id = 'ac200000-0000-4000-8000-000000000001';
 UPDATE public.project_signups
 SET status = 'approved'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
+COMMIT;
 SQL
+complete_fixture_project
 
 # The same serialization guarantee applies to the staff membership used for
 # authorization. A revocation that owns the row lock must win before publish.
 (
   psql "${DATABASE_URL}" -X -v ON_ERROR_STOP=1 >/dev/null <<'SQL'
 BEGIN;
+SELECT private.lock_paper_attendance_account('ac000000-0000-4000-8000-000000000003');
 SELECT user_id FROM public.organization_members
 WHERE organization_id = 'ac100000-0000-4000-8000-000000000001'
   AND user_id = 'ac000000-0000-4000-8000-000000000003'
@@ -508,7 +610,7 @@ SELECT public.publish_volunteer_hours_transactional(
   'ac000000-0000-4000-8000-000000000003',
   'ac200000-0000-4000-8000-000000000001',
   'oneTime',
-  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2031-08-11T16:00:00Z","checkOut":"2031-08-11T18:00:00Z"}]'::jsonb,
+  '[{"signupId":"ac300000-0000-4000-8000-000000000001","checkIn":"2021-08-11T16:00:00Z","checkOut":"2021-08-11T18:00:00Z"}]'::jsonb,
   'hours-publication:v1:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef'
 );
 COMMIT;
@@ -552,8 +654,8 @@ WHERE id IN (
 UPDATE public.project_signups
 SET
   status = 'attended',
-  check_in_time = '2031-08-11T16:00:00Z',
-  check_out_time = '2031-08-11T18:00:00Z'
+  check_in_time = '2021-08-11T16:00:00Z',
+  check_out_time = '2021-08-11T18:00:00Z'
 WHERE id = 'ac300000-0000-4000-8000-000000000001';
 
 INSERT INTO public.project_signups (
@@ -564,20 +666,20 @@ VALUES
     'ac300000-0000-4000-8000-000000000002',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000004',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   ),
   (
     'ac300000-0000-4000-8000-000000000003',
     'ac200000-0000-4000-8000-000000000001',
     'ac000000-0000-4000-8000-000000000005',
-    'oneTime', 'attended', '2031-08-11T16:00:00Z', '2031-08-11T18:00:00Z'
+    'oneTime', 'attended', '2021-08-11T16:00:00Z', '2021-08-11T18:00:00Z'
   );
 SQL
 
-# Session A keeps the overlapping signup's unique-index entry uncommitted.
+# Session A keeps its supplemental issuance transaction uncommitted.
 # The pg_stat_activity handshakes prove A has completed the insert before B
-# starts and that B waits on A's transaction before the commit releases it.
-# B must then skip only that conflict and still insert its unrelated signup.
+# starts and that B waits on A's account lock before commit releases it.
+# B must then skip the existing award and still insert its unrelated signup.
 (
   PGAPPNAME=hours_supplemental_session_a \
     psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 >"${OUTPUT_A}" <<'SQL'
@@ -646,10 +748,15 @@ for ((attempt = 0; attempt < 100; attempt += 1)); do
     psql "${DATABASE_URL}" -X -At -v ON_ERROR_STOP=1 <<'SQL'
 SELECT EXISTS (
   SELECT 1
-  FROM pg_catalog.pg_stat_activity
-  WHERE application_name = 'hours_supplemental_session_b'
-    AND wait_event_type = 'Lock'
-    AND wait_event = 'transactionid'
+  FROM pg_catalog.pg_stat_activity AS waiting
+  WHERE waiting.application_name = 'hours_supplemental_session_b'
+    AND waiting.wait_event_type = 'Lock'
+    AND waiting.wait_event = 'advisory'
+    AND EXISTS (
+      SELECT 1 FROM pg_catalog.pg_stat_activity AS holder
+      WHERE holder.application_name = 'hours_supplemental_session_a'
+        AND holder.pid = ANY(pg_catalog.pg_blocking_pids(waiting.pid))
+    )
 );
 SQL
   )"
@@ -664,7 +771,7 @@ if [[ "${SUPPLEMENTAL_B_BLOCKED}" != "t" ]] \
   || ! kill -0 "${SUPPLEMENTAL_B_PID}" 2>/dev/null; then
   wait "${SUPPLEMENTAL_A_PID}" || true
   wait "${SUPPLEMENTAL_B_PID}" || true
-  echo "Supplemental session B did not block on session A's uncommitted certificate." >&2
+  echo "Supplemental session B did not block on session A's account lock." >&2
   exit 1
 fi
 
@@ -687,4 +794,4 @@ if [[ "${SUPPLEMENTAL_COUNT}" != "3" ]]; then
   exit 1
 fi
 
-echo "Concurrent publication replay, wall-clock delivery expiry, signup-status locking, membership-revocation locking, and conflict-tolerant supplemental issuance passed."
+echo "Concurrent publication replay, wall-clock delivery expiry, signup-status locking, membership-revocation locking, and serialized supplemental issuance passed."

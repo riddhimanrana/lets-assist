@@ -1,0 +1,157 @@
+{
+  "schema": "lets-assist-static-image-proof-v1",
+  "sourceOnly": true,
+  "repoRoot": "/Users/riddhiman.rana/Documents/Codex/2026-10-11/lets-assist-navigation-design/checkout",
+  "proof": "Exact Git-tracked public static paths and content hashes, with source routing excluding image extensions; never a suffix-only runtime allowlist.",
+  "assets": [
+    {
+      "route": "/demo/avatars/avery-patel.png",
+      "sourceFile": "public/demo/avatars/avery-patel.png",
+      "sha256": "2003603aa9c176404d2d0182aab4afaa04ec02284f1f4c3eb81629fdd6ee63f6"
+    },
+    {
+      "route": "/demo/avatars/jordan-lee.png",
+      "sourceFile": "public/demo/avatars/jordan-lee.png",
+      "sha256": "fe98bb50c27ee8dd5483f680fd540b65ffe91e196d1c97683c4dbc7873af358f"
+    },
+    {
+      "route": "/demo/avatars/maya-chen.png",
+      "sourceFile": "public/demo/avatars/maya-chen.png",
+      "sha256": "248937cb7efa8e1d6453b44a82e17dafc12e5f4aaac9494329d71f2f18935eb6"
+    },
+    {
+      "route": "/demo/avatars/priya-shah.png",
+      "sourceFile": "public/demo/avatars/priya-shah.png",
+      "sha256": "7f3ca2ab9048e496c15f5f8ba221a4ac0ada6c514e3e3342ae632168b51a8930"
+    },
+    {
+      "route": "/demo/avatars/riddhiman-rana.png",
+      "sourceFile": "public/demo/avatars/riddhiman-rana.png",
+      "sha256": "e83fcbf12f54dcc9ade7f3d9249b7c1f07c424cb7b4db56d9574f46edfef18b0"
+    },
+    {
+      "route": "/demo/projects/santa-cruz-beach-cleanup.png",
+      "sourceFile": "public/demo/projects/santa-cruz-beach-cleanup.png",
+      "sha256": "f34e0fb1582e9a90141679e54e1e1cd49589ae04dc6494f860195b8db7688604"
+    },
+    {
+      "route": "/favicon.ico",
+      "sourceFile": "public/favicon.ico",
+      "sha256": "6fc6ad013fe901a6c5a3f78b01c5a1b41ff62ad6056da0b7b0a56c36103f9bcd"
+    },
+    {
+      "route": "/images/congressional-recognition-certificate.jpeg",
+      "sourceFile": "public/images/congressional-recognition-certificate.jpeg",
+      "sha256": "5fc4b342a7e6322aaa53c0b3973dc2ccf49e8dc8aff21e05375170e3d7673a5b"
+    },
+    {
+      "route": "/images/landing/csf-point-review-preview.png",
+      "sourceFile": "public/images/landing/csf-point-review-preview.png",
+      "sha256": "13271817ed257e8880a77e0458fad6620bba34416801fb1251bbd16041567d2d"
+    },
+    {
+      "route": "/images/landing/qr-check-in-success.jpg",
+      "sourceFile": "public/images/landing/qr-check-in-success.jpg",
+      "sha256": "a0b9d3357e21aed7223fcae12b68c253633feb1d60e8eab450921b2552e01e0a"
+    },
+    {
+      "route": "/images/landing/qr-scan-event.jpg",
+      "sourceFile": "public/images/landing/qr-scan-event.jpg",
+      "sha256": "f4f82f6ff938eb7a3569461825e377fab9485cbaaee34d28b6d4430bc99a54f3"
+    },
+    {
+      "route": "/images/landing/qr-scan-phone.jpg",
+      "sourceFile": "public/images/landing/qr-scan-phone.jpg",
+      "sha256": "2adaa3a3fa03b4b56810d646d287846d0c2e71b364b28689ca5016b735cfb397"
+    },
+    {
+      "route": "/images/landing/waiver-settings-preview.png",
+      "sourceFile": "public/images/landing/waiver-settings-preview.png",
+      "sha256": "ae4fcce3c236d334466e2d354f19dc11cc374a2e9dbbc521ab02e2b3c0668da2"
+    },
+    {
+      "route": "/logo.png",
+      "sourceFile": "public/logo.png",
+      "sha256": "520053394300d16d8d4a02cddeb37727944eaabd6ebf8cab96dab03287b8b0b3"
+    },
+    {
+      "route": "/logos/congressional-app-challenge-cropped.svg",
+      "sourceFile": "public/logos/congressional-app-challenge-cropped.svg",
+      "sha256": "2f9e864b4a8ae9a890aa920fb34be16cadb9d442d6ed48e8eea7cde5e2826a3f"
+    },
+    {
+      "route": "/logos/dvhigh-csf.png",
+      "sourceFile": "public/logos/dvhigh-csf.png",
+      "sha256": "a595266ae242080caca4943b0a0698c11efa3ef8e9a2ca99616ac2760a376327"
+    },
+    {
+      "route": "/logos/dvhs.png",
+      "sourceFile": "public/logos/dvhs.png",
+      "sha256": "f24c2712587daa67385420d16f371d375dcaa375fcac4cdf6ebb64f23311e536"
+    },
+    {
+      "route": "/logos/kofc-6043.jpg",
+      "sourceFile": "public/logos/kofc-6043.jpg",
+      "sha256": "bb39142bc3df92168ddeb6552c18020764abfc91ade380647eebe1d1a7b8972c"
+    },
+    {
+      "route": "/logos/sanramon.jpg",
+      "sourceFile": "public/logos/sanramon.jpg",
+      "sha256": "b70a1c46abda1d1ef66cf7c053fbe8a640cb0a25da44ac220bbbd774eef352af"
+    },
+    {
+      "route": "/logos/troop941.png",
+      "sourceFile": "public/logos/troop941.png",
+      "sha256": "dc7434ce30c1385b0a2c53508a15e5963367a225ef2a705f52bcf9f0f93c9da8"
+    },
+    {
+      "route": "/logos/wrms.png",
+      "sourceFile": "public/logos/wrms.png",
+      "sha256": "c8249f9f92a7b6f07c80c49e5f5c8ed7fd720bad48555f33dd7f1457e5f25dbc"
+    },
+    {
+      "route": "/resources/google-calendar-logo-2026.png",
+      "sourceFile": "public/resources/google-calendar-logo-2026.png",
+      "sha256": "f64391983e5580386bc61767a209c7299313ddab5a7c04227278af49ec46bee7"
+    },
+    {
+      "route": "/resources/google-calendar-logo.svg",
+      "sourceFile": "public/resources/google-calendar-logo.svg",
+      "sha256": "de808e7578697cbc9e368ce0998b251f622a30295674f734df3a42f82a734c0b"
+    },
+    {
+      "route": "/resources/google-drive-logo-2026.png",
+      "sourceFile": "public/resources/google-drive-logo-2026.png",
+      "sha256": "bf82ccf1aaa8a2925c4dee0c8bfd38da3cbb6eec442e17d8c012a71d78bdd876"
+    },
+    {
+      "route": "/resources/google-logo-2026.png",
+      "sourceFile": "public/resources/google-logo-2026.png",
+      "sha256": "c03135715da42d8fdb9a74ebb213b6a4a36b7e03594ba75d11ace45a9d9dfdb3"
+    },
+    {
+      "route": "/resources/google-sheets-logo-2026.png",
+      "sourceFile": "public/resources/google-sheets-logo-2026.png",
+      "sha256": "d50d8e26d00925a4ca848ee4287ff11bc448e5312a80d6e993c8fbb34ee23d47"
+    },
+    {
+      "route": "/resources/google-sheets-logo.svg",
+      "sourceFile": "public/resources/google-sheets-logo.svg",
+      "sha256": "67f2cea5120de0dcb006c1ba755003a981a7bab7b8ab2a37781067432bdd98e1"
+    },
+    {
+      "route": "/resources/riddhiman-rana-logo.webp",
+      "sourceFile": "public/resources/riddhiman-rana-logo.webp",
+      "sha256": "d730615303c650fe55d796d7f4e326c4b2a0529c7bf1ed55cb3101077399e121"
+    },
+    {
+      "route": "/resources/signupgenius-logo.jpg",
+      "sourceFile": "public/resources/signupgenius-logo.jpg",
+      "sha256": "223ecd7fe40eba48f3bc96096b71d3f9f795d11f6289da6d81cb208ccca48982"
+    }
+  ],
+  "routingSourceHashes": {
+    "next.config.ts": "06655de34d471fc217811c8b6e0a657794fba920e4c22f7c5d804fe2307f541a",
+    "proxy.ts": "4c9e1ce0568f2d7b0300d16ab8955d774950f28edc1dea0133f7500fe3d42618"
+  }
+}

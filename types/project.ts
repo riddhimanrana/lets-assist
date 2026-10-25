@@ -61,7 +61,7 @@ export interface Project {
   created_by_role?: OrganizationRole;
   cancelled_at?: string;
   cancellation_reason?: string;
-  profiles: Profile;
+  profiles?: Profile;
   created_at: string;
   cover_image_url?: string | null;
   session_id?: string | null;

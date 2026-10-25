@@ -1,4 +1,5 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { cookies } from "next/headers";
 import { TZDate } from "@date-fns/tz";
@@ -41,7 +42,7 @@ export async function getScheduledCheckoutTime(
     .single();
 
   if (error) {
-    console.error(
+    safeConsole.error(
       "[getScheduledCheckoutTime] Error fetching project schedule:",
       error,
     );
@@ -49,7 +50,7 @@ export async function getScheduledCheckoutTime(
   }
 
   if (!project) {
-    console.warn(
+    safeConsole.warn(
       "[getScheduledCheckoutTime] Project not found for id:",
       projectId,
     );
@@ -86,7 +87,7 @@ export async function getScheduledCheckoutTime(
       date.setHours(hours, minutes, 0, 0);
       return date;
     } catch (err) {
-      console.error(
+      safeConsole.error(
         "[getScheduledCheckoutTime] Failed to build datetime:",
         err,
       );

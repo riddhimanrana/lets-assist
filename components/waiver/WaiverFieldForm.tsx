@@ -356,7 +356,7 @@ function FieldRenderer({
       )}
 
       {shouldShowValidationError && (
-        <p className="text-[0.8rem] font-medium text-destructive">
+        <p className="text-sm font-medium text-destructive">
           {validationMessage}
         </p>
       )}

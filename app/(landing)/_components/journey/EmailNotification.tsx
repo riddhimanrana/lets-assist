@@ -7,7 +7,7 @@ export function EmailNotification() {
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-6">
       <motion.div
-        initial={{ scale: 0.8, opacity: 0, y: 20 }}
+        initial={false}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", duration: 0.6, delay: 0.2 }}
         className="relative"
@@ -16,7 +16,7 @@ export function EmailNotification() {
           <Mail className="h-16 w-16 text-primary" />
         </div>
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
+          initial={false}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", duration: 0.4, delay: 0.5 }}
           className="absolute -top-2 -right-2 bg-success/20 rounded-full p-1"
@@ -26,12 +26,12 @@ export function EmailNotification() {
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
         className="text-center"
       >
-        <p className="text-sm font-semibold mb-1">Signup Confirmed!</p>
+        <p className="text-sm font-semibold mb-1">Signup confirmed</p>
         <p className="text-xs text-muted-foreground">
           Email notification from Let&apos;s Assist
         </p>

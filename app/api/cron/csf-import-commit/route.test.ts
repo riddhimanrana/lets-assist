@@ -24,6 +24,16 @@ mock.module("@/services/csf-import-commit-worker", () => ({
     return actionResult;
   },
 }));
+const observationCalls: string[] = [];
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls.push(worker);
+    return operation();
+  },
+}));
 const { POST, maxDuration } = await import("./route");
 const { NextRequest } = await import("next/server");
 
@@ -44,6 +54,7 @@ function request(token = "synthetic-import-token") {
 }
 
 beforeEach(() => {
+  observationCalls.length = 0;
   rpcCalls.length = 0;
   actionCalls.length = 0;
   rpcResults = [];
@@ -67,6 +78,22 @@ describe("CSF import commit worker route", () => {
   test("rejects unauthorized calls before claiming work", async () => {
     expect((await POST(request("wrong"))).status).toBe(401);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
+  });
+
+  test("accepts every configured token when CRON_TOKEN differs from Vercel's CRON_SECRET", async () => {
+    process.env.CRON_TOKEN = "synthetic-cron-token";
+    process.env.CRON_SECRET = "synthetic-cron-secret";
+    for (const token of [
+      "synthetic-import-token",
+      "synthetic-cron-token",
+      "synthetic-cron-secret",
+    ]) {
+      expect((await POST(request(token))).status).toBe(200);
+    }
+    expect((await POST(request("synthetic-other-token"))).status).toBe(401);
+    expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("does no work while disabled", async () => {
@@ -78,6 +105,7 @@ describe("CSF import commit worker route", () => {
       blocked: 0,
     });
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toHaveLength(0);
   });
 
   test("claims one preview, commits it, and settles the queue receipt", async () => {
@@ -94,6 +122,7 @@ describe("CSF import commit worker route", () => {
       blocked: 0,
     });
     expect(actionCalls).toHaveLength(1);
+    expect(observationCalls).toEqual(["csf-import-commit"]);
     expect(rpcCalls.map((call) => call.name)).toEqual([
       "csf_claim_import_commit_queue",
       "csf_finish_import_commit_queue",

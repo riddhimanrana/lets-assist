@@ -571,7 +571,7 @@ SELECT extensions.throws_ok(
       'fa200000-0000-4000-8000-00000000000a', false, NULL
     )
   $$,
-  '40001',
+  'PT409',
   'application runtime changed since this request was prepared',
   'a newly submitted stale transition cannot overwrite newer state'
 );

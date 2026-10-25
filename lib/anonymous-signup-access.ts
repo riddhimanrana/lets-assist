@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { getAdminClient } from "@/lib/supabase/admin";
 
 export type AnonymousSignupAccessRecord = {
@@ -45,7 +46,7 @@ export async function getAnonymousSignupAccessRecord<
     .maybeSingle<T>();
 
   if (error) {
-    console.error("Error validating anonymous signup token access:", error);
+    safeConsole.error("Error validating anonymous signup token access:", error);
     return {
       data: null as T | null,
       error: "Failed to validate anonymous access",

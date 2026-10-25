@@ -1,12 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/services/email";
+import { deliverInvitation } from "./invitation-delivery";
 import OrganizationInvitation from "@/emails/organization-invitation";
 import { parseContactImportFile } from "@/lib/organization/contact-import-parser";
 import {
   getInvitationBaseUrl,
   getInvitationExpirationDetails,
   normalizeInvitationDuration,
-  type InvitationDeliveryStatus,
   type InvitationDuration,
 } from "@/lib/organization/invitation-utils";
 import type {
@@ -574,37 +573,28 @@ export async function processContactImportJobBatch(params: {
     }
 
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitationData.token}`;
-    const attemptedAtIso = new Date().toISOString();
-    const emailResult = await sendEmail({
-      to: lowerEmail,
-      subject: `You're invited to join ${organization.name} on Let's Assist`,
-      react: OrganizationInvitation({
-        organizationName: organization.name,
-        organizationUsername: organization.username,
-        inviterName,
-        recipientName: row.full_name,
-        role: job.role,
-        inviteUrl,
-        expiresAt: expiresAtDisplay,
-      }),
-      type: "transactional",
+    pendingInvitationEmails.add(lowerEmail);
+    const emailResult = await deliverInvitation({
+      supabase,
+      invitationId: invitationData.id,
+      email: {
+        to: lowerEmail,
+        subject: `You're invited to join ${organization.name} on Let's Assist`,
+        react: OrganizationInvitation({
+          organizationName: organization.name,
+          organizationUsername: organization.username,
+          inviterName,
+          recipientName: row.full_name,
+          role: job.role,
+          inviteUrl,
+          expiresAt: expiresAtDisplay,
+        }),
+        type: "transactional",
+      },
     });
 
-    if (!emailResult.success && !emailResult.skipped) {
-      const reason = "Invitation email could not be sent";
-
-      await supabase
-        .from("organization_invitations")
-        .update({
-          email_delivery_status: "failed",
-          email_delivery_error: reason,
-          last_email_attempt_at: attemptedAtIso,
-          last_email_sent_at: null,
-          email_message_id: null,
-          email_transport: null,
-        })
-        .eq("id", invitationData.id);
-
+    if (!emailResult.success) {
+      const reason = emailResult.error;
       await markRow("failed", reason, invitationData.id);
       failedCount++;
       lastErrorMessage = reason;
@@ -616,24 +606,6 @@ export async function processContactImportJobBatch(params: {
       });
       continue;
     }
-
-    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
-      ? "skipped"
-      : "sent";
-
-    await supabase
-      .from("organization_invitations")
-      .update({
-        email_delivery_status: deliveryStatus,
-        email_delivery_error: emailResult.skipped
-          ? emailResult.reason || null
-          : null,
-        last_email_attempt_at: attemptedAtIso,
-        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
-        email_message_id: emailResult.data?.id || null,
-        email_transport: emailResult.data?.transport || null,
-      })
-      .eq("id", invitationData.id);
 
     await markRow("invited", null, invitationData.id);
     invitedCount++;
@@ -868,63 +840,37 @@ export async function importContactsDirectFromFile(params: {
     }
 
     const inviteUrl = `${baseUrl}/organization/join/invite?token=${invitationData.token}`;
-    const attemptedAtIso = new Date().toISOString();
 
-    const emailResult = await sendEmail({
-      to: lowerEmail,
-      subject: `You're invited to join ${organization.name} on Let's Assist`,
-      react: OrganizationInvitation({
-        organizationName: organization.name,
-        organizationUsername: organization.username,
-        inviterName,
-        recipientName: row.fullName,
-        role,
-        inviteUrl,
-        expiresAt: expiresAtDisplay,
-      }),
-      type: "transactional",
+    pendingInvitationEmails.add(lowerEmail);
+    const emailResult = await deliverInvitation({
+      supabase,
+      invitationId: invitationData.id,
+      email: {
+        to: lowerEmail,
+        subject: `You're invited to join ${organization.name} on Let's Assist`,
+        react: OrganizationInvitation({
+          organizationName: organization.name,
+          organizationUsername: organization.username,
+          inviterName,
+          recipientName: row.fullName,
+          role,
+          inviteUrl,
+          expiresAt: expiresAtDisplay,
+        }),
+        type: "transactional",
+      },
     });
 
-    if (!emailResult.success && !emailResult.skipped) {
-      await supabase
-        .from("organization_invitations")
-        .update({
-          email_delivery_status: "failed",
-          email_delivery_error: "Invitation email could not be sent",
-          last_email_attempt_at: attemptedAtIso,
-          last_email_sent_at: null,
-          email_message_id: null,
-          email_transport: null,
-        })
-        .eq("id", invitationData.id);
-
+    if (!emailResult.success) {
       results.push({
         email: lowerEmail,
         success: false,
-        error: "Invitation email could not be sent",
+        error: emailResult.error,
         invitationId: invitationData.id,
       });
       failed++;
       continue;
     }
-
-    const deliveryStatus: InvitationDeliveryStatus = emailResult.skipped
-      ? "skipped"
-      : "sent";
-
-    await supabase
-      .from("organization_invitations")
-      .update({
-        email_delivery_status: deliveryStatus,
-        email_delivery_error: emailResult.skipped
-          ? emailResult.reason || null
-          : null,
-        last_email_attempt_at: attemptedAtIso,
-        last_email_sent_at: emailResult.success ? attemptedAtIso : null,
-        email_message_id: emailResult.data?.id || null,
-        email_transport: emailResult.data?.transport || null,
-      })
-      .eq("id", invitationData.id);
 
     results.push({
       email: lowerEmail,

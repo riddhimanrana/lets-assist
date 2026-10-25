@@ -3,24 +3,28 @@ import { getTimezoneAbbreviation } from "@/utils/timezone";
 
 interface TimezoneBadgeProps {
   timezone: string;
+  /**
+   * When the time being labelled falls: a Date, an ISO timestamp, or a
+   * yyyy-MM-dd day. Daylight saving changes the abbreviation, so pass it
+   * whenever the badge sits beside an event date.
+   */
+  date?: Date | string | null;
   className?: string;
 }
 
 /**
- * Display timezone abbreviation badge (e.g., PST, EST)
- * Shows the timezone in a small, subtle badge
+ * The timezone abbreviation (PST, EST) as a label badge. It says what the
+ * time is in, so it is a label, not a status.
  */
 export function TimezoneBadge({
   timezone,
-  className = "",
+  date,
+  className,
 }: TimezoneBadgeProps) {
-  const abbreviation = getTimezoneAbbreviation(timezone);
+  const abbreviation = getTimezoneAbbreviation(timezone, date);
 
   return (
-    <Badge
-      variant="secondary"
-      className={`text-xs font-normal px-1.5 py-0.5 ${className}`}
-    >
+    <Badge variant="outline" className={className}>
       {abbreviation}
     </Badge>
   );

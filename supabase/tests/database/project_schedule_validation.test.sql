@@ -132,6 +132,7 @@ RESET ROLE;
 -- trigger must not make an unrelated edit impossible merely because legacy
 -- schedule metadata was already invalid.
 ALTER TABLE public.projects DISABLE TRIGGER enforce_project_schedule_validation;
+ALTER TABLE public.projects DISABLE TRIGGER validate_published_project_schedule;
 INSERT INTO public.projects (
   id, creator_id, title, location, description, event_type,
   verification_method, schedule, require_login, visibility,
@@ -144,6 +145,7 @@ INSERT INTO public.projects (
   '{"frequency":"daily","interval":0,"end_type":"never"}'::jsonb
 );
 ALTER TABLE public.projects ENABLE TRIGGER enforce_project_schedule_validation;
+ALTER TABLE public.projects ENABLE TRIGGER validate_published_project_schedule;
 
 SET LOCAL ROLE authenticated;
 

@@ -48,7 +48,18 @@ export function formatDateRangeLabel(
   const startLabel = format(value.from, "MMM d");
 
   if (value.to && value.to.getTime() !== value.from.getTime()) {
-    return `${startLabel} - ${format(value.to, "MMM d")}`;
+    // A range that crosses a year reads as reversed without the years, and a
+    // range in another year needs one to be placed at all.
+    const fromYear = value.from.getFullYear();
+    const toYear = value.to.getFullYear();
+    if (fromYear !== toYear) {
+      return `${format(value.from, "MMM d, yyyy")} – ${format(value.to, "MMM d, yyyy")}`;
+    }
+    const endLabel = format(
+      value.to,
+      toYear === new Date().getFullYear() ? "MMM d" : "MMM d, yyyy",
+    );
+    return `${startLabel} – ${endLabel}`;
   }
 
   return options.singleDatePrefix
@@ -179,7 +190,10 @@ export function DateRangePicker({
     <div className={cn("flex flex-col sm:flex-row gap-2 w-full", className)}>
       {showQuickSelect && (
         <Select value={selectedPreset} onValueChange={handleQuickSelect}>
-          <SelectTrigger className="w-full sm:w-[200px] h-9">
+          <SelectTrigger
+            aria-label="Quick date range"
+            className="w-full sm:w-[200px] h-9"
+          >
             <SelectValue placeholder="Quick select">
               {selectedPreset === "academic-year"
                 ? "This Academic Year"
@@ -213,6 +227,11 @@ export function DateRangePicker({
           render={
             <Button
               id="date"
+              aria-label={
+                value?.from
+                  ? `Date range: ${formatDateRangeLabel(value)}`
+                  : "Select date range"
+              }
               variant="outline"
               className={cn(
                 "justify-start text-left",

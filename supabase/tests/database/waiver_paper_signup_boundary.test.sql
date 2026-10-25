@@ -73,13 +73,20 @@ WHERE id IN (
   'c9100000-0000-4000-8000-000000000002'
 );
 
+-- The digital signature names the project's waiver document, which exists.
+INSERT INTO storage.objects (bucket_id, name)
+VALUES ('waiver-uploads',
+        'project_waivers/c9100000-0000-4000-8000-000000000001/source.pdf');
+
 INSERT INTO public.waiver_signatures (
-  project_id, signup_id, user_id, signer_name, signer_email, signature_type
+  project_id, signup_id, user_id, signer_name, signer_email, signature_type,
+  waiver_pdf_storage_path
 )
 VALUES ('c9100000-0000-4000-8000-000000000001',
         'c9200000-0000-4000-8000-000000000001',
         'c9000000-0000-4000-8000-000000000002',
-        'Signed Volunteer', 'paper-waiver-signed@local.test', 'typed');
+        'Signed Volunteer', 'paper-waiver-signed@local.test', 'typed',
+        'project_waivers/c9100000-0000-4000-8000-000000000001/source.pdf');
 
 INSERT INTO public.project_paper_scan_batches (
   id, project_id, schedule_id, created_by, status
@@ -119,6 +126,13 @@ VALUES
    'c9100000-0000-4000-8000-000000000002', 1, '{}',
    'Staged Sam', 'paper-waiver-staged@local.test', NULL, NULL, 'include');
 
+-- These fixtures represent a reviewer who supplied and confirmed exact times.
+UPDATE public.project_paper_scan_rows rows SET review_acknowledged=true,identity_confirmed=true,
+  check_in_time=COALESCE(rows.check_in_time, slot.starts_at),check_out_time=COALESCE(rows.check_out_time,slot.ends_at),
+  time_exception_reason='Reviewer confirmed source attendance window'
+FROM public.project_paper_scan_batches batches CROSS JOIN LATERAL private.resolve_project_schedule_slot(batches.project_id,batches.schedule_id) slot
+WHERE rows.batch_id=batches.id AND rows.id::text LIKE 'c9%';
+
 -- ---------------------------------------------------------------------------
 -- An unpublished project refuses the whole batch
 -- ---------------------------------------------------------------------------
@@ -133,7 +147,7 @@ SELECT extensions.throws_ok(
       'c9500000-0000-4000-8000-000000000009'
     )
   $$,
-  'commit_paper_signup_batch: project is not published',
+  'project is not published',
   'a staged project cannot gain attendance through a paper commit'
 );
 

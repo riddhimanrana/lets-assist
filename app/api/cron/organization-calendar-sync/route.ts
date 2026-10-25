@@ -1,44 +1,54 @@
+import { workerResponseSummary } from "@/lib/cron/worker-response-summary";
+import { observeWorkerRun } from "@/lib/cron/worker-observation";
+import { workerHeartbeatOwner } from "@/lib/cron/worker-heartbeat";
+import { safeConsole } from "@/lib/safe-console";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  mapWithConcurrency,
-  readPositiveInteger,
-} from "@/lib/async/map-with-concurrency";
+import { readPositiveInteger } from "@/lib/async/map-with-concurrency";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { syncOrganizationCalendarInternal } from "@/lib/organization/calendar-sync";
+import {
+  runOrganizationCalendarSyncQueue,
+  type CalendarSyncQueueClient,
+} from "@/lib/organization/calendar-sync-queue";
 import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
+import { cronTokens, isCronBearerAuthorized } from "@/lib/cron/cron-auth";
+
+export const maxDuration = 60;
 
 const WORKER_ENABLED = process.env.ORG_CALENDAR_SYNC_WORKER_ENABLED !== "false";
-const WORKER_TOKEN = process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN;
-const CRON_SECRET = process.env.CRON_TOKEN ?? process.env.CRON_SECRET;
 const CALENDAR_SYNC_CONCURRENCY = readPositiveInteger(
   process.env.ORG_CALENDAR_SYNC_CONCURRENCY,
   3,
   10,
 );
 
+// Every bound below comes from the deployment's environment or from this
+// file. Nothing in the request can raise one.
+const MAX_ORGANIZATIONS_PER_RUN = readPositiveInteger(
+  process.env.ORG_CALENDAR_SYNC_MAX_PER_RUN,
+  25,
+  200,
+);
+// No query runs and no organization starts once the run is this close to the
+// function limit.
+const RUN_BUDGET_MS = maxDuration * 1000 - 10_000;
+// One organization gets this long, so a slow or very large calendar for one
+// tenant cannot use up the run for the others.
+const ORGANIZATION_BUDGET_MS = readPositiveInteger(
+  process.env.ORG_CALENDAR_SYNC_ORG_BUDGET_MS,
+  30_000,
+  30_000,
+);
+const MINIMUM_START_BUDGET_MS = Math.min(5_000, ORGANIZATION_BUDGET_MS);
+// How long a slot waits for a timed-out organization's work to end before
+// the next organization may use it.
+const SETTLE_GRACE_MS = Math.min(2_000, ORGANIZATION_BUDGET_MS);
+
 function isAuthorized(request: NextRequest) {
-  const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
-
-  const allowedTokens = [WORKER_TOKEN, CRON_SECRET].filter(
-    (value): value is string => Boolean(value),
+  return isCronBearerAuthorized(
+    request.headers.get("authorization"),
+    cronTokens(process.env.ORG_CALENDAR_SYNC_WORKER_SECRET_TOKEN),
   );
-
-  if (allowedTokens.length === 0) {
-    return false;
-  }
-
-  if (!token || !allowedTokens.includes(token)) {
-    return false;
-  }
-
-  return true;
-}
-
-function isDue(lastSyncedAt: string | null, intervalMinutes: number) {
-  if (!lastSyncedAt) return true;
-  const last = new Date(lastSyncedAt).getTime();
-  return Date.now() - last >= intervalMinutes * 60 * 1000;
 }
 
 export async function POST(request: NextRequest) {
@@ -53,74 +63,52 @@ export async function POST(request: NextRequest) {
 
   if (!WORKER_ENABLED) {
     return NextResponse.json(
-      { message: "Calendar sync worker disabled" },
-      { status: 200 },
+      { enabled: false, message: "Calendar sync worker disabled" },
+      { status: 503 },
     );
   }
 
-  const supabase = getAdminClient();
-  const { data: syncRows, error } = await supabase
-    .from("organization_calendar_syncs")
-    .select(
-      "organization_id, calendar_id, calendar_email, auto_sync, last_synced_at, created_by",
-    )
-    .eq("auto_sync", true);
+  const summary = workerResponseSummary("organization-calendar-sync");
+  return observeWorkerRun(
+    "organization-calendar-sync",
+    async () => {
+      const { status, body } = await runOrganizationCalendarSyncQueue({
+        // The queue makes one service-only database call for its batch.
+        supabase: getAdminClient() as unknown as CalendarSyncQueueClient,
+        sync: syncOrganizationCalendarInternal,
+        limits: {
+          maxOrganizations: MAX_ORGANIZATIONS_PER_RUN,
+          concurrency: CALENDAR_SYNC_CONCURRENCY,
+          runBudgetMs: RUN_BUDGET_MS,
+          minimumStartBudgetMs: MINIMUM_START_BUDGET_MS,
+          organizationBudgetMs: ORGANIZATION_BUDGET_MS,
+          settleGraceMs: SETTLE_GRACE_MS,
+        },
+        onThrown: (organizationId, error) =>
+          safeConsole.error(
+            "Application diagnostic from app/api/cron/organization-calendar-sync/route",
+            `Failed to sync calendar for org ${organizationId}:`,
+            error,
+          ),
+      });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Default sync interval for calendar is 1 hour (60 minutes)
-  const intervalMinutes = 60;
-
-  const dueRows = (syncRows || []).filter((row) =>
-    isDue(row.last_synced_at, intervalMinutes),
-  );
-  const results = await mapWithConcurrency(
-    dueRows,
-    CALENDAR_SYNC_CONCURRENCY,
-    async (row) => {
-      try {
-        const result = await syncOrganizationCalendarInternal(
-          row.organization_id,
-        );
-
-        if (result.success) {
-          return {
-            organizationId: row.organization_id,
-            success: true,
-            createdCount: result.createdCount,
-            updatedCount: result.updatedCount,
-            removedCount: result.removedCount,
-          };
-        } else {
-          return {
-            organizationId: row.organization_id,
-            success: false,
-            error: result.error || "Unknown error",
-          };
-        }
-      } catch (error) {
-        console.error(
-          `Failed to sync calendar for org ${row.organization_id}:`,
-          error,
-        );
-        return {
-          organizationId: row.organization_id,
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        };
-      }
+      // Captured even when discovery failed, so an unread queue is recorded
+      // as blocked with unknown counts instead of as a healthy empty pass.
+      summary.capture(body);
+      return NextResponse.json(
+        {
+          ...(status === 500
+            ? { error: "Calendar sync discovery failed" }
+            : {}),
+          ...body,
+          timestamp: new Date().toISOString(),
+        },
+        { status },
+      );
     },
-  );
-
-  return NextResponse.json(
-    {
-      processed: results.length,
-      results,
-      timestamp: new Date().toISOString(),
-    },
-    { status: 200 },
+    summary,
+    undefined,
+    { heartbeatOwner: workerHeartbeatOwner(request) },
   );
 }
 

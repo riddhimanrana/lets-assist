@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 
 mock.module("server-only", () => ({}));
+let observationCalls = 0;
+mock.module("@/lib/cron/worker-observation", () => ({
+  observeWorkerRun: async (
+    _worker: string,
+    operation: () => Promise<Response>,
+  ) => {
+    observationCalls++;
+    return operation();
+  },
+}));
 
 /**
  * The bounded worker invocation path, driven with no database, no provider, and
@@ -229,6 +239,7 @@ function authorized(method: "GET" | "POST" = "POST") {
 }
 
 beforeEach(() => {
+  observationCalls = 0;
   rpcCalls.length = 0;
   sendCalls.length = 0;
   supabaseClientOptions = undefined;
@@ -282,6 +293,7 @@ describe("the bounded CSF dispatch worker route", () => {
 
     expect(response.status).toBe(503);
     expect(rpcCalls).toHaveLength(0);
+    expect(observationCalls).toBe(1);
     expect(sendCalls).toHaveLength(0);
   });
 

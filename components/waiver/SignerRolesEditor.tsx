@@ -93,7 +93,7 @@ export function SignerRolesEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Signer Roles</h3>
+        <h3 className="text-sm font-medium">Signer roles</h3>
         <span className="text-xs text-muted-foreground">
           {signers.length} roles
         </span>
@@ -140,7 +140,7 @@ export function SignerRolesEditor({
                         handleUpdateSigner(index, { label: e.target.value })
                       }
                       className="h-8"
-                      placeholder="Role Name"
+                      placeholder="Role name"
                       disabled={readOnly}
                     />
                   </div>
@@ -188,7 +188,7 @@ export function SignerRolesEditor({
                     <Trash2 className="h-4 w-4" />
                   </span>
                 </TooltipTrigger>
-                <TooltipContent>Remove Role</TooltipContent>
+                <TooltipContent>Remove role</TooltipContent>
               </Tooltip>
             </CardContent>
           </Card>

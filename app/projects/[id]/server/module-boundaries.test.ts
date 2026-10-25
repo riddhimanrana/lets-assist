@@ -10,7 +10,11 @@ const signupsClientSource = readFileSync(
   join(serverDirectory, "../signups/SignupsClient.tsx"),
   "utf8",
 );
-const internalHelperFiles = ["access-helpers.ts", "waiver-persistence.ts"];
+const internalHelperFiles = [
+  "access-helpers.ts",
+  "waiver-persistence.ts",
+  "lifecycle-assets.ts",
+];
 const implementationFiles = readdirSync(serverDirectory)
   .filter(
     (file) =>
@@ -39,6 +43,7 @@ const PUBLIC_ACTIONS = [
   "getWaiverDefinition",
   "getWaiverDownloadUrl",
   "isProjectCreator",
+  "publishProjectDraft",
   "rejectSignup",
   "removeProjectWaiverPdf",
   "resendAnonymousConfirmationEmail",
@@ -250,8 +255,8 @@ describe("project action module boundaries", () => {
       .join("\n");
 
     for (const action of PUBLIC_ACTIONS) {
-      const start = implementationSource.indexOf(
-        `export async function ${action}`,
+      const start = implementationSource.search(
+        new RegExp(`export async function ${action}\\b`, "u"),
       );
       expect(
         start,

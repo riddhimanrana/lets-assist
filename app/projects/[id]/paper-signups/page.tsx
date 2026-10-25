@@ -1,3 +1,9 @@
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card } from "@/components/ui/card";
+import { z } from "zod";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -8,6 +14,10 @@ import {
   canManageProjectAccess,
 } from "@/lib/projects/management-access";
 import { getAttendanceScheduleWindow } from "@/lib/attendance/challenge";
+import {
+  getPublishStateKey,
+  getScheduleIdAliases,
+} from "@/lib/projects/hours-publish-key";
 import { getMultiDaySlotDisplayName, getProjectStatus } from "@/utils/project";
 import type { Project } from "@/types";
 
@@ -22,18 +32,13 @@ export const metadata: Metadata = {
   title: "Scan paper signups",
 };
 
-type RawExtractionField = { value: string | null; confidence: number };
-type RawExtraction = {
-  name?: RawExtractionField;
-  email?: RawExtractionField;
-  phone?: RawExtractionField;
-  timeIn?: RawExtractionField;
-  timeOut?: RawExtractionField;
-};
-
-function fieldConfidence(field: RawExtractionField | undefined): number {
-  return typeof field?.confidence === "number" ? field.confidence : 0;
-}
+import { REVIEW_ROW_COLUMNS, paperRowView } from "./row-view";
+import {
+  batchHistoryHref,
+  loadBatchHistoryPage,
+  UNRESOLVED_BATCH_STATUSES,
+  type BatchHistoryParams,
+} from "./batch-history";
 
 function buildSlotOptions(project: Project): PaperScanSlotOption[] {
   const options: Array<{ id: string; label: string }> = [];
@@ -64,6 +69,8 @@ function buildSlotOptions(project: Project): PaperScanSlotOption[] {
     return [
       {
         id: option.id,
+        aliases: getScheduleIdAliases(project, option.id),
+        publishKey: getPublishStateKey(project, option.id),
         label: option.label,
         windowStartsAt: window.startsAt,
         windowEndsAt: window.endsAt,
@@ -74,10 +81,24 @@ function buildSlotOptions(project: Project): PaperScanSlotOption[] {
 
 export default async function PaperSignupsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<
+    Partial<Record<keyof BatchHistoryParams, string | string[]>>
+  >;
 }) {
   const { id: projectId } = await params;
+  const rawParams = await searchParams;
+  const queryParams: BatchHistoryParams = {};
+  for (const key of [
+    "mode",
+    "batch",
+    "draftsBefore",
+    "historyBefore",
+  ] as const) {
+    if (typeof rawParams[key] === "string") queryParams[key] = rawParams[key];
+  }
 
   const { user, error: authError } = await getAuthUser();
   if (authError || !user) {
@@ -87,7 +108,7 @@ export default async function PaperSignupsPage({
   const supabase = await createClient();
   const { data: projectData } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
   if (!projectData) notFound();
@@ -118,16 +139,41 @@ export default async function PaperSignupsPage({
   }
 
   // The organizer's SELECT policies cover these reads; no admin client needed.
-  const { data: batchRow } = await supabase
+  let batchQuery = supabase
     .from("project_paper_scan_batches")
     .select(
-      "id, schedule_id, status, image_count, extracted_row_count, created_at",
+      "id, schedule_id, status, image_count, extracted_row_count, created_at, input_method",
     )
     .eq("project_id", projectId)
-    .in("status", ["draft", "extracting", "review"])
+    .in(
+      "status",
+      queryParams.batch
+        ? ["draft", "extracting", "review", "failed", "committed"]
+        : UNRESOLVED_BATCH_STATUSES,
+    )
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("id", { ascending: false })
+    .limit(1);
+  if (
+    queryParams.batch &&
+    z.string().uuid().safeParse(queryParams.batch).success
+  )
+    batchQuery = batchQuery.eq("id", queryParams.batch);
+  const { data: batchRow } = await batchQuery.maybeSingle();
+  const [drafts, history] = await Promise.all([
+    loadBatchHistoryPage(
+      supabase,
+      projectId,
+      "drafts",
+      queryParams.draftsBefore,
+    ),
+    loadBatchHistoryPage(
+      supabase,
+      projectId,
+      "history",
+      queryParams.historyBefore,
+    ),
+  ]);
 
   let openBatch: PaperScanBatchView | null = null;
   let rows: PaperScanRowView[] = [];
@@ -136,48 +182,22 @@ export default async function PaperSignupsPage({
     openBatch = {
       id: batchRow.id,
       scheduleId: batchRow.schedule_id,
-      status: batchRow.status as PaperScanBatchView["status"],
+      status:
+        batchRow.status === "committed"
+          ? "review"
+          : (batchRow.status as PaperScanBatchView["status"]),
       imageCount: batchRow.image_count,
+      inputMethod: batchRow.input_method,
     };
 
-    if (batchRow.status === "review") {
+    if (["review", "committed"].includes(batchRow.status)) {
       const { data: rowData } = await supabase
         .from("project_paper_scan_rows")
-        .select(
-          "id, sheet_row_number, image_id, raw_extraction, overall_confidence, name, email, phone, check_in_time, check_out_time, signature_present, match_kind, match_signup_id, match_score, match_reasons, decision, outcome, outcome_detail",
-        )
+        .select(REVIEW_ROW_COLUMNS)
         .eq("batch_id", batchRow.id)
         .order("sheet_row_number");
 
-      rows = (rowData ?? []).map((row) => {
-        const raw = (row.raw_extraction ?? {}) as RawExtraction;
-        return {
-          id: row.id,
-          sheetRowNumber: row.sheet_row_number,
-          imageId: row.image_id,
-          name: row.name,
-          email: row.email,
-          phone: row.phone,
-          checkInTime: row.check_in_time,
-          checkOutTime: row.check_out_time,
-          signaturePresent: row.signature_present,
-          overallConfidence: Number(row.overall_confidence ?? 0),
-          fieldConfidence: {
-            name: fieldConfidence(raw.name),
-            email: fieldConfidence(raw.email),
-            phone: fieldConfidence(raw.phone),
-            timeIn: fieldConfidence(raw.timeIn),
-            timeOut: fieldConfidence(raw.timeOut),
-          },
-          matchKind: row.match_kind,
-          matchSignupId: row.match_signup_id,
-          matchScore: row.match_score === null ? null : Number(row.match_score),
-          matchReasons: row.match_reasons ?? [],
-          decision: row.decision as PaperScanRowView["decision"],
-          outcome: row.outcome,
-          outcomeDetail: row.outcome_detail,
-        };
-      });
+      rows = (rowData ?? []).map(paperRowView);
     }
   }
 
@@ -189,20 +209,164 @@ export default async function PaperSignupsPage({
   const publishedState = (project.published ?? {}) as Record<string, boolean>;
 
   return (
-    <PaperSignupsClient
-      projectId={projectId}
-      projectTitle={project.title}
-      projectTimezone={project.project_timezone || "America/Los_Angeles"}
-      projectStatus={projectStatus}
-      publishedState={publishedState}
-      slotOptions={slotOptions}
-      initialBatch={openBatch}
-      initialRows={rows}
-      activeWindow={
-        activeWindow
-          ? { startsAt: activeWindow.startsAt, endsAt: activeWindow.endsAt }
-          : null
-      }
-    />
+    <>
+      <PaperSignupsClient
+        key={
+          typeof queryParams.batch === "string" ? queryParams.batch : "current"
+        }
+        initialMode={queryParams.mode === "manual" ? "manual" : "scan"}
+        projectId={projectId}
+        projectTitle={project.title}
+        projectTimezone={project.project_timezone || "America/Los_Angeles"}
+        projectStatus={projectStatus}
+        publishedState={publishedState}
+        slotOptions={slotOptions}
+        initialBatch={openBatch}
+        initialRows={rows}
+        activeWindow={
+          activeWindow
+            ? { startsAt: activeWindow.startsAt, endsAt: activeWindow.endsAt }
+            : null
+        }
+      />
+      <nav
+        aria-label="Saved attendance batches"
+        className="container mx-auto grid max-w-6xl items-start gap-4 px-4 pb-8 sm:grid-cols-2 sm:px-6"
+      >
+        {(
+          [
+            {
+              title: "Unfinished attendance drafts",
+              list: drafts,
+              cursor: "draftsBefore",
+              action: "Resume",
+            },
+            {
+              title: "Saved attendance history",
+              list: history,
+              cursor: "historyBefore",
+              action: "Open",
+            },
+          ] as const
+        ).map(({ title, list, cursor, action }) => (
+          <Card key={cursor} className="gap-0 py-0">
+            <details open={cursor === "draftsBefore" || list.hasCursor}>
+              <summary className="flex items-center gap-2 px-4 py-3 text-sm font-medium">
+                {title}
+                {list.rows.length > 0 ? (
+                  <Badge variant="secondary">{list.rows.length}</Badge>
+                ) : null}
+              </summary>
+              <div className="border-t px-2 py-2">
+                {list.rows.length === 0 ? (
+                  <p className="text-muted-foreground px-2 py-2 text-sm">
+                    No {list.hasCursor ? "older " : ""}
+                    {cursor === "draftsBefore"
+                      ? "unfinished drafts"
+                      : "saved history"}
+                    .
+                  </p>
+                ) : (
+                  <ul className="grid gap-0.5">
+                    {list.rows.map((draft) => (
+                      <li key={draft.id}>
+                        <Link
+                          className="hover:bg-muted focus-visible:ring-ring/50 aria-[current=page]:bg-muted flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm outline-none focus-visible:ring-[3px]"
+                          aria-current={
+                            draft.id === openBatch?.id ? "page" : undefined
+                          }
+                          href={batchHistoryHref(projectId, queryParams, {
+                            batch: draft.id,
+                          })}
+                        >
+                          <span className="grid min-w-0 gap-0.5">
+                            <span className="truncate font-medium">
+                              {action}{" "}
+                              {draft.input_method === "manual"
+                                ? "manual attendance"
+                                : "scanned sheets"}
+                              :{" "}
+                              {slotOptions.find((slot) =>
+                                slot.aliases?.includes(draft.schedule_id),
+                              )?.label ?? draft.schedule_id}
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {new Date(draft.created_at).toLocaleString(
+                                "en-US",
+                                {
+                                  timeZone:
+                                    project.project_timezone ||
+                                    "America/Los_Angeles",
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                },
+                              )}
+                            </span>
+                          </span>
+                          <Badge
+                            variant={
+                              draft.status === "failed"
+                                ? "destructive"
+                                : draft.status === "review"
+                                  ? "warning"
+                                  : draft.status === "extracting"
+                                    ? "info"
+                                    : draft.status === "draft"
+                                      ? "outline"
+                                      : "success"
+                            }
+                          >
+                            {draft.status === "failed"
+                              ? "Scan needs retry"
+                              : draft.status === "extracting"
+                                ? "Scan in progress"
+                                : draft.status === "review"
+                                  ? "Needs review"
+                                  : draft.status === "draft"
+                                    ? "Draft"
+                                    : "Saved"}
+                          </Badge>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {list.hasCursor || list.nextCursor ? (
+                  <div className="flex gap-1 px-0 pt-1">
+                    {list.hasCursor && (
+                      <Link
+                        className={buttonVariants({
+                          variant: "ghost",
+                          size: "sm",
+                        })}
+                        href={batchHistoryHref(projectId, queryParams, {
+                          [cursor]: null,
+                        })}
+                      >
+                        Newest{" "}
+                        {cursor === "draftsBefore" ? "drafts" : "history"}
+                      </Link>
+                    )}
+                    {list.nextCursor && (
+                      <Link
+                        className={buttonVariants({
+                          variant: "ghost",
+                          size: "sm",
+                        })}
+                        href={batchHistoryHref(projectId, queryParams, {
+                          [cursor]: list.nextCursor,
+                        })}
+                      >
+                        Older {cursor === "draftsBefore" ? "drafts" : "history"}
+                      </Link>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </details>
+          </Card>
+        ))}
+      </nav>
+    </>
   );
 }

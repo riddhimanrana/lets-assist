@@ -1,8 +1,8 @@
 name: Paper Signup Notifications
 
 on:
-  schedule:
-    - cron: "3,13,23,33,43,53 * * * *" # Every ten minutes, offset from shared workers
+  # Vercel Cron owns the schedule (vercel.json). This approval-gated
+  # dispatch is the manual fallback.
   workflow_dispatch:
 
 permissions:

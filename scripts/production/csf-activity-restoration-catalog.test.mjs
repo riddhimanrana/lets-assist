@@ -1,6 +1,7 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
@@ -9,7 +10,9 @@ const read = (file) =>
   JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
 const before = read("./final-schema-666.json");
 const after = read("./final-schema-667.json");
-const repository = new URL("../../", import.meta.url).pathname;
+const fixture = historicalReleaseTestFixture();
+const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 667);
 
 test("restoration changes only the two reviewed activity lifecycle functions", () => {

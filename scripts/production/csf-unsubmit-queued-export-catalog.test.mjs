@@ -1,6 +1,7 @@
+import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { after as afterTests } from "node:test";
 import { expectedVersions } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { finalSchemaCatalog } from "./final-schema-manifest.mjs";
@@ -14,7 +15,9 @@ const published = JSON.parse(read("./final-schema-679.json"));
 const latest = JSON.parse(read("./final-schema-680.json"));
 const retryFix = JSON.parse(read("./final-schema-681.json"));
 const queueLockOrder = JSON.parse(read("./final-schema-682.json"));
-const repository = new URL("../../", import.meta.url).pathname;
+const fixture = historicalReleaseTestFixture();
+const repository = fixture.cwd;
+afterTests(fixture.dispose);
 const versions = expectedVersions(repository).slice(0, 682);
 
 test("queued export release changes only the deletion and both queue functions", () => {

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+
+import { SettingsSection } from "@/components/layout/SettingsSection";
+
 import BulkImportDialog from "./BulkImportDialog";
 import PendingInvitations from "./PendingInvitations";
 
@@ -19,28 +22,28 @@ export default function BulkImportSection({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Bulk Import Action */}
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Upload CSV/Excel files (or paste emails) to invite members in bulk.
-          </p>
-        </div>
-        <BulkImportDialog
-          organizationId={organizationId}
-          onSuccess={handleImportSuccess}
-        />
-      </div>
+    <>
+      <SettingsSection
+        title="Bulk import"
+        description="Invite many members or staff at once by email."
+        footerHint="Upload a CSV or Excel file, or paste a list of emails."
+        footer={
+          <BulkImportDialog
+            organizationId={organizationId}
+            onSuccess={handleImportSuccess}
+          />
+        }
+      />
 
-      {/* Pending Invitations List */}
-      <div className="pt-4 border-t">
-        <h4 className="font-medium mb-4">Invitation History</h4>
+      <SettingsSection
+        title="Invitation history"
+        description="Email invitations sent for this organization and where each one stands."
+      >
         <PendingInvitations
           organizationId={organizationId}
           refreshKey={refreshKey}
         />
-      </div>
-    </div>
+      </SettingsSection>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 -- Paper signup scan commit: privileges, retroactive commit on a completed
--- project, provenance, time clamping, dedupe, capacity, idempotent replay,
+-- project, provenance, reviewed time exceptions, dedupe, capacity, idempotent replay,
 -- actor authorization, and organizer-scoped RLS.
 
 BEGIN;
@@ -230,6 +230,13 @@ VALUES
    'b5100000-0000-4000-8000-000000000001', 1, '{}',
    'Late Addition Lee', 'paper-late@local.test', NULL, NULL, 'include');
 
+-- These fixtures represent a reviewer who supplied and confirmed exact times.
+UPDATE public.project_paper_scan_rows rows SET review_acknowledged=true,identity_confirmed=true,
+  check_in_time=COALESCE(rows.check_in_time, slot.starts_at),check_out_time=COALESCE(rows.check_out_time,slot.ends_at),
+  time_exception_reason='Reviewer confirmed source attendance window'
+FROM public.project_paper_scan_batches batches CROSS JOIN LATERAL private.resolve_project_schedule_slot(batches.project_id,batches.schedule_id) slot
+WHERE rows.batch_id=batches.id AND rows.id::text LIKE 'b5%';
+
 -- ---------------------------------------------------------------------------
 -- Commit batch 1 (allow_over_capacity = false) on a completed project
 -- ---------------------------------------------------------------------------
@@ -282,14 +289,14 @@ SELECT extensions.is(
   'paper-created signups carry paper_scan provenance'
 );
 SELECT extensions.ok(
-  (SELECT signups.check_out_time = slot.ends_at
-     AND signups.check_in_time = slot.starts_at
+  (SELECT signups.check_out_time = slot.ends_at + interval '8 hours'
+     AND signups.check_in_time = slot.starts_at - interval '1 hour'
    FROM public.project_signups AS signups
    CROSS JOIN private.resolve_project_schedule_slot(
      signups.project_id, signups.schedule_id) AS slot
    WHERE signups.id = (SELECT result.signup_id FROM commit_result_one AS result
                        WHERE result.row_id = 'b5500000-0000-4000-8000-000000000002')),
-  'transcribed times are clamped to the scheduled slot window'
+  'reviewed time exceptions retain the actual attendance window'
 );
 SELECT extensions.is(
   (SELECT count(*) FROM public.anonymous_signups AS anon
@@ -319,8 +326,8 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT result.outcome || ':' || result.detail FROM commit_result_one AS result
    WHERE result.row_id = 'b5500000-0000-4000-8000-000000000004'),
-  'skipped:duplicate_in_batch',
-  'a duplicate email within one batch is skipped, not double-committed'
+  'failed:duplicate_attendance_requires_correction',
+  'duplicate attendance requires review rather than a second signup'
 );
 SELECT extensions.is(
   (SELECT result.outcome || ':' || result.detail FROM commit_result_one AS result
@@ -337,8 +344,8 @@ SELECT extensions.is(
 SELECT extensions.is(
   (SELECT batches.status FROM public.project_paper_scan_batches AS batches
    WHERE batches.id = 'b5400000-0000-4000-8000-000000000001'),
-  'committed',
-  'the batch settles to committed'
+  'review',
+  'the batch retains unresolved rows for review'
 );
 SELECT extensions.is(
   (SELECT batches.committed_row_count || '/' || batches.roster_row_count
@@ -364,7 +371,7 @@ CREATE TEMP TABLE commit_result_replay AS
 SELECT * FROM public.commit_paper_signup_batch(
   'b5400000-0000-4000-8000-000000000001',
   'b5000000-0000-4000-8000-000000000001',
-  ARRAY['b5500000-0000-4000-8000-000000000002']::uuid[],
+  ARRAY['b5500000-0000-4000-8000-000000000001','b5500000-0000-4000-8000-000000000002','b5500000-0000-4000-8000-000000000003','b5500000-0000-4000-8000-000000000004','b5500000-0000-4000-8000-000000000005','b5500000-0000-4000-8000-000000000006']::uuid[],
   false,
   'b5600000-0000-4000-8000-000000000001'
 );
@@ -412,7 +419,7 @@ SELECT extensions.is(
   'commit replay cannot duplicate notification work'
 );
 SELECT extensions.is(
-  (SELECT result.outcome || ':' || result.detail
+  (SELECT result.outcome
    FROM public.commit_paper_signup_batch(
      'b5400000-0000-4000-8000-000000000001',
      'b5000000-0000-4000-8000-000000000001',
@@ -420,8 +427,8 @@ SELECT extensions.is(
      false,
      'b5600000-0000-4000-8000-000000000099'
    ) AS result),
-  'skipped:already_committed',
-  'a different idempotency key on a committed batch changes nothing'
+  'signup_created',
+  'a different idempotency key preserves already committed rows'
 );
 
 -- ---------------------------------------------------------------------------
@@ -512,7 +519,7 @@ SELECT extensions.throws_ok(
       'b5600000-0000-4000-8000-000000000004'
     )
   $$,
-  'P0001',
+  '42501',
   'commit_paper_signup_batch: actor is not a project organizer',
   'an unrelated user cannot commit a batch'
 );
@@ -526,7 +533,7 @@ SELECT extensions.throws_ok(
       'b5600000-0000-4000-8000-000000000005'
     )
   $$,
-  'P0001',
+  '42501',
   'commit_paper_signup_batch: actor is not a project organizer',
   'org staff cannot commit when the project opted out of staff management'
 );

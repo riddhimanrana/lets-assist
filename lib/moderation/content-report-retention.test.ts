@@ -5,12 +5,10 @@ import {
   detachContentReportReporter,
   formatContentReportReporterLabel,
 } from "./content-report-retention";
-import { deleteUserWithCleanup } from "@/lib/supabase/delete-user-with-cleanup";
 
 /**
- * Moderation evidence must survive the reporter's account. These run the real
- * deletion path against a recorder so a regression that re-adds
- * `content_reports` to the delete list fails here.
+ * The helper performs one server-owned detachment. Account deletion coverage
+ * lives in the durable cleanup service tests and database transaction tests.
  */
 
 type Operation = {
@@ -148,83 +146,5 @@ describe("content report retention", () => {
     expect(detachContentReportReporter(client, USER_ID)).rejects.toThrow(
       /Failed to detach content reports/u,
     );
-  });
-
-  test("account deletion detaches reports instead of deleting them", async () => {
-    const { client, operations } = recordingClient();
-
-    const report = await deleteUserWithCleanup(client, USER_ID, {
-      deleteProjects: false,
-      deleteOrganizations: false,
-    });
-
-    const reportOperations = operations.filter(
-      (operation) =>
-        operation.relation === "detach_content_report_reporter" ||
-        operation.relation === "content_reports",
-    );
-    expect(reportOperations).toHaveLength(1);
-    expect(reportOperations[0]?.verb).toBe("rpc");
-    expect(reportOperations[0]?.values).toEqual({ p_reporter_id: USER_ID });
-    expect(
-      operations.some(
-        (operation) =>
-          operation.relation === "content_reports" &&
-          operation.verb === "delete",
-      ),
-    ).toBe(false);
-    expect(report.notes).toContain(
-      "content_reports retained with the reporter link detached.",
-    );
-  });
-
-  test("a failed detach stops account deletion before anything is removed", async () => {
-    const { client, operations } = recordingClient({
-      updateError: { message: "connection reset" },
-    });
-
-    expect(
-      deleteUserWithCleanup(client, USER_ID, {
-        deleteProjects: false,
-        deleteOrganizations: false,
-      }),
-    ).rejects.toThrow(/Failed to detach content reports/u);
-
-    expect(operations.some((operation) => operation.verb === "delete")).toBe(
-      false,
-    );
-  });
-
-  test("account deletion still removes the reporter's own private records", async () => {
-    const { client, operations } = recordingClient();
-
-    await deleteUserWithCleanup(client, USER_ID, {
-      deleteProjects: false,
-      deleteOrganizations: false,
-    });
-
-    const deleted = operations
-      .filter((operation) => operation.verb === "delete")
-      .map((operation) => operation.relation);
-    expect(deleted).toContain("feedback");
-    expect(deleted).toContain("notifications");
-    expect(deleted).toContain("profiles");
-  });
-
-  test("account deletion leaves publication recovery requests to database detachment", async () => {
-    const { client, operations } = recordingClient();
-
-    await deleteUserWithCleanup(client, USER_ID, {
-      deleteProjects: false,
-      deleteOrganizations: false,
-    });
-
-    expect(
-      operations.some(
-        (operation) =>
-          operation.relation === "csf_post_publication_requests" &&
-          (operation.verb === "delete" || operation.verb === "update"),
-      ),
-    ).toBe(false);
   });
 });

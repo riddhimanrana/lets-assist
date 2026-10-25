@@ -222,7 +222,7 @@ const initialState: EventFormState = {
     location: "",
     locationData: undefined,
     description: "",
-    organizationId: undefined as unknown as string | null,
+    organizationId: null,
   },
   schedule: {
     oneTime: {
@@ -278,7 +278,7 @@ const initialState: EventFormState = {
   pluginData: {},
 };
 
-const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
+export const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
   state,
   action,
 ) => {
@@ -564,6 +564,12 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
     }
     case "UPDATE_RECURRENCE": {
       const { field, value } = action.payload;
+      // A multi-day project cannot repeat, whoever asks: the toggle, a
+      // restored draft, or the AI auto-fill that runs after the event type
+      // was set.
+      if (field === "enabled" && value && state.eventType === "multiDay") {
+        return state;
+      }
       return {
         ...state,
         recurrence: {
@@ -667,6 +673,9 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
         recurrence: {
           ...state.recurrence,
           ...(payload.recurrence ?? {}),
+          ...((payload.eventType ?? state.eventType) === "multiDay"
+            ? { enabled: false }
+            : {}),
         },
         requireLogin:
           payload.verificationMethod === "signup-only"
@@ -686,8 +695,30 @@ const eventFormReducer: Reducer<EventFormState, EventFormAction> = (
 
 // --- Hook Export ---
 
-export const useEventForm = () => {
-  const [state, dispatch] = useReducer(eventFormReducer, initialState);
+type EventFormInitialInput = {
+  draft?: Partial<EventFormState>;
+  organizationId?: string;
+};
+
+export function createInitialEventFormState({
+  draft,
+  organizationId,
+}: EventFormInitialInput = {}): EventFormState {
+  const state = structuredClone(initialState);
+  if (draft)
+    return eventFormReducer(state, { type: "LOAD_DRAFT", payload: draft });
+  return {
+    ...state,
+    basicInfo: { ...state.basicInfo, organizationId: organizationId ?? null },
+  };
+}
+
+export const useEventForm = (input: EventFormInitialInput = {}) => {
+  const [state, dispatch] = useReducer(
+    eventFormReducer,
+    input,
+    createInitialEventFormState,
+  );
 
   const nextStep = () => dispatch({ type: "NEXT_STEP" });
   const prevStep = () => dispatch({ type: "PREV_STEP" });

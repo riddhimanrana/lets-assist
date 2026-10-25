@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  ArrowRight,
-  BadgeCheck,
   CheckCircle2,
   Clock,
   FileText,
@@ -24,7 +22,6 @@ import {
 } from "@/components/projects/SlotAttendeesDropdown";
 import type { AnonymousSignupData, Organization, Project } from "@/types";
 import type { ProjectCreatorProfileRecord } from "@/lib/profile/public";
-import { AnimatedText } from "./AnimatedText";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +37,10 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { landingDemoAssets } from "./landing-demo-assets";
+import { HeroHeading } from "./HeroHeading";
+import { MotionLinkButton } from "./MotionLinkButton";
+import { LandingDemoWindowChrome } from "./LandingDemoWindowChrome";
+import { landingDemoDate, landingDemoSaturday } from "./landing-demo-dates";
 
 const {
   projectId: PROJECT_ID,
@@ -47,7 +48,8 @@ const {
   coordinatorImage: COORDINATOR_IMAGE,
 } = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
 const PROJECT_HREF = `/projects/${PROJECT_ID}`;
-const PROJECT_DISPLAY_URL = `lets-assist.com/projects/${PROJECT_ID}`;
+// Display only: the example is not a live signup destination.
+const PROJECT_DISPLAY_URL = `lets-assist.com${PROJECT_HREF}`;
 
 const attendees = [
   { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
@@ -121,116 +123,26 @@ const slotAttendees: Record<string, SlotAttendee[]> = {
 
 const platformHighlights = [
   {
-    icon: QrCode,
-    title: "QR-Code Verification at events",
-    desc: "Check volunteers in on-site and keep attendance tied to the project record.",
+    title: "Set up the project",
+    desc: "Add sessions, spots, and a waiver when your event requires one.",
   },
   {
-    icon: BadgeCheck,
-    title: "Track all your volunteer hours in one place",
-    desc: "Verified, pending, and self-reported service hours stay organized together.",
+    title: "Run the day",
+    desc: "Share one sign-up link and record QR check-ins at each session.",
   },
   {
-    icon: null,
-    title: "Google Sheets/Calendar Syncing",
-    desc: "Push project rosters and dates into the tools your organization already uses.",
-    logos: [
-      {
-        src: "/resources/google-sheets-logo-2026.png",
-        alt: "Google Sheets",
-      },
-      {
-        src: "/resources/google-calendar-logo-2026.png",
-        alt: "Google Calendar",
-      },
-    ],
+    title: "Publish the proof",
+    desc: "Verify hours and give volunteers a service certificate.",
   },
 ];
-
-function getFutureProjectDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 31);
-  const day = date.getDay();
-  const daysUntilSaturday = (6 - day + 7) % 7;
-  date.setDate(date.getDate() + daysUntilSaturday);
-  return date;
-}
 
 function formatProjectDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   }).format(date);
-}
-
-type MotionLinkButtonProps = {
-  href: string;
-  children: React.ReactNode;
-  tone?: "solid" | "outline";
-  className?: string;
-};
-
-function MotionLinkButton({
-  href,
-  children,
-  tone = "solid",
-  className,
-}: MotionLinkButtonProps) {
-  const shouldReduceMotion = useReducedMotion();
-
-  return (
-    <motion.div
-      className="w-full sm:w-auto"
-      initial={false}
-      whileHover={shouldReduceMotion ? undefined : "hover"}
-      whileTap={shouldReduceMotion ? undefined : "tap"}
-      variants={{
-        hover: { y: -2 },
-        tap: { y: 1, scale: 0.985 },
-      }}
-      transition={{ type: "spring", stiffness: 420, damping: 28 }}
-    >
-      <Button
-        asChild
-        variant={tone === "solid" ? "default" : "outline"}
-        className={cn(
-          "group relative h-11 w-full overflow-hidden rounded-full px-5 text-sm font-medium shadow-xs sm:w-auto",
-          tone === "solid"
-            ? "bg-foreground text-background hover:bg-foreground/90"
-            : "border-border bg-background/80 text-foreground backdrop-blur hover:bg-accent",
-          className,
-        )}
-      >
-        <Link href={href}>
-          <span className="relative grid h-full place-items-center overflow-hidden">
-            <motion.span
-              className="inline-flex items-center gap-2"
-              variants={{
-                hover: { y: "-140%" },
-                tap: { y: "-140%" },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-            <motion.span
-              aria-hidden
-              className="absolute inline-flex items-center gap-2"
-              initial={{ y: "140%" }}
-              variants={{
-                hover: { y: 0 },
-                tap: { y: 0 },
-              }}
-              transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.span>
-          </span>
-        </Link>
-      </Button>
-    </motion.div>
-  );
 }
 
 function ProjectSlotCard({
@@ -297,12 +209,15 @@ function SignupRequirement({
   );
 }
 
-export function ProjectDemo() {
+export function ProjectDemo({ demoDateAnchor }: { demoDateAnchor: string }) {
   const shouldReduceMotion = useReducedMotion();
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState("East Side Beach Cleanup");
   const [demoSubmitted, setDemoSubmitted] = useState(false);
-  const projectDate = useMemo(() => getFutureProjectDate(), []);
+  const projectDate = useMemo(
+    () => landingDemoSaturday(demoDateAnchor),
+    [demoDateAnchor],
+  );
   const formattedDate = formatProjectDate(projectDate);
   const signupSlots = [
     {
@@ -336,7 +251,7 @@ export function ProjectDemo() {
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       className="relative mx-auto w-full max-w-6xl"
     >
-      <Card className="relative overflow-hidden border shadow-2xl shadow-primary/5">
+      <Card className="relative overflow-hidden border">
         <CardContent className="p-0">
           <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_390px]">
             <div className="p-4 sm:p-6 lg:p-8">
@@ -557,20 +472,13 @@ export function ProjectDemo() {
   );
 }
 
-function getFutureDateString(offsetDays: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
-}
-
-function buildDemoProject(): {
+function buildDemoProject(demoDateAnchor: string): {
   project: Project;
   creator: ProjectCreatorProfileRecord;
   organization: Organization;
-  attendees: SlotAttendee[];
 } {
-  const dayOne = getFutureDateString(31);
-  const dayTwo = getFutureDateString(32);
+  const dayOne = landingDemoDate(demoDateAnchor, 31);
+  const dayTwo = landingDemoDate(demoDateAnchor, 32);
 
   const organization: Organization = {
     id: "demo-org-dvhs",
@@ -587,7 +495,7 @@ function buildDemoProject(): {
     username: "riddhimanrana",
     full_name: "Riddhiman Rana",
     avatar_url: COORDINATOR_IMAGE,
-    email: "riddhiman.rana@gmail.com",
+    email: "volunteer@example.org",
     created_at: "2024-01-01T00:00:00.000Z",
     profile_visibility: "public",
     trusted_member: true,
@@ -610,8 +518,8 @@ function buildDemoProject(): {
     event_type: "multiDay",
     verification_method: "qr-code",
     require_login: false,
-    enable_volunteer_comments: true,
-    show_attendees_publicly: true,
+    enable_volunteer_comments: false,
+    show_attendees_publicly: false,
     waiver_required: false,
     creator_id: creator.id,
     schedule: {
@@ -670,119 +578,15 @@ function buildDemoProject(): {
     project_timezone: "America/Los_Angeles",
   };
 
-  const profileAvatarByName: Record<string, string> = {
-    "Maya Chen": "/demo/avatars/maya-chen.png",
-    "Jordan Lee": "/demo/avatars/jordan-lee.png",
-    "Avery Patel": "/demo/avatars/avery-patel.png",
-    "Priya Shah": "/demo/avatars/priya-shah.png",
-  };
-  const makeAttendee = (
-    scheduleId: string,
-    index: number,
-    name: string,
-    comment = "",
-    anonymous = false,
-  ): SlotAttendee => {
-    const username = name.toLowerCase().replace(/[^a-z0-9]+/g, ".");
-
-    return {
-      signup_id: `demo-${scheduleId}-${index}`,
-      schedule_id: scheduleId,
-      user_id: anonymous ? null : `demo-user-${username}`,
-      full_name: name,
-      username: anonymous ? "" : username,
-      avatar_url: anonymous ? "" : (profileAvatarByName[name] ?? ""),
-      volunteer_comment: comment,
-      is_anonymous: anonymous,
-      anonymous_name: anonymous ? name : "",
-      profile_note: anonymous
-        ? undefined
-        : index % 3 === 0
-          ? "Verified volunteer with recent project check-ins."
-          : index % 3 === 1
-            ? "Student volunteer tracking service hours."
-            : "Community member helping with local cleanup projects.",
-      is_trusted: !anonymous && index % 4 === 0,
-      created_at: "2025-01-15T00:00:00.000Z",
-    };
-  };
-
-  const attendeeGroups = [
-    {
-      scheduleId: `${dayOne}-0-0`,
-      rows: [
-        ["Maya Chen", "Bringing gloves and trash bags."],
-        ["Jordan Lee", "Can help sort recycling."],
-        ["Avery Patel", ""],
-        ["Nina Brooks", "Happy to cover shoreline photos."],
-        ["Sam Rivera", ""],
-        ["Priya Shah", "Joining with two friends."],
-        ["Ethan Wong", ""],
-        ["Lena Kim", "Can stay 15 minutes late."],
-        ["Marcus Reed", ""],
-        ["Anonymous Volunteer", "Prefers supply sorting.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayOne}-0-1`,
-      rows: [
-        ["Grace Lin", "I can check people in."],
-        ["Owen Clark", ""],
-        ["Anonymous Volunteer", "Bringing extra water.", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-0`,
-      rows: [
-        ["Sofia Martinez", ""],
-        ["Noah Singh", "Can help carry full bags."],
-        ["Isabella Nguyen", ""],
-        ["Lucas Brown", ""],
-        ["Amara Davis", "I have a grabber tool."],
-        ["Ben Carter", ""],
-        ["Mila Johnson", "Can lead a small group."],
-        ["Kai Thompson", ""],
-        ["Emma Wilson", ""],
-        ["Daniel Park", "Bringing reusable gloves."],
-        ["Leah Robinson", ""],
-        ["Ravi Mehta", ""],
-        ["Anonymous Volunteer", "Coming with family.", true],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can help with photos.", true],
-        ["Anonymous Volunteer", "", true],
-      ],
-    },
-    {
-      scheduleId: `${dayTwo}-1-1`,
-      rows: [
-        ["Chloe Adams", "Experienced with sorting."],
-        ["Henry Scott", ""],
-        ["Zara Ali", "Can label bins."],
-        ["Anonymous Volunteer", "", true],
-        ["Anonymous Volunteer", "Can stay until 5:30.", true],
-      ],
-    },
-  ] satisfies Array<{
-    scheduleId: string;
-    rows: Array<[string, string?, boolean?]>;
-  }>;
-
-  const attendees: SlotAttendee[] = attendeeGroups.flatMap((group) =>
-    group.rows.map(([name, comment = "", anonymous = false], index) =>
-      makeAttendee(group.scheduleId, index, name, comment, anonymous),
-    ),
-  );
-
-  return { project, creator, organization, attendees };
+  return { project, creator, organization };
 }
 
-function RealProjectDemoWindow() {
+function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
   const [demoScrollEnabled, setDemoScrollEnabled] = useState(false);
   const demoWindowRef = useRef<HTMLDivElement>(null);
-  const { project, creator, organization, attendees } = useMemo(
-    buildDemoProject,
-    [],
+  const { project, creator, organization } = useMemo(
+    () => buildDemoProject(demoDateAnchor),
+    [demoDateAnchor],
   );
   const remainingSlots = useMemo(
     () => ({
@@ -814,15 +618,18 @@ function RealProjectDemoWindow() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
+      initial={false}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
       className="relative mx-auto w-full max-w-6xl"
       id="live-demo"
     >
+      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Fictional interactive project · Signups here are not saved
+      </p>
       <div
         ref={demoWindowRef}
-        className="relative overflow-hidden rounded-[1.75rem] border border-primary/25 bg-background shadow-2xl shadow-primary/10 ring-1 ring-primary/15"
+        className="relative overflow-hidden rounded-[1.75rem] border bg-background shadow-(--card-shadow)"
         onClickCapture={(event) => {
           const target = event.target as HTMLElement;
           if (target.closest("[data-demo-scroll-toggle]")) {
@@ -831,19 +638,7 @@ function RealProjectDemoWindow() {
           setDemoScrollEnabled(true);
         }}
       >
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b bg-muted/30 px-4 py-3 sm:px-5">
-          <div className="flex items-center gap-2" aria-hidden>
-            <span className="size-2.5 rounded-full bg-destructive/70" />
-            <span className="size-2.5 rounded-full bg-warning/70" />
-            <span className="size-2.5 rounded-full bg-success/70" />
-          </div>
-          <div className="min-w-0 text-center">
-            <p className="max-w-[58vw] truncate rounded-full border bg-background/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs sm:max-w-none sm:px-4">
-              {PROJECT_DISPLAY_URL}
-            </p>
-          </div>
-          <div aria-hidden />
-        </div>
+        <LandingDemoWindowChrome displayUrl={PROJECT_DISPLAY_URL} />
         <div
           className={cn(
             "max-h-[78svh] overflow-hidden md:max-h-[720px] lg:max-h-[760px]",
@@ -869,7 +664,7 @@ function RealProjectDemoWindow() {
             userSignupsData={[]}
             allSignups={[]}
             demoMode
-            demoPublicAttendees={attendees}
+            demoPublicAttendees={[]}
           />
         </div>
         <Button
@@ -923,7 +718,7 @@ function RealProjectDemoWindow() {
             strokeLinejoin="round"
           />
         </svg>
-        <p className="absolute bottom-2 left-1/2 m-0 -translate-x-1/2 text-balance text-center text-sm font-medium text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-base">
+        <p className="font-cheese-milky absolute bottom-2 left-1/2 m-0 -translate-x-1/2 -rotate-2 whitespace-nowrap text-center text-2xl leading-none text-foreground sm:bottom-0 sm:left-auto sm:right-0 sm:translate-x-0 sm:text-3xl">
           try our interactive demo
         </p>
       </div>
@@ -931,11 +726,11 @@ function RealProjectDemoWindow() {
   );
 }
 
-export const HeroContent = () => {
+export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
 
   return (
-    <section className="container relative isolate mx-auto w-full px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
+    <section className="relative isolate mx-auto w-full max-w-6xl px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
         <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
           <DialogTrigger
@@ -985,98 +780,82 @@ export const HeroContent = () => {
           </DialogContent>
         </Dialog>
 
-        <h1 className="mt-5 max-w-5xl text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]">
-          <AnimatedText
-            text="The modern way to do"
-            mode="letters"
-            className="justify-center"
-            delay={0.04}
-          />
-          <AnimatedText
-            text="volunteering"
-            mode="letters"
-            className="justify-center text-primary"
-            delay={0.46}
-          />
-        </h1>
+        <HeroHeading className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]" />
 
+        {/*
+          The hero is the first thing in the response. Its copy, links, demo
+          and highlights render in their final state, so they are readable
+          before any script runs and in a tab whose animation frames are
+          paused. The headline above is the one exception: its letters play a
+          CSS entrance that ends in the same final state.
+        */}
         <motion.p
-          initial={{ opacity: 0, y: 16, filter: "blur(8px)" }}
+          initial={false}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          One link for public signups, QR attendance, verified hours,
-          certificates, and organization workflows that scale from student clubs
-          to citywide volunteer programs.
+          Plan shifts and signups, record QR attendance or review a scanned
+          paper roster, then attribute and verify volunteer hours. Keep the
+          record and certificates in one organization workspace.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/signup">
-            Get started
-            <ArrowRight data-icon="inline-end" />
+          <MotionLinkButton href="/signup?redirect=%2Fprojects%2Fcreate">
+            Create a project
           </MotionLinkButton>
-          <MotionLinkButton href="/contact" tone="outline">
-            Contact us
+          <MotionLinkButton href="#org-tooling" tone="outline">
+            See how it works
           </MotionLinkButton>
         </motion.div>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Want to volunteer?{" "}
+          <Link
+            href="/projects"
+            className="font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+          >
+            Browse upcoming projects
+          </Link>
+        </p>
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 24, filter: "blur(10px)" }}
+        initial={false}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ delay: 1.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
         className="mt-10"
       >
-        <RealProjectDemoWindow />
+        <RealProjectDemoWindow demoDateAnchor={demoDateAnchor} />
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
+      <motion.ol
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mt-6 grid w-full max-w-6xl gap-3 sm:grid-cols-3"
+        className="mx-auto mt-8 grid w-full max-w-6xl gap-6 border-t pt-6 text-left sm:grid-cols-3 sm:gap-8"
       >
-        {platformHighlights.map((item) => (
-          <Card key={item.title} className="bg-card/80 shadow-xs backdrop-blur">
-            <CardContent className="p-4">
-              <div className="mb-4 flex h-10 items-center">
-                {item.logos ? (
-                  <div className="flex items-center gap-2">
-                    {item.logos.map((logo) => (
-                      <span
-                        key={logo.src}
-                        className="flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs"
-                      >
-                        <Image
-                          src={logo.src}
-                          alt={logo.alt}
-                          width={24}
-                          height={24}
-                          className="size-6 object-contain"
-                        />
-                      </span>
-                    ))}
-                  </div>
-                ) : item.icon ? (
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <item.icon className="size-5" />
-                  </div>
-                ) : null}
-              </div>
-              <h3 className="text-sm font-semibold">{item.title}</h3>
+        {platformHighlights.map((item, index) => (
+          <li key={item.title} className="flex gap-4">
+            <span
+              aria-hidden="true"
+              className="pt-0.5 text-sm font-semibold tabular-nums text-muted-foreground"
+            >
+              0{index + 1}
+            </span>
+            <div>
+              <h2 className="text-base font-semibold">{item.title}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {item.desc}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </li>
         ))}
-      </motion.div>
+      </motion.ol>
     </section>
   );
 };

@@ -409,7 +409,7 @@ SELECT extensions.throws_ok(
     'student_roster',
     '{"targetStrategy":"fixed","duplicatePolicy":"match_email_then_name","columnMappings":{"email":"Email","firstName":"First"},"tabMappings":[{"tabName":"Corrected","rangeA1":"A1:C","headerRow":1,"termCode":"F26","cohortYear":2027,"targetStrategy":"fixed","activityPointMode":"explicit_numeric"}],"settings":{"sourceKind":"student_roster","targetStrategy":"fixed","mappingVersion":2,"headerRow":1,"selectedTabs":["Corrected"]}}'
   )$$,
-  '40001',
+  'PT409',
   'This import source mapping changed after it was loaded. Reload it and try again.',
   'a lower stale version is refused even when the material mapping matches'
 );
@@ -488,7 +488,7 @@ SELECT extensions.throws_ok(
     'student_roster',
     '{"targetStrategy":"fixed","duplicatePolicy":"match_email_then_name","columnMappings":{"email":"Email","firstName":"First"},"tabMappings":[{"tabName":"Corrected","rangeA1":"A1:C","headerRow":1,"termCode":"F26","cohortYear":2027,"targetStrategy":"fixed","activityPointMode":"explicit_numeric"}],"settings":{"sourceKind":"student_roster","targetStrategy":"fixed","mappingVersion":4,"headerRow":1,"headerSignature":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","selectedTabs":["Corrected"]}}'
   )$$,
-  '40001',
+  'PT409',
   'This import source mapping changed after it was loaded. Reload it and try again.',
   'a second header snapshot cannot reuse the first snapshot version'
 );
@@ -657,7 +657,7 @@ SELECT extensions.ok(
     SELECT pg_catalog.count(*) = 1
     FROM csf_mapping_writer_results
     WHERE payload::jsonb ->> 'outcome' = 'refused'
-      AND payload::jsonb ->> 'sqlstate' = '40001'
+      AND payload::jsonb ->> 'sqlstate' = 'PT409'
       AND payload::jsonb ->> 'message' =
         'This import source mapping changed after it was loaded. Reload it and try again.'
   ),

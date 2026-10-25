@@ -457,22 +457,25 @@ describe("recurring-series cancellation integration", () => {
     expect(projectUpdates).toHaveLength(0);
   });
 
-  test("fails closed when the transactional RPC returns an error", async () => {
-    rpcResponses = [{ data: null, error: { code: "40001" } }];
+  test.each(["40001", "PT409"])(
+    "fails closed when the transactional RPC returns %s",
+    async (code) => {
+      rpcResponses = [{ data: null, error: { code } }];
 
-    const result = await updateProject(parentId, {
-      recurrence_rule: null,
-      recurrence_generation_id: parentGenerationId,
-      title: "Must not be written",
-    });
+      const result = await updateProject(parentId, {
+        recurrence_rule: null,
+        recurrence_generation_id: parentGenerationId,
+        title: "Must not be written",
+      });
 
-    expect(result).toEqual({
-      error: "Failed to end recurring series",
-      endedRecurringSeries: false,
-      cancelledOccurrences: 0,
-    });
-    expect(calendarRemovals).toEqual([]);
-    expect(projectUpdates).toHaveLength(0);
-    expect(parentRecurrenceRule).not.toBeNull();
-  });
+      expect(result).toEqual({
+        error: "Failed to end recurring series",
+        endedRecurringSeries: false,
+        cancelledOccurrences: 0,
+      });
+      expect(calendarRemovals).toEqual([]);
+      expect(projectUpdates).toHaveLength(0);
+      expect(parentRecurrenceRule).not.toBeNull();
+    },
+  );
 });

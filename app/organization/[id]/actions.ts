@@ -1,4 +1,5 @@
 "use server";
+import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -95,7 +96,7 @@ export async function updateMemberRole(
   };
 
   if (updateError) {
-    console.error("Error updating member role:", updateError);
+    safeConsole.error("Error updating member role:", updateError);
     return { error: "Failed to update member role" };
   }
 
@@ -220,7 +221,7 @@ export async function removeMember(
   );
 
   if (removeError || removed !== true) {
-    console.error("Error removing member:", removeError);
+    safeConsole.error("Error removing member:", removeError);
     return { error: "Failed to remove member" };
   }
 

@@ -18,21 +18,23 @@ test("PDF rendering never performs network access", () => {
 });
 
 test("preview and download load source PDFs through the bounded server loader", () => {
+  // Both routes are thin wrappers, so the contract is checked where it lives.
   for (const route of [
     "app/api/waivers/[signatureId]/preview/route.ts",
     "app/api/waivers/[signatureId]/download/route.ts",
   ]) {
     const source = read(route);
-    assert.match(source, /loadWaiverSourcePdf/u);
-    assert.match(source, /waiver_pdf_storage_path/u);
-    assert.match(source, /pdf_storage_path/u);
-    assert.match(source, /sourcePdfBytes/u);
-    assert.doesNotMatch(source, /generateSignedWaiverPdf\(\{\s*waiverPdfUrl/u);
-    assert.doesNotMatch(
-      source,
-      /NextResponse\.redirect\(typedSignature\.signature_file_url\)/u,
-    );
+    assert.match(source, /serveSignedWaiver\(request, signatureId, \{/u);
+    assert.doesNotMatch(source, /generateSignedWaiverPdf|getAdminClient/u);
   }
+
+  const source = read("lib/waiver/serve-signed-waiver.ts");
+  assert.match(source, /loadWaiverSourcePdf/u);
+  assert.match(source, /waiver_pdf_storage_path/u);
+  assert.match(source, /pdf_storage_path/u);
+  assert.match(source, /sourcePdfBytes/u);
+  assert.doesNotMatch(source, /generateSignedWaiverPdf\(\{\s*waiverPdfUrl/u);
+  assert.doesNotMatch(source, /redirect\(/u);
 });
 
 test("signatures snapshot source paths and definition saves are version-on-write", () => {
@@ -46,7 +48,13 @@ test("signatures snapshot source paths and definition saves are version-on-write
     ),
     /\.from\("waiver_definitions"\)\s*\n\s*\.update\(/u,
   );
-  assert.match(actions, /Failed to verify waiver source retention references/u);
+  // A removed source is never deleted inline. The durable queue rechecks every
+  // project, definition, and signature reference before anything is deleted.
+  assert.match(actions, /enqueue_superseded_waiver_source/u);
+  assert.doesNotMatch(
+    actions,
+    /\.from\(WAIVER_UPLOAD_BUCKET\)\s*\n?\s*\.remove\(\[project\./u,
+  );
 });
 
 test("database source-path constraints use exact project prefixes", () => {

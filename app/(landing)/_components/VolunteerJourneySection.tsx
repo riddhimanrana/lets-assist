@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion, useInView } from "motion/react";
+import { motion, useInView, useReducedMotion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Mail, QrCode, BarChart3, Award } from "lucide-react";
 import { MiniProjectCard } from "./journey/MiniProjectCard";
@@ -9,7 +9,6 @@ import { EmailNotification } from "./journey/EmailNotification";
 import { QRScannerPreview } from "./journey/QRScannerPreview";
 import { MiniDashboard } from "./journey/MiniDashboard";
 import { MiniCertificate } from "./journey/MiniCertificate";
-import { AnimatedText } from "./AnimatedText";
 
 const steps = [
   {
@@ -39,15 +38,15 @@ const steps = [
   {
     icon: Award,
     key: "certificate",
-    label: "Get certified",
-    desc: "Auto-published certificates 48–72h after event",
+    label: "Get a certificate",
+    desc: "A shareable service certificate after organizers verify and publish hours",
   },
 ];
 
 // Mock data for real UI components
 const mockProjectData = {
   title: "Bellingham Square Park Cleanup",
-  location: "Santa Ramon, California",
+  location: "San Ramon, California",
   date: "Nov 23 • 9:00 AM",
   spotsLeft: 3,
   totalSpots: 20,
@@ -69,16 +68,22 @@ const mockCertificateData = {
   projectName: "Bellingham Square Park Cleanup",
   organizationName: "San Ramon City Alliance",
   hours: 3.0,
-  volunteerName: "Riddhiman Rana",
+  volunteerName: "Example Volunteer",
 };
 
 export default function VolunteerJourneySection() {
-  const [active, setActive] = useState(0);
+  // Lead with the result volunteers care about; the steps remain in journey
+  // order and can be selected individually.
+  const [active, setActive] = useState(4);
+  const [userSelected, setUserSelected] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const sectionInView = useInView(sectionRef, { amount: 0.3 });
+  const shouldReduceMotion = useReducedMotion();
 
+  // The steps cycle only until someone picks one. After that the choice
+  // stays put, so it is not replaced while they are reading or tabbing.
   useEffect(() => {
-    if (!sectionInView) {
+    if (!sectionInView || shouldReduceMotion || userSelected) {
       return;
     }
 
@@ -87,7 +92,12 @@ export default function VolunteerJourneySection() {
       3000,
     );
     return () => clearInterval(id);
-  }, [sectionInView]);
+  }, [sectionInView, shouldReduceMotion, userSelected]);
+
+  const selectStep = (index: number) => {
+    setUserSelected(true);
+    setActive(index);
+  };
 
   const previews = useMemo(
     () => ({
@@ -111,9 +121,9 @@ export default function VolunteerJourneySection() {
 
   return (
     <section id="journey" ref={sectionRef} className="py-16 sm:py-20">
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
+          initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={{ duration: 0.5 }}
@@ -140,55 +150,67 @@ export default function VolunteerJourneySection() {
             />
           </svg>
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            <AnimatedText
-              text="From discovery to certified impact"
-              mode="words"
-            />
+            From sign-up to certificate
           </h2>
           <p className="mt-3 text-sm sm:text-base text-muted-foreground">
-            The complete volunteer workflow — sign up, show up, track hours,
-            share proof.
+            Volunteers can sign up, record attendance, and see their hours turn
+            into a certificate once an organizer verifies and publishes them.
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Interactive sample with fictional project and volunteer details.
           </p>
         </motion.div>
 
-        <div className="mx-auto max-w-6xl grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-2 items-start">
-          <div className="order-2 lg:order-1">
-            <div className="rounded-2xl border border-border/60 bg-background/80 shadow-md overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={steps[active].key}
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -12 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  {previews[steps[active].key as keyof typeof previews]}
-                </motion.div>
-              </AnimatePresence>
+        {/* The preview comes first so it sits above the steps on a phone. */}
+        <div className="grid grid-cols-1 items-center gap-4 sm:gap-6 md:grid-cols-2">
+          <div>
+            {/* A fixed floor keeps the steps from jumping as previews change. */}
+            {/*
+              The key swaps the preview in the same render as the selection.
+              Nothing waits on an exit animation, so the preview always
+              matches the pressed step.
+            */}
+            <div className="flex min-h-88 items-center justify-center">
+              <div key={steps[active].key} className="w-full">
+                {previews[steps[active].key as keyof typeof previews]}
+              </div>
             </div>
-            <div className="mt-3 flex items-center justify-center gap-2">
-              {steps.map((_, i) => (
+            {/*
+              Each button is a 32px target around the same 8px pill. The pill
+              is centred, so it sits where the old top margin put it. The
+              unpressed pills use an opaque text token, so they still show
+              against the page in both themes.
+            */}
+            <div className="flex items-center justify-center gap-2">
+              {steps.map((step, i) => (
                 <button
-                  key={i}
-                  onClick={() => setActive(i)}
-                  aria-label={`Show ${steps[i].label}`}
-                  className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted/40"}`}
-                />
+                  key={step.key}
+                  type="button"
+                  onClick={() => selectStep(i)}
+                  aria-label={`Show step ${i + 1} of ${steps.length}: ${step.label}`}
+                  aria-pressed={i === active}
+                  className="flex size-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                >
+                  <span
+                    aria-hidden
+                    className={`h-2 w-8 rounded-full transition-all ${i === active ? "bg-primary" : "bg-muted-foreground"}`}
+                  />
+                </button>
               ))}
             </div>
           </div>
 
-          <div className="order-1 lg:order-2 grid gap-4">
+          <div className="grid gap-4">
             {steps.map((step, i) => (
               <motion.div
                 key={step.label}
-                initial={{ opacity: 0, y: 14 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: i * 0.05 }}
               >
                 <button
                   type="button"
-                  onClick={() => setActive(i)}
+                  onClick={() => selectStep(i)}
                   aria-pressed={i === active}
                   className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded-2xl"
                 >

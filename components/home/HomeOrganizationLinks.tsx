@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ArrowRight, Building2 } from "lucide-react";
 
 import { buttonVariants } from "@/components/ui/button-variants";
+import { Card } from "@/components/ui/card";
 import {
   isPluginHidden,
   loadPluginDisplayPreferences,
@@ -10,6 +11,7 @@ import {
 import { resolveOrganizationPluginExperiences } from "@/lib/plugins/resolve-org-plugins";
 import { createClient } from "@/lib/supabase/server";
 import { getServerPreviewSource } from "@/lib/supabase/preview-source.server";
+import { cn } from "@/lib/utils";
 
 const CSF_PLUGIN_KEY = "dvhs-csf";
 
@@ -17,10 +19,13 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   const previewSource = await getServerPreviewSource();
   if (previewSource === "remote") {
     return (
-      <nav aria-label="Organizations" className="mb-6">
-        <Link href="/organization" className={buttonVariants({ size: "lg" })}>
+      <nav aria-label="Organizations">
+        <Link
+          href="/organization"
+          className={cn(buttonVariants({ variant: "outline" }))}
+        >
           Open organizations
-          <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
+          <ArrowRight data-icon="inline-end" aria-hidden="true" />
         </Link>
       </nav>
     );
@@ -68,49 +73,54 @@ export async function HomeOrganizationLinks({ userId }: { userId: string }) {
   if (!csfOrganizations.length) return null;
 
   return (
-    <nav aria-label="Your organizations" className="mb-6 grid gap-3">
-      {csfOrganizations.map((organization) => (
-        <div
-          key={organization.id}
-          className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-        >
-          <div className="flex min-w-0 items-center gap-3">
-            {organization.logo_url ? (
-              <Image
-                src={organization.logo_url}
-                alt=""
-                width={48}
-                height={48}
-                unoptimized
-                className="size-12 shrink-0 rounded-full border object-cover"
-              />
-            ) : (
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                <Building2
-                  aria-hidden="true"
-                  className="size-6 text-muted-foreground"
-                />
-              </div>
-            )}
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold">{organization.name}</h2>
-              <p className="text-sm text-muted-foreground">
-                Open your chapter&apos;s CSF activities and member tools.
-              </p>
-            </div>
-          </div>
-          <Link
-            href={`/organization/${encodeURIComponent(organization.username || organization.id)}`}
-            className={buttonVariants({
-              className:
-                "h-auto max-w-full shrink-0 whitespace-normal py-2 text-left",
-            })}
+    <nav aria-label="Your organizations">
+      <Card className="gap-0 divide-y py-0">
+        {csfOrganizations.map((organization) => (
+          <div
+            key={organization.id}
+            className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            Open {organization.name}
-            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
-          </Link>
-        </div>
-      ))}
+            <div className="flex min-w-0 items-center gap-3">
+              {organization.logo_url ? (
+                <Image
+                  src={organization.logo_url}
+                  alt=""
+                  width={40}
+                  height={40}
+                  unoptimized
+                  className="size-10 shrink-0 rounded-full border object-cover"
+                />
+              ) : (
+                <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-full">
+                  <Building2
+                    aria-hidden="true"
+                    className="text-muted-foreground size-5"
+                  />
+                </div>
+              )}
+              <div className="grid min-w-0 gap-0.5">
+                <h2 className="text-base font-semibold">{organization.name}</h2>
+                <p className="text-muted-foreground text-sm">
+                  Open your chapter&apos;s CSF activities and member tools.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/organization/${encodeURIComponent(organization.username || organization.id)}`}
+              className={cn(
+                buttonVariants({
+                  variant: "outline",
+                  className:
+                    "h-auto min-h-9 max-w-full shrink-0 py-2 text-left whitespace-normal",
+                }),
+              )}
+            >
+              Open {organization.name}
+              <ArrowRight data-icon="inline-end" aria-hidden="true" />
+            </Link>
+          </div>
+        ))}
+      </Card>
     </nav>
   );
 }

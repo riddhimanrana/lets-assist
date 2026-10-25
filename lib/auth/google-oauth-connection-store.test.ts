@@ -49,6 +49,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     const sheetsWorker = readSource(
       "app/api/cron/organization-sheet-sync/route.ts",
     );
+    const sheetsAuthority = readSource(
+      "lib/google-sheets/organization-sync-authority.ts",
+    );
 
     expect(service).not.toContain("matchesGoogleOAuthConnectionBinding");
     expect(service).toContain(
@@ -60,8 +63,9 @@ describe("Google OAuth credential purpose boundaries", () => {
     expect(orgSheets).toContain(
       "organizationSheetsGoogleBinding(organizationId)",
     );
-    expect(sheetsWorker).toContain(
-      "organizationSheetsGoogleBinding(row.organization_id)",
+    expect(sheetsWorker).toContain("await runOrganizationSheetSync({");
+    expect(sheetsAuthority).toContain(
+      "organizationSheetsGoogleBinding(config.organization_id)",
     );
   });
 
@@ -122,9 +126,7 @@ describe("Google OAuth credential purpose boundaries", () => {
       "export async function getGoogleAccessTokenForUser(",
     );
     const functionSource = service.slice(functionStart);
-    const refresh = functionSource.indexOf(
-      "refreshAccessToken(decryptedRefresh.plaintext)",
-    );
+    const refresh = functionSource.indexOf("requestGoogleAccessTokenRefresh(");
     const reauthorization = functionSource.indexOf(
       "const refreshedAuthorization =",
     );
@@ -153,7 +155,9 @@ describe("Google OAuth credential purpose boundaries", () => {
   test("OAuth token failures never log provider response bodies", () => {
     const callback = readSource("app/api/google/oauth/callback/route.ts");
     const service = readCalendarServiceSource();
-    const refreshStart = service.indexOf("async function refreshAccessToken(");
+    const refreshStart = service.indexOf(
+      "async function requestGoogleAccessTokenRefresh(",
+    );
     const refreshEnd = service.indexOf(
       "\n/**\n * Get a valid access token",
       refreshStart,

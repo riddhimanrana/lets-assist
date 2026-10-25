@@ -1,8 +1,9 @@
 name: Paper Scan Cleanup
 
 on:
-  schedule:
-    - cron: "40 4 * * *" # Daily, off the shared cron minutes
+  # Deliberately unscheduled: this job hard-deletes data. Run it by manual
+  # dispatch only after the retention hold in docs/development/cleanup-register.md
+  # (SCHED-CLEANUP-HOLD) is resolved.
   workflow_dispatch:
 
 permissions:

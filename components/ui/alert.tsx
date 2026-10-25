@@ -9,6 +9,13 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-card text-card-foreground",
+        // Muted description text falls under 4.5:1 on a tint, so the tinted
+        // variants carry a stronger one. The default variant keeps muted.
+        info: "border-info/25 bg-info/10 text-foreground dark:border-info/35 dark:bg-info/15 *:[svg]:text-info *:data-[slot=alert-description]:text-foreground/80",
+        success:
+          "border-success/25 bg-success/10 text-foreground dark:border-success/35 dark:bg-success/15 *:[svg]:text-success *:data-[slot=alert-description]:text-foreground/80",
+        warning:
+          "border-warning/30 bg-warning/10 text-foreground dark:border-warning/40 dark:bg-warning/15 *:[svg]:text-warning *:data-[slot=alert-description]:text-foreground/80",
         destructive:
           "text-destructive bg-card *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
       },

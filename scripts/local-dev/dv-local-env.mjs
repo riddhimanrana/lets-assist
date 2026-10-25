@@ -13,6 +13,8 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { supabaseCliEnvironment } from "./supabase-cli-environment.mjs";
+import { localSupabaseProjectId } from "./supabase-project-id.mjs";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost"]);
 
@@ -105,7 +107,7 @@ const CSF_GOOGLE_AUTH_ENV_PREFIX = "SUPABASE_AUTH_EXTERNAL_GOOGLE";
 // isolated shell scripts must use this same key for their label selectors.
 export const CSF_PROJECT_LABEL_KEY = "com.supabase.cli.project";
 
-// Pinned exact resource names for Supabase CLI 2.111.0. This is deliberately an
+// Pinned exact resource names for Supabase CLI 2.120.0. This is deliberately an
 // explicit contract rather than a `supabase_*_<project>` glob: every name the
 // pinned CLI derives goes through GetId() as `supabase_<service>_<project>`, so
 // a glob would match far more than the CLI ever creates and would silently
@@ -119,16 +121,12 @@ export const CSF_PROJECT_LABEL_KEY = "com.supabase.cli.project";
 // that name.
 const CSF_CANONICAL_DOCKER_RESOURCE_KINDS = ["container", "volume", "network"];
 
-// Exactly what the pinned CLI's legacy shell creates, per
-// apps/cli-go/internal/utils/config.go and internal/start/start.go at tag
-// v2.111.0: fourteen containers named `supabase_<service>_<project>`, three named
-// volumes, and one network. Nothing is listed merely because a constant exists —
-// DifferId is defined at that tag but no persistent named differ container is
-// created, and migra/pg_prove/test helpers run without stable names. Listing a
-// name here grants it deletion authority and lets it satisfy the post-start
-// ownership proof, so an overinclusive list is a safety defect, not slack.
-// scripts/local-dev/pinned-supabase-cli-resources.fixture.ts is the independent
-// checked-in oracle for this contract.
+// CLI v2.120.0 apps/cli/src/command-internal/docker-ids.ts defines fourteen
+// containers and one network. Database, storage, and edge runtime mount three
+// named volumes. SUPABASE_EXPERIMENTAL_STACK=0 selects this reviewed backend.
+// Differ/migra/pg_prove helpers do not create stable named containers. Adding
+// them here would grant deletion authority over foreign resources.
+// pinned-supabase-cli-resources.fixture.ts records independent tagged evidence.
 const CSF_CANONICAL_DOCKER_RESOURCE_PREFIXES = {
   container: [
     "supabase_db_",
@@ -160,7 +158,7 @@ function assertIsolatedProjectId(projectId) {
 }
 
 /**
- * The pinned Supabase CLI 2.111.0 resource contract for one isolated project,
+ * The pinned Supabase CLI 2.120.0 resource contract for one isolated project,
  * typed by Docker resource kind.
  *
  * @param {string} projectId
@@ -1219,12 +1217,16 @@ export function assertProvidedLocalSupabaseEnvMatchesStatus(
   return provided;
 }
 
-function readLocalSupabaseStatus(workDir) {
+function readLocalSupabaseStatus(workDir, projectId) {
   const args = ["status", "-o", "env"];
   if (workDir) args.push("--workdir", workDir);
   const output = execFileSync("supabase", args, {
     cwd: process.cwd(),
     encoding: "utf8",
+    env: supabaseCliEnvironment(
+      process.env,
+      projectId ?? localSupabaseProjectId(workDir),
+    ),
   });
   if (/Stopped services:/i.test(output)) {
     throw new Error(
@@ -1247,7 +1249,10 @@ function getValidatedLocalSupabaseEnv(
     );
   }
 
-  const statusValues = readLocalSupabaseStatus(isolated?.workDir);
+  const statusValues = readLocalSupabaseStatus(
+    isolated?.workDir,
+    isolated?.projectId,
+  );
   const status = resolveProvidedLocalSupabaseEnv(statusValues);
   if (!status) {
     throw new Error(

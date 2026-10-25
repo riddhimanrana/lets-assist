@@ -1,8 +1,10 @@
 import "server-only";
+import { safeConsole } from "@/lib/safe-console";
 
 import { differenceInMinutes, isBefore, parseISO } from "date-fns";
 import type { Metadata } from "next";
 
+import { formatHoursDuration } from "@/lib/format/hours";
 import { getPublicProfileByUsername } from "@/lib/profile/public";
 
 export interface Profile {
@@ -108,10 +110,13 @@ export function calculateHours(startTimeStr: string, endTimeStr: string) {
     if (isBefore(end, start)) return 0;
     return Math.round((differenceInMinutes(end, start) / 60) * 10) / 10;
   } catch (error) {
-    console.error("Error calculating hours:", error, {
+    safeConsole.error("Error calculating hours:", error, {
       startTimeStr,
       endTimeStr,
     });
     return 0;
   }
 }
+
+/** Same wording as the dashboard, so 0 reads "0h" in both places. */
+export const formatHours = formatHoursDuration;

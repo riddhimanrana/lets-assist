@@ -16,14 +16,7 @@ import {
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import {
-  FileSpreadsheet,
-  Download,
-  Calendar,
-  Filter,
-  BarChart3,
-  TrendingUp,
-} from "lucide-react";
+import { FileSpreadsheet, Calendar } from "lucide-react";
 import Link from "next/link";
 
 export function DataExportSection() {
@@ -31,10 +24,7 @@ export function DataExportSection() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            Data Export & Analytics
-          </CardTitle>
+          <CardTitle>Data export & analytics</CardTitle>
           <CardDescription>
             Export your data for reports, analysis, and school requirements
           </CardDescription>
@@ -42,23 +32,23 @@ export function DataExportSection() {
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Personal Data</h4>
-              <ul className="space-y-1 text-xs text-muted-foreground">
+              <h4 className="font-semibold text-sm">Personal data</h4>
+              <ul className="space-y-1 text-sm text-muted-foreground">
                 <li>• Your volunteer certificates</li>
                 <li>• Hour tracking data</li>
                 <li>• Project participation</li>
               </ul>
             </div>
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Organization Data</h4>
-              <ul className="space-y-1 text-xs text-muted-foreground">
+              <h4 className="font-semibold text-sm">Organization data</h4>
+              <ul className="space-y-1 text-sm text-muted-foreground">
                 <li>• Member volunteer hours</li>
                 <li>• Project participation rates</li>
                 <li>• Organization analytics</li>
               </ul>
             </div>
             <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Export Formats</h4>
+              <h4 className="font-semibold text-sm">Export formats</h4>
               <div className="flex flex-wrap gap-1">
                 <Badge variant="outline" className="text-xs">
                   CSV
@@ -75,17 +65,9 @@ export function DataExportSection() {
         </CardContent>
       </Card>
 
-      <Accordion className="w-full space-y-4">
-        <AccordionItem
-          value="personal-exports"
-          className="border rounded-lg px-4"
-        >
-          <AccordionTrigger className="hover:no-underline">
-            <div className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Personal Data Exports
-            </div>
-          </AccordionTrigger>
+      <Accordion className="w-full">
+        <AccordionItem value="personal-exports">
+          <AccordionTrigger>Personal data exports</AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -93,14 +75,14 @@ export function DataExportSection() {
                   <FileSpreadsheet className="h-4 w-4" />
                   Certificate Export (Dashboard)
                 </h6>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
+                <ol className="list-decimal pl-5 space-y-1 text-sm">
                   <li>Go to your Dashboard</li>
-                  <li>Find &quot;Export Certificates&quot; section</li>
+                  <li>Find &quot;Export certificates&quot; section</li>
                   <li>Select date range (optional)</li>
                   <li>Click &quot;Export CSV&quot;</li>
                   <li>Download comprehensive data file</li>
                 </ol>
-                <div className="mt-2 text-xs text-muted-foreground">
+                <div className="mt-2 text-sm text-muted-foreground">
                   <strong>Includes:</strong> All certificate details, hours,
                   organizations, verification status, and summary statistics
                 </div>
@@ -110,22 +92,22 @@ export function DataExportSection() {
                   <Calendar className="h-4 w-4" />
                   Date Range Filtering
                 </h6>
-                <ul className="list-disc list-inside space-y-1 text-sm">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
                   <li>Lifetime data (all certificates)</li>
                   <li>Specific date ranges</li>
                   <li>Academic year filtering</li>
                   <li>Semester or quarter exports</li>
                   <li>Custom date selections</li>
                 </ul>
-                <div className="mt-2 text-xs text-muted-foreground">
+                <div className="mt-2 text-sm text-muted-foreground">
                   Perfect for school deadlines and reporting requirements
                 </div>
               </div>
             </div>
 
-            <div className="bg-info/20 p-4 rounded-lg">
-              <h6 className="font-medium text-sm mb-2">CSV Export Contents:</h6>
-              <div className="grid md:grid-cols-2 gap-3 text-xs">
+            <div className="bg-muted/50 rounded-lg p-3">
+              <h6 className="font-medium text-sm mb-2">CSV export contents:</h6>
+              <div className="grid md:grid-cols-2 gap-3 text-sm">
                 <div>
                   <strong>Basic Information:</strong>
                   <ul className="mt-1 space-y-1">
@@ -149,53 +131,47 @@ export function DataExportSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem
-          value="organization-exports"
-          className="border rounded-lg px-4"
-        >
-          <AccordionTrigger className="hover:no-underline">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Organization Data Exports (Admin/Staff)
-            </div>
+        <AccordionItem value="organization-exports">
+          <AccordionTrigger>
+            Organization data exports (Admin/Staff)
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">Member Hours Export</h6>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
+                <h6 className="font-medium mb-2">Member hours export</h6>
+                <ol className="list-decimal pl-5 space-y-1 text-sm">
                   <li>Navigate to your organization page</li>
                   <li>Click &quot;Members&quot; tab</li>
                   <li>Set date range filter (optional)</li>
-                  <li>Click &quot;Export Members&quot; button</li>
+                  <li>Click &quot;Export members&quot; button</li>
                   <li>Download CSV with all member data</li>
                 </ol>
-                <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                <div className="mt-2 p-2 bg-muted/50 rounded-md text-sm">
                   <strong>Permissions:</strong> Only available to organization
                   admins and staff members
                 </div>
               </div>
               <div>
-                <h6 className="font-medium mb-2">Individual Member Details</h6>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
+                <h6 className="font-medium mb-2">Individual member details</h6>
+                <ol className="list-decimal pl-5 space-y-1 text-sm">
                   <li>Go to Members tab</li>
-                  <li>Click &quot;View Details&quot; on any member</li>
+                  <li>Click &quot;View details&quot; on any member</li>
                   <li>Review their volunteer history</li>
                   <li>Export individual member report</li>
                   <li>Access detailed event logs</li>
                 </ol>
-                <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                <div className="mt-2 p-2 bg-muted/50 rounded-md text-sm">
                   <strong>Use Case:</strong> Perfect for verification requests
                   and individual member reports
                 </div>
               </div>
             </div>
 
-            <div className="bg-primary/10 p-4 rounded-lg">
+            <div className="bg-muted/50 rounded-lg p-3">
               <h6 className="font-medium text-sm mb-2">
-                Organization Export Features:
+                Organization export features:
               </h6>
-              <div className="grid md:grid-cols-2 gap-3 text-xs">
+              <div className="grid md:grid-cols-2 gap-3 text-sm">
                 <div>
                   <strong>Member Data Includes:</strong>
                   <ul className="mt-1 space-y-1">
@@ -221,23 +197,15 @@ export function DataExportSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem
-          value="analytics-insights"
-          className="border rounded-lg px-4"
-        >
-          <AccordionTrigger className="hover:no-underline">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Analytics & Insights
-            </div>
-          </AccordionTrigger>
+        <AccordionItem value="analytics-insights">
+          <AccordionTrigger>Analytics & insights</AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <h6 className="font-medium mb-2">
-                  Personal Dashboard Analytics
+                  Personal dashboard analytics
                 </h6>
-                <ul className="list-disc list-inside space-y-1 text-sm">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
                   <li>Total volunteer hours tracked</li>
                   <li>Number of projects completed</li>
                   <li>Organizations you&apos;ve worked with</li>
@@ -248,7 +216,6 @@ export function DataExportSection() {
                   href="/dashboard"
                   className={cn(
                     buttonVariants({
-                      size: "sm",
                       variant: "outline",
                       className: "mt-2",
                     }),
@@ -259,9 +226,9 @@ export function DataExportSection() {
               </div>
               <div>
                 <h6 className="font-medium mb-2">
-                  Organization Analytics (Admin)
+                  Organization analytics (admin)
                 </h6>
-                <ul className="list-disc list-inside space-y-1 text-sm">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
                   <li>Member engagement statistics</li>
                   <li>Project participation rates</li>
                   <li>Total organizational impact</li>
@@ -272,7 +239,6 @@ export function DataExportSection() {
                   href="/organization"
                   className={cn(
                     buttonVariants({
-                      size: "sm",
                       variant: "outline",
                       className: "mt-2",
                     }),
@@ -285,9 +251,9 @@ export function DataExportSection() {
 
             <div className="bg-muted/50 p-4 rounded-lg">
               <h6 className="font-medium text-sm mb-2">
-                Using Data for Impact:
+                Using data for impact:
               </h6>
-              <div className="grid md:grid-cols-3 gap-3 text-xs">
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
                 <div>
                   <strong>For Students:</strong>
                   <ul className="mt-1 space-y-1">
@@ -320,18 +286,13 @@ export function DataExportSection() {
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="export-tips" className="border rounded-lg px-4">
-          <AccordionTrigger className="hover:no-underline">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              Export Tips & Best Practices
-            </div>
-          </AccordionTrigger>
+        <AccordionItem value="export-tips">
+          <AccordionTrigger>Export tips & best practices</AccordionTrigger>
           <AccordionContent className="space-y-4 pt-4">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <h6 className="font-medium mb-2">For School Submissions:</h6>
-                <ul className="list-disc list-inside space-y-1 text-sm">
+                <h6 className="font-medium mb-2">For school submissions:</h6>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
                   <li>Export data regularly, don&apos;t wait for deadlines</li>
                   <li>Use specific date ranges for academic periods</li>
                   <li>Include verified organization hours when possible</li>
@@ -341,7 +302,7 @@ export function DataExportSection() {
               </div>
               <div>
                 <h6 className="font-medium mb-2">For Organizations:</h6>
-                <ul className="list-disc list-inside space-y-1 text-sm">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
                   <li>Export member data monthly for tracking</li>
                   <li>Use date filters for specific reporting periods</li>
                   <li>Maintain backup copies of member records</li>
@@ -352,25 +313,25 @@ export function DataExportSection() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-3">
-              <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">File Formats</h6>
-                <ul className="text-xs text-muted-foreground space-y-1">
+              <div className="rounded-lg border p-3">
+                <h6 className="font-medium text-sm mb-1">File formats</h6>
+                <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• CSV: For data analysis</li>
                   <li>• PDF: For printing/submission</li>
                   <li>• Print: For physical copies</li>
                 </ul>
               </div>
-              <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">Data Privacy</h6>
-                <ul className="text-xs text-muted-foreground space-y-1">
+              <div className="rounded-lg border p-3">
+                <h6 className="font-medium text-sm mb-1">Data privacy</h6>
+                <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• Only your data in personal exports</li>
                   <li>• Org exports respect member privacy</li>
                   <li>• Secure download links</li>
                 </ul>
               </div>
-              <div className="p-3 border rounded">
-                <h6 className="font-medium text-xs mb-1">Technical Tips</h6>
-                <ul className="text-xs text-muted-foreground space-y-1">
+              <div className="rounded-lg border p-3">
+                <h6 className="font-medium text-sm mb-1">Technical tips</h6>
+                <ul className="text-sm text-muted-foreground space-y-1">
                   <li>• CSV opens in Excel/Sheets</li>
                   <li>• Use filters for large datasets</li>
                   <li>• Save with descriptive filenames</li>

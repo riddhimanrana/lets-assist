@@ -28,6 +28,42 @@
     {
       "path": "/api/cron/project-feedback-followups",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/data-exports",
+      "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron/paper-signup-notifications",
+      "schedule": "3,13,23,33,43,53 * * * *"
+    },
+    {
+      "path": "/api/cron/project-cancellations",
+      "schedule": "5,35 * * * *"
+    },
+    {
+      "path": "/api/cron/organization-calendar-sync",
+      "schedule": "12 * * * *"
+    },
+    {
+      "path": "/api/cron/organization-sheet-sync",
+      "schedule": "27 */2 * * *"
+    },
+    {
+      "path": "/api/cron/auto-publish-hours",
+      "schedule": "10 3,15 * * *"
+    },
+    {
+      "path": "/api/cron/generate-recurring-projects",
+      "schedule": "10 1,13 * * *"
+    },
+    {
+      "path": "/api/cron/waiver-cleanup",
+      "schedule": "25 */12 * * *"
+    },
+    {
+      "path": "/api/cron/ai-moderation",
+      "schedule": "0 0 * * *"
     }
   ]
 }

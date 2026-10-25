@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 /**
  * Server-Sent Events endpoint for streaming AI moderation scan progress
  * Analyzes reports one-by-one with detailed reasoning steps
@@ -27,7 +28,7 @@ async function checkSuperAdmin() {
     const { user, error: authError } = await getAuthUser({ sensitive: true });
 
     if (authError || !user) {
-      console.log(
+      safeConsole.log(
         "[scan-stream] No authenticated user found:",
         authError?.message,
       );
@@ -39,17 +40,17 @@ async function checkSuperAdmin() {
       const authUser = await fetchAuthUser(user.id);
       const isSuperAdmin = isSuperAdminUser(authUser);
 
-      console.log("[scan-stream] Auth check:", {
+      safeConsole.log("[scan-stream] Auth check:", {
         userId: user.id,
         isSuperAdmin,
       });
       return { isAdmin: isSuperAdmin, user };
     } catch (error) {
-      console.error("[scan-stream] Error checking auth user:", error);
+      safeConsole.error("[scan-stream] Error checking auth user:", error);
       return { isAdmin: false, user: null };
     }
   } catch (error) {
-    console.error("[scan-stream] Auth check failed:", error);
+    safeConsole.error("[scan-stream] Auth check failed:", error);
     return { isAdmin: false, user: null };
   }
 }
@@ -263,7 +264,8 @@ export async function GET(_request: NextRequest) {
               .eq("id", report.id);
 
             if (updateError) {
-              console.error(
+              safeConsole.error(
+                "Application diagnostic from app/api/admin/moderation/scan-stream/route",
                 `Failed to update report ${report.id}:`,
                 updateError,
               );
@@ -281,7 +283,8 @@ export async function GET(_request: NextRequest) {
 
             results.push({ type: "report", id: report.id, result: metadata });
           } catch (aiError) {
-            console.error(
+            safeConsole.error(
+              "Application diagnostic from app/api/admin/moderation/scan-stream/route",
               `AI analysis failed for report ${report.id}:`,
               aiError,
             );
@@ -342,7 +345,8 @@ export async function GET(_request: NextRequest) {
                 });
 
               if (flagError) {
-                console.error(
+                safeConsole.error(
+                  "Application diagnostic from app/api/admin/moderation/scan-stream/route",
                   `Failed to flag project ${project.id}:`,
                   flagError,
                 );
@@ -363,7 +367,8 @@ export async function GET(_request: NextRequest) {
 
             results.push({ type: "project", id: project.id, result: decision });
           } catch (aiError) {
-            console.error(
+            safeConsole.error(
+              "Application diagnostic from app/api/admin/moderation/scan-stream/route",
               `AI analysis failed for project ${project.id}:`,
               aiError,
             );
@@ -404,7 +409,7 @@ export async function GET(_request: NextRequest) {
 
         controller.close();
       } catch (error) {
-        console.error("AI moderation scan stream failed:", error);
+        safeConsole.error("AI moderation scan stream failed:", error);
         sendEvent(controller, {
           type: "error",
           data: {

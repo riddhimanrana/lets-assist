@@ -1,8 +1,7 @@
 /**
  * Stripe Webhook Route Handler
  *
- * Receives Stripe webhook events and delegates to the payment service.
- * Handles: checkout completed, payment failed, refunds, Connect account updates.
+ * Retains the legacy URL without acknowledging unprocessed payment events.
  */
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -10,7 +9,7 @@ import { handleStripeWebhook } from "@/lib/payments/service";
 
 export const runtime = "nodejs";
 
-// Stripe sends raw body — we need to disable Next.js body parsing
+// Signature verification requires the exact raw body.
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
@@ -29,12 +28,14 @@ export async function POST(request: NextRequest) {
     const result = await handleStripeWebhook(body, signature);
 
     if (!result.received) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status },
+      );
     }
 
     return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("[stripe-webhook] Unexpected error:", error);
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

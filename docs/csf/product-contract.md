@@ -9,6 +9,41 @@ This document defines the product, operating model, information architecture, te
 
 ## Amendment record
 
+### Amendment 12: Partner projects and attendance-backed submissions (September 28, 2026)
+
+An activity coordinator can link a Let's Assist project from the chapter or a
+public partner project by pasting its link. The server accepts only this
+deployment's origin or `https://lets-assist.com`, and only a
+`/projects/<id>` path. It never fetches the pasted URL. A partner project must
+be public, published, and not cancelled. Unlisted and organization-only partner
+projects cannot be linked. Save rechecks the project and the coordinator's
+permission.
+
+The preview fills the title, description, host, location, dates, and schedule.
+Dates stay in Pacific time, with a note when the project uses another time
+zone. Fields the coordinator changed are kept unless they choose to apply the
+project details. Points, class audience, and semester stay staff-controlled.
+Activity pages, lists, and announcements show when a linked project is
+cancelled, ended, hidden, or removed, and never offer a stale signup link.
+
+A coordinator can turn on pending point submissions from verified attendance
+for an activity. A submission is created only from an organizer-verified
+certificate belonging to an account that is a verified connection of an active
+chapter member in that activity's open semester and class. A signup, check-in,
+guest name, or email never qualifies. One organizer record supports at most one
+claim in the chapter, even when several activities link the same project. The
+chapter reads nothing else about a partner project's participants.
+
+Points follow the activity's published rule and caps. Fixed rules apply
+directly. Shift rules apply when exactly one shift window matches the project
+slot. Other rules need a member submission. Officers still review every claim,
+and approval alone awards points. An existing member claim receives the
+organizer record as extra evidence without changing the member's entries.
+Reviewed decisions are never reopened or rewritten. Changes to the organizer
+record, the account connection, or membership mark the evidence as no longer
+valid for staff review. A member may Unsubmit an automatic claim, and that
+organizer record will not create another claim.
+
 ### Amendment 11: Weekly activities and shorter point submissions (September 20, 2026)
 
 The owner requested a compact activity list with search, a week filter, and

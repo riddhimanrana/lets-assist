@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 // Configure PDF.js worker (same pattern as pdf-field-detect.ts)
@@ -34,7 +35,7 @@ async function ensurePdfJsWorkerReady() {
       })
       .catch((error) => {
         if (process.env.NODE_ENV !== "test") {
-          console.warn("Failed to preload pdf.js worker module:", error);
+          safeConsole.warn("Failed to preload pdf.js worker module:", error);
         }
       });
   }
@@ -234,7 +235,7 @@ export async function extractPdfTextWithPositions(
     };
   } catch (error) {
     if (process.env.NODE_ENV !== "test") {
-      console.error("PDF text extraction error:", error);
+      safeConsole.error("PDF text extraction error:", error);
     }
 
     return {

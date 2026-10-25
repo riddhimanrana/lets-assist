@@ -254,7 +254,7 @@ export function ResizablePlacement({
   const isSignature = placement.fieldType === "signature";
   const resizeHandleColorClass = isSignature
     ? "bg-primary border-primary"
-    : "bg-indigo-600 border-indigo-600";
+    : "bg-info border-info";
 
   const isEditable = mode === "edit" && typeof onPlacementResize === "function";
 
@@ -263,17 +263,15 @@ export function ResizablePlacement({
       style={style}
       className={cn(
         "border-2 absolute hover:bg-opacity-30 transition-colors z-20 select-none rounded-sm",
-        isSignature
-          ? "border-primary bg-primary/20"
-          : "border-indigo-500 bg-indigo-500/20",
+        isSignature ? "border-primary bg-primary/20" : "border-info bg-info/20",
         isSelected &&
           (isSignature
-            ? "ring-2 ring-primary ring-offset-2 shadow-lg border-primary bg-primary/30"
-            : "ring-2 ring-indigo-500 ring-offset-2 shadow-lg border-indigo-500 bg-indigo-500/30"),
+            ? "ring-2 ring-primary ring-offset-2 border-primary bg-primary/30"
+            : "ring-2 ring-info ring-offset-2 border-info bg-info/30"),
         isResizing && "cursor-crosshair",
         isEditable
           ? isDragging
-            ? "cursor-grabbing opacity-80 shadow-xl"
+            ? "cursor-grabbing opacity-80 shadow-md"
             : "cursor-move"
           : "cursor-pointer",
       )}
@@ -286,8 +284,8 @@ export function ResizablePlacement({
       {/* Label */}
       <div
         className={cn(
-          "absolute left-1 top-1 text-[9px] md:text-[10px] text-white px-1.5 py-0.5 rounded truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
-          isSignature ? "bg-primary" : "bg-indigo-600",
+          "absolute left-1 top-1 text-xs leading-none text-background px-1.5 py-0.5 rounded-sm truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
+          isSignature ? "bg-primary" : "bg-info",
         )}
       >
         {placement.label || (isSignature ? "Signature" : placement.fieldType)}

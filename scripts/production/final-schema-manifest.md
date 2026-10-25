@@ -47,6 +47,82 @@ The 625 inventory was captured after a clean replay of all candidate migrations.
 Local fixture helpers were removed inside a rollback-only transaction before
 capture. Hosted comparison remains a separate release check.
 
+Release724 repairs scheduled platform attendance with one private selected-session
+parser and two replaced canonical worker definitions. The pre-alias clean
+PostgreSQL17.11 replay applied all724 migrations;500 pgTAP files and12,991
+assertions passed, including45 attendance/authorization regressions. The current
+alias correction adds six synthetic cases for all stored schedule ID forms; its
+full replay remains a release gate. The pre-alias inventory capture used
+the exact local-fixture teardown in a rollback-only transaction. The revised
+helper fingerprint was recomputed from its PostgreSQL definition, owner and ACL;
+a full inventory comparison is still required. Release724 adds only
+`private.project_attendance_slot_window(uuid,text)` and changes only
+`public.process_automatic_check_ins()` and `public.process_automatic_check_outs()`;
+every other723 object fingerprint remains identical. No attendance, certificate,
+point, client-role grant or cron definition is changed by the migration itself.
+Hosted comparison, the full application/browser gate and Production acceptance
+remain separate requirements.
+
+Release 725 applies the repeatable pending-point claim repair after all 724 v4
+migrations. The pre-alias clean isolated PostgreSQL 17.11 replay passed 501 pgTAP
+files and 13,011 assertions. The canonical catalog query returned `1` on that
+replay; the alias correction requires a fresh full replay and catalog check.
+The inventory changes only the point-submission begin function, the activity
+award assertion, and the point-submissions relation/index; it adds or removes
+no catalog object. This is the v4 ledger and relation fingerprint, distinct
+from the isolated Production 688 path. Hosted Development comparison, full CI,
+and visual acceptance remain separate gates.
+
+Release 727 extends certificates with a validated event timezone and appends
+display timezone fields to the two certificate read-model views. Its initial
+owned clean PostgreSQL 17.11 replay passed 502 pgTAP files and 13,040
+assertions. The
+reviewed 1,441-object inventory adds only
+`private.enforce_certificate_event_timezone()` and changes only
+`public.certificates`, `public.certificate_verification_read_model`, and
+`public.user_certificate_read_model` relative to release 725; no object is
+removed. The manifest binds ledger digest
+`41e425279139fea40028f2c46586b074f188743ee38ff5a2f08101aa851d0b5b`.
+A second new owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison, full CI, and
+visual acceptance remain separate gates.
+
+Before v4 promotion, the undeployed 725 candidate migration was aligned byte
+for byte with the already deployed Main points repair (SHA-256
+`694673006e4a8b1d34e7d57469a7c96b41eb50d789c75d613c8c45a876380a00`).
+Fresh 725 and 727 prefix replays each passed the 33-assertion points regression;
+the 727 prefix also passed its 23-assertion timezone regression. Their
+recaptured manifests changed only the pending-point authority function from
+the earlier candidate fingerprint to Main's `00cb6983044aba50bc99a777acf3c66b`.
+The existing 725 and 727 ledger selectors did not change because the migration
+versions did not change. No deployed migration bytes were modified.
+
+Release 728 rejects `Factory`, which PostgreSQL 17.11 lists as a timezone but
+the pinned Node ECMA-402 formatter rejects. Its forward migration fails for
+existing `Factory` rows pending review rather than modifying stored instants.
+A clean diagnostic replay passed 502 pgTAP files and 13,048 assertions. After
+adding explicit ACL statements to the replaced trigger, a separate exact-byte
+replay passed the 33-assertion points and 26-assertion timezone tests. Its
+reviewed 1,441-object inventory changes only
+`private.enforce_certificate_event_timezone()` from the recaptured 727
+inventory, with no additions or removals. The 728 ledger digest is
+`b54353c4317401b5fcac6245b19b3fcf18fd24fde9d1fa50d7e100f54207101c`.
+A further fresh owned replay returned `1` from the complete isolated release
+catalog query after registration. Hosted Development comparison and full
+integrated CI remain separate gates.
+
+Release 729 pins the checked-in certificate formatter timezone set at both the
+API and direct-write boundary. It refuses any preexisting unsupported zone for
+review and never rewrites timestamps. Its 1,441-object expected inventory
+retains every 728 identity and fingerprint except
+`private.enforce_certificate_event_timezone()`. The replacement fingerprint was
+measured in a temporary PostgreSQL 18 catalog after that same catalog reproduced
+the reviewed 728 PostgreSQL 17 fingerprint exactly. Ledger digest
+`5683053e8fc69f99c841ece8d1c0f8447dba68a933369692a94ae1fc0703e90c`
+selects this candidate manifest. The clean PostgreSQL 17 full replay, pgTAP,
+complete catalog comparison, hosted Development and visual acceptance remain
+release gates; the temporary catalog check is not a substitute for them.
+
 Release 626 keeps the same reviewed object inventory and binds it to the next
 ledger digest. Its forward migration removes a Production-only invitation DELETE
 policy that never existed in the clean replay. Browser roles already lacked the
@@ -157,7 +233,173 @@ for this comparison.
 Release 686 adds the signed CSF 1.2.85 publication without changing schema objects.
 It reuses the reviewed 685 inventory with the exact 686 ledger binding.
 
-Release 688 permits multiple pending quantity and per-item activity claims while
+Release 700 removes browser table and column privileges on Google OAuth
+credentials and keeps only service-role CRUD. Its clean replay preserves all
+1,350 object identities and changes exactly two fingerprints: the credential
+relation and the explicit client-grant catalog. The full 455-file SQL suite
+passed 11,374 assertions. The accepted catalog query returned one on that
+replay, with local fixture helpers removed only inside a rolled-back transaction.
+The previous 699 catalog remains accepted for its exact historical ledger.
+Unknown future migrations and changed migration bytes still refuse release.
+
+Release 701 adds the service-only personal-calendar disconnect preparation
+function. The clean replay adds exactly one object and preserves all 1,350
+schema 700 object fingerprints. The new function retains cleanup coordinates
+without changing provider events, receipt phases or confirmations. It checks the
+exact credential revision, locks source rows before reading their markers and
+bounds both the scan and prepared metadata. The 700 catalog still requires its
+original exact ledger. All historical migration bytes remain unchanged.
+The fresh 456-file SQL suite passed 11,416 assertions at source `a6257a20`.
+The exact accepted catalog query returned one after transactional local-helper
+teardown; that transaction rolled back. Controller coverage passed 467 tests.
+
+Release 702 makes the three project review fields service-owned. Browser roles
+receive explicit access to the other 43 columns, and the legacy creator view
+loses browser access. The clean replay retains all 1,351 object identities and
+changes exactly the project relation, legacy view and client-grant catalog
+fingerprints. Existing row policies, authenticated deletion and service CRUD
+remain in place. Every prior migration file retains its original bytes.
+
+The fresh 457-file SQL suite passed 11,501 assertions on runtime source
+`09f6dc0a` with the test-only fixture correction integrated at `072dedf4`.
+All 15 following database, seed, contract and scale gates passed. The exact
+accepted catalog query returned one after transactional fixture-helper teardown;
+the transaction rolled back. Controller coverage passed 471 tests. Historical
+700 and 701 manifests remain accepted only for their exact ledgers. Hosted
+Development comparison and browser acceptance are separate release checks.
+
+The request-fence bootstrap has its own exact 688 ledger, ending at
+`20260929051600`. It follows the unchanged 687 published migrations. Its clean
+catalog has 1,299 objects: the new request hook is the only added object, and
+all prior object digests remain unchanged. Historical 699–702 manifests still
+refer to their original ledgers without this newly reviewed bootstrap.
+
+The fixed-prefix bootstrap plan checks every filename and byte digest in the
+first 688 migrations, plus the accepted 687 and 688 catalogs. It never applies
+or approves later migrations. The owned replay executed the generated atomic
+687-to-688 transaction, waited for an already admitted authenticator request,
+and verified the exact installed catalog. Separate HTTP checks proved that
+reads and writes stay available while the flag is off, activation refuses
+writes with SQLSTATE `25006`, and releasing the gate restores writes. A
+read-only retry barrier covers an already-applied migration after a lost
+response. These local proofs do not authorize a hosted bootstrap.
+
+The hook holds a shared advisory lock until each request transaction ends.
+Operator flag changes acquire the exclusive lock in read-committed isolation.
+Writable repeatable-read and serializable requests fail closed even when
+maintenance is off because their snapshot can predate the lock wait. Read-only
+RPCs can retain those isolation levels. The exact verifier also rejects
+incompatible served-role or writable RPC defaults, changed hook bodies or
+privileges, and conflicting configuration. The maintenance signal lives in
+fixed authenticator role-catalog metadata; it is not a client-controlled GUC.
+
+Release 708 combines the accepted bootstrap with the reviewed remediation
+suffix. A fresh replay of `6af61c9e` produced 1,364 objects. Relative to the
+historical 702 catalog, 13 objects were added, 43 changed and none were removed.
+The additions are the request guard, eight image functions, two private image
+tables and two organization authorization functions. The changes are the 39
+reviewed business-conflict functions, the worker receipt reader and table, and
+the profile and organization relations carrying the new indexes, triggers and
+organization policies. All 687 published migration files remain unchanged.
+
+The full 464-file SQL run completed 11,737 assertions with one stale test
+expectation: an inactive administrator's update now returns zero rows through
+RLS before reaching the trigger. The corrected 93-assertion file passed and
+still proves that the issuer stays unchanged. The other full-suite assertions
+passed. Database, seed, workflow and scale checks are recorded separately from
+the candidate private-plugin runtime contract, which refuses unpublished
+version metadata until signed release integration.
+
+The 708 acceptance query also pins the exact enabled Auth image-reference and
+Storage upload triggers, preserving the existing account-deletion and CSF
+Storage checks. It requires Storage RLS, the fixed 21-row policy contract digest
+and no difference between that contract and live policies. Ten actual local
+rollback cases verified the accepted catalog and refusal of missing or disabled
+hooks, changed RPC grants, weakened organization policy, disabled Storage RLS,
+an extra browser policy, and coordinated live-policy and contract changes.
+Historical 688 and 699–702 manifests retain their original acceptance branches.
+No later publication ledger is accepted by this record.
+
+The paper-attendance repair keeps four unpublished forward migrations:
+`20261009010000_reviewed_attendance_intervals`,
+`20261009010001_attendance_print_manifests`,
+`20261009010002_corrected_certificate_delivery`, and
+`20261009010003_atomic_guest_account_link`. They cover reviewed intervals,
+print manifests, corrected-certificate delivery and atomic guest account linking.
+The repaired drafts also change combine, review, commit and conflict behavior.
+Appending them to the accepted 708 ledger produces a provisional 712-entry
+union. That count records the proposed ordering, not a replay or release approval.
+Other feature migrations will change the final combined count.
+
+The published `final-schema-687.json` keeps its exact bytes and ledger identity.
+The paper branch previously used that filename for a different, derived
+683-plus-four attendance catalog. That file does not describe the published 687
+schema and must not replace it. Its old ledger and the repaired forward ledger
+both remain unaccepted. The attendance catalog tests verify this refusal through
+the existing catalog APIs. Replay the final combined candidate, review its
+account-deletion and other security boundaries, then capture and approve its own
+exact catalog before Development cutover. Existing historical acceptance branches
+and migration approvals remain unchanged.
+
+Release 723 was captured from a clean owned local replay after 12,946 passing
+pgTAP assertions across 499 files, including the 37 landing-mode assertions.
+The authoritative seven local fixture functions were removed only inside the
+rolled-back capture transaction. Compared with the preceding 721 inventory
+used by catalog 722, exactly five objects are added and no fingerprints change
+or disappear: two private landing-mode tables, their identity sequence, and
+two service-only public RPCs. Migration `20261011100000` explains every addition.
+The project-status cron, provider Auth/Storage fences, signed publication checks,
+and paused speech/debate catalog wrappers remain required. Seventeen deliberate
+permission, RLS, function, trigger and cron drifts fail the live catalog check,
+with each mutation rolled back. Both ordinary and enabled display states pass.
+The owned stack and temporary directory were removed after verification.
+Hosted Development
+comparison and acceptance remain separate gates before promotion.
+
+Release 730 was captured from a fresh owned local replay at source
+`e04544b34dfb8b84a29977f06eb7ed9d9d0ed0da` after all 730 migrations and
+13,578 pgTAP assertions across 510 files passed. The seven unpublished repair
+migrations add 46 functions and six private relations and change five functions
+and six relations. All 1,439 preceding identities remain present; every addition
+and change is explained by those migrations. Historical manifests retain their
+exact bytes. The capture removed only the authoritative local fixture helpers
+inside a rolled-back transaction.
+
+The inventory excludes provider-owned Storage relations and ICU collations.
+The additional workflow repair wrapper therefore requires the five exact,
+enabled project-asset and immutable waiver-source Storage hooks and the
+postgres-owned nondeterministic ICU `und` roster collation. Existing publication,
+Auth/Storage, retention, paused Speech and Debate and project-status cron guards
+remain required. Eleven deliberate live faults (disabled or missing Storage
+hooks, changed hook definition, renamed or wrong-owner collation, widened RPC
+execution and disabled private-run RLS) each return zero; every rolled-back
+baseline returns one. The historical online migration allowlist remains unchanged;
+this application/schema pair requires the guarded maintenance cutover. This
+catalog proves the SQL contract only. Signed plugin publication, real local
+workflow and browser acceptance, and hosted Development acceptance remain
+separate release requirements.
+
+Release 739 joins the reviewed 732 publication history with Development's
+attendance, repeatable CSF claim, and certificate timezone migrations. A clean
+owned replay passed all 739 migrations, 515 pgTAP files, and 13,712 assertions.
+Its captured 1,493-object inventory adds only the private attendance-window
+and certificate timezone functions. Eight fingerprints change: the two public
+automatic attendance functions, the two CSF point functions and point-submission
+relation, and the certificates relation and two certificate read models. No
+identity is removed. The forward 739 migration gives an exact role name
+precedence over a positional alias when both read as `role-0`; the regression
+checks automatic and QR attendance. The exact ledger digest is
+`ddbe6830413c102faa86397712a191537598203ba7e357c6034856f438afb0a4`.
+A second clean replay returned one for the complete catalog after rolling back
+local fixture-helper removal. Ten point-trigger and permission drifts returned
+zero, with each probe rolled back. Hosted Development comparison, full CI, and
+visual acceptance remain release gates.
+
+The separate Production points-first 688 baseline is retained in
+`final-schema-points-first-688.json`. It contains the first 687 migrations plus
+`20261013071100`, with no request fence. It differs from the historical
+fence-first `final-schema-688.json`; both exact ledgers remain separately checked.
+This Production baseline permits multiple pending quantity and per-item activity claims while
 retaining the fixed and legacy one-claim guard and the shift and assessment
 one-unfinished-claim guard.
 The begin function writes the locked activity-rule snapshot on the initial
@@ -173,3 +415,17 @@ transaction.
 An activity without an explicit `pointCap` uses the published semester policy's
 per-person activity cap; its `pointValue` limits one selection only. A focused
 regression claims two points, then one more, before rejecting a further claim.
+
+Release 740 appends `20261020031605_project_calendar_deletion_fence.sql`.
+Its reviewed delta changes only the two calendar claim functions and the two
+project deletion functions, and adds one service-only private boolean helper.
+The 739 manifest and points-first rollout states retain their original bytes.
+An owned PostgreSQL 18.6 function replay matched all four historical definition,
+owner and ACL digests against the accepted 739 inventory before applying the
+migration. The resulting five-object metadata delta produces 1,494 objects.
+No records, grants on existing tables, Storage hooks or CSF objects change.
+The local concurrent regression passed 29 assertions using a small assertion
+shim. It is not full Supabase or pgTAP acceptance. The complete clean CI replay
+must match the new catalog and pass the committed pgTAP test before deployment.
+The 740 ledger digest is
+`073e908b7c1a0a2df12cfd133abe41d26cbd4ef751e9a39fc4a43528490249f7`.

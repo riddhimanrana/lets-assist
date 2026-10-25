@@ -9,6 +9,9 @@ import {
 } from "@/services/calendar";
 import type { ReportType } from "../actions";
 import type { ReportLayoutConfig } from "../report-layouts";
+import type { SheetDestinationProblem } from "./destination-probe";
+
+export type { SheetDestinationProblem } from "./destination-probe";
 
 export type SheetSyncStatus = {
   connected: boolean;
@@ -34,6 +37,11 @@ export type SheetSyncStatus = {
     syncIntervalMinutes: number;
     lastSyncedAt?: string | null;
   } | null;
+  /**
+   * Set when the saved spreadsheet or tab can no longer be written to and an
+   * admin has to choose it again.
+   */
+  destinationProblem?: SheetDestinationProblem | null;
   error?: string;
 };
 

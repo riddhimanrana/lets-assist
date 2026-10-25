@@ -45,9 +45,9 @@ VALUES
     'Waiver Project One',
     'Local',
     'Invariant fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   ),
   (
@@ -56,9 +56,9 @@ VALUES
     'Waiver Project Two',
     'Local',
     'Invariant fixture',
-    'single',
+    'oneTime',
     'manual',
-    '{}'::jsonb,
+    '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
     true
   );
 
@@ -110,6 +110,16 @@ VALUES
     'project_pdf',
     'f1000000-0000-4000-8000-000000000001'
   );
+
+-- Each project uses its own definition. New evidence must name the current
+-- definition of its project, so the fixtures say which one that is.
+UPDATE public.projects
+SET waiver_definition_id = 'f5000000-0000-4000-8000-000000000001'
+WHERE id = 'f2000000-0000-4000-8000-000000000001';
+
+UPDATE public.projects
+SET waiver_definition_id = 'f5000000-0000-4000-8000-000000000002'
+WHERE id = 'f2000000-0000-4000-8000-000000000002';
 
 SELECT extensions.throws_ok(
   $$

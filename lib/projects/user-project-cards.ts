@@ -1,3 +1,20 @@
+export function isHoursPublished(
+  published: unknown,
+  scheduleId: unknown,
+): boolean {
+  if (
+    typeof scheduleId !== "string" ||
+    scheduleId.length === 0 ||
+    scheduleId.trim() !== scheduleId ||
+    !published ||
+    typeof published !== "object" ||
+    Array.isArray(published) ||
+    !Object.hasOwn(published, scheduleId)
+  )
+    return false;
+  return (published as Record<string, unknown>)[scheduleId] === true;
+}
+
 export function deduplicateVolunteerProjectCards<
   TProject extends { id: string; areHoursPublished?: boolean },
 >(projects: TProject[]): TProject[] {

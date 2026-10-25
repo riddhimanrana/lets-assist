@@ -24,6 +24,7 @@ interface CertificatePublishedProps {
   isAutoPublished: boolean;
   eventStart?: string;
   eventEnd?: string;
+  creditedMinutes?: number | null;
   timezone?: string;
 }
 
@@ -35,6 +36,7 @@ export default function CertificatePublished({
   isAutoPublished = false,
   eventStart,
   eventEnd,
+  creditedMinutes,
   timezone,
 }: CertificatePublishedProps) {
   const timeZone = (() => {
@@ -90,6 +92,13 @@ export default function CertificatePublished({
       return undefined;
     }
   })();
+
+  const creditedTime =
+    typeof creditedMinutes === "number" &&
+    Number.isInteger(creditedMinutes) &&
+    creditedMinutes >= 0
+      ? `${Math.floor(creditedMinutes / 60)}h ${creditedMinutes % 60}m`
+      : null;
 
   const eventDateDisplay = eventDateStr ?? "TBD";
   const eventTimeDisplay = eventTimeStr ?? "TBD";
@@ -176,6 +185,19 @@ export default function CertificatePublished({
                         <Text style={detailValueText}>{eventTimeDisplay}</Text>
                       </Column>
                     </Row>
+
+                    {creditedTime !== null && (
+                      <Row style={eventDetailRow}>
+                        <Column style={detailLabel}>
+                          <Text style={detailLabelText}>Hours credited</Text>
+                        </Column>
+                        <Column style={detailValue}>
+                          <Text style={detailValueText}>
+                            {creditedTime}, excluding breaks
+                          </Text>
+                        </Column>
+                      </Row>
+                    )}
 
                     <Row style={eventDetailRowLast}>
                       <Column style={detailLabel}>

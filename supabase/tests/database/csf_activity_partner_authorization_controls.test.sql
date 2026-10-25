@@ -194,8 +194,8 @@ INSERT INTO public.projects (
   id, creator_id, organization_id, title, location, description,
   event_type, verification_method, schedule, require_login
 ) VALUES
-  ('fa400000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000001', 'fa100000-0000-4000-8000-000000000001', 'Fence Project', 'Local', 'Synthetic project.', 'single', 'manual', '{}'::jsonb, true),
-  ('fa400000-0000-4000-8000-000000000002', 'fa000000-0000-4000-8000-000000000007', 'fa100000-0000-4000-8000-000000000002', 'Independent Project', 'Local', 'Synthetic project.', 'single', 'manual', '{}'::jsonb, true);
+  ('fa400000-0000-4000-8000-000000000001', 'fa000000-0000-4000-8000-000000000001', 'fa100000-0000-4000-8000-000000000001', 'Fence Project', 'Local', 'Synthetic project.', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true),
+  ('fa400000-0000-4000-8000-000000000002', 'fa000000-0000-4000-8000-000000000007', 'fa100000-0000-4000-8000-000000000002', 'Independent Project', 'Local', 'Synthetic project.', 'oneTime', 'manual', '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb, true);
 
 INSERT INTO plugin_data.csf_opportunities (
   id, organization_id, term_id, title, body, starts_at, status,
@@ -236,6 +236,9 @@ DECLARE
   v_deadline timestamptz := pg_catalog.clock_timestamp() + interval '15 seconds';
 BEGIN
   LOOP
+    -- Activity rows are cached within this transaction. Poll the queued
+    -- backend's current state rather than reusing its pre-lock snapshot.
+    PERFORM pg_catalog.pg_stat_clear_snapshot();
     SELECT EXISTS (
       SELECT 1
       FROM pg_catalog.pg_stat_activity AS activity
@@ -384,6 +387,9 @@ BEGIN;
 SELECT pg_catalog.pg_advisory_xact_lock(
   plugin_data.csf_staff_access_lock_key('fa100000-0000-4000-8000-000000000001')
 );
+-- Exercise polling after the activity snapshot was already cached while the
+-- queued backend was idle. The helper must observe its later lock wait.
+DO $$ BEGIN PERFORM 1 FROM pg_catalog.pg_stat_activity; END $$;
 SELECT extensions.dblink_send_query(
   'activity_retry_after_benign_edit',
   $query$

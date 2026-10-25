@@ -233,11 +233,8 @@ const accounts = [
 // Every CSF fixture actor is a DVHS CSF profile record, so shared local mode
 // never creates one. The non-CSF platform accounts are untouched.
 
-// Only the two real products. The example plugins seeded for visibility-tier
-// testing (calendar-tools, community-impact-radar, family-liaison-workbench)
-// were removed. dv-speech-debate is listed so the shared local stack still
-// exercises the entitlement and install control plane, which would otherwise
-// seed nothing at all once dvhs-csf is filtered out of that mode.
+// Retain the paused DV catalog identity for existing fixture references.
+// Normal platform seeding must not offer it for installation again.
 const pluginKeys = ["dv-speech-debate", "dvhs-csf"];
 
 const pluginCatalogRows = [
@@ -245,9 +242,9 @@ const pluginCatalogRows = [
     key: "dv-speech-debate",
     name: "DV Speech and Debate",
     description:
-      "Tournament, roster, and results workflow surfaces for the speech and debate program.",
+      "Development is on hold. This private plugin is not available for installation.",
     visibility: "private",
-    is_active: true,
+    is_active: false,
     // Must match the manifest and a published `plugin_versions` row.
     latest_version: "2.0.2",
     private_codebase: true,
@@ -274,7 +271,15 @@ export function buildSeedFixtureSets(seedsDvhsCsf) {
   const seededPluginCatalogRows = pluginCatalogRows.filter((row) =>
     seededPluginKeys.includes(row.key),
   );
-  return { seededAccounts, seededPluginKeys, seededPluginCatalogRows };
+  const seededActivePluginKeys = seededPluginCatalogRows
+    .filter((plugin) => plugin.is_active)
+    .map((plugin) => plugin.key);
+  return {
+    seededAccounts,
+    seededPluginKeys,
+    seededPluginCatalogRows,
+    seededActivePluginKeys,
+  };
 }
 
 export function preserveMigratedPluginVersions(seedRows, migratedRows) {

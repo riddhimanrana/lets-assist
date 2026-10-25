@@ -17,6 +17,8 @@ if [[ ! "${RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,15}$ ]]; then
   exit 1
 fi
 PROJECT_ID="lets-assist-csf-replay-${RUN_ID}"
+export SUPABASE_PROJECT_ID="${PROJECT_ID}"
+export SUPABASE_NETWORK_ID=""
 BASE_PORT="${CSF_REPLAY_BASE_PORT:-$((55000 + ($$ % 700)))}"
 if [[ ! "${BASE_PORT}" =~ ^[0-9]+$ ]] || ((BASE_PORT < 1024 || BASE_PORT > 65526)); then
   echo "CSF_REPLAY_BASE_PORT must be an integer between 1024 and 65526." >&2
@@ -191,7 +193,7 @@ fs.writeFileSync(path, source);
 NODE
 
 echo "Starting isolated Supabase project ${PROJECT_ID} on database port $((BASE_PORT + 2))"
-supabase db start --workdir "$TMP_DIR" --yes
+supabase db start --workdir "$TMP_DIR" --yes --network-id=
 supabase test db --workdir "$TMP_DIR"
 
 DB_URL=$(supabase status --workdir "$TMP_DIR" -o env \
@@ -213,12 +215,18 @@ if [[ "${CSF_REPLAY_VERIFY_RELEASE_CATALOG:-0}" == "1" ]]; then
 import { readFileSync } from 'node:fs';
 import { acceptedCatalogQuery } from './scripts/production/app-release-catalog.mjs';
 import { expectedVersions } from './scripts/production/app-release-checks.mjs';
+import { isolatedReleaseCatalogQuery } from './scripts/production/isolated-release-catalog.mjs';
 const catalog = acceptedCatalogQuery(
   readFileSync('./scripts/production/verify-csf-target-schema.sql', 'utf8'),
   expectedVersions(process.cwd()),
 );
 if (catalog.includes('$csf_catalog$')) throw new Error('Unexpected catalog delimiter');
-console.log(catalog);
+const baseline = `DO $csf_baseline$ DECLARE verified integer; BEGIN
+  EXECUTE $csf_catalog$${catalog}$csf_catalog$ INTO verified;
+  IF verified IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'Release catalog rejected the clean isolated replay';
+  END IF;
+END $csf_baseline$;`;
 const relation = 'plugin_data.csf_point_submissions';
 const trigger = 'csf_point_submissions_verification_freeze';
 const triggerPrefix = `CREATE OR REPLACE TRIGGER ${trigger}`;
@@ -235,18 +243,19 @@ const drifts = [
   `GRANT UPDATE ON ${relation} TO service_role`,
   `GRANT UPDATE (status) ON ${relation} TO service_role`,
 ];
-for (const [index, drift] of drifts.entries()) {
-  console.log(`DO $csf_drift$ BEGIN
+const probes = drifts.map((drift, index) => `DO $csf_drift$ DECLARE verified integer; BEGIN
     BEGIN
       ${drift};
-      EXECUTE $csf_catalog$${catalog}$csf_catalog$;
-      RAISE EXCEPTION 'Catalog accepted point-trigger drift case ${index + 1}';
+      EXECUTE $csf_catalog$${catalog}$csf_catalog$ INTO verified;
+      IF verified IS DISTINCT FROM 0 THEN
+        RAISE EXCEPTION 'Catalog accepted point-trigger drift case ${index + 1}';
+      END IF;
+      RAISE EXCEPTION USING ERRCODE = '22012', MESSAGE = 'Roll back expected drift';
     EXCEPTION WHEN division_by_zero THEN
       NULL;
     END;
   END $csf_drift$;`);
-}
-console.log(catalog);
+console.log(isolatedReleaseCatalogQuery([baseline, ...probes, baseline].join('\n')));
 NODE
   echo "Accepted release catalog passed against the isolated replay."
   echo "All ten point trigger and permission drift checks refused the change and rolled back."

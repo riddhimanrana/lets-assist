@@ -2,7 +2,7 @@
 // use fast-glob's callable async and globSync surfaces. Keep those surfaces
 // while using tinyglobby, whose dependency tree has no vulnerable braces parser.
 const { glob, globSync, isDynamicPattern } = require("tinyglobby");
-const { isAbsolute, resolve } = require("node:path");
+const { isAbsolute, posix, resolve, sep } = require("node:path");
 
 function staticDirectoryDepth(pattern) {
   const segments = pattern.replace(/^\.\//u, "").split("/").slice(0, -1);
@@ -38,6 +38,10 @@ function optionsForTinyglobby(patterns, options = {}) {
   return adapted;
 }
 
+function directoryComparisonKey(value) {
+  return posix.normalize(value.split(sep).join("/")).replace(/\/$/u, "");
+}
+
 function normalizeDirectoryResults(matches, patterns, options = {}) {
   if (options.onlyFiles !== false && options.onlyDirectories !== true) {
     return matches;
@@ -49,9 +53,11 @@ function normalizeDirectoryResults(matches, patterns, options = {}) {
       const match = /^(.*)\/\*\*\/?$/u.exec(pattern);
       if (!match || !match[1] || /[?*{}()[\]!]/u.test(match[1])) return [];
       return [
-        options.absolute
-          ? resolve(options.cwd ?? process.cwd(), match[1])
-          : match[1],
+        directoryComparisonKey(
+          options.absolute
+            ? resolve(options.cwd ?? process.cwd(), match[1])
+            : match[1],
+        ),
       ];
     }),
   );
@@ -62,7 +68,7 @@ function normalizeDirectoryResults(matches, patterns, options = {}) {
         ? match
         : match.slice(0, -1),
     )
-    .filter((match) => !excludedRoots.has(match.replace(/\/$/u, "")));
+    .filter((match) => !excludedRoots.has(directoryComparisonKey(match)));
 }
 
 function fastGlob(patterns, options) {

@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { createHash } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -421,8 +422,8 @@ export function buildProviderEventMetadata(
 }
 
 /**
- * PII-free structured log. Only type names, opaque provider/tenant identifiers,
- * and ledger outcomes. Never an address, a subject, a body, or a raw payload.
+ * Central log policy keeps reviewed event types and outcomes. Provider and
+ * tenant coordinates remain in the restricted ledger, outside application logs.
  */
 function logWebhook(
   level: "info" | "error",
@@ -431,9 +432,9 @@ function logWebhook(
 ): void {
   const line = { scope: "resend.webhook", ...fields };
   if (level === "error") {
-    console.error(message, line);
+    safeConsole.error(message, line);
   } else {
-    console.info(message, line);
+    safeConsole.info(message, line);
   }
 }
 
@@ -1325,8 +1326,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Past this point the envelope id is verified provider content, so logging it
-  // is safe and is what makes an event traceable to the provider's dashboard.
+  // Verified envelope identities remain in the restricted ledger.
   //
   // And past the allowlist guard above, boundedEventType is provably one of
   // CSF_SUPPORTED_EVENT_TYPES -- this module's own closed token, equal to

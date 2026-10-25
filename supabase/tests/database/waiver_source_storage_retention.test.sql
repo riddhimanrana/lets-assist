@@ -44,9 +44,9 @@ VALUES (
   'Source Retention Project',
   'Local',
   'Source retention fixture',
-  'single',
+  'oneTime',
   'manual',
-  '{}'::jsonb,
+  '{"oneTime":{"date":"2030-01-01","startTime":"09:00","endTime":"10:00","volunteers":5}}'::jsonb,
   true
 );
 
@@ -83,6 +83,21 @@ VALUES (
   'approved',
   'd1000000-0000-4000-8000-000000000001'
 );
+
+-- New evidence must name the project's current definition and a source
+-- document that really exists. The project here points at one PDF while its
+-- definition was saved against another, so both paths are retained.
+INSERT INTO storage.objects (bucket_id, name)
+VALUES (
+  'waiver-uploads',
+  'project_waivers/d2000000-0000-4000-8000-000000000001/signature.pdf'
+);
+
+UPDATE public.projects
+SET waiver_definition_id = 'd3000000-0000-4000-8000-000000000001',
+    waiver_pdf_storage_path =
+      'project_waivers/d2000000-0000-4000-8000-000000000001/signature.pdf'
+WHERE id = 'd2000000-0000-4000-8000-000000000001';
 
 INSERT INTO public.waiver_signatures (
   id,

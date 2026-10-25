@@ -1,3 +1,4 @@
+import { safeConsole } from "@/lib/safe-console";
 import { generateText } from "ai";
 import { NextRequest } from "next/server";
 import { AI_MODEL_FAST } from "@/lib/ai/models";
@@ -9,6 +10,11 @@ import {
   normalizeParseProjectCandidate,
   parseProjectOutputSchema,
 } from "@/lib/ai/parse-project-schema";
+import { isValidIanaTimezone } from "@/lib/projects/schedule-validation";
+import {
+  getWallClockInTimeZone,
+  getWeekdayInTimeZone,
+} from "@/schemas/event-form-helpers";
 import { z } from "zod";
 
 // export const runtime = 'edge'; - incompatible with cacheComponents
@@ -16,21 +22,35 @@ import { z } from "zod";
 const parseProjectRequestSchema = z
   .object({
     prompt: z.string().trim().min(10).max(4_000),
+    // The project's timezone, when the form has one. It only decides which
+    // calendar day counts as "today"; an unknown value is ignored.
+    timezone: z.string().max(64).optional(),
   })
   .strict();
 
-const getCurrentDateInfo = () => {
-  const now = new Date();
+type CurrentDateInfo = { date: string; dayOfWeek: string };
+
+/**
+ * Today's date for one request, in the project's timezone when it is a real
+ * one and in UTC otherwise. It is computed per request: a value captured when
+ * the module loads would stay on the day the server instance started.
+ */
+const getCurrentDateInfo = (
+  timezone: string | undefined,
+  now: Date = new Date(),
+): CurrentDateInfo => {
+  const timeZone = timezone && isValidIanaTimezone(timezone) ? timezone : "UTC";
   return {
-    date: now.toISOString().split("T")[0], // YYYY-MM-DD
-    time: `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`,
-    dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
+    date: getWallClockInTimeZone(now, timeZone).date, // YYYY-MM-DD
+    dayOfWeek: getWeekdayInTimeZone(now, timeZone),
   };
 };
 
-const systemPrompt = `You are an AI assistant that helps parse natural language descriptions of volunteering projects into structured data.
+const buildSystemPrompt = (
+  today: CurrentDateInfo,
+) => `You are an AI assistant that helps parse natural language descriptions of volunteering projects into structured data.
 
-**IMPORTANT: Today's date is ${getCurrentDateInfo().date} (${getCurrentDateInfo().dayOfWeek}). All event dates MUST be in the future (today or later).**
+**IMPORTANT: Today's date is ${today.date} (${today.dayOfWeek}). All event dates MUST be in the future (today or later).**
 
 Event Types Explained:
 - "oneTime": A single event on one day with one time slot (e.g., "beach cleanup on Saturday 9am-12pm")
@@ -94,8 +114,8 @@ Given a user's description, extract and return a JSON object with the following 
 }
 
 Rules:
-- **CRITICAL: All dates must be in the future (today ${getCurrentDateInfo().date} or later). Never use past dates.**
-- If no specific date is mentioned, suggest dates within 1-2 weeks from today (${getCurrentDateInfo().date})
+- **CRITICAL: All dates must be in the future (today ${today.date} or later). Never use past dates.**
+- If no specific date is mentioned, suggest dates within 1-2 weeks from today (${today.date})
 - If a day of week is mentioned (e.g., "Saturday"), calculate the next occurrence of that day from today
 - Default volunteers to reasonable numbers (10-50) unless specified
 - For times, use reasonable defaults (9am-5pm for full day, 2-4 hours for shorter events)
@@ -150,7 +170,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { prompt } = parsedRequest.data;
+    const { prompt, timezone } = parsedRequest.data;
     let quota: Awaited<ReturnType<typeof consumeParseProjectQuota>>;
     try {
       quota = await consumeParseProjectQuota(
@@ -158,7 +178,10 @@ export async function POST(req: NextRequest) {
         getRequestIp(req.headers),
       );
     } catch (rateLimitError) {
-      console.error("Project parser rate-limit check failed:", rateLimitError);
+      safeConsole.error(
+        "Project parser rate-limit check failed:",
+        rateLimitError,
+      );
       return Response.json(
         {
           error:
@@ -200,7 +223,7 @@ export async function POST(req: NextRequest) {
         model: tracked.model,
         experimental_telemetry: tracked.telemetry,
         providerOptions: { gateway: tracked.gatewayOptions },
-        system: systemPrompt,
+        system: buildSystemPrompt(getCurrentDateInfo(timezone)),
         prompt,
         temperature: 0.3,
       });
@@ -224,7 +247,7 @@ export async function POST(req: NextRequest) {
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        console.error("Project parser response did not contain JSON");
+        safeConsole.error("Project parser response did not contain JSON");
         return Response.json(
           {
             error:
@@ -240,7 +263,7 @@ export async function POST(req: NextRequest) {
       const parsedData = parseProjectOutputSchema.safeParse(candidate);
 
       if (!parsedData.success) {
-        console.error(
+        safeConsole.error(
           "Project parser returned an invalid shape:",
           parsedData.error.issues.map((issue) => ({
             code: issue.code,
@@ -258,7 +281,7 @@ export async function POST(req: NextRequest) {
 
       return Response.json(parsedData.data);
     } catch (parseError) {
-      console.error(
+      safeConsole.error(
         "Project parser returned invalid JSON:",
         parseError instanceof Error ? parseError.name : "unknown",
       );
@@ -271,7 +294,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error(
+    safeConsole.error(
       "AI parsing error:",
       error instanceof Error ? error.name : "unknown",
     );

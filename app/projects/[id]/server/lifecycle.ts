@@ -1,12 +1,13 @@
 "use server";
+import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeRichTextHtml } from "@/lib/security/html.server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { revalidatePath } from "next/cache";
-import { ProjectStatus } from "@/types";
-import { type Project } from "@/types";
+import { type Project, ProjectStatus } from "@/types";
 import { toOrganizationPluginAccessRole } from "@/lib/plugins/access-role";
 import { removeCalendarEventForProject } from "@/utils/calendar-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
@@ -24,11 +25,18 @@ import {
   getExactRecurringSeriesEndReceipt,
 } from "./lifecycle-receipts";
 import { getExactProjectStatusTransitionReceipt } from "./status-transition-receipt";
+import { deleteProjectForActor } from "./lifecycle-assets";
 import {
   validateRecurrenceRule,
   validateProjectSchedule,
   validateProjectTimezone,
 } from "@/lib/projects/schedule-validation";
+
+/** Raised by the database when a project links a file a deletion has claimed. */
+const CLONE_ASSET_FENCE_MESSAGES: readonly string[] = [
+  "project_asset_unavailable",
+  "project_deletion_in_progress",
+];
 
 /**
  * Applies the waiver switches through the sanctioned service-role RPC.
@@ -51,7 +59,7 @@ async function applyWaiverSettings(
   });
 
   if (error) {
-    console.error("Error applying project waiver settings:", error);
+    safeConsole.error("Error applying project waiver settings:", error);
     return "This project's waiver settings could not be saved.";
   }
 
@@ -72,15 +80,33 @@ async function getProjectForMutation(
   // state. These actions only need the project row and its organization_id.
   const { data: project, error } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .maybeSingle();
 
-  if (error || !project || project.id !== projectId) {
-    return { project: null, error: error ?? new Error("Project not found") };
+  if (error) {
+    return { project: null, error, absent: false };
   }
 
-  return { project: project as Project, error: null };
+  // No row is different from the wrong row: only the first means the project
+  // may simply be gone.
+  if (!project) {
+    return {
+      project: null,
+      error: new Error("Project not found"),
+      absent: true,
+    };
+  }
+
+  if (project.id !== projectId) {
+    return {
+      project: null,
+      error: new Error("Project read returned a different project"),
+      absent: false,
+    };
+  }
+
+  return { project: project as Project, error: null, absent: false };
 }
 
 export async function updateProjectStatus(
@@ -94,13 +120,11 @@ export async function updateProjectStatus(
     | { enqueued: boolean; triggerAttempted: boolean; error?: string }
     | undefined;
 
-  // Get current user using getClaims() for better performance
   const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to update project status" };
   }
 
-  // Verify user has permission to update the project
   const { project, error: projectError } = await getProjectForMutation(
     supabase,
     projectId,
@@ -131,7 +155,7 @@ export async function updateProjectStatus(
 
     if (cancellationError || !cancellationReceipt) {
       if (process.env.NODE_ENV !== "test") {
-        console.error("Error cancelling project transactionally:", {
+        safeConsole.error("Error cancelling project transactionally:", {
           code: cancellationError?.code,
         });
       }
@@ -149,7 +173,7 @@ export async function updateProjectStatus(
       try {
         await removeCalendarEventForProject(projectId);
       } catch (calendarError) {
-        console.error(
+        safeConsole.error(
           "Error removing calendar event for cancelled project:",
           calendarError,
         );
@@ -178,7 +202,7 @@ export async function updateProjectStatus(
           headers: { authorization: `Bearer ${workerToken}` },
         }).catch((err) => {
           if (process.env.NODE_ENV !== "test") {
-            console.error(
+            safeConsole.error(
               "Failed to trigger project cancellation worker:",
               err,
             );
@@ -213,7 +237,7 @@ export async function updateProjectStatus(
       transitionReceipt.status !== newStatus
     ) {
       if (process.env.NODE_ENV !== "test") {
-        console.error("Error updating project status transactionally:", {
+        safeConsole.error("Error updating project status transactionally:", {
           code: transitionError?.code,
         });
       }
@@ -221,7 +245,6 @@ export async function updateProjectStatus(
     }
   }
 
-  // Revalidate project pages
   revalidatePath(`/projects/${projectId}`);
   if (project.organization_id) {
     revalidatePath(`/organization/${project.organization_id}`);
@@ -237,10 +260,9 @@ export async function cloneProject(projectId: string) {
   const { user } = await getAuthUser();
   if (!user) return { error: "You must be logged in to clone a project" };
 
-  // Fetch source project
   const { data: source, error: fetchError } = await supabase
     .from("projects")
-    .select("*")
+    .select(PROJECT_CLIENT_SELECT)
     .eq("id", projectId)
     .single();
 
@@ -313,7 +335,6 @@ export async function cloneProject(projectId: string) {
     workflow_status: "draft",
   };
 
-  // Insert new project
   const { data: newProject, error: insertError } = await supabase
     .from("projects")
     .insert(newProjectData)
@@ -321,11 +342,22 @@ export async function cloneProject(projectId: string) {
     .single();
 
   if (insertError) {
-    console.error("Error creating clone:", insertError);
+    // The database refuses a copy that would link a file already claimed by a
+    // deletion of the source project, so a clone never points at a file that
+    // is about to disappear.
+    if (
+      insertError.code === "23514" &&
+      CLONE_ASSET_FENCE_MESSAGES.includes(insertError.message)
+    ) {
+      return {
+        error:
+          "A file on this project is being removed, so it cannot be copied right now.",
+      };
+    }
+    safeConsole.error("Error creating clone:", insertError);
     return { error: `Failed to create clone: ${insertError.message}` };
   }
 
-  // Trigger plugin hooks if organization-scoped
   if (source.organization_id) {
     try {
       const { data: orgMember } = await supabase
@@ -360,7 +392,7 @@ export async function cloneProject(projectId: string) {
         }
       }
     } catch (pluginError) {
-      console.error("Error triggering plugin clone hooks:", pluginError);
+      safeConsole.error("Error triggering plugin clone hooks:", pluginError);
       // Don't fail the whole clone if plugins fail
     }
   }
@@ -378,142 +410,20 @@ export async function deleteProject(projectId: string) {
   "use server";
   const supabase = await createClient();
 
-  // Get current user using getClaims() for better performance
   const { user, error: userError } = await getAuthUser();
   if (!user || userError) {
     return { error: "You must be logged in to delete a project" };
   }
 
-  // Verify user has permission to delete the project
-  const { project, error: projectError } = await getProjectForMutation(
+  // The workflow lives in lifecycle-assets.ts. It reads the project through
+  // this module's own mutation read, so that read is neither duplicated nor
+  // exposed as an action.
+  return deleteProjectForActor({
     supabase,
     projectId,
-  );
-
-  if (!project || projectError) {
-    return { error: "Project not found" };
-  }
-
-  // Check if user has permission
-  let hasPermission = project.creator_id === user.id;
-  if (project.organization_id && !hasPermission) {
-    const { data: orgMember, error: orgMemberError } = await supabase
-      .from("organization_members")
-      .select("role, status")
-      .eq("organization_id", project.organization_id)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (orgMemberError) {
-      return { error: "Failed to verify project permissions" };
-    }
-
-    if ((orgMember?.status ?? "active") === "active" && orgMember?.role) {
-      hasPermission = orgMember.role === "admin"; // Only admins can delete projects
-    }
-  }
-
-  if (!hasPermission) {
-    return { error: "You don't have permission to delete this project" };
-  }
-
-  const serviceSupabase = getAdminClient();
-  const { count: signedWaiverCount, error: signedWaiverError } =
-    await serviceSupabase
-      .from("waiver_signatures")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", projectId);
-
-  if (signedWaiverError || signedWaiverCount === null) {
-    return { error: "Unable to verify the project's waiver-retention state" };
-  }
-
-  if (signedWaiverCount > 0) {
-    return {
-      error:
-        "Projects with signed waivers must be cancelled and retained until their evidence-retention period ends",
-    };
-  }
-
-  // Keep the project row (and therefore its retry/authorization anchor) until
-  // every external cleanup step has settled. The service client is required
-  // because user Storage policies intentionally depend on that project row.
-  if ((project.documents?.length ?? 0) > 0) {
-    const { data: storageData, error: storageListError } =
-      await serviceSupabase.storage.from("project-documents").list();
-
-    if (storageListError) {
-      console.error("Error listing project documents:", storageListError);
-      return { error: "Failed to clean up project documents" };
-    } else if (storageData) {
-      const projectFiles = storageData.filter((file) =>
-        file.name.startsWith(`project_${projectId}`),
-      );
-
-      if (projectFiles.length > 0) {
-        const { error: documentRemovalError } = await serviceSupabase.storage
-          .from("project-documents")
-          .remove(projectFiles.map((file) => file.name));
-
-        if (documentRemovalError) {
-          console.error(
-            "Error removing project documents:",
-            documentRemovalError,
-          );
-          return { error: "Failed to clean up project documents" };
-        }
-      }
-    }
-  }
-
-  // Delete cover image if it exists
-  if (project.cover_image_url) {
-    const fileName = project.cover_image_url.split("/").pop();
-    if (fileName) {
-      const { error: coverRemovalError } = await serviceSupabase.storage
-        .from("project-images")
-        .remove([fileName]);
-
-      if (coverRemovalError) {
-        console.error("Error removing project cover image:", coverRemovalError);
-        return { error: "Failed to clean up the project cover image" };
-      }
-    }
-  }
-
-  if (project.creator_calendar_event_id) {
-    const calendarResult = await removeCalendarEventForProject(projectId, {
-      userId: user.id,
-      calendarEventId: project.creator_calendar_event_id,
-    });
-    if (!calendarResult.success) {
-      return { error: "Failed to clean up the project calendar event" };
-    }
-  }
-
-  const { data: deletedProject, error: deleteError } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId)
-    .select("id")
-    .maybeSingle();
-
-  if (deleteError) {
-    console.error("Error deleting project:", deleteError);
-    return { error: "Failed to delete project" };
-  }
-
-  if (!deletedProject || deletedProject.id !== projectId) {
-    return { error: "Failed to delete project" };
-  }
-
-  // Revalidate paths
-  revalidatePath("/home");
-  if (project.organization_id) {
-    revalidatePath(`/organization/${project.organization_id}`);
-  }
-
-  return { success: true };
+    actorId: user.id,
+    readProject: () => getProjectForMutation(supabase, projectId),
+  });
 }
 
 export async function updateProject(
@@ -531,7 +441,6 @@ export async function updateProject(
       return { error: "Unauthorized" };
     }
 
-    // Verify project ownership
     const { data: project } = await supabase
       .from("projects")
       .select(
@@ -567,6 +476,7 @@ export async function updateProject(
       "creator_synced_at",
       "reviewed_by",
       "reviewed_at",
+      "review_notes",
       "status",
       "cancelled_at",
       "cancellation_reason",
@@ -576,7 +486,7 @@ export async function updateProject(
       "recurrence_sequence",
       "recurrence_occurrence_date",
       // Publication is a consequential transition, not a generic field write.
-      // It is owned by publish_waiver_staged_project / publishDraft.
+      // It is owned by publish_waiver_staged_project / publishProjectDraft.
       "workflow_status",
       "creation_idempotency_key",
     ] as const;
@@ -711,7 +621,7 @@ export async function updateProject(
       const receipt = getExactRecurringSeriesEndReceipt(seriesEndResult);
       if (seriesEndError || !receipt) {
         if (process.env.NODE_ENV !== "test") {
-          console.error("Error ending recurring project series:", {
+          safeConsole.error("Error ending recurring project series:", {
             code: seriesEndError?.code,
           });
         }
@@ -730,7 +640,7 @@ export async function updateProject(
         try {
           await removeCalendarEventForProject(cleanupProjectId);
         } catch (calendarError) {
-          console.error(
+          safeConsole.error(
             "Error removing calendar event for recurring occurrence:",
             calendarError,
           );
@@ -755,9 +665,7 @@ export async function updateProject(
           };
         }
         if (updateError) throw updateError;
-        return {
-          error: "Failed to update project",
-        };
+        return { error: "Failed to update project" };
       }
     }
 
@@ -767,7 +675,7 @@ export async function updateProject(
       cancelledOccurrences,
     };
   } catch (error) {
-    console.error("Error updating project:", error);
+    safeConsole.error("Error updating project:", error);
     return { error: "Failed to update project" };
   }
 }

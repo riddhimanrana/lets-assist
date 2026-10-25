@@ -4,6 +4,42 @@
 
 Ordinary application tables use Supabase RLS as the primary row boundary. Server Actions still validate intent and role because privileged server clients can bypass RLS.
 
+## Project review metadata
+
+`projects.review_notes`, `reviewed_by`, and `reviewed_at` are service-only fields.
+Migration `20261007230000` replaces browser table grants with explicit column
+permissions. Anonymous readers keep the same published-row visibility;
+authenticated readers and writers keep the other 43 columns and existing row
+policies. Generic project updates discard submitted review fields. The unused
+`projects_with_creator` view has no browser read grant. Client queries use
+`PROJECT_CLIENT_SELECT` so a future private column does not enter their payloads.
+
+Older deployed code still uses wildcard project reads. Publish the compatible
+query layer before applying this permission change, or use a separately reviewed
+maintenance cutover. The existing schema-first release sequence does not by
+itself prove uninterrupted compatibility. After release, verify the served
+revision and project discovery, personal lists, creation, editing, attendance and
+deletion against the accepted database.
+
+Before this repair, project owners could write these fields directly. The
+permission change does not certify historical values as staff-authored and does
+not delete or rewrite them. No current project-review writer was found during
+the audit; any later use of historical values needs its own provenance review.
+
+## Feed occupancy
+
+`public.project_occupancy_for_visible_projects` is a service-only, read-only projection for at most 100 project IDs. The server derives the viewer from its authenticated session. Public discovery uses only published public projects. Organization discovery requires the exact organization and the current project SELECT visibility contract. Unreadable IDs are omitted; readable projects without active signups return zero.
+
+The database counts pending, approved, and attended signup rows before returning a compact project summary, so the Data API row limit cannot truncate occupancy. Empty schedule IDs contribute to the total but not the schedule map. Callers validate every result and treat missing projects or errors as unavailable. The aggregate is informational; signup capacity transactions remain authoritative.
+
+## Project schedule health
+
+Publishing a project requires a complete schedule accepted by the existing status-window validator. The publication trigger checks new published rows and changes to the schedule, event type, timezone, or publication state. An unrelated edit to a legacy invalid row stays available. Drafts can remain incomplete.
+
+`process_projects` continues valid status changes even when another schedule needs correction. Its private health row records an invalid-project count, an opaque fingerprint, and separate check and change timestamps. The count includes locked rows that the status pass skipped. Repeated runs with the same backlog update the check time without repeating the warning. Neither logs nor the health row contain schedule payloads.
+
+The Admin Overview uses the service-only `get_project_schedule_health` projection, which independently checks current super-admin metadata and the account deletion fence. It returns the current count and at most 100 correction references; the page requests 25. A missing run and a run older than 15 minutes have separate warnings even when the current backlog is zero. Correct each legacy schedule only after reviewing its intended event with the organizer. Migration code never invents dates or updates legacy schedules.
+
 ## Plugin data
 
 `plugin_data` is not a browser API. Only server-side code may access it, every query or transaction must include organization scope, and externally reachable actions must prove the relevant plugin capability. Cross-tenant foreign keys and pgTAP denial tests are required for new relationships.
@@ -13,6 +49,12 @@ Uninstall never accesses `plugin_data`; it removes only platform install/configu
 Because plugin hooks may cross non-transactional provider boundaries, a process crash can leave a `processing` receipt whose outcome is unknown. That state is not automatically rerun. Explicitly reported idempotent failures may retry under the same globally bound request key with a fresh claim token; successful deletion is durable before audit is attempted.
 
 The enforced browser boundary for `plugin_data` is schema `USAGE`, which `PUBLIC`, `anon`, and `authenticated` do not hold. Object grants and the schema's default privileges are also closed for browser roles, but PostgreSQL's built-in global default still puts `EXECUTE` for `PUBLIC` on any newly created function, and a per-schema `ALTER DEFAULT PRIVILEGES` cannot revoke a globally granted default. A new private-plugin function therefore carries a `PUBLIC` execute bit that is unreachable without schema usage. Never grant `plugin_data` schema usage to `PUBLIC`, `anon`, or `authenticated`, and keep proving unreachability by calling as browser roles rather than by reading the object ACL alone.
+
+## Sheet scope observations
+
+The Sheet worker calls the service-only `csf_sheet_sync_scope_statuses` for at most 100 binding identities per request. It returns organization, destination, record identity, scope state, and scope revision. It never constructs student history, evidence, comments, or export projections for this check.
+
+The metadata observation and full destination snapshots use the same internal scope function. That function reads destination configuration once per batch and applies the existing tenant, term, cohort membership, and configured class-term rules. A previously bound record outside scope retains a tombstone revision; an unbound unavailable record remains unavailable. The worker rejects missing or mismatched results instead of assuming a record is active. Full immutable export snapshots and the final source-version and destination-lease checks still govern provider writes.
 
 ## Private helper schemas
 
@@ -71,6 +113,232 @@ for everything else, so no project published before this boundary existed is
 stranded by it. The migration reports only an aggregate count of such rows and
 never identifies them; reviewing those pre-boundary projects is an operator
 task, not a repository defect.
+
+## Deletion and retention
+
+A composite foreign key with `ON DELETE SET NULL` must name only nullable reference columns. Never clear the required project or organization column alongside an optional pointer. The architecture audit and database catalog test enforce this rule.
+
+Anonymous signup retention clears optional paper scan identity links while preserving the scan row and its project scope until the separate paper scan retention job expires that evidence. CSF decision sync receipts remain immutable. Their application and import-row references restrict parent deletion, and receipt triggers still reject direct edits and deletes. Staged decision pointers can detach only when the referenced parent is otherwise eligible for deletion.
+
+An organization sheet sync requires its creator for OAuth and authorization. Deleting that profile is blocked until an authorized workflow removes the sync or transfers ownership. Account deletion must check this dependency before making other destructive changes.
+
+Account removal uses `preflight_account_deletion`, `begin_account_deletion`, `claim_account_deletion_cleanup`, and `advance_account_deletion_cleanup`. These are service-only functions. Self-service deletion requires fresh Auth and completed MFA; the administrative blacklist action uses the same protocol after its super-admin guard. The preflight reports blockers without writing. The database phase takes the account write mutex and the existing organization membership mutex, locks the affected rows, and repeats the checks before changing any personal records.
+
+Google OAuth credentials in `public.user_calendar_connections` are service-only.
+Anonymous and authenticated roles have no table or column privileges, including
+for their own accounts. Default server reads verify the current Auth user and
+match the requested subject before opening the service client. They then resolve
+the exact user, provider, purpose, organization, and plugin binding. Trusted
+workers and already-authorized plugin services opt into service access explicitly.
+Credential writes retain the connection and user predicates. Browser responses
+use display DTOs, never credential rows. Provider refresh and disconnect use the
+same boundary; changing a page's selected columns does not replace database ACLs.
+
+Removal refuses unresolved organization ownership, the last active admin, sync ownership, other project participants, signed waivers, paper attendance, publication receipts, active exports, connected providers, unfinished calendar cleanup, and plugin account/project references. These need their own reviewed transfer or retention workflow. They are never silently cascaded away. Certificates, moderation evidence, and audit rows retain their receipt history with nullable personal links detached. Account removal is not a blanket promise to erase organization evidence.
+
+The database transaction snapshots at most 500 personal avatar/export objects into `app_private.account_deletion_storage_objects`, detaches reports, removes eligible personal rows, and commits an `external_pending` operation. An error rolls back that whole phase and leaves a safe failure receipt. Only personal UUID-prefixed avatar paths and UUID-directory data exports qualify. Other owned Storage objects block removal. Cleanup uses the Storage API in batches of 100 and independently checks catalog absence before acknowledging each batch. It never deletes the Storage catalog directly.
+
+`resumeAccountDeletionOperation` resumes a saved operation with the service client. Its five-minute claim fences retries; it completes only after all object receipts and the Auth outcome are independently confirmed. A lost response may require waiting for the lease to expire. An operator can resume by operation UUID after an Auth deletion removed the user's ability to sign in. No automatic worker is enabled by this change. Administrative removal retains a banned Auth row and blacklist record. A ban alone does not revoke existing access tokens, so the account write fence remains in effect after completion.
+
+Pending or completed removal blocks ordinary application auth and database writes. The one authenticated status function, `account_deletion_pending()`, reads only the session's own status. The deletion action may bypass that application guard only with fresh Auth and completed MFA so it can resume. New service write functions must acquire `pg_advisory_xact_lock(hashtextextended('lets-assist-account-write:' || actor_uuid::text, 0))` before `app_private.account_deletion_actor_is_active(actor_uuid)` and before organization/source locks. New browser-writable tables need the account write trigger. A migration-time trigger inventory cannot protect tables added later automatically.
+
+## Personal calendar receipts
+
+Personal project and signup calendar sync stores its complete event plan in
+`app_private.personal_calendar_sync_receipts` before any event write to Google.
+The service-only claim derives ownership from the source row, serializes with
+account deletion, and leases one worker. The plan pins the destination calendar,
+a fresh generation, every event ID, and the payload snapshot. Confirmed provider
+steps survive retries; the source's sync timestamp is set only when all planned
+events have completed. Removal confirms every planned ID before clearing the
+source marker. A later add uses a new generation so deleted Google IDs are never
+reused.
+
+Deleting a project or signup preserves its receipt for external cleanup. Account
+deletion must refuse unresolved provider plans before deleting the Auth user.
+Browser roles cannot read or mutate these receipts, or invoke either actor-taking
+RPC. Legacy records can remove their one stored event ID; occurrences that old
+code created without storing an ID still require provider reconciliation.
+
+Personal calendar destinations use the existing
+`plugin_data.csf_personal_calendar_destinations` ledger for both platform and CSF
+events. Its service-only public wrappers take the account deletion lock before
+reserving a provider attempt. Unknown creation outcomes block new calendars.
+Legacy preference IDs may be adopted only after Google confirms the exact live,
+non-primary calendar is owned by the connected account. Adoption locks the
+current OAuth binding and preferences and never replaces an existing ledger
+entry. Deleted-source event receipts appear in the account calendar cleanup
+list, limited to 100 entries per read; removing entries reveals the next batch.
+
+## Account exports
+
+Account exports use a service-only stable snapshot with explicit dataset columns
+and verified subject links. Fresh Auth and MFA gate requests and downloads.
+Archive generation, Storage verification, and notification attempts have separate
+receipts; completed means archive-ready, not email accepted. See
+[account exports](../development/account-exports.md) for bounds, exclusions,
+retention, recovery, and the migration/application rollout order.
+
+## Organization calendar receipts
+
+Organization calendar provisioning reserves a service-only destination operation
+before the Google create request. Verified adoption locks the active admin and
+exact organization OAuth binding. The destination and compatibility sync config
+commit together. Unknown creation outcomes block another calendar creation;
+operators must reconcile the provider result before changing that state. Browser
+configuration edits cannot replace the canonical destination.
+
+Project and CSF projections share private event receipts. Each receipt stores its
+calendar, provider event ID, source coordinates, immutable pending payload, and
+latest desired payload. A leased worker loads complete keyset pages before
+planning writes. The database checks tenant and publication state, rejects an
+incomplete snapshot of tracked publishable sources, and limits each projection
+plan to 10,000 events and 8 MiB. A read failure or limit stops the sync rather than
+treating missing rows as deleted sources.
+
+Provider retries reuse the saved event ID. Conflicting IDs require a matching
+receipt marker; updates use Google's ETag with `If-Match` and renew the worker
+lease before writing. A confirmed missing or deleted event gets a new saved ID.
+Unchanged events avoid repeated writes and become due for provider reconciliation
+after 24 hours. Each run processes at most 200 transitions or 25 seconds before
+starting another event; a provider request has a 10-second timeout. Pending work
+survives a timeout, and the next manual or scheduled run continues it.
+
+Deleting a source or compatibility binding preserves its private receipt. Cleanup
+uses the retained calendar and event IDs. Removing and then re-adding an occurrence
+uses a fresh ID after deletion is confirmed. Organization deletion is restricted
+while destination or event receipts remain; account deletion preflight must retain
+restrictive destination-owner references until a reviewed ownership transfer or
+provider cleanup. Organization calendars exclude officer-only CSF deadlines.
+Deploying this code does not reconcile historical untracked events or remove
+previously exported content from Google. Those are separate provider rollout
+checks.
+
+## Organization sheet sync runs
+
+The manual "Sync now" action and the scheduled worker share one export per
+organization. `app_private.organization_sheet_sync_runs` holds that export: the
+claim, the saved report rows and ranges, and a begin and acknowledge receipt for
+each Sheets mutation. No role has table privileges, including `service_role`.
+The two service-only functions `claim_organization_sheet_sync_run` and
+`advance_organization_sheet_sync_run` are the whole interface. They never
+receive token material. Both belong in the reviewed service RPC catalog with
+the two batch functions described under scheduled worker discovery.
+
+A run claims the organization before it refreshes a token, reads the
+spreadsheet or builds the report. A second caller is refused while that claim
+is held, so it cannot rotate the credential the first run has pinned. Every
+new plan, mutation begin and initial completion takes the account write fence,
+then the organization lock, and rechecks the active admin, the active
+`organization_sheets` connection binding, and every saved configuration column.
+
+The report is saved once, before the first mutation. It holds at most 10,000
+rows, 100,000 cells and 8 MiB of plain text and numbers, written as `RAW`. The
+database accepts it only for the saved tab, the saved range, and one to three
+closed ranges on one tab. A retry replays that saved report to its saved
+ranges and never rebuilds it. A new configuration starts a new run only when
+no mutation is uncertain.
+
+Completion stamps `last_synced_at` with the time the report was built. The
+same transaction clears the actor, the connection, the configuration, the
+ranges and the cells. It keeps a receipt with the spreadsheet ID, the
+configuration revision and the sync time, and the claim token that reads it.
+A finalize whose answer was lost is sent again with the same claim, at most
+twice, and returns that receipt. It sends nothing to Google and stamps nothing
+again. If no answer arrives, the sync reports that completion was not
+confirmed. Release does not remove the receipt. The next run for the
+organization replaces the token, and the old claim can read nothing.
+
+Each mutation is recorded before it is sent. A 2xx answer acknowledges it as
+completed. A 400, 401, 403, 404 or 429 acknowledges it as rejected, and the
+saved report stays for the next run. A timeout, a transport failure, any other
+status, or an acknowledgement that could not be saved leaves the mutation
+open. The run then becomes `outcome_unknown` and every later sync for that
+organization returns `sync_outcome_unknown`, for any configuration. A lease
+that expires with a mutation open is not taken over. No code path clears this
+state, and no reviewed operator procedure for it exists yet.
+
+An unresolved run holds a restrictive reference to its actor, so account
+deletion preflight reports it with the other retained references. An
+organization cannot be deleted while its run is `planned` or
+`outcome_unknown`, or while a claim is held. A claim that saved nothing is
+removed on release. A finished run leaves with its organization. A later claim
+removes receipts older than 30 days, at most 200 per call. It never removes an
+unresolved run. A `planned` run whose sync settings were removed therefore
+keeps blocking both deletions. No reviewed procedure resolves that yet.
+
+## Organization report sources
+
+A report reads projects, certificates, attended signups and reviewed intervals
+in primary-key pages of at most 500 rows. The API returns at most 1,000 rows
+per response, so an unpaged read would drop the rest. Each request names at
+most 200 project or signup IDs. One report loads at most 10,000 projects,
+100,000 certificates and attended signups together, and 100,000 intervals.
+
+The first page of each project, certificate and attended-signup read asks for
+an exact count. The report fails
+when a request fails, a page is out of order, the first page carries no exact
+count, or the rows read differ from the count. Reviewed intervals are read
+for at most 200 signups at a time, with only those signups' projects named,
+until a page comes back empty. It never returns part of an organization's
+records. These pages are separate requests and not one database snapshot. A
+change between pages is caught only when it changes a total, so a report is
+not a view of the source at a single instant. The sheet sync saves the built
+report once, under the organization's claim, before it writes.
+
+## Scheduled organization worker discovery
+
+The calendar and sheet workers each make one call to a service-only function:
+`claim_organization_calendar_sync_batch(limit, run_started_at)` or
+`claim_organization_sheet_sync_batch(limit, run_started_at)`. Each returns
+`due_count`, the exact number of due organizations, and `organization_ids`,
+the batch for this run. Both come from one statement, so they describe the
+same rows. The limit is 1 to 200, and the run start must be within 15 minutes
+behind and 5 minutes ahead of the database clock. The caller sends nothing
+else: no destination, scope or worker name.
+
+A calendar is due when automatic sync is on and it last synced at least 60
+minutes before the run started, or never. A sheet is due by its own saved
+interval. An interval under 15 minutes is read as 15, and a missing or
+non-positive one as 1,440.
+
+A batch continues in organization ID order after the worker's last one and
+wraps once. `app_private.organization_sync_discovery_cursors` holds that
+position in one row per worker. The two workers have separate rows and
+separate advisory locks, so neither waits for or moves the other. A cursor
+moves when a batch is selected, whatever the syncs then do. Organizations that
+keep failing, or many that are not due, cannot hide the ones behind them. A
+cursor records what was selected. It never shows that a sync ran or succeeded,
+and the functions change no sync row and no provider state.
+
+The sheet worker then loads the selected configurations by ID in one request
+of at most 200. The load must return exactly the selected organizations, each
+once, with its owner, spreadsheet and revision. Otherwise the pass attempts
+nothing. Each sync's own claim then pins the owner, destination and revision
+that were loaded, so a configuration that changed after selection is refused
+there. A configuration switched off after selection is not attempted.
+
+One calendar run attempts at most 25 organizations by default
+(`ORG_CALENDAR_SYNC_MAX_PER_RUN`, at most 200) and gives each at most 30
+seconds. One sheet run attempts at most 25 (`ORG_SHEET_SYNC_MAX_PER_RUN`, at
+most 200) and gives each 20 seconds by default, at most 30. Both start none in
+the last five seconds of a 50 second budget, and every discovery call ends
+with that budget.
+
+Both responses always report `deferredOrganizations`, `discoveryCounted` and
+`discoveryIncomplete`. Deferred work is the due count less the organizations
+attempted, so it includes those past the cap and those not started before the
+deadline. Deferred work or a failed organization makes the pass unhealthy
+(503). An empty pass is healthy only when the count was read and is zero. A
+batch answer that could not be read, or whose IDs are malformed, repeated or
+do not match the count, answers 500 with zero deferred and
+`discoveryCounted: false`. A sheet pass whose selected configurations did not
+load exactly answers 500 with the counted backlog and
+`discoveryIncomplete: true`. Neither is ever a healthy empty queue.
+
+The calendar worker's per-organization deadline is checked before each load,
+before provisioning, before every provider mutation and before the completion
+stamp. A request Google already received is not undone by that deadline.
 
 ## Sensitive data
 

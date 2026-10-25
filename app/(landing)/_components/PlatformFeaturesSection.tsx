@@ -63,7 +63,7 @@ const features: Feature[] = [
 export default function PlatformFeaturesSection() {
   return (
     <section id="features" className="py-16 sm:py-20 bg-muted/30">
-      <div className="container mx-auto px-4 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
