@@ -143,10 +143,10 @@ export function sanitizeProviderError(text) {
   const message =
     typeof rawMessage === "string"
       ? rawMessage
-          .replace(/[\u0000-\u001f\u007f]+/gu, " ")
+          .replace(/\p{Cc}+/gu, " ")
           .replace(/https?:\/\/\S+/giu, "[url]")
           .replace(/Bearer\s+\S+/giu, "[redacted]")
-          .replace(/[A-Za-z0-9_\-]{24,}/gu, "[redacted]")
+          .replace(/[A-Za-z0-9_-]{24,}/gu, "[redacted]")
           .trim()
           .slice(0, 200)
       : undefined;

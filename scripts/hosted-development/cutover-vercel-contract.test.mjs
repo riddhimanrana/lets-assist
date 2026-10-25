@@ -9,6 +9,7 @@ import {
   assignHeldAlias,
   holdDomain,
   refuseHoldBranchDeployments,
+  verifyHeldAlias,
   verifyNoCompetingDeployment,
 } from "./cutover-vercel.mjs";
 
@@ -109,13 +110,16 @@ test("the hold scans follow pagination and keep their page bound", async () => {
       paths.some((path) => path.includes(filter) && path.endsWith("&until=1700000000000")),
     );
   }
+  let pages = 0;
   await assert.rejects(
-    refuseHoldBranchDeployments(async () => ({
-      deployments: [],
-      pagination: { next: 1 },
-    })),
+    refuseHoldBranchDeployments(async () => {
+      pages += 1;
+      if (pages > 20) throw new Error("the page bound did not stop the scan");
+      return { deployments: [], pagination: { next: 1 } };
+    }),
     /exceeds its bound/u,
   );
+  assert.equal(pages, 10);
   await assert.rejects(
     refuseHoldBranchDeployments(async () => ({
       deployments: [],
@@ -134,7 +138,11 @@ test("the competing-deployment scan keeps the live-proven state filter", async (
   assert.match(paths[0], /state=BUILDING,QUEUED,INITIALIZING(&|$)/u);
 });
 
-function vercelStub({ alias, domainBranch = target.holdBranch }) {
+function vercelStub({
+  alias,
+  domainBranch = target.holdBranch,
+  holdDeployments = () => [],
+}) {
   const writes = [];
   let binding = domainBranch;
   const read = async (path, body, method) => {
@@ -170,6 +178,12 @@ function vercelStub({ alias, domainBranch = target.holdBranch }) {
         projectId: target.project,
         deploymentId: alias,
       };
+    if (
+      path.startsWith("/v6/deployments?") &&
+      (path.includes(`&sha=${target.holdCommit}`) ||
+        path.includes(`&branch=${encodeURIComponent(target.holdBranch)}`))
+    )
+      return { deployments: holdDeployments(binding), pagination: {} };
     if (path.startsWith("/v6/deployments?"))
       return { deployments: [], pagination: {} };
     throw new Error(`unexpected ${path}`);
@@ -202,4 +216,31 @@ test("the hold patches exactly the domain branch and nothing else", async () => 
       method: "PATCH",
     },
   ]);
+});
+
+test("the hold rescans after the domain moves and refuses a hold branch build it triggered", async () => {
+  const s = vercelStub({
+    alias: "dpl_Prior",
+    domainBranch: target.branch,
+    holdDeployments: (binding) =>
+      binding === target.holdBranch ? [{ uid: "dpl_Late", state: "READY" }] : [],
+  });
+  await assert.rejects(holdDomain(s.read, "dpl_Prior"), unsettled);
+  assert.equal(s.writes.length, 1);
+  assert.equal(s.writes[0].method, "PATCH");
+});
+
+test("held alias checks and alias moves refuse a live hold branch deployment", async () => {
+  const live = () => [{ uid: "dpl_Late", state: "READY" }];
+  const verify = vercelStub({ alias: "dpl_Maintenance", holdDeployments: live });
+  await assert.rejects(
+    verifyHeldAlias(verify.read, ["dpl_Maintenance"]),
+    unsettled,
+  );
+  const moving = vercelStub({ alias: "dpl_Prior", holdDeployments: live });
+  await assert.rejects(
+    assignHeldAlias(moving.read, "dpl_Maintenance", ["dpl_Prior"]),
+    unsettled,
+  );
+  assert.deepEqual(moving.writes, []);
 });
