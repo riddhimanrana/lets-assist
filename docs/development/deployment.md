@@ -272,6 +272,13 @@ not supported by the Production schema gate. If the private plugin changes,
 merge one private integration pull request first and update its exact gitlink
 in the root integration pull request.
 
+This release preserves only the five Vercel Cron schedules already enabled in
+Production: the four CSF workers run every minute, and project feedback followups
+run at minute 17 of each UTC hour. The other nine cron routes retain their manual
+workflows but have no automatic schedule in `vercel.json`. In particular, waiver
+cleanup is not automatically enabled: it can archive/delete existing data and
+drain Storage deletion work. Enabling additional jobs requires separate review.
+
 Vercel Git deployment is enabled only for `development`. It is disabled for
 feature branches and `main`. The repository-owned ignored-build command applies
 a second check:
