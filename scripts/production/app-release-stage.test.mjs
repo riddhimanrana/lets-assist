@@ -36,6 +36,7 @@ function fixture(overrides = {}) {
 test("build keeps secrets at Vercel and disables workers and legacy Sheet writeback", () => {
   const payload = stagePayload(config);
   assert.equal(payload.autoAssignCustomDomains, false);
+  assert.equal(payload.meta.productionReleaseSha, config.release);
   assert.deepEqual(payload.gitSource, {
     type: "github",
     ref: config.release,

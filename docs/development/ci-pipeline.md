@@ -262,3 +262,10 @@ writes, import ambiguity and unclassified files. Validate the selector against
 an executed coverage matrix before using it to skip a suite. This proposal
 changes no current check requirements and does not modify the active points
 release.
+
+Production schema releases verify an existing successful full `Code quality` run
+for the accepted commit after proving its tree matches the release. They do not
+repeat the reusable workflow or start a second database reset. The full run's
+isolated database job owns the warn-level security advisor check. A changed
+source tree requires fresh evidence. App-only releases retain their separate
+build and smoke path.
