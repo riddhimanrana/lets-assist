@@ -5,7 +5,10 @@ import test, { after } from "node:test";
 import { expectedVersions, productionRef } from "./app-release-checks.mjs";
 import { acceptedCatalogQuery } from "./app-release-catalog.mjs";
 import { historicalReleaseTestFixture } from "./historical-release-test-fixture.mjs";
-import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
+import {
+  maintenanceDataChecks,
+  maintenanceMutationLockQuery,
+} from "./maintenance-preflight-checks.mjs";
 import {
   executeMaintenanceQuery,
   maintenanceLedgerQuery,
@@ -13,6 +16,7 @@ import {
   maintenancePostureQuery,
   maintenanceTarget,
   maintenanceVerificationQuery,
+  maintenanceMutationVerificationSql,
   selectMaintenanceLedger,
   validateMaintenanceBinding,
   verifyMaintenancePreflight,
@@ -182,6 +186,32 @@ test("applicable historical data, index and collation blockers are retained with
       assert.ok(historical.includes(query.replace(/AS valid/u, `AS ${name}`)));
     assert.ok(maintenanceVerificationQuery(target).includes(query));
   }
+});
+
+test("writable verification changes only the read-only posture and reader lock guard", () => {
+  const readonly = maintenanceVerificationQuery(target);
+  const writable = maintenanceMutationVerificationSql(target);
+  const originalLock = maintenanceDataChecks.find(
+    ({ name }) => name === "e6_pass",
+  ).query;
+  const body = readonly
+    .slice(
+      readonly.indexOf("SELECT array_agg"),
+      readonly.indexOf("SELECT 'maintenance-preflight-verified';"),
+    )
+    .trim();
+  assert.ok(readonly.includes(originalLock));
+  assert.ok(!readonly.includes(maintenanceMutationLockQuery));
+  assert.ok(
+    writable ===
+      body
+        .replace(
+          "SELECT\n  current_setting('transaction_read_only') = 'on'\n  AND ",
+          "SELECT ",
+        )
+        .replace(originalLock, maintenanceMutationLockQuery),
+    "all other verification SQL must stay byte-identical",
+  );
 });
 
 test("database binding refuses foreign hosts, projects, database names and connection overrides", () => {

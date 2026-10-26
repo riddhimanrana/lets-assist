@@ -156,9 +156,6 @@ export default function VolunteerJourneySection() {
             Volunteers can sign up, record attendance, and see their hours turn
             into a certificate once an organizer verifies and publishes them.
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Interactive sample with fictional project and volunteer details.
-          </p>
         </motion.div>
 
         {/* The preview comes first so it sits above the steps on a phone. */}

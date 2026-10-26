@@ -20,9 +20,7 @@ describe("landing headline entrance", () => {
   ];
 
   test("the h1 gives assistive technology its full text exactly once", () => {
-    expect(HERO_HEADLINE_TEXT).toBe(
-      "A workspace for your volunteer organization.",
-    );
+    expect(HERO_HEADLINE_TEXT).toBe("The modern way to do volunteering");
     expect(html.match(/<h1\b/gu)).toHaveLength(1);
     expect(html).toStartWith(
       `<h1 class="fixture"><span class="sr-only">${HERO_HEADLINE_TEXT}</span>`,
@@ -46,8 +44,8 @@ describe("landing headline entrance", () => {
     // the markup, so the heading has its final dimensions without a script.
     expect(html.match(/style="/gu)).toHaveLength(letters.length);
     expect(html).not.toMatch(/opacity|transform|data-visible/u);
-    // The green word keeps the semantic text token.
-    expect(html).toContain('class="block text-primary"');
+    // This large headline uses the restored identity green.
+    expect(html).toContain('class="block text-[color:var(--primary)]"');
     expect(html).not.toContain("brand");
   });
 

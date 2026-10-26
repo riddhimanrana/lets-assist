@@ -12130,3 +12130,40 @@ receipts, publication rules and heartbeat ownership are unchanged. Regression
 coverage exercises pending and held recovery followed by a confirmed empty
 retry; scheduled failure signaling and approval refusals remain covered.
 Exact successor CI and hosted release acceptance remain required.
+
+`PRODUCTION-MIGRATION-READER-LOCK-20261025`, P2, fixed locally: the bounded
+migration transaction reused the read-only check that refuses all waiting
+database locks. A provider catalog reader waited on the transaction's own DDL,
+so the post-migration check rolled back the first file. Writable verification
+now permits only relation AccessShareLock waiters whose sole blocker is the
+current backend. It rejects writers, unrelated or multiple blockers, missing
+blocker information and unknown lock fields. Read-only preflight still refuses
+every waiting lock, and all other ledger, catalog and data checks stay identical.
+The outside-writer hold and application write fence remain required because a
+reader's later write intent cannot be inferred from its current lock request.
+All 30 focused tests pass, including a disposable PostgreSQL concurrency test
+with blocked readers and writers. Hosted deployment and release verification
+remain pending.
+
+`PRODUCTION-INHERITED-WRITE-BLOCK-20261026`, P2, fixed locally: managed-backup
+preparation required an open application even after trusted recovery had left
+Production guarded on maintenance. Preparation now records an exact blocked
+state as inherited after checking protected run authority, the prior-recovery
+gate and the reviewed ledger. Inherited state never grants reset ownership;
+both restoration modes reject its receipt before any write-opening command.
+Ambiguous or missing flags remain refused. Failure before a new recovery
+manifest still requires reconciliation and keeps writes blocked. Focused tests
+cover authority refusal, inherited restoration refusal and ambiguous flags.
+Hosted release verification remains pending.
+
+`PRIVATE-CSF-EMAIL-BUTTON-CONTRAST-20261026`, P2, open: the existing
+`CsfActivityEmail.tsx` activity button uses fixed white 14px text on `#16a34a`,
+which gives 3.30:1 contrast. It does not consume root theme tokens and predates
+the V4 palette restoration. Repair it in the private repository with rendered
+email contrast coverage before the next email presentation release.
+
+`LAYOUT-CAPTURE-NEXT-PIN-20261026`, P2, open: the optional offline layout
+capture contract freezes Next 16.4.0 while the package and installed version are
+16.4.1. The same failure was reproduced before and after the private test-only
+gitlink binding update. Review and update the capture runtime contract with its
+owner; the normal release gate leaves optional layout capture disabled.

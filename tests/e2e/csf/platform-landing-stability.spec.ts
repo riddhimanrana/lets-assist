@@ -50,9 +50,25 @@ for (const width of [320, 390, 414]) {
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: "A workspace for your volunteer organization.",
+          name: "The modern way to do volunteering",
         }),
       ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Get started", exact: true }),
+      ).toHaveAttribute("href", "/signup");
+      await expect(
+        page.getByRole("button", { name: "Contact us", exact: true }),
+      ).toHaveAttribute("href", "/contact");
+      expect(
+        await page.evaluate(() =>
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--primary")
+            .trim(),
+        ),
+      ).toBe("hsl(142.1 76.2% 36.3%)");
+      await expect(
+        page.getByText("Fictional interactive project", { exact: false }),
+      ).toHaveCount(0);
       for (const id of sections) {
         const section = page.locator(`#${id}`);
         await section.scrollIntoViewIfNeeded();

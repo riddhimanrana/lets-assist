@@ -34,14 +34,19 @@
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
     --content-link: hsl(142.1 76.2% 23%);
-    --primary: hsl(142.1 76.2% 23%);
+    --primary: hsl(142.1 76.2% 36.3%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
-    /* green #16a34a, the identity green for decorative brand washes. It stays
-       lighter than --primary on purpose. Decorative only: never put text, an
-       icon that carries meaning, a filled control, or a focus ring on --brand.
-       Interactive and status surfaces use --primary. */
-    --primary-foreground: hsl(355.7 100% 97.3%);
+    /* The primary fill and decorative brand washes use the original green.
+       Text and focus indicators keep the darker content-link tone. */
+    --primary-foreground: hsl(240 23% 9%);
+    --badge-primary: hsl(142.1 76.2% 23%);
+    --badge-primary-foreground: hsl(0 0% 100%);
+    --badge-primary-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 12%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
     /* base */
     /* Gloss, not lift. Nothing casts a drop shadow. A control earns its
        finish from a faint top-to-bottom sheen on its own fill and a 1px inner
@@ -177,11 +182,15 @@
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);
-    /* Pinned to the dark --primary so the decorative washes render exactly as
-       they did before --brand existed. The light-theme split exists because AA
-       forced --primary away from the identity green; dark mode never had that
-       conflict, so it needs no second hue. */
+    /* Dark mode keeps its existing primary and decorative colors. */
     --primary-foreground: hsl(240 23% 9%);
+    --badge-primary: hsl(142.1 76.2% 23%);
+    --badge-primary-foreground: hsl(0 0% 100%);
+    --badge-primary-gloss: linear-gradient(
+      180deg,
+      rgb(255 255 255 / 12%) 0%,
+      rgb(255 255 255 / 0%) 100%
+    );
     /* crust */
     --button-primary-gloss: linear-gradient(
       180deg,
@@ -279,6 +288,7 @@
   --color-popover-foreground: var(--popover-foreground);
 
   --color-primary: var(--primary);
+  --text-color-primary: var(--content-link);
   --color-primary-foreground: var(--primary-foreground);
 
   --color-brand: var(--brand);
