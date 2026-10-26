@@ -943,7 +943,7 @@ jobs:
 
       - name: Push schema to production
         id: schema_push
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           GH_TOKEN: ${{ github.token }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}

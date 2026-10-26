@@ -536,3 +536,21 @@ test("metadata failure after protected authority records an unproven outcome wit
   assert.equal(state.writes, 0);
   assert.equal(state.receipts.at(-1).phase, "unproven");
 });
+
+test("workflow timeout covers planning, application and reconciliation headroom", () => {
+  const workflow = readFileSync(
+    resolve(cwd, ".github/workflows/deploy-schema.yml"),
+    "utf8",
+  );
+  const controller = readFileSync(
+    resolve(cwd, "scripts/production/points-first-rollout.mjs"),
+    "utf8",
+  );
+  const budgets = controller.match(/mode === "plan" \? (\d+) : (\d+)/u);
+  const step = workflow
+    .split("- name: Push schema to production")[1]
+    ?.split("\n      - name:")[0];
+  const timeout = step?.match(/timeout-minutes: (\d+)/u);
+  assert.ok(budgets && timeout);
+  assert.ok(Number(timeout[1]) >= Number(budgets[1]) + Number(budgets[2]) + 2);
+});
