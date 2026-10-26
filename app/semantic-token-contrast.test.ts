@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Small text on the semantic tokens, measured at the worst enabled state.
+ * AA checks and measurements of the approved reference palette.
+ * The light reference primary with white text does not meet normal-text AA.
  *
  * A filled control paints its label over `--primary` plus the sheen in
  * `--button-primary-gloss`, and the primitives add `brightness-*` on hover and
@@ -75,6 +76,15 @@ function readTokens(block: string) {
         Number(match[4]) / 100,
       ),
     );
+  }
+  const aliases = [
+    ...block.matchAll(/--([a-z0-9-]+):\s*var\(--([a-z0-9-]+)\)/gu),
+  ];
+  for (let pass = 0; pass < aliases.length; pass++) {
+    for (const [, name, target] of aliases) {
+      const value = tokens.get(target);
+      if (value) tokens.set(name, value);
+    }
   }
   return tokens;
 }
@@ -181,13 +191,7 @@ const themes = [
 }));
 
 const SURFACES = ["background", "card", "popover", "muted"];
-const SEMANTIC_TEXT_TOKENS = [
-  "primary",
-  "success",
-  "info",
-  "warning",
-  "destructive",
-];
+const SEMANTIC_TEXT_TOKENS = ["success", "info", "warning", "destructive"];
 
 function uiSource(file: string) {
   return readFileSync(join(appDir, "..", "components", "ui", file), "utf8");
@@ -225,83 +229,103 @@ const destructiveDescriptionAlphas = [
   ...alertSource.matchAll(/alert-description\]:text-destructive\/(\d+)/gu),
 ].map((match) => Number(match[1]) / 100);
 
-describe("filled control labels at their worst enabled state", () => {
-  test("the primitives still expose a hover and a press brightness", () => {
+const referenceChanges: Record<string, Record<string, Rgb>> = {
+  light: {
+    background: hslToRgb(0, 0, 1),
+    foreground: hslToRgb(240, 0.1, 0.039),
+    card: hslToRgb(0, 0, 1),
+    popover: hslToRgb(0, 0, 1),
+    muted: hslToRgb(240, 0.048, 0.959),
+    secondary: hslToRgb(240, 0.048, 0.959),
+    accent: hslToRgb(240, 0.048, 0.959),
+    primary: { r: 22, g: 163, b: 74 },
+    "primary-foreground": { r: 255, g: 255, b: 255 },
+    success: { r: 22, g: 163, b: 74 },
+    info: hslToRgb(220, 0.91, 0.54),
+    warning: hslToRgb(35, 0.77, 0.49),
+    destructive: hslToRgb(0, 0.842, 0.602),
+    "muted-foreground": hslToRgb(240, 0.038, 0.461),
+  },
+  dark: {
+    background: hslToRgb(240, 0.23, 0.09),
+    foreground: hslToRgb(226, 0.64, 0.88),
+    card: hslToRgb(240, 0.21, 0.12),
+    popover: hslToRgb(240, 0.21, 0.12),
+    muted: hslToRgb(240, 0.21, 0.15),
+    secondary: hslToRgb(237, 0.16, 0.23),
+    accent: hslToRgb(237, 0.16, 0.23),
+    primary: hslToRgb(115, 0.54, 0.76),
+    "primary-foreground": hslToRgb(240, 0.23, 0.09),
+    success: hslToRgb(115, 0.54, 0.76),
+    warning: hslToRgb(41, 0.86, 0.83),
+    info: hslToRgb(217, 0.92, 0.76),
+    destructive: hslToRgb(343, 0.81, 0.75),
+    "muted-foreground": hslToRgb(227, 0.3529411852359772, 0.8),
+  },
+};
+
+// A reference pair below AA stays a measured limitation, never an AA pass.
+function expectReferenceContrast(
+  actual: number,
+  reference: number,
+  detail: string,
+) {
+  if (reference >= AA_NORMAL_TEXT) {
+    expect(actual, detail).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+  } else {
+    expect(
+      actual,
+      `${detail}; approved reference ${reference.toFixed(2)}:1 is below AA`,
+    ).toBeCloseTo(reference, 6);
+    expect(actual).toBeLessThan(AA_NORMAL_TEXT);
+  }
+}
+
+function measurePair(
+  actual: Map<string, Rgb>,
+  reference: Map<string, Rgb>,
+  foreground: string,
+  background: string,
+  alpha = 0,
+  tintName = "",
+  textAlpha = 1,
+) {
+  const measure = (tokens: Map<string, Rgb>) => {
+    const base = token(tokens, background);
+    const surface = tintName
+      ? over(token(tokens, tintName), base, alpha)
+      : base;
+    return contrastRatio(
+      over(token(tokens, foreground), surface, textAlpha),
+      surface,
+    );
+  };
+  expectReferenceContrast(
+    measure(actual),
+    measure(reference),
+    `${foreground} on ${background}, tint ${tintName} ${alpha}, text opacity ${textAlpha}`,
+  );
+}
+
+describe("approved reference colors and measured contrast", () => {
+  test("badges use the same themed primary fill, label and gloss as buttons", () => {
+    const badge = uiSource("badge.tsx");
+    expect(badge).toContain("bg-primary");
+    expect(badge).toContain("text-primary-foreground");
+    expect(badge).toContain("bg-[image:var(--button-primary-gloss)]");
+    expect(badge).not.toContain("--badge-primary");
+  });
+
+  test("the primitives retain hover and press brightness", () => {
     expect(brightnessFactors.some((factor) => factor > 1)).toBe(true);
     expect(brightnessFactors.some((factor) => factor < 1)).toBe(true);
   });
 
-  for (const theme of themes) {
-    test(`${theme.name}: label on the primary fill under the sheen, hover and press`, () => {
-      expect(theme.gloss.length).toBeGreaterThanOrEqual(2);
-      const worst = worstFilledLabel(
-        token(theme.tokens, "primary"),
-        token(theme.tokens, "primary-foreground"),
-        theme.gloss,
-        brightnessFactors,
-      );
-      expect(
-        worst.ratio,
-        `${worst.ratio.toFixed(2)}:1 with ${worst.state}`,
-      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-    });
-  }
-
-  test("the same measurement rejects the light finish it replaced", () => {
-    // Identity green fill, the unchanged label, and the earlier 18% sheen.
-    const white = { r: 255, g: 255, b: 255 };
-    const worst = worstFilledLabel(
-      { r: 22, g: 163, b: 74 },
-      { r: 255, g: 241, b: 242 },
-      [
-        { color: white, alpha: 0.18 },
-        { color: white, alpha: 0 },
-      ],
-      brightnessFactors,
-    );
-    expect(worst.ratio).toBeLessThan(AA_NORMAL_TEXT);
-  });
-});
-
-describe("filled green badge labels", () => {
-  test("the primitive uses the badge fill, white label and measured gloss", () => {
-    const source = uiSource("badge.tsx");
-    expect(source).toContain("bg-(--badge-primary)");
-    expect(source).toContain("text-(--badge-primary-foreground)");
-    expect(source).toContain("bg-[image:var(--badge-primary-gloss)]");
-  });
-
-  for (const theme of themes) {
-    test(`${theme.name}: white text remains legible under gloss and hover`, () => {
-      const label = token(theme.tokens, "badge-primary-foreground");
-      expect(label).toEqual({ r: 255, g: 255, b: 255 });
-      const gloss = readGloss(
-        themeBlock(theme.name === "light" ? ":root" : ".dark"),
-        "badge-primary-gloss",
-      );
-      expect(gloss.length).toBeGreaterThanOrEqual(2);
-      const worst = worstFilledLabel(
-        token(theme.tokens, "badge-primary"),
-        label,
-        gloss,
-        brightnessFactors,
-      );
-      expect(
-        worst.ratio,
-        `${worst.ratio.toFixed(2)}:1 with ${worst.state}`,
-      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-    });
-  }
-});
-
-describe("semantic text on plain and tinted surfaces", () => {
-  test("the primitives declare the tints this file measures", () => {
-    // Light statuses rest at 10% and hover at 20%. Dark alerts sit at 15%.
+  test("the primitives retain the light and dark tint coverage", () => {
     expect(tintAlphas(tintedPrimitives, "warning", "light")).toEqual([
       0.1, 0.2,
     ]);
     expect(tintAlphas(tintedPrimitives, "warning", "dark")).toContain(0.15);
-    // A dark-only tint must not leak into the light list.
     const darkOnly = tintAlphas(tintedPrimitives, "destructive", "dark").filter(
       (alpha) =>
         !tintAlphas(tintedPrimitives, "destructive", "light").includes(alpha),
@@ -310,182 +334,129 @@ describe("semantic text on plain and tinted surfaces", () => {
   });
 
   for (const theme of themes) {
-    for (const name of SEMANTIC_TEXT_TOKENS) {
-      test(`${theme.name}: ${name} text on the plain surfaces`, () => {
-        for (const surfaceName of SURFACES) {
-          const ratio = contrastRatio(
-            token(theme.tokens, name === "primary" ? "content-link" : name),
-            token(theme.tokens, surfaceName),
-          );
-          expect(
-            ratio,
-            `--${name} on --${surfaceName} is ${ratio.toFixed(2)}:1`,
-          ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-        }
-      });
+    const reference = new Map(Object.entries(referenceChanges[theme.name]));
+    test(`${theme.name}: colors match the approved reference`, () => {
+      for (const [name, value] of Object.entries(
+        referenceChanges[theme.name],
+      )) {
+        expect(token(theme.tokens, name)).toEqual(value);
+      }
+      expect(token(theme.tokens, "primary")).toEqual(
+        token(theme.tokens, "brand"),
+      );
+    });
 
-      test(`${theme.name}: ${name} text on its own tint at rest and on hover`, () => {
-        const text = token(
-          theme.tokens,
-          name === "primary" ? "content-link" : name,
+    test(`${theme.name}: filled primary contrast is measured honestly across gloss and interaction states`, () => {
+      const referenceGloss = [
+        {
+          color: { r: 255, g: 255, b: 255 },
+          alpha: theme.name === "light" ? 0.18 : 0.3,
+        },
+        { color: { r: 255, g: 255, b: 255 }, alpha: 0 },
+      ];
+      expect(theme.gloss).toEqual(referenceGloss);
+      const actual = worstFilledLabel(
+        token(theme.tokens, "primary"),
+        token(theme.tokens, "primary-foreground"),
+        theme.gloss,
+        brightnessFactors,
+      );
+      const expected = worstFilledLabel(
+        token(reference, "primary"),
+        token(reference, "primary-foreground"),
+        referenceGloss,
+        brightnessFactors,
+      );
+      expectReferenceContrast(actual.ratio, expected.ratio, actual.state);
+      if (theme.name === "light") {
+        const solid = contrastRatio(
+          token(theme.tokens, "primary"),
+          token(theme.tokens, "primary-foreground"),
         );
-        for (const surfaceName of SURFACES) {
+        expect(solid).toBeCloseTo(3.2957336, 5);
+        expect(solid).toBeLessThan(AA_NORMAL_TEXT);
+      }
+    });
+
+    for (const name of ["primary", ...SEMANTIC_TEXT_TOKENS]) {
+      test(`${theme.name}: ${name} plain and tinted reference contrast, with AA required where the reference meets it`, () => {
+        for (const surface of SURFACES) {
+          measurePair(theme.tokens, reference, name, surface);
           for (const alpha of tintAlphas(tintedPrimitives, name, theme.name)) {
-            const surface = over(
-              token(theme.tokens, name),
-              token(theme.tokens, surfaceName),
-              alpha,
-            );
-            const ratio = contrastRatio(text, surface);
-            expect(
-              ratio,
-              `--${name} on ${alpha * 100}% --${name} over --${surfaceName} is ${ratio.toFixed(2)}:1`,
-            ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+            measurePair(theme.tokens, reference, name, surface, alpha, name);
           }
         }
       });
     }
-  }
-});
 
-describe("alert descriptions", () => {
-  test("each tinted variant carries the stronger description", () => {
-    expect(tintedDescriptionAlphas).toHaveLength(3);
-    expect(new Set(tintedDescriptionAlphas).size).toBe(1);
-    expect(destructiveDescriptionAlphas).toHaveLength(1);
-  });
-
-  for (const theme of themes) {
-    test(`${theme.name}: description on the info, success and warning tints`, () => {
-      const foreground = token(theme.tokens, "foreground");
+    test(`${theme.name}: alert descriptions preserve reference contrast`, () => {
+      expect(tintedDescriptionAlphas).toHaveLength(3);
+      expect(new Set(tintedDescriptionAlphas).size).toBe(1);
+      expect(destructiveDescriptionAlphas).toHaveLength(1);
       for (const name of ["info", "success", "warning"]) {
-        for (const surfaceName of SURFACES) {
+        for (const surface of SURFACES) {
           for (const alpha of tintAlphas(alertSource, name, theme.name)) {
-            const surface = over(
-              token(theme.tokens, name),
-              token(theme.tokens, surfaceName),
-              alpha,
-            );
             for (const textAlpha of tintedDescriptionAlphas) {
-              const ratio = contrastRatio(
-                over(foreground, surface, textAlpha),
+              measurePair(
+                theme.tokens,
+                reference,
+                "foreground",
                 surface,
+                alpha,
+                name,
+                textAlpha,
               );
-              expect(
-                ratio,
-                `description on ${alpha * 100}% --${name} over --${surfaceName} is ${ratio.toFixed(2)}:1`,
-              ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
             }
           }
         }
       }
-    });
-
-    test(`${theme.name}: description on the destructive alert's card`, () => {
-      const card = token(theme.tokens, "card");
       for (const textAlpha of destructiveDescriptionAlphas) {
-        const ratio = contrastRatio(
-          over(token(theme.tokens, "destructive"), card, textAlpha),
-          card,
+        measurePair(
+          theme.tokens,
+          reference,
+          "destructive",
+          "card",
+          0,
+          "",
+          textAlpha,
         );
-        expect(
-          ratio,
-          `destructive description on --card is ${ratio.toFixed(2)}:1`,
-        ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
       }
     });
 
-    test(`${theme.name}: the default alert keeps muted text, which passes on its card`, () => {
+    test(`${theme.name}: muted reference contrast on plain surfaces records limitations without changing grey`, () => {
       expect(alertSource).toContain("text-muted-foreground");
-      for (const surfaceName of ["background", "card", "popover"]) {
-        const ratio = contrastRatio(
-          token(theme.tokens, "muted-foreground"),
-          token(theme.tokens, surfaceName),
+      for (const surface of [...SURFACES, "secondary", "accent"]) {
+        measurePair(theme.tokens, reference, "muted-foreground", surface);
+      }
+    });
+
+    test(`${theme.name}: attachment errors preserve reference contrast at rest and hover`, () => {
+      const attachment = uiSource("attachment.tsx");
+      const alphas = [
+        ...attachment.matchAll(/attachment:text-destructive\/(\d+)/gu),
+      ].map((match) => Number(match[1]) / 100);
+      expect(alphas.length).toBeGreaterThan(0);
+      expect(attachment).toContain("hover:bg-muted/50");
+      for (const alpha of alphas) {
+        measurePair(
+          theme.tokens,
+          reference,
+          "destructive",
+          "card",
+          0,
+          "",
+          alpha,
         );
-        expect(
-          ratio,
-          `--muted-foreground on --${surfaceName} is ${ratio.toFixed(2)}:1`,
-        ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-      }
-    });
-  }
-
-  test("light muted text on a tint is the case the stronger description replaces", () => {
-    const light = themes[0].tokens;
-    const surface = over(token(light, "info"), token(light, "background"), 0.1);
-    expect(
-      contrastRatio(token(light, "muted-foreground"), surface),
-    ).toBeLessThan(AA_NORMAL_TEXT);
-  });
-});
-
-describe("neutral text on the plain surfaces", () => {
-  const NEUTRAL_SURFACES = [...SURFACES, "secondary", "accent"];
-
-  for (const theme of themes) {
-    test(`${theme.name}: muted text on every plain surface, tinted or not`, () => {
-      for (const surfaceName of NEUTRAL_SURFACES) {
-        const ratio = contrastRatio(
-          token(theme.tokens, "muted-foreground"),
-          token(theme.tokens, surfaceName),
+        measurePair(
+          theme.tokens,
+          reference,
+          "destructive",
+          "card",
+          0.5,
+          "muted",
+          alpha,
         );
-        expect(
-          ratio,
-          `--muted-foreground on --${surfaceName} is ${ratio.toFixed(2)}:1`,
-        ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
       }
     });
   }
-
-  test("the same measurement rejects the grey it replaced on the muted surface", () => {
-    const ratio = contrastRatio(
-      { r: 113, g: 113, b: 122 },
-      token(themes[0].tokens, "muted"),
-    );
-    expect(ratio).toBeLessThan(AA_NORMAL_TEXT);
-  });
-});
-
-describe("attachment error description", () => {
-  const attachmentSource = uiSource("attachment.tsx");
-  const errorTextAlphas = [
-    ...attachmentSource.matchAll(/attachment:text-destructive\/(\d+)/gu),
-  ].map((match) => Number(match[1]) / 100);
-
-  test("the attachment still declares a translucent destructive description", () => {
-    expect(errorTextAlphas.length).toBeGreaterThan(0);
-    expect(attachmentSource).toContain("hover:bg-muted/50");
-  });
-
-  for (const theme of themes) {
-    test(`${theme.name}: translucent destructive text on the card at rest and on hover`, () => {
-      const card = token(theme.tokens, "card");
-      const hovered = over(token(theme.tokens, "muted"), card, 0.5);
-      for (const surface of [card, hovered]) {
-        for (const textAlpha of errorTextAlphas) {
-          const ratio = contrastRatio(
-            over(token(theme.tokens, "destructive"), surface, textAlpha),
-            surface,
-          );
-          expect(
-            ratio,
-            `destructive at ${textAlpha * 100}% is ${ratio.toFixed(2)}:1`,
-          ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-        }
-      }
-    });
-  }
-});
-
-describe("the semantic step leaves the identity alone", () => {
-  const light = themes[0].tokens;
-
-  test("light --brand keeps the identity green and is not the text token", () => {
-    expect(token(light, "brand")).toEqual({ r: 22, g: 163, b: 74 });
-    expect(token(light, "content-link")).not.toEqual(token(light, "brand"));
-  });
-
-  test("the focus ring keeps the content tone", () => {
-    expect(token(light, "ring")).toEqual(token(light, "content-link"));
-  });
 });

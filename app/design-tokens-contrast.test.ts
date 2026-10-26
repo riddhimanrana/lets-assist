@@ -3,12 +3,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * Light mode keeps the identity green on `--brand`, exactly as shipped. The
- * semantic tokens that carry text sit at a darker step of their own hue so
- * small text reaches 4.5:1. Lock both here: the identity cannot drift, and a
- * later palette change cannot quietly give the contrast back. The composited
- * cases (tints, sheen, hover and press) live in
- * `semantic-token-contrast.test.ts`.
+ * Keep the approved primary palette separate from semantic AA requirements.
+ * The reference light green and white label measure about 3.30:1 on the solid
+ * fill. Record that limit instead of changing the palette to satisfy AA.
+ * Pairs that meet AA in the reference retain their normal-text AA checks.
  */
 
 const css = readFileSync(join(import.meta.dir, "globals.css"), "utf8");
@@ -58,6 +56,15 @@ function readTokens(block: string) {
     const lightness = Number(match[4]) / 100;
     tokens.set(match[1], hslToRgb(hue, saturation, lightness));
   }
+  const aliases = [
+    ...block.matchAll(/--([a-z0-9-]+):\s*var\(--([a-z0-9-]+)\)/gu),
+  ];
+  for (let pass = 0; pass < aliases.length; pass++) {
+    for (const [, name, target] of aliases) {
+      const value = tokens.get(target);
+      if (value) tokens.set(name, value);
+    }
+  }
   return tokens;
 }
 
@@ -96,18 +103,18 @@ const light = readTokens(themeBlock(":root"));
 const dark = readTokens(themeBlock(".dark"));
 
 const LIGHT_TOKENS: Record<string, Rgb> = {
-  // Restore the identity fill with a readable control label.
+  // The approved reference uses the identity green and a white label.
   brand: { r: 22, g: 163, b: 74 },
-  "primary-foreground": { r: 18, g: 18, b: 28 },
-  // One step under the historical grey, so it also reads on --muted.
-  "muted-foreground": { r: 110, g: 110, b: 119 },
-  // Text-bearing semantic tokens, each a darker step of its historical hue.
-  success: { r: 14, g: 103, b: 47 },
-  warning: { r: 122, g: 78, b: 16 },
-  info: { r: 10, g: 75, b: 205 },
+  "primary-foreground": { r: 255, g: 255, b: 255 },
+  // The reference grey remains unchanged, including its contrast limit.
+  "muted-foreground": { r: 113, g: 113, b: 122 },
+  // Semantic colors match the approved reference.
+  success: { r: 22, g: 163, b: 74 },
+  warning: hslToRgb(35, 0.77, 0.49),
+  info: hslToRgb(220, 0.91, 0.54),
   primary: { r: 22, g: 163, b: 74 },
-  destructive: { r: 169, g: 15, b: 15 },
-  ring: { r: 14, g: 103, b: 47 },
+  destructive: hslToRgb(0, 0.842, 0.602),
+  ring: { r: 22, g: 163, b: 74 },
 };
 
 function token(tokens: Map<string, Rgb>, name: string) {
@@ -128,22 +135,9 @@ type Contract = {
 const contracts: Contract[] = [
   {
     theme: "light",
-    description: "default badge label on its green fill",
-    foreground: "badge-primary-foreground",
-    background: "badge-primary",
-  },
-  {
-    theme: "light",
     description: "staff badge label on the blue tint",
     foreground: "foreground",
     background: "info",
-    tintOver: "background",
-  },
-  {
-    theme: "light",
-    description: "organization title on the hovered green card",
-    foreground: "content-link",
-    background: "primary",
     tintOver: "background",
   },
   {
@@ -156,8 +150,8 @@ const contracts: Contract[] = [
   {
     theme: "dark",
     description: "default badge label on its green fill",
-    foreground: "badge-primary-foreground",
-    background: "badge-primary",
+    foreground: "primary-foreground",
+    background: "primary",
   },
   {
     theme: "dark",
@@ -186,11 +180,11 @@ describe("theme token contrast contracts", () => {
       "utf8",
     );
     expect(source).toMatch(
-      /default:\s*"bg-\(--badge-primary\) [^"]*text-\(--badge-primary-foreground\)/u,
+      /default:\s*"bg-primary [^"]*text-primary-foreground/u,
     );
   });
 
-  test("light mode keeps the identity green and the accessible semantic steps", () => {
+  test("light mode keeps the approved primary palette and semantic steps", () => {
     for (const [name, expected] of Object.entries(LIGHT_TOKENS)) {
       expect(token(light, name), `unexpected --${name}`).toEqual(expected);
     }
@@ -233,8 +227,23 @@ describe("theme token contrast contracts", () => {
     });
   }
 
-  test("the focus ring keeps the readable content tone", () => {
-    expect(token(light, "ring")).toEqual(token(light, "content-link"));
+  test("the light primary reference records its actual contrast without claiming AA", () => {
+    const ratio = contrastRatio(
+      token(light, "primary-foreground"),
+      token(light, "primary"),
+    );
+    expect(ratio).toBeCloseTo(3.2957336, 5);
+    expect(ratio).toBeLessThan(AA_NORMAL_TEXT);
+  });
+
+  test("the light focus ring uses the primary identity", () => {
+    expect(token(light, "ring")).toEqual(token(light, "primary"));
+  });
+
+  test("content-link aliases retain the approved primary in both themes", () => {
+    for (const theme of [light, dark]) {
+      expect(token(theme, "content-link")).toEqual(token(theme, "primary"));
+    }
   });
 
   test("the contrast helper matches known reference ratios", () => {
