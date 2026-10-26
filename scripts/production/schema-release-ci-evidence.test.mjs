@@ -16,6 +16,7 @@ function fixture({
 } = {}) {
   const git = (...args) => {
     if (args[0] === "merge-base") return "";
+    if (args[0] === "diff") return "app/page.tsx";
     if (args[1] === "HEAD") return release;
     return changedTree && args[1] === `${accepted}^{tree}`
       ? "different"
@@ -81,4 +82,30 @@ test("refuses missing release context and checkout mismatch", async () => {
   await assert.rejects(
     verifySchemaReleaseCi(config, { ...fixture(), git: () => accepted }),
   );
+});
+
+test("reuses app and database evidence for only the reviewed controller paths", async () => {
+  const base = fixture({ changedTree: true });
+  const git = (...args) =>
+    args[0] === "diff"
+      ? ".github/workflows/deploy-schema.yml\nscripts/production/vercel-curl.sh"
+      : base.git(...args);
+  assert.equal(
+    (await verifySchemaReleaseCi(config, { ...base, git })).run,
+    "42",
+  );
+  for (const path of [
+    "app/globals.css",
+    "supabase/migrations/new.sql",
+    "bun.lock",
+    "lib/plugins/private",
+    "scripts/production/points-first-rollout.mjs",
+  ]) {
+    await assert.rejects(
+      verifySchemaReleaseCi(config, {
+        ...base,
+        git: (...args) => (args[0] === "diff" ? path : base.git(...args)),
+      }),
+    );
+  }
 });
