@@ -37,3 +37,16 @@ export function isStaleSupabaseAuthUserError(
 
   return false;
 }
+
+/** A temporary Auth outage is neither a revoked session nor a sign-out. */
+export function isRetryableSupabaseAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { name?: string; status?: number };
+  return (
+    candidate.name === "AuthRetryableFetchError" ||
+    candidate.status === 429 ||
+    (typeof candidate.status === "number" &&
+      candidate.status >= 500 &&
+      candidate.status <= 599)
+  );
+}

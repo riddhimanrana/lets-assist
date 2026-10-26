@@ -16,7 +16,10 @@ import {
 } from "@/lib/auth/mfa";
 import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
-import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
+import {
+  isRetryableSupabaseAuthError,
+  isStaleSupabaseAuthUserError,
+} from "@/lib/supabase/auth-errors";
 import {
   canManageProjectAccess,
   type ProjectManagementAccessInput,
@@ -314,10 +317,16 @@ export async function updateSession(
     },
   );
 
+  let user: ProxyUser | null = null;
+
   // Supabase SSR requires this validation to run immediately after client
   // creation. getClaims verifies the JWT and lets setAll persist any refresh.
   const { data: claimsData, error: claimsError } =
     await supabase.auth.getClaims();
+
+  if (isRetryableSupabaseAuthError(claimsError)) {
+    return authRetryResponse();
+  }
 
   if (claimsError && process.env.NODE_ENV === "development") {
     safeConsole.log(
@@ -327,7 +336,6 @@ export async function updateSession(
   }
 
   const claims = claimsData?.claims;
-  let user: ProxyUser | null = null;
 
   // Claims establish cryptographic session validity, but authorization state
   // such as bans, restrictions, user deletion, and revocation can change

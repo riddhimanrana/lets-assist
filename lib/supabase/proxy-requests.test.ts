@@ -20,6 +20,8 @@ async function runAuthenticatedRequest(options: {
   userStatus?: number;
   userError?: string;
   freshUserId?: string;
+  expired?: boolean;
+  refreshStatus?: number;
 }) {
   const previousFetch = globalThis.fetch;
   const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -37,7 +39,7 @@ async function runAuthenticatedRequest(options: {
   const unsigned = `${encode({ alg: "ES256", kid, typ: "JWT" })}.${encode({
     sub: actorId,
     aud: "authenticated",
-    exp: now + 3600,
+    exp: options.expired ? now - 60 : now + 3600,
     iat: now,
     aal: options.aal ?? "aal1",
     role: "authenticated",
@@ -62,7 +64,7 @@ async function runAuthenticatedRequest(options: {
     refresh_token: "fixture-refresh",
     token_type: "bearer",
     expires_in: 3600,
-    expires_at: now + 3600,
+    expires_at: options.expired ? now - 60 : now + 3600,
     user,
   };
   let userCalls = 0;
@@ -82,6 +84,15 @@ async function runAuthenticatedRequest(options: {
         return Response.json({
           keys: [{ ...publicKey, kid, alg: "ES256", use: "sig" }],
         });
+      }
+      if (url.includes("/token?") && options.refreshStatus) {
+        return Response.json(
+          {
+            code: "unexpected_failure",
+            message: "Synthetic temporary auth outage",
+          },
+          { status: options.refreshStatus },
+        );
       }
       if (url.endsWith("/user")) {
         userCalls++;
@@ -228,3 +239,23 @@ test("banned, deleted, and mismatched fresh users cannot use the old claims", as
     );
   }
 });
+
+test(
+  "an expired access token and retryable refresh outage do not become a login redirect",
+  { timeout: 40_000 },
+  async () => {
+    const result = await runAuthenticatedRequest({
+      expired: true,
+      refreshStatus: 503,
+    });
+    assert.equal(result.response.status, 503);
+    assert.equal(result.response.headers.get("location"), null);
+    assert.equal(result.response.headers.get("Retry-After"), "5");
+    assert.equal(result.authorized, false);
+    assert.equal(result.logoutCalls, 0);
+    assert.doesNotMatch(
+      result.response.headers.get("set-cookie") ?? "",
+      /Expires=Thu, 01 Jan 1970/,
+    );
+  },
+);

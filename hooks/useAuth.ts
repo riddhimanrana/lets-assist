@@ -13,6 +13,7 @@ import { safeConsole } from "@/lib/safe-console";
 import { useEffect, useState, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { isRetryableSupabaseAuthError } from "@/lib/supabase/auth-errors";
 import { createAuthStateLifecycle } from "./auth-state-lifecycle";
 import {
   shouldPromptForMfaChallenge,
@@ -97,6 +98,8 @@ async function resolveAuthState(
     };
   }
 
+  if (isRetryableSupabaseAuthError(userError)) throw userError;
+
   if (claimsError && process.env.NODE_ENV === "development") {
     safeConsole.debug("[useAuth] No active claims:", claimsError.message);
   }
@@ -171,6 +174,7 @@ export function useAuth(): AuthState {
       },
       onError: (error) => {
         safeConsole.error("[useAuth] Error during auth initialization:", error);
+        if (isRetryableSupabaseAuthError(error)) return;
         setUser(null);
         setNeedsMfa(false);
       },
