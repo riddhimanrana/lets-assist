@@ -54,10 +54,10 @@ for (const width of [320, 390, 414]) {
         }),
       ).toBeVisible();
       await expect(
-        page.getByRole("link", { name: "Get started", exact: true }),
+        page.getByRole("button", { name: "Get started", exact: true }),
       ).toHaveAttribute("href", "/signup");
       await expect(
-        page.getByRole("link", { name: "Contact us", exact: true }).first(),
+        page.getByRole("button", { name: "Contact us", exact: true }),
       ).toHaveAttribute("href", "/contact");
       expect(
         await page.evaluate(() =>

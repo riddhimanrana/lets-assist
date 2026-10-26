@@ -12155,3 +12155,15 @@ Ambiguous or missing flags remain refused. Failure before a new recovery
 manifest still requires reconciliation and keeps writes blocked. Focused tests
 cover authority refusal, inherited restoration refusal and ambiguous flags.
 Hosted release verification remains pending.
+
+`PRIVATE-CSF-EMAIL-BUTTON-CONTRAST-20261026`, P2, open: the existing
+`CsfActivityEmail.tsx` activity button uses fixed white 14px text on `#16a34a`,
+which gives 3.30:1 contrast. It does not consume root theme tokens and predates
+the V4 palette restoration. Repair it in the private repository with rendered
+email contrast coverage before the next email presentation release.
+
+`LAYOUT-CAPTURE-NEXT-PIN-20261026`, P2, open: the optional offline layout
+capture contract freezes Next 16.4.0 while the package and installed version are
+16.4.1. The same failure was reproduced before and after the private test-only
+gitlink binding update. Review and update the capture runtime contract with its
+owner; the normal release gate leaves optional layout capture disabled.
