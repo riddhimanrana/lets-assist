@@ -316,6 +316,9 @@ describe("CSF Production release preflight", () => {
     expect(prebuild).toBeLessThan(maintenanceDeploy);
     expect(stagedDeploy).toBeLessThan(maintenanceDeploy);
     expect(stagedDeploy).toBeLessThan(stagedIdentity);
+    expect(
+      stepBlock(deployment, "Retain staged build identity before waiting"),
+    ).toContain("include-hidden-files: true");
     expect(stagedIdentity).toBeLessThan(recoveryManifest);
     expect(recoveryManifest).toBeLessThan(enableWriteBlock);
     expect(enableWriteBlock).toBeLessThan(maintenancePromote);

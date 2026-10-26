@@ -503,6 +503,7 @@ jobs:
         with:
           name: production-app-stage-${{ github.run_id }}
           path: .artifacts/app-only-stage.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
 
@@ -803,6 +804,7 @@ jobs:
         with:
           name: production-release-recovery-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/production-release-recovery.json
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 90
 
@@ -1103,6 +1105,7 @@ jobs:
         with:
           name: production-early-write-block-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/production-early-write-block/receipt.json
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 90
 
@@ -1113,6 +1116,7 @@ jobs:
         with:
           name: production-points-first-rollout-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/production-points-first-rollout/receipt.json
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 90
 
