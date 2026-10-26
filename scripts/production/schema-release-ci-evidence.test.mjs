@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import { verifySchemaReleaseCi } from "./schema-release-ci-evidence.mjs";
 
 const accepted = "a".repeat(40);
@@ -108,4 +109,61 @@ test("reuses app and database evidence for only the reviewed controller paths", 
       }),
     );
   }
+});
+
+test("only the exact three rollout budget constants may differ from accepted source", async () => {
+  const path = "scripts/production/points-first-rollout.mjs";
+  const after = readFileSync(
+    new URL("./points-first-rollout.mjs", import.meta.url),
+    "utf8",
+  );
+  const before = after
+    .replaceAll(
+      "now() - startedAt < 12 * 60 * 1000,",
+      "now() - startedAt < 8 * 60 * 1000,",
+    )
+    .replace('(mode === "plan" ? 2 : 16)', '(mode === "plan" ? 2 : 12)');
+  const base = fixture({ changedTree: true });
+  const check = (prior, next) =>
+    verifySchemaReleaseCi(config, {
+      ...base,
+      git: (...args) => {
+        if (args[0] === "diff") return path;
+        if (args[0] === "show")
+          return args[1] === `${accepted}:${path}` ? prior : next;
+        return base.git(...args);
+      },
+    });
+  assert.equal((await check(before, after)).run, "42");
+  for (const altered of [
+    after + "\n",
+    "// changed\n" + after,
+    after.replace(
+      "verifyProductionCheckout(config",
+      "verifyProductionCheckout(otherConfig",
+    ),
+    after.replace("const deadline", "const unexpectedDeadline"),
+    after.replace("< 12 * 60", "< 13 * 60"),
+    after.replace("? 2 : 16", "? 3 : 16"),
+  ]) {
+    await assert.rejects(check(before, altered));
+  }
+  await assert.rejects(check(after, after));
+  await assert.rejects(check(before.replace("< 8 * 60", "< 7 * 60"), after));
+});
+
+test("the exact rollout regression test path remains a controller-only change", async () => {
+  const base = fixture({ changedTree: true });
+  assert.equal(
+    (
+      await verifySchemaReleaseCi(config, {
+        ...base,
+        git: (...args) =>
+          args[0] === "diff"
+            ? "scripts/production/points-first-rollout.test.mjs"
+            : base.git(...args),
+      })
+    ).run,
+    "42",
+  );
 });

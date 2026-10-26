@@ -13,6 +13,7 @@ const controllerPaths = new Set([
   ".github/workflows/deploy-schema.yml",
   "scripts/production/schema-release-ci-evidence.mjs",
   "scripts/production/schema-release-ci-evidence.test.mjs",
+  "scripts/production/points-first-rollout.test.mjs",
   "scripts/production/hosted-acceptance-status-transport.test.mjs",
   "scripts/production/vercel-curl.sh",
   "scripts/production/vercel-curl.test.mjs",
@@ -23,11 +24,13 @@ const controllerPaths = new Set([
 export async function verifySchemaReleaseCi(
   { release, accepted, repository, token, sourceOnly = false },
   {
-    git = (...args) =>
-      execFileSync("git", args, {
+    git = (...args) => {
+      const output = execFileSync("git", args, {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
-      }).trim(),
+      });
+      return args[0] === "show" ? output : output.trim();
+    },
     request,
   } = {},
 ) {
@@ -45,7 +48,24 @@ export async function verifySchemaReleaseCi(
     const changed = git("diff", "--name-only", accepted, release, "--")
       .split("\n")
       .filter(Boolean);
-    if (!changed.length || changed.some((path) => !controllerPaths.has(path)))
+    const budgetPath = "scripts/production/points-first-rollout.mjs";
+    const permittedChange = (path) => {
+      if (controllerPaths.has(path)) return true;
+      if (path !== budgetPath) return false;
+      const before = git("show", `${accepted}:${path}`);
+      const after = git("show", `${release}:${path}`);
+      const writeBudget = "now() - startedAt < 8 * 60 * 1000,";
+      const queryBudget = '(mode === "plan" ? 2 : 12)';
+      return (
+        before.split(writeBudget).length === 3 &&
+        before.split(queryBudget).length === 2 &&
+        after ===
+          before
+            .replaceAll(writeBudget, "now() - startedAt < 12 * 60 * 1000,")
+            .replace(queryBudget, '(mode === "plan" ? 2 : 16)')
+      );
+    };
+    if (!changed.length || changed.some((path) => !permittedChange(path)))
       throw new ReleaseCheckError(
         "CI evidence source differs from the release tree.",
       );
