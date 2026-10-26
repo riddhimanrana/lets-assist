@@ -105,7 +105,9 @@ export function useWaiverAiScan({
       if (analysis.signerRoles.length > 0) {
         setSigners(
           analysis.signerRoles.map((role, index) => ({
-            ...role,
+            roleKey: role.roleKey,
+            label: role.label,
+            required: role.required,
             orderIndex: index,
           })),
         );

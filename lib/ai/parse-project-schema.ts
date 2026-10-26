@@ -117,7 +117,7 @@ const recurrenceSchema = z
 
 const commonProjectFields = {
   title: z.string().trim().min(1).max(125),
-  location: z.string().trim().min(1).max(250),
+  location: z.string().trim().max(250).default(""),
   description: z.string().trim().min(1).max(2_000),
   verificationMethod: z
     .enum(["qr-code", "manual", "auto", "signup-only"])

@@ -44,8 +44,10 @@ export default function AIAssistant({
   const generateIcon = useAnimatedIcon();
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
-      toast.error("Please describe your project");
+    if (prompt.trim().length < 10 || prompt.trim().length > 4_000) {
+      toast.error(
+        "Project description must be between 10 and 4,000 characters.",
+      );
       return;
     }
 
@@ -66,7 +68,13 @@ export default function AIAssistant({
         const errorData = await response
           .json()
           .catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        toast.error(
+          typeof errorData.error === "string"
+            ? errorData.error
+            : "Project assistant is temporarily unavailable. Please try again.",
+        );
+        setIsApplying(false);
+        return;
       }
 
       const parsedResponse = parseProjectOutputSchema.safeParse(

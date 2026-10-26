@@ -125,7 +125,7 @@ Rules:
 - Default verificationMethod to "qr-code" for in-person events
 - Default requireLogin to true
 - Keep descriptions informative and engaging
-- Extract location information carefully (city, state, address if provided)
+- Extract location information carefully (city, state, address if provided). If no location is provided, return an empty location string; the organizer will fill it in. Do not invent an address.
 - **For recurring events**: Set recurrence.enabled to true and populate the recurrence object
   - Keywords like "every", "weekly", "monthly", "daily" indicate recurring events
   - If specific days are mentioned (e.g., "every Tuesday and Thursday"), set frequency to "weekly" and add those days to weekdays array
