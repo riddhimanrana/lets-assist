@@ -586,6 +586,9 @@ jobs:
       - name: Validate database tests on the same running isolated stack
         run: SUPABASE_PROJECT_ID="$(node scripts/local-dev/supabase-project-id.mjs --workdir "${CSF_ISOLATED_WORK_DIR}")" supabase test db --workdir "${CSF_ISOLATED_WORK_DIR}"
 
+      - name: Run security advisors on the same isolated stack
+        run: supabase db advisors --local --output-format json --fail-on warn --workdir "${CSF_ISOLATED_WORK_DIR}"
+
       - name: Validate CSF decision release REST timeout and rollback
         run: node scripts/csf/check-decision-release-timeout.mjs
 

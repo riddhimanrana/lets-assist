@@ -52,8 +52,21 @@ jobs:
   csf-release-gates:
     name: CSF release gates
     needs: production-recovery-gate
-    uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Verify successful full CI for the accepted source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+        run: node scripts/production/schema-release-ci-evidence.mjs
 
   hosted-development-acceptance:
     name: Hosted Development acceptance
@@ -361,97 +374,6 @@ jobs:
           done
           echo "✓ Description check complete"
 
-  # Stage 2: Replay, test, and audit one local Supabase instance
-  test-local-reset:
-    name: Test Local DB Reset
-    runs-on: ubuntu-latest
-    needs: validate-migrations
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: 1.4.2
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
-        with:
-          version: 2.120.0
-
-      - name: Start Supabase local instance
-        run: |
-          echo "Starting local Supabase..."
-          bun run supabase:start
-          echo "Supabase started successfully"
-
-      - name: Wait for DB readiness
-        run: |
-          echo "Waiting for database to be ready..."
-          max_attempts=30
-          attempt=0
-          while [ $attempt -lt $max_attempts ]; do
-            if bun run supabase:status > /dev/null 2>&1; then
-              echo "✓ Database is ready"
-              break
-            fi
-            attempt=$((attempt + 1))
-            sleep 2
-          done
-          if [ $attempt -eq $max_attempts ]; then
-            echo "❌ Database did not become ready in time"
-            exit 1
-          fi
-
-      - name: Test migration replay (reset)
-        run: |
-          echo "Testing migration replay with db reset..."
-          if bun run supabase:reset; then
-            echo "✓ Migration replay successful"
-          else
-            echo "❌ Migration replay failed"
-            echo "Check supabase logs above for details"
-            exit 1
-          fi
-
-      - name: Run pgTAP database tests
-        run: |
-          echo "Running the pgTAP suite against the replayed schema..."
-          # The production deploy job depends on this job, so this is what makes
-          # the database tests an actual production gate. Before this step they
-          # ran only in ci.yml behind a paths filter, and a workflow_dispatch
-          # deploy never re-ran them -- nothing verified that a green CI run
-          # existed for the commit being deployed.
-          #
-          # These files are pure SQL and exercise tables created by public-repo
-          # migrations, so they need no private submodule.
-          if supabase test db --local supabase/tests/database; then
-            echo "✓ pgTAP suite passed"
-          else
-            echo "❌ pgTAP suite failed — refusing to continue toward production"
-            exit 1
-          fi
-
-      - name: Verify schema integrity
-        run: |
-          echo "✓ Verifying schema integrity..."
-          bun run supabase:status
-          echo "✓ Schema verified"
-
-      - name: Run security advisors
-        run: supabase db advisors --local --output-format json --fail-on warn
-
-      - name: Stop local Supabase
-        if: always()
-        run: bun run supabase:stop || true
-
   # Stage 3: Deploy to production
   deploy-to-production:
     name: Deploy to Production
@@ -463,7 +385,6 @@ jobs:
         hosted-development-acceptance,
         production-recovery-gate,
         validate-migrations,
-        test-local-reset,
       ]
     if: >-
       github.event_name == 'workflow_dispatch' &&
@@ -566,20 +487,45 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/production/verify-vercel-project.sh
 
-      - name: Prepare exact Production application bytes
+      - name: Create one Vercel-side Production build without domains
+        id: deploy-application
         env:
-          VERCEL_ENV: production
-          VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+          RELEASE_SHA: ${{ github.sha }}
+          ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node scripts/production/app-release-stage.mjs create
+
+      - name: Retain staged build identity before waiting
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-app-stage-${{ github.run_id }}
+          path: .artifacts/app-only-stage.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Wait for the existing staged Production build
+        timeout-minutes: 30
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+          VERCEL_ROOT_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          STAGED_DEPLOYMENT_ID: ${{ steps.deploy-application.outputs.deployment_id }}
+        run: node scripts/production/app-release-stage.mjs wait
+
+      - name: Prepare static Production maintenance bytes
+        env:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           bunx vercel@59.3.0 pull --yes --environment=production --token="${VERCEL_TOKEN}"
-          bunx vercel@59.3.0 build --prod --standalone --token="${VERCEL_TOKEN}"
-          test -f .vercel/output/config.json
-          mkdir -p .artifacts
-          mv .vercel/output .artifacts/production-app-output
           mkdir -p .vercel/output
           cp -R scripts/production/maintenance-output/. .vercel/output/
           jq -e '.version == 3 and .crons == []' .vercel/output/config.json >/dev/null
@@ -738,51 +684,10 @@ jobs:
             --max-time 30)"
           test "${maintenance_marker}" = "lets-assist-production-maintenance-v1"
 
-      - name: Stage exact Production application without moving domains
-        id: deploy-application
-        timeout-minutes: 4
-        env:
-          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
-          VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set -euo pipefail
-          rm -rf .vercel/output
-          mv .artifacts/production-app-output .vercel/output
-          bunx vercel@59.3.0 deploy \
-            --prebuilt \
-            --prod \
-            --skip-domain \
-            --yes \
-            --json \
-            --token="${VERCEL_TOKEN}" \
-            --meta="productionReleaseSha=${GITHUB_SHA}" \
-            > .artifacts/production-deployment.json
-          deployment_id="$(jq -er '.deployment.id // .id' .artifacts/production-deployment.json)"
-          deployment_url="$(jq -er '.deployment.url // .url' .artifacts/production-deployment.json)"
-          deployment_target="$(jq -er '.deployment.target // .target' .artifacts/production-deployment.json)"
-          if [[ ! "${deployment_id}" =~ ^dpl_[A-Za-z0-9]+$ ]]; then
-            echo "Vercel returned a malformed Production deployment id." >&2
-            exit 1
-          fi
-          deployment_host="${deployment_url#https://}"
-          deployment_host="${deployment_host#http://}"
-          deployment_host="${deployment_host%/}"
-          if [[ ! "${deployment_host}" =~ ^[a-z0-9][a-z0-9.-]*\.vercel\.app$ ]] || [[ "${deployment_host}" == *".."* ]]; then
-            echo "Vercel returned a non-canonical Production deployment URL." >&2
-            exit 1
-          fi
-          if [[ "${deployment_target}" != "production" ]]; then
-            echo "Vercel staged the application outside Production." >&2
-            exit 1
-          fi
-          echo "deployment_id=${deployment_id}" >> "${GITHUB_OUTPUT}"
-          echo "deployment_url=https://${deployment_host}" >> "${GITHUB_OUTPUT}"
-
       - name: Prove staged Production application identity
         timeout-minutes: 2
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
+          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.origin }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
@@ -819,7 +724,7 @@ jobs:
           EARLY_BLOCK_PROOF: ${{ steps.early_write_block_proof.outcome }}
           EARLY_BLOCK_BARRIER: ${{ steps.early_write_block_barrier.outcome }}
           APPLICATION_DEPLOYMENT_ID: ${{ steps.deploy-application.outputs.deployment_id }}
-          APPLICATION_DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
+          APPLICATION_DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.origin }}
           EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
           MAINTENANCE_DEPLOYMENT_ID: ${{ steps.deploy-maintenance.outputs.deployment_id }}
           MAINTENANCE_DEPLOYMENT_URL: ${{ steps.deploy-maintenance.outputs.deployment_url }}
@@ -1033,7 +938,7 @@ jobs:
       - name: Smoke the staged Production application
         timeout-minutes: 2
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
+          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.origin }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
@@ -1068,7 +973,7 @@ jobs:
         id: promote_application
         timeout-minutes: 11
         env:
-          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
+          DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.origin }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_ROOT_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
