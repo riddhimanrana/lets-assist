@@ -4,11 +4,12 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { productionRef, ReleaseCheckError } from "./app-release-checks.mjs";
 import { ledgerDigest } from "./final-schema-manifest.mjs";
+import { maintenanceLedgerQuery } from "./maintenance-preflight.mjs";
 import {
-  executeMaintenanceQuery,
-  maintenanceLedgerQuery,
-  validateMaintenanceBinding,
-} from "./maintenance-preflight.mjs";
+  executeLinkedBootstrapQuery,
+  prepareLinkedBootstrapConnection,
+  productionTransportConfig,
+} from "./linked-bootstrap-transport.mjs";
 import {
   bootstrapPlan,
   bootstrapMutationSql,
@@ -40,7 +41,7 @@ export function productionBootstrapConfig(env, cwd = process.cwd()) {
     run: env.GITHUB_RUN_ID,
     actor: env.GITHUB_ACTOR,
     githubToken: env.GH_TOKEN,
-    databaseUrl: env.PRODUCTION_BOOTSTRAP_DATABASE_URL,
+    ...productionTransportConfig(env),
     serverKey: env.SUPABASE_SECRET_KEY || env.SUPABASE_SERVICE_ROLE_KEY,
   };
   requireCondition(
@@ -61,19 +62,20 @@ export function productionBootstrapConfig(env, cwd = process.cwd()) {
         `bootstrap-production:${productionRef}:${config.source}` &&
       env.EXTERNAL_WRITERS_CONFIRMATION ===
         `external-writers-stopped:${config.source}` &&
-      [config.githubToken, config.databaseUrl, config.serverKey].every(
-        (value) => typeof value === "string" && value.trim(),
-      ),
+      [
+        config.githubToken,
+        config.accessToken,
+        config.databasePassword,
+        config.serverKey,
+      ].every((value) => typeof value === "string" && value.trim()),
     "Production bootstrap requires the exact main workflow and scoped confirmations.",
   );
-  validateMaintenanceBinding(productionRef, config.databaseUrl);
-  const url = new URL(config.databaseUrl);
   requireCondition(
-    decodeURIComponent(url.username) ===
-      (url.hostname === `db.${productionRef}.supabase.co`
-        ? "postgres"
-        : `postgres.${productionRef}`),
-    "Production bootstrap requires its reviewed owner database connection.",
+    ![...config.databasePassword].some(
+      (character) =>
+        character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    ),
+    "Production bootstrap requires its existing database password.",
   );
   return config;
 }
@@ -165,17 +167,22 @@ function receiptWriter(cwd) {
 }
 
 export async function runProductionBootstrap(config, dependencies = {}) {
-  const query = dependencies.query || executeMaintenanceQuery;
+  const query = (connection, sql) =>
+    (dependencies.query || executeLinkedBootstrapQuery)(
+      connection,
+      sql,
+      config.databasePassword,
+    );
   const read =
     dependencies.read ||
     productionBootstrapReader(config, dependencies.fetcher);
   const record = dependencies.record || receiptWriter(config.cwd);
   const now = dependencies.now || Date.now;
-  validateMaintenanceBinding(productionRef, config.databaseUrl);
   verifyProductionCheckout(config, dependencies.execute);
   const authority = () =>
     verifyProductionBootstrapAuthority(config, read, now());
   const approval = await authority();
+  let connection;
   let plan = bootstrapPlan(config.cwd);
   const receipt = {
     format: 1,
@@ -184,6 +191,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     actor: config.actor,
     ...approval,
     database: productionRef,
+    transport: "management-metadata-session-psql",
     createdAt: now(),
     externalWriters: "operator-attested-stopped-in-protected-environment",
     before: null,
@@ -202,7 +210,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
   const readLedger = () => {
     let result;
     try {
-      result = JSON.parse(query(config.databaseUrl, maintenanceLedgerQuery));
+      result = JSON.parse(query(connection, maintenanceLedgerQuery));
     } catch {
       throw new ReleaseCheckError(
         "Production bootstrap ledger could not be read. Raw output was suppressed.",
@@ -222,13 +230,14 @@ export async function runProductionBootstrap(config, dependencies = {}) {
   };
   const verify = (versions) =>
     requireCondition(
-      query(
-        config.databaseUrl,
-        productionBootstrapVerificationSql(versions),
-      ) === "production-bootstrap-verified",
+      query(connection, productionBootstrapVerificationSql(versions)) ===
+        "production-bootstrap-verified",
       "Production bootstrap catalog, quiescence or open flag did not verify.",
     );
   try {
+    connection = await (dependencies.link || prepareLinkedBootstrapConnection)(
+      config,
+    );
     const observed = readLedger();
     plan = bootstrapPlan(config.cwd, readFileSync, observed);
     receipt.before = ledgerDigest(plan.before);
@@ -249,7 +258,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
       let acknowledged = false;
       try {
         acknowledged =
-          query(config.databaseUrl, bootstrapMutationSql(plan)) ===
+          query(connection, bootstrapMutationSql(plan)) ===
           "request-fence-bootstrap-applied";
       } catch {
         // A lost response never permits replaying the mutation in this run.
@@ -265,7 +274,7 @@ export async function runProductionBootstrap(config, dependencies = {}) {
     } else receipt.mutation = "already-applied";
     // Catalog readback cannot prove a post-commit request barrier completed.
     requireCondition(
-      query(config.databaseUrl, productionBootstrapBarrierSql) ===
+      query(connection, productionBootstrapBarrierSql) ===
         "production-bootstrap-requests-settled",
       "Production bootstrap could not verify preexisting requests have settled.",
     );

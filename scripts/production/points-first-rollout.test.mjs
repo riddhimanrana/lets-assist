@@ -39,7 +39,8 @@ function environment() {
     GITHUB_ACTOR: "operator",
     GH_TOKEN: "synthetic-github",
     SUPABASE_PROJECT_ID: productionRef,
-    PRODUCTION_BOOTSTRAP_DATABASE_URL: `postgresql://postgres:synthetic-value@db.${productionRef}.supabase.co/postgres`,
+    SUPABASE_ACCESS_TOKEN: "synthetic-token",
+    SUPABASE_DB_PASSWORD: "synthetic-value",
     PRODUCTION_DEPLOY_CONFIRMATION: `deploy-production:${productionRef}`,
     APPLICATION_WRITES_BLOCKED_CONFIRMATION: `application-writes-blocked:${source}`,
     EXTERNAL_WRITERS_CONFIRMATION: `external-writers-stopped:${source}`,
@@ -116,6 +117,10 @@ function fixture(count = 736) {
     moveMainAt: 0,
   };
   const dependencies = {
+    connect: async (config) => {
+      assert.ok(state.authorityReads > 0);
+      return { ...config, databaseUrl: linkedConnection() };
+    },
     now: () => now,
     record: (receipt) => state.receipts.push(receipt),
     execute: (_command, args) => (args[0] === "rev-parse" ? `${source}\n` : ""),
@@ -153,6 +158,15 @@ function fixture(count = 736) {
   return { data, state, dependencies };
 }
 
+const linkedConnection = () => ({
+  host: "aws-0-synthetic.pooler.supabase.com",
+  port: "5432",
+  user: `postgres.${productionRef}`,
+  database: "postgres",
+  sslmode: "require",
+  password: "synthetic-value",
+});
+
 test("configuration binds the existing owner connection and every recovery receipt to this main run", () => {
   assert.equal(config().source, source);
   for (const key of [
@@ -167,7 +181,8 @@ test("configuration binds the existing owner connection and every recovery recei
     "GITHUB_ACTOR",
     "GH_TOKEN",
     "SUPABASE_PROJECT_ID",
-    "PRODUCTION_BOOTSTRAP_DATABASE_URL",
+    "SUPABASE_ACCESS_TOKEN",
+    "SUPABASE_DB_PASSWORD",
     "PRODUCTION_DEPLOY_CONFIRMATION",
     "APPLICATION_WRITES_BLOCKED_CONFIRMATION",
     "EXTERNAL_WRITERS_CONFIRMATION",
@@ -181,19 +196,6 @@ test("configuration binds the existing owner connection and every recovery recei
   assert.throws(() =>
     productionPointsFirstConfig(
       { ...environment(), GITHUB_RUN_ATTEMPT: "2" },
-      cwd,
-    ),
-  );
-  assert.throws(() =>
-    productionPointsFirstConfig(
-      {
-        ...environment(),
-        PRODUCTION_BOOTSTRAP_DATABASE_URL:
-          environment().PRODUCTION_BOOTSTRAP_DATABASE_URL.replace(
-            "postgres:synthetic",
-            "reader:synthetic",
-          ),
-      },
       cwd,
     ),
   );
@@ -421,7 +423,7 @@ test("database calls cannot outlive the invocation deadline", () => {
   let calls = 0;
   assert.equal(
     boundedPointsFirstQuery(
-      config().databaseUrl,
+      linkedConnection(),
       "fixed-sql",
       now + 9000,
       () => now,
@@ -436,7 +438,7 @@ test("database calls cannot outlive the invocation deadline", () => {
   );
   assert.throws(() =>
     boundedPointsFirstQuery(
-      config().databaseUrl,
+      linkedConnection(),
       "fixed-sql",
       now,
       () => now,
@@ -463,4 +465,24 @@ test("workflow keeps the trusted recovery topology and replaces every broad db p
     yaml,
     /production-release-recovery-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/u,
   );
+});
+
+test("metadata failure after protected authority records an unproven outcome without SQL or retries", async () => {
+  const { state, dependencies } = fixture();
+  let calls = 0;
+  dependencies.connect = async () => {
+    calls++;
+    assert.ok(state.authorityReads > 0);
+    throw new Error("private-metadata-sentinel");
+  };
+  dependencies.query = () => {
+    assert.fail("SQL must not run before metadata is validated");
+  };
+  await assert.rejects(
+    runProductionPointsFirst(config(), "apply", dependencies),
+    (error) => !error.message.includes("private-metadata-sentinel"),
+  );
+  assert.equal(calls, 1);
+  assert.equal(state.writes, 0);
+  assert.equal(state.receipts.at(-1).phase, "unproven");
 });

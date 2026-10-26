@@ -87,7 +87,44 @@ Before requesting execution approval, retain local proof that the shared SQL acc
 
 The permanent hook admits writable requests only at READ COMMITTED isolation, including when maintenance is disabled. REPEATABLE READ and SERIALIZABLE can retain an older snapshot after waiting for the request gate, so the hook refuses those writable transactions. Read-only requests remain supported. The shared catalog checks reject incompatible role or writable RPC isolation defaults before bootstrap. Include this compatibility constraint in the approval package and retain its actual HTTP regression evidence.
 
-Use the protected `production` GitHub environment with configured required reviewers. Provision its reviewed owner connection as `PRODUCTION_BOOTSTRAP_DATABASE_URL`, restricted to the fixed Production project `fotdmeakexgrkronxlof`, PostgreSQL database `postgres`, and the exact owner username. Only `sslmode=require`, `verify-ca` or `verify-full` is permitted; no connection routing or authentication override query parameters are accepted. The controller passes credentials in a restricted subprocess environment, never command arguments. Its separate Production server key must succeed against the fixed API before mutation. The workflow exposes these credentials only to the bootstrap step.
+Use the protected `production` GitHub environment with configured required reviewers.
+Installation uses the existing `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`;
+it no longer uses `PRODUCTION_BOOTSTRAP_DATABASE_URL` for routing or authentication.
+When that existing secret is present, only its `sslmode` policy is read;
+`verify-ca` and `verify-full` are preserved, `require` is the default, and
+invalid or ambiguous TLS modes fail closed. After verifying current
+checkout and actual approval, the controller reads only the fixed project's
+[official pooler-config endpoint](https://supabase.com/docs/reference/api/v1-get-pooler-config).
+It requires one PRIMARY record with a Supabase shared-pooler host, owner user
+`postgres.fotdmeakexgrkronxlof`, and database `postgres`. It reads only the routing
+fields, never `connection_string`, a CLI cache, or a token store. Missing, malformed
+or ambiguous metadata fails without retry or fallback.
+
+The [pinned CLI's session-pooler rule](https://github.com/supabase/cli/blob/v2.120.0/apps/cli/src/command-internal/link-services-core.ts)
+selects port 5432 when the shared pooler reports transaction mode on 6543.
+Supabase documents that session port independently; host/region and username are
+taken from validated API fields. Existing SQL still goes unchanged to one psql
+invocation per existing controller query, including all psql meta-commands and
+transaction boundaries. psql receives the preserved TLS policy, bounded timeouts, and the
+existing password only in its restricted child environment. No connection string
+containing a password is constructed, written, exported to another step, or logged.
+Raw API and database errors remain suppressed. Its separate Production server key
+must still pass the fixed API read before mutation. The bootstrap workflow exposes these
+credentials only to the protected installation step.
+
+The successful CLI diagnostic does not prove this psql adapter's live behavior.
+Local transport tests use synthetic API replies and a captured psql invocation;
+an action-time read-only connection proof is still needed before installation.
+This repair changes no quiescence, external-writer, approval, SQL catalog, ledger,
+barrier or uncertain-response recovery requirement. The same adapter serves the existing bounded rollout and the write-block wrapper
+(including recovery). Maintenance preflight keeps a configured
+`PRODUCTION_READONLY_URL` as its preferred connection and refuses an invalid one;
+only its owner fallback uses the adapter. Both maintenance paths retain explicit
+read-only SQL and the restricted read-only PostgreSQL session options. Rollout
+deadlines, per-file atomic application and unknown-response reconciliation remain
+unchanged. The write-block wrapper keeps its existing fixed enable/disable/barrier
+SQL and 60-second outer bound; SQL goes through psql stdin rather than CLI query
+arguments. No workflow state-machine, approval or writer-containment gate changes.
 
 Stop and verify database cron jobs, the five CSF worker controls and active publication-notification leases before running. Record external writer quiescence for Auth, Storage, direct database users, Vercel/GitHub schedules and other providers. The operator's source-bound attestation records this requirement; it does not remotely enforce those systems. This workflow stops or resumes no job. The Data API remains open during this additive bootstrap.
 

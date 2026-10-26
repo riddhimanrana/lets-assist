@@ -317,6 +317,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh enable
 
       - name: Prove Production application write block
@@ -332,6 +333,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh barrier
 
       - name: Revalidate Vercel project and deployment provenance

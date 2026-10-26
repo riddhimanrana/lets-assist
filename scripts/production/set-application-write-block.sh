@@ -15,13 +15,8 @@ for variable in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD; do
   fi
 done
 
-run_linked_query() {
-  timeout 60s supabase db query --linked "$1" >/dev/null
-}
-
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-request_guard_sql="$(node "${script_directory}/request-write-fence.mjs" "${mode}")"
-run_linked_query "${request_guard_sql}"
+timeout 60s node "${script_directory}/set-application-write-block.mjs" "${mode}" >/dev/null
 
 if [[ "${mode}" == "barrier" ]]; then
   echo "Previously admitted request transactions have settled."

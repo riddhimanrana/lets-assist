@@ -8,7 +8,7 @@ import {
   executeMaintenanceQuery,
   maintenanceLedgerQuery,
   maintenanceVerificationQuery,
-  validateMaintenanceBinding,
+  resolveMaintenanceConnection,
 } from "./maintenance-preflight.mjs";
 import {
   productionRunReader,
@@ -22,6 +22,8 @@ import {
   preparePointsFirstMigration,
 } from "./points-first-rollout-plan.mjs";
 
+import { productionTransportConfig } from "./linked-bootstrap-transport.mjs";
+
 const workflow = ".github/workflows/deploy-schema.yml";
 const requireCondition = (condition, message) => {
   if (!condition) throw new ReleaseCheckError(message);
@@ -34,7 +36,7 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
     run: env.GITHUB_RUN_ID,
     actor: env.GITHUB_ACTOR,
     githubToken: env.GH_TOKEN,
-    databaseUrl: env.PRODUCTION_BOOTSTRAP_DATABASE_URL,
+    ...productionTransportConfig(env),
     recoveryCaptureSha256: env.RECOVERY_CAPTURE_SHA256,
   };
   let recovery = null;
@@ -63,21 +65,12 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
         `external-writers-stopped:${config.source}` &&
       /^[a-f0-9]{64}$/u.test(config.recoveryCaptureSha256 ?? "") &&
       recovery?.sha256 === config.recoveryCaptureSha256 &&
-      [config.githubToken, config.databaseUrl].every(
+      [config.githubToken, config.accessToken, config.databasePassword].every(
         (value) => typeof value === "string" && value.trim(),
       ),
     "The bounded rollout requires the exact protected main run and recovery confirmations.",
   );
   config.recoveryMode = recovery.mode;
-  validateMaintenanceBinding(productionRef, config.databaseUrl);
-  const url = new URL(config.databaseUrl);
-  requireCondition(
-    decodeURIComponent(url.username) ===
-      (url.hostname === `db.${productionRef}.supabase.co`
-        ? "postgres"
-        : `postgres.${productionRef}`),
-    "The bounded rollout requires the existing reviewed owner connection.",
-  );
   return config;
 }
 
@@ -166,7 +159,6 @@ export async function runProductionPointsFirst(
     dependencies.query ||
     ((url, sql) => boundedPointsFirstQuery(url, sql, deadline, now));
   const record = dependencies.record || receiptWriter(config.cwd);
-  validateMaintenanceBinding(productionRef, config.databaseUrl);
   verifyProductionCheckout(config, dependencies.execute);
   const authority = () => verifyPointsFirstAuthority(config, read, now());
   const approval = await authority();
@@ -209,6 +201,9 @@ export async function runProductionPointsFirst(
       "The exact rollout catalog, write block, quiescence or data checks did not verify.",
     );
   try {
+    config = await (dependencies.connect || resolveMaintenanceConnection)(
+      config,
+    );
     let plan = readState();
     receipt.before = plan.state.ledger;
     receipt.after = plan.state.ledger;
