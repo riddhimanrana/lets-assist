@@ -12181,3 +12181,24 @@ Organizers still choose PDF positions; consent and publication checks remain.
 Focused regressions cover two required signers, initials rejection, draft
 status and progression after both signatures exist. Browser checks are paused
 at the user's request while filming.
+
+## AI draft payload failures, October 26, 2026
+
+`WAIVER-AI-ROLE-DIAGNOSTICS-20261026`, P1, fixed locally, release pending.
+AI waiver analysis returns signer descriptions. The client spread those
+properties into saved signer roles, which the strict publication schema
+correctly rejects even when all signature placements exist. AI roles and the
+save boundary now project only supported signer properties. A seven-placement
+fixture reproduces the invalid raw draft and verifies repaired save payloads,
+unchanged required/optional roles and a passing Continue guard. Missing required
+signatures still fail.
+
+`PROJECT-AI-MISSING-LOCATION-20261026`, P2, fixed locally, release pending.
+The project assistant rejected generated drafts without an explicit location,
+even though the UI asks organizers to review that field after generation.
+Generation now permits an empty draft location. Project creation still applies
+its existing validation. Route tests exercise missing and empty locations,
+malformed schedules, authentication and prompt bounds. Client prompt bounds
+match the API and controlled server errors are displayed without being replaced
+by a generic generation failure. Production logs did not establish a separate
+provider failure. No live browser acceptance was performed while filming.

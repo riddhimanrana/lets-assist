@@ -188,7 +188,12 @@ export function buildDefinitionPayload(
   detectedFields: DetectedPdfField[],
 ): WaiverDefinitionInput {
   return {
-    signers,
+    signers: signers.map(({ roleKey, label, required, orderIndex }) => ({
+      roleKey,
+      label,
+      required,
+      orderIndex,
+    })),
     fields: {
       detected: buildDetectedMappingsForSave(detectedFields, fieldMappings),
       custom: customPlacements,
