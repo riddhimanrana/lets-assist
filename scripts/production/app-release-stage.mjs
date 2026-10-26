@@ -59,7 +59,11 @@ export function stagePayload(config) {
     autoAssignCustomDomains: false,
     env,
     build: { env: { ...env } },
-    meta: { appOnlyReleaseSha: config.release, appOnlyReleaseRun: config.run },
+    meta: {
+      appOnlyReleaseSha: config.release,
+      appOnlyReleaseRun: config.run,
+      productionReleaseSha: config.release,
+    },
   };
 }
 
