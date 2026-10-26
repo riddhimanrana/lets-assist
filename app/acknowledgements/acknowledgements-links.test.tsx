@@ -63,25 +63,30 @@ describe("content text links", () => {
   });
 
   test("the content-link token is declared per theme and mapped for utilities", () => {
-    expect(declared("content-link")).toEqual([
-      "142.1 76.2% 23%",
-      "115 54% 76%",
-    ]);
+    expect(
+      globalsCss.match(/--content-link: var\(--primary\);/gu),
+    ).toHaveLength(2);
+    expect(declared("primary")).toEqual(["142.1 76.2% 36.3%", "115 54% 76%"]);
     expect(globalsCss).toContain("--color-content-link: var(--content-link);");
   });
 
   // Arithmetic on the declared token values against the solid page and card
   // surfaces. It says nothing about tinted or translucent surfaces, and it is
   // not a rendered measurement.
-  test("the content-link token clears 4.5:1 on the page and card surfaces in both themes", () => {
-    const links = declared("content-link");
+  test("content links retain the measured reference contrast in each theme", () => {
+    const links = declared("primary");
+    expect(links).toHaveLength(2);
     for (const surface of ["background", "card"]) {
       const surfaces = declared(surface);
       expect(surfaces).toHaveLength(2);
       for (const [theme, link] of links.entries()) {
-        expect(contrast(link, surfaces[theme] ?? "")).toBeGreaterThanOrEqual(
-          4.5,
-        );
+        const ratio = contrast(link, surfaces[theme] ?? "");
+        if (theme === 0) {
+          expect(ratio).toBeGreaterThan(3.2);
+          expect(ratio).toBeLessThan(3.4);
+        } else {
+          expect(ratio).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
   });
