@@ -1023,7 +1023,7 @@ describe("CSF Production release preflight", () => {
     expect(acceptance).toContain('git rev-parse "${ACCEPTED_SHA}^{tree}"');
     expect(acceptance).toContain("git rev-parse 'HEAD^{tree}'");
     expect(acceptance).toContain(
-      'select(.context == "csf-hosted-development-acceptance" and .creator.login == "github-actions[bot]")',
+      'select(.context == "csf-hosted-development-functional" and .creator.login == "github-actions[bot]")',
     );
     expect(acceptance).toContain("sort_by(.created_at) | last // {}");
     expect(acceptance).toContain('status_state}" != "success"');
