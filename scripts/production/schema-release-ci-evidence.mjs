@@ -17,6 +17,7 @@ const controllerPaths = new Set([
   "scripts/production/vercel-curl.sh",
   "scripts/production/vercel-curl.test.mjs",
   "scripts/csf-production-release-gate-contract.test.ts",
+  "scripts/ci/pipeline-mode.test.mjs",
 ]);
 
 export async function verifySchemaReleaseCi(
