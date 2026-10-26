@@ -20,6 +20,11 @@ import {
   WaiverDefinitionInput,
 } from "@/components/waiver/WaiverBuilderDialog";
 import { cn } from "@/lib/utils";
+import {
+  waiverDefinitionInputSchema,
+  describeMissingSignatureFields,
+  findRequiredSignersMissingSignatureField,
+} from "@/lib/waiver/definition-input";
 import { SIGNED_WAIVER_RETENTION_NOTICE } from "@/lib/waiver/retention";
 
 import { FormField, FormGroup, ToggleRow } from "./form-parts";
@@ -189,6 +194,15 @@ export function WaiverSettings({
 
   const hasWaiverPdf = waiverPdfFile || waiverPdfUrl;
   const uploadIcon = useAnimatedIcon();
+  const configurationReady =
+    waiverDisableEsignature ||
+    waiverDefinitionInputSchema.safeParse(waiverDefinition).success;
+  const missingSignatureMessage =
+    waiverDefinition && !waiverDisableEsignature
+      ? describeMissingSignatureFields(
+          findRequiredSignersMissingSignatureField(waiverDefinition),
+        )
+      : null;
 
   return (
     <FormGroup
@@ -343,9 +357,14 @@ export function WaiverSettings({
               {waiverDefinition ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
                   <div className="grid gap-0.5">
-                    <p className="text-sm font-medium">Waiver configured</p>
+                    <p className="text-sm font-medium">
+                      {configurationReady
+                        ? "Waiver configured"
+                        : "Signature fields needed"}
+                    </p>
                     <p className="text-muted-foreground text-xs">
-                      {waiverDefinition.signers.length} signer role(s) defined.
+                      {missingSignatureMessage ??
+                        `${waiverDefinition.signers.length} signer role(s) defined.`}
                     </p>
                   </div>
                   {!waiverDisableEsignature && (
@@ -353,7 +372,9 @@ export function WaiverSettings({
                       variant="outline"
                       onClick={() => setShowBuilder(true)}
                     >
-                      Edit configuration
+                      {configurationReady
+                        ? "Edit configuration"
+                        : "Add signature fields"}
                     </Button>
                   )}
                 </div>

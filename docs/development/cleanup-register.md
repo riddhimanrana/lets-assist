@@ -12167,3 +12167,17 @@ capture contract freezes Next 16.4.0 while the package and installed version are
 16.4.1. The same failure was reproduced before and after the private test-only
 gitlink binding update. Review and update the capture runtime contract with its
 owner; the normal release gate leaves optional layout capture disabled.
+
+## Waiver draft readiness, October 26, 2026
+
+`WAIVER-DRAFT-READINESS-20261026`, P2, fixed locally, release pending.
+Closing the waiver builder preserves incomplete draft edits. The settings card
+previously labeled every saved draft as configured, even when required signers
+had no signature fields and Continue correctly refused it. The card now uses
+the definition schema to report readiness and names missing signature roles.
+Reopening a saved definition starts on Fields & signatures. New manually placed
+fields cover the next required signer before returning to generic text fields.
+Organizers still choose PDF positions; consent and publication checks remain.
+Focused regressions cover two required signers, initials rejection, draft
+status and progression after both signatures exist. Browser checks are paused
+at the user's request while filming.

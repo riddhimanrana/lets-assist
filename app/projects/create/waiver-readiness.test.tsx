@@ -44,3 +44,39 @@ test("switching waivers off hides stale configuration errors on that step", () =
   expect(html).not.toContain('role="alert"');
   expect(html).toContain("Require waiver signature");
 });
+
+test("saved roles without signatures are described as incomplete with an actionable repair", () => {
+  const html = renderToStaticMarkup(
+    createElement(WaiverSettings, {
+      waiverRequired: true,
+      waiverDisableEsignature: false,
+      waiverPdfUrl: "/synthetic.pdf",
+      waiverDefinition: {
+        signers: [
+          {
+            roleKey: "volunteer",
+            label: "Volunteer",
+            required: true,
+            orderIndex: 0,
+          },
+          {
+            roleKey: "guardian",
+            label: "Guardian",
+            required: true,
+            orderIndex: 1,
+          },
+        ],
+        fields: { detected: {}, custom: [] },
+      },
+      updateWaiverRequiredAction: () => {},
+      updateWaiverAllowUploadAction: () => {},
+      updateWaiverDisableEsignatureAction: () => {},
+    }),
+  );
+  expect(html).not.toContain("Waiver configured");
+  expect(html).toContain("Signature fields needed");
+  expect(html).toContain(
+    "Add a signature field for Volunteer and Guardian before saving.",
+  );
+  expect(html).toContain("Add signature fields");
+});
