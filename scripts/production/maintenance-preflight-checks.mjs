@@ -1,5 +1,21 @@
 // Preserve the applicable blocking data checks from the historical preflight.
 // Return booleans only; never log rows or provider configuration.
+// DDL can block provider catalog readers until this transaction commits.
+// Admit only relation readers whose sole blocker is this migration backend.
+export const maintenanceMutationLockQuery = String.raw`SELECT NOT EXISTS (
+  SELECT 1
+  FROM pg_locks AS waiting
+  WHERE NOT waiting.granted
+    AND (
+      waiting.locktype = 'relation'
+      AND waiting.mode = 'AccessShareLock'
+      AND waiting.pid IS NOT NULL
+      AND waiting.pid <> pg_backend_pid()
+      AND pg_blocking_pids(waiting.pid)
+        IS NOT DISTINCT FROM ARRAY[pg_backend_pid()]
+    ) IS NOT TRUE
+) AS valid`;
+
 export const maintenanceDataChecks = [
   {
     name: "control_plane",

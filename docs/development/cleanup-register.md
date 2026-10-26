@@ -12130,3 +12130,17 @@ receipts, publication rules and heartbeat ownership are unchanged. Regression
 coverage exercises pending and held recovery followed by a confirmed empty
 retry; scheduled failure signaling and approval refusals remain covered.
 Exact successor CI and hosted release acceptance remain required.
+
+`PRODUCTION-MIGRATION-READER-LOCK-20261025`, P2, fixed locally: the bounded
+migration transaction reused the read-only check that refuses all waiting
+database locks. A provider catalog reader waited on the transaction's own DDL,
+so the post-migration check rolled back the first file. Writable verification
+now permits only relation AccessShareLock waiters whose sole blocker is the
+current backend. It rejects writers, unrelated or multiple blockers, missing
+blocker information and unknown lock fields. Read-only preflight still refuses
+every waiting lock, and all other ledger, catalog and data checks stay identical.
+The outside-writer hold and application write fence remain required because a
+reader's later write intent cannot be inferred from its current lock request.
+All 30 focused tests pass, including a disposable PostgreSQL concurrency test
+with blocked readers and writers. Hosted deployment and release verification
+remain pending.

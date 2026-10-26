@@ -11,7 +11,10 @@ import {
   verifyLedger,
 } from "./app-release-checks.mjs";
 import { ledgerDigest } from "./final-schema-manifest.mjs";
-import { maintenanceDataChecks } from "./maintenance-preflight-checks.mjs";
+import {
+  maintenanceDataChecks,
+  maintenanceMutationLockQuery,
+} from "./maintenance-preflight-checks.mjs";
 import { migrationDigests } from "./migration-digests.mjs";
 import {
   pointsFirstRolloutState,
@@ -153,12 +156,16 @@ function verificationChecks(versions, writable) {
         ? `SELECT ${maintenancePostureConditions} AS valid`
         : maintenancePostureQuery,
     ),
-    ...maintenanceDataChecks.map(({ query }) => requireBoolean(query)),
+    ...maintenanceDataChecks.map(({ name, query }) =>
+      requireBoolean(
+        writable && name === "e6_pass" ? maintenanceMutationLockQuery : query,
+      ),
+    ),
   ].join("\n");
 }
 
-// Only the reviewed migration transaction uses the writable variant. It retains
-// every guard, catalog and data check; only transaction_read_only differs.
+// The reviewed migration transaction retains every ledger, catalog and data
+// check. Its writable posture admits only readers blocked by its own DDL.
 export function maintenanceMutationVerificationSql(versions) {
   return verificationChecks(versions, true);
 }
