@@ -727,14 +727,14 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
 
   return (
-    <section className="relative isolate mx-auto w-full max-w-6xl px-4 pb-12 pt-10 sm:px-6 md:pb-16 md:pt-16">
+    <section className="relative isolate mx-auto w-full max-w-6xl px-4 pb-12 pt-6 sm:px-6 sm:pt-10 md:pb-16 md:pt-16">
       <div className="mx-auto flex max-w-5xl flex-col items-center text-center">
         <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
           <DialogTrigger
             render={
               <button
                 type="button"
-                className="group flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="group flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-[0.6875rem] font-medium text-muted-foreground shadow-xs backdrop-blur sm:text-xs transition-colors hover:border-primary/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Image
                   src="/logos/congressional-app-challenge-cropped.svg"
@@ -777,7 +777,7 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           </DialogContent>
         </Dialog>
 
-        <HeroHeading className="mt-5 max-w-5xl text-balance text-[2.6rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-6xl sm:leading-[0.98] md:text-[5rem]" />
+        <HeroHeading className="mt-4 max-w-5xl text-balance text-[2.25rem] font-semibold leading-[1.02] tracking-[-0.03em] text-foreground sm:mt-5 sm:text-6xl sm:leading-[0.98] md:text-[5rem]" />
 
         {/*
           The hero is the first thing in the response. Its copy, links, demo
@@ -790,7 +790,7 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           initial={false}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
+          className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
           One link for public signups, QR attendance, verified hours,
           certificates, and organization workflows that scale from student clubs
@@ -801,19 +801,14 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
+          className="mt-5 flex w-full max-w-[560px] flex-col items-center justify-center gap-2 sm:mt-7 sm:gap-3 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton
-            href="/signup"
-            className="bg-black text-white hover:bg-black/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary"
-          >
-            Get started
-          </MotionLinkButton>
+          <MotionLinkButton href="/signup">Get started</MotionLinkButton>
           <MotionLinkButton href="/contact" tone="outline">
             Contact us
           </MotionLinkButton>
         </motion.div>
-        <p className="mt-4 text-sm text-muted-foreground">
+        <p className="mt-3 text-xs text-muted-foreground sm:mt-4 sm:text-sm">
           Want to volunteer?{" "}
           <Link
             href="/projects"
@@ -828,7 +823,7 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
         initial={false}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
         transition={{ delay: 1.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-        className="mt-10"
+        className="mt-7 sm:mt-10"
       >
         <RealProjectDemoWindow demoDateAnchor={demoDateAnchor} />
       </motion.div>
