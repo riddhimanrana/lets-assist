@@ -1023,11 +1023,17 @@ describe("CSF Production release preflight", () => {
     expect(acceptance).toContain('git rev-parse "${ACCEPTED_SHA}^{tree}"');
     expect(acceptance).toContain("git rev-parse 'HEAD^{tree}'");
     expect(acceptance).toContain(
-      'select(.context == "csf-hosted-development-functional" and .creator.login == "github-actions[bot]")',
+      'select(.context == "csf-hosted-development-functional")',
     );
-    expect(acceptance).toContain("sort_by(.created_at) | last // {}");
+    expect(acceptance).toContain("gh api --paginate");
+    expect(acceptance).toContain("jq -s");
+    expect(acceptance).toContain(
+      "commits/${ACCEPTED_SHA}/statuses?per_page=100",
+    );
+    expect(acceptance).toContain("sort_by(.id) | last // {}");
     expect(acceptance).toContain('status_state}" != "success"');
-    expect(acceptance).toContain('.creator.login == "github-actions[bot]"');
+    expect(acceptance).toContain(".creator.login // empty");
+    expect(acceptance).toContain('status_creator}" != "github-actions[bot]"');
     expect(acceptance).toContain(
       'expected_run_prefix="https://github.com/${GITHUB_REPOSITORY}/actions/runs/"',
     );
