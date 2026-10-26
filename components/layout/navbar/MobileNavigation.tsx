@@ -51,7 +51,7 @@ type Props = {
 // One row recipe for the whole sheet, so every label sits on the same left edge.
 const rowClass = cn(
   buttonVariants({ variant: "ghost", size: "lg" }),
-  "w-full justify-between px-3 text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
+  "w-full justify-between px-3 text-muted-foreground aria-[current=page]:text-foreground aria-[current=page]:hover:bg-transparent",
 );
 
 export function MobileNavigation({

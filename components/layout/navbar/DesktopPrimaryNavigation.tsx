@@ -27,7 +27,7 @@ type Props = {
 
 const destinationClass = cn(
   buttonVariants({ variant: "ghost", size: "sm" }),
-  "shrink-0 px-3 whitespace-nowrap text-muted-foreground aria-[current=page]:bg-muted aria-[current=page]:text-foreground",
+  "shrink-0 px-3 whitespace-nowrap text-muted-foreground aria-[current=page]:text-foreground aria-[current=page]:hover:bg-transparent",
 );
 
 export function DesktopPrimaryNavigation({
