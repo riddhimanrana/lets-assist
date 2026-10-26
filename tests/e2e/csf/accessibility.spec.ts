@@ -358,7 +358,7 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const heading = page.getByRole("heading", {
       level: 1,
-      name: "A workspace for your volunteer organization.",
+      name: "The modern way to do volunteering",
     });
     await expect(heading).toBeVisible();
     const letters = heading.locator(".la-hero-letter");

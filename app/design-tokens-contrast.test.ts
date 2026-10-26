@@ -96,16 +96,16 @@ const light = readTokens(themeBlock(":root"));
 const dark = readTokens(themeBlock(".dark"));
 
 const LIGHT_TOKENS: Record<string, Rgb> = {
-  // Identity and the filled label, unchanged from the historical palette.
+  // Restore the identity fill with a readable control label.
   brand: { r: 22, g: 163, b: 74 },
-  "primary-foreground": { r: 255, g: 241, b: 242 },
+  "primary-foreground": { r: 18, g: 18, b: 28 },
   // One step under the historical grey, so it also reads on --muted.
   "muted-foreground": { r: 110, g: 110, b: 119 },
   // Text-bearing semantic tokens, each a darker step of its historical hue.
   success: { r: 14, g: 103, b: 47 },
   warning: { r: 122, g: 78, b: 16 },
   info: { r: 10, g: 75, b: 205 },
-  primary: { r: 14, g: 103, b: 47 },
+  primary: { r: 22, g: 163, b: 74 },
   destructive: { r: 169, g: 15, b: 15 },
   ring: { r: 14, g: 103, b: 47 },
 };
@@ -128,9 +128,9 @@ type Contract = {
 const contracts: Contract[] = [
   {
     theme: "light",
-    description: "default badge label on the primary fill",
-    foreground: "primary-foreground",
-    background: "primary",
+    description: "default badge label on its green fill",
+    foreground: "badge-primary-foreground",
+    background: "badge-primary",
   },
   {
     theme: "light",
@@ -152,6 +152,12 @@ const contracts: Contract[] = [
     foreground: "info",
     background: "info",
     tintOver: "background",
+  },
+  {
+    theme: "dark",
+    description: "default badge label on its green fill",
+    foreground: "badge-primary-foreground",
+    background: "badge-primary",
   },
   {
     theme: "dark",
@@ -180,7 +186,7 @@ describe("theme token contrast contracts", () => {
       "utf8",
     );
     expect(source).toMatch(
-      /default:\s*"bg-primary [^"]*text-primary-foreground/u,
+      /default:\s*"bg-\(--badge-primary\) [^"]*text-\(--badge-primary-foreground\)/u,
     );
   });
 
@@ -227,8 +233,8 @@ describe("theme token contrast contracts", () => {
     });
   }
 
-  test("the focus ring stays in step with the primary token", () => {
-    expect(token(light, "ring")).toEqual(token(light, "primary"));
+  test("the focus ring keeps the readable content tone", () => {
+    expect(token(light, "ring")).toEqual(token(light, "content-link"));
   });
 
   test("the contrast helper matches known reference ratios", () => {

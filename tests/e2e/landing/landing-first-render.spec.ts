@@ -69,7 +69,7 @@ for (const width of [390, 1440]) {
           for (const [id, name] of [
             ["comparison", "Let's Assist is built for volunteer hours."],
             ["journey", "From sign-up to certificate"],
-            ["org-tooling", "A workspace for your volunteer organization"],
+            ["org-tooling", "One workspace for your team"],
           ]) {
             await expectPainted(
               page

@@ -284,8 +284,10 @@ export function ResizablePlacement({
       {/* Label */}
       <div
         className={cn(
-          "absolute left-1 top-1 text-xs leading-none text-background px-1.5 py-0.5 rounded-sm truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
-          isSignature ? "bg-primary" : "bg-info",
+          "absolute left-1 top-1 text-xs leading-none px-1.5 py-0.5 rounded-sm truncate max-w-[calc(100%-0.5rem)] pointer-events-none font-medium",
+          isSignature
+            ? "bg-primary text-primary-foreground"
+            : "bg-info text-background",
         )}
       >
         {placement.label || (isSignature ? "Signature" : placement.fieldType)}

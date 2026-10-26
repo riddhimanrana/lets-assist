@@ -624,9 +624,6 @@ function RealProjectDemoWindow({ demoDateAnchor }: { demoDateAnchor: string }) {
       className="relative mx-auto w-full max-w-6xl"
       id="live-demo"
     >
-      <p className="mb-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Fictional interactive project · Signups here are not saved
-      </p>
       <div
         ref={demoWindowRef}
         className="relative overflow-hidden rounded-[1.75rem] border bg-background shadow-(--card-shadow)"
@@ -795,9 +792,9 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.78, duration: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto mt-4 max-w-xl text-[0.95rem] leading-6.5 text-muted-foreground sm:mt-5 sm:max-w-2xl sm:text-lg sm:leading-8"
         >
-          Plan shifts and signups, record QR attendance or review a scanned
-          paper roster, then attribute and verify volunteer hours. Keep the
-          record and certificates in one organization workspace.
+          One link for public signups, QR attendance, verified hours,
+          certificates, and organization workflows that scale from student clubs
+          to citywide volunteer programs.
         </motion.p>
 
         <motion.div
@@ -806,11 +803,14 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
           transition={{ delay: 0.95, duration: 0.48, ease: [0.16, 1, 0.3, 1] }}
           className="mt-6 flex w-full max-w-[560px] flex-col items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:max-w-none sm:flex-row"
         >
-          <MotionLinkButton href="/signup?redirect=%2Fprojects%2Fcreate">
-            Create a project
+          <MotionLinkButton
+            href="/signup"
+            className="bg-black text-white hover:bg-black/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary"
+          >
+            Get started
           </MotionLinkButton>
-          <MotionLinkButton href="#org-tooling" tone="outline">
-            See how it works
+          <MotionLinkButton href="/contact" tone="outline">
+            Contact us
           </MotionLinkButton>
         </motion.div>
         <p className="mt-4 text-sm text-muted-foreground">
@@ -837,16 +837,10 @@ export const HeroContent = ({ demoDateAnchor }: { demoDateAnchor: string }) => {
         initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto mt-8 grid w-full max-w-6xl gap-6 border-t pt-6 text-left sm:grid-cols-3 sm:gap-8"
+        className="mx-auto mt-6 grid w-full max-w-6xl gap-3 text-left sm:grid-cols-3"
       >
-        {platformHighlights.map((item, index) => (
-          <li key={item.title} className="flex gap-4">
-            <span
-              aria-hidden="true"
-              className="pt-0.5 text-sm font-semibold tabular-nums text-muted-foreground"
-            >
-              0{index + 1}
-            </span>
+        {platformHighlights.map((item) => (
+          <li key={item.title} className="rounded-xl border bg-card p-4">
             <div>
               <h2 className="text-base font-semibold">{item.title}</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">

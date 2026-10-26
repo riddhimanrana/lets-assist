@@ -216,7 +216,7 @@ describe("landing organization mock", () => {
     expect(sample).toContain("this is a mock and is not affiliated");
   });
 
-  test("the section around it says the organization is a sample", () => {
+  test("the demo stays identifiable without the repeated fictional banner", () => {
     const intro = readFileSync(
       new URL(
         "../../app/(landing)/_components/OrgToolingIntro.tsx",
@@ -224,7 +224,8 @@ describe("landing organization mock", () => {
       ),
       "utf8",
     );
-    expect(intro).toContain("Fictional organization demo");
+    expect(intro).not.toContain("Fictional organization demo");
+    expect(intro).toContain("Interactive organization demo");
     expect(intro).toContain("One workspace for your team");
     expect(intro).not.toContain("SignUpGenius");
   });

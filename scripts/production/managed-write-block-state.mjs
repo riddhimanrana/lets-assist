@@ -85,14 +85,17 @@ export async function managedWriteBlockState(mode, env, dependencies = {}) {
         elapsed >= 0 &&
         elapsed <= 2100,
     );
-    requireCondition(state.open === true && state.blocked === false);
+    const owned = state.open === true && state.blocked === false;
+    // A recovered release can continue while guarded, but cannot own a reset.
+    const inherited = state.open === false && state.blocked === true;
+    requireCondition(owned || inherited);
     const receipt = {
       format: 1,
       source: config.source,
       run: config.run,
       database: productionRef,
       ledger: plan.state.ledger,
-      phase: "owned-open-state",
+      phase: owned ? "owned-open-state" : "inherited-blocked-state",
     };
     record(receipt);
     return receipt;

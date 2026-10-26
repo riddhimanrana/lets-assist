@@ -18,10 +18,10 @@ describe("landing hero", () => {
 
   test("leads organizers to project creation and keeps volunteering discoverable", () => {
     expect(heroSource).toMatch(
-      /href="\/signup\?redirect=%2Fprojects%2Fcreate"[\s\S]*?Create a project[\s\S]*?<\/MotionLinkButton>/,
+      /href="\/signup"[\s\S]*?Get started[\s\S]*?<\/MotionLinkButton>/,
     );
     expect(heroSource).toMatch(
-      /href="#org-tooling"[\s\S]*?tone="outline"[\s\S]*?See how it works/,
+      /href="\/contact"[\s\S]*?tone="outline"[\s\S]*?Contact us/,
     );
     expect(heroSource).toContain("Browse upcoming projects");
     expect(heroSource).not.toContain("Find volunteering near me");

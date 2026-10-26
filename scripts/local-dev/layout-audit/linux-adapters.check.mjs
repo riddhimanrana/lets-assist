@@ -36,7 +36,7 @@ const cfg = {
   testOnly: true,
   repoRoot: root,
   rootHead: "1".repeat(40),
-  privateHead: "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
+  privateHead: "8c84d616e4afee34dcd71ede2cb9fdb9af528ac0",
   ledgerCount: 740,
   codeManifestSha256: "2".repeat(64),
   dirtyDiffSha256: os.hash(Buffer.from("\n--private--\n")),
@@ -71,6 +71,12 @@ try {
   deny(() => binding.shape({ ...cfg, ledgerCount: 728 }));
   deny(() => binding.shape({ ...cfg, ledgerCount: 729 }));
   deny(() => binding.shape({ ...cfg, ledgerCount: 738 }));
+  deny(() =>
+    binding.shape({
+      ...cfg,
+      privateHead: "370c538d49d6dc1fc66d3435a13b1a5db14e82d2",
+    }),
+  );
   deny(() =>
     binding.shape({
       ...cfg,

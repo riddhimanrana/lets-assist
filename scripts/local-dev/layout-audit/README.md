@@ -2,8 +2,10 @@
 
 Support code for the reviewed capture policies across 87 scenes, four viewport/theme modes and selected reduced-motion variants. Runtime capture receipts and manual pixel acceptance remain separate evidence.
 
-The combined release source binding is now exact private `370c538d` and 740
-migration objects, retaining the unchanged 723-object prefix. This source
+The combined release source binding is now exact private `8c84d616` and 740
+migration objects, retaining the unchanged 723-object prefix. The latest private
+advance changes only the root palette guard test. Runtime bytes, version and
+release metadata stay unchanged. This source
 binding does not accept a database catalog. Relative to the previous reviewed
 private source `f1164838`, the candidate changes only membership status and
 default-term presentation, historical and closed-term status labels, lifecycle
