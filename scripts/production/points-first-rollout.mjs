@@ -3,7 +3,10 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { productionRef, ReleaseCheckError } from "./app-release-checks.mjs";
-import { recoveryReceipt } from "./recovery-receipt.mjs";
+import {
+  recoveryReceipt,
+  writeBlockAuthorization,
+} from "./recovery-receipt.mjs";
 import {
   executeMaintenanceQuery,
   maintenanceLedgerQuery,
@@ -59,8 +62,6 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
       env.SUPABASE_PROJECT_ID === productionRef &&
       env.PRODUCTION_DEPLOY_CONFIRMATION ===
         `deploy-production:${productionRef}` &&
-      env.APPLICATION_WRITES_BLOCKED_CONFIRMATION ===
-        `application-writes-blocked:${config.source}` &&
       env.EXTERNAL_WRITERS_CONFIRMATION ===
         `external-writers-stopped:${config.source}` &&
       /^[a-f0-9]{64}$/u.test(config.recoveryCaptureSha256 ?? "") &&
@@ -70,6 +71,7 @@ export function productionPointsFirstConfig(env, cwd = process.cwd()) {
       ),
     "The bounded rollout requires the exact protected main run and recovery confirmations.",
   );
+  writeBlockAuthorization(env, recovery);
   config.recoveryMode = recovery.mode;
   return config;
 }

@@ -213,7 +213,16 @@ describe("CSF Production recovery window", () => {
     expect(protectedStepNames).toEqual([
       "Arm Production maintenance recovery",
       ...normalWindowSteps,
+      "Restore owned temporary block before cutover",
     ]);
+    // This mutually exclusive cleanup branch never runs in the late window.
+    const earlyRestore = stepBlock(
+      deployment,
+      "Restore owned temporary block before cutover",
+    );
+    expect(earlyRestore).toContain(
+      "steps.enable_write_block.outcome == 'skipped'",
+    );
     const normalTimeoutTotal = normalWindowSteps.reduce(
       (total, name) => total + stepTimeout(deployment, name),
       0,
