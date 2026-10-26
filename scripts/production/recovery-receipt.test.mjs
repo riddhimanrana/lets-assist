@@ -197,3 +197,35 @@ test("the backup check fails closed on every mismatch", async () => {
       message,
     );
 });
+
+test("managed backup authorizes a transition while full capture retains prior-block attestation", async () => {
+  const { writeBlockAuthorization } = await import("./recovery-receipt.mjs");
+  const managed = env({
+    APPLICATION_WRITES_BLOCKED_CONFIRMATION: `block-application-writes:${source}`,
+  });
+  assert.equal(
+    writeBlockAuthorization(managed),
+    `block-application-writes:${source}`,
+  );
+  assert.throws(() =>
+    writeBlockAuthorization({
+      ...managed,
+      APPLICATION_WRITES_BLOCKED_CONFIRMATION: `application-writes-blocked:${source}`,
+    }),
+  );
+  const capture = {
+    ...managed,
+    RECOVERY_CAPTURE_CONFIRMATION: `recovery-capture-verified:${source}:${digest}`,
+    APPLICATION_WRITES_BLOCKED_CONFIRMATION: `application-writes-blocked:${source}`,
+  };
+  assert.equal(
+    writeBlockAuthorization(capture),
+    `application-writes-blocked:${source}`,
+  );
+  assert.throws(() =>
+    writeBlockAuthorization({
+      ...capture,
+      APPLICATION_WRITES_BLOCKED_CONFIRMATION: `block-application-writes:${source}`,
+    }),
+  );
+});

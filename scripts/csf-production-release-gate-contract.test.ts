@@ -237,7 +237,7 @@ describe("CSF Production release preflight", () => {
       1,
     );
     const enableWriteBlock = deployment.indexOf(
-      "set-application-write-block.sh enable",
+      "Reassert Production application write block",
     );
     const maintenancePromote = occurrenceIndex(
       deployment,
@@ -581,7 +581,7 @@ describe("CSF Production release preflight", () => {
       "Stage static Production maintenance page",
     );
     const writeBlock = deployment.indexOf(
-      "set-application-write-block.sh enable",
+      "Reassert Production application write block",
     );
     const maintenanceAlias = deployment.indexOf(
       "Verify Production maintenance alias",

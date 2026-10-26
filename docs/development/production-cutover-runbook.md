@@ -759,3 +759,24 @@ There is no down migration.
 - [Supabase deployment workflow](supabase-deployment.md)
 - [Deployment boundaries](deployment.md)
 - [Supabase redesign audit](../architecture/supabase-redesign-audit.md)
+
+### Managed-backup guard ordering
+
+For managed-backup recovery, `block-application-writes:<exact main SHA>` authorizes
+the protected workflow to enable the existing request guard. It is not an
+attestation that writes were already blocked. The workflow verifies the named
+completed physical backup using the existing age/digest checks, records the
+initial open guarded ledger, then enables the guard and proves a fresh HTTP
+write refusal and the request barrier before the first maintenance preflight.
+The recovery manifest records actual blocking only after those proofs succeed.
+Full post-quiescence captures still require
+`application-writes-blocked:<exact main SHA>` and retain their original meaning.
+
+Before any late enable, alias or schema attempt, failure cleanup resets only this
+run's acknowledged temporary block after proving the ledger unchanged. Reset
+removes the custom role setting, restoring the prior effective open state; the
+permanent hook remains installed. Read and zero-row writable API proofs must pass
+before cleanup is recorded successful. A preexisting block is never adopted or
+reset. An ambiguous enable/reset, failed cleanup, or any attempted cutover remains
+blocked for explicit reconciliation; a later release cannot silently skip it.
+No cron, worker, direct database, Auth or Storage writer is stopped by this flag.
