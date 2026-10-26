@@ -104,7 +104,7 @@ function setup(change = () => {}) {
   const dependencies = {
     now: () => now,
     read: async (path) => fixture[path],
-    checkoutExecute: (_command, args) => args[0] === "rev-parse" ? source : "",
+    checkoutExecute: (_command, args) => (args[0] === "rev-parse" ? source : ""),
     record: (value) => records.push(structuredClone(value)),
     execute: (command, args, options) => {
       calls.push({ command, args, options });
