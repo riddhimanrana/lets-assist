@@ -47,6 +47,7 @@ export async function readJson(url, options, fetcher = fetch) {
 
 export function verifyAcceptance(status, run, sha, repository) {
   if (
+    status?.context !== "csf-hosted-development-functional" ||
     status?.state !== "success" ||
     status?.creator?.login !== "github-actions[bot]" ||
     status?.target_url !==
@@ -340,13 +341,7 @@ export async function verifySource(
           "Hosted acceptance status inventory is invalid.",
         );
       const status = statusPayload
-        .filter(
-          (item) =>
-            item.context ===
-            (waivedPerformance
-              ? "csf-hosted-development-functional"
-              : "csf-hosted-development-acceptance"),
-        )
+        .filter((item) => item.context === "csf-hosted-development-functional")
         .sort((a, b) => b.id - a.id)[0];
       const runId = status?.target_url?.startsWith(prefix)
         ? status.target_url.slice(prefix.length)
@@ -366,6 +361,10 @@ export async function verifySource(
     releaseSha,
     acceptedSha,
     tree: git("rev-parse", "HEAD^{tree}"),
+    hostedAcceptance: localOverride
+      ? "local-validation-override"
+      : "functional",
+    hostedPerformance: "not required; not attested",
     performanceWaiver: waivedPerformance,
     localValidationOverride: localOverride,
   };

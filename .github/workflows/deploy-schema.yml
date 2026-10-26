@@ -81,11 +81,11 @@ jobs:
             exit 1
           fi
           status_record="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
-            --jq '[.statuses[] | select(.context == "csf-hosted-development-acceptance" and .creator.login == "github-actions[bot]")] | sort_by(.created_at) | last // {}')"
+            --jq '[.statuses[] | select(.context == "csf-hosted-development-functional" and .creator.login == "github-actions[bot]")] | sort_by(.created_at) | last // {}')"
           status_state="$(jq -r '.state // empty' <<<"${status_record}")"
           status_target_url="$(jq -r '.target_url // empty' <<<"${status_record}")"
           if [[ "${status_state}" != "success" ]]; then
-            echo "The latest hosted Development acceptance status is not successful." >&2
+            echo "The latest hosted Development functional acceptance status is not successful." >&2
             exit 1
           fi
           expected_run_prefix="https://github.com/${GITHUB_REPOSITORY}/actions/runs/"
