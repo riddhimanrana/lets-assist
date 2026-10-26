@@ -159,7 +159,10 @@ function TestimonialCard({
 
 export default function TestimonialsSection() {
   return (
-    <section className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20">
+    <section
+      id="testimonials"
+      className="relative overflow-hidden border-y border-foreground/10 bg-background py-14 sm:py-20"
+    >
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto mb-9 max-w-3xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">

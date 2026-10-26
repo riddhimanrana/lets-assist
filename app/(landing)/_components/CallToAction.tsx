@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play } from "lucide-react";
+import { Play, HeartHandshake } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,28 +16,34 @@ export const CallToAction = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <section id="cta" className="border-t py-16 sm:py-20">
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+    <section id="cta" className="py-20 relative overflow-hidden">
+      <div className="absolute inset-0 bg-linear-to-b from-transparent via-muted/30 to-muted/80" />
+      <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <motion.div
           initial={false}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="max-w-3xl space-y-6"
+          className="text-center space-y-8 max-w-3xl mx-auto"
         >
-          <div className="space-y-6">
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Set up your next volunteer project
+          <div className="relative inline-block">
+            <div className="absolute inset-0 bg-linear-to-r from-primary/40 to-emerald-500/40 rounded-full blur-xl animate-pulse-slow motion-reduce:animate-none" />
+            <HeartHandshake
+              aria-hidden="true"
+              className="w-16 h-16 text-primary mx-auto relative z-10"
+            />
+          </div>
+          <div className="flex flex-col items-center gap-6">
+            <h2 className="text-center text-3xl font-semibold tracking-tight md:text-4xl">
+              Who will you help today?
             </h2>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <Button
                 asChild
                 size="lg"
                 className="w-full rounded-full px-6 sm:w-auto"
               >
-                <Link href="/signup?redirect=%2Fprojects%2Fcreate">
-                  Create a project
-                </Link>
+                <Link href="/signup">Make a difference</Link>
               </Button>
 
               <Dialog open={open} onOpenChange={setOpen}>
@@ -86,15 +92,8 @@ export const CallToAction = () => {
             </div>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Add a date and shifts, then share one link with your volunteers.
-            Questions before you begin?{" "}
-            <Link
-              href="/contact"
-              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              Contact us
-            </Link>
-            .
+            Every small act of kindness creates ripples of change in our
+            community. Start your volunteering journey today.
           </p>
         </motion.div>
       </div>

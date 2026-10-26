@@ -42,9 +42,8 @@ function linkDestination(markup: string, name: string) {
 describe("landing first-response visibility", () => {
   test("the final signup and demo actions are visible in the first response", () => {
     const html = renderToStaticMarkup(createElement(LandingLazySections));
-    expect(linkDestination(html, "Create a project")).toBe(
-      "/signup?redirect=%2Fprojects%2Fcreate",
-    );
+    expect(linkDestination(html, "Make a difference")).toBe("/signup");
+    expect(readableText(html)).toContain("Who will you help today?");
     expect(readableText(html)).toContain("Play demo video");
     expect(hiddenFirstRenderStyles(html)).toEqual([]);
     expect(html).not.toContain("<iframe");
@@ -54,14 +53,33 @@ describe("landing first-response visibility", () => {
     const html = renderToStaticMarkup(createElement(ComparisonSection));
     const text = readableText(html);
     for (const copy of [
-      "One workflow for",
-      "Let's Assist is built for volunteer hours.",
+      "SignUpGenius is",
+      "Let's Assist is built for today.",
       "QR check-in and check-out",
       "Explore opportunities",
       "Volunteer Signup Sheet",
     ]) {
       expect(text).toContain(copy);
     }
+    expect(hiddenFirstRenderStyles(html)).toEqual([]);
+  });
+
+  test("reference comparison and testimonials render before the final CTA", () => {
+    const html = renderToStaticMarkup(createElement(LandingLazySections));
+    const text = readableText(html);
+    expect(text).toContain("SignUpGenius is");
+    expect(text).toContain("What teachers and advisors told us");
+    expect(text).toContain("Who will you help today?");
+    const comparison = html.indexOf('id="comparison"');
+    const testimonials = html.indexOf('id="testimonials"');
+    const cta = html.indexOf('id="cta"');
+    expect(comparison).toBeGreaterThan(-1);
+    expect(testimonials).toBeGreaterThan(comparison);
+    expect(cta).toBeGreaterThan(testimonials);
+    expect(html).toContain(
+      'aria-label="Testimonials from teachers and advisors"',
+    );
+    expect(html).toContain('tabindex="0"');
     expect(hiddenFirstRenderStyles(html)).toEqual([]);
   });
 
