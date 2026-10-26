@@ -149,6 +149,30 @@ jobs:
                 ;;
             esac
           done
+          early_guard_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Enable temporary managed-backup application write block")]
+            | if length == 0 then "skipped" elif length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          early_restore_conclusion="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Restore owned temporary block before cutover")]
+            | if length == 0 then "skipped" elif length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+          ' <<<"${source_jobs}")"
+          no_cutover_attempt="$(jq -r '
+            [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+              | select(.name == "Promote maintenance page to Production" or .name == "Promote the staged application to Production" or .name == "Push schema to production")]
+            | length == 3 and all(.[]; .conclusion == "skipped")
+          ' <<<"${source_jobs}")"
+          if [[ "${write_block_conclusion}" == "skipped" && "${early_guard_conclusion}" != "skipped" ]]; then
+            if [[ "${early_guard_conclusion}" == "success" && "${early_restore_conclusion}" == "success" && "${no_cutover_attempt}" == "true" ]]; then
+              echo "required=false" >> "${GITHUB_OUTPUT}"
+              echo "The source restored its owned temporary block before any cutover attempt."
+              exit 0
+            fi
+            echo "The early guard outcome is unproven; explicit Production reconciliation is required." >&2
+            exit 1
+          fi
           if [[ "${write_block_conclusion}" == "skipped" ]]; then
             if [[ "${application_conclusion}" != "skipped" || \
               "${maintenance_conclusion}" != "skipped" || \

@@ -57,6 +57,17 @@ export function recoveryReceipt(env) {
   );
 }
 
+// Managed backup accepts an older restore point; authorize this run to block.
+// A full post-quiescence capture still attests that blocking preceded capture.
+export function writeBlockAuthorization(env, receipt = recoveryReceipt(env)) {
+  const expected = `${receipt.mode === "managed-backup" ? "block-application-writes" : "application-writes-blocked"}:${env.GITHUB_SHA}`;
+  requireCondition(
+    env.APPLICATION_WRITES_BLOCKED_CONFIRMATION === expected,
+    "The application write-block authorization is not bound to this recovery mode and source.",
+  );
+  return expected;
+}
+
 // Reads the Management API backup list and refuses unless the named backup is
 // a completed physical backup of this project taken within the age bound.
 export async function verifyManagedBackup({
@@ -120,6 +131,7 @@ if (
 ) {
   try {
     const receipt = recoveryReceipt(process.env);
+    writeBlockAuthorization(process.env, receipt);
     if (receipt.mode === "managed-backup") {
       const verified = await verifyManagedBackup({
         insertedAt: receipt.insertedAt,

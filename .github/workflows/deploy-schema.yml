@@ -16,7 +16,7 @@ on:
         required: true
         type: string
       application_writes_blocked_confirmation:
-        description: "Type application-writes-blocked:<exact main SHA> after blocking and proving PostgREST writes before the final recovery capture"
+        description: "Managed backup: block-application-writes:<exact main SHA> authorizes this run to enable the guard. Full capture: application-writes-blocked:<exact main SHA> attests blocking before capture"
         required: true
         type: string
       recovery_capture_sha256:
@@ -237,6 +237,28 @@ jobs:
                   [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
                     | select(.name == "Reassert Production application write block")][0].conclusion // "unknown"
                 ' <<<"${source_jobs}")"
+                early_guard_conclusion="$(jq -r '
+                  [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+                    | select(.name == "Enable temporary managed-backup application write block")]
+                  | if length == 0 then "skipped" elif length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+                ' <<<"${source_jobs}")"
+                early_restore_conclusion="$(jq -r '
+                  [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+                    | select(.name == "Restore owned temporary block before cutover")]
+                  | if length == 0 then "skipped" elif length == 1 then (.[0].conclusion // "unknown") else "unknown" end
+                ' <<<"${source_jobs}")"
+                no_cutover_attempt="$(jq -r '
+                  [.jobs[]? | select(.name == "Deploy to Production") | .steps[]?
+                    | select(.name == "Promote maintenance page to Production" or .name == "Promote the staged application to Production" or .name == "Push schema to production")]
+                  | length == 3 and all(.[]; .conclusion == "skipped")
+                ' <<<"${source_jobs}")"
+                if [[ "${write_block_conclusion}" == "skipped" && "${early_guard_conclusion}" != "skipped" ]]; then
+                  if [[ "${early_guard_conclusion}" == "success" && "${early_restore_conclusion}" == "success" && "${no_cutover_attempt}" == "true" ]]; then
+                    continue
+                  fi
+                  echo "A prior managed-backup guard outcome needs explicit reconciliation before another release." >&2
+                  exit 1
+                fi
                 if [[ "${deploy_job_conclusion}" == "skipped" || "${write_block_conclusion}" == "skipped" ]]; then
                   continue
                 fi
@@ -510,8 +532,11 @@ jobs:
           set -euo pipefail
           expected_writer_receipt="external-writers-stopped:${GITHUB_SHA}"
           expected_write_block_receipt="application-writes-blocked:${GITHUB_SHA}"
+          if [[ "${RECOVERY_CAPTURE_CONFIRMATION}" == "managed-backup-accepted:${GITHUB_SHA}:${RECOVERY_CAPTURE_SHA256}" ]]; then
+            expected_write_block_receipt="block-application-writes:${GITHUB_SHA}"
+          fi
           if [[ "${APPLICATION_WRITES_BLOCKED_CONFIRMATION}" != "${expected_write_block_receipt}" ]]; then
-            echo "The pre-capture application write block is not bound to this release SHA." >&2
+            echo "The application write-block authorization is not bound to this recovery mode and release SHA." >&2
             exit 1
           fi
           if [[ "${EXTERNAL_WRITERS_CONFIRMATION}" != "${expected_writer_receipt}" ]]; then
@@ -579,6 +604,55 @@ jobs:
           fi
           export LINKED_SUPABASE_PROJECT_REF="$(tr -d '[:space:]' < supabase/.temp/project-ref)"
           node scripts/verify-production-schema-deployment.mjs
+
+      - name: Record owned open state for managed-backup guard
+        id: early_write_block_state
+        if: ${{ startsWith(inputs.recovery_capture_confirmation, 'managed-backup-accepted:') }}
+        timeout-minutes: 2
+        env:
+          PRODUCTION_JOB_STARTED_AT: ${{ steps.release_clock.outputs.started_at }}
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
+          MANAGED_BACKUP_INSERTED_AT: ${{ inputs.managed_backup_inserted_at }}
+        run: node scripts/production/managed-write-block-state.mjs prepare
+
+      - name: Enable temporary managed-backup application write block
+        id: early_enable_write_block
+        if: ${{ startsWith(inputs.recovery_capture_confirmation, 'managed-backup-accepted:') }}
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+        run: bash scripts/production/set-application-write-block.sh enable
+
+      - name: Prove temporary managed-backup application write block
+        id: early_write_block_proof
+        if: ${{ startsWith(inputs.recovery_capture_confirmation, 'managed-backup-accepted:') }}
+        timeout-minutes: 2
+        env:
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: bash scripts/production/verify-postgrest-write-block.sh
+
+      - name: Settle temporary managed-backup request transactions
+        id: early_write_block_barrier
+        if: ${{ startsWith(inputs.recovery_capture_confirmation, 'managed-backup-accepted:') }}
+        timeout-minutes: 2
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+        run: bash scripts/production/set-application-write-block.sh barrier
 
       - name: Run read-only Production cutover preflight
         timeout-minutes: 4
@@ -739,7 +813,10 @@ jobs:
       - name: Write Production recovery manifest
         timeout-minutes: 1
         env:
-          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: application-writes-blocked:${{ github.sha }}
+          APPLICATION_WRITE_BLOCK_AUTHORIZATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EARLY_BLOCK_PROOF: ${{ steps.early_write_block_proof.outcome }}
+          EARLY_BLOCK_BARRIER: ${{ steps.early_write_block_barrier.outcome }}
           APPLICATION_DEPLOYMENT_ID: ${{ steps.deploy-application.outputs.deployment_id }}
           APPLICATION_DEPLOYMENT_URL: ${{ steps.deploy-application.outputs.deployment_url }}
           EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
@@ -753,7 +830,12 @@ jobs:
           VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
         run: |
           set -euo pipefail
+          if [[ "${RECOVERY_CAPTURE_CONFIRMATION}" == managed-backup-accepted:* ]]; then
+            test "${EARLY_BLOCK_PROOF}" = success
+            test "${EARLY_BLOCK_BARRIER}" = success
+          fi
           jq -n \
+            --arg application_write_block_authorization "${APPLICATION_WRITE_BLOCK_AUTHORIZATION}" \
             --arg application_writes_blocked_confirmation "${APPLICATION_WRITES_BLOCKED_CONFIRMATION}" \
             --arg application_deployment_id "${APPLICATION_DEPLOYMENT_ID}" \
             --arg application_deployment_url "${APPLICATION_DEPLOYMENT_URL}" \
@@ -773,6 +855,7 @@ jobs:
             --arg vercel_team_id "${VERCEL_TEAM_ID}" \
             '{
               version: 1,
+              applicationWriteBlockAuthorization: $application_write_block_authorization,
               applicationWritesBlockedConfirmation: $application_writes_blocked_confirmation,
               applicationDeploymentId: $application_deployment_id,
               applicationDeploymentUrl: $application_deployment_url,
@@ -871,6 +954,7 @@ jobs:
         run: bash scripts/production/set-application-write-block.sh barrier
 
       - name: Promote maintenance page to Production
+        id: promote_maintenance
         timeout-minutes: 11
         env:
           DEPLOYMENT_URL: ${{ steps.deploy-maintenance.outputs.deployment_url }}
@@ -904,6 +988,7 @@ jobs:
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Push schema to production
+        id: schema_push
         timeout-minutes: 15
         env:
           GH_TOKEN: ${{ github.token }}
@@ -1042,8 +1127,38 @@ jobs:
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh disable
 
+      - name: Restore owned temporary block before cutover
+        id: restore_early_write_block
+        if: ${{ always() && steps.early_enable_write_block.outcome == 'success' && steps.enable_write_block.outcome == 'skipped' && steps.promote_maintenance.outcome == 'skipped' && steps.promote_application.outcome == 'skipped' && steps.schema_push.outcome == 'skipped' }}
+        timeout-minutes: 4
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
+          APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
+          EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
+          RECOVERY_CAPTURE_SHA256: ${{ inputs.recovery_capture_sha256 }}
+          RECOVERY_CAPTURE_CONFIRMATION: ${{ inputs.recovery_capture_confirmation }}
+          MANAGED_BACKUP_INSERTED_AT: ${{ inputs.managed_backup_inserted_at }}
+          EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          EARLY_ENABLE_OUTCOME: ${{ steps.early_enable_write_block.outcome }}
+          LATE_ENABLE_OUTCOME: ${{ steps.enable_write_block.outcome }}
+          MAINTENANCE_ALIAS_OUTCOME: ${{ steps.promote_maintenance.outcome }}
+          APPLICATION_ALIAS_OUTCOME: ${{ steps.promote_application.outcome }}
+          SCHEMA_PUSH_OUTCOME: ${{ steps.schema_push.outcome }}
+        run: |
+          set -euo pipefail
+          node scripts/production/managed-write-block-state.mjs can-restore
+          bash scripts/production/set-application-write-block.sh disable
+          node scripts/production/managed-write-block-state.mjs restored
+
       - name: Retain Production write block after incomplete release
-        if: ${{ always() && steps.write_block_recovery.outputs.armed == 'true' && steps.enable_write_block.outcome != 'skipped' && steps.disable_write_block.outcome != 'success' }}
+        if: ${{ always() && steps.disable_write_block.outcome != 'success' && ((steps.write_block_recovery.outputs.armed == 'true' && steps.enable_write_block.outcome != 'skipped') || (steps.early_enable_write_block.outcome != 'skipped' && steps.early_enable_write_block.outcome != '' && steps.restore_early_write_block.outcome != 'success')) }}
         timeout-minutes: 4
         env:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
@@ -1074,6 +1189,16 @@ jobs:
           if [[ "${postcondition_failures}" -ne 0 ]]; then
             exit 1
           fi
+
+      - name: Retain temporary managed-backup guard receipt
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: production-early-write-block-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .artifacts/production-early-write-block/receipt.json
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Retain bounded Production rollout receipt
         if: always()
