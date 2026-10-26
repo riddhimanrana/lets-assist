@@ -65,10 +65,10 @@ test("guard verification binds the published function body and exact execution b
 test("Production flag changes require hook verification before writing and fresh API proof afterward", () => {
   const directory = mkdtempSync(join(tmpdir(), "write-fence-shell-"));
   try {
-    const stub = join(directory, "supabase");
+    const stub = join(directory, "node");
     writeFileSync(
       stub,
-      '#!/bin/sh\nprintf "%s\\n" "$4" >> "$WRITE_FENCE_CAPTURE"\nif [ "$WRITE_FENCE_REFUSE" = "1" ]; then exit 1; fi\n',
+      `#!/bin/sh\n"${process.execPath}" "${new URL("./request-write-fence.mjs", import.meta.url).pathname}" "$2" >> "$WRITE_FENCE_CAPTURE"\nif [ "$WRITE_FENCE_REFUSE" = "1" ]; then exit 1; fi\n`,
     );
     chmodSync(stub, 0o700);
     const timeoutStub = join(directory, "timeout");

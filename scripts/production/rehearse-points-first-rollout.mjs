@@ -263,7 +263,8 @@ try {
       GITHUB_ACTOR: "fictional-operator",
       GH_TOKEN: "fictional-never-used",
       SUPABASE_PROJECT_ID: productionRef,
-      PRODUCTION_BOOTSTRAP_DATABASE_URL: `postgresql://postgres:fictional-never-used@db.${productionRef}.supabase.co/postgres`,
+      SUPABASE_ACCESS_TOKEN: "fictional-never-used",
+      SUPABASE_DB_PASSWORD: "fictional-never-used",
       PRODUCTION_DEPLOY_CONFIRMATION: `deploy-production:${productionRef}`,
       APPLICATION_WRITES_BLOCKED_CONFIRMATION: `application-writes-blocked:${source}`,
       EXTERNAL_WRITERS_CONFIRMATION: `external-writers-stopped:${source}`,
@@ -330,6 +331,18 @@ try {
     },
   };
   const dependencies = {
+    // This owned Docker rehearsal injects all queries; never resolve a provider route.
+    connect: async (config) => ({
+      ...config,
+      databaseUrl: Object.freeze({
+        host: "aws-0-fictional.pooler.supabase.com",
+        port: "5432",
+        user: `postgres.${productionRef}`,
+        database: "postgres",
+        sslmode: "require",
+        password: "fictional-never-used",
+      }),
+    }),
     query,
     read: async (key) => {
       requireCondition(

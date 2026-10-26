@@ -486,6 +486,8 @@ jobs:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           set -euo pipefail
@@ -584,6 +586,8 @@ jobs:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Show pending migrations
@@ -592,6 +596,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
           APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
           EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
@@ -817,6 +823,8 @@ jobs:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/production/maintenance-preflight.mjs quiescence
 
       - name: Arm Production maintenance recovery
@@ -843,6 +851,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh enable
 
       - name: Prove a fresh Production application write is blocked
@@ -858,6 +867,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh barrier
 
       - name: Promote maintenance page to Production
@@ -889,6 +899,8 @@ jobs:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/production/maintenance-preflight.mjs before
 
       - name: Push schema to production
@@ -897,6 +909,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PRODUCTION_DEPLOY_CONFIRMATION: ${{ inputs.production_confirmation }}
           APPLICATION_WRITES_BLOCKED_CONFIRMATION: ${{ inputs.application_writes_blocked_confirmation }}
           EXTERNAL_WRITERS_CONFIRMATION: ${{ inputs.external_writers_confirmation }}
@@ -926,6 +940,8 @@ jobs:
           EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
           PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}
           PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: node scripts/production/maintenance-preflight.mjs target
 
       - name: Smoke the staged Production application
@@ -1023,6 +1039,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
         run: bash scripts/production/set-application-write-block.sh disable
 
       - name: Retain Production write block after incomplete release
@@ -1033,6 +1050,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           set -uo pipefail

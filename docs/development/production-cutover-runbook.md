@@ -17,9 +17,12 @@ notifications. Prove the existing PostgREST write block with a fresh request.
 The current read-only preflight uses reviewed migration bytes and the accepted
 catalog for the observed ledger. Supply `EXPECTED_SUPABASE_PROJECT_REF` and
 `PRODUCTION_READONLY_URL` when configured, otherwise the existing protected
-`PRODUCTION_BOOTSTRAP_DATABASE_URL`, through the approved secret environment.
-The fallback must be the reviewed Production owner connection; it creates no
-new role, credential or grant. Its authority remains owner-level even while
+`SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD`, through the approved secret
+environment. The fallback resolves validated fixed-project owner routing from
+the Management API pooler metadata, using session port 5432. The existing
+`PRODUCTION_BOOTSTRAP_DATABASE_URL` supplies only its TLS `sslmode` policy when
+present; routing and authentication come from the metadata and standard
+credentials. The shared transport creates no new role, credential or grant. Its authority remains owner-level even while
 fixed checks execute in read-only transactions. An invalid configured readonly
 URL fails rather than selecting the fallback. Then run:
 
