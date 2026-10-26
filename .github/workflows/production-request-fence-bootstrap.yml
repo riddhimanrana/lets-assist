@@ -3,17 +3,25 @@ name: Bootstrap Production request fence
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Read-only CLI diagnosis or separately authorized guard installation"
+        required: true
+        default: diagnose
+        type: choice
+        options:
+          - diagnose
+          - install
       accepted_main_sha:
         description: "Exact current main SHA containing the reviewed bootstrap and accepted 687/688 catalogs"
         required: true
         type: string
       production_confirmation:
-        description: "bootstrap-production:fotdmeakexgrkronxlof:<exact main SHA>"
+        description: "diagnose-production:fotdmeakexgrkronxlof:<exact main SHA> (install uses bootstrap-production)"
         required: true
         type: string
       external_writers_confirmation:
         description: "external-writers-stopped:<exact main SHA>, including Auth, Storage and external schedulers"
-        required: true
+        required: false
         type: string
 
 concurrency:
@@ -28,7 +36,7 @@ permissions:
 
 jobs:
   bootstrap:
-    name: Install only the reviewed Production request guard
+    name: Review Production request-fence operation
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -42,8 +50,24 @@ jobs:
         with:
           node-version-file: .node-version
       - name: Require database client
+        if: inputs.mode == 'install'
         run: command -v psql >/dev/null
+      - uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
+        if: inputs.mode == 'diagnose'
+        with:
+          version: 2.120.0
+      - name: Verify approval and diagnose CLI transport without applying migrations
+        if: inputs.mode == 'diagnose'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACCEPTED_MAIN_SHA: ${{ inputs.accepted_main_sha }}
+          PRODUCTION_BOOTSTRAP_CONFIRMATION: ${{ inputs.production_confirmation }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: node scripts/production/diagnose-request-fence-cli.mjs
       - name: Verify approval and install the additive guard
+        if: inputs.mode == 'install'
         env:
           GH_TOKEN: ${{ github.token }}
           ACCEPTED_MAIN_SHA: ${{ inputs.accepted_main_sha }}
