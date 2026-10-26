@@ -50,9 +50,11 @@ export function requestFenceDiagnosticConfig(env, cwd = process.cwd()) {
       env.SUPABASE_PROJECT_ID === productionBootstrapTarget.database &&
       env.PRODUCTION_BOOTSTRAP_CONFIRMATION ===
         `diagnose-production:${productionBootstrapTarget.database}:${config.source}` &&
-      [config.githubToken, env.SUPABASE_ACCESS_TOKEN, env.SUPABASE_DB_PASSWORD].every(
-        (value) => typeof value === "string" && value.trim(),
-      ),
+      [
+        config.githubToken,
+        env.SUPABASE_ACCESS_TOKEN,
+        env.SUPABASE_DB_PASSWORD,
+      ].every((value) => typeof value === "string" && value.trim()),
     "CLI diagnosis requires the exact protected main workflow and diagnostic confirmation.",
   );
   return config;
@@ -106,7 +108,11 @@ export function verifyDiagnosticDryRun(output) {
   return result.migrations;
 }
 
-export async function runRequestFenceDiagnostic(config, env, dependencies = {}) {
+export async function runRequestFenceDiagnostic(
+  config,
+  env,
+  dependencies = {},
+) {
   const read = dependencies.read || productionBootstrapReader(config);
   const now = dependencies.now || Date.now;
   const execute = dependencies.execute || spawnSync;
@@ -163,10 +169,14 @@ export async function runRequestFenceDiagnostic(config, env, dependencies = {}) 
       stdoutBytes: Buffer.byteLength(result.stdout || ""),
       stderrBytes: Buffer.byteLength(result.stderr || ""),
     };
-    requireCondition(!result.error && result.status === 0, "CLI command failed.");
+    requireCondition(
+      !result.error && result.status === 0,
+      "CLI command failed.",
+    );
     return result;
   };
-  const authority = () => verifyProductionBootstrapAuthority(config, read, now());
+  const authority = () =>
+    verifyProductionBootstrapAuthority(config, read, now());
   const project = productionBootstrapTarget.database;
   try {
     requireCondition(
