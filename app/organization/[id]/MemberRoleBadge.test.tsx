@@ -8,11 +8,11 @@ const badge = (role: string) =>
   renderToStaticMarkup(<MemberRoleBadge role={role} />);
 
 describe("member role badge", () => {
-  test("admin keeps a readable foreground on the primary green fill", () => {
+  test("admin uses the shared primary fill and theme foreground", () => {
     const html = badge("admin");
     expect(html).toContain("Admin");
-    expect(html).toContain("bg-(--badge-primary)");
-    expect(html).toContain("text-(--badge-primary-foreground)");
+    expect(html).toContain("bg-primary");
+    expect(html).toContain("text-primary-foreground");
     expect(html).not.toContain("text-foreground");
     expect(html).not.toContain("bg-secondary");
     expect(html).not.toContain("bg-info");

@@ -170,11 +170,6 @@ export function ProjectSlotAction({
   }
   return (
     <Button
-      className={
-        !state.isPending && !state.isSignedUp && !state.isRejected
-          ? "text-foreground dark:text-primary-foreground"
-          : undefined
-      }
       variant={
         state.isPending
           ? "outline"

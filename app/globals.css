@@ -13,13 +13,12 @@
     /*--page-foreground: 240 10% 3.9%;*/
     /* text */
 
-    /* Each semantic colour sits at a darker step of its own hue so small text
-       reads at 4.5:1 on white and on its own 10 to 20% tint. */
-    --success: hsl(142.1 76.2% 23%);
+    /* Semantic colors follow the approved V4 reference palette. */
+    --success: hsl(142.1 76.2% 36.3%);
     /* green */
-    --warning: hsl(35 77% 27%);
+    --warning: hsl(35 77% 49%);
     /* amber */
-    --info: hsl(220 91% 42%);
+    --info: hsl(220 91% 54%);
 
     --background: hsl(0 0% 100%);
     /* base */
@@ -33,20 +32,12 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --content-link: hsl(142.1 76.2% 23%);
+    --content-link: var(--primary);
     --primary: hsl(142.1 76.2% 36.3%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
-    /* The primary fill and decorative brand washes use the original green.
-       Text and focus indicators keep the darker content-link tone. */
-    --primary-foreground: hsl(240 23% 9%);
-    --badge-primary: hsl(142.1 76.2% 23%);
-    --badge-primary-foreground: hsl(0 0% 100%);
-    --badge-primary-gloss: linear-gradient(
-      180deg,
-      rgb(255 255 255 / 12%) 0%,
-      rgb(255 255 255 / 0%) 100%
-    );
+    /* Primary controls, badges, links and brand washes share this green. */
+    --primary-foreground: hsl(0 0% 100%);
     /* base */
     /* Gloss, not lift. Nothing casts a drop shadow. A control earns its
        finish from a faint top-to-bottom sheen on its own fill and a 1px inner
@@ -58,7 +49,7 @@
        part of the label's contrast. Change it together with --primary. */
     --button-primary-gloss: linear-gradient(
       180deg,
-      rgb(255 255 255 / 12%) 0%,
+      rgb(255 255 255 / 18%) 0%,
       rgb(255 255 255 / 0%) 100%
     );
     --button-primary-shadow:
@@ -85,13 +76,13 @@
     /* text */
     --muted: hsl(240 4.8% 95.9%);
     /* surface0 */
-    --muted-foreground: hsl(240 3.8% 45%);
-    /* subtext1, one step down so it also reads on the muted surface */
+    --muted-foreground: hsl(240 3.8% 46.1%);
+    /* subtext1 */
     --accent: hsl(240 4.8% 95.9%);
     /* surface0 */
     --accent-foreground: hsl(240 5.9% 10%);
     /* text */
-    --destructive: hsl(0 84.2% 36%);
+    --destructive: hsl(0 84.2% 60.2%);
     /* red */
     --destructive-foreground: hsl(0 0% 98%);
     /* mantle */
@@ -99,7 +90,7 @@
     /* surface1 */
     --input: hsl(240 5.9% 90%);
     /* surface1 */
-    --ring: hsl(142.1 76.2% 23%);
+    --ring: hsl(142.1 76.2% 36.3%);
     /* text */
     --radius: 1rem;
     --chart-1: hsl(12 76% 61%);
@@ -178,19 +169,12 @@
     /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
-    --content-link: hsl(115 54% 76%);
+    --content-link: var(--primary);
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);
     /* Dark mode keeps its existing primary and decorative colors. */
     --primary-foreground: hsl(240 23% 9%);
-    --badge-primary: hsl(142.1 76.2% 23%);
-    --badge-primary-foreground: hsl(0 0% 100%);
-    --badge-primary-gloss: linear-gradient(
-      180deg,
-      rgb(255 255 255 / 12%) 0%,
-      rgb(255 255 255 / 0%) 100%
-    );
     /* crust */
     --button-primary-gloss: linear-gradient(
       180deg,
@@ -222,8 +206,8 @@
     /* surface0 */
     --accent-foreground: hsl(226 64% 88%);
     /* text */
-    --destructive: hsl(343 81% 80%);
-    /* red, one step lighter than --chart-1 so it reads on its own tint */
+    --destructive: hsl(343 81% 75%);
+    /* red */
     --destructive-foreground: hsl(240 23% 9%);
     /* crust */
     --ring: hsl(226 64% 88%);
@@ -288,7 +272,6 @@
   --color-popover-foreground: var(--popover-foreground);
 
   --color-primary: var(--primary);
-  --text-color-primary: var(--content-link);
   --color-primary-foreground: var(--primary-foreground);
 
   --color-brand: var(--brand);

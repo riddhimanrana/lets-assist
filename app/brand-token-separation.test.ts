@@ -4,8 +4,8 @@ import { join, relative } from "node:path";
 
 /**
  * Primary fills and decorative washes use the historical identity green.
- * Text and focus indicators retain the darker content tone. Generated CSS
- * coverage verifies that text-primary resolves to that readable tone.
+ * Text, focus indicators, controls and badges share the reference primary.
+ * Generated CSS coverage checks that primary utilities resolve consistently.
  */
 
 const appDir = import.meta.dir;
@@ -110,34 +110,18 @@ describe("the brand token carries identity, the primary token carries meaning", 
     expect(token(light, "brand")).toEqual(PRODUCTION_BRAND);
   });
 
-  test("light fills use identity green while content text stays readable", () => {
-    const white = token(light, "background");
+  test("light primary and content links retain the reference identity green", () => {
     expect(token(light, "primary")).toEqual(PRODUCTION_BRAND);
-    const primary = token(light, "content-link");
-    expect(primary).not.toEqual(PRODUCTION_BRAND);
-    // The reason for the split: the identity green cannot carry small text.
-    expect(contrastRatio(PRODUCTION_BRAND, white)).toBeLessThan(AA_NORMAL_TEXT);
-    expect(contrastRatio(PRODUCTION_BRAND, white)).toBeGreaterThanOrEqual(3);
-    const ratio = contrastRatio(primary, white);
-    expect(
-      ratio,
-      `--primary on --background is ${ratio.toFixed(2)}:1`,
-    ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
-    // Still a green: the same channel order as the identity, only darker.
-    expect(primary.g).toBeGreaterThan(primary.b);
-    expect(primary.b).toBeGreaterThan(primary.r);
-    expect(primary.g).toBeLessThan(PRODUCTION_BRAND.g);
+    expect(themeBlock(":root")).toContain("--content-link: var(--primary);");
+    const ratio = contrastRatio(PRODUCTION_BRAND, token(light, "background"));
+    expect(ratio).toBeCloseTo(3.2957, 3);
   });
 
-  test("the focus ring keeps the content tone", () => {
-    expect(token(light, "ring")).toEqual(token(light, "content-link"));
+  test("the focus ring uses the same reference primary", () => {
+    expect(token(light, "ring")).toEqual(token(light, "primary"));
   });
 
   test("dark --brand is pinned to dark --primary so dark mode is unchanged", () => {
-    // Light mode needed the split because AA forced --primary off the identity
-    // hue. Dark mode never had that conflict, so introducing --brand there must
-    // be a visual no-op. Without this declaration the `:root` value would
-    // cascade into dark mode and silently repaint every wash.
     expect(token(dark, "brand")).toEqual(token(dark, "primary"));
   });
 

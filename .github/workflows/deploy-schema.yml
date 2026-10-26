@@ -876,8 +876,8 @@ jobs:
             exit 1
           fi
           elapsed_seconds=$(( $(date +%s) - PRODUCTION_JOB_STARTED_AT ))
-          if (( elapsed_seconds > 2100 )); then
-            echo "More than 35 minutes elapsed before the write-block window; refusing to arm maintenance recovery." >&2
+          if (( elapsed_seconds > 1800 )); then
+            echo "More than 30 minutes elapsed before the write-block window; refusing to arm maintenance recovery." >&2
             exit 1
           fi
           echo "armed=true" >> "${GITHUB_OUTPUT}"
