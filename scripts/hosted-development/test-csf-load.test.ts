@@ -613,12 +613,12 @@ describe("hosted CSF load acceptance", () => {
 
 test("functional release mode keeps deployment fences and uses a separate receipt", () => {
   expect(workflow).toContain("options: [full, functional]");
-  expect(workflow).toContain("default: full");
+  expect(workflow).toContain("default: functional");
   expect(workflow).toContain(
-    "contains(github.event.head_commit.message, '[csf-functional-only]')",
+    "ACCEPTANCE_MODE: ${{ inputs.mode || 'functional' }}",
   );
   expect(workflow).toContain(
-    "'csf-hosted-development-functional' || 'csf-hosted-development-acceptance'",
+    "inputs.mode == 'full' && 'csf-hosted-development-acceptance' || 'csf-hosted-development-functional'",
   );
   expect(
     workflow.match(/-f context="\$\{ACCEPTANCE_CONTEXT\}"/gu)?.length,

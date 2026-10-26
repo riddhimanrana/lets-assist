@@ -82,24 +82,28 @@ migration, disable any still-enabled controls on the prior SHA as well as the
 new SHA and verify publication leases are drained; the migration transaction
 checks every release-control row, not just the publicly served SHA.
 
-Both `deploy-app-only.yml` and `deploy-forward-migrations.yml` allow an explicit
-release-owner waiver of hosted performance acceptance. Leave the waiver inputs
-empty for the normal gate. For a waiver, enter
-`waive-csf-performance:<release SHA>:<Development SHA>` in
-`performance_waiver_confirmation` and a 20–1000 character explanation in
-`performance_waiver_reason`. The controller records the exact SHAs, reason,
-workflow actor and run ID as `waived, not passed` in the retained
-`source-verification-<run ID>` artifact. It does not publish a successful hosted
-acceptance status.
+Automatic marked Development releases use functional hosted acceptance. The
+existing `[deploy-development]` merge subject selects one exact-SHA Preview and
+one acceptance run; no second marker or performance waiver is required. A manual
+acceptance dispatch can still select `mode: full` for optional 100-session load
+and performance testing. Full runs keep their separate status context and do not
+stand in for the required functional receipt.
 
-The waiver changes only the hosted performance gate. Run hosted Development acceptance in `functional` mode for the exact accepted SHA first. For an automatic marked release push, include both `[deploy-development]` and `[csf-functional-only]` in the commit message; the latter selects functional checks without starting the load test. Unmarked releases keep full acceptance. Its separate trusted `csf-hosted-development-functional` receipt remains mandatory. That run verifies the deployed application and alias, fictional member and officer sessions, persisted staff-view changes, review navigation and browser errors. It skips the 100-session load and performance thresholds. The accepted commit must
-remain Development-reachable, and the release must have the identical tree.
-Trusted successful quality and database replay CI remain required, including
-the CSF browser journeys in the database replay job. Schema bytes, catalog
-verification, private release verification, organization activation, access
-checks and worker leases remain required. A partial or malformed waiver fails
-before provider release work. The receipt remains available if a later release
-step fails.
+Production requires the trusted successful `csf-hosted-development-functional`
+status for the exact accepted SHA. Functional acceptance verifies the deployed
+application and alias, fictional member and officer sessions, attendance/browser
+workflows, persisted staff-view changes, review navigation and browser errors.
+It does not run or attest the 100-session load or performance thresholds. The
+accepted commit must remain Development-reachable, and the release must have the
+identical tree. Trusted quality and database replay CI, schema/catalog checks,
+private release verification, organization access, worker leases, protected
+reviews and recovery remain required. Ordinary CI and hosted functional acceptance
+are separate checks; this policy does not guarantee a fixed release duration.
+
+The existing performance-waiver inputs remain compatible for older callers, but
+are no longer needed for normal releases. If supplied, their source-bound reason,
+actor and run ID are still recorded as `waived, not passed`; they create no
+successful status and cannot replace functional acceptance.
 
 ### Broader local validation override
 

@@ -51,7 +51,7 @@ on:
         description: "Functional browser checks only, or full performance acceptance"
         type: choice
         options: [full, functional]
-        default: full
+        default: functional
         required: true
       confirmation:
         description: "load-hosted-development:<ref>, or cutover-development:<phase>:<candidate SHA>"
@@ -204,8 +204,8 @@ jobs:
       statuses: write
     timeout-minutes: 75
     env:
-      ACCEPTANCE_MODE: ${{ inputs.mode || (github.event_name == 'push' && contains(github.event.head_commit.message, '[csf-functional-only]') && 'functional' || 'full') }}
-      ACCEPTANCE_CONTEXT: ${{ (inputs.mode == 'functional' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[csf-functional-only]'))) && 'csf-hosted-development-functional' || 'csf-hosted-development-acceptance' }}
+      ACCEPTANCE_MODE: ${{ inputs.mode || 'functional' }}
+      ACCEPTANCE_CONTEXT: ${{ inputs.mode == 'full' && 'csf-hosted-development-acceptance' || 'csf-hosted-development-functional' }}
       ACCEPTED_SHA: ${{ github.event_name == 'push' && github.sha || inputs.development_sha }}
       DEPLOYED_APP_SHA: ${{ inputs.deployed_app_sha || (github.event_name == 'push' && github.sha || inputs.development_sha) }}
       CONFIRMATION: ${{ github.event_name == 'push' && format('load-hosted-development:{0}', vars.CSF_DEVELOPMENT_SUPABASE_PROJECT_REF) || inputs.confirmation }}

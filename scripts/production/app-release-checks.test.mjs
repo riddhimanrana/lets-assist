@@ -51,6 +51,7 @@ test("release diagnostics expose only controller-owned failure messages", () => 
 });
 const repository = "example/application";
 const trustedStatus = {
+  context: "csf-hosted-development-functional",
   state: "success",
   creator: { login: "github-actions[bot]" },
   target_url: `https://github.com/${repository}/actions/runs/42`,
@@ -103,6 +104,14 @@ test("release SHA accepts only a full lowercase commit", () => {
 
 test("hosted acceptance is tied to trusted workflow, source, and repository", () => {
   verifyAcceptance(trustedStatus, trustedRun, sha, repository);
+  assert.throws(() =>
+    verifyAcceptance(
+      { ...trustedStatus, context: "csf-hosted-development-acceptance" },
+      trustedRun,
+      sha,
+      repository,
+    ),
+  );
   for (const patch of [
     { head_sha: "b".repeat(40) },
     { conclusion: "failure" },
@@ -485,7 +494,7 @@ test("source verification pins clean Git trees and the required CI workflow", as
         {
           ...trustedStatus,
           id: 1,
-          context: "csf-hosted-development-acceptance",
+          context: "csf-hosted-development-functional",
         },
       ]);
     if (url.endsWith("/actions/runs/42"))
@@ -514,7 +523,11 @@ test("source verification pins clean Git trees and the required CI workflow", as
       });
     throw new Error("Unexpected request");
   };
-  assert.equal((await verifySource(config, fetcher)).releaseSha, releaseSha);
+  const verified = await verifySource(config, fetcher);
+  assert.equal(verified.releaseSha, releaseSha);
+  assert.equal(verified.hostedAcceptance, "functional");
+  assert.equal(verified.hostedPerformance, "not required; not attested");
+  assert.equal(verified.performanceWaiver, null);
   splitCiRuns = true;
   await assert.rejects(verifySource(config, fetcher), /same run/);
   splitCiRuns = false;
@@ -543,7 +556,17 @@ test("source verification pins clean Git trees and the required CI workflow", as
     return fetcher(url);
   };
   await assert.rejects(
-    verifySource({ ...config, waiver }, fetcher),
+    verifySource({ ...config, waiver }, async (url) => {
+      if (url.endsWith("/statuses?per_page=100"))
+        return Response.json([
+          {
+            ...trustedStatus,
+            id: 1,
+            context: "csf-hosted-development-acceptance",
+          },
+        ]);
+      return fetcher(url);
+    }),
     /trusted run/,
   );
   for (const patch of [
