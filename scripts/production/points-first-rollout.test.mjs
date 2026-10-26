@@ -288,6 +288,39 @@ test("the controller applies each exact file once, verifies readback and retains
   );
 });
 
+test("acknowledged migrations avoid duplicate ledger reads but reject actual ledger drift", async () => {
+  for (const drift of [false, "advanced", "unchanged"]) {
+    const { state, dependencies } = fixture();
+    const query = dependencies.query;
+    let ledgerReads = 0;
+    dependencies.query = (url, sql) => {
+      if (sql === maintenanceLedgerQuery) ledgerReads++;
+      const result = query(url, sql);
+      if (
+        drift &&
+        state.writes === 1 &&
+        sql.endsWith("SELECT 'points-first-migration-applied';")
+      ) {
+        state.versions = [
+          ...stateAt(drift === "advanced" ? 738 : 736).versions,
+        ];
+      }
+      return result;
+    };
+    if (drift) {
+      await assert.rejects(
+        runProductionPointsFirst(config(), "apply", dependencies),
+      );
+      assert.equal(state.writes, 1);
+      assert.equal(state.receipts.at(-1).phase, "unproven");
+    } else {
+      await runProductionPointsFirst(config(), "apply", dependencies);
+      assert.equal(state.writes, 4);
+    }
+    assert.equal(ledgerReads, 1);
+  }
+});
+
 test("an already verified target performs no write", async () => {
   const { state, dependencies } = fixture(740);
   assert.equal(
@@ -300,12 +333,19 @@ test("an already verified target performs no write", async () => {
 test("a lost response stops after one committed file even when readback succeeds", async () => {
   const { state, dependencies } = fixture();
   state.lost = true;
+  let ledgerReads = 0;
+  const query = dependencies.query;
+  dependencies.query = (url, sql) => {
+    if (sql === maintenanceLedgerQuery) ledgerReads++;
+    return query(url, sql);
+  };
   await assert.rejects(
     runProductionPointsFirst(config(), "apply", dependencies),
     /trusted recovery/u,
   );
   assert.equal(state.writes, 1);
   assert.equal(state.versions.length, 737);
+  assert.equal(ledgerReads, 2);
   const receipt = state.receipts.at(-1);
   assert.equal(receipt.phase, "unproven");
   assert.equal(
@@ -412,11 +452,21 @@ test("a post-commit catalog refusal leaves one unproven file and stops", async (
 
 test("the write budget prevents a second file after expiry", async () => {
   const { state, dependencies } = fixture();
-  dependencies.now = () => now + (state.writes ? 10 * 60 * 1000 : 0);
+  dependencies.now = () => now + (state.writes ? 12 * 60 * 1000 : 0);
   await assert.rejects(
     runProductionPointsFirst(config(), "apply", dependencies),
   );
   assert.equal(state.writes, 1);
+});
+
+test("the extended write budget admits a second file at ten minutes and stops at twelve", async () => {
+  const { state, dependencies } = fixture();
+  dependencies.now = () =>
+    now + (state.writes >= 2 ? 12 : state.writes ? 10 : 0) * 60 * 1000;
+  await assert.rejects(
+    runProductionPointsFirst(config(), "apply", dependencies),
+  );
+  assert.equal(state.writes, 2);
 });
 
 test("database calls cannot outlive the invocation deadline", () => {
