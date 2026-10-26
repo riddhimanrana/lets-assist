@@ -1,3 +1,4 @@
+import { findRequiredSignersMissingSignatureField } from "@/lib/waiver/definition-input";
 import type { DetectedPdfField } from "@/lib/waiver/pdf-field-detect";
 import type { WaiverFieldType } from "@/types/waiver-definitions";
 import type { CustomPlacement } from "../PdfViewerWithOverlay";
@@ -193,4 +194,22 @@ export function buildDefinitionPayload(
       custom: customPlacements,
     },
   };
+}
+
+/** Prefill missing required signatures; the organizer still chooses each PDF position. */
+export function nextCustomFieldDefaults(definition: WaiverDefinitionInput) {
+  const signer = findRequiredSignersMissingSignatureField(definition)[0];
+  return signer
+    ? {
+        signerRoleKey: signer.roleKey,
+        label: `${signer.label} signature`,
+        fieldType: "signature" as const,
+        required: true,
+      }
+    : {
+        signerRoleKey: definition.signers[0]?.roleKey || "volunteer",
+        label: "New Field Label",
+        fieldType: "text" as const,
+        required: false,
+      };
 }

@@ -38,6 +38,7 @@ export type { WaiverDefinitionInput } from "./waiver-builder/types";
 import type { WaiverDefinitionInput } from "./waiver-builder/types";
 import {
   buildDefinitionPayload,
+  nextCustomFieldDefaults,
   reconcileDetectedMappings,
 } from "./waiver-builder/definition-mappings";
 import { useWaiverAiScan } from "./waiver-builder/useWaiverAiScan";
@@ -234,6 +235,9 @@ export function WaiverBuilderDialog({
 
     hasInitializedForOpenRef.current = true;
     setShowSamplePreview(false);
+    setActiveTab(
+      existingDraftDefinition || existingDefinition ? "fields" : "signers",
+    );
 
     let initialSigners = defaultSigners();
     let initialMappings: Record<string, FieldMapping> = {};
@@ -399,19 +403,15 @@ export function WaiverBuilderDialog({
   const handleAddPlacement = (placement: Partial<CustomPlacement>) => {
     if (!placement.rect || placement.pageIndex === undefined) return;
 
-    // Default to first signer
-    const defaultSigner = signers[0]?.roleKey || "volunteer";
+    const defaults = nextCustomFieldDefaults(getCurrentDefinition());
 
     const placementId = `custom_${Date.now()}`;
     const newPlacement: CustomPlacement = {
       id: placementId,
       fieldKey: placementId,
-      label: "New Field Label",
-      signerRoleKey: defaultSigner,
-      fieldType: "text",
-      required: false,
+      ...defaults,
       pageIndex: placement.pageIndex,
-      rect: resizeRectToFieldType(placement.rect, "text"),
+      rect: resizeRectToFieldType(placement.rect, defaults.fieldType),
       meta: {
         helpText: "",
         signingPurpose: "",
