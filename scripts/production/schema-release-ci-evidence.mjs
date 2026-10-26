@@ -12,6 +12,7 @@ const controllerPaths = new Set([
   ".github/workflows/deploy-schema.yml",
   "scripts/production/schema-release-ci-evidence.mjs",
   "scripts/production/schema-release-ci-evidence.test.mjs",
+  "scripts/production/hosted-acceptance-status-transport.test.mjs",
   "scripts/production/vercel-curl.sh",
   "scripts/production/vercel-curl.test.mjs",
   "scripts/csf-production-release-gate-contract.test.ts",
