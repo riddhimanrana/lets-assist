@@ -20,6 +20,13 @@ import {
 import { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 export { applicationRequestWriteFenceQuery } from "./request-write-fence.mjs";
 
+import {
+  executeLinkedBootstrapQuery,
+  prepareLinkedBootstrapConnection,
+  productionTransportConfig,
+  validateLinkedConnection,
+} from "./linked-bootstrap-transport.mjs";
+
 const literal = (value) => `'${value.replaceAll("'", "''")}'`;
 const transaction = (sql) => `BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
 SET LOCAL search_path TO public, extensions;
@@ -162,6 +169,12 @@ SELECT 'maintenance-preflight-verified';`);
 }
 
 export function validateMaintenanceBinding(projectRef, databaseUrl) {
+  if (databaseUrl && typeof databaseUrl === "object") {
+    if (projectRef !== productionRef)
+      throw new ReleaseCheckError("Invalid Production project binding.");
+    validateLinkedConnection(databaseUrl);
+    return;
+  }
   let url;
   try {
     url = new URL(databaseUrl);
@@ -214,14 +227,26 @@ export function executeMaintenanceQuery(
   return executeQuery(databaseUrl, sql, execute, false);
 }
 
-// Only the fixed preflight builders below use this path. Bootstrap's reviewed
-// mutation keeps its separate executor; caller/environment SQL is never read.
-function executeReadOnlyQuery(databaseUrl, sql, execute = execFileSync) {
+// Fixed preflight builders select read-only policy on either transport.
+// Caller/environment SQL is never read by the command entry point.
+export function executeReadOnlyQuery(databaseUrl, sql, execute = execFileSync) {
   return executeQuery(databaseUrl, sql, execute, true);
 }
 
 function executeQuery(databaseUrl, sql, execute, readOnly) {
   try {
+    if (databaseUrl && typeof databaseUrl === "object") {
+      return executeLinkedBootstrapQuery(
+        databaseUrl,
+        sql,
+        databaseUrl.password,
+        execute,
+        {
+          readOnly,
+          timeout: readOnly && sql === quiescenceSql ? 30_000 : 150_000,
+        },
+      );
+    }
     const url = new URL(databaseUrl);
     const username = decodeURIComponent(url.username);
     const password = decodeURIComponent(url.password);
@@ -321,24 +346,38 @@ export function productionMaintenanceConfig(env, cwd = process.cwd()) {
   const config = {
     cwd,
     projectRef: env.EXPECTED_SUPABASE_PROJECT_REF,
-    databaseUrl: configured || env.PRODUCTION_BOOTSTRAP_DATABASE_URL,
+    databaseUrl: configured || null,
     connectionSource: configured
       ? "production-readonly-url"
-      : "production-bootstrap-database-url",
+      : "management-metadata-session-psql",
+    ...(!configured ? productionTransportConfig(env) : {}),
   };
-  validateMaintenanceBinding(config.projectRef, config.databaseUrl);
-  if (
-    !configured &&
-    maintenanceConnectionReceipt(config).databaseAuthority !== "owner"
-  )
-    throw new ReleaseCheckError(
-      "Production preflight fallback requires its reviewed owner connection.",
-    );
+  if (config.projectRef !== productionRef)
+    throw new ReleaseCheckError("Invalid Production project binding.");
+  if (configured) validateMaintenanceBinding(config.projectRef, configured);
   return config;
+}
+
+export async function resolveMaintenanceConnection(config, fetcher) {
+  if (config.databaseUrl) return config;
+  const connection = await prepareLinkedBootstrapConnection(config, fetcher);
+  return {
+    ...config,
+    databaseUrl: Object.freeze({
+      ...connection,
+      password: config.databasePassword,
+    }),
+  };
 }
 
 export function maintenanceConnectionReceipt(config) {
   validateMaintenanceBinding(config.projectRef, config.databaseUrl);
+  if (typeof config.databaseUrl === "object")
+    return {
+      connectionSource: "management-metadata-session-psql",
+      databaseAuthority: "owner",
+      transactionPolicy: "read-only",
+    };
   const url = new URL(config.databaseUrl);
   return {
     connectionSource: [
@@ -389,7 +428,9 @@ if (
       throw new ReleaseCheckError(
         "Production preflight requires one fixed mode.",
       );
-    const config = productionMaintenanceConfig(process.env);
+    const config = await resolveMaintenanceConnection(
+      productionMaintenanceConfig(process.env),
+    );
     const mode = process.argv[2];
     console.log(
       JSON.stringify(

@@ -23,15 +23,6 @@ const source = "a".repeat(40);
 const now = Date.parse("2026-10-07T12:00:00Z");
 const cwd = resolve(import.meta.dirname, "../..");
 const database = productionBootstrapTarget.database;
-function connection(
-  address = `postgresql://db.${database}.supabase.co/postgres`,
-  user = "postgres",
-) {
-  const url = new URL(address);
-  url.username = user;
-  url.password = "synthetic-test-value";
-  return url.href;
-}
 function environment() {
   return {
     GITHUB_ACTIONS: "true",
@@ -46,7 +37,8 @@ function environment() {
     GITHUB_ACTOR: "operator",
     GH_TOKEN: "synthetic-github",
     SUPABASE_PROJECT_ID: database,
-    PRODUCTION_BOOTSTRAP_DATABASE_URL: connection(),
+    SUPABASE_ACCESS_TOKEN: "synthetic-access-token",
+    SUPABASE_DB_PASSWORD: "synthetic-db-password",
     SUPABASE_SECRET_KEY: "synthetic-server",
     PRODUCTION_BOOTSTRAP_CONFIRMATION: `bootstrap-production:${database}:${source}`,
     EXTERNAL_WRITERS_CONFIRMATION: `external-writers-stopped:${source}`,
@@ -98,7 +90,8 @@ function authorityFixture() {
 const config = () => productionBootstrapConfig(environment(), cwd);
 
 test("config requires exact main, fixed Production owner and source-bound confirmations", () => {
-  assert.equal(config().databaseUrl, connection());
+  assert.equal(config().databasePassword, "synthetic-db-password");
+  assert.equal(config().databaseUrl, undefined);
   for (const [key, value] of Object.entries({
     GITHUB_ACTIONS: "false",
     GITHUB_EVENT_NAME: "push",
@@ -113,6 +106,8 @@ test("config requires exact main, fixed Production owner and source-bound confir
     GH_TOKEN: "",
     SUPABASE_PROJECT_ID: "ocbuygudvarsuxijxhau",
     SUPABASE_SECRET_KEY: "",
+    SUPABASE_ACCESS_TOKEN: "",
+    SUPABASE_DB_PASSWORD: "",
     PRODUCTION_BOOTSTRAP_CONFIRMATION: `bootstrap-production:${database}`,
     EXTERNAL_WRITERS_CONFIRMATION: "yes",
   }))
@@ -120,27 +115,25 @@ test("config requires exact main, fixed Production owner and source-bound confir
       () => productionBootstrapConfig({ ...environment(), [key]: value }, cwd),
       key,
     );
-  for (const url of [
-    connection("postgresql://db.ocbuygudvarsuxijxhau.supabase.co/postgres"),
-    connection(undefined, "reader"),
-    connection(`postgresql://db.${database}.supabase.co/other`),
-    ...[
-      "host=elsewhere",
-      "hostaddr=127.0.0.1",
-      "dbname=other",
-      "service=other",
-      "options=-crole=other",
-      "sslmode=disable",
-    ].map((query) =>
-      connection(`postgresql://db.${database}.supabase.co/postgres?${query}`),
-    ),
-  ])
+  for (const password of [" ", "bad\npassword", "bad\0password"]) {
     assert.throws(() =>
       productionBootstrapConfig(
-        { ...environment(), PRODUCTION_BOOTSTRAP_DATABASE_URL: url },
+        { ...environment(), SUPABASE_DB_PASSWORD: password },
         cwd,
       ),
     );
+  }
+  const withoutOldConnection = environment();
+  const legacy = new URL("postgresql://ignored.invalid/ignored");
+  legacy.username = "ignored";
+  legacy.password = withoutOldConnection.SUPABASE_DB_PASSWORD;
+  legacy.searchParams.set("sslmode", "verify-full");
+  withoutOldConnection.PRODUCTION_BOOTSTRAP_DATABASE_URL = legacy.href;
+
+  assert.equal(
+    productionBootstrapConfig(withoutOldConnection, cwd).databaseUrl,
+    undefined,
+  );
 });
 
 test("authority accepts only the current protected run's actual approved review", async () => {
@@ -356,6 +349,7 @@ function controllerFixture({ pointsFirst = false } = {}) {
   const fixture = authorityFixture();
   const state = {
     applied: plan.before,
+    links: 0,
     writes: 0,
     authorityReads: 0,
     verifications: 0,
@@ -375,6 +369,11 @@ function controllerFixture({ pointsFirst = false } = {}) {
   const expectedMutation = bootstrapMutationSql(plan);
   const dependencies = {
     now: () => now,
+    link: () => {
+      assert.ok(state.authorityReads > 0);
+      state.links++;
+      return { transport: "synthetic-linked" };
+    },
     record: (receipt) => state.receipts.push(receipt),
     execute: (command, args) => {
       assert.equal(command, "git");
@@ -410,7 +409,9 @@ function controllerFixture({ pointsFirst = false } = {}) {
         status: options.method === "GET" ? 200 : 204,
       });
     },
-    query: (_url, sql) => {
+    query: (connection, sql, password) => {
+      assert.deepEqual(connection, { transport: "synthetic-linked" });
+      assert.equal(password, "synthetic-db-password");
       if (sql === maintenanceLedgerQuery) return JSON.stringify(state.applied);
       if (sql === productionBootstrapBarrierSql) {
         state.barriers++;
@@ -433,6 +434,29 @@ function controllerFixture({ pointsFirst = false } = {}) {
   };
   return { plan, fixture, state, dependencies };
 }
+
+test("linked routing failure occurs after authority but before SQL or API probes and stays sanitized", async () => {
+  const { state, dependencies } = controllerFixture();
+  dependencies.link = async () => {
+    assert.equal(state.authorityReads, 1);
+    state.links++;
+    throw new Error("raw-provider-output synthetic-access-token");
+  };
+  await assert.rejects(
+    runProductionBootstrap(config(), dependencies),
+    (error) =>
+      !/raw-provider-output|synthetic-access-token/u.test(error.message),
+  );
+  assert.equal(state.links, 1);
+  assert.equal(state.writes, 0);
+  assert.equal(state.verifications, 0);
+  assert.deepEqual(state.probes, []);
+  assert.equal(state.receipts.at(-1).phase, "unproven");
+  assert.equal(
+    state.receipts.at(-1).transport,
+    "management-metadata-session-psql",
+  );
+});
 
 test("controller applies only the real atomic bootstrap and proves open API state", async () => {
   const { state, dependencies } = controllerFixture();
@@ -597,6 +621,18 @@ test("workflow is manual, protected and shares the Production schema lock", () =
   ])
     assert.ok(workflow.includes(text), text);
   assert.ok(deploy.includes("group: production-schema-deployment"));
+  const install = workflow
+    .split("- name: Verify approval and install the additive guard")[1]
+    .split("- name: Preserve")[0];
+  assert.match(
+    install,
+    /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets.SUPABASE_ACCESS_TOKEN \}\}/u,
+  );
+  assert.match(
+    install,
+    /SUPABASE_DB_PASSWORD: \$\{\{ secrets.SUPABASE_DB_PASSWORD \}\}/u,
+  );
+  assert.match(install, /PRODUCTION_BOOTSTRAP_DATABASE_URL/u);
   assert.ok(
     !/\n {2}(push|pull_request|schedule|workflow_call):/u.test(workflow),
   );

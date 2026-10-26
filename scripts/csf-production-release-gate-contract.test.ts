@@ -47,6 +47,10 @@ const applicationWriteBlock = readFileSync(
   join(repositoryRoot, "scripts/production/set-application-write-block.sh"),
   "utf8",
 );
+const applicationWriteBlockTransport = readFileSync(
+  join(repositoryRoot, "scripts/production/set-application-write-block.mjs"),
+  "utf8",
+);
 const postgrestWriteBlockVerifier = readFileSync(
   join(repositoryRoot, "scripts/production/verify-postgrest-write-block.sh"),
   "utf8",
@@ -916,10 +920,23 @@ describe("CSF Production release preflight", () => {
       },
     });
     expect(applicationWriteBlock).toContain(
-      'request-write-fence.mjs" "${mode}"',
+      'set-application-write-block.mjs" "${mode}"',
     );
-    expect(applicationWriteBlock).toContain(
-      'run_linked_query "${request_guard_sql}"',
+    expect(applicationWriteBlock).not.toContain("supabase db query");
+    expect(applicationWriteBlockTransport).toContain(
+      '} from "./request-write-fence.mjs";',
+    );
+    expect(applicationWriteBlockTransport).toContain(
+      '} from "./linked-bootstrap-transport.mjs";',
+    );
+    expect(applicationWriteBlockTransport).toContain(
+      'applicationRequestWriteFlagSql(mode === "enable")',
+    );
+    expect(applicationWriteBlockTransport).toContain(
+      "settlePreexistingRequestTransactionsSql",
+    );
+    expect(applicationWriteBlockTransport).toContain(
+      "return executeLinkedBootstrapQuery(",
     );
     expect(applicationWriteBlock).not.toContain("pg_terminate_backend");
     expect(applicationWriteBlock.match(/timeout 60s/gu) ?? []).toHaveLength(1);

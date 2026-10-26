@@ -19,6 +19,7 @@ import { reviewedDevelopmentVersions } from "./reconciliation-ledgers.mjs";
 import {
   maintenanceConnectionReceipt,
   productionMaintenanceConfig,
+  resolveMaintenanceConnection,
 } from "./maintenance-preflight.mjs";
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -40,36 +41,35 @@ function connection(username = "postgres", pooler = false) {
 }
 const environment = (extra = {}) => ({
   EXPECTED_SUPABASE_PROJECT_REF: productionRef,
-  PRODUCTION_BOOTSTRAP_DATABASE_URL: connection(),
+  SUPABASE_ACCESS_TOKEN: "synthetic-token",
+  SUPABASE_DB_PASSWORD: password,
   ...extra,
 });
 
-test("bootstrap fallback is fixed-target owner authority, never a restricted-login claim", () => {
-  for (const url of [
-    connection(),
-    connection(`postgres.${productionRef}`, true),
-  ]) {
-    const config = productionMaintenanceConfig(
-      environment({
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: url,
-      }),
+test("standard fallback resolves fixed owner metadata and reports read-only owner authority", async () => {
+  const config = productionMaintenanceConfig(environment());
+  const resolved = await resolveMaintenanceConnection(config, async () => ({
+    status: 200,
+    json: async () => [
+      {
+        database_type: "PRIMARY",
+        db_host: "aws-0-synthetic.pooler.supabase.com",
+        db_user: `postgres.${productionRef}`,
+        db_name: "postgres",
+        db_port: 6543,
+        pool_mode: "transaction",
+      },
+    ],
+  }));
+  assert.deepEqual(maintenanceConnectionReceipt(resolved), {
+    connectionSource: "management-metadata-session-psql",
+    databaseAuthority: "owner",
+    transactionPolicy: "read-only",
+  });
+  for (const key of ["SUPABASE_ACCESS_TOKEN", "SUPABASE_DB_PASSWORD"])
+    assert.throws(() =>
+      productionMaintenanceConfig(environment({ [key]: "" })),
     );
-    assert.equal(config.databaseUrl, url);
-    assert.deepEqual(maintenanceConnectionReceipt(config), {
-      connectionSource: "production-bootstrap-database-url",
-      databaseAuthority: "owner",
-      transactionPolicy: "read-only",
-    });
-  }
-  assert.throws(
-    () =>
-      productionMaintenanceConfig(
-        environment({
-          PRODUCTION_BOOTSTRAP_DATABASE_URL: connection("fictional_reader"),
-        }),
-      ),
-    /reviewed owner/u,
-  );
 });
 
 test("configured transport takes precedence and its authority is not inferred from the secret name", () => {
@@ -171,7 +171,7 @@ else process.stdout.write(${JSON.stringify(receipts)});
       encoding: "utf8",
       timeout: 20_000,
       env: {
-        ...environment(),
+        ...environment({ PRODUCTION_READONLY_URL: connection() }),
         PATH: `${root}:${process.env.PATH}`,
         PGOPTIONS: "-c default_transaction_read_only=off -c role=attacker",
         PGSERVICE: "attacker",
@@ -309,38 +309,19 @@ test("the current target rejects an older reported ledger after read-only transp
 test("bad and missing bindings fail before psql, including an invalid preferred URL with a valid fallback", () => {
   withTransport("success", (invoke, calls) => {
     for (const extra of [
-      { PRODUCTION_BOOTSTRAP_DATABASE_URL: "" },
       { PRODUCTION_READONLY_URL: " " },
       { EXPECTED_SUPABASE_PROJECT_REF: "other" },
       {
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: connection().replace(
+        PRODUCTION_READONLY_URL: connection().replace(
           productionRef,
           "aaaaaaaaaaaaaaaaaaaa",
         ),
       },
-      {
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: connection().replace(
-          "require",
-          "disable",
-        ),
-      },
-      {
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: `${connection()}&options=-c%20role%3Dother`,
-      },
-      { PRODUCTION_BOOTSTRAP_DATABASE_URL: connection("fictional_reader") },
-      { PRODUCTION_BOOTSTRAP_DATABASE_URL: connection("postgres", true) },
-      {
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: connection().replace(
-          password,
-          "%00",
-        ),
-      },
-      {
-        PRODUCTION_BOOTSTRAP_DATABASE_URL: connection().replace(
-          password,
-          "%ZZ",
-        ),
-      },
+      { PRODUCTION_READONLY_URL: connection().replace("require", "disable") },
+      { PRODUCTION_READONLY_URL: `${connection()}&options=-c%20role%3Dother` },
+      { PRODUCTION_READONLY_URL: connection("postgres", true) },
+      { PRODUCTION_READONLY_URL: connection().replace(password, "%00") },
+      { PRODUCTION_READONLY_URL: connection().replace(password, "%ZZ") },
     ]) {
       const result = invoke("quiescence", extra);
       assert.notEqual(result.status, 0);
@@ -387,7 +368,8 @@ test("every protected schema preflight binding supplies the fallback and keeps c
     for (const binding of [
       "EXPECTED_SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}",
       "PRODUCTION_READONLY_URL: ${{ secrets.PRODUCTION_READONLY_URL }}",
-      "PRODUCTION_BOOTSTRAP_DATABASE_URL: ${{ secrets.PRODUCTION_BOOTSTRAP_DATABASE_URL }}",
+      "SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}",
+      "SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}",
     ])
       assert.ok(step.includes(binding), `${name}: ${binding}`);
     assert.ok(
