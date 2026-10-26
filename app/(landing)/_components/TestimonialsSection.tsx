@@ -105,10 +105,37 @@ const testimonials = [
   },
   {
     quote:
-      "+ many more from SRVUSD and local service organizations, including SRVCPTA Council, SRV Run for Education, SR Rotary Club, KoC Pleasanton, multiple DVHS, EHS, and SRVHS clubs, and 20+ other DV teachers.",
-    name: "More community voices",
-    role: "Schools, clubs, councils, and service groups",
+      "It was very impressive and I look forward to trying it out to streamline our processes.",
+    name: "Ava Ahuja",
+    role: "Cub Scouts & PTA demo feedback",
     src: "/logo.png",
+  },
+  {
+    quote:
+      "Yes, they seem enthusiastic about the new platform! We're thinking we will try it out at the start of next school year.",
+    name: "Stephanie Smith SooHoo",
+    role: "Quail Run Elementary PTA, after a board discussion",
+    src: "/logo.png",
+  },
+  {
+    quote: "Thanks for the opportunity to pilot the platform!",
+    name: "Alicia Gholami",
+    role: "SRVCPTA pilot feedback",
+    src: "/logo.png",
+  },
+  {
+    quote:
+      "I had a quick look at the Eagle project and the website, and it seems quite useful.",
+    name: "Divya Jonnavittula",
+    role: "Community demo feedback",
+    src: "/logo.png",
+  },
+  {
+    quote:
+      "We're willing to try out your website at our next volunteering event this upcoming Friday.",
+    name: "Hearts4Hands",
+    role: "Dougherty Valley High School club, before an event trial",
+    src: "/logos/dvhs.png",
   },
 ];
 
@@ -166,11 +193,11 @@ export default function TestimonialsSection() {
       <div className="relative mx-auto w-full max-w-6xl px-4 sm:px-6">
         <div className="mx-auto mb-9 max-w-3xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            What teachers and advisors told us
+            What our community is saying
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            From demos with Dougherty Valley High School staff and local service
-            groups.
+            Feedback from teachers, advisors, PTAs and local groups after demos
+            and during early pilots.
           </p>
         </div>
 
@@ -184,7 +211,7 @@ export default function TestimonialsSection() {
         */}
         <div
           role="region"
-          aria-label="Testimonials from teachers and advisors"
+          aria-label="Feedback from teachers, advisors and community groups"
           tabIndex={0}
           onKeyDown={scrollRowFromKeyboard}
           data-lenis-prevent-horizontal
