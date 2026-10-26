@@ -69,7 +69,10 @@ describe("previous slot signup layout with current state guards", () => {
     const button = action({ onClick: () => invoked++ });
     expect(button.props.variant).toBe("default");
     expect(button.props.disabled).toBe(false);
-    expect(renderToStaticMarkup(button)).toContain("Sign up");
+    const html = renderToStaticMarkup(button);
+    expect(html).toContain("Sign up");
+    expect(html).toContain("text-primary-foreground");
+    expect(html).not.toContain("text-foreground");
     button.props.onClick();
     expect(invoked).toBe(1);
   });

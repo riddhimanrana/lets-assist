@@ -20,11 +20,11 @@ on:
         required: false
         type: string
       performance_waiver_confirmation:
-        description: "Optional: waive-csf-performance:<release SHA>:<Development SHA>"
+        description: "Optional: waive-csf-performance:<release SHA>:<Development SHA>, or waive-release-acceptance:<release SHA>:<Development SHA> to waive remote CI and hosted acceptance"
         required: false
         type: string
       performance_waiver_reason:
-        description: "Required with waiver: explain why hosted performance acceptance is waived (20-1000 characters)"
+        description: "Required with waiver: operator reason for the selected performance or remote CI and hosted acceptance waiver (20-1000 characters)"
         required: false
         type: string
       local_validation_confirmation:

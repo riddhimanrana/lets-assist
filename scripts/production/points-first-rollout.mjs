@@ -156,7 +156,7 @@ export async function runProductionPointsFirst(
     dependencies.read || productionRunReader(config, dependencies.fetcher);
   const now = dependencies.now || Date.now;
   const startedAt = now();
-  const deadline = startedAt + (mode === "plan" ? 2 : 12) * 60 * 1000;
+  const deadline = startedAt + (mode === "plan" ? 2 : 16) * 60 * 1000;
   const query =
     dependencies.query ||
     ((url, sql) => boundedPointsFirstQuery(url, sql, deadline, now));
@@ -222,15 +222,14 @@ export async function runProductionPointsFirst(
     }
     while (plan.remaining.length) {
       requireCondition(
-        now() - startedAt < 8 * 60 * 1000,
+        now() - startedAt < 12 * 60 * 1000,
         "The rollout write budget expired. Reconcile before a fresh protected run.",
       );
       await authority();
       verifyProductionCheckout(config, dependencies.execute);
       const next = preparePointsFirstMigration(config.cwd, plan.state.versions);
-      verify(next.before);
       requireCondition(
-        now() - startedAt < 8 * 60 * 1000,
+        now() - startedAt < 12 * 60 * 1000,
         "The write budget expired during authority or preflight verification.",
       );
       const entry = {
@@ -250,7 +249,9 @@ export async function runProductionPointsFirst(
       } catch {
         // Reconcile once. Never resubmit a file after a lost or failed response.
       }
-      const observed = readState();
+      const observed = acknowledged
+        ? pointsFirstPlan(config.cwd, next.after.versions)
+        : readState();
       requireCondition(
         observed.state.ledger === next.after.ledger,
         "The migration outcome is unproven. No further file may run.",

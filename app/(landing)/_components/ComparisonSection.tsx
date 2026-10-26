@@ -345,10 +345,7 @@ function ModernDashboardMockup() {
                       </span>
                     </div>
 
-                    <Button
-                      size="sm"
-                      className="w-full h-7 text-[10px] text-foreground dark:text-primary-foreground"
-                    >
+                    <Button size="sm" className="w-full h-7 text-[10px]">
                       View details
                     </Button>
                   </div>
@@ -416,9 +413,7 @@ function ModernDashboardMockup() {
                     transition={{ delay: 2.2, duration: 0.3 }}
                     className="w-full"
                   >
-                    <Button className="w-full h-8 text-xs text-foreground dark:text-primary-foreground">
-                      Sign up now
-                    </Button>
+                    <Button className="w-full h-8 text-xs">Sign up now</Button>
                   </motion.div>
                 </div>
               </motion.div>

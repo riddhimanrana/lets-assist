@@ -232,6 +232,34 @@ export function localValidationOverride(
   };
 }
 
+export function releaseAcceptanceWaiver(
+  { confirmation, reason, actor, runId },
+  releaseSha,
+  acceptedSha,
+) {
+  if (
+    confirmation !== `waive-release-acceptance:${releaseSha}:${acceptedSha}` ||
+    typeof reason !== "string" ||
+    reason.trim().length < 20 ||
+    reason.length > 1000 ||
+    !/^[A-Za-z0-9][A-Za-z0-9-]{0,38}$/u.test(actor ?? "") ||
+    !/^[1-9][0-9]*$/u.test(runId ?? "")
+  )
+    throw new ReleaseCheckError(
+      "Release acceptance waiver needs exact release and Development SHAs, an audit reason, and workflow identity.",
+    );
+  return {
+    scope: "remote-ci-and-hosted-acceptance-only",
+    releaseSha,
+    acceptedSha,
+    reason: reason.trim(),
+    actor,
+    runId,
+    hostedAcceptance: "waived, not passed",
+    remoteCi: "waived, not passed",
+  };
+}
+
 export async function verifySource(
   {
     releaseSha,
@@ -246,13 +274,20 @@ export async function verifySource(
 ) {
   requireSha(releaseSha);
   requireSha(acceptedSha);
-  const waivedPerformance = performanceWaiver(waiver, releaseSha, acceptedSha);
+  const waivedAcceptance =
+    typeof waiver.confirmation === "string" &&
+    waiver.confirmation.startsWith("waive-release-acceptance:")
+      ? releaseAcceptanceWaiver(waiver, releaseSha, acceptedSha)
+      : null;
+  const waivedPerformance = waivedAcceptance
+    ? null
+    : performanceWaiver(waiver, releaseSha, acceptedSha);
   const localOverride = localValidationOverride(
     localValidation,
     releaseSha,
     acceptedSha,
   );
-  if (waivedPerformance && localOverride)
+  if ((waivedPerformance || waivedAcceptance) && localOverride)
     throw new ReleaseCheckError("Choose one release waiver mode.");
   if (!/^[\w.-]+\/[\w.-]+$/u.test(repository ?? "") || !token) {
     throw new ReleaseCheckError(
@@ -291,7 +326,15 @@ export async function verifySource(
       },
       fetcher,
     );
-  if (localOverride) {
+  if (waivedAcceptance) {
+    const permission = await request(
+      `collaborators/${waivedAcceptance.actor}/permission`,
+    );
+    if (!["admin", "maintain", "write"].includes(permission?.permission))
+      throw new ReleaseCheckError(
+        "Release acceptance waiver requires repository write permission.",
+      );
+  } else if (localOverride) {
     try {
       const privateEntry = git("ls-tree", releaseSha, "lib/plugins/private");
       const privateMatch =
@@ -361,11 +404,14 @@ export async function verifySource(
     releaseSha,
     acceptedSha,
     tree: git("rev-parse", "HEAD^{tree}"),
-    hostedAcceptance: localOverride
-      ? "local-validation-override"
-      : "functional",
+    hostedAcceptance: waivedAcceptance
+      ? "waived, not passed"
+      : localOverride
+        ? "local-validation-override"
+        : "functional",
     hostedPerformance: "not required; not attested",
     performanceWaiver: waivedPerformance,
+    releaseAcceptanceWaiver: waivedAcceptance,
     localValidationOverride: localOverride,
   };
 }

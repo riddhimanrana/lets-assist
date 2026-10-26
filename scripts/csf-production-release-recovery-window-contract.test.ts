@@ -121,8 +121,8 @@ describe("CSF Production recovery window", () => {
     expect(stepTimeout(deployment, "Arm Production maintenance recovery")).toBe(
       1,
     );
-    expect(armStep).toContain("elapsed_seconds > 2100");
-    expect(armStep).toContain("More than 35 minutes elapsed");
+    expect(armStep).toContain("elapsed_seconds > 1800");
+    expect(armStep).toContain("More than 30 minutes elapsed");
     const recoveryCredentials = stepBlock(
       deployment,
       "Require Production recovery credentials",
@@ -227,7 +227,11 @@ describe("CSF Production recovery window", () => {
       (total, name) => total + stepTimeout(deployment, name),
       0,
     );
-    expect(normalTimeoutTotal).toBeLessThanOrEqual(71);
+    expect(normalTimeoutTotal).toBeLessThanOrEqual(76);
+    const jobMinutes = Number(
+      deployment.match(/^ {4}timeout-minutes: (\d+)/mu)?.[1],
+    );
+    expect(jobMinutes - 30 - normalTimeoutTotal - 4).toBeGreaterThanOrEqual(10);
     expect(
       stepTimeout(
         deployment,

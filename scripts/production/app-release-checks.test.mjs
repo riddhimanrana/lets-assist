@@ -595,6 +595,73 @@ test("source verification pins clean Git trees and the required CI workflow", as
   assert.equal(waived.performanceWaiver.actor, waiver.actor);
   assert.equal(waived.performanceWaiver.runId, waiver.runId);
 
+  const releaseWaiver = {
+    ...waiver,
+    confirmation: `waive-release-acceptance:${releaseSha}:${acceptedSha}`,
+    reason: "Operator explicitly waives remote CI and hosted acceptance.",
+  };
+  let permissionReads = 0;
+  const permissionFetcher = async (url) => {
+    assert.ok(url.endsWith("/collaborators/release-owner/permission"));
+    permissionReads++;
+    return Response.json({ permission: "write" });
+  };
+  const releaseWaived = await verifySource(
+    { ...config, waiver: releaseWaiver },
+    permissionFetcher,
+  );
+  assert.equal(permissionReads, 1);
+  assert.equal(releaseWaived.hostedAcceptance, "waived, not passed");
+  assert.equal(
+    releaseWaived.releaseAcceptanceWaiver.remoteCi,
+    "waived, not passed",
+  );
+  assert.equal(releaseWaived.releaseAcceptanceWaiver.actor, "release-owner");
+  assert.equal(releaseWaived.releaseAcceptanceWaiver.runId, "12345");
+  assert.equal(releaseWaived.releaseAcceptanceWaiver.releaseSha, releaseSha);
+  assert.equal(releaseWaived.releaseAcceptanceWaiver.acceptedSha, acceptedSha);
+  assert.equal(releaseWaived.performanceWaiver, null);
+  assert.equal(releaseWaived.localValidationOverride, null);
+  assert.equal(
+    "localValidation" in releaseWaived.releaseAcceptanceWaiver,
+    false,
+  );
+  for (const patch of [
+    { confirmation: releaseWaiver.confirmation + "x" },
+    { confirmation: `waive-release-acceptance:${acceptedSha}:${releaseSha}` },
+    { reason: "short" },
+    { reason: " ".repeat(30) },
+    { reason: "x".repeat(1001) },
+    { actor: "" },
+    { actor: "bad/actor" },
+    { runId: "0" },
+    { runId: "" },
+  ]) {
+    await assert.rejects(
+      verifySource(
+        { ...config, waiver: { ...releaseWaiver, ...patch } },
+        permissionFetcher,
+      ),
+      /waiver needs/u,
+    );
+  }
+  for (const permission of ["read", "triage", undefined]) {
+    await assert.rejects(
+      verifySource({ ...config, waiver: releaseWaiver }, async () =>
+        Response.json({ permission }),
+      ),
+      /write permission/u,
+    );
+  }
+  await assert.rejects(
+    verifySource(
+      { ...config, waiver: releaseWaiver, localValidation },
+      permissionFetcher,
+    ),
+    /one release waiver/u,
+  );
+  await assert.rejects(verifySource(config, permissionFetcher));
+
   for (const patch of [
     { path: ".github/workflows/untrusted.yml" },
     { head_sha: releaseSha },
@@ -611,6 +678,10 @@ test("source verification pins clean Git trees and the required CI workflow", as
   await assert.rejects(verifySource({ ...config, waiver }, waiverFetcher));
   git("update-ref", "refs/remotes/origin/development", acceptedSha);
   writeFileSync(resolve(cwd, "fixture.txt"), "fictional fixture");
+  await assert.rejects(
+    verifySource({ ...config, waiver: releaseWaiver }, permissionFetcher),
+    /not clean/u,
+  );
   await assert.rejects(verifySource(config, fetcher), /not clean/u);
   await assert.rejects(
     verifySource({ ...config, localValidation }, localFetcher),
@@ -624,6 +695,20 @@ test("source verification pins clean Git trees and the required CI workflow", as
   git("commit", "-m", "Changed application fixture");
   const changedSha = git("rev-parse", "HEAD");
   git("update-ref", "refs/remotes/origin/main", changedSha);
+  await assert.rejects(
+    verifySource(
+      {
+        ...config,
+        releaseSha: changedSha,
+        waiver: {
+          ...releaseWaiver,
+          confirmation: `waive-release-acceptance:${changedSha}:${acceptedSha}`,
+        },
+      },
+      permissionFetcher,
+    ),
+    /tree differs/u,
+  );
   await assert.rejects(
     verifySource(
       {
