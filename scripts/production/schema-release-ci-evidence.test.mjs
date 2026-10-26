@@ -88,7 +88,7 @@ test("reuses app and database evidence for only the reviewed controller paths", 
   const base = fixture({ changedTree: true });
   const git = (...args) =>
     args[0] === "diff"
-      ? ".github/workflows/deploy-schema.yml\nscripts/production/vercel-curl.sh\nscripts/production/hosted-acceptance-status-transport.test.mjs"
+      ? ".github/workflows/deploy-schema.yml\nscripts/production/vercel-curl.sh\nscripts/production/hosted-acceptance-status-transport.test.mjs\ntests/e2e/csf/platform-landing-stability.spec.ts"
       : base.git(...args);
   assert.equal(
     (await verifySchemaReleaseCi(config, { ...base, git })).run,
