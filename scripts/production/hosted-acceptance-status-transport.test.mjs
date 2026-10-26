@@ -43,8 +43,8 @@ function check(pages, record = run()) {
   gh() {
     [[ "$1" == api ]] || return 1
     if [[ "$2" == --paginate ]]; then
-      [[ "$3" == --slurp && "$4" == "repos/$GITHUB_REPOSITORY/commits/$ACCEPTED_SHA/statuses?per_page=100" && "$5" == --jq ]] || return 1
-      jq -c "$6" <<< "$STATUS_PAGES"
+      [[ "$#" == 3 && "$3" == "repos/$GITHUB_REPOSITORY/commits/$ACCEPTED_SHA/statuses?per_page=100" ]] || return 1
+      jq -c '.[]' <<< "$STATUS_PAGES"
     elif [[ "$2" == "repos/$GITHUB_REPOSITORY/actions/runs/42" ]]; then
       printf '%s' "$WORKFLOW_RUN"
     else

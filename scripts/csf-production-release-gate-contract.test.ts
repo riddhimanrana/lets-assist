@@ -1025,7 +1025,8 @@ describe("CSF Production release preflight", () => {
     expect(acceptance).toContain(
       'select(.context == "csf-hosted-development-functional")',
     );
-    expect(acceptance).toContain("gh api --paginate --slurp");
+    expect(acceptance).toContain("gh api --paginate");
+    expect(acceptance).toContain("jq -s");
     expect(acceptance).toContain(
       "commits/${ACCEPTED_SHA}/statuses?per_page=100",
     );
