@@ -80,11 +80,12 @@ jobs:
             echo "Production tree differs from the accepted Development tree." >&2
             exit 1
           fi
-          status_record="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/status" \
-            --jq '[.statuses[] | select(.context == "csf-hosted-development-functional" and .creator.login == "github-actions[bot]")] | sort_by(.created_at) | last // {}')"
+          status_record="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/statuses?per_page=100" \
+            | jq -s '[.[][] | select(.context == "csf-hosted-development-functional")] | sort_by(.id) | last // {}')"
           status_state="$(jq -r '.state // empty' <<<"${status_record}")"
+          status_creator="$(jq -r '.creator.login // empty' <<<"${status_record}")"
           status_target_url="$(jq -r '.target_url // empty' <<<"${status_record}")"
-          if [[ "${status_state}" != "success" ]]; then
+          if [[ "${status_state}" != "success" || "${status_creator}" != "github-actions[bot]" ]]; then
             echo "The latest hosted Development functional acceptance status is not successful." >&2
             exit 1
           fi
