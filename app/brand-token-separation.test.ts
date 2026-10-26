@@ -112,7 +112,7 @@ describe("the brand token carries identity, the primary token carries meaning", 
 
   test("light primary and content links retain the reference identity green", () => {
     expect(token(light, "primary")).toEqual(PRODUCTION_BRAND);
-    expect(themeBlock(":root")).toContain("--content-link: var(--primary);");
+    expect(token(light, "content-link")).toEqual(token(light, "primary"));
     const ratio = contrastRatio(PRODUCTION_BRAND, token(light, "background"));
     expect(ratio).toBeCloseTo(3.2957, 3);
   });

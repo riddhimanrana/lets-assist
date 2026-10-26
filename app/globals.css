@@ -32,7 +32,7 @@
     /* base */
     --popover-foreground: hsl(240 10% 3.9%);
     /* text */
-    --content-link: var(--primary);
+    --content-link: hsl(142.1 76.2% 36.3%);
     --primary: hsl(142.1 76.2% 36.3%);
     /* accent - green */
     --brand: hsl(142.1 76.2% 36.3%);
@@ -169,7 +169,7 @@
     /* surface0 */
     --input: hsl(234 13% 31%);
     /* surface1 */
-    --content-link: var(--primary);
+    --content-link: hsl(115 54% 76%);
     --primary: hsl(115 54% 76%);
     /* accent - Green */
     --brand: hsl(115 54% 76%);

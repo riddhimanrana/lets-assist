@@ -63,9 +63,7 @@ describe("content text links", () => {
   });
 
   test("the content-link token is declared per theme and mapped for utilities", () => {
-    expect(
-      globalsCss.match(/--content-link: var\(--primary\);/gu),
-    ).toHaveLength(2);
+    expect(declared("content-link")).toEqual(declared("primary"));
     expect(declared("primary")).toEqual(["142.1 76.2% 36.3%", "115 54% 76%"]);
     expect(globalsCss).toContain("--color-content-link: var(--content-link);");
   });
@@ -74,7 +72,7 @@ describe("content text links", () => {
   // surfaces. It says nothing about tinted or translucent surfaces, and it is
   // not a rendered measurement.
   test("content links retain the measured reference contrast in each theme", () => {
-    const links = declared("primary");
+    const links = declared("content-link");
     expect(links).toHaveLength(2);
     for (const surface of ["background", "card"]) {
       const surfaces = declared(surface);
