@@ -12202,3 +12202,19 @@ malformed schedules, authentication and prompt bounds. Client prompt bounds
 match the API and controlled server errors are displayed without being replaced
 by a generic generation failure. Production logs did not establish a separate
 provider failure. No live browser acceptance was performed while filming.
+
+## Retryable auth refresh failures, October 26, 2026
+
+`AUTH-TRANSIENT-FALSE-LOGOUT-20261026`, P2, fixed locally, release pending.
+A temporary getClaims refresh failure fell through to the unauthenticated
+redirect path. Client auth lookup errors could also clear an already resolved
+UI user. Retryable SDK failures, HTTP429 and HTTP5xx now use the proxy's private
+503 retry response, without authorizing the request from stale claims or
+clearing cookies. The client keeps prior UI state only for retryable errors;
+missing/revoked sessions and explicit SIGNED_OUT still clear immediately.
+The real SDK request fixture covers expired JWT plus refresh503, no redirect,
+no cookie deletion and no authenticated pass-through. Client hook tests cover
+retry recovery, revoked/missing sessions and explicit logout. All35 focused
+auth tests, TypeScript and affected-file ESLint passed. No provider JWT,
+inactivity or session-timebox settings changed. Hosted duration remains
+unverified; browser interaction stays paused while filming.
