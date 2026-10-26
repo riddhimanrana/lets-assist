@@ -181,16 +181,17 @@ jobs:
               fi
 
               recovery_context="production-release-recovery/${source_run_id}/${source_run_attempt}"
-              commit_statuses="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${source_sha}/status")"
+              commit_statuses="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${source_sha}/statuses?per_page=100")"
               status_record="$(jq -c \
                 --arg context "${recovery_context}" \
-                '[.statuses[] | select(.context == $context and .creator.login == "github-actions[bot]")] | sort_by(.created_at) | last // {}' \
+                '[.[][] | select(.context == $context)] | sort_by(.id) | last // {}' \
                 <<<"${commit_statuses}")"
               status_state="$(jq -r '.state // empty' <<<"${status_record}")"
+              status_creator="$(jq -r '.creator.login // empty' <<<"${status_record}")"
               status_target_url="$(jq -r '.target_url // empty' <<<"${status_record}")"
               expected_run_prefix="https://github.com/${GITHUB_REPOSITORY}/actions/runs/"
               trusted_recovery=false
-              if [[ "${status_state}" == "success" && "${status_target_url}" == "${expected_run_prefix}"* ]]; then
+              if [[ "${status_state}" == "success" && "${status_creator}" == "github-actions[bot]" && "${status_target_url}" == "${expected_run_prefix}"* ]]; then
                 recovery_run_id="${status_target_url#"${expected_run_prefix}"}"
                 if [[ "${recovery_run_id}" =~ ^[1-9][0-9]*$ ]] && \
                   recovery_run="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${recovery_run_id}" 2>/dev/null)" && \
