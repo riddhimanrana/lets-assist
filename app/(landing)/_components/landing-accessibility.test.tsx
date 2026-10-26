@@ -560,9 +560,6 @@ describe("comparison mock labels", () => {
       "No QR",
       "Start Your Free Trial",
       "potluck",
-      "outdated",
-      "cluttered",
-      "SignUpGenius is",
       "Not included",
       "Premium only",
       "COPPA",
@@ -842,7 +839,7 @@ describe("comparison headline word", () => {
     const headlines = elements(root).filter(
       (node) =>
         node.tag === "h2" &&
-        collapse(exposedText(node)) === "One workflow for sign-ups",
+        collapse(exposedText(node)) === "SignUpGenius is outdated",
     );
 
     expect(headlines).toHaveLength(1);

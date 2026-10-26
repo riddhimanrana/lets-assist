@@ -1,7 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Plus } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectsInfiniteScroll } from "@/components/projects/ProjectsInfiniteScroll";
@@ -87,26 +87,6 @@ export default async function ProjectsPage() {
           </span>
         </Link>
       </nav>
-      <aside
-        aria-label="Example project"
-        aria-roledescription="example"
-        className="mb-8 grid gap-4 rounded-2xl border border-dashed border-muted-foreground/50 p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:p-6"
-      >
-        <div className="flex size-12 items-center justify-center rounded-xl border text-muted-foreground">
-          <CalendarDays aria-hidden="true" className="size-6" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Example project · Preview only
-          </p>
-          <h2 className="mt-1 text-lg font-semibold">Park cleanup</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Your club · Saturday, 9:00–11:00 AM · Riverside Park. An organizer
-            shares open shifts; volunteers choose a spot and check in when they
-            arrive. This is a preview, not an open signup.
-          </p>
-        </div>
-      </aside>
       <div id="open-projects" className="mb-4 scroll-mt-24">
         <h2 className="text-xl font-semibold tracking-tight">
           Open public projects

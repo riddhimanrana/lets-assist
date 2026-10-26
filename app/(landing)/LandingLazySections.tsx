@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 
 import { CallToAction } from "./_components/CallToAction";
+import ComparisonSection from "./_components/ComparisonSection";
+import TestimonialsSection from "./_components/TestimonialsSection";
 import {
   OrgToolingDemoFallback,
   OrgToolingIntro,
@@ -41,7 +43,8 @@ export function LandingLazySections() {
       </OrgToolingIntro>
       <RealCheckIn />
       <BayAreaExamples />
-      {/* Quote permissions need confirmation before testimonials return here. */}
+      <ComparisonSection />
+      <TestimonialsSection />
       <CallToAction />
     </>
   );

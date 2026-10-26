@@ -35,8 +35,7 @@ import Image from "next/image";
 import { ComparisonTextFlip } from "./ComparisonTextFlip";
 import { ComparisonSources } from "./ComparisonSources";
 
-// Words that flip in the header: the steps Let's Assist keeps in one workflow.
-const flipWords = ["sign-ups", "check-ins", "verified hours", "certificates"];
+const flipWords = ["outdated", "limited", "2010s", "cluttered"];
 
 // Shown where we have not confirmed what the other provider offers. The
 // column never says a feature is missing on our word alone.
@@ -984,11 +983,11 @@ export default function ComparisonSection() {
         >
           <div className="space-y-1 sm:space-y-2">
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              One workflow for <ComparisonTextFlip words={flipWords} />
+              SignUpGenius is <ComparisonTextFlip words={flipWords} />
             </h2>
             <h2 className="text-[1.7rem] font-bold tracking-tight sm:text-3xl md:text-4xl lg:text-5xl">
               <span className="text-primary">
-                Let&apos;s Assist is built for volunteer hours.
+                Let&apos;s Assist is built for today.
               </span>
             </h2>
           </div>
