@@ -67,8 +67,10 @@ describe("landing first-response visibility", () => {
   test("reference comparison and testimonials render before the final CTA", () => {
     const html = renderToStaticMarkup(createElement(LandingLazySections));
     const text = readableText(html);
+    expect(text).not.toContain("A workspace shaped around a school chapter");
+    expect(html).not.toContain("csf-point-review-preview.png");
     expect(text).toContain("SignUpGenius is");
-    expect(text).toContain("What teachers and advisors told us");
+    expect(text).toContain("What our community is saying");
     expect(text).toContain("Who will you help today?");
     const comparison = html.indexOf('id="comparison"');
     const testimonials = html.indexOf('id="testimonials"');
@@ -77,7 +79,7 @@ describe("landing first-response visibility", () => {
     expect(testimonials).toBeGreaterThan(comparison);
     expect(cta).toBeGreaterThan(testimonials);
     expect(html).toContain(
-      'aria-label="Testimonials from teachers and advisors"',
+      'aria-label="Feedback from teachers, advisors and community groups"',
     );
     expect(html).toContain('tabindex="0"');
     expect(hiddenFirstRenderStyles(html)).toEqual([]);

@@ -222,7 +222,7 @@ describe("animated landing text", () => {
 });
 
 describe("landing testimonials", () => {
-  const label = "Testimonials from teachers and advisors";
+  const label = "Feedback from teachers, advisors and community groups";
 
   test("the quotes sit in a named region that takes keyboard focus", () => {
     const root = render(createElement(TestimonialsSection));
@@ -238,7 +238,7 @@ describe("landing testimonials", () => {
     expect(classes(region)).toContain("focus-visible:ring-2");
 
     const cards = elements(region).filter((node) => node.tag === "article");
-    expect(cards).toHaveLength(8);
+    expect(cards).toHaveLength(12);
     // 330px, or narrower on a phone so a strip of the next card shows. How
     // much shows at 320 and 390 is a browser measurement.
     for (const card of cards) {
@@ -252,7 +252,10 @@ describe("landing testimonials", () => {
       "I have heard positive remarks regarding your system.",
       "Minu Basu",
       "DV Speech & Debate Advisor",
-      "More community voices",
+      "Ava Ahuja",
+      "Stephanie Smith SooHoo",
+      "Thanks for the opportunity to pilot the platform!",
+      "Divya Jonnavittula",
     ]) {
       expect(text).toContain(copy);
     }
@@ -1174,7 +1177,7 @@ describe("server-rendered static sections", () => {
       elements(root).filter(
         (node) =>
           node.tag === "h2" &&
-          collapse(allText(node)) === "What teachers and advisors told us",
+          collapse(allText(node)) === "What our community is saying",
       ),
     ).toHaveLength(1);
     expect(text).toContain("Jill Nonn");

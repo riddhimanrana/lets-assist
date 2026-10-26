@@ -10,9 +10,6 @@ import {
   OrgToolingIntro,
 } from "./_components/OrgToolingIntro";
 
-// These sections render their copy in the first response. The partner list no
-// longer depends on a client-only tooltip store.
-const BayAreaExamples = dynamic(() => import("./_components/BayAreaExamples"));
 const VolunteerJourneySection = dynamic(
   () => import("./_components/VolunteerJourneySection"),
 );
@@ -42,7 +39,6 @@ export function LandingLazySections() {
         <OrgToolingDemo />
       </OrgToolingIntro>
       <RealCheckIn />
-      <BayAreaExamples />
       <ComparisonSection />
       <TestimonialsSection />
       <CallToAction />
