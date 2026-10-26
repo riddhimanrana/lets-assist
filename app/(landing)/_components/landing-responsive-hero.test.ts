@@ -10,10 +10,12 @@ const scribbleSource = readComponent("Scribble.tsx");
 
 describe("landing hero", () => {
   test("uses phone-specific heading and supporting-copy rhythm", () => {
-    expect(heroSource).toContain("text-[2.6rem]");
+    expect(heroSource).toContain("text-[2.25rem]");
     expect(heroSource).toContain("sm:leading-[0.98]");
-    expect(heroSource).toContain("text-[0.95rem] leading-6.5");
+    expect(heroSource).toContain("text-sm leading-6");
     expect(heroSource).toContain("sm:leading-8");
+    expect(heroSource).toContain("pt-6 sm:px-6 sm:pt-10");
+    expect(heroSource).toContain('className="mt-7 sm:mt-10"');
   });
 
   test("leads organizers to project creation and keeps volunteering discoverable", () => {
@@ -25,6 +27,11 @@ describe("landing hero", () => {
     );
     expect(heroSource).toContain("Browse upcoming projects");
     expect(heroSource).not.toContain("Find volunteering near me");
+  });
+
+  test("uses the shared primary button color for getting started", () => {
+    expect(heroSource).toContain('<MotionLinkButton href="/signup">');
+    expect(heroSource).not.toContain("bg-black text-white");
   });
 
   test("sets handwritten notes in the handwriting font", () => {
