@@ -12,7 +12,8 @@ describe("member role badge", () => {
     const html = badge("admin");
     expect(html).toContain("Admin");
     expect(html).toContain("bg-(--badge-primary)");
-    expect(html).toContain("text-foreground dark:text-primary-foreground");
+    expect(html).toContain("text-(--badge-primary-foreground)");
+    expect(html).not.toContain("text-foreground");
     expect(html).not.toContain("bg-secondary");
     expect(html).not.toContain("bg-info");
   });

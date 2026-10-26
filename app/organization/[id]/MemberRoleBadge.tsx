@@ -12,10 +12,7 @@ export function MemberRoleBadge({ role }: { role: string }) {
   switch (role) {
     case "admin":
       return (
-        <Badge
-          variant="default"
-          className="text-foreground dark:text-primary-foreground"
-        >
+        <Badge variant="default">
           <Shield aria-hidden="true" />
           Admin
         </Badge>
