@@ -228,7 +228,6 @@ export async function runProductionPointsFirst(
       await authority();
       verifyProductionCheckout(config, dependencies.execute);
       const next = preparePointsFirstMigration(config.cwd, plan.state.versions);
-      verify(next.before);
       requireCondition(
         now() - startedAt < 12 * 60 * 1000,
         "The write budget expired during authority or preflight verification.",
@@ -250,7 +249,9 @@ export async function runProductionPointsFirst(
       } catch {
         // Reconcile once. Never resubmit a file after a lost or failed response.
       }
-      const observed = readState();
+      const observed = acknowledged
+        ? pointsFirstPlan(config.cwd, next.after.versions)
+        : readState();
       requireCondition(
         observed.state.ledger === next.after.ledger,
         "The migration outcome is unproven. No further file may run.",

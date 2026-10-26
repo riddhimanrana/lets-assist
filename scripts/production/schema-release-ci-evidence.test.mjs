@@ -111,7 +111,7 @@ test("reuses app and database evidence for only the reviewed controller paths", 
   }
 });
 
-test("only the exact three rollout budget constants may differ from accepted source", async () => {
+test("only exact rollout budget and duplicate-read transformations may differ from accepted source", async () => {
   const path = "scripts/production/points-first-rollout.mjs";
   const after = readFileSync(
     new URL("./points-first-rollout.mjs", import.meta.url),
@@ -122,7 +122,15 @@ test("only the exact three rollout budget constants may differ from accepted sou
       "now() - startedAt < 12 * 60 * 1000,",
       "now() - startedAt < 8 * 60 * 1000,",
     )
-    .replace('(mode === "plan" ? 2 : 16)', '(mode === "plan" ? 2 : 12)');
+    .replace('(mode === "plan" ? 2 : 16)', '(mode === "plan" ? 2 : 12)')
+    .replace(
+      "      const next = preparePointsFirstMigration(config.cwd, plan.state.versions);\n",
+      "      const next = preparePointsFirstMigration(config.cwd, plan.state.versions);\n      verify(next.before);\n",
+    )
+    .replace(
+      "      const observed = acknowledged\n        ? pointsFirstPlan(config.cwd, next.after.versions)\n        : readState();",
+      "      const observed = readState();",
+    );
   const base = fixture({ changedTree: true });
   const check = (prior, next) =>
     verifySchemaReleaseCi(config, {
@@ -143,6 +151,11 @@ test("only the exact three rollout budget constants may differ from accepted sou
       "verifyProductionCheckout(otherConfig",
     ),
     after.replace("const deadline", "const unexpectedDeadline"),
+    after.replace("      verify(observed.state);\n", ""),
+    after.replace(
+      "        : readState();",
+      "        : pointsFirstPlan(config.cwd, next.after.versions);",
+    ),
     after.replace("< 12 * 60", "< 13 * 60"),
     after.replace("? 2 : 16", "? 3 : 16"),
   ]) {

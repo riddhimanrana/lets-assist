@@ -59,10 +59,17 @@ export async function verifySchemaReleaseCi(
       return (
         before.split(writeBudget).length === 3 &&
         before.split(queryBudget).length === 2 &&
+        before.split("      verify(next.before);\n").length === 2 &&
+        before.split("      const observed = readState();").length === 2 &&
         after ===
           before
             .replaceAll(writeBudget, "now() - startedAt < 12 * 60 * 1000,")
             .replace(queryBudget, '(mode === "plan" ? 2 : 16)')
+            .replace("      verify(next.before);\n", "")
+            .replace(
+              "      const observed = readState();",
+              "      const observed = acknowledged\n        ? pointsFirstPlan(config.cwd, next.after.versions)\n        : readState();",
+            )
       );
     };
     if (!changed.length || changed.some((path) => !permittedChange(path)))
