@@ -301,9 +301,9 @@ status. They do not create another deployment.
 
 The Production pull request must still use a merge commit. Its merge creates no
 Vercel deployment. The protected workflow verifies the accepted Development
-ancestry and tree, confirms the Vercel project and Production Branch, pulls
-Production settings, and builds the exact application bytes on the GitHub
-runner. Before it pushes the schema, the workflow stages the exact prebuilt
+ancestry and tree, confirms the Vercel project and Production Branch, stages one exact-SHA build on Vercel using its stored Production environment,
+and waits for that deployment to become ready. Write-only secrets stay on Vercel.
+The static maintenance artifact still uses a prebuilt CLI deployment. Before it pushes the schema, the workflow stages the exact prebuilt
 application without moving domains, proves its embedded SHA, blocks application
 writes, promotes the verified maintenance deployment, and verifies the
 Production alias. It then applies and verifies the database migrations and

@@ -127,8 +127,8 @@ describe("CSF Production release preflight", () => {
         source: deploymentWorkflow,
         counts: {
           "actions/checkout": 4,
-          "oven-sh/setup-bun": 3,
-          "supabase/setup-cli": 2,
+          "oven-sh/setup-bun": 2,
+          "supabase/setup-cli": 1,
         },
       },
       {
@@ -180,12 +180,18 @@ describe("CSF Production release preflight", () => {
     );
   });
 
-  test("the confirmed Production workflow calls the exact reusable CI gates", () => {
+  test("the confirmed Production workflow verifies successful full CI evidence", () => {
     const preflight = jobBlock(deploymentWorkflow, "csf-release-gates");
 
     expect(ciWorkflow).toContain("  workflow_call:");
-    expect(preflight).toContain("uses: ./.github/workflows/ci.yml");
-    expect(preflight).toContain("secrets: inherit");
+    expect(preflight).toContain(
+      "scripts/production/schema-release-ci-evidence.mjs",
+    );
+    expect(preflight).not.toContain("uses: ./.github/workflows/ci.yml");
+    expect(deploymentWorkflow).not.toContain("test-local-reset");
+    expect(ciWorkflow).toContain(
+      'supabase db advisors --local --output-format json --fail-on warn --workdir "${CSF_ISOLATED_WORK_DIR}"',
+    );
   });
 
   test("deployment requires the reusable gate and retains action-time confirmation", () => {
@@ -230,7 +236,9 @@ describe("CSF Production release preflight", () => {
 
   test("builds once and keeps Production write-blocked through final alias proof", () => {
     const deployment = jobBlock(deploymentWorkflow, "deploy-to-production");
-    const prebuild = deployment.indexOf("vercel@59.3.0 build --prod");
+    const prebuild = deployment.indexOf(
+      "node scripts/production/app-release-stage.mjs create",
+    );
     const maintenanceDeploy = occurrenceIndex(
       deployment,
       "vercel@59.3.0 deploy \\",
@@ -258,10 +266,8 @@ describe("CSF Production release preflight", () => {
     const postPushFullPreflight = deployment.indexOf(
       "scripts/production/maintenance-preflight.mjs target",
     );
-    const stagedDeploy = occurrenceIndex(
-      deployment,
-      "vercel@59.3.0 deploy \\",
-      2,
+    const stagedDeploy = deployment.indexOf(
+      "node scripts/production/app-release-stage.mjs wait",
     );
     const stagedIdentity = deployment.indexOf(
       "vercel@59.3.0 curl '/api/status?deep=0'",
@@ -308,8 +314,11 @@ describe("CSF Production release preflight", () => {
       expect(index).toBeGreaterThanOrEqual(0);
     }
     expect(prebuild).toBeLessThan(maintenanceDeploy);
-    expect(maintenanceDeploy).toBeLessThan(stagedDeploy);
+    expect(stagedDeploy).toBeLessThan(maintenanceDeploy);
     expect(stagedDeploy).toBeLessThan(stagedIdentity);
+    expect(
+      stepBlock(deployment, "Retain staged build identity before waiting"),
+    ).toContain("include-hidden-files: true");
     expect(stagedIdentity).toBeLessThan(recoveryManifest);
     expect(recoveryManifest).toBeLessThan(enableWriteBlock);
     expect(enableWriteBlock).toBeLessThan(maintenancePromote);
@@ -324,15 +333,17 @@ describe("CSF Production release preflight", () => {
     expect(aliasVerification).toBeLessThan(publicReleasePostcondition);
     expect(publicReleasePostcondition).toBeLessThan(disableWriteBlock);
     expect(
-      deployment.match(/vercel@59\.3\.0 build --prod/gu) ?? [],
+      deployment.match(/app-release-stage\.mjs create/gu) ?? [],
     ).toHaveLength(1);
     expect(deployment).toContain("timeout-minutes: 120");
-    expect(deployment).toContain("--standalone");
+    expect(deployment).not.toContain("vercel@59.3.0 build --prod");
     expect(deployment).toContain("--prebuilt");
     expect(deployment).toContain("--skip-domain");
     expect(deployment).toContain("--timeout=10m");
-    expect(deployment).toContain("VERCEL_ENV: production");
-    expect(deployment).toContain("VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}");
+    expect(deployment).toContain("RELEASE_SHA: ${{ github.sha }}");
+    expect(deployment).toContain(
+      "STAGED_DEPLOYMENT_ID: ${{ steps.deploy-application.outputs.deployment_id }}",
+    );
     expect(nextConfig).toContain("LETS_ASSIST_BUILD_SHA: requestedBuildSha");
     expect(nextConfig).toContain("/^[0-9a-f]{40}$/u.test(requestedBuildSha)");
     expect(
@@ -764,7 +775,9 @@ describe("CSF Production release preflight", () => {
     const receiptCheck = deployment.indexOf(
       "Require Production quiescence receipts",
     );
-    const build = deployment.indexOf("vercel@59.3.0 build --prod");
+    const build = deployment.indexOf(
+      "node scripts/production/app-release-stage.mjs create",
+    );
     const stagedIdentity = deployment.indexOf(
       "Prove staged Production application identity",
     );
