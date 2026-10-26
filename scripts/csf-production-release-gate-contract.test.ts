@@ -270,12 +270,14 @@ describe("CSF Production release preflight", () => {
       "node scripts/production/app-release-stage.mjs wait",
     );
     const stagedIdentity = deployment.indexOf(
-      "vercel@59.3.0 curl '/api/status?deep=0'",
+      "bash scripts/production/vercel-curl.sh '/api/status?deep=0'",
     );
     const recoveryManifest = deployment.indexOf(
       "production-release-recovery.json",
     );
-    const smoke = deployment.indexOf("vercel@59.3.0 curl '/api/status?deep=1'");
+    const smoke = deployment.indexOf(
+      "bash scripts/production/vercel-curl.sh '/api/status?deep=1'",
+    );
     const promote = occurrenceIndex(deployment, "vercel@59.3.0 promote", 2);
     const promotionFence = deployment.indexOf(
       "Verify application promotion reached a terminal state",
@@ -1033,8 +1035,12 @@ describe("CSF Production release preflight", () => {
     expect(deploymentWorkflow).toContain("hosted_development_sha:");
     expect(deploymentWorkflow).toContain("actions: read");
     expect(acceptance).toContain("git merge-base --is-ancestor");
-    expect(acceptance).toContain('git rev-parse "${ACCEPTED_SHA}^{tree}"');
-    expect(acceptance).toContain("git rev-parse 'HEAD^{tree}'");
+    expect(acceptance).toContain(
+      "schema-release-ci-evidence.mjs --source-only",
+    );
+    expect(acceptance).toContain(
+      "schema-release-ci-evidence.mjs --source-only",
+    );
     expect(acceptance).toContain(
       'select(.context == "csf-hosted-development-functional")',
     );

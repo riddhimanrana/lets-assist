@@ -77,6 +77,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+
       - name: Require accepted Development tree and status
         env:
           ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
@@ -89,10 +94,7 @@ jobs:
           fi
           git fetch --no-tags origin "${ACCEPTED_SHA}"
           git merge-base --is-ancestor "${ACCEPTED_SHA}" HEAD
-          if [[ "$(git rev-parse "${ACCEPTED_SHA}^{tree}")" != "$(git rev-parse 'HEAD^{tree}')" ]]; then
-            echo "Production tree differs from the accepted Development tree." >&2
-            exit 1
-          fi
+          node scripts/production/schema-release-ci-evidence.mjs --source-only
           status_record="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/statuses?per_page=100" \
             | jq -s '[.[][] | select(.context == "csf-hosted-development-functional")] | sort_by(.id) | last // {}')"
           status_state="$(jq -r '.state // empty' <<<"${status_record}")"
@@ -675,11 +677,10 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          maintenance_marker="$(bunx vercel@59.3.0 curl '/maintenance-health.txt' \
+          maintenance_marker="$(bash scripts/production/vercel-curl.sh '/maintenance-health.txt' \
             --deployment="${DEPLOYMENT_URL}" \
             --protection-bypass="${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             --yes \
-            --token="${VERCEL_TOKEN}" \
             -- \
             --connect-timeout 10 \
             --max-time 30)"
@@ -695,11 +696,10 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          status_payload="$(bunx vercel@59.3.0 curl '/api/status?deep=0' \
+          status_payload="$(bash scripts/production/vercel-curl.sh '/api/status?deep=0' \
             --deployment="${DEPLOYMENT_URL}" \
             --protection-bypass="${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             --yes \
-            --token="${VERCEL_TOKEN}" \
             -- \
             --connect-timeout 10 \
             --max-time 30)"
@@ -947,11 +947,10 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
-          status_payload="$(bunx vercel@59.3.0 curl '/api/status?deep=1' \
+          status_payload="$(bash scripts/production/vercel-curl.sh '/api/status?deep=1' \
             --deployment="${DEPLOYMENT_URL}" \
             --protection-bypass="${VERCEL_AUTOMATION_BYPASS_SECRET}" \
             --yes \
-            --token="${VERCEL_TOKEN}" \
             -- \
             --connect-timeout 10 \
             --max-time 30)"
