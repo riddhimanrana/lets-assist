@@ -87,8 +87,44 @@ test("prepare records ownership only for the exact managed-backup open guarded l
   assert.doesNotMatch(JSON.stringify(receipt), /synthetic/u);
 });
 
-test("preexisting blocks, invalid hooks and elapsed preparation windows never acquire ownership", async () => {
-  for (const patch of [{ open: false, blocked: true }, { fence: false }]) {
+test("prepare preserves inherited blocks without acquiring restoration ownership", async () => {
+  const { env, state, dependencies } = fixture();
+  state.open = false;
+  state.blocked = true;
+  const receipt = await managedWriteBlockState("prepare", env, dependencies);
+  assert.equal(receipt.phase, "inherited-blocked-state");
+  assert.equal(state.authorityReads, 1);
+  assert.equal(state.records.length, 1);
+  assert.equal(receipt.source, source);
+  assert.equal(receipt.run, env.GITHUB_RUN_ID);
+  dependencies.receipt = receipt;
+  for (const mode of ["can-restore", "restored"]) {
+    await assert.rejects(managedWriteBlockState(mode, env, dependencies));
+  }
+  assert.equal(state.records.length, 1);
+  assert.deepEqual(state.probes, []);
+});
+
+test("inherited blocks require protected authority before a receipt can be recorded", async () => {
+  const { env, state, dependencies } = fixture();
+  state.open = false;
+  state.blocked = true;
+  dependencies.authority = async () => {
+    throw new Error("prior recovery gate is unproven");
+  };
+  await assert.rejects(managedWriteBlockState("prepare", env, dependencies));
+  assert.equal(state.records.length, 0);
+});
+
+test("ambiguous blocks, invalid hooks and elapsed preparation windows never acquire ownership", async () => {
+  for (const patch of [
+    { open: true, blocked: true },
+    { open: false, blocked: false },
+    { open: null, blocked: true },
+    { open: false, blocked: null },
+    { open: true, blocked: undefined },
+    { fence: false },
+  ]) {
     const { env, state, dependencies } = fixture();
     Object.assign(state, patch);
     await assert.rejects(managedWriteBlockState("prepare", env, dependencies));

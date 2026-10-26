@@ -12144,3 +12144,14 @@ reader's later write intent cannot be inferred from its current lock request.
 All 30 focused tests pass, including a disposable PostgreSQL concurrency test
 with blocked readers and writers. Hosted deployment and release verification
 remain pending.
+
+`PRODUCTION-INHERITED-WRITE-BLOCK-20261026`, P2, fixed locally: managed-backup
+preparation required an open application even after trusted recovery had left
+Production guarded on maintenance. Preparation now records an exact blocked
+state as inherited after checking protected run authority, the prior-recovery
+gate and the reviewed ledger. Inherited state never grants reset ownership;
+both restoration modes reject its receipt before any write-opening command.
+Ambiguous or missing flags remain refused. Failure before a new recovery
+manifest still requires reconciliation and keeps writes blocked. Focused tests
+cover authority refusal, inherited restoration refusal and ambiguous flags.
+Hosted release verification remains pending.
