@@ -29,9 +29,6 @@ export default function BayAreaExamples() {
               beside the wider volunteering platform. Officers review claims
               before points are awarded.
             </p>
-            <p className="mt-4 text-xs leading-5 text-muted-foreground">
-              Fictional records in this chapter preview.
-            </p>
             <Link
               href="/organization"
               className="mt-6 flex w-fit items-center gap-2 text-sm font-semibold text-green-700 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary dark:text-primary"

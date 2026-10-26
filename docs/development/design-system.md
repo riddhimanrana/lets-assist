@@ -52,8 +52,11 @@ Never hand-tint a badge with palette classes such as `bg-emerald-500/10`. If a s
 Organization roles retain the approved reference colors: Admin uses the green
 `default` label, Staff uses the blue `info` tint, and Member stays `outline`.
 Their shared `MemberRoleBadge` owns this presentation across the directory,
-header, and members table. Semantic foregrounds keep text and icons readable
-in both themes.
+header, and members table. Filled green badges use a dedicated dark green fill,
+white text, and a measured gloss in both themes. Light primary fills use the
+original #16a34a; primary text and focus indicators retain the darker content
+tone. The dark palette stays unchanged outside the filled badge. Front-page
+headlines may use the brighter primary at large-text sizes.
 
 ## Fields
 

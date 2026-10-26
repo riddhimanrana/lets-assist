@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 
 const orgFeatures = [
@@ -44,14 +43,6 @@ export function OrgToolingIntro({ children }: { children: ReactNode }) {
           </p>
         </div>
 
-        <div className="mx-auto mt-10 max-w-2xl text-center">
-          <Badge
-            variant="outline"
-            className="border-primary/40 bg-primary/10 text-primary"
-          >
-            Fictional organization demo
-          </Badge>
-        </div>
         {children}
 
         <div className="mt-12 grid gap-x-8 border-y sm:grid-cols-2 lg:grid-cols-4">

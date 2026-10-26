@@ -3,16 +3,9 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
- * `--brand` holds the historical Production identity green, `#16a34a`.
- * `--primary` is a darker step of the same hue, because the identity green is
- * below AA as small text and under a white label. They are separate tokens so
- * decorative organization washes keep the identity and never become
- * interactive surfaces by accident.
- *
- * `--brand` splits those two jobs apart. This file is the contract for that
- * split, and it has to be a source test rather than a browser test: the failure
- * mode is someone reaching for the nearest green token, which renders fine and
- * only shows up as drift against Production.
+ * Primary fills and decorative washes use the historical identity green.
+ * Text and focus indicators retain the darker content tone. Generated CSS
+ * coverage verifies that text-primary resolves to that readable tone.
  */
 
 const appDir = import.meta.dir;
@@ -117,12 +110,14 @@ describe("the brand token carries identity, the primary token carries meaning", 
     expect(token(light, "brand")).toEqual(PRODUCTION_BRAND);
   });
 
-  test("light --primary is an accessible step, not the identity green", () => {
+  test("light fills use identity green while content text stays readable", () => {
     const white = token(light, "background");
-    const primary = token(light, "primary");
+    expect(token(light, "primary")).toEqual(PRODUCTION_BRAND);
+    const primary = token(light, "content-link");
     expect(primary).not.toEqual(PRODUCTION_BRAND);
     // The reason for the split: the identity green cannot carry small text.
     expect(contrastRatio(PRODUCTION_BRAND, white)).toBeLessThan(AA_NORMAL_TEXT);
+    expect(contrastRatio(PRODUCTION_BRAND, white)).toBeGreaterThanOrEqual(3);
     const ratio = contrastRatio(primary, white);
     expect(
       ratio,
@@ -134,8 +129,8 @@ describe("the brand token carries identity, the primary token carries meaning", 
     expect(primary.g).toBeLessThan(PRODUCTION_BRAND.g);
   });
 
-  test("the focus ring tracks --primary", () => {
-    expect(token(light, "ring")).toEqual(token(light, "primary"));
+  test("the focus ring keeps the content tone", () => {
+    expect(token(light, "ring")).toEqual(token(light, "content-link"));
   });
 
   test("dark --brand is pinned to dark --primary so dark mode is unchanged", () => {
@@ -262,6 +257,6 @@ describe("the brand washes follow their scoped token contracts", () => {
     const brandWash = tint(token(light, "brand"), background, 0.15);
     const primaryWash = tint(token(light, "primary"), background, 0.15);
     expect(brandWash).toEqual(tint(PRODUCTION_BRAND, background, 0.15));
-    expect(brandWash).not.toEqual(primaryWash);
+    expect(brandWash).toEqual(primaryWash);
   });
 });

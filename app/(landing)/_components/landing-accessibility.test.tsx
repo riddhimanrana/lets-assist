@@ -1042,14 +1042,14 @@ describe("hero first render", () => {
     const copy = all.filter(
       (node) =>
         node.tag === "p" &&
-        collapse(allText(node)).startsWith("Plan shifts and signups"),
+        collapse(allText(node)).startsWith("One link for public signups"),
     );
     expect(copy).toHaveLength(1);
     expect(hiddenFirstRenderAncestors(copy[0])).toEqual([]);
 
     for (const [name, href] of [
-      ["Create a project", "/signup?redirect=%2Fprojects%2Fcreate"],
-      ["See how it works", "#org-tooling"],
+      ["Get started", "/signup"],
+      ["Contact us", "/contact"],
     ]) {
       const links = all.filter(
         (node) => node.tag === "a" && collapse(exposedText(node)) === name,
@@ -1158,10 +1158,9 @@ describe("server-rendered static sections", () => {
 
     expect(second).toBe(first);
     for (const copy of [
-      "From the waiver to the last check-in",
+      "From signup to check-in",
       "Waivers at signup",
-      "QR attendance on site",
-      "Product settings shown with a fictional waiver.",
+      "Scan. Check in. Done.",
       "Frames from the Let's Assist check-in demo.",
     ]) {
       expect(text).toContain(copy);

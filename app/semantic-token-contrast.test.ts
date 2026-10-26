@@ -80,9 +80,9 @@ function readTokens(block: string) {
 }
 
 /** The colour stops of the filled-control sheen, strongest and weakest. */
-function readGloss(block: string): GlossStop[] {
-  const start = block.indexOf("--button-primary-gloss:");
-  expect(start, "missing --button-primary-gloss").toBeGreaterThan(-1);
+function readGloss(block: string, name = "button-primary-gloss"): GlossStop[] {
+  const start = block.indexOf(`--${name}:`);
+  expect(start, `missing --${name}`).toBeGreaterThan(-1);
   const declaration = block.slice(start, block.indexOf(";", start));
   return [...declaration.matchAll(GLOSS_STOP)].map((match) => ({
     color: { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) },
@@ -263,6 +263,37 @@ describe("filled control labels at their worst enabled state", () => {
   });
 });
 
+describe("filled green badge labels", () => {
+  test("the primitive uses the badge fill, white label and measured gloss", () => {
+    const source = uiSource("badge.tsx");
+    expect(source).toContain("bg-(--badge-primary)");
+    expect(source).toContain("text-(--badge-primary-foreground)");
+    expect(source).toContain("bg-[image:var(--badge-primary-gloss)]");
+  });
+
+  for (const theme of themes) {
+    test(`${theme.name}: white text remains legible under gloss and hover`, () => {
+      const label = token(theme.tokens, "badge-primary-foreground");
+      expect(label).toEqual({ r: 255, g: 255, b: 255 });
+      const gloss = readGloss(
+        themeBlock(theme.name === "light" ? ":root" : ".dark"),
+        "badge-primary-gloss",
+      );
+      expect(gloss.length).toBeGreaterThanOrEqual(2);
+      const worst = worstFilledLabel(
+        token(theme.tokens, "badge-primary"),
+        label,
+        gloss,
+        brightnessFactors,
+      );
+      expect(
+        worst.ratio,
+        `${worst.ratio.toFixed(2)}:1 with ${worst.state}`,
+      ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    });
+  }
+});
+
 describe("semantic text on plain and tinted surfaces", () => {
   test("the primitives declare the tints this file measures", () => {
     // Light statuses rest at 10% and hover at 20%. Dark alerts sit at 15%.
@@ -283,7 +314,7 @@ describe("semantic text on plain and tinted surfaces", () => {
       test(`${theme.name}: ${name} text on the plain surfaces`, () => {
         for (const surfaceName of SURFACES) {
           const ratio = contrastRatio(
-            token(theme.tokens, name),
+            token(theme.tokens, name === "primary" ? "content-link" : name),
             token(theme.tokens, surfaceName),
           );
           expect(
@@ -294,10 +325,17 @@ describe("semantic text on plain and tinted surfaces", () => {
       });
 
       test(`${theme.name}: ${name} text on its own tint at rest and on hover`, () => {
-        const text = token(theme.tokens, name);
+        const text = token(
+          theme.tokens,
+          name === "primary" ? "content-link" : name,
+        );
         for (const surfaceName of SURFACES) {
           for (const alpha of tintAlphas(tintedPrimitives, name, theme.name)) {
-            const surface = over(text, token(theme.tokens, surfaceName), alpha);
+            const surface = over(
+              token(theme.tokens, name),
+              token(theme.tokens, surfaceName),
+              alpha,
+            );
             const ratio = contrastRatio(text, surface);
             expect(
               ratio,
@@ -444,10 +482,10 @@ describe("the semantic step leaves the identity alone", () => {
 
   test("light --brand keeps the identity green and is not the text token", () => {
     expect(token(light, "brand")).toEqual({ r: 22, g: 163, b: 74 });
-    expect(token(light, "primary")).not.toEqual(token(light, "brand"));
+    expect(token(light, "content-link")).not.toEqual(token(light, "brand"));
   });
 
-  test("the focus ring follows --primary", () => {
-    expect(token(light, "ring")).toEqual(token(light, "primary"));
+  test("the focus ring keeps the content tone", () => {
+    expect(token(light, "ring")).toEqual(token(light, "content-link"));
   });
 });
