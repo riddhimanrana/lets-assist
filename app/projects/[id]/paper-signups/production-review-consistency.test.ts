@@ -124,7 +124,7 @@ describe("production review consistency boundaries", () => {
     );
   });
 
-  test("paper signup notification outbox has a hosted scheduler", async () => {
+  test("paper signup outbox retains its manual fallback", async () => {
     const workflow = await read(
       "../../../../.github/workflows/paper-signup-notifications.yml",
     );
@@ -140,12 +140,7 @@ describe("production review consistency boundaries", () => {
       vercel.crons.filter(
         (cron) => cron.path === "/api/cron/paper-signup-notifications",
       ),
-    ).toEqual([
-      {
-        path: "/api/cron/paper-signup-notifications",
-        schedule: "3,13,23,33,43,53 * * * *",
-      },
-    ]);
+    ).toEqual([]);
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).not.toMatch(/^\s+schedule:/m);
     expect(workflow).toContain(

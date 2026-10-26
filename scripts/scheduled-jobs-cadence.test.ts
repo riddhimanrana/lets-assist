@@ -42,7 +42,7 @@ const crons = (
 
 describe("scheduled Production jobs", () => {
   test("retains exactly the five previously enabled Production schedules", () => {
-    expect(crons).toEqual(PRODUCTION_SCHEDULES);
+    expect(crons).toEqual([...PRODUCTION_SCHEDULES]);
   });
 
   for (const job of MANUAL_ONLY) {
