@@ -11,6 +11,14 @@ on:
         description: "Exact Development SHA with a successful hosted CSF acceptance status"
         required: true
         type: string
+      hosted_acceptance_waiver:
+        description: "Optional: type waive-release-acceptance:<exact main SHA>:<accepted Development SHA> to waive remote CI and hosted acceptance"
+        required: false
+        type: string
+      hosted_acceptance_waiver_reason:
+        description: "Required with a waiver: operator reason, 20 to 1000 characters"
+        required: false
+        type: string
       external_writers_confirmation:
         description: "Type external-writers-stopped:<exact main SHA> after stopping every external writer, including Vercel Cron Jobs"
         required: true
@@ -66,7 +74,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
-        run: node scripts/production/schema-release-ci-evidence.mjs
+          HOSTED_ACCEPTANCE_WAIVER: ${{ inputs.hosted_acceptance_waiver }}
+          HOSTED_ACCEPTANCE_WAIVER_REASON: ${{ inputs.hosted_acceptance_waiver_reason }}
+        run: |
+          set -euo pipefail
+          node scripts/production/schema-release-ci-evidence.mjs --source-only
+          if [[ -n "${HOSTED_ACCEPTANCE_WAIVER:-}" || -n "${HOSTED_ACCEPTANCE_WAIVER_REASON:-}" ]]; then
+            expected_waiver="waive-release-acceptance:${GITHUB_SHA}:${ACCEPTED_SHA}"
+            if [[ "${HOSTED_ACCEPTANCE_WAIVER:-}" != "${expected_waiver}" || ${#HOSTED_ACCEPTANCE_WAIVER_REASON} -lt 20 || ${#HOSTED_ACCEPTANCE_WAIVER_REASON} -gt 1000 ]]; then
+              echo "Hosted acceptance waiver requires the exact source binding and a reason of 20 to 1000 characters." >&2
+              exit 1
+            fi
+            {
+              printf '%s\n' '### Remote CI and hosted acceptance: waived, not passed'
+              jq -n --arg actor "${GITHUB_ACTOR}" --arg run "${GITHUB_RUN_ID}" \
+                --arg source "${GITHUB_SHA}" --arg accepted "${ACCEPTED_SHA}" \
+                --arg reason "${HOSTED_ACCEPTANCE_WAIVER_REASON}" \
+                '{actor:$actor,run:$run,source:$source,acceptedDevelopment:$accepted,reason:$reason}'
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          node scripts/production/schema-release-ci-evidence.mjs
 
   hosted-development-acceptance:
     name: Hosted Development acceptance
@@ -85,6 +113,8 @@ jobs:
       - name: Require accepted Development tree and status
         env:
           ACCEPTED_SHA: ${{ inputs.hosted_development_sha }}
+          HOSTED_ACCEPTANCE_WAIVER: ${{ inputs.hosted_acceptance_waiver }}
+          HOSTED_ACCEPTANCE_WAIVER_REASON: ${{ inputs.hosted_acceptance_waiver_reason }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -95,6 +125,21 @@ jobs:
           git fetch --no-tags origin "${ACCEPTED_SHA}"
           git merge-base --is-ancestor "${ACCEPTED_SHA}" HEAD
           node scripts/production/schema-release-ci-evidence.mjs --source-only
+          if [[ -n "${HOSTED_ACCEPTANCE_WAIVER:-}" || -n "${HOSTED_ACCEPTANCE_WAIVER_REASON:-}" ]]; then
+            expected_waiver="waive-release-acceptance:${GITHUB_SHA}:${ACCEPTED_SHA}"
+            if [[ "${HOSTED_ACCEPTANCE_WAIVER:-}" != "${expected_waiver}" || ${#HOSTED_ACCEPTANCE_WAIVER_REASON} -lt 20 || ${#HOSTED_ACCEPTANCE_WAIVER_REASON} -gt 1000 ]]; then
+              echo "Hosted acceptance waiver requires the exact source binding and a reason of 20 to 1000 characters." >&2
+              exit 1
+            fi
+            {
+              printf '%s\n' '### Remote CI and hosted acceptance: waived, not passed'
+              jq -n --arg actor "${GITHUB_ACTOR}" --arg run "${GITHUB_RUN_ID}" \
+                --arg source "${GITHUB_SHA}" --arg accepted "${ACCEPTED_SHA}" \
+                --arg reason "${HOSTED_ACCEPTANCE_WAIVER_REASON}" \
+                '{actor:$actor,run:$run,source:$source,acceptedDevelopment:$accepted,reason:$reason}'
+            } >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
           status_record="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/commits/${ACCEPTED_SHA}/statuses?per_page=100" \
             | jq -s '[.[][] | select(.context == "csf-hosted-development-functional")] | sort_by(.id) | last // {}')"
           status_state="$(jq -r '.state // empty' <<<"${status_record}")"

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 const workflow = readFileSync(
@@ -138,4 +140,132 @@ test("the original exact successful workflow/source/repository provenance checks
     check([[status()]], run({ event: "workflow_dispatch" })).status,
     0,
   );
+});
+
+test("explicit hosted waiver binds both sources and records an honest audit summary", () => {
+  const waiverStart = workflow.lastIndexOf(
+    '          if [[ -n "${HOSTED_ACCEPTANCE_WAIVER:-}"',
+  );
+  assert.ok(
+    waiverStart >
+      workflow.indexOf("schema-release-ci-evidence.mjs --source-only"),
+  );
+  const waiverBody = workflow
+    .slice(waiverStart, start)
+    .replace(/^ {10}/gmu, "");
+  const root = mkdtempSync(join(tmpdir(), "hosted-waiver-"));
+  const summary = join(root, "summary");
+  const release = "b".repeat(40);
+  const token = `waive-release-acceptance:${release}:${sha}`;
+  const reason = "Operator explicitly accepts the hosted test risk.";
+  const execute = (waiver, explanation) =>
+    spawnSync("bash", ["-c", `set -euo pipefail\n${waiverBody}\nexit 9`], {
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH,
+        HOSTED_ACCEPTANCE_WAIVER: waiver,
+        HOSTED_ACCEPTANCE_WAIVER_REASON: explanation,
+        GITHUB_SHA: release,
+        ACCEPTED_SHA: sha,
+        GITHUB_ACTOR: "operator",
+        GITHUB_RUN_ID: "123",
+        GITHUB_STEP_SUMMARY: summary,
+      },
+    });
+  try {
+    assert.equal(execute("", "").status, 9);
+    for (const [waiver, explanation] of [
+      [token, ""],
+      ["", reason],
+      [token, "short"],
+      [token, "x".repeat(1001)],
+      [token + "x", reason],
+      [`waive-release-acceptance:${sha}:${release}`, reason],
+    ]) {
+      assert.notEqual(execute(waiver, explanation).status, 0);
+    }
+    const result = execute(token, reason);
+    assert.equal(result.status, 0, result.stderr);
+    const audit = readFileSync(summary, "utf8");
+    assert.match(audit, /waived, not passed/u);
+    const record = JSON.parse(audit.slice(audit.indexOf("{")));
+    assert.deepEqual(record, {
+      actor: "operator",
+      run: "123",
+      source: release,
+      acceptedDevelopment: sha,
+      reason,
+    });
+    assert.equal(execute(token, "x".repeat(20)).status, 0);
+    assert.equal(execute(token, "x".repeat(1000)).status, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("remote CI waiver runs source verification first and leaves normal CI mandatory", () => {
+  const jobStart = workflow.indexOf("      - name: Verify successful full CI");
+  const runStart =
+    workflow.indexOf("        run: |\n", jobStart) + "        run: |\n".length;
+  const runEnd = workflow.indexOf(
+    "\n  hosted-development-acceptance:",
+    runStart,
+  );
+  const script = workflow.slice(runStart, runEnd).replace(/^ {10}/gmu, "");
+  const root = mkdtempSync(join(tmpdir(), "ci-waiver-"));
+  const summary = join(root, "summary");
+  const release = "b".repeat(40);
+  const token = `waive-release-acceptance:${release}:${sha}`;
+  const reason = "Operator explicitly accepts remote CI and hosted test risk.";
+  const execute = (waiver, explanation, sourceFailure = false) =>
+    spawnSync(
+      "bash",
+      [
+        "-c",
+        `set -euo pipefail
+node() {
+  printf '%s\\n' "$*" >&2
+  if [[ "${"${2:-}"}" == --source-only ]]; then return ${sourceFailure ? 1 : 0}; fi
+  return 8
+}
+${script}`,
+      ],
+      {
+        encoding: "utf8",
+        env: {
+          PATH: process.env.PATH,
+          HOSTED_ACCEPTANCE_WAIVER: waiver,
+          HOSTED_ACCEPTANCE_WAIVER_REASON: explanation,
+          GITHUB_SHA: release,
+          ACCEPTED_SHA: sha,
+          GITHUB_ACTOR: "operator",
+          GITHUB_RUN_ID: "123",
+          GITHUB_STEP_SUMMARY: summary,
+        },
+      },
+    );
+  try {
+    const normal = execute("", "");
+    assert.equal(normal.status, 8);
+    assert.equal(normal.stderr.trim().split("\n").length, 2);
+    const waived = execute(token, reason);
+    assert.equal(waived.status, 0, waived.stderr);
+    assert.equal(waived.stderr.trim().split("\n").length, 1);
+    assert.match(
+      readFileSync(summary, "utf8"),
+      /Remote CI and hosted acceptance: waived, not passed/u,
+    );
+    for (const [waiver, explanation] of [
+      [token, ""],
+      ["", reason],
+      [token + "x", reason],
+      [token, "short"],
+      [token, "x".repeat(1001)],
+    ]) {
+      assert.notEqual(execute(waiver, explanation).status, 0);
+    }
+    assert.notEqual(execute(token, reason, true).status, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

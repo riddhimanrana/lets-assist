@@ -60,12 +60,15 @@ for (const width of [320, 390, 414]) {
         page.getByRole("button", { name: "Contact us", exact: true }),
       ).toHaveAttribute("href", "/contact");
       expect(
-        await page.evaluate(() =>
-          getComputedStyle(document.documentElement)
-            .getPropertyValue("--primary")
-            .trim(),
-        ),
-      ).toBe("hsl(142.1 76.2% 36.3%)");
+        await page.evaluate(() => {
+          const probe = document.createElement("span");
+          probe.style.backgroundColor = "var(--primary)";
+          document.body.append(probe);
+          const color = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          return color;
+        }),
+      ).toBe("rgb(22, 163, 74)");
       await expect(
         page.getByText("Fictional interactive project", { exact: false }),
       ).toHaveCount(0);

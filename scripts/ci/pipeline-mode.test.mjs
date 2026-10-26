@@ -109,8 +109,13 @@ describe("CI delivery modes", () => {
       join(import.meta.dir, "../../.github/workflows/deploy-schema.yml"),
       "utf8",
     );
-    expect(release).toMatch(
-      /\n {2}csf-release-gates:\n(?:(?!\n {2}[\w-]+:)[\s\S])*run: node scripts\/production\/schema-release-ci-evidence\.mjs/u,
+    const releaseGate = YAML.parse(release).jobs["csf-release-gates"];
+    const verification = releaseGate.steps.at(-1).run;
+    expect(verification).toContain(
+      "node scripts/production/schema-release-ci-evidence.mjs --source-only",
+    );
+    expect(verification).toContain(
+      "node scripts/production/schema-release-ci-evidence.mjs\n",
     );
   });
 
