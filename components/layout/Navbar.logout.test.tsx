@@ -99,3 +99,20 @@ test("a thrown logout shows the same fixed message with no error detail", async 
   expect(JSON.stringify(toastErrors)).not.toContain("private");
   expect(account().isLoggingOut).toBe(false);
 });
+
+test("mobile navbar stays above scrolling page content without hiding on scroll direction changes", () => {
+  cursor = 0;
+  const header = nodes(Navbar()).find((node) => node.type === "header");
+  const classes = String(header!.props.className).split(" ");
+  expect(classes).toContain("sticky");
+  expect(classes).toContain("top-0");
+  expect(classes).toContain("z-40");
+  expect(classes).toContain("lg:static");
+  expect(classes).not.toContain("fixed");
+  const brand = nodes(Navbar()).find((node) => node.props.href === "/");
+  expect(brand!.props.className).toContain("min-h-11");
+  const mobileControls = nodes(Navbar()).find((node) =>
+    String(node.props.className).includes("[&>button]:size-11"),
+  );
+  expect(mobileControls).toBeDefined();
+});

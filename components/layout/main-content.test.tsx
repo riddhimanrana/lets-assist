@@ -143,3 +143,11 @@ test("account and admin layouts give the skip handler a focusable page target", 
     expect(target).toBeGreaterThan(sidebar);
   }
 });
+
+test("root anchor scrolling reserves the mobile navbar height", () => {
+  const source = readFileSync(
+    new URL("../../app/layout.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(source).toContain("scroll-pt-14 lg:scroll-pt-0");
+});

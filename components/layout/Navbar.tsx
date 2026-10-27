@@ -135,7 +135,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="w-full border-b bg-background">
+      <header className="sticky top-0 z-40 w-full border-b bg-background lg:static lg:z-auto">
         {/*
           From `lg` up the bar is three grid tracks: brand, primary links,
           account controls. Equal outer tracks centre the links when all
@@ -147,7 +147,7 @@ export default function Navbar() {
         >
           <Link
             href="/"
-            className="flex shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:justify-self-start"
+            className="flex min-h-11 shrink-0 touch-manipulation items-center gap-2 rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:min-h-0 lg:justify-self-start"
           >
             <Image src="/logo.png" alt="" width={28} height={28} />
             <span className="text-base font-semibold tracking-tight whitespace-nowrap">
@@ -180,7 +180,7 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="lg:hidden flex items-center gap-1 ml-auto">
+          <div className="lg:hidden flex items-center gap-1 ml-auto [&>button]:size-11 [&>button]:touch-manipulation">
             {isAuthLoading ? (
               <Skeleton className="size-9 rounded-full" />
             ) : (

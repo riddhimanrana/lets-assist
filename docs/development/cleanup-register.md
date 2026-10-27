@@ -12231,3 +12231,16 @@ close-on-navigation. Phone controls retain44px minimum targets and the panel
 respects the bottom safe area and reduced motion. Seventeen focused menu,
 destination and component tests passed, along with TypeScript and affected-file
 ESLint. Browser visual checks remain paused at the user's filming request.
+
+## Mobile navigation while scrolling, October 26, 2026
+
+`MOBILE-NAV-SCROLL-ACCESS-20261026`, P2, fixed locally, release pending.
+The mobile navbar scrolled out of reach and its icon controls used 36px targets.
+The navbar now stays at the top on mobile, with 44px controls and a matching
+root anchor-scroll offset. Desktop positioning remains static. The drawer
+keeps Close in a sticky row, contains overscroll and opts out of landing-page
+smooth-scroll interception. The established narrow drawer layout is retained.
+The 32 focused menu, layout, navigation and logout checks passed, along with
+TypeScript and affected-file ESLint. Browser/phone gesture checks remain
+paused during filming; source and rendered-markup checks are distinct from
+physical touch verification.
