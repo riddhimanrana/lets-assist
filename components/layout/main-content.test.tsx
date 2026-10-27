@@ -151,3 +151,20 @@ test("root anchor scrolling reserves the mobile navbar height", () => {
   );
   expect(source).toContain("scroll-pt-14 lg:scroll-pt-0");
 });
+
+test("section navigation reserves the sticky mobile navbar height", () => {
+  for (const name of ["account", "admin"]) {
+    const source = readFileSync(
+      new URL(`../../app/${name}/layout.tsx`, import.meta.url),
+      "utf8",
+    );
+    expect(source).toContain("bg-background sticky top-14 z-30");
+    expect(source).not.toContain("bg-background sticky top-0 z-30");
+  }
+  const sidebar = readFileSync(
+    new URL("../../app/admin/components/AdminSidebar.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(sidebar).toContain("sticky top-14 flex h-[calc(100dvh-3.5rem)]");
+  expect(sidebar).toContain("lg:top-0 lg:h-screen");
+});

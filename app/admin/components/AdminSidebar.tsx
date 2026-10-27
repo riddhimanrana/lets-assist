@@ -193,7 +193,7 @@ export function AdminSidebar(props: AdminSidebarProps = {}) {
     // The aside stretches with the page so its border runs the full height;
     // only the inner column sticks to the viewport.
     <aside className="hidden w-60 shrink-0 border-r md:block">
-      <div className="sticky top-0 flex h-screen flex-col p-3">
+      <div className="sticky top-14 flex h-[calc(100dvh-3.5rem)] flex-col p-3 lg:top-0 lg:h-screen">
         <p className="px-2.5 pt-1 pb-3 text-sm font-semibold">Admin console</p>
         <nav
           aria-label="Admin"
