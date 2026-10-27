@@ -16,10 +16,16 @@ mock.module("@/components/ui/sheet", () => ({
   SheetContent: ({
     children,
     className,
+    "data-lenis-prevent": preventSmoothScroll,
   }: {
     children: ReactNode;
     className: string;
-  }) => <div className={className}>{children}</div>,
+    "data-lenis-prevent"?: boolean;
+  }) => (
+    <div className={className} data-lenis-prevent={preventSmoothScroll}>
+      {children}
+    </div>
+  ),
   SheetClose: ({
     render,
     children,
@@ -155,4 +161,18 @@ test("loading does not expose sign-in or member actions", () => {
   expect(html).toContain("Loading account");
   expect(html).not.toContain('href="/login"');
   expect(html).not.toContain('href="/home"');
+});
+
+test("drawer scrolling keeps Close pinned and both menu controls have 44px touch targets", () => {
+  const html = renderToStaticMarkup(<MobileNavigation {...props} />);
+  expect(html).toContain("sticky top-0 z-10");
+  expect(html).toContain("overscroll-contain");
+  expect(html).toContain("data-lenis-prevent");
+  const buttons =
+    html.match(/<button[^>]*aria-label="(?:Open|Close) menu"[^>]*>/gu) ?? [];
+  expect(buttons).toHaveLength(2);
+  for (const button of buttons) {
+    expect(button).toContain("size-11");
+    expect(button).toContain("touch-manipulation");
+  }
 });

@@ -112,7 +112,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${GeistSans.className} ${GeistSans.variable} ${GeistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
+      className={`scroll-pt-14 lg:scroll-pt-0 ${GeistSans.className} ${GeistSans.variable} ${GeistMono.variable} ${overusedgrotesk.variable} ${nohemi.variable} ${cheeseMilky.variable}`}
       suppressHydrationWarning
     >
       <head>

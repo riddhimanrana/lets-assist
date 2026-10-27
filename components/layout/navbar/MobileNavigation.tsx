@@ -65,7 +65,7 @@ export function MobileNavigation({
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="size-11 touch-manipulation lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
           >
@@ -76,21 +76,24 @@ export function MobileNavigation({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="gap-0 overflow-y-auto px-4 pt-10 pb-[max(1rem,env(safe-area-inset-bottom))] data-[side=right]:w-[85%] data-[side=right]:max-w-95 motion-reduce:animate-none motion-reduce:transition-none"
+        data-lenis-prevent
+        className="gap-0 overflow-y-auto overscroll-contain px-4 pt-0 pb-[max(1rem,env(safe-area-inset-bottom))] data-[side=right]:w-[85%] data-[side=right]:max-w-95 motion-reduce:animate-none motion-reduce:transition-none"
       >
         <SheetTitle className="sr-only">Menu</SheetTitle>
-        <SheetClose
-          render={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2"
-              aria-label="Close menu"
-            />
-          }
-        >
-          <X className="size-5" aria-hidden="true" />
-        </SheetClose>
+        <div className="sticky top-0 z-10 -mx-4 flex h-12 shrink-0 items-center justify-end bg-background px-2">
+          <SheetClose
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-11 touch-manipulation"
+                aria-label="Close menu"
+              />
+            }
+          >
+            <X className="size-5" aria-hidden="true" />
+          </SheetClose>
+        </div>
         <div className="flex min-h-0 flex-col">
           {isLoading ? (
             <div className="mb-6 space-y-3" aria-label="Loading account">

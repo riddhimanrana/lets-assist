@@ -145,7 +145,7 @@ export default function AccountLayout({
     <div className="flex min-h-[calc(100vh-64px)] flex-col lg:flex-row">
       {/* Phone and tablet: a slim bar that opens the same nav in a drawer.
           The page keeps its own title, so the bar only names the area. */}
-      <div className="bg-background sticky top-0 z-30 flex items-center gap-2 border-b px-4 py-2 lg:hidden">
+      <div className="bg-background sticky top-14 z-30 flex items-center gap-2 border-b px-4 py-2 lg:hidden">
         <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
           <DrawerTrigger asChild>
             <Button
