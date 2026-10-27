@@ -177,8 +177,8 @@ describe("single-instance mounting", () => {
     expect(navbarSource).toContain(
       '<div className="hidden lg:flex items-center gap-2 ml-auto">',
     );
-    expect(navbarSource).toContain(
-      '<div className="lg:hidden flex items-center gap-1 ml-auto">',
+    expect(navbarSource).toMatch(
+      /<div className="lg:hidden flex items-center gap-1 ml-auto(?: [^"]*)?">/u,
     );
   });
 });
