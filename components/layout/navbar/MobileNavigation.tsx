@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
-
 import {
-  HeartIcon,
-  LogoutIcon,
-  MenuIcon,
-  MessageCircleIcon,
-  SettingsIcon,
-  UserIcon,
-  XIcon,
-  useAnimatedIcon,
-} from "@/components/icons/animated";
+  Heart,
+  Loader2,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Settings,
+  UserRound,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -24,12 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-import {
-  AccountAvatar,
-  type AnimatedIconComponent,
-  type NavbarAccount,
-} from "./account";
+import { AccountAvatar, type NavbarAccount } from "./account";
 import {
   featureLinks,
   isActiveDestination,
@@ -48,10 +43,9 @@ type Props = {
   account: NavbarAccount;
 };
 
-// One row recipe for the whole sheet, so every label sits on the same left edge.
 const rowClass = cn(
-  buttonVariants({ variant: "ghost", size: "lg" }),
-  "w-full justify-between px-3 text-muted-foreground aria-[current=page]:text-foreground aria-[current=page]:hover:bg-transparent",
+  buttonVariants({ variant: "ghost" }),
+  "min-h-11 w-full justify-start px-4 text-muted-foreground aria-[current=page]:text-foreground aria-[current=page]:hover:bg-transparent",
 );
 
 export function MobileNavigation({
@@ -62,11 +56,8 @@ export function MobileNavigation({
   pathname,
   account,
 }: Props) {
-  const menuIcon = useAnimatedIcon();
-  const closeIcon = useAnimatedIcon();
   const close = () => onOpenChange(false);
   const { devPreview } = account;
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetTrigger
@@ -75,67 +66,101 @@ export function MobileNavigation({
             variant="ghost"
             size="icon"
             className="lg:hidden"
-            {...menuIcon.triggerProps}
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
           >
-            <MenuIcon ref={menuIcon.ref} size={16} aria-hidden="true" />
-            <span className="sr-only">Toggle menu</span>
+            <Menu className="size-5" aria-hidden="true" />
           </Button>
         }
       />
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="gap-0 data-[side=right]:w-full data-[side=right]:max-w-sm"
+        className="gap-0 overflow-y-auto px-4 pt-10 pb-[max(1rem,env(safe-area-inset-bottom))] data-[side=right]:w-[85%] data-[side=right]:max-w-95 motion-reduce:animate-none motion-reduce:transition-none"
       >
-        <div className="flex h-14 shrink-0 items-center gap-3 border-b pr-2 pl-4">
+        <SheetTitle className="sr-only">Menu</SheetTitle>
+        <SheetClose
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2"
+              aria-label="Close menu"
+            />
+          }
+        >
+          <X className="size-5" aria-hidden="true" />
+        </SheetClose>
+        <div className="flex min-h-0 flex-col">
           {isLoading ? (
-            <>
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <Skeleton className="h-5 w-32" />
-            </>
-          ) : isAuthenticated ? (
-            <>
-              {account.isProfileLoading ? (
-                <Skeleton className="size-9 rounded-full" />
-              ) : (
-                <AccountAvatar account={account} className="size-9" />
-              )}
-              <div className="min-w-0 flex-1">
-                <SheetTitle className="truncate text-sm">
-                  {account.displayName}
-                </SheetTitle>
-                <p className="truncate text-sm text-muted-foreground">
-                  {account.email}
-                </p>
-              </div>
-            </>
-          ) : (
-            <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
-          )}
-          <SheetClose
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-auto"
-                aria-label="Close menu"
-                {...closeIcon.triggerProps}
-              />
-            }
-          >
-            <XIcon ref={closeIcon.ref} size={16} aria-hidden="true" />
-          </SheetClose>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
-          {isLoading ? (
-            <div className="flex flex-col gap-2 p-1" aria-hidden="true">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+            <div className="mb-6 space-y-3" aria-label="Loading account">
+              <Skeleton className="size-12 rounded-full" />
               <Skeleton className="h-10 w-full" />
             </div>
+          ) : isAuthenticated ? (
+            <>
+              <div className="mb-4 flex items-center gap-3">
+                {account.isProfileLoading ? (
+                  <Skeleton className="size-12 shrink-0 rounded-full" />
+                ) : (
+                  <AccountAvatar
+                    account={account}
+                    className="size-12 shrink-0"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{account.displayName}</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {account.email}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                className="mb-6 min-h-11 w-full"
+                onClick={account.onLogout}
+                disabled={account.isLoggingOut}
+              >
+                {account.isLoggingOut ? (
+                  <Loader2
+                    data-icon="inline-start"
+                    aria-hidden="true"
+                    className="animate-spin"
+                  />
+                ) : (
+                  <LogOut data-icon="inline-start" aria-hidden="true" />
+                )}
+                {account.isLoggingOut ? "Logging out..." : "Log out"}
+              </Button>
+            </>
           ) : (
-            <nav aria-label="Menu" className="flex flex-col gap-0.5">
+            <div className="mt-3 mb-4 grid gap-2">
+              <Button
+                variant="outline"
+                className="min-h-11 w-full"
+                render={<Link href="/login" />}
+                onClick={close}
+              >
+                Login
+              </Button>
+              <Button
+                className="min-h-11 w-full"
+                render={<Link href="/signup" />}
+                onClick={close}
+              >
+                Create account
+              </Button>
+            </div>
+          )}
+          <Separator className="mb-4" />
+          {isLoading ? (
+            <div className="space-y-2" aria-hidden="true">
+              <Skeleton className="h-11 w-full" />
+              <Skeleton className="h-11 w-full" />
+              <Skeleton className="h-11 w-full" />
+            </div>
+          ) : (
+            <nav aria-label="Menu" className="space-y-1">
               {(isAuthenticated ? memberLinks : publicLinks).map(
                 ([label, href]) => (
                   <Link
@@ -152,188 +177,118 @@ export function MobileNavigation({
                   </Link>
                 ),
               )}
-              {isAuthenticated
-                ? null
-                : featureLinks.map(({ title, href }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className={rowClass}
-                      onClick={close}
-                    >
-                      {title}
-                    </Link>
-                  ))}
             </nav>
           )}
-
-          {isAuthenticated ? (
-            <>
-              <Separator />
-              <div className="flex flex-col gap-0.5">
-                <SheetRow
-                  href={account.profileHref}
-                  icon={UserIcon}
+          {!isLoading && !isAuthenticated && (
+            <nav aria-label="Features" className="mt-4 space-y-1">
+              <p className="px-4 text-xs font-medium text-muted-foreground">
+                Features
+              </p>
+              {featureLinks.map(({ title, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={rowClass}
                   onClick={close}
                 >
-                  My profile
-                </SheetRow>
-                <SheetRow
+                  {title}
+                </Link>
+              ))}
+            </nav>
+          )}
+          {!isLoading && isAuthenticated && (
+            <>
+              <Separator className="my-4" />
+              <div className="space-y-1">
+                <MenuRow
                   href="/account/profile"
-                  icon={SettingsIcon}
+                  icon={Settings}
                   onClick={close}
                 >
                   Account settings
-                </SheetRow>
+                </MenuRow>
+                <MenuRow
+                  href={account.profileHref}
+                  icon={UserRound}
+                  onClick={close}
+                >
+                  My profile
+                </MenuRow>
               </div>
             </>
-          ) : null}
-
-          <Separator />
-          <div className="flex flex-col gap-0.5">
-            <SheetRow
-              icon={MessageCircleIcon}
-              onClick={() => {
-                account.onFeedback();
-                close();
-              }}
-            >
-              Send feedback
-            </SheetRow>
-            <SheetRow
-              icon={HeartIcon}
-              onClick={() => {
-                account.onDonate();
-                close();
-              }}
-            >
-              Donate
-            </SheetRow>
-          </div>
-
-          <Separator />
-          <div className="flex items-center justify-between gap-3 py-1 pr-1 pl-3">
-            <span className="text-sm font-medium text-muted-foreground">
-              Appearance
-            </span>
+          )}
+          <Separator className="my-4" />
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-0.5">
+            <span className="text-sm text-muted-foreground">Appearance</span>
             <NavbarThemeSelector mobile />
           </div>
-
-          {devPreview.isLocalDevHost ? (
+          {devPreview.isLocalDevHost && (
             <>
-              <Separator />
-              <div className="px-3 py-1">
+              <Separator className="my-4" />
+              <div className="px-4">
                 <DevPreviewSourceSwitch
                   source={devPreview.source}
                   onSelect={devPreview.selectSource}
                 />
               </div>
             </>
-          ) : null}
-        </div>
-
-        {isLoading ? null : (
-          <div className="shrink-0 border-t p-4">
-            {isAuthenticated ? (
-              <LogoutButton
-                isLoggingOut={account.isLoggingOut}
-                onLogout={account.onLogout}
-              />
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  render={<Link href="/login" />}
-                  onClick={close}
-                >
-                  Login
-                </Button>
-                <Button render={<Link href="/signup" />} onClick={close}>
-                  Create account
-                </Button>
-              </div>
-            )}
+          )}
+          <Separator className="my-4" />
+          <div className="space-y-1">
+            <MenuRow
+              icon={MessageSquare}
+              className="text-chart-3 hover:bg-chart-3/10 hover:text-chart-3"
+              onClick={() => {
+                account.onFeedback();
+                close();
+              }}
+            >
+              Send feedback
+            </MenuRow>
+            <MenuRow
+              icon={Heart}
+              className="text-chart-4 hover:bg-chart-4/10 hover:text-chart-4"
+              onClick={() => {
+                account.onDonate();
+                close();
+              }}
+            >
+              Donate
+            </MenuRow>
           </div>
-        )}
+        </div>
       </SheetContent>
     </Sheet>
   );
 }
 
-function SheetRow({
+function MenuRow({
   href,
   icon: Icon,
   onClick,
   children,
+  className,
 }: {
   href?: string;
-  icon: AnimatedIconComponent;
+  icon: LucideIcon;
   onClick: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
-  const icon = useAnimatedIcon();
   const content = (
     <>
       {children}
-      <Icon ref={icon.ref} size={16} aria-hidden="true" />
+      <Icon className="size-4" aria-hidden="true" />
     </>
   );
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        prefetch={false}
-        className={rowClass}
-        onClick={onClick}
-        {...icon.triggerProps}
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={rowClass}
-      onClick={onClick}
-      {...icon.triggerProps}
-    >
+  const classes = cn(rowClass, "justify-between", className);
+  return href ? (
+    <Link href={href} prefetch={false} className={classes} onClick={onClick}>
+      {content}
+    </Link>
+  ) : (
+    <button type="button" className={classes} onClick={onClick}>
       {content}
     </button>
-  );
-}
-
-function LogoutButton({
-  isLoggingOut,
-  onLogout,
-}: Pick<NavbarAccount, "isLoggingOut" | "onLogout">) {
-  const icon = useAnimatedIcon();
-
-  return (
-    <Button
-      variant="outline"
-      className="w-full"
-      onClick={onLogout}
-      disabled={isLoggingOut}
-      {...icon.triggerProps}
-    >
-      {isLoggingOut ? (
-        <Loader2
-          data-icon="inline-start"
-          aria-hidden="true"
-          className="animate-spin"
-        />
-      ) : (
-        <LogoutIcon
-          ref={icon.ref}
-          size={16}
-          data-icon="inline-start"
-          aria-hidden="true"
-        />
-      )}
-      {isLoggingOut ? "Logging out..." : "Log out"}
-    </Button>
   );
 }

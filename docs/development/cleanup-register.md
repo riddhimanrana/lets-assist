@@ -12218,3 +12218,16 @@ retry recovery, revoked/missing sessions and explicit logout. All35 focused
 auth tests, TypeScript and affected-file ESLint passed. No provider JWT,
 inactivity or session-timebox settings changed. Hosted duration remains
 unverified; browser interaction stays paused while filming.
+
+## Mobile menu state and reference layout, October 26, 2026
+
+`MOBILE-MENU-HOVER-STATE-20261026`, P2, fixed locally, release pending.
+The hamburger used a hover-driven animated X independently of drawer state.
+Mobile navigation now uses static icons and an explicit open/close label plus
+aria-expanded. The drawer restores the narrower width, profile sizing, stacked
+auth actions and section spacing from01e9d87f, while retaining current routes,
+theme controls, local-only preview controls, focus-managed Sheet behavior and
+close-on-navigation. Phone controls retain44px minimum targets and the panel
+respects the bottom safe area and reduced motion. Seventeen focused menu,
+destination and component tests passed, along with TypeScript and affected-file
+ESLint. Browser visual checks remain paused at the user's filming request.
