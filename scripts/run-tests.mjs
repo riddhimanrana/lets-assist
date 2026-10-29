@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import fg from "fast-glob";
+import { needsIsolatedProcess } from "./ci/test-isolation.mjs";
 import { selectShard, shardFromArguments } from "./ci/test-shards.mjs";
 
 const supportedArguments = new Set([
@@ -119,7 +120,6 @@ const sharedDiscoveryIgnore = [
   "tests/e2e/**",
 ];
 const discoveryIgnore = [...sharedDiscoveryIgnore, "lib/plugins/**"];
-const mockModulePattern = /\bmock\s*\.\s*module\s*\(/u;
 
 function isTestFileArgument(argument) {
   return /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(argument);
@@ -133,8 +133,9 @@ function filesNamedByGroup(group) {
   );
 }
 
+// Module mocks and minimal-DOM installs both change process-wide globals.
 function hasGlobalModuleMock(file) {
-  return mockModulePattern.test(readFileSync(file, "utf8"));
+  return needsIsolatedProcess(readFileSync(file, "utf8"));
 }
 
 const explicitlyGroupedFiles = new Set(groups.flatMap(filesNamedByGroup));

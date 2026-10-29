@@ -127,6 +127,7 @@ export function PdfViewerWithOverlay({
             size="icon"
             className="h-8 w-8"
             onClick={prevPage}
+            aria-label="Previous page"
             disabled={currentPage <= 1}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -139,6 +140,7 @@ export function PdfViewerWithOverlay({
             size="icon"
             className="h-8 w-8"
             onClick={nextPage}
+            aria-label="Next page"
             disabled={currentPage >= pageCount}
           >
             <ChevronRight className="h-4 w-4" />
@@ -150,6 +152,7 @@ export function PdfViewerWithOverlay({
             size="icon"
             className="h-8 w-8"
             onClick={zoomOut}
+            aria-label="Zoom out"
             disabled={scale <= 0.5}
           >
             <ZoomOut className="h-4 w-4" />
@@ -162,6 +165,7 @@ export function PdfViewerWithOverlay({
             size="icon"
             className="h-8 w-8"
             onClick={zoomIn}
+            aria-label="Zoom in"
             disabled={scale >= 2.0}
           >
             <ZoomIn className="h-4 w-4" />

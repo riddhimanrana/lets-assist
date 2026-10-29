@@ -77,7 +77,7 @@ A card is a soft surface: flat fill with a faint sheen and a hairline drop. It m
 ## Tabs
 
 - **Segmented tabs** (the default `TabsList`): a muted track with a raised white active pill. Use for switching panes inside a card or a section.
-- **Line tabs** (`variant="line"`): an underline. Use for page-level navigation between tabs of one entity, such as an organization's Overview, Members, and Projects.
+- **Line tabs** (`variant="line"`): an underline. Use for page-level navigation between tabs of one entity, such as an organization's Overview, Members, and Projects. Every organization, including plugin workspaces, uses this strip. Secondary pages sit under More, and while one of them is open the More trigger shows its icon and name with the same underline. On phones, one section switcher replaces the strip and lists every permitted page.
 - **Segmented control** (`SegmentedControl`, `SegmentedItem`): the same muted track and raised pill, for segments that are links or filter states and not on-page panes.
 - Never use ghost or secondary buttons as a tab bar.
 

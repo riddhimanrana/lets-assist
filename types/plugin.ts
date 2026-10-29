@@ -406,10 +406,9 @@ export interface OrganizationNavigationBehavior {
   hideInviteAction?: boolean;
   hideProjectAction?: boolean;
   /**
-   * Opts the organization into the compact workspace chrome. On phones this
-   * also replaces the horizontal category strip with a single full-section
-   * switcher that lists every permitted top-level destination. Organizations
-   * that do not set this keep the horizontal strip at every width.
+   * Opts the organization into the compact workspace chrome: a shorter
+   * header and the workspace sheet. Page navigation is the same for every
+   * organization (line tabs, and one section switcher on phones).
    */
   compactHeader?: boolean;
   /** Label for the desktop utility/overflow menu trigger. */

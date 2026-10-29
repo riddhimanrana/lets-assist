@@ -11,19 +11,23 @@ const navigationSource = readFileSync(
 );
 const source = `${controllerSource}\n${navigationSource}`;
 
-describe("compact organization navigation on phones", () => {
-  test("opts into the full-section switcher through existing navigation metadata", () => {
-    expect(source).toMatch(
-      /const usesFullSectionMobileNav = Boolean\(\s*pluginNavigationOverrides\.compactHeader,?\s*\);/u,
+describe("organization navigation on phones", () => {
+  test("every organization with more than one destination gets the section switcher", () => {
+    expect(navigationSource).toContain(
+      "const usesPhoneSwitcher = switcherDestinations.length > 1;",
     );
     expect(source).toContain('data-testid="organization-section-switcher"');
+    // The compact chrome flag no longer decides page navigation.
+    expect(source).not.toContain("usesFullSectionMobileNav");
+    expect(source).not.toContain("usesLineTabs");
   });
 
-  test("hides the horizontal category strip on phones in full-section mode", () => {
-    expect(source).toContain('usesFullSectionMobileNav && "hidden sm:flex"');
-    expect(source).toContain(
-      "usesFullSectionMobileNav && switcherDestinations.length > 0 ? (",
+  test("hides the category strip and More menu on phones when the switcher shows", () => {
+    expect(navigationSource).toContain('usesPhoneSwitcher && "hidden sm:flex"');
+    expect(navigationSource).toContain(
+      'usesPhoneSwitcher && "hidden sm:inline-flex"',
     );
+    expect(navigationSource).toContain("{usesPhoneSwitcher ? (");
   });
 
   test("keeps every permitted destination reachable from one phone switcher", () => {
@@ -80,6 +84,12 @@ describe("compact organization navigation on phones", () => {
     );
   });
 
+  // Menu items only render once the menu opens, so static markup cannot show
+  // them. This pins the class; real target size is a browser measurement.
+  test("gives phone switcher entries 44px touch targets", () => {
+    expect(controllerSource).toContain('className="min-h-11 justify-between"');
+  });
+
   test("marks the selected switcher entry as the current page", () => {
     expect(source).toContain('aria-current={isActive ? "page" : undefined}');
   });
@@ -129,11 +139,13 @@ describe("compact organization navigation on phones", () => {
     );
   });
 
-  test("preserves generic organization navigation at every width", () => {
+  test("renders the More menu only when utility destinations exist", () => {
     expect(source).toContain("{morePluginTabs.length > 0 ? (");
-    expect(source).toMatch(
-      /cn\(\s*"shrink-0",\s*usesFullSectionMobileNav && "hidden sm:flex",?\s*\)/u,
-    );
     expect(source).not.toContain('morePluginTabs.length === 0 && "sm:hidden"');
+  });
+
+  test("uses one line tab strip for every organization", () => {
+    expect(navigationSource.match(/<TabsList\b/gu)?.length).toBe(1);
+    expect(navigationSource).toContain('variant="line"');
   });
 });

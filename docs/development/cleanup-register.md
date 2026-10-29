@@ -1,5 +1,101 @@
 # Repository cleanup register
 
+## Organization flow simplification, October 28, 2026
+
+`PROJECT-AI-ASSISTANT-STALL-20261028`, P2, fixed locally, release pending.
+The project assistant sent its request with no abort signal and no client
+timeout, and it disabled Close, the prompt and Generate while waiting. A request
+that never answered left the assistant stuck with no way out. The component
+also stayed mounted when the header toggle hid it, so a late answer could still
+fill the form after the organizer closed the assistant. A copy of the old
+handlers in an ignored scratch fixture reproduced both. The request now runs
+through a small controller with one live request, an AbortController, a
+45-second timeout and a check that drops late or replaced answers. Close stays
+enabled, Cancel and Escape stop a pending request, and every failure keeps the
+prompt with an inline message. Request state lives in a panel that unmounts
+when the assistant closes, so closing by any route cancels the request. The
+10 to 4,000 character bounds, the timezone field, the `onApplyData` and
+`onClose` signatures and review before publishing are unchanged. Twenty-five
+controller, handler and render tests cover stalls, stalled bodies, timeouts,
+late answers, cancel and reopen, server, network and malformed failures, and
+retry. Six more tests mount the real component with `react-dom/client` on a
+minimal test DOM and close it from the parent while a request is pending; the
+panel now retires the request in a layout cleanup, inside the same commit.
+The supervisor's user-Chrome fixture checks covered Cancel, Close and reopen,
+Escape, failures, the 45-second timeout and retry. No provider was called.
+
+`PROJECT-FEEDBACK-REJECTED-SUBMIT-20261028`, P2, fixed locally, release pending.
+The project feedback form awaited its server action with no catch. A rejected
+call (network loss, a crash, a lost response) escaped the form with no message,
+and two quick clicks sent two requests. The HEAD form, mounted with a rejecting
+fake action, reproduced both. The form now treats a rejection as an unknown
+outcome: it keeps the rating and comment, says the feedback may or may not
+have saved, and invites sending again. Sending again is safe because the action
+updates the existing row for the same project and volunteer. A ref blocks the
+second click. Declared failures still toast. Server authorization, RLS and
+comment visibility are unchanged. Seven lifecycle tests cover the rejection,
+retry, double click, declared failure, the comment label, the visibility copy
+and the registered log event. The supervisor's user-Chrome fixture passed the
+unknown outcome keeping rating and comment, a successful retry, one request on
+a rapid double click, and a declared failure keeping the fields. The final
+"Comment (optional)" field label has not been rechecked in a browser.
+
+`PDF-TOOLBAR-UNNAMED-BUTTONS-20261028`, P2, fixed locally, release pending.
+The waiver PDF viewer's icon-only toolbar buttons had no accessible names. They
+are now Previous page, Next page, Zoom out and Zoom in, with decorative icons
+and unchanged page and zoom bounds. Three render tests cover it. The final
+change has not been rechecked in a browser.
+
+`CSF-SHEETS-CHECK-FAILED-AS-DISCONNECTED-20261028`, P2, private, fixed in the
+private working tree, review pending. The chapter Google connection panel
+cleared the connection when a status check failed and then labelled it Not
+connected, with a Connect button, and showed raw thrown error text. Failed
+checks now show "Status unavailable" with only Check again; the status action
+returns a fixed message instead of the thrown text. Late checks from a previous
+organization or capability are dropped. Healthy account details, Recheck,
+Switch account and Disconnect moved into a native Advanced disclosure; the
+disconnect and Google revocation dialog is unchanged. The picker field on the
+main import path still maps a failed check to disconnected and is the next
+private fix.
+
+`CSF-POINT-SUBMISSION-LOST-RESPONSE-20261028`, P2, private, fixed in the
+private working tree, review pending. When the point submission action call
+rejected (a lost response or network drop), the dialog said "Submission not
+saved" and offered Try again, though the claim may already have been saved.
+The supervisor reproduced this in a user-Chrome fixture with a controlled,
+provider-free action. A points-only wrapper now turns a rejected action call
+into an unconfirmed result with `reloadRequired`. The form keeps its fields
+and proof, locks further writes and offers Reload Point submissions under the
+title "Check your saved submissions". Proof preparation and every declared
+server result, including cleanup_queued, reconciliation_required,
+request_conflict and saved_stale, are unchanged, and other CSF forms keep the
+shared helper's behavior. Thirteen handler and render tests cover it. No
+server authorization, grant or database change.
+
+`DRAFT-AUTOSAVE-ERROR-CLEARED-20261028`, P2, fixed locally, release pending.
+After a failed autosave, the create form reset its status to idle after five
+seconds, so the action bar said "Autosave on" while the latest changes were
+still unsaved. The supervisor saw this in a user-Chrome fixture. Both reset
+timers are gone; a failure stays visible until the next attempt or a
+successful save, and the saved notice still fades after three seconds. Six
+lifecycle tests run the real hook with manual timers.
+
+`ORGANIZATION-NAV-ACTIVE-UTILITY-20261028`, P2, fixed locally, release pending.
+Generic organizations used line tabs and plugin workspaces used segmented tabs.
+The More trigger always read More, so an open secondary page such as Meetings
+was not named anywhere in the closed navigation. Generic organizations also
+kept a sideways-scrolling strip on phones with a hidden scrollbar. Every
+organization now uses the line strip from tablet width up and one section
+switcher on phones once there are two or more destinations. While a More page
+is open, the trigger shows its icon and name, underlined like an active tab, and
+its accessible name reads "More: Meetings". Destination lists, deduplication,
+permission filters, parent and child marking, deep links and document
+navigation are unchanged. The phone switcher is 44px tall and its menu items
+have 44px targets; its accessible name reads "Members, change section". Render
+and source tests cover both organization kinds. The supervisor's user-Chrome
+fixture verified keyboard selection, the Meetings label and a settled 320px
+fit. Full application routing and the CSF e2e suites have not run.
+
 ## Certificate CSV date verdict — 2026-10-22
 
 `CERTIFICATE-CSV-DATES-20261022`, P2, implemented; successor full CI pending.

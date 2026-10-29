@@ -93,20 +93,15 @@ export function useDraftAutosave({
             setAutosaveStatus((prev) => (prev === "saved" ? "idle" : prev));
           }, 3000);
         } else if (result.error) {
+          // An unresolved failure stays visible until the next attempt or a
+          // successful save. Clearing it on a timer made the action bar say
+          // "Autosave on" while the latest changes were still unsaved.
           setAutosaveStatus("error");
           safeConsole.warn("Autosave error:", result.error);
-
-          // Clear error status after 5 seconds
-          setTimeout(() => {
-            setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
-          }, 5000);
         }
       } catch (err) {
         safeConsole.error("Failed to autosave draft", err);
         setAutosaveStatus("error");
-        setTimeout(() => {
-          setAutosaveStatus((prev) => (prev === "error" ? "idle" : prev));
-        }, 5000);
       }
     }, 3000);
 
