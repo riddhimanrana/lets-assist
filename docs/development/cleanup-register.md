@@ -37,14 +37,14 @@ comment visibility are unchanged. Seven lifecycle tests cover the rejection,
 retry, double click, declared failure, the comment label, the visibility copy
 and the registered log event. The supervisor's user-Chrome fixture passed the
 unknown outcome keeping rating and comment, a successful retry, one request on
-a rapid double click, and a declared failure keeping the fields. The final
-"Comment (optional)" field label has not been rechecked in a browser.
+a rapid double click, and a declared failure keeping the fields. A final
+check confirmed the field's name is "Comment (optional)".
 
 `PDF-TOOLBAR-UNNAMED-BUTTONS-20261028`, P2, fixed locally, release pending.
 The waiver PDF viewer's icon-only toolbar buttons had no accessible names. They
 are now Previous page, Next page, Zoom out and Zoom in, with decorative icons
-and unchanged page and zoom bounds. Three render tests cover it. The final
-change has not been rechecked in a browser.
+and unchanged page and zoom bounds. Three render tests cover it. A final
+user-Chrome check found all four names, and Zoom in moved to 110%.
 
 `CSF-SHEETS-CHECK-FAILED-AS-DISCONNECTED-20261028`, P2, private, fixed in the
 private working tree, review pending. The chapter Google connection panel
@@ -54,9 +54,32 @@ checks now show "Status unavailable" with only Check again; the status action
 returns a fixed message instead of the thrown text. Late checks from a previous
 organization or capability are dropped. Healthy account details, Recheck,
 Switch account and Disconnect moved into a native Advanced disclosure; the
-disconnect and Google revocation dialog is unchanged. The picker field on the
-main import path still maps a failed check to disconnected and is the next
-private fix.
+disconnect and Google revocation dialog is unchanged. The Sheet picker field on
+the main import path had the same defect and is fixed in the same private
+change: a failed, thrown or denied check shows "Status unavailable" with only
+Check again, with no Connect, Drive picker or pasted link. Late status checks,
+and token or metadata results from an earlier organization or capability,
+after access is removed or after unmount, cannot cancel or overwrite the
+current connection status. Selection and metadata handling are unchanged.
+Viewers without import access still see only the access explanation and
+trigger no check. Twenty handler, presentation and render tests cover it
+without a browser DOM. The picker fix has not been checked in a browser; the
+four earlier repairs passed their final user-Chrome checks, recorded below.
+
+The supervisor's final user-Chrome checks of the earlier repairs, with real
+components and mocked actions, passed: an unconfirmed point submission kept
+activity, proof and notes, locked writes, offered no Close or Try again and
+only Reload, which navigated back; the autosave error was still shown 6,837 ms
+after it first appeared and recovered to saved once the simulated failure was
+lifted; the PDF toolbar exposed all four names and Zoom in moved to 110%; the
+feedback textarea is named "Comment (optional)". Layouts were unchanged, so no
+new mobile pass was run.
+
+`ROOT-DEPENDENCY-AUDIT-20261028`, external dependency blocker, open. The root
+static gate fails on six existing dependency advisories in the unchanged root
+lockfile. The deepmerge advisory GHSA-gcqx-w48m-w2h4 has no patched version
+according to the GitHub advisory API. Dependencies and the audit gate were not
+changed and no waiver is recorded.
 
 `CSF-POINT-SUBMISSION-LOST-RESPONSE-20261028`, P2, private, fixed in the
 private working tree, review pending. When the point submission action call
