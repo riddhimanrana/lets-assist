@@ -82,6 +82,39 @@ application graphs reported no findings. The audit exits 1 on that one root
 advisory, with no suppression. The expired `braces` acceptance below was not
 used to pass this scan, which reported no `braces` finding.
 
+### October 29 deepmerge repair
+
+GHSA-gcqx-w48m-w2h4 still lists no patched `deepmerge`, and shadcn, its
+registry and html-to-text all require `^4.3.1`. With owner approval, the root
+now installs `vendor/deepmerge-compat` (`@lets-assist/deepmerge-compat`
+0.0.0) for every consumer. It is the registry 4.3.1 `dist/cjs.js` plus a
+two-line guard that refuses the `__proto__` key in both merge loops, as in
+upstream PR #274. The vendor README records provenance, the MIT license and the
+exact patch. The root also declares `deepmerge` `^4.3.1`, because Bun 1.4.2
+installs a `file:` override only for a direct dependency; without it the
+consumers fail to resolve deepmerge. The lock change replaces the one registry
+entry and adds only deepmerge `file:` resolutions.
+
+`bun audit` does not query `file:` packages, so passing it proves only that
+no registry deepmerge remains. `audit-package-graphs.mjs` binds the rest: the
+exact override and root dependency, the vendor manifest, `index.cjs` and
+`index.d.ts` by SHA-256, the tracked file list, and every root lock deepmerge
+resolution. A registry deepmerge, an untracked or edited vendor file, a vendor
+lockfile or another override target fails the audit. Advisory handling is
+unchanged.
+
+`scripts/plugins/deepmerge-compat.test.ts` loads deepmerge through each
+installed consumer. On the unpatched 4.3.1 it fails 23 tests: null-prototype
+targets, `null` or primitive placeholders, a target with its own `__proto__`,
+nested, `all`, `clone: false`, `customMerge` and custom `arrayMerge`, plus a
+real html-to-text conversion that hides text through an inherited `format`.
+On the repair all 36 pass, including controls for cloning, arrays, symbols,
+Date, RegExp, React elements, `customMerge`, `isMergeableObject`, `all` and
+the upstream `constructor` handling. The shadcn registry module cannot load
+under the root zod 4 override, so shadcn coverage is resolution and module
+identity, not a CLI run. Remove the package, override and root dependency when
+upstream publishes a fixed release that the consumers accept.
+
 ## Open upstream blocker
 
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)

@@ -1,5 +1,18 @@
 # Repository cleanup register
 
+## deepmerge prototype repair, October 29, 2026
+
+`DEPS-DEEPMERGE-GHSA-GCQX-20261029`, P2, dependency security, fixed locally,
+release pending. deepmerge 4.3.1 has no patched release for
+GHSA-gcqx-w48m-w2h4, and the dependency audit failed on it. The root now
+installs `vendor/deepmerge-compat`, upstream 4.3.1 with `__proto__` refused by
+name in both merge loops (upstream PR #274), through a `file:` override plus a
+root `deepmerge` `^4.3.1` dependency that Bun needs to install it. The audit
+binds the override, manifest, sources and lock resolutions.
+`deepmerge-compat.test.ts` fails 23 tests on the unpatched package and passes
+all 36 on the repair, through each installed consumer and a real html-to-text
+conversion. Remove the vendor package when upstream ships a fix.
+
 ## Private PR 669 integration, October 29, 2026
 
 `CSF-SETTINGS-READER-PINS-20261029`, P2, test tooling, fixed locally, release
