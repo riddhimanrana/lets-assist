@@ -1,5 +1,22 @@
 # Repository cleanup register
 
+## Release acceptance gates, October 29, 2026
+
+`TEST-LANDING-SECTIONS-20261029`, P2, test tooling, fixed locally. PR 918
+removed the partner list from the landing page, but the browser stability
+check still waited for `#partners`, so full Code quality failed at all three
+widths. The check now measures the six sections the page renders (journey,
+organization tooling, check-in, comparison, testimonials, call to action),
+and a source contract keeps its list equal to `LandingLazySections`, in order.
+
+`TEST-HOSTED-ATTENDANCE-STAGE-20261029`, P2, release tooling, fixed locally,
+hosted proof pending. The hosted attendance gate failed with one fixed line,
+so the failing phase was unknown. The journey now records a closed stage code
+at each phase boundary, and the reporter prints it only when the test's own
+error is exactly the fixed stage message for a known code. Errors, streams,
+URLs, identifiers, rows and attachments are still never printed, and capture
+stays off.
+
 ## deepmerge prototype repair, October 29, 2026
 
 `DEPS-DEEPMERGE-GHSA-GCQX-20261029`, P2, dependency security, fixed locally,
