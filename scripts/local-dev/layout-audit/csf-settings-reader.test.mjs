@@ -16,6 +16,7 @@ import {
   csfSettingsPolicyFromCompiled,
   exactCsfSettingsPolicy,
   csfSettingsReaderRequest,
+  verifyCsfSettingsSources,
 } from "./csf-settings-reader-contract.mjs";
 const repo = process.cwd();
 const actor = {
@@ -309,6 +310,61 @@ test("compiled review accepts only the three exact implementation/worker mapping
   assert.throws(() =>
     csfSettingsPolicyFromCompiled(compiled(), repo, "f".repeat(64), hashes),
   );
+});
+// The Settings panel's import closure changed in private PR 669: two pins
+// moved and four extracted modules were added. Each must still be enforced.
+const SETTINGS_CLOSURE_CHANGED = [
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleSheetsConnectionPanel.tsx",
+  "lib/plugins/private/plugins/dvhs-csf/server/actions/import-google.ts",
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleSheetsConnectionView.tsx",
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleDisconnectDialog.tsx",
+  "lib/plugins/private/plugins/dvhs-csf/components/csf-google-connection-check.ts",
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleConnectionNotices.ts",
+];
+test("an owned copy of the reviewed sources is accepted and every changed module is enforced", (t) => {
+  const copy = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "csf-settings-sources-")),
+  );
+  const alias = `${copy}-alias`;
+  t.after(() => {
+    fs.rmSync(alias, { force: true });
+    fs.rmSync(copy, { recursive: true, force: true });
+  });
+  const restore = (file) => {
+    const destination = path.join(copy, file);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(path.join(repo, file), destination);
+  };
+  for (const file of Object.keys(CSF_SETTINGS_SOURCE_HASHES)) restore(file);
+  verifyCsfSettingsSources(copy, CSF_SETTINGS_SOURCE_HASHES);
+
+  for (const file of SETTINGS_CLOSURE_CHANGED) {
+    assert.ok(file in CSF_SETTINGS_SOURCE_HASHES, `${file} is pinned`);
+    fs.appendFileSync(path.join(copy, file), "\n// drift\n");
+    assert.throws(
+      () => verifyCsfSettingsSources(copy, CSF_SETTINGS_SOURCE_HASHES),
+      undefined,
+      `drift in ${file} is refused`,
+    );
+    restore(file);
+    fs.rmSync(path.join(copy, file));
+    assert.throws(
+      () => verifyCsfSettingsSources(copy, CSF_SETTINGS_SOURCE_HASHES),
+      undefined,
+      `a missing ${file} is refused`,
+    );
+    restore(file);
+  }
+  verifyCsfSettingsSources(copy, CSF_SETTINGS_SOURCE_HASHES);
+
+  // The same bytes through a symlinked root, or with a pin dropped, are refused.
+  fs.symlinkSync(copy, alias, "dir");
+  assert.throws(() =>
+    verifyCsfSettingsSources(alias, CSF_SETTINGS_SOURCE_HASHES),
+  );
+  const fewer = { ...CSF_SETTINGS_SOURCE_HASHES };
+  delete fewer[SETTINGS_CLOSURE_CHANGED[2]];
+  assert.throws(() => verifyCsfSettingsSources(copy, fewer));
 });
 test("owned compiled bytes and the reviewed action list must remain exact", (t) => {
   const build = fs.realpathSync(

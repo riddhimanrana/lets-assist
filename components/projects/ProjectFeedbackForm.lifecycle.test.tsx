@@ -152,7 +152,8 @@ describe("project feedback form submission", () => {
     expect(toasts).toEqual([
       {
         kind: "success",
-        message: "Thanks. Your feedback went to the organizer.",
+        message:
+          "Thanks. Your feedback was sent to the people who manage this project.",
       },
     ]);
     expect(f.button("Edit feedback")).not.toBeNull();
@@ -209,13 +210,15 @@ describe("project feedback form labels and diagnostics", () => {
     await f.unmount();
   });
 
-  test("the visibility copy is plain sentences and unchanged in meaning", async () => {
+  test("the visibility copy names every reader and says it is private and named", async () => {
     const f = mount();
     await f.render();
     const text = f.textarea()?.parentNode?.textContent ?? "";
     expect(text).toContain(
-      "Only the organizer sees this. It's never shown on the project page. Your name is shown with your feedback.",
+      "Your feedback is private and never shown on the project page. You, the people who manage this project and Let's Assist administrators can read it. Your name is shown with your feedback.",
     );
+    // The old copy claimed the organizer was the only reader.
+    expect(text).not.toContain("Only the organizer");
     expect(text).not.toContain("—");
     await f.unmount();
   });

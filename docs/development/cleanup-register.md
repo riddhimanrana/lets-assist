@@ -1,5 +1,98 @@
 # Repository cleanup register
 
+## Private PR 669 integration, October 29, 2026
+
+`CSF-SETTINGS-READER-PINS-20261029`, P2, test tooling, fixed locally, release
+pending. Private PR 669 merged as `b3369ad`, with a tree identical to the
+reviewed head `03175ea`. The root gitlink now points at it, and the CSF
+Settings reader pins move in the same change: the connection panel and the
+status server action take their merged hashes, and the four modules the panel
+now renders through (view, disconnect dialog, status checker, notices) are
+pinned. The Settings import closure reaches no other changed file; the Sheet
+picker modules are outside it. Readers, capabilities, actor checks and the
+disconnected-only, zero-write limits are unchanged. A new test copies the
+pinned sources into an owned temporary root and proves that drift or removal
+of each changed module, a symlinked root and a dropped pin are all refused.
+The oversized-file allowance for the Sheet picker field is removed now that it
+is 440 lines.
+
+## ICU and temp-path assumptions in tests, October 29, 2026
+
+`TEST-ATTENDANCE-ICU-SEPARATOR-20261029`, P3, test tooling, fixed locally.
+`AttendanceSheetClient.behavior.test.ts` expected "Dec 5, 2026, 9:00 AM PST".
+Bun on macOS uses ICU 78.1, which joins the date and time with " at "; Node's
+ICU 79.1 uses ", ". The rendered date, time and PST/PDT zone were correct. The
+test now requires the exact date, 9:00 AM and the season's zone, allows only
+those two joiners, and checks that winter is never PDT and summer never PST.
+
+`TEST-INTEGRATION-READER-TMP-ALIAS-20261029`, P3, test tooling, fixed
+locally. The integration reader requires every source path to be its own
+real path. On macOS the temp directory is a symlink, so the test's own
+fixture failed that rule while every source hash matched. The fixture root is
+now canonicalized, and a new check proves the same bytes reached through a
+symlinked root are still refused. No hash or contract changed.
+
+## Shared test process lacked Next's runtime baseline, October 29, 2026
+
+`TEST-PRELOAD-ASYNC-LOCAL-STORAGE-20261029`, P2, test tooling, fixed locally.
+`lib/supabase/proxy-requests.test.ts` passed alone but failed in the shared
+"remaining root unit tests" process with Next's "AsyncLocalStorage accessed
+in runtime where it is not available" invariant. Bun has no global
+AsyncLocalStorage, and Next's request stores capture that global once, when
+they first load. An earlier file importing `next/headers` left a fake store;
+`lib/security/response-headers.test.ts` then loaded Next's server
+environment, whose console patch sends every console call through that fake.
+The Supabase client's `console.warn` during the retryable refresh outage
+then threw. A replay of the 185 preceding files reproduced it, and a trace
+named the caller. The test preload now loads Next's
+`node-environment-baseline` first, as Next's own server does. The same replay
+then passed 1,742 tests with no failures. A regression test checks the real
+store, propagation across `await`, and the console after the server
+environment loads, and runs a two-file fixture in child processes with and
+without the preload. No product, auth or dependency change.
+
+## Guest account linking and feedback wording, October 29, 2026
+
+`GUEST-AUTO-LINK-SELF-CANCEL-20261029`, P2, fixed locally, release pending.
+After a guest returned signed in with `link=1`, the auto-link effect set its
+own "attempted" state, which re-ran the effect and cleaned up the live run.
+The link write still went out, but the page never showed the success or
+moved to the dashboard. A copy of the old effect reproduced this. The attempt
+now lives in a small hook with a ref keyed to the guest profile and token,
+and each run has its own ignore flag. A run cleaned up before the write
+releases the attempt, so React StrictMode still links exactly once; a run
+cleaned up after the write only stops local updates. Seven lifecycle tests
+cover delayed sign-in, re-renders, StrictMode, unmount before and after the
+write, a profile switch, and errors.
+
+`GUEST-ACCOUNT-CREATED-STATE-20261029`, P2, fixed locally, release pending.
+Creating an account without a session returns before any attendance
+transfer, but the page had no state for that: the callback for it was never
+wired, and the only nearby state meant "linked but unverified". The page now
+keeps a separate account-created notice that leaves the guest unlinked, asks
+the guest to verify, sign in and return to the same token-bound page, and
+keeps the linking dialog (and its verification dialog) mounted. The legacy
+linked-but-unverified state and every callback signature are unchanged. The
+coordinator-approval claim in the description and auto-link toast is gone.
+Mocked action tests prove a no-session signup never calls the transfer RPC.
+
+`GUEST-PROFILE-STATE-CARRYOVER-20261029`, P2, fixed locally, release pending.
+Moving between guest profile URLs kept the same client component, so one
+guest's link state, removed slots and waiver state carried into the next. A
+lifecycle test showed the carry-over. The server page now keys the client by
+guest ID.
+
+`PROJECT-FEEDBACK-READERS-COPY-20261029`, P2, fixed locally, release pending.
+The feedback form and dialog said only the organizer could read feedback.
+The server also lets the author, the people who manage the project and
+Let's Assist administrators read it. Both surfaces now share one plain
+sentence that names those readers and says feedback is private and named.
+Permissions, moderation and the SQL policy are unchanged.
+
+Signed-in guests now see "Link to this account" as the primary action, with
+existing, new and Google accounts behind a closed "Use a different account"
+disclosure. A ref allows one link or signup request at a time.
+
 ## Organization flow simplification, October 28, 2026
 
 `PROJECT-AI-ASSISTANT-STALL-20261028`, P2, fixed locally, release pending.
@@ -46,8 +139,8 @@ are now Previous page, Next page, Zoom out and Zoom in, with decorative icons
 and unchanged page and zoom bounds. Three render tests cover it. A final
 user-Chrome check found all four names, and Zoom in moved to 110%.
 
-`CSF-SHEETS-CHECK-FAILED-AS-DISCONNECTED-20261028`, P2, private, fixed in the
-private working tree, review pending. The chapter Google connection panel
+`CSF-SHEETS-CHECK-FAILED-AS-DISCONNECTED-20261028`, P2, private, merged in
+private PR 669 (`b3369ad`), root integration pending. The chapter Google connection panel
 cleared the connection when a status check failed and then labelled it Not
 connected, with a Connect button, and showed raw thrown error text. Failed
 checks now show "Status unavailable" with only Check again; the status action
@@ -81,8 +174,8 @@ lockfile. The deepmerge advisory GHSA-gcqx-w48m-w2h4 has no patched version
 according to the GitHub advisory API. Dependencies and the audit gate were not
 changed and no waiver is recorded.
 
-`CSF-POINT-SUBMISSION-LOST-RESPONSE-20261028`, P2, private, fixed in the
-private working tree, review pending. When the point submission action call
+`CSF-POINT-SUBMISSION-LOST-RESPONSE-20261028`, P2, private, merged in
+private PR 669 (`b3369ad`), root integration pending. When the point submission action call
 rejected (a lost response or network drop), the dialog said "Submission not
 saved" and offered Try again, though the claim may already have been saved.
 The supervisor reproduced this in a user-Chrome fixture with a controlled,

@@ -4,7 +4,7 @@ import { safeConsole } from "@/lib/safe-console";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -14,7 +14,6 @@ import {
   startAnonymousGoogleLink,
 } from "./actions";
 import { LinkIcon, useAnimatedIcon } from "@/components/icons/animated";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +42,7 @@ import {
   type CreateAccountValues,
   type ExistingAccountValues,
 } from "./_components/linking-schemas";
+import { anonymousLinkLoginHref } from "./_components/link-routes";
 import { VerificationSentDialog } from "./_components/VerificationSentDialog";
 
 type CurrentUserState = {
@@ -57,7 +57,16 @@ interface AnonymousLinkingDialogProps {
   defaultEmail: string;
   isLinked: boolean;
   onLinked: () => void;
+  /**
+   * Legacy: the profile is linked to an account that has not verified its
+   * email. No action here produces that state today; it is kept for callers.
+   */
   onLinkedPendingVerification: (email: string) => void;
+  /**
+   * A new account was created but has no session until its email is
+   * verified. Nothing was linked; the guest profile is unchanged.
+   */
+  onAccountCreatedPendingVerification?: (email: string) => void;
 }
 
 export function AnonymousLinkingDialog({
@@ -67,6 +76,7 @@ export function AnonymousLinkingDialog({
   defaultEmail,
   isLinked,
   onLinked,
+  onAccountCreatedPendingVerification,
 }: AnonymousLinkingDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -80,6 +90,17 @@ export function AnonymousLinkingDialog({
   const [verificationEmail, setVerificationEmail] = useState(defaultEmail);
 
   const linkIcon = useAnimatedIcon();
+  // Busy flags only disable controls after a render, so a second click in
+  // the same tick could start a second link or signup. One write at a time.
+  const writeInFlight = useRef(false);
+  const beginWrite = () => {
+    if (writeInFlight.current) return false;
+    writeInFlight.current = true;
+    return true;
+  };
+  const endWrite = () => {
+    writeInFlight.current = false;
+  };
 
   const verification = useBotVerification({
     onError: () => {
@@ -171,6 +192,7 @@ export function AnonymousLinkingDialog({
   };
 
   const handleLinkCurrentAccount = async () => {
+    if (!beginWrite()) return;
     setIsLinkingCurrent(true);
 
     try {
@@ -191,13 +213,14 @@ export function AnonymousLinkingDialog({
       safeConsole.error("Error linking current account:", error);
       toast.error("Failed to link your current account. Please try again.");
     } finally {
+      endWrite();
       setIsLinkingCurrent(false);
     }
   };
 
   const handleExistingAccountLink = existingAccountForm.handleSubmit(
     async (values) => {
-      if (!requireCaptchaToken()) {
+      if (!requireCaptchaToken() || !beginWrite()) {
         return;
       }
 
@@ -230,6 +253,7 @@ export function AnonymousLinkingDialog({
         toast.error("Failed to link your account. Please try again.");
         verification.reset();
       } finally {
+        endWrite();
         setIsLinkingExisting(false);
       }
     },
@@ -237,7 +261,7 @@ export function AnonymousLinkingDialog({
 
   const handleCreateAccountLink = createAccountForm.handleSubmit(
     async (values) => {
-      if (!requireCaptchaToken()) {
+      if (!requireCaptchaToken() || !beginWrite()) {
         return;
       }
 
@@ -269,8 +293,11 @@ export function AnonymousLinkingDialog({
         setOpen(false);
 
         if (result.requiresEmailVerification) {
+          // Account created, nothing linked yet. The verification dialog lives
+          // in this component, which the parent keeps mounted while unlinked.
           setVerificationEmail(values.email);
           setVerificationDialogOpen(true);
+          onAccountCreatedPendingVerification?.(values.email);
           toast.success(
             "Account created. Verify your email, then return here to link your saved attendance.",
           );
@@ -285,12 +312,14 @@ export function AnonymousLinkingDialog({
         toast.error("Failed to create your account. Please try again.");
         verification.reset();
       } finally {
+        endWrite();
         setIsCreatingAccount(false);
       }
     },
   );
 
   const handleGoogleLink = async () => {
+    if (!beginWrite()) return;
     setIsGoogleLoading(true);
 
     try {
@@ -311,6 +340,7 @@ export function AnonymousLinkingDialog({
       safeConsole.error("Error starting Google linking:", error);
       toast.error("Failed to start Google linking. Please try again.");
     } finally {
+      endWrite();
       setIsGoogleLoading(false);
     }
   };
@@ -337,6 +367,100 @@ export function AnonymousLinkingDialog({
     isGoogleLoading;
 
   const formsBlocked = isBusy || (showTurnstileWidget && !verification.token);
+
+  // Existing, new and Google accounts. Signed-in viewers find them behind
+  // a closed disclosure; signed-out viewers see them directly.
+  const alternatives = (
+    <>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "existing" | "create")}
+        className="gap-4"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="existing">Existing account</TabsTrigger>
+          <TabsTrigger value="create">Create account</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="existing">
+          <ExistingAccountForm
+            form={existingAccountForm}
+            onSubmit={handleExistingAccountLink}
+            disabled={formsBlocked}
+            isSubmitting={isLinkingExisting}
+          />
+        </TabsContent>
+
+        <TabsContent value="create">
+          <CreateAccountForm
+            form={createAccountForm}
+            onSubmit={handleCreateAccountLink}
+            disabled={formsBlocked}
+            isSubmitting={isCreatingAccount}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {showTurnstileWidget && (
+        <div className="grid gap-3">
+          <div className="grid gap-1">
+            <h3 className="text-sm font-medium">Security check</h3>
+            <p className="text-muted-foreground text-sm">
+              Complete bot verification before using email/password linking.
+            </p>
+          </div>
+          <SecureCheckPanel
+            phase={verification.phase}
+            onRetry={verification.retry}
+            className="rounded-lg"
+            fallbackClassName="rounded-lg"
+          >
+            <TurnstileComponent
+              key={verification.widgetKey}
+              ref={verification.ref}
+              onLoad={verification.onLoad}
+              onVerify={verification.onVerify}
+              onError={verification.onError}
+              onExpire={() => verification.reset()}
+            />
+          </SecureCheckPanel>
+          {verification.error && <FieldError>{verification.error}</FieldError>}
+        </div>
+      )}
+
+      <Separator />
+
+      <div className="grid gap-3">
+        <div className="grid gap-1">
+          <h3 className="text-sm font-medium">Prefer Google?</h3>
+          <p className="text-muted-foreground text-sm">
+            Continue with your Google account. We&apos;ll bring you back here to
+            finish linking your volunteer profile.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleGoogleLink}
+          disabled={isBusy}
+          className="w-full sm:w-auto sm:justify-self-start"
+        >
+          {isGoogleLoading ? (
+            <Spinner data-icon="inline-start" aria-hidden="true" />
+          ) : (
+            <Image
+              src="/resources/google-logo-2026.png"
+              alt=""
+              width={18}
+              height={18}
+              className="size-4 object-contain"
+            />
+          )}
+          Continue with Google
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -378,21 +502,18 @@ export function AnonymousLinkingDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {currentUser?.email && (
-            <Alert variant="info">
-              <AlertTitle>Already signed in</AlertTitle>
-              <AlertDescription className="grid gap-3 [&_p:not(:last-child)]:mb-0">
-                <p>
-                  You&apos;re currently signed in as{" "}
+          {currentUser?.email ? (
+            <>
+              <div className="grid gap-2">
+                <p className="text-sm">
+                  You&apos;re signed in as{" "}
                   <span className="text-foreground font-medium wrap-break-word">
                     {currentUser.email}
                   </span>
-                  . You can attach this volunteer profile to that account
-                  immediately.
+                  .
                 </p>
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={handleLinkCurrentAccount}
                   disabled={isBusy}
                   className="w-full sm:w-auto sm:justify-self-start"
@@ -400,103 +521,19 @@ export function AnonymousLinkingDialog({
                   {isLinkingCurrent && (
                     <Spinner data-icon="inline-start" aria-hidden="true" />
                   )}
-                  Link to current account
+                  Link to this account
                 </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as "existing" | "create")
-            }
-            className="gap-4"
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="existing">Existing account</TabsTrigger>
-              <TabsTrigger value="create">Create account</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="existing">
-              <ExistingAccountForm
-                form={existingAccountForm}
-                onSubmit={handleExistingAccountLink}
-                disabled={formsBlocked}
-                isSubmitting={isLinkingExisting}
-              />
-            </TabsContent>
-
-            <TabsContent value="create">
-              <CreateAccountForm
-                form={createAccountForm}
-                onSubmit={handleCreateAccountLink}
-                disabled={formsBlocked}
-                isSubmitting={isCreatingAccount}
-              />
-            </TabsContent>
-          </Tabs>
-
-          {showTurnstileWidget && (
-            <div className="grid gap-3">
-              <div className="grid gap-1">
-                <h3 className="text-sm font-medium">Security check</h3>
-                <p className="text-muted-foreground text-sm">
-                  Complete bot verification before using email/password linking.
-                </p>
               </div>
-              <SecureCheckPanel
-                phase={verification.phase}
-                onRetry={verification.retry}
-                className="rounded-lg"
-                fallbackClassName="rounded-lg"
-              >
-                <TurnstileComponent
-                  key={verification.widgetKey}
-                  ref={verification.ref}
-                  onLoad={verification.onLoad}
-                  onVerify={verification.onVerify}
-                  onError={verification.onError}
-                  onExpire={() => verification.reset()}
-                />
-              </SecureCheckPanel>
-              {verification.error && (
-                <FieldError>{verification.error}</FieldError>
-              )}
-            </div>
+              <details className="grid gap-4">
+                <summary className="cursor-pointer text-sm font-medium">
+                  Use a different account
+                </summary>
+                <div className="mt-4 grid gap-4">{alternatives}</div>
+              </details>
+            </>
+          ) : (
+            alternatives
           )}
-
-          <Separator />
-
-          <div className="grid gap-3">
-            <div className="grid gap-1">
-              <h3 className="text-sm font-medium">Prefer Google?</h3>
-              <p className="text-muted-foreground text-sm">
-                Continue with your Google account. We&apos;ll bring you back
-                here to finish linking your volunteer profile.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleLink}
-              disabled={isBusy}
-              className="w-full sm:w-auto sm:justify-self-start"
-            >
-              {isGoogleLoading ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <Image
-                  src="/resources/google-logo-2026.png"
-                  alt=""
-                  width={18}
-                  height={18}
-                  className="size-4 object-contain"
-                />
-              )}
-              Continue with Google
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -504,7 +541,7 @@ export function AnonymousLinkingDialog({
         open={verificationDialogOpen}
         onOpenChange={setVerificationDialogOpen}
         email={verificationEmail}
-        loginHref={`/login?redirect=${encodeURIComponent(`/anonymous/${anonymousId}?token=${encodeURIComponent(anonymousToken)}&link=1`)}`}
+        loginHref={anonymousLinkLoginHref(anonymousId, anonymousToken)}
       />
     </>
   );

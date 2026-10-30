@@ -250,9 +250,13 @@ for (const exportedName of [
     ));
 }
 test("actual reviewed bytes and unique exact compiled mappings are required", () => {
-  const repo = fs.mkdtempSync(
-    path.join(os.tmpdir(), "lets-assist-integration-contract-"),
+  // The contract requires every source path to be its own real path. On
+  // macOS os.tmpdir() sits under /var, a symlink to /private/var, so the
+  // test's own fixture root is canonicalized first.
+  const repo = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "lets-assist-integration-contract-")),
   );
+  const alias = `${repo}-alias`;
   try {
     for (const file of Object.keys(INTEGRATION_SOURCE_HASHES)) {
       const destination = path.join(repo, file);
@@ -280,6 +284,17 @@ test("actual reviewed bytes and unique exact compiled mappings are required", ()
       INTEGRATION_SOURCE_HASHES,
     );
     assert.deepEqual(policy.approvedActions, actions);
+    // The same reviewed bytes reached through a symlinked root are refused,
+    // on every platform.
+    fs.symlinkSync(repo, alias, "dir");
+    assert.throws(() =>
+      integrationPolicyFromCompiled(
+        compiled,
+        alias,
+        sha,
+        INTEGRATION_SOURCE_HASHES,
+      ),
+    );
     const build = path.join(repo, "build");
     fs.mkdirSync(path.join(build, "server"), { recursive: true });
     fs.writeFileSync(
@@ -336,6 +351,7 @@ test("actual reviewed bytes and unique exact compiled mappings are required", ()
       ),
     );
   } finally {
+    fs.rmSync(alias, { force: true });
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });

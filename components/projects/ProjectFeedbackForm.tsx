@@ -21,6 +21,10 @@ import {
 } from "@/components/projects/StarRatingInput";
 import { submitProjectFeedback } from "@/app/projects/[id]/actions";
 import { safeConsole } from "@/lib/safe-console";
+import {
+  PROJECT_FEEDBACK_SAVED_MESSAGE,
+  PROJECT_FEEDBACK_VISIBILITY,
+} from "./feedback-visibility";
 
 const COMMENT_MAX = 2000;
 
@@ -66,8 +70,9 @@ interface ProjectFeedbackFormProps {
 
 /**
  * The private post-project rating widget. Copy is deliberately explicit
- * about who sees what: only the organizer, never the public page. The
- * volunteer's name is attached, because on a five-person project
+ * about who sees what (PROJECT_FEEDBACK_VISIBILITY): never the public page,
+ * only the author, project managers and administrators. The volunteer's
+ * name is attached, because on a five-person project
  * "anonymous" would be a lie.
  */
 export function ProjectFeedbackForm({
@@ -120,7 +125,7 @@ export function ProjectFeedbackForm({
           toast.error(result.error ?? "Could not save your feedback.");
           return;
         }
-        toast.success("Thanks. Your feedback went to the organizer.");
+        toast.success(PROJECT_FEEDBACK_SAVED_MESSAGE);
         setSubmitted(true);
         setEditing(false);
         onSubmitted?.(value);
@@ -184,10 +189,7 @@ export function ProjectFeedbackForm({
           maxLength={COMMENT_MAX}
           disabled={pending}
         />
-        <FieldDescription>
-          Only the organizer sees this. It&apos;s never shown on the project
-          page. Your name is shown with your feedback.
-        </FieldDescription>
+        <FieldDescription>{PROJECT_FEEDBACK_VISIBILITY}</FieldDescription>
       </Field>
 
       {outcomeUnknown ? (

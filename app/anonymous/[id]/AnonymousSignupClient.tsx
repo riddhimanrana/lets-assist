@@ -21,6 +21,10 @@ import {
   getWaiverDownloadUrl,
 } from "@/app/projects/[id]/actions";
 import { linkAnonymousToAuthenticatedAccount } from "./actions";
+import {
+  AUTO_LINK_SUCCESS_MESSAGE,
+  useAnonymousAutoLink,
+} from "./use-anonymous-auto-link";
 import type { AnonymousProfileExperienceBehavior } from "@/types";
 import { CancelSlotDialog } from "./_components/CancelSlotDialog";
 import {
@@ -77,7 +81,6 @@ export default function AnonymousSignupClient({
   const [cancellingSlotId, setCancellingSlotId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [removedSlots, setRemovedSlots] = useState<Set<string>>(new Set());
-  const [, setIsLinking] = useState(false);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>(
     linkedUserId
       ? linkedAccountVerified
@@ -92,7 +95,11 @@ export default function AnonymousSignupClient({
       ? (linkedAccountEmail ?? email)
       : null,
   );
-  const [autoLinkAttempted, setAutoLinkAttempted] = useState(false);
+  // A new account that still needs email verification. The guest profile is
+  // not linked yet, so this never changes linkStatus or isLinked.
+  const [accountCreatedEmail, setAccountCreatedEmail] = useState<string | null>(
+    null,
+  );
   const [autoLinkError, setAutoLinkError] = useState<string | null>(null);
   const [waiverSignatures, setWaiverSignatures] = useState<
     Record<string, { signature_type: string; signed_at?: string | null } | null>
@@ -153,67 +160,32 @@ export default function AnonymousSignupClient({
   const shouldAutoLink = searchParams.get("link") === "1";
   const isLinked = linkStatus !== "unlinked";
 
-  useEffect(() => {
-    if (!shouldAutoLink || autoLinkAttempted || isLinked) {
-      return;
-    }
-
-    let isMounted = true;
-    setAutoLinkAttempted(true);
-
-    const autoLink = async () => {
-      try {
-        const supabase = createClient();
+  useAnonymousAutoLink({
+    anonymousId: id,
+    anonymousToken: accessToken,
+    enabled: shouldAutoLink && !isLinked,
+    deps: {
+      getUser: async () => {
         const {
           data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          return;
-        }
-
-        setIsLinking(true);
-        const result = await linkAnonymousToAuthenticatedAccount(
-          id,
-          accessToken,
-        );
-
-        if (result.error) {
-          setAutoLinkError(result.error);
-          toast.error(result.error);
-          return;
-        }
-
-        if (!isMounted) {
-          return;
-        }
-
-        setLinkStatus("linked");
-        setAutoLinkError(null);
-        toast.success(
-          "Account linked successfully! Your event signups have been transferred and are now pending approval from project coordinators.",
-        );
-        router.replace("/dashboard");
-        router.refresh();
-      } catch (error) {
-        safeConsole.error("Error auto-linking account:", error);
-        setAutoLinkError(
-          "Failed to link account automatically. You can still finish linking below.",
-        );
-        toast.error("Failed to link account. Please try again.");
-      } finally {
-        if (isMounted) {
-          setIsLinking(false);
-        }
-      }
-    };
-
-    void autoLink();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [shouldAutoLink, autoLinkAttempted, isLinked, id, accessToken, router]);
+        } = await createClient().auth.getUser();
+        return user ? { id: user.id } : null;
+      },
+      link: linkAnonymousToAuthenticatedAccount,
+    },
+    onLinked: () => {
+      setLinkStatus("linked");
+      setAutoLinkError(null);
+      setAccountCreatedEmail(null);
+      toast.success(AUTO_LINK_SUCCESS_MESSAGE);
+      router.replace("/dashboard");
+      router.refresh();
+    },
+    onError: (message) => {
+      setAutoLinkError(message);
+      toast.error(message);
+    },
+  });
 
   const handleCancelSlot = async () => {
     if (!cancellingSlotId) return;
@@ -429,9 +401,15 @@ export default function AnonymousSignupClient({
         isLinked={isLinked}
         autoLinkError={autoLinkError}
         verificationPendingEmail={verificationPendingEmail}
+        accountCreatedEmail={accountCreatedEmail}
+        onAccountCreatedPendingVerification={(createdEmail) => {
+          setAccountCreatedEmail(createdEmail);
+          setAutoLinkError(null);
+        }}
         onLinked={() => {
           setLinkStatus("linked");
           setAutoLinkError(null);
+          setAccountCreatedEmail(null);
         }}
         onLinkedPendingVerification={(pendingEmail) => {
           setLinkStatus("verification-pending");
