@@ -4,7 +4,17 @@ import { expect, test } from "@playwright/test";
 import { getCsfIsolatedSupabaseEnv } from "../../../scripts/local-dev/dv-local-env.mjs";
 import { readAxeRows } from "../../../scripts/local-dev/layout-audit/axe-color-diagnostics.mjs";
 
-const sections = ["journey", "org-tooling", "check-in", "partners", "cta"];
+// Every section LandingLazySections renders, in order. The source contract in
+// app/(landing)/_components/landing-sections-contract.test.ts keeps this list
+// equal to the rendered sections.
+const sections = [
+  "journey",
+  "org-tooling",
+  "check-in",
+  "comparison",
+  "testimonials",
+  "cta",
+];
 const axeSource = readFileSync(
   createRequire(import.meta.url).resolve("axe-core/axe.min.js"),
   "utf8",

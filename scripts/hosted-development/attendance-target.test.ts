@@ -135,9 +135,11 @@ describe("hosted attendance target", () => {
     expect(
       spec.match(/if \(!env.hosted\)\s+await page.screenshot/gu),
     ).toHaveLength(5);
+    // The hosted catch replaces every error with the fixed stage message.
     expect(spec).toContain(
-      'throw new Error(\n        "Hosted attendance journey failed (ATTENDANCE_JOURNEY_FAILED)."',
+      "if (env.hosted) throw new Error(hostedJourneyFailure(stage));",
     );
+    expect(spec.match(/hostedJourneyFailure\(/gu)).toHaveLength(2);
     expect(spec).not.toContain("storageState(");
     expect(spec).not.toContain("extraHTTPHeaders");
   });
