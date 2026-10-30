@@ -866,7 +866,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       const linker = guestPage.getByRole("dialog");
       if (env.hosted) {
         await linker
-          .getByRole("button", { name: "Link to current account", exact: true })
+          .getByRole("button", { name: "Link to this account", exact: true })
           .click();
       } else {
         await linker.getByLabel("Email", { exact: true }).fill(walkinEmail);
