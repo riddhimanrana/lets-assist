@@ -16,6 +16,20 @@ of each changed module, a symlinked root and a dropped pin are all refused.
 The oversized-file allowance for the Sheet picker field is removed now that it
 is 440 lines.
 
+`LAYOUT-CAPTURE-LEDGER-TEST-COUPLING-20261029`, P2, test tooling, fixed
+locally. Hosted CI on `e85013c` failed one assertion in
+`capture-ledger-policy.test.mjs`: the committed-migration ledger test also
+required the commit's private gitlink to equal the frozen capture target
+`8c84d61`. Any feature PR that moves the gitlink failed it, even though the 740
+migration objects were unchanged. The ledger test now checks only the ledger
+and the literal `38dc7c7` and `8c84d61` policy values. A separate test runs the
+real binding `shape()` check on a fictional, otherwise valid binding: the
+frozen `8c84d61` passes, and `b3369ad`, the `38dc7c7` baseline, an unknown head
+and any other committed gitlink are each refused for the private head alone. The
+capture grant is unchanged: `baseline-policy.json`, the binding, the CI
+wrapper, the binding preparer, `code-manifest.sha256` and the workflow pin are
+untouched, and this tree is not capture-eligible.
+
 ## ICU and temp-path assumptions in tests, October 29, 2026
 
 `TEST-ATTENDANCE-ICU-SEPARATOR-20261029`, P3, test tooling, fixed locally.
