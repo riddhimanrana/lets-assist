@@ -217,15 +217,8 @@ export default function OrganizationTabs({
     canViewReports &&
     (!coreTabReplacements.reports || routeBackedTabs.has("reports"));
 
-  /**
-   * Phone navigation collapses into a single full-section switcher only for
-   * organizations that opt into the compact workspace chrome. Generic
-   * organizations keep the horizontal category strip plus utility menu at every
-   * width.
-   */
-  const usesFullSectionMobileNav = Boolean(
-    pluginNavigationOverrides.compactHeader,
-  );
+  // Every organization uses the same page navigation: line tabs from tablet
+  // width up and one section switcher on phones (OrganizationTabsNavigation).
   const sectionGroupLabel =
     pluginNavigationOverrides.sectionMenuLabel ?? "Workspace";
   const utilityGroupLabel =
@@ -411,7 +404,8 @@ export default function OrganizationTabs({
           )
         }
         aria-current={isActive ? "page" : undefined}
-        className="justify-between"
+        // The section switcher only opens on phones: 44px touch targets.
+        className="min-h-11 justify-between"
       >
         <span className="flex min-w-0 items-center gap-2">
           {destination.icon}
@@ -482,7 +476,6 @@ export default function OrganizationTabs({
       className="w-full"
     >
       <OrganizationTabsNavigation
-        usesFullSectionMobileNav={usesFullSectionMobileNav}
         switcherDestinations={switcherDestinations}
         workspaceDestinations={workspaceDestinations}
         utilityDestinations={utilityDestinations}
@@ -494,7 +487,7 @@ export default function OrganizationTabs({
         pluginNavigationOverrides={pluginNavigationOverrides}
         activePluginParentValue={activePluginParentValue}
         morePluginTabs={morePluginTabs}
-        hasActiveMoreTab={Boolean(activeMoreTab)}
+        activeMoreTab={activeMoreTab}
         activeTab={activeTab}
         getTabHref={getTabHref}
         fullDocumentTabNavigation={Boolean(

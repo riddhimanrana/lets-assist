@@ -193,7 +193,7 @@ for (const width of [390, 1440]) {
 
         if (width < 640) {
           const switcher = organization.getByRole("button", {
-            name: "Overview — change section",
+            name: "Overview, change section",
           });
           await switcher.focus();
           await page.keyboard.press("Enter");
@@ -203,7 +203,7 @@ for (const width of [390, 1440]) {
           await page.keyboard.press("Enter");
           await expect(
             organization.getByRole("button", {
-              name: "Reports — change section",
+              name: "Reports, change section",
             }),
           ).toBeVisible();
         } else {

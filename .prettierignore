@@ -28,3 +28,8 @@ scripts/local-dev/layout-audit/upstream/manifest.baseline-template.json
 scripts/local-dev/layout-audit/upstream/original-route-role-state-inventory.json
 scripts/local-dev/layout-audit/upstream/read-action-source-review.json
 scripts/local-dev/layout-audit/upstream/runtime-cache-source-proof.json
+
+# Upstream deepmerge 4.3.1 sources, kept in upstream style so the reviewed
+# patch and hashes stay exact.
+vendor/deepmerge-compat/index.cjs
+vendor/deepmerge-compat/index.d.ts

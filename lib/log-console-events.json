@@ -651,6 +651,7 @@
   "Project ID:",
   "Project cancellation worker failed:",
   "Project feedback follow-up worker failed:",
+  "Project feedback submission did not return:",
   "Project is cancelled or completed, slot not available",
   "Project parser rate-limit check failed:",
   "Project parser response did not contain JSON",

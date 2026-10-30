@@ -76,6 +76,13 @@ const productContract = flow(readDoc("product-contract.md"));
 type LabelContract = {
   /** The component that renders it. */
   component: string;
+  /**
+   * Modules the component renders through, read when they exist. A private
+   * candidate can move markup into a view module that the gitlinked private
+   * version does not have yet; every label must still appear in the
+   * component or one of these.
+   */
+  renderedThrough?: string[];
   /** Exact operator-visible strings the documents quote. */
   labels: string[];
   /**
@@ -198,6 +205,7 @@ const CLASSES_AND_POLICY: LabelContract[] = [
 const IMPORTS: LabelContract[] = [
   {
     component: "CsfGoogleSheetsConnectionPanel.tsx",
+    renderedThrough: ["CsfGoogleSheetsConnectionView.tsx"],
     labels: [
       "Google Drive connection",
       "Switch or reconnect",
@@ -402,8 +410,18 @@ const OPERATOR_DOCUMENTS = [operatorGuide, officerRunbook];
  */
 function assertContract(group: LabelContract[]) {
   const drift: string[] = [];
-  for (const { component, labels, sourceSpelling } of group) {
-    const source = readComponent(component);
+  for (const {
+    component,
+    renderedThrough = [],
+    labels,
+    sourceSpelling,
+  } of group) {
+    const source = [
+      readComponent(component),
+      ...renderedThrough
+        .filter((name) => existsSync(join(pluginComponents, name)))
+        .map(readComponent),
+    ].join("\n");
     for (const label of labels) {
       const rendered = sourceSpelling?.[label] ?? label;
       if (!source.includes(rendered)) {

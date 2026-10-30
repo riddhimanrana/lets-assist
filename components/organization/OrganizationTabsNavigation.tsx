@@ -26,7 +26,6 @@ import {
 } from "./organization-navigation-destinations";
 
 type Props = {
-  usesFullSectionMobileNav: boolean;
   switcherDestinations: OrganizationNavigationDestination[];
   workspaceDestinations: OrganizationNavigationDestination[];
   utilityDestinations: OrganizationNavigationDestination[];
@@ -40,15 +39,25 @@ type Props = {
   pluginNavigationOverrides: OrganizationNavigationBehavior;
   activePluginParentValue?: string;
   morePluginTabs: OrganizationTabBehavior[];
-  hasActiveMoreTab: boolean;
+  /** The utility entry that is open, directly or as the parent of a child. */
+  activeMoreTab?: OrganizationTabBehavior;
   activeTab: string;
   getTabHref: (value: string) => string;
   fullDocumentTabNavigation: boolean;
 };
 
+/** Shared by the line tabs and the More trigger so their underlines align. */
+const LINE_ITEM_CLASS = "h-10 shrink-0 rounded-none focus-visible:ring-inset";
+const LINE_ACTIVE_CLASS =
+  "text-foreground dark:text-foreground after:opacity-100";
+
+/**
+ * Page navigation for one organization. Every organization gets the same
+ * treatment: line tabs with a More menu from tablet width up, and one section
+ * switcher on phones that lists every permitted destination.
+ */
 export function OrganizationTabsNavigation(props: Props) {
   const {
-    usesFullSectionMobileNav,
     switcherDestinations,
     workspaceDestinations,
     utilityDestinations,
@@ -60,71 +69,30 @@ export function OrganizationTabsNavigation(props: Props) {
     pluginNavigationOverrides,
     activePluginParentValue,
     morePluginTabs,
-    hasActiveMoreTab,
+    activeMoreTab,
     activeTab,
     getTabHref,
     fullDocumentTabNavigation,
   } = props;
 
-  const activeMoreTab = hasActiveMoreTab;
   const renderNavigationAnchor = (href: string) =>
     fullDocumentTabNavigation ? <a href={href} /> : <Link href={href} />;
 
-  // A generic organization gets page-level line tabs straight on the page. A
-  // compact plugin workspace keeps its segmented switch on the workspace
-  // sheet. The controller derives the flag from `compactHeader`.
-  const usesLineTabs = !usesFullSectionMobileNav;
-
-  const tabTriggers = (
-    <>
-      {/*
-        One trigger per destination, from the same deduplicated list that
-        feeds the phone switcher, so the two can never disagree.
-      */}
-      {workspaceDestinations.map((destination) => {
-        const ownsActiveChild = activePluginParentValue === destination.value;
-
-        return (
-          <TabsTrigger
-            key={destination.value}
-            value={destination.value}
-            aria-current={ownsActiveChild ? "page" : undefined}
-            className={cn(
-              "flex-none gap-2 px-3",
-              // The focus ring is inset because the line strip scrolls
-              // sideways and would clip an outer ring.
-              usesLineTabs &&
-                "h-10 shrink-0 rounded-none focus-visible:ring-inset group-data-[orientation=horizontal]/tabs:after:bottom-0",
-              // A child route keeps its parent tab marked the same way the
-              // active tab is: underlined on a line strip, raised on a
-              // segmented one.
-              ownsActiveChild &&
-                (usesLineTabs
-                  ? "text-foreground dark:text-foreground after:opacity-100"
-                  : "bg-background text-foreground dark:border-input dark:bg-input/30 shadow-sm"),
-            )}
-          >
-            {destination.icon ? (
-              <span className="hidden sm:contents">{destination.icon}</span>
-            ) : null}
-            {destination.label}
-          </TabsTrigger>
-        );
-      })}
-    </>
-  );
+  // A single destination needs no switcher; its tab stays visible instead.
+  const usesPhoneSwitcher = switcherDestinations.length > 1;
+  const moreLabel = pluginNavigationOverrides.utilityMenuLabel ?? "More";
 
   return (
     <div
       className={cn(
         "flex min-w-0 items-center gap-2",
-        // The hairline belongs to the row, so the utility menu beside a line
-        // strip shares it.
-        usesLineTabs && "border-b",
-        usesLineTabs ? "mb-6" : "mb-3",
+        // The hairline belongs to the row, so the More trigger shares it. On
+        // phones the switcher replaces the strip and needs no hairline.
+        usesPhoneSwitcher ? "sm:border-b" : "border-b",
+        pluginNavigationOverrides.compactHeader ? "mb-4" : "mb-6",
       )}
     >
-      {usesFullSectionMobileNav && switcherDestinations.length > 0 ? (
+      {usesPhoneSwitcher ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -133,9 +101,10 @@ export function OrganizationTabsNavigation(props: Props) {
                 // Disclosure trigger, not a navigation item: Base UI supplies the
                 // expanded/controls semantics and aria-current stays on the
                 // selected menu item.
-                aria-label={`${activeDestinationLabel} — change section`}
+                aria-label={`${activeDestinationLabel}, change section`}
                 data-testid="organization-section-switcher"
-                className="w-full min-w-0 justify-between sm:hidden"
+                // Phone only, so it gets a 44px touch target.
+                className="h-11 w-full min-w-0 justify-between sm:hidden"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   {activeDestination?.icon}
@@ -162,54 +131,78 @@ export function OrganizationTabsNavigation(props: Props) {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
-      {usesLineTabs ? (
-        <TabsList
-          variant="line"
-          className="min-w-0 flex-1 gap-0 p-0 group-data-horizontal/tabs:h-10"
-        >
-          {tabTriggers}
-        </TabsList>
-      ) : (
-        <TabsList
-          className={cn(
-            "w-full min-w-0 sm:w-fit",
-            usesFullSectionMobileNav && "hidden sm:flex",
-          )}
-        >
-          {tabTriggers}
-        </TabsList>
-      )}
+
+      <TabsList
+        variant="line"
+        className={cn(
+          "min-w-0 flex-1 gap-0 p-0 group-data-horizontal/tabs:h-10",
+          usesPhoneSwitcher && "hidden sm:flex",
+        )}
+      >
+        {/*
+          One trigger per destination, from the same deduplicated list that
+          feeds the phone switcher, so the two can never disagree.
+        */}
+        {workspaceDestinations.map((destination) => {
+          const ownsActiveChild = activePluginParentValue === destination.value;
+
+          return (
+            <TabsTrigger
+              key={destination.value}
+              value={destination.value}
+              aria-current={ownsActiveChild ? "page" : undefined}
+              className={cn(
+                "flex-none gap-2 px-3 group-data-[orientation=horizontal]/tabs:after:bottom-0",
+                // The focus ring is inset because the strip scrolls sideways
+                // and would clip an outer ring.
+                LINE_ITEM_CLASS,
+                // A child route keeps its parent tab underlined like the
+                // active tab.
+                ownsActiveChild && LINE_ACTIVE_CLASS,
+              )}
+            >
+              {destination.icon ? (
+                <span className="hidden sm:contents">{destination.icon}</span>
+              ) : null}
+              {destination.label}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
 
       {morePluginTabs.length > 0 ? (
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
-                variant={
-                  activeMoreTab
-                    ? "secondary"
-                    : usesLineTabs
-                      ? "ghost"
-                      : "outline"
-                }
-                size="sm"
+                variant="ghost"
+                data-active={activeMoreTab ? "" : undefined}
                 className={cn(
-                  "shrink-0",
-                  usesFullSectionMobileNav && "hidden sm:flex",
+                  "text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative max-w-56 px-3 hover:bg-transparent",
+                  "after:bg-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:opacity-0 after:transition-opacity",
+                  LINE_ITEM_CLASS,
+                  activeMoreTab && LINE_ACTIVE_CLASS,
+                  usesPhoneSwitcher && "hidden sm:inline-flex",
                 )}
               >
-                <span>
-                  {pluginNavigationOverrides.utilityMenuLabel ?? "More"}
-                </span>
+                {activeMoreTab ? (
+                  // The closed menu names the open utility page, so a page
+                  // such as Meetings never disappears from the strip.
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="sr-only">{moreLabel}: </span>
+                    {activeMoreTab.icon}
+                    <span className="truncate">{activeMoreTab.label}</span>
+                  </span>
+                ) : (
+                  <span>{moreLabel}</span>
+                )}
                 <ChevronDown data-icon="inline-end" />
               </Button>
             }
           />
           <DropdownMenuContent align="end" className="w-60">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>
-                {pluginNavigationOverrides.utilityMenuLabel ?? "More"}
-              </DropdownMenuLabel>
+              <DropdownMenuLabel>{moreLabel}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {morePluginTabs.map((pt) => {
                 const isActive = isNavigationValueActive(

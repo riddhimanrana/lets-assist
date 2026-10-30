@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  appendFileSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,6 +15,7 @@ import { join } from "node:path";
 import {
   auditPackageGraphs,
   assertExactPrivateGitlink,
+  DEEPMERGE_COMPAT,
   discoverPackageGraphs,
 } from "../security/audit-package-graphs.mjs";
 
@@ -234,6 +239,168 @@ describe("independent dependency audits", () => {
       "exactly one tracked Bun lockfile",
     );
   });
+  function deepmergeVendor() {
+    const data = fixture();
+    const { directory } = DEEPMERGE_COMPAT;
+    const vendor = join(data.root, directory);
+    mkdirSync(vendor, { recursive: true });
+    const names = [
+      ...Object.keys(DEEPMERGE_COMPAT.files),
+      ...DEEPMERGE_COMPAT.documents,
+    ];
+    for (const name of names) {
+      copyFileSync(
+        new URL(`../../${directory}/${name}`, import.meta.url),
+        join(vendor, name),
+      );
+      data.files.get(data.root).push(`${directory}/${name}`);
+    }
+    const ownerManifest = {
+      packageManager: "bun@1.3.14",
+      dependencies: { deepmerge: "^4.3.1" },
+      overrides: { deepmerge: DEEPMERGE_COMPAT.override },
+    };
+    writeFileSync(
+      join(data.root, "package.json"),
+      JSON.stringify(ownerManifest),
+    );
+    const lock = [
+      `    ${DEEPMERGE_COMPAT.hoisted},`,
+      '    "html-to-text/deepmerge": ["deepmerge@file:./vendor/deepmerge-compat", {}],',
+      '    "@corex/deepmerge": ["@corex/deepmerge@4.0.43", "", {}, "sha512-x"],',
+    ].join("\n");
+    writeFileSync(join(data.root, "bun.lock"), lock);
+    return { ...data, vendor, ownerManifest, lock };
+  }
+  const graphLabels = [
+    ".",
+    "packages/plugin-sdk",
+    "lib/plugins/private/apps/one",
+    "lib/plugins/private/apps/two",
+  ];
+
+  test("the exact deepmerge repair stays in the root graph instead of becoming its own", () => {
+    const data = deepmergeVendor();
+    expect(
+      discoverPackageGraphs(data.root, data.list).map((graph) => graph.label),
+    ).toEqual(graphLabels);
+  });
+
+  const deepmergeMutations = {
+    "missing override"(data) {
+      delete data.ownerManifest.overrides;
+      writeFileSync(
+        join(data.root, "package.json"),
+        JSON.stringify(data.ownerManifest),
+      );
+    },
+    "override to another directory"(data) {
+      data.ownerManifest.overrides.deepmerge = "file:./vendor/other";
+      writeFileSync(
+        join(data.root, "package.json"),
+        JSON.stringify(data.ownerManifest),
+      );
+    },
+    "missing root dependency that installs the override"(data) {
+      delete data.ownerManifest.dependencies;
+      writeFileSync(
+        join(data.root, "package.json"),
+        JSON.stringify(data.ownerManifest),
+      );
+    },
+    "registry deepmerge left in the lock"(data) {
+      writeFileSync(
+        join(data.root, "bun.lock"),
+        data.lock +
+          '\n    "shadcn/deepmerge": ["deepmerge@4.3.1", "", {}, "sha512-x"],',
+      );
+    },
+    "lock without the hoisted repair"(data) {
+      writeFileSync(
+        join(data.root, "bun.lock"),
+        data.lock.replace(DEEPMERGE_COMPAT.hoisted, ""),
+      );
+    },
+    "modified executable source"(data) {
+      appendFileSync(join(data.vendor, "index.cjs"), "\n");
+    },
+    "manifest claiming a registry version"(data) {
+      const path = join(data.vendor, "package.json");
+      const manifest = JSON.parse(readFileSync(path, "utf8"));
+      writeFileSync(
+        path,
+        JSON.stringify({ ...manifest, name: "deepmerge", version: "4.3.2" }),
+      );
+    },
+    "manifest gaining a dependency"(data) {
+      const path = join(data.vendor, "package.json");
+      const manifest = JSON.parse(readFileSync(path, "utf8"));
+      writeFileSync(
+        path,
+        JSON.stringify({ ...manifest, dependencies: { other: "1.0.0" } }),
+      );
+    },
+    "symlinked source"(data) {
+      rmSync(join(data.vendor, "index.cjs"));
+      symlinkSync(
+        new URL(
+          `../../${DEEPMERGE_COMPAT.directory}/index.cjs`,
+          import.meta.url,
+        ).pathname,
+        join(data.vendor, "index.cjs"),
+      );
+    },
+    "an extra tracked file"(data) {
+      writeFileSync(join(data.vendor, "index.js"), "module.exports = {};");
+      data.files.get(data.root).push(`${DEEPMERGE_COMPAT.directory}/index.js`);
+    },
+    "a standalone vendor lockfile"(data) {
+      writeFileSync(join(data.vendor, "bun.lock"), "{}");
+      data.files.get(data.root).push(`${DEEPMERGE_COMPAT.directory}/bun.lock`);
+    },
+    "untracked vendor package behind the override"(data) {
+      data.files.set(
+        data.root,
+        data.files
+          .get(data.root)
+          .filter((file) => !file.startsWith(DEEPMERGE_COMPAT.directory)),
+      );
+    },
+  };
+  for (const [mutation, apply] of Object.entries(deepmergeMutations)) {
+    test("refuses an unbound deepmerge repair: " + mutation, () => {
+      const data = deepmergeVendor();
+      apply(data);
+      expect(() => discoverPackageGraphs(data.root, data.list)).toThrow(
+        mutation.startsWith("untracked")
+          ? "The deepmerge override requires the tracked reviewed vendor package."
+          : "The vendored deepmerge repair must remain the exact reviewed package bound to the root lockfile.",
+      );
+    });
+  }
+
+  test("a registry deepmerge advisory still fails the audit", () => {
+    expect(() =>
+      auditPackageGraphs([{ label: ".", directory: "/root" }], {
+        log: () => {},
+        spawn: () => ({
+          status: 1,
+          stdout: JSON.stringify({
+            deepmerge: [
+              {
+                id: 1,
+                title: "Fictional advisory",
+                url: "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+                severity: "low",
+                vulnerable_versions: ">=4.2.0 <=4.3.1",
+              },
+            ],
+          }),
+        }),
+      }),
+    ).toThrow("Dependency audit failed: .");
+  });
+
   test("discovers the SDK and every private application graph", () => {
     const data = fixture();
     expect(

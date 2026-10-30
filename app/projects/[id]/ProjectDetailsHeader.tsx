@@ -65,7 +65,7 @@ export function ProjectDetailsHeader({
           </Heading>
         </div>
         <div className="order-0 flex w-full shrink-0 items-center justify-between gap-2 sm:w-auto sm:justify-start">
-          <ProjectStatusBadge status={status} className="capitalize" />
+          <ProjectStatusBadge status={status} />
           <div className="flex items-center gap-2">
             {primaryAction}
             <Button

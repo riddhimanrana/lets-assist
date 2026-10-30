@@ -1,5 +1,244 @@
 # Repository cleanup register
 
+## deepmerge prototype repair, October 29, 2026
+
+`DEPS-DEEPMERGE-GHSA-GCQX-20261029`, P2, dependency security, fixed locally,
+release pending. deepmerge 4.3.1 has no patched release for
+GHSA-gcqx-w48m-w2h4, and the dependency audit failed on it. The root now
+installs `vendor/deepmerge-compat`, upstream 4.3.1 with `__proto__` refused by
+name in both merge loops (upstream PR #274), through a `file:` override plus a
+root `deepmerge` `^4.3.1` dependency that Bun needs to install it. The audit
+binds the override, manifest, sources and lock resolutions.
+`deepmerge-compat.test.ts` fails 23 tests on the unpatched package and passes
+all 36 on the repair, through each installed consumer and a real html-to-text
+conversion. Remove the vendor package when upstream ships a fix.
+
+## Private PR 669 integration, October 29, 2026
+
+`CSF-SETTINGS-READER-PINS-20261029`, P2, test tooling, fixed locally, release
+pending. Private PR 669 merged as `b3369ad`, with a tree identical to the
+reviewed head `03175ea`. The root gitlink now points at it, and the CSF
+Settings reader pins move in the same change: the connection panel and the
+status server action take their merged hashes, and the four modules the panel
+now renders through (view, disconnect dialog, status checker, notices) are
+pinned. The Settings import closure reaches no other changed file; the Sheet
+picker modules are outside it. Readers, capabilities, actor checks and the
+disconnected-only, zero-write limits are unchanged. A new test copies the
+pinned sources into an owned temporary root and proves that drift or removal
+of each changed module, a symlinked root and a dropped pin are all refused.
+The oversized-file allowance for the Sheet picker field is removed now that it
+is 440 lines.
+
+`LAYOUT-CAPTURE-LEDGER-TEST-COUPLING-20261029`, P2, test tooling, fixed
+locally. Hosted CI on `e85013c` failed one assertion in
+`capture-ledger-policy.test.mjs`: the committed-migration ledger test also
+required the commit's private gitlink to equal the frozen capture target
+`8c84d61`. Any feature PR that moves the gitlink failed it, even though the 740
+migration objects were unchanged. The ledger test now checks only the ledger
+and the literal `38dc7c7` and `8c84d61` policy values. A separate test runs the
+real binding `shape()` check on a fictional, otherwise valid binding: the
+frozen `8c84d61` passes, and `b3369ad`, the `38dc7c7` baseline, an unknown head
+and any other committed gitlink are each refused for the private head alone. The
+capture grant is unchanged: `baseline-policy.json`, the binding, the CI
+wrapper, the binding preparer, `code-manifest.sha256` and the workflow pin are
+untouched, and this tree is not capture-eligible.
+
+## ICU and temp-path assumptions in tests, October 29, 2026
+
+`TEST-ATTENDANCE-ICU-SEPARATOR-20261029`, P3, test tooling, fixed locally.
+`AttendanceSheetClient.behavior.test.ts` expected "Dec 5, 2026, 9:00 AM PST".
+Bun on macOS uses ICU 78.1, which joins the date and time with " at "; Node's
+ICU 79.1 uses ", ". The rendered date, time and PST/PDT zone were correct. The
+test now requires the exact date, 9:00 AM and the season's zone, allows only
+those two joiners, and checks that winter is never PDT and summer never PST.
+
+`TEST-INTEGRATION-READER-TMP-ALIAS-20261029`, P3, test tooling, fixed
+locally. The integration reader requires every source path to be its own
+real path. On macOS the temp directory is a symlink, so the test's own
+fixture failed that rule while every source hash matched. The fixture root is
+now canonicalized, and a new check proves the same bytes reached through a
+symlinked root are still refused. No hash or contract changed.
+
+## Shared test process lacked Next's runtime baseline, October 29, 2026
+
+`TEST-PRELOAD-ASYNC-LOCAL-STORAGE-20261029`, P2, test tooling, fixed locally.
+`lib/supabase/proxy-requests.test.ts` passed alone but failed in the shared
+"remaining root unit tests" process with Next's "AsyncLocalStorage accessed
+in runtime where it is not available" invariant. Bun has no global
+AsyncLocalStorage, and Next's request stores capture that global once, when
+they first load. An earlier file importing `next/headers` left a fake store;
+`lib/security/response-headers.test.ts` then loaded Next's server
+environment, whose console patch sends every console call through that fake.
+The Supabase client's `console.warn` during the retryable refresh outage
+then threw. A replay of the 185 preceding files reproduced it, and a trace
+named the caller. The test preload now loads Next's
+`node-environment-baseline` first, as Next's own server does. The same replay
+then passed 1,742 tests with no failures. A regression test checks the real
+store, propagation across `await`, and the console after the server
+environment loads, and runs a two-file fixture in child processes with and
+without the preload. No product, auth or dependency change.
+
+## Guest account linking and feedback wording, October 29, 2026
+
+`GUEST-AUTO-LINK-SELF-CANCEL-20261029`, P2, fixed locally, release pending.
+After a guest returned signed in with `link=1`, the auto-link effect set its
+own "attempted" state, which re-ran the effect and cleaned up the live run.
+The link write still went out, but the page never showed the success or
+moved to the dashboard. A copy of the old effect reproduced this. The attempt
+now lives in a small hook with a ref keyed to the guest profile and token,
+and each run has its own ignore flag. A run cleaned up before the write
+releases the attempt, so React StrictMode still links exactly once; a run
+cleaned up after the write only stops local updates. Seven lifecycle tests
+cover delayed sign-in, re-renders, StrictMode, unmount before and after the
+write, a profile switch, and errors.
+
+`GUEST-ACCOUNT-CREATED-STATE-20261029`, P2, fixed locally, release pending.
+Creating an account without a session returns before any attendance
+transfer, but the page had no state for that: the callback for it was never
+wired, and the only nearby state meant "linked but unverified". The page now
+keeps a separate account-created notice that leaves the guest unlinked, asks
+the guest to verify, sign in and return to the same token-bound page, and
+keeps the linking dialog (and its verification dialog) mounted. The legacy
+linked-but-unverified state and every callback signature are unchanged. The
+coordinator-approval claim in the description and auto-link toast is gone.
+Mocked action tests prove a no-session signup never calls the transfer RPC.
+
+`GUEST-PROFILE-STATE-CARRYOVER-20261029`, P2, fixed locally, release pending.
+Moving between guest profile URLs kept the same client component, so one
+guest's link state, removed slots and waiver state carried into the next. A
+lifecycle test showed the carry-over. The server page now keys the client by
+guest ID.
+
+`PROJECT-FEEDBACK-READERS-COPY-20261029`, P2, fixed locally, release pending.
+The feedback form and dialog said only the organizer could read feedback.
+The server also lets the author, the people who manage the project and
+Let's Assist administrators read it. Both surfaces now share one plain
+sentence that names those readers and says feedback is private and named.
+Permissions, moderation and the SQL policy are unchanged.
+
+Signed-in guests now see "Link to this account" as the primary action, with
+existing, new and Google accounts behind a closed "Use a different account"
+disclosure. A ref allows one link or signup request at a time.
+
+## Organization flow simplification, October 28, 2026
+
+`PROJECT-AI-ASSISTANT-STALL-20261028`, P2, fixed locally, release pending.
+The project assistant sent its request with no abort signal and no client
+timeout, and it disabled Close, the prompt and Generate while waiting. A request
+that never answered left the assistant stuck with no way out. The component
+also stayed mounted when the header toggle hid it, so a late answer could still
+fill the form after the organizer closed the assistant. A copy of the old
+handlers in an ignored scratch fixture reproduced both. The request now runs
+through a small controller with one live request, an AbortController, a
+45-second timeout and a check that drops late or replaced answers. Close stays
+enabled, Cancel and Escape stop a pending request, and every failure keeps the
+prompt with an inline message. Request state lives in a panel that unmounts
+when the assistant closes, so closing by any route cancels the request. The
+10 to 4,000 character bounds, the timezone field, the `onApplyData` and
+`onClose` signatures and review before publishing are unchanged. Twenty-five
+controller, handler and render tests cover stalls, stalled bodies, timeouts,
+late answers, cancel and reopen, server, network and malformed failures, and
+retry. Six more tests mount the real component with `react-dom/client` on a
+minimal test DOM and close it from the parent while a request is pending; the
+panel now retires the request in a layout cleanup, inside the same commit.
+The supervisor's user-Chrome fixture checks covered Cancel, Close and reopen,
+Escape, failures, the 45-second timeout and retry. No provider was called.
+
+`PROJECT-FEEDBACK-REJECTED-SUBMIT-20261028`, P2, fixed locally, release pending.
+The project feedback form awaited its server action with no catch. A rejected
+call (network loss, a crash, a lost response) escaped the form with no message,
+and two quick clicks sent two requests. The HEAD form, mounted with a rejecting
+fake action, reproduced both. The form now treats a rejection as an unknown
+outcome: it keeps the rating and comment, says the feedback may or may not
+have saved, and invites sending again. Sending again is safe because the action
+updates the existing row for the same project and volunteer. A ref blocks the
+second click. Declared failures still toast. Server authorization, RLS and
+comment visibility are unchanged. Seven lifecycle tests cover the rejection,
+retry, double click, declared failure, the comment label, the visibility copy
+and the registered log event. The supervisor's user-Chrome fixture passed the
+unknown outcome keeping rating and comment, a successful retry, one request on
+a rapid double click, and a declared failure keeping the fields. A final
+check confirmed the field's name is "Comment (optional)".
+
+`PDF-TOOLBAR-UNNAMED-BUTTONS-20261028`, P2, fixed locally, release pending.
+The waiver PDF viewer's icon-only toolbar buttons had no accessible names. They
+are now Previous page, Next page, Zoom out and Zoom in, with decorative icons
+and unchanged page and zoom bounds. Three render tests cover it. A final
+user-Chrome check found all four names, and Zoom in moved to 110%.
+
+`CSF-SHEETS-CHECK-FAILED-AS-DISCONNECTED-20261028`, P2, private, merged in
+private PR 669 (`b3369ad`), root integration pending. The chapter Google connection panel
+cleared the connection when a status check failed and then labelled it Not
+connected, with a Connect button, and showed raw thrown error text. Failed
+checks now show "Status unavailable" with only Check again; the status action
+returns a fixed message instead of the thrown text. Late checks from a previous
+organization or capability are dropped. Healthy account details, Recheck,
+Switch account and Disconnect moved into a native Advanced disclosure; the
+disconnect and Google revocation dialog is unchanged. The Sheet picker field on
+the main import path had the same defect and is fixed in the same private
+change: a failed, thrown or denied check shows "Status unavailable" with only
+Check again, with no Connect, Drive picker or pasted link. Late status checks,
+and token or metadata results from an earlier organization or capability,
+after access is removed or after unmount, cannot cancel or overwrite the
+current connection status. Selection and metadata handling are unchanged.
+Viewers without import access still see only the access explanation and
+trigger no check. Twenty handler, presentation and render tests cover it
+without a browser DOM. The picker fix has not been checked in a browser; the
+four earlier repairs passed their final user-Chrome checks, recorded below.
+
+The supervisor's final user-Chrome checks of the earlier repairs, with real
+components and mocked actions, passed: an unconfirmed point submission kept
+activity, proof and notes, locked writes, offered no Close or Try again and
+only Reload, which navigated back; the autosave error was still shown 6,837 ms
+after it first appeared and recovered to saved once the simulated failure was
+lifted; the PDF toolbar exposed all four names and Zoom in moved to 110%; the
+feedback textarea is named "Comment (optional)". Layouts were unchanged, so no
+new mobile pass was run.
+
+`ROOT-DEPENDENCY-AUDIT-20261028`, external dependency blocker, open. The root
+static gate fails on six existing dependency advisories in the unchanged root
+lockfile. The deepmerge advisory GHSA-gcqx-w48m-w2h4 has no patched version
+according to the GitHub advisory API. Dependencies and the audit gate were not
+changed and no waiver is recorded.
+
+`CSF-POINT-SUBMISSION-LOST-RESPONSE-20261028`, P2, private, merged in
+private PR 669 (`b3369ad`), root integration pending. When the point submission action call
+rejected (a lost response or network drop), the dialog said "Submission not
+saved" and offered Try again, though the claim may already have been saved.
+The supervisor reproduced this in a user-Chrome fixture with a controlled,
+provider-free action. A points-only wrapper now turns a rejected action call
+into an unconfirmed result with `reloadRequired`. The form keeps its fields
+and proof, locks further writes and offers Reload Point submissions under the
+title "Check your saved submissions". Proof preparation and every declared
+server result, including cleanup_queued, reconciliation_required,
+request_conflict and saved_stale, are unchanged, and other CSF forms keep the
+shared helper's behavior. Thirteen handler and render tests cover it. No
+server authorization, grant or database change.
+
+`DRAFT-AUTOSAVE-ERROR-CLEARED-20261028`, P2, fixed locally, release pending.
+After a failed autosave, the create form reset its status to idle after five
+seconds, so the action bar said "Autosave on" while the latest changes were
+still unsaved. The supervisor saw this in a user-Chrome fixture. Both reset
+timers are gone; a failure stays visible until the next attempt or a
+successful save, and the saved notice still fades after three seconds. Six
+lifecycle tests run the real hook with manual timers.
+
+`ORGANIZATION-NAV-ACTIVE-UTILITY-20261028`, P2, fixed locally, release pending.
+Generic organizations used line tabs and plugin workspaces used segmented tabs.
+The More trigger always read More, so an open secondary page such as Meetings
+was not named anywhere in the closed navigation. Generic organizations also
+kept a sideways-scrolling strip on phones with a hidden scrollbar. Every
+organization now uses the line strip from tablet width up and one section
+switcher on phones once there are two or more destinations. While a More page
+is open, the trigger shows its icon and name, underlined like an active tab, and
+its accessible name reads "More: Meetings". Destination lists, deduplication,
+permission filters, parent and child marking, deep links and document
+navigation are unchanged. The phone switcher is 44px tall and its menu items
+have 44px targets; its accessible name reads "Members, change section". Render
+and source tests cover both organization kinds. The supervisor's user-Chrome
+fixture verified keyboard selection, the Meetings label and a settled 320px
+fit. Full application routing and the CSF e2e suites have not run.
+
 ## Certificate CSV date verdict — 2026-10-22
 
 `CERTIFICATE-CSV-DATES-20261022`, P2, implemented; successor full CI pending.

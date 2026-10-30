@@ -87,7 +87,7 @@ export function CalendarConnectionSection({
                 </ItemTitle>
                 <ItemDescription className="line-clamp-none">
                   {legacyReconnectRequired
-                    ? "This older Google connection has no verified purpose. Reconnect it to sync events."
+                    ? "Reconnect Google Calendar to restore event syncing. Events stop updating until you do."
                     : "Connect your Google Calendar to sync events automatically."}
                 </ItemDescription>
               </>
