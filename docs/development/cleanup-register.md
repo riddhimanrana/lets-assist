@@ -2,6 +2,14 @@
 
 ## Release acceptance gates, October 29, 2026
 
+`TEST-HOSTED-LINKING-SELECTOR-20261029`, P2, test tooling, fixed locally,
+hosted proof pending. The first stage-coded hosted run failed at
+`S14_ACCOUNT_LINKING`: the hosted, signed-in branch still clicked "Link to
+current account", which PR 924 renamed "Link to this account". The isolated
+run signs in inside the dialog, so it never reached that button. The spec now
+uses the current label, and `attendance-target.test.ts` keeps it on the label
+the dialog renders.
+
 `TEST-LANDING-SECTIONS-20261029`, P2, test tooling, fixed locally. PR 918
 removed the partner list from the landing page, but the browser stability
 check still waited for `#partners`, so full Code quality failed at all three
