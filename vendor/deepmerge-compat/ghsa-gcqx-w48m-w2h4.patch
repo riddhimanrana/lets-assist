@@ -1,0 +1,17 @@
+--- a/dist/cjs.js (deepmerge 4.3.1)
++++ b/index.cjs (@lets-assist/deepmerge-compat)
+@@ -71,0 +72,7 @@
++// Repair for GHSA-gcqx-w48m-w2h4. `__proto__` is the only key whose
++// assignment to the plain `{}` destination calls a setter instead of
++// creating a data property, so it is refused by name in both loops.
++function propertyIsForbidden(key) {
++	return key === '__proto__'
++}
++
+@@ -82,0 +90,3 @@
++			if (propertyIsForbidden(key)) {
++				return
++			}
+@@ -87 +97 @@
+-		if (propertyIsUnsafe(target, key)) {
++		if (propertyIsForbidden(key) || propertyIsUnsafe(target, key)) {

@@ -126,7 +126,9 @@ export function OrganizationOverviewTab({
                   <Item
                     key={project.id}
                     size="sm"
-                    className="px-2"
+                    // No wrap: a long unbroken title shrinks and clamps
+                    // instead of pushing the status onto its own line.
+                    className="flex-nowrap px-2"
                     render={<Link href={`/projects/${project.id}`} />}
                   >
                     <ItemContent className="min-w-0">

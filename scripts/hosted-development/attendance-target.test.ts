@@ -135,9 +135,23 @@ describe("hosted attendance target", () => {
     expect(
       spec.match(/if \(!env.hosted\)\s+await page.screenshot/gu),
     ).toHaveLength(5);
+    // The hosted catch replaces every error with the fixed stage message.
     expect(spec).toContain(
-      'throw new Error(\n        "Hosted attendance journey failed (ATTENDANCE_JOURNEY_FAILED)."',
+      "if (env.hosted) throw new Error(hostedJourneyFailure(stage));",
     );
+    expect(spec.match(/hostedJourneyFailure\(/gu)).toHaveLength(2);
+    // The hosted guest is signed in, so it links through the dialog's
+    // signed-in primary action. Its rendered label is proven by
+    // AnonymousLinkingDialog.lifecycle.test.tsx; this keeps the spec on it.
+    const dialog = source(
+      "../../app/anonymous/[id]/AnonymousLinkingDialog.tsx",
+    );
+    expect(dialog).toContain("Link to this account\n                </Button>");
+    expect(dialog).not.toContain("Link to current account");
+    expect(spec).toContain(
+      'getByRole("button", { name: "Link to this account", exact: true })',
+    );
+    expect(spec).not.toContain("Link to current account");
     expect(spec).not.toContain("storageState(");
     expect(spec).not.toContain("extraHTTPHeaders");
   });

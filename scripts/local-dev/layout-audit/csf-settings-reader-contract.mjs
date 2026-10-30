@@ -10,7 +10,18 @@ export const CSF_SETTINGS_SOURCE_HASHES = Object.freeze({
   "lib/plugins/private/plugins/dvhs-csf/components/CsfSettingsWorkspace.tsx":
     "78ea409769652a13e89bc64f8f843fb97c563e38dc715b3e5fc24ac33c1e9432",
   "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleSheetsConnectionPanel.tsx":
-    "8a9689f8625b206f8151e7d9a915e4f4f1e79c1c109690ea311d1072af6d0a88",
+    "56371358d840057b2c0dab3e8981d9552f3eb19e905d64adb80b00dc319f0758",
+  // Modules the panel renders through since private PR 669 (merged b3369ad).
+  // They import only UI primitives, the notices module and the CSF identity
+  // constant, and call no server action.
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleSheetsConnectionView.tsx":
+    "d3aedfbcbf81bc9accd2685f5a6c021272fc777092477d3e608ea50d6880c3b8",
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleDisconnectDialog.tsx":
+    "5531647d059b01a36e350c4a2c2ba235bab3fad2f8f1dfbd7625481711ff258b",
+  "lib/plugins/private/plugins/dvhs-csf/components/csf-google-connection-check.ts":
+    "3f576df6c967ecf68f5814608b0a364d737f8ff6d680a90b9c1e84a6002cc159",
+  "lib/plugins/private/plugins/dvhs-csf/components/CsfGoogleConnectionNotices.ts":
+    "82b42d1cd56a9eb27122d80b737f2d07be880453de10211e64a8accbb1a69722",
   "lib/plugins/private/plugins/dvhs-csf/components/CsfSheetSyncPanel.tsx":
     "f1f449c6c0965daa1ef43203020f3d3371c80cdce1ec86cdff89d73e789dcb95",
   "lib/plugins/private/plugins/dvhs-csf/components/useCsfSheetSyncWorkspace.ts":
@@ -22,7 +33,7 @@ export const CSF_SETTINGS_SOURCE_HASHES = Object.freeze({
   "lib/plugins/private/plugins/dvhs-csf/sheet-semester-ledger-actions.ts":
     "b1a591b55285fc4da7ade7f91fe380b25c4edfc92edfbc2e3e99e8315cf6fb1c",
   "lib/plugins/private/plugins/dvhs-csf/server/actions/import-google.ts":
-    "160dcf2afd1316a2e8d2b9ffeb37146965429159bcbb27f5cc895c39b95bd44b",
+    "94fba0009f39aaf89098309d8fd3512e4b989c08607fd5db723f43210fe4708b",
   "lib/plugins/private/plugins/dvhs-csf/server/actions/support-authorization.ts":
     "76a7ff11b30a338c9d5cb5deaad39cc5fec6d773bdf15664a7b7cc86cf75b7fd",
   "lib/plugins/private/plugins/dvhs-csf/server/actions/support-types.ts":

@@ -113,8 +113,20 @@ test("each print session uses its own daylight-saving abbreviation", () => {
       ? [props.children.filter((child) => typeof child === "string").join("")]
       : [],
   );
-  expect(descriptions).toContain("Dec 5, 2026, 9:00 AM PST");
-  expect(descriptions).toContain("Jul 4, 2026, 9:00 AM PDT");
+  // The date, time and seasonal zone are exact. Only the date-time joiner
+  // varies by ICU version: ", " (ICU 79, Node) or " at " (ICU 78, Bun on
+  // macOS), and some versions put a narrow no-break space before AM.
+  const session = (date: string, zone: "PST" | "PDT") =>
+    new RegExp(`^${date}(?:, | at )9:00[ \\u202f]AM ${zone}$`, "u");
+  expect(
+    descriptions.filter((d) => session("Dec 5, 2026", "PST").test(d)),
+  ).toHaveLength(1);
+  expect(
+    descriptions.filter((d) => session("Jul 4, 2026", "PDT").test(d)),
+  ).toHaveLength(1);
+  // Each session keeps its own offset: winter is never PDT, summer never PST.
+  expect(descriptions.some((d) => /^Dec 5, 2026.*PDT$/u.test(d))).toBe(false);
+  expect(descriptions.some((d) => /^Jul 4, 2026.*PST$/u.test(d))).toBe(false);
 });
 
 test("a failed preparation keeps its request key until recovery succeeds", async () => {

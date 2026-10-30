@@ -213,6 +213,9 @@ export default async function AnonymousSignupPage({
 
   return (
     <AnonymousSignupClient
+      // A different guest profile is a different client: removed slots,
+      // link status and waiver state must not carry over between IDs.
+      key={signupId}
       id={signupId}
       accessToken={accessToken}
       name={name}

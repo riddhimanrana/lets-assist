@@ -42,7 +42,9 @@ the frozen lockfile passes the full audit, and affected package checks pass.
 | fast-uri                  | 3.1.9          | GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr, also pinned in the standalone SDK        |
 | engine.io                 | 6.6.11         | GHSA-2gc4-cqfq-p2gv                                                                |
 | js-yaml                   | 4.3.2          | GHSA-2883-xcg3-v3hh                                                                |
-| qs                        | 6.16.0         | GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g                                           |
+| qs                        | 6.16.1         | GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g, GHSA-6pq8-jhm2-2vcw                      |
+| @hono/node-server         | 2.1.3          | GHSA-rmxm-3fg6-px4f                                                                |
+| systeminformation         | 5.33.16        | GHSA-3f7j-7jwc-fxfj, GHSA-4vjg-vx72-qq4g, GHSA-7648-jmwf-vw7j                      |
 | ip-address                | 10.7.4         | GHSA-rxp7-6hxx-x8q5 and the earlier ip-address advisories                          |
 | proxy-addr                | 2.0.8          | GHSA-jqcg-44mw-7w3h                                                                |
 | @modelcontextprotocol/sdk | 1.32.1         | GHSA-6qxp-vccf-f47h                                                                |
@@ -54,6 +56,64 @@ the frozen lockfile passes the full audit, and affected package checks pass.
 | undici                    | 7.30.1         | GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472                      |
 | body-parser               | 2.4.0          | GHSA-27r3-jxmh-p828                                                                |
 | zod                       | 4.6.6          | GHSA-mrhx-c7xc-m3w5, also forced for the unused shadcn CLI                         |
+
+### October 29 root overrides
+
+Three root overrides were added or raised, each the smallest version that the
+registry audit reports as fixed and that satisfies the parent's declared range:
+`systeminformation` 5.33.16 (through `@dotenvx/dotenvx` `^5.22.11`, used by the
+shadcn CLI), `@hono/node-server` 2.1.3 (through `@modelcontextprotocol/sdk`
+`^1.19.9 || ^2.0.5`) and `qs` 6.16.1 (raised from 6.16.0; `body-parser` 2.4.0
+already declares `^6.16.1`). The root `bun.lock` diff changes only those three
+entries. shadcn stays 4.21.4 and every other version is unchanged.
+
+A root-only `bun audit --json`, run on a copy of `package.json` and `bun.lock`
+with an empty environment and no env file, reported six advisories before the
+change and one after:
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4),
+low, `deepmerge` 4.3.1, which lists no patched version. That advisory is an
+open gate: it is not waived, removed or vendored. The root-only scan did not
+cover the SDK or private application graphs.
+
+After private PR 669 merged as `b3369ad` and the root index gitlink moved to
+it, `bun run security:audit` audited all three graphs. The root graph reported
+only GHSA-gcqx-w48m-w2h4 (low, `deepmerge`); the SDK and private CSF
+application graphs reported no findings. The audit exits 1 on that one root
+advisory, with no suppression. The expired `braces` acceptance below was not
+used to pass this scan, which reported no `braces` finding.
+
+### October 29 deepmerge repair
+
+GHSA-gcqx-w48m-w2h4 still lists no patched `deepmerge`, and shadcn, its
+registry and html-to-text all require `^4.3.1`. With owner approval, the root
+now installs `vendor/deepmerge-compat` (`@lets-assist/deepmerge-compat`
+0.0.0) for every consumer. It is the registry 4.3.1 `dist/cjs.js` plus a
+two-line guard that refuses the `__proto__` key in both merge loops, as in
+upstream PR #274. The vendor README records provenance, the MIT license and the
+exact patch. The root also declares `deepmerge` `^4.3.1`, because Bun 1.4.2
+installs a `file:` override only for a direct dependency; without it the
+consumers fail to resolve deepmerge. The lock change replaces the one registry
+entry and adds only deepmerge `file:` resolutions.
+
+`bun audit` does not query `file:` packages, so passing it proves only that
+no registry deepmerge remains. `audit-package-graphs.mjs` binds the rest: the
+exact override and root dependency, the vendor manifest, `index.cjs` and
+`index.d.ts` by SHA-256, the tracked file list, and every root lock deepmerge
+resolution. A registry deepmerge, an untracked or edited vendor file, a vendor
+lockfile or another override target fails the audit. Advisory handling is
+unchanged.
+
+`scripts/plugins/deepmerge-compat.test.ts` loads deepmerge through each
+installed consumer. On the unpatched 4.3.1 it fails 23 tests: null-prototype
+targets, `null` or primitive placeholders, a target with its own `__proto__`,
+nested, `all`, `clone: false`, `customMerge` and custom `arrayMerge`, plus a
+real html-to-text conversion that hides text through an inherited `format`.
+On the repair all 36 pass, including controls for cloning, arrays, symbols,
+Date, RegExp, React elements, `customMerge`, `isMergeableObject`, `all` and
+the upstream `constructor` handling. The shadcn registry module cannot load
+under the root zod 4 override, so shadcn coverage is resolution and module
+identity, not a CLI run. Remove the package, override and root dependency when
+upstream publishes a fixed release that the consumers accept.
 
 ## Open upstream blocker
 

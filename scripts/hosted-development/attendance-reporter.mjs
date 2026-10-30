@@ -1,4 +1,8 @@
 // Hosted output contains outcomes only. Never forward browser errors or attachments.
+// A failure may name one fixed journey stage, and only when the test's own
+// error is exactly the reviewed stage message for a known code.
+import { reportedStage } from "./attendance-stages.mjs";
+
 export default class AttendanceReporter {
   constructor(
     _options,
@@ -12,10 +16,14 @@ export default class AttendanceReporter {
     this.write("Hosted attendance acceptance started.");
   }
   onTestEnd(_test, result) {
-    const passed = result.status === "passed";
+    if (result.status === "passed") {
+      this.write("Hosted attendance guest journey: passed.");
+      return;
+    }
+    const stage = reportedStage(result.errors);
     this.write(
-      passed
-        ? "Hosted attendance guest journey: passed."
+      stage
+        ? `Hosted attendance guest journey: failed at ${stage} (ATTENDANCE_JOURNEY_FAILED).`
         : "Hosted attendance guest journey: failed (ATTENDANCE_JOURNEY_FAILED).",
     );
   }

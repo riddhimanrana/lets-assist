@@ -7,6 +7,7 @@ import {
   prepareHostedContext,
   signInHostedFixture,
 } from "./environment";
+import { hostedJourneyFailure } from "../../../scripts/hosted-development/attendance-stages.mjs";
 
 process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 test.use({ trace: "off", video: "off", screenshot: "off" });
@@ -95,6 +96,9 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
   let userId: string | null = null;
   let linkedUserId: string | null = null;
   const errors: string[] = [];
+  // The last journey phase reached. Hosted failures report only this code.
+  let stage = "S01_FIXTURE_SETUP";
+  let cleanupFailed = false;
   page.on("pageerror", (error) => {
     errors.push(env.hosted ? "Browser runtime error" : error.message);
     if (!env.hosted) console.error("Attendance page error:", error.message);
@@ -148,6 +152,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       ).error,
     );
 
+    stage = "S02_SIGN_IN";
     if (env.hosted) {
       await prepareHostedContext(context, env);
       await signInHostedFixture(context, env, {
@@ -175,6 +180,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       timeout: 120_000,
     });
 
+    stage = "S03_RETRY_BATCH";
     const failedBatchId = randomUUID();
     checked(
       (
@@ -211,6 +217,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
           .eq("id", failedBatchId)
       ).error,
     );
+    stage = "S04_HOURS_PAGE";
     await page.goto(`/projects/${projectId}/hours`);
     await expect(
       page.getByRole("heading", {
@@ -221,6 +228,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await expect(page).toHaveTitle(/Volunteer hours/);
     console.info("Attendance acceptance: authenticated hours page loaded");
 
+    stage = "S05_PRINT_SHEETS";
     await page
       .locator(`a[href="/projects/${projectId}/attendance-sheet"]`)
       .filter({ visible: true })
@@ -250,6 +258,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         fullPage: true,
       });
 
+    stage = "S06_MANUAL_REVIEW";
     await page.goto(`/projects/${projectId}/paper-signups?mode=manual`);
     await page.getByRole("radio").first().check();
     await page
@@ -283,6 +292,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     ).not.toBeChecked();
     await signature.uncheck();
     await review.getByLabel(/I reviewed all times and dates/).check();
+    stage = "S07_MOBILE_REVIEW";
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(review).toBeVisible();
     expect(
@@ -310,6 +320,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       .getByRole("button", { name: "Save review", exact: true })
       .click();
     await expect(review).not.toBeVisible();
+    stage = "S08_SAVE_ROWS";
     const include = page
       .getByLabel("Include when reviewed", { exact: true })
       .first();
@@ -356,6 +367,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     console.info(
       "Attendance acceptance: valid attendance saved; unresolved row survives reload",
     );
+    stage = "S09_PUBLISH";
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`/projects/${projectId}/hours`);
     await expect(
@@ -414,6 +426,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     const certificateId = certificate.data!.id;
     console.info("Attendance acceptance: 120 minutes published");
 
+    stage = "S10_EXPORT";
     const jsonResponse = await context.request.get(
       `/api/projects/${projectId}/hours/export?format=json`,
     );
@@ -470,6 +483,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     console.info(
       "Attendance acceptance: CSV and JSON agree; unauthenticated export denied",
     );
+    stage = "S11_ROSTER_RECONCILE";
     // A saved name-only entry remains authoritative while its review draft changes.
     await page.goto(`/projects/${projectId}/paper-signups`);
     await page
@@ -718,6 +732,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     console.info(
       "Attendance acceptance: saved roster reconciles split visits without changing its existing award or delivery",
     );
+    stage = "S12_CORRECTION";
     await page.goto(`/projects/${projectId}/hours`);
     await page
       .getByRole("button", { name: "Correct hours", exact: true })
@@ -781,6 +796,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         path: testInfo.outputPath("corrected-hours.png"),
         fullPage: true,
       });
+    stage = "S13_GUEST_CERTIFICATE";
     await page.goto(`/certificates/${certificateId}`);
     await expect(
       page.getByText("2 hours 30 mins", { exact: true }),
@@ -823,6 +839,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
         "Attendance acceptance: guest can access the corrected certificate",
       );
 
+      stage = "S14_ACCOUNT_LINKING";
       const linkedAccount = await admin.auth.admin.createUser({
         email: walkinEmail,
         password,
@@ -849,7 +866,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       const linker = guestPage.getByRole("dialog");
       if (env.hosted) {
         await linker
-          .getByRole("button", { name: "Link to current account", exact: true })
+          .getByRole("button", { name: "Link to this account", exact: true })
           .click();
       } else {
         await linker.getByLabel("Email", { exact: true }).fill(walkinEmail);
@@ -887,6 +904,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       console.info(
         "Attendance acceptance: guest account linking preserves exactly one award",
       );
+      stage = "S15_VOLUNTEER_TOTAL";
       await guestPage.goto(`${origin}/projects/${projectId}`);
       await expect(
         guestPage.getByText("Volunteer hours published!", { exact: true }),
@@ -917,14 +935,13 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     } finally {
       await guestContext.close();
     }
+    stage = "S16_RUNTIME_ERRORS";
     expect(
       errors.filter((message) => !message.includes("Failed to load resource")),
     ).toEqual([]);
   } catch (error) {
-    if (env.hosted)
-      throw new Error(
-        "Hosted attendance journey failed (ATTENDANCE_JOURNEY_FAILED).",
-      );
+    // Hosted output is the fixed phase code only, never the original error.
+    if (env.hosted) throw new Error(hostedJourneyFailure(stage));
     throw error;
   } finally {
     const cleanupErrors = await cleanupAttendanceFixture(admin, projectId, [
@@ -932,5 +949,9 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       linkedUserId,
     ]);
     expect.soft(cleanupErrors, "Fictional fixture cleanup").toEqual([]);
+    cleanupFailed = cleanupErrors.length > 0;
   }
+  // Reached only after a successful journey, so cleanup is the sole failure.
+  if (env.hosted && cleanupFailed)
+    throw new Error(hostedJourneyFailure("S17_CLEANUP"));
 });

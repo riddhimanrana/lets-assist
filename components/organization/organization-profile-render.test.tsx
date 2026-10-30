@@ -288,9 +288,43 @@ describe("organization overview tab", () => {
     expect(
       html.match(/data-slot="item-actions"[^>]*class="[^"]*shrink-0/g) ?? [],
     ).toHaveLength(2);
-    expect(
-      html.match(/text-xs py-0[^"]*whitespace-nowrap/g) ?? [],
-    ).toHaveLength(2);
+    const badges = [
+      ...html.matchAll(/<span[^>]*data-slot="badge"[^>]*>[\s\S]*?<\/span>/gu),
+    ].map((match) => match[0]);
+    expect(badges).toHaveLength(2);
+    for (const badge of badges) {
+      const names = /class="([^"]*)"/u.exec(badge)?.[1].split(/\s+/u) ?? [];
+      expect(names).toEqual(
+        expect.arrayContaining(["whitespace-nowrap", "shrink-0", "py-0"]),
+      );
+      // Quiet flat status tints, never the glossy primary badge.
+      expect(badge).not.toContain("--button-primary-gloss");
+      expect(badge).not.toContain("--control-gloss");
+      expect(badge).toContain('aria-hidden="true"');
+    }
+    // The fixture date is in the future, so its status derives as Upcoming.
+    expect(badges[0]).toContain('data-variant="info"');
+    expect(badges[0]).toContain("Upcoming");
+    expect(badges[1]).toContain('data-variant="destructive"');
+    expect(badges[1]).toContain("bg-destructive/10");
+    expect(badges[1]).toContain("Cancelled");
+  });
+
+  test("a long recent project title shrinks instead of wrapping the status", () => {
+    const html = overview({
+      projects: [
+        project({
+          title: "Supercalifragilisticexpialidociousfoodbankdriveweekend",
+          status: "completed",
+        }),
+      ],
+      userRole: null,
+    });
+    const row = /<a[^>]*data-slot="item"[^>]*>/u.exec(html)?.[0] ?? "";
+    const names = /class="([^"]*)"/u.exec(row)?.[1].split(/\s+/u) ?? [];
+    expect(names).toContain("flex-nowrap");
+    expect(names).not.toContain("flex-wrap");
+    expect(html).toContain("wrap-break-word");
   });
 
   test("lists recent projects with a link to the full list", () => {

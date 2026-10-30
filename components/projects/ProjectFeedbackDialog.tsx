@@ -16,6 +16,7 @@ import {
   ProjectFeedbackForm,
   type ProjectFeedbackFormValue,
 } from "@/components/projects/ProjectFeedbackForm";
+import { PROJECT_FEEDBACK_VISIBILITY } from "@/components/projects/feedback-visibility";
 
 interface ProjectFeedbackDialogProps {
   projectId: string;
@@ -51,10 +52,7 @@ export function ProjectFeedbackDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>How did volunteering here go?</DialogTitle>
-          <DialogDescription>
-            Only the organizer sees this — it is never shown on the project
-            page.
-          </DialogDescription>
+          <DialogDescription>{PROJECT_FEEDBACK_VISIBILITY}</DialogDescription>
         </DialogHeader>
         <ProjectFeedbackForm
           projectId={projectId}

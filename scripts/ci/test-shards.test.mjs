@@ -203,6 +203,7 @@ describe("the test orchestrator's shards", () => {
     mkdirSync(join(directory, "lib/plugins"), { recursive: true });
     for (const file of [
       "scripts/run-tests.mjs",
+      "scripts/ci/test-isolation.mjs",
       "scripts/ci/test-shards.mjs",
     ]) {
       cpSync(join(repositoryRoot, file), join(directory, file));
@@ -288,6 +289,7 @@ describe("the test orchestrator's shards", () => {
     mkdirSync(join(directory, "lib/plugins"), { recursive: true });
     for (const file of [
       "scripts/run-tests.mjs",
+      "scripts/ci/test-isolation.mjs",
       "scripts/ci/test-shards.mjs",
       "scripts/local-dev/server-only-test-preload.ts",
     ]) {

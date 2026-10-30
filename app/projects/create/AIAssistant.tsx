@@ -1,11 +1,13 @@
 "use client";
 import { safeConsole } from "@/lib/safe-console";
 
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { SparklesIcon, useAnimatedIcon } from "@/components/icons/animated";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,10 +19,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import type { ParseProjectResult } from "@/lib/ai/parse-project-schema";
+
 import {
-  parseProjectOutputSchema,
-  type ParseProjectResult,
-} from "@/lib/ai/parse-project-schema";
+  createAssistantRequestController,
+  type AssistantRequestController,
+  type AssistantRequestDeps,
+} from "./ai-assistant-request";
 
 interface AIAssistantProps {
   onApplyData: (data: AIParseResult) => void;
@@ -28,119 +33,145 @@ interface AIAssistantProps {
   isOpen: boolean;
   /** The project's timezone, so "today" means today where the project is. */
   projectTimezone?: string;
+  /** Test seam for the request lifecycle. Production uses the defaults. */
+  requestDeps?: AssistantRequestDeps;
 }
 
 export type AIParseResult = ParseProjectResult;
 
+export const AI_APPLIED_MESSAGE =
+  "Project details filled. Review and adjust them before you publish.";
+export const AI_APPLY_FAILED_MESSAGE =
+  "Could not fill in the project details. Please enter them manually.";
+
+/**
+ * The prompt lives here so it survives closing and reopening. The request
+ * lives in the panel, which only exists while the assistant is open, so any
+ * way of closing it (this card, the header toggle, leaving the step) cancels
+ * the request.
+ */
 export default function AIAssistant({
-  onApplyData,
-  onClose,
   isOpen,
-  projectTimezone,
+  ...panelProps
 }: AIAssistantProps) {
   const [prompt, setPrompt] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
-  const generateIcon = useAnimatedIcon();
-
-  const handleGenerate = async () => {
-    if (prompt.trim().length < 10 || prompt.trim().length > 4_000) {
-      toast.error(
-        "Project description must be between 10 and 4,000 characters.",
-      );
-      return;
-    }
-
-    setIsProcessing(true);
-    setIsApplying(true); // Start animation immediately
-
-    try {
-      const response = await fetch("/api/ai/parse-project", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          ...(projectTimezone ? { timezone: projectTimezone } : {}),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response
-          .json()
-          .catch(() => ({ error: "Unknown error" }));
-        toast.error(
-          typeof errorData.error === "string"
-            ? errorData.error
-            : "Project assistant is temporarily unavailable. Please try again.",
-        );
-        setIsApplying(false);
-        return;
-      }
-
-      const parsedResponse = parseProjectOutputSchema.safeParse(
-        await response.json(),
-      );
-      if (!parsedResponse.success) {
-        throw new Error("AI did not return valid project data");
-      }
-      const parsedData = parsedResponse.data;
-
-      await applyWithAnimation(parsedData);
-    } catch (error) {
-      safeConsole.error("AI generation error:", error);
-
-      // Provide more specific error messages
-      let errorMessage =
-        "Failed to generate project details. Please try again.";
-      if (error instanceof Error) {
-        if (error.message.includes("fetch")) {
-          errorMessage =
-            "Network error. Please check your connection and try again.";
-        } else if (error.message.includes("valid project data")) {
-          errorMessage =
-            "Could not understand your description. Please try rephrasing it.";
-        } else if (error.message.includes("Server error")) {
-          errorMessage = "Server error. Please try again in a moment.";
-        }
-      }
-
-      toast.error(errorMessage);
-      setIsApplying(false); // Stop animation on error
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const applyWithAnimation = async (data: AIParseResult) => {
-    // Animation is already running, just wait a bit for visual effect
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    try {
-      onApplyData(data);
-      toast.success("Project details filled! Review and adjust as needed.");
-      setPrompt("");
-
-      // Close after a brief moment
-      setTimeout(() => {
-        setIsApplying(false);
-        onClose();
-      }, 600);
-    } catch (error) {
-      safeConsole.error("Error applying AI data:", error);
-      toast.error(
-        "Failed to apply project details. Please try entering them manually.",
-      );
-      setIsApplying(false);
-      onClose();
-    }
-  };
 
   if (!isOpen) return null;
 
-  const isBusy = isProcessing || isApplying;
+  return (
+    <AssistantPanel {...panelProps} prompt={prompt} setPrompt={setPrompt} />
+  );
+}
+
+type PanelProps = Omit<AIAssistantProps, "isOpen"> & {
+  prompt: string;
+  setPrompt: (prompt: string) => void;
+};
+
+/**
+ * Wires the request controller to one open panel. Exported for tests, which
+ * drive these handlers without a DOM.
+ */
+export function createAssistantPanelHandlers({
+  controller,
+  getPrompt,
+  projectTimezone,
+  onApplyData,
+  onClose,
+  setPrompt,
+  setPending,
+  setError,
+  notify,
+}: {
+  controller: AssistantRequestController;
+  getPrompt: () => string;
+  projectTimezone?: string;
+  onApplyData: (data: AIParseResult) => void;
+  onClose: () => void;
+  setPrompt: (prompt: string) => void;
+  setPending: (pending: boolean) => void;
+  setError: (message: string | null) => void;
+  notify: { success: (message: string) => void };
+}) {
+  const generate = async () => {
+    setError(null);
+    setPending(true);
+    await controller.start(getPrompt(), projectTimezone, {
+      onSuccess: (data) => {
+        setPending(false);
+        try {
+          onApplyData(data);
+        } catch (error) {
+          safeConsole.error("Error applying AI data:", error);
+          setError(AI_APPLY_FAILED_MESSAGE);
+          return;
+        }
+        notify.success(AI_APPLIED_MESSAGE);
+        setPrompt("");
+        onClose();
+      },
+      onFailure: (_reason, message) => {
+        setPending(false);
+        setError(message);
+      },
+    });
+  };
+
+  const cancel = () => {
+    controller.cancel();
+    setPending(false);
+  };
+
+  const close = () => {
+    controller.cancel();
+    onClose();
+  };
+
+  return { generate, cancel, close };
+}
+
+function AssistantPanel({
+  onApplyData,
+  onClose,
+  projectTimezone,
+  requestDeps,
+  prompt,
+  setPrompt,
+}: PanelProps) {
+  const [controller] = useState(() =>
+    createAssistantRequestController(requestDeps),
+  );
+  const [isPending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const generateIcon = useAnimatedIcon();
+
+  // Unmounting (closing, leaving the step) retires the request, so a late
+  // answer can never fill the form. A layout cleanup runs inside the commit
+  // that removes the panel, so there is no gap before a passive cleanup in
+  // which an answer could still apply.
+  useLayoutEffect(() => () => controller.cancel(), [controller]);
+
+  const handlers = createAssistantPanelHandlers({
+    controller,
+    getPrompt: () => prompt,
+    projectTimezone,
+    onApplyData,
+    onClose,
+    setPrompt,
+    setPending,
+    setError,
+    notify: toast,
+  });
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && isPending) {
+      event.preventDefault();
+      handlers.cancel();
+    }
+  };
 
   return (
-    <Card aria-busy={isBusy}>
+    <Card aria-busy={isPending} onKeyDown={handleKeyDown}>
       <CardHeader>
         <CardTitle>AI project assistant</CardTitle>
         <CardDescription>
@@ -152,8 +183,7 @@ export default function AIAssistant({
             variant="ghost"
             size="icon"
             aria-label="Close AI assistant"
-            onClick={onClose}
-            disabled={isBusy}
+            onClick={handlers.close}
             className="-mt-1.5 -mr-1.5"
           >
             <X aria-hidden="true" />
@@ -165,11 +195,20 @@ export default function AIAssistant({
           aria-label="Describe your project"
           placeholder="Example: 'We need volunteers for a beach cleanup this Saturday from 9am to 12pm at Santa Cruz Beach. Looking for about 20 volunteers to help pick up trash and recyclables.'"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            setPrompt(e.target.value);
+            if (error) setError(null);
+          }}
           rows={4}
-          disabled={isBusy}
+          readOnly={isPending}
+          aria-invalid={error ? true : undefined}
           className="resize-none"
         />
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
         <div className="text-muted-foreground grid gap-1 text-sm">
           <p>Examples:</p>
           <ul className="grid gap-0.5">
@@ -193,15 +232,24 @@ export default function AIAssistant({
           </ul>
         </div>
       </CardContent>
-      <CardFooter className="justify-end">
+      <CardFooter className="flex-wrap justify-end gap-2">
+        {isPending ? (
+          <Button
+            variant="outline"
+            onClick={handlers.cancel}
+            className="w-full sm:w-auto"
+          >
+            Cancel
+          </Button>
+        ) : null}
         <Button
           variant="secondary"
-          onClick={handleGenerate}
-          disabled={isBusy || !prompt.trim()}
+          onClick={() => void handlers.generate()}
+          disabled={isPending || !prompt.trim()}
           className="w-full sm:w-auto"
           {...generateIcon.triggerProps}
         >
-          {isProcessing ? (
+          {isPending ? (
             <>
               <Loader2
                 data-icon="inline-start"
@@ -209,15 +257,6 @@ export default function AIAssistant({
                 className="animate-spin"
               />
               Generating...
-            </>
-          ) : isApplying ? (
-            <>
-              <Loader2
-                data-icon="inline-start"
-                aria-hidden="true"
-                className="animate-spin"
-              />
-              Applying...
             </>
           ) : (
             <>

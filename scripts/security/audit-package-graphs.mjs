@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   lstatSync,
@@ -12,6 +13,71 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { acceptBracesFinding, BRACES_EXCEPTION } from "./braces-exception.mjs";
+
+// The reviewed local repair of deepmerge 4.3.1 (GHSA-gcqx-w48m-w2h4). Bun does
+// not audit `file:` packages, so this binds the exact override, manifest,
+// executable sources and every root lock resolution instead.
+export const DEEPMERGE_COMPAT = Object.freeze({
+  directory: "vendor/deepmerge-compat",
+  override: "file:./vendor/deepmerge-compat",
+  hoisted:
+    '"deepmerge": ["@lets-assist/deepmerge-compat@file:vendor/deepmerge-compat", {}]',
+  files: Object.freeze({
+    "package.json":
+      "0ae8dda84b8f2b89b38de085f5b1b86dc70f94d00640583105d847969de6b58f",
+    "index.cjs":
+      "f17f18c2d9584465de99958287d2410c71a04db5575d790059602dd9fbf6a87f",
+    "index.d.ts":
+      "054966c8bd235dab582b7e0ab63c8cdd7576526bd003d1b84e99fad1f37fa1c2",
+  }),
+  documents: Object.freeze([
+    "README.md",
+    "ghsa-gcqx-w48m-w2h4.patch",
+    "license.txt",
+  ]),
+});
+
+function assertDeepmergeCompat(repository, tracked, manifest, lockfiles) {
+  const { directory, override, hoisted, files, documents } = DEEPMERGE_COMPAT;
+  const refusal =
+    "The vendored deepmerge repair must remain the exact reviewed package bound to the root lockfile.";
+  if (!tracked.has("package.json") || !tracked.has("bun.lock"))
+    throw new Error(refusal);
+  const owner = JSON.parse(
+    readFileSync(join(repository, "package.json"), "utf8"),
+  );
+  const lock = readFileSync(join(repository, "bun.lock"), "utf8");
+  const resolutions = [...lock.matchAll(/\["deepmerge@([^"]*)"/gu)].map(
+    (match) => match[1],
+  );
+  const local = [...tracked]
+    .filter((file) => file.startsWith(`${directory}/`))
+    .map((file) => file.slice(directory.length + 1))
+    .sort();
+  if (
+    owner.overrides?.deepmerge !== override ||
+    owner.dependencies?.deepmerge !== "^4.3.1" ||
+    manifest.name !== "@lets-assist/deepmerge-compat" ||
+    manifest.version !== "0.0.0" ||
+    manifest.dependencies !== undefined ||
+    manifest.scripts !== undefined ||
+    lockfiles.length !== 0 ||
+    lock.split(hoisted).length !== 2 ||
+    !resolutions.length ||
+    resolutions.some((resolution) => resolution !== override) ||
+    JSON.stringify(local) !==
+      JSON.stringify([...Object.keys(files), ...documents].sort())
+  )
+    throw new Error(refusal);
+  for (const [file, expected] of Object.entries(files)) {
+    const path = join(repository, directory, file);
+    if (
+      !lstatSync(path).isFile() ||
+      createHash("sha256").update(readFileSync(path)).digest("hex") !== expected
+    )
+      throw new Error(refusal);
+  }
+}
 
 function trackedFiles(root) {
   return execFileSync("git", ["ls-files", "-z"], {
@@ -55,6 +121,16 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
   const graphs = [];
   for (const repository of [root, privateRoot]) {
     const tracked = new Set(listFiles(repository));
+    // An override without the tracked reviewed package would install
+    // unreviewed or missing local source that the audit cannot see.
+    if (
+      repository === root &&
+      rootManifest.overrides?.deepmerge !== undefined &&
+      !tracked.has(`${DEEPMERGE_COMPAT.directory}/package.json`)
+    )
+      throw new Error(
+        "The deepmerge override requires the tracked reviewed vendor package.",
+      );
     const manifests = [...tracked]
       .filter((file) => /(?:^|\/)package\.json$/u.test(file))
       .sort();
@@ -69,6 +145,10 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
         .map((name) => (directory === "." ? name : `${directory}/${name}`))
         .filter((file) => tracked.has(file));
       const label = relative(root, join(repository, directory)) || ".";
+      if (repository === root && directory === DEEPMERGE_COMPAT.directory) {
+        assertDeepmergeCompat(repository, tracked, manifest, lockfiles);
+        continue;
+      }
       // Each exact local compatibility package belongs to its application's
       // audited lockfile. Other vendor packages remain independent graphs.
       const compatibilityOwner =
