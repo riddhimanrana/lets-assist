@@ -1,5 +1,6 @@
 import { checkOffensiveLanguage } from "@/utils/moderation-helpers";
 import sanitizeHtml from "sanitize-html";
+import { richTextToPlainText } from "@/schemas/event-form-helpers";
 
 export async function projectContentIssue(content: {
   title?: string;
@@ -11,7 +12,9 @@ export async function projectContentIssue(content: {
     if (typeof text !== "string") continue;
     const plain =
       field === "description"
-        ? sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} })
+        ? richTextToPlainText(
+            sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }),
+          )
         : text;
     const result = await checkOffensiveLanguage(plain);
     if (result.isProfane)

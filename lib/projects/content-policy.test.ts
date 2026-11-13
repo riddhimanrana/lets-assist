@@ -18,3 +18,22 @@ test("create and edit share field-specific checks, including rich text", async (
   ).toBeNull();
   expect(await projectContentIssue({})).toBeNull();
 });
+
+test("description checks count visible text after decoding sanitized entities", async () => {
+  for (const entity of ["&amp;", "&lt;", "&gt;", "&#38;", "&#x26;"]) {
+    expect(
+      await projectContentIssue({
+        description: `<p>${"a".repeat(1900)}${entity.repeat(100)}</p>`,
+      }),
+    ).toBeNull();
+  }
+  await expect(
+    projectContentIssue({ description: `<p>${"&amp;".repeat(2001)}</p>` }),
+  ).rejects.toThrow("Content is not valid");
+});
+
+test("decoding keeps encoded visible language subject to moderation", async () => {
+  for (const description of ["<p>&lt;shit&gt;</p>", "<p>&#115;hit</p>"]) {
+    expect(await projectContentIssue({ description })).toContain("shit");
+  }
+});
