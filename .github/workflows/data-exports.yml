@@ -1,8 +1,8 @@
 name: Background Data Exports
 
 on:
-  # Export processing is manual until its separate rollout review is complete.
-  # There is no data-export schedule in vercel.json.
+  # Manual recovery path. The application release schedules protocol-2 exports
+  # through Vercel Cron every five minutes.
   workflow_dispatch:
 
 permissions:

@@ -235,6 +235,23 @@ function mergedResource(
   };
 }
 
+export type PersonalCalendarUpdateFailure =
+  | "calendar_access"
+  | "event_missing"
+  | "event_identity"
+  | "event_version"
+  | "provider_auth"
+  | "provider_permission"
+  | "provider_conflict"
+  | "provider_rejected"
+  | "unconfirmed";
+
+class UpdateRefusal extends Error {
+  constructor(readonly reason: PersonalCalendarUpdateFailure) {
+    super(reason);
+  }
+}
+
 /**
  * Rewrite one saved event ID in place. A missing, deleted or foreign event is
  * an incomplete update: it is never recreated, cleared or moved.
@@ -252,15 +269,19 @@ export function createPersonalCalendarEventUpdater(
     calendarId: string,
     id: string,
     event: PersonalCalendarEvent,
-    options: { legacy?: boolean; beforeWrite?: () => Promise<unknown> } = {},
+    options: {
+      legacy?: boolean;
+      beforeWrite?: () => Promise<unknown>;
+      onFailure?: (reason: PersonalCalendarUpdateFailure) => void;
+    } = {},
   ): Promise<boolean> => {
     try {
       const receipt = event.extendedProperties?.private?.letsAssistReceipt;
-      if (!receipt) return false;
+      if (!receipt) throw new UpdateRefusal("event_identity");
       if (
         !(await ownedCalendarProof(proofs, accessToken, calendarId, fetchImpl))
       )
-        return false;
+        throw new UpdateRefusal("calendar_access");
       const url = googleCalendarEventUrl(calendarId, id);
       const authorization = { Authorization: `Bearer ${accessToken}` };
       const read = async () => {
@@ -269,7 +290,12 @@ export function createPersonalCalendarEventUpdater(
           signal: AbortSignal.timeout(10_000),
           redirect: "error",
         });
-        return response.ok ? liveEvent(await response.json(), id) : null;
+        if (response.status === 401) throw new UpdateRefusal("provider_auth");
+        if (response.status === 403)
+          throw new UpdateRefusal("provider_permission");
+        if (response.status === 404 || response.status === 410) return null;
+        if (!response.ok) throw new UpdateRefusal("unconfirmed");
+        return liveEvent(await response.json(), id);
       };
       // An uncertain write is proven only by the exact saved payload on the same live event.
       const readback = async () => {
@@ -277,13 +303,13 @@ export function createPersonalCalendarEventUpdater(
         return Boolean(after && reflectsSavedPayload(after, event));
       };
       const current = await read();
-      if (!current) return false;
+      if (!current) throw new UpdateRefusal("event_missing");
       const marker = receiptMarker(current);
       // Only the one stored legacy ID may predate receipt markers.
       if (marker !== receipt && !(options.legacy && marker === undefined))
-        return false;
+        throw new UpdateRefusal("event_identity");
       const etag = current.etag;
-      if (!usableEtag(etag)) return false;
+      if (!usableEtag(etag)) throw new UpdateRefusal("event_version");
       const body = JSON.stringify(mergedResource(current, id, event));
       await options.beforeWrite?.();
       let response: Response;
@@ -307,10 +333,20 @@ export function createPersonalCalendarEventUpdater(
         // Google's own answer is the result; an unreadable one falls back to a readback.
         return saved ? reflectsSavedPayload(saved, event) : await readback();
       }
+      if (response.status === 412) {
+        if (await readback()) return true;
+        throw new UpdateRefusal("provider_conflict");
+      }
       if (response.status === 429 || response.status >= 500)
         return await readback();
-      return false;
-    } catch {
+      if (response.status === 401) throw new UpdateRefusal("provider_auth");
+      if (response.status === 403)
+        throw new UpdateRefusal("provider_permission");
+      throw new UpdateRefusal("provider_rejected");
+    } catch (error) {
+      options.onFailure?.(
+        error instanceof UpdateRefusal ? error.reason : "unconfirmed",
+      );
       return false;
     }
   };

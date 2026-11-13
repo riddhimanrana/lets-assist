@@ -66,7 +66,7 @@ export function exportJobPresentation(job: ExportJob, now = Date.now()) {
           : job.status === "completed" && !ready
             ? "Download availability could not be confirmed. Refresh the request status."
             : job.status === "pending"
-              ? "Your request is queued for processing. Automatic export processing is not currently scheduled; support can check the existing request."
+              ? "Your request is queued. Processing normally starts within five minutes; this page refreshes its status while you wait."
               : job.status === "processing"
                 ? "Your archive is being prepared. You can return to this page later."
                 : "Your archive is ready to download.";

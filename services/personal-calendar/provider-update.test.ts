@@ -325,7 +325,7 @@ describe("personal calendar in-place update", () => {
     expect(f.requests).toHaveLength(0);
   });
 
-  test.each([404, 410, 412, 400, 401, 403])(
+  test.each([404, 410, 400, 401, 403])(
     "a write HTTP%d is incomplete and never recreates or clears the event",
     async (status) => {
       const f = provider(
@@ -338,7 +338,7 @@ describe("personal calendar in-place update", () => {
     },
   );
 
-  test.each([429, 500, 503])(
+  test.each([412, 429, 500, 503])(
     "an uncertain write HTTP%d is confirmed only by reading back the saved payload",
     async (status) => {
       const landed = provider(
@@ -564,4 +564,22 @@ test("reschedules the same November event across dates and confirms the new time
     start: desired.start,
     end: desired.end,
   });
+});
+
+test("a denied provider write reports a bounded recovery reason", async () => {
+  const f = provider(
+    ...owned(),
+    Response.json(existing),
+    new Response(null, { status: 403 }),
+  );
+  const failures: string[] = [];
+  const result = await createPersonalCalendarEventUpdater(f.fake)(
+    "fictional-token",
+    CALENDAR,
+    id,
+    event,
+    { onFailure: (reason) => failures.push(reason) },
+  );
+  expect(result).toBe(false);
+  expect(failures).toEqual(["provider_permission"]);
 });
