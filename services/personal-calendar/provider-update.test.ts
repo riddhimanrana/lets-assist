@@ -540,3 +540,28 @@ describe("personal calendar removal authority check", () => {
     ).toBe(true);
   });
 });
+
+test("reschedules the same November event across dates and confirms the new time", async () => {
+  const desired = {
+    ...event,
+    start: { dateTime: "2026-11-09T22:52:00", timeZone: "America/Los_Angeles" },
+    end: { dateTime: "2026-11-09T23:59:00", timeZone: "America/Los_Angeles" },
+  };
+  const old = {
+    ...existing,
+    start: { dateTime: "2026-11-30T09:00:00-08:00" },
+    end: { dateTime: "2026-11-30T17:00:00-08:00" },
+  };
+  const saved = {
+    ...stored,
+    start: { ...desired.start, dateTime: "2026-11-09T22:52:00-08:00" },
+    end: { ...desired.end, dateTime: "2026-11-09T23:59:00-08:00" },
+  };
+  const f = provider(...owned(), Response.json(old), Response.json(saved));
+  expect(await run(f, {}, desired)).toBe(true);
+  expect(JSON.parse(f.requests[3].init.body as string)).toMatchObject({
+    id,
+    start: desired.start,
+    end: desired.end,
+  });
+});

@@ -212,6 +212,9 @@ test("reviewed split visits report two pending hours at every aggregation level"
   expect(error).toBeUndefined();
   expect(data?.metrics.pendingHours).toBe(2);
   expect(data?.metrics.totalHours).toBe(2);
+  expect(data?.volunteers[0].attendanceHours).toBe(2);
+  expect(data?.projects[0].attendanceHours).toBe(2);
+  expect(data?.monthlyHours[0].attendance).toBe(2);
   expect(data?.volunteers[0].pendingHours).toBe(2);
   expect(data?.projects[0].pendingHours).toBe(2);
   expect(data?.monthlyHours[0].pending).toBe(2);

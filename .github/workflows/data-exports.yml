@@ -1,8 +1,8 @@
 name: Background Data Exports
 
 on:
-  # Vercel Cron owns the schedule (vercel.json). This approval-gated
-  # dispatch is the manual fallback.
+  # Export processing is manual until its separate rollout review is complete.
+  # There is no data-export schedule in vercel.json.
   workflow_dispatch:
 
 permissions:

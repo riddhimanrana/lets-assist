@@ -116,12 +116,18 @@ export function buildMemberColumns(ctx: MembersColumnContext): MemberColumn[] {
             </AvatarFallback>
           </Avatar>
           <div className="flex min-w-0 flex-col">
-            <Link
-              href={`/profile/${profile?.username || ""}`}
-              className="hover:text-primary truncate text-sm font-medium transition-colors"
-            >
-              {profile?.full_name || "Unknown User"}
-            </Link>
+            {profile?.username ? (
+              <Link
+                href={`/profile/${profile.username}`}
+                className="hover:text-primary truncate text-sm font-medium transition-colors"
+              >
+                {profile.full_name || profile.username}
+              </Link>
+            ) : (
+              <span className="truncate text-sm font-medium">
+                Private member
+              </span>
+            )}
             {profile?.username && (
               <span className="text-muted-foreground truncate text-xs">
                 @{profile.username}

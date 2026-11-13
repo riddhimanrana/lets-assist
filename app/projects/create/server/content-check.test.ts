@@ -76,6 +76,8 @@ test("local field results preserve the action response without sending text", ()
     const flagged = await checkProfanity({ ...valid, title: "shit123", description: "ｓｈｉｔ" });
     assert.equal(flagged.success, true);
     assert.equal(flagged.hasProfanity, true);
+    assert.match(flagged.error, /title/);
+    assert.match(flagged.error, /shit/);
     assert.equal(flagged.fieldResults.title.isProfanity, true);
     assert.equal(flagged.fieldResults.description.isProfanity, true);
     assert.equal(flagged.fieldResults.location.isProfanity, false);

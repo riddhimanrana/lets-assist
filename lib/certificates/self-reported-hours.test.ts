@@ -119,11 +119,11 @@ describe("self-reported hours input", () => {
   );
 
   test("a repeated hour that starts at midnight offers only the later side", () => {
-    // Havana falls back from 1:00 AM to midnight.
+    // Use a historical transition so future time-zone rule changes do not alter this regression.
     expect(
       errorFor({
         timeZone: "America/Havana",
-        date: "2026-11-01",
+        date: "2025-11-02",
         startTime: "00:30",
         endTime: "03:00",
       }),

@@ -52,11 +52,15 @@ export function DesktopPrimaryNavigation({
         ))
       ) : (
         <>
+          <DestinationLink destination={["Home", "/"]} pathname={pathname} />
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuTrigger className={destinationClass}>
-                  Features
+                <NavigationMenuTrigger
+                  className={cn(destinationClass, "px-2")}
+                  aria-label="Home sections"
+                >
+                  <span className="sr-only">Home sections</span>
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
                   <ul className="w-130">

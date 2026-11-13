@@ -100,7 +100,7 @@ test("guest drawer restores narrow width, stacked auth actions and spaced groups
   expect(html.indexOf('href="/login"')).toBeLessThan(
     html.indexOf('href="/projects"'),
   );
-  expect(html).toContain('aria-label="Features"');
+  expect(html).toContain('aria-label="Home sections"');
   expect(html).toContain("Theme choices");
   expect(html).not.toContain("Log out");
   expect(html).not.toContain("Local preview source");

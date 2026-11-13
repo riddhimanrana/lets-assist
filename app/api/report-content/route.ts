@@ -1,3 +1,4 @@
+import { isRetryableSupabaseAuthError } from "@/lib/supabase/auth-errors";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
@@ -24,7 +25,11 @@ export async function POST(request: Request) {
   });
 
   try {
-    const { user, error: authError } = await getAuthUser({ sensitive: true });
+    let auth = await getAuthUser({ sensitive: true });
+    if (isRetryableSupabaseAuthError(auth.error)) {
+      auth = await getAuthUser({ sensitive: true });
+    }
+    const { user, error: authError } = auth;
 
     if (authError) {
       return NextResponse.json(

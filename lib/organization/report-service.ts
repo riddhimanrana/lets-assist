@@ -427,6 +427,7 @@ async function buildReportDataForOrg(
 
       volunteer.totalHours += hours;
       volunteer.pendingHours += hours;
+      volunteer.attendanceHours = (volunteer.attendanceHours ?? 0) + hours;
       volunteer.eventsAttended += 1;
       if (
         signup.check_out_time &&
@@ -439,11 +440,13 @@ async function buildReportDataForOrg(
       const monthRow = ensureMonthlyRow(signup.check_in_time);
       if (monthRow) {
         monthRow.pending += hours;
+        monthRow.attendance = (monthRow.attendance ?? 0) + hours;
       }
 
       if (signup.project_id && projectMap.has(signup.project_id)) {
         const project = projectMap.get(signup.project_id)!;
         project.pendingHours += hours;
+        project.attendanceHours = (project.attendanceHours ?? 0) + hours;
         project.totalHours += hours;
         trackProjectVolunteer(signup.project_id, volunteerKey);
       }
@@ -493,7 +496,9 @@ async function buildReportDataForOrg(
         .length,
       verifiedHours: roundHours(verifiedHours),
       pendingHours: roundHours(pendingHours),
-      totalHours: roundHours(verifiedHours + pendingHours),
+      totalHours: roundHours(
+        rawVolunteers.reduce((sum, volunteer) => sum + volunteer.totalHours, 0),
+      ),
       totalProjects: projectList.length,
     };
 

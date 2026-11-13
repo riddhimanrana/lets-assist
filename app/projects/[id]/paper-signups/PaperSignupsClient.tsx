@@ -38,7 +38,8 @@ export interface PaperScanSlotOption {
 export interface PaperScanBatchView {
   id: string;
   scheduleId: string;
-  status: "draft" | "extracting" | "review" | "failed";
+  status:
+    "draft" | "extracting" | "review" | "failed" | "committed" | "committing";
   imageCount: number;
   inputMethod?: "scan" | "manual";
 }
@@ -161,7 +162,8 @@ export function PaperSignupsClient({
   const [retryingCertificates, setRetryingCertificates] = useState(false);
 
   const [step, setStep] = useState<Step>(() => {
-    if (initialBatch?.status === "review") return "review";
+    if (initialBatch && ["review", "committed"].includes(initialBatch.status))
+      return "review";
     if (initialBatch) return "capture";
     return "slot";
   });

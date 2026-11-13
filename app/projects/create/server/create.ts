@@ -1,4 +1,5 @@
 "use server";
+import { projectContentIssue } from "@/lib/projects/content-policy";
 import { safeConsole } from "@/lib/safe-console";
 
 import "server-only";
@@ -137,6 +138,10 @@ export async function createBasicProject(
     return { error: parsed.error };
   }
   const projectData = parsed.data;
+  if (!isDraft) {
+    const contentIssue = await projectContentIssue(projectData.basicInfo);
+    if (contentIssue) return { error: contentIssue };
+  }
   const requestedVisibility = projectData.visibility;
 
   // Trusted member gating only for projects that appear in public feed.

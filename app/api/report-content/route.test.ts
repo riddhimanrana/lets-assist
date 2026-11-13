@@ -10,7 +10,7 @@ mock.module("server-only", () => ({}));
 
 type AuthResult = {
   user: { id: string } | null;
-  error: { message: string } | null;
+  error: { message: string; status?: number } | null;
 };
 
 let authResult: AuthResult = { user: { id: "reporter" }, error: null };
@@ -34,6 +34,8 @@ let afterCallbacks: Array<() => Promise<void>> = [];
 mock.module("@/lib/supabase/auth-helpers", () => ({
   getAuthUser: async (options?: Record<string, unknown>) => {
     authOptions.push(options);
+    if (authResult.error?.status === 503 && authOptions.length > 1)
+      return { user: { id: "reporter" }, error: null };
     return authResult;
   },
 }));
@@ -289,4 +291,12 @@ describe("observability", () => {
     expect(afterCallbacks).toHaveLength(1);
     await afterCallbacks[0]?.();
   });
+});
+
+test("a transient auth failure retries fresh authentication before submitting once", async () => {
+  authResult = { user: null, error: { message: "temporary", status: 503 } };
+  const response = await POST(request(validBody));
+  expect(response.status).toBe(200);
+  expect(authOptions).toHaveLength(2);
+  expect(serviceCalls).toHaveLength(1);
 });

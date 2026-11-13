@@ -1,13 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { hasReducedMotionListener, prefersReducedMotion } from "motion-dom";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import {
-  createElement,
-  isValidElement,
-  type KeyboardEvent,
-  type ReactElement,
-  type ReactNode,
-} from "react";
+import { createElement, type KeyboardEvent, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AnimatedText } from "./AnimatedText";
@@ -15,7 +9,9 @@ import ComparisonSection from "./ComparisonSection";
 import { ComparisonTextFlip } from "./ComparisonTextFlip";
 import { MotionLinkButton } from "./MotionLinkButton";
 import { RealCheckIn } from "./RealCheckIn";
-import TestimonialsSection from "./TestimonialsSection";
+import TestimonialsSection, {
+  scrollRowFromKeyboard,
+} from "./TestimonialsSection";
 import VolunteerJourneySection from "./VolunteerJourneySection";
 import { EmailNotification } from "./journey/EmailNotification";
 import { MiniCertificate } from "./journey/MiniCertificate";
@@ -277,28 +273,6 @@ describe("landing testimonials", () => {
 });
 
 describe("testimonial row keyboard scrolling", () => {
-  type RegionProps = {
-    role?: string;
-    children?: ReactNode;
-    onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
-  };
-
-  // The handler under test is the one the real component puts on its region.
-  // The section has no hooks, so it can be called for its element tree.
-  function regionProps(node: ReactNode): RegionProps | undefined {
-    if (Array.isArray(node)) {
-      for (const child of node) {
-        const found = regionProps(child);
-        if (found) return found;
-      }
-      return undefined;
-    }
-    if (!isValidElement<RegionProps>(node)) return undefined;
-    return node.props.role === "region"
-      ? node.props
-      : regionProps(node.props.children);
-  }
-
   // Stands in for the scroll container: 2752px of quotes in a 1063px row. It
   // clamps the way a browser does, and records how it was asked to scroll.
   // `cardWidth` gives the row a first card to measure. Left out, the row has
@@ -341,7 +315,7 @@ describe("testimonial row keyboard scrolling", () => {
       },
     };
     let prevented = false;
-    const handler = regionProps(TestimonialsSection())?.onKeyDown;
+    const handler = scrollRowFromKeyboard;
     if (!handler) throw new Error("The testimonial region has no key handler.");
     handler({
       key,

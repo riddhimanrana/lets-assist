@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { CircleAlert } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,18 +27,44 @@ export default async function OrgModerationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const organizationId = id;
+  const supabase = await createClient();
+  const isId =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const { data: resolved } = await supabase
+    .from("organization_public_read_model")
+    .select("id")
+    .eq(isId ? "id" : "username", id)
+    .maybeSingle();
+  if (!resolved) notFound();
+  const organizationId = resolved.id;
 
   // Check permissions
   const canView = await canViewOrgModeration(organizationId);
 
   if (!canView) {
-    redirect(`/organization/${organizationId}`);
+    return (
+      <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8 sm:px-6">
+        <PageHeader
+          title="Moderation"
+          description="Organization content review"
+        />
+        <Alert>
+          <CircleAlert />
+          <AlertTitle>Admin access required</AlertTitle>
+          <AlertDescription>
+            Sign in with an active organization admin account to review flagged
+            content.
+          </AlertDescription>
+        </Alert>
+        <Link href={`/organization/${id}`} className="underline">
+          Back to organization
+        </Link>
+      </div>
+    );
   }
 
   // Fetch initial data. The name is only for the breadcrumb, so a failed
   // lookup falls back to the generic word.
-  const supabase = await createClient();
   const [stats, flaggedContent, { data: organization }] = await Promise.all([
     getOrgModerationStats(organizationId),
     getOrgFlaggedContent(organizationId, "pending_review"),

@@ -33,6 +33,11 @@ const MEMBER_HOURS_COLUMNS: ReportColumn<VolunteerSummary>[] = [
   },
   { label: "Pending Hours", kind: "hours", read: (item) => item.pendingHours },
   {
+    label: "Unpublished Attendance Hours",
+    kind: "hours",
+    read: (item) => item.attendanceHours ?? 0,
+  },
+  {
     label: "Events Attended",
     kind: "count",
     read: (item) => item.eventsAttended,
@@ -61,6 +66,11 @@ const PROJECT_SUMMARY_COLUMNS: ReportColumn<ProjectSummary>[] = [
     read: (item) => item.verifiedHours,
   },
   { label: "Pending Hours", kind: "hours", read: (item) => item.pendingHours },
+  {
+    label: "Unpublished Attendance Hours",
+    kind: "hours",
+    read: (item) => item.attendanceHours ?? 0,
+  },
   { label: "Total Hours", kind: "hours", read: (item) => item.totalHours },
   {
     label: "Volunteer Count",
@@ -73,6 +83,11 @@ const MONTHLY_SUMMARY_COLUMNS: ReportColumn<MonthlyHours>[] = [
   { label: "Month", kind: "text", read: (item) => item.month },
   { label: "Verified Hours", kind: "hours", read: (item) => item.verified },
   { label: "Pending Hours", kind: "hours", read: (item) => item.pending },
+  {
+    label: "Unpublished Attendance Hours",
+    kind: "hours",
+    read: (item) => item.attendance ?? 0,
+  },
   { label: "Total Hours", kind: "hours", read: (item) => item.total },
 ];
 

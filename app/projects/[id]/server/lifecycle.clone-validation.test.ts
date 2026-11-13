@@ -238,6 +238,18 @@ describe("cloneProject validation and identity reset", () => {
     expect(insertedPayload).toBeNull();
   });
 
+  test.each(["title", "location", "description"] as const)(
+    "updateProject rejects flagged %s before writing",
+    async (field) => {
+      const result = await updateProject("source-project", {
+        [field]: field === "description" ? "<p>shit</p>" : "shit",
+      });
+      expect(result.error).toContain(field);
+      expect(result.error).toContain("shit");
+      expect(updatedPayload).toBeNull();
+    },
+  );
+
   test("updateProject persists the parsed recurrence object", async () => {
     const suppliedRule = {
       frequency: "daily" as const,
