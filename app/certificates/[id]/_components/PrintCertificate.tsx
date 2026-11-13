@@ -108,7 +108,8 @@ export function buildCertificatePrintHtml(data: PrintCertificateData): string {
             .print-text { color:#000; }
             .print-accent { color:#22c55e; }
             .print-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-            .print-footer { display:flex; justify-content:space-between; border-top:2px solid #22c55e; padding-top:1rem; }
+            .print-footer { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:1rem; border-top:2px solid #22c55e; padding-top:1rem; font-size:0.85rem; line-height:1.35; }
+            .print-footer > div { min-width:0; overflow-wrap:anywhere; }
           </style>
         </head>
         <body>
