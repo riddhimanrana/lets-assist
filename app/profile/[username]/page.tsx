@@ -5,11 +5,11 @@ import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { format } from "date-fns";
-import { BadgeCheck, Lock, Users } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { getPublicProfileByUsername } from "@/lib/profile/public";
+import { getVisibleProfileByUsername } from "@/lib/profile/visible";
 import { PageHeader, SectionHeader } from "@/components/layout/PageHeader";
 import { EmptyStateIcon } from "@/components/organization/EmptyStateIcon";
 import { StatStrip } from "@/components/layout/SettingsSection";
@@ -50,28 +50,6 @@ type Props = {
 
 const PAGE_CONTAINER = "mx-auto w-full max-w-6xl px-4 py-8 sm:px-6";
 const CARD_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3";
-
-function ProfileNotice({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}): React.ReactElement {
-  return (
-    <div className={PAGE_CONTAINER}>
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">{icon}</EmptyMedia>
-          <EmptyTitle>{title}</EmptyTitle>
-          <EmptyDescription>{description}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </div>
-  );
-}
 
 function ProfileSection({
   title,
@@ -127,7 +105,7 @@ export default async function ProfilePage(
   const { username } = await params.params;
 
   const { data: rawProfile, error } =
-    await getPublicProfileByUsername(username);
+    await getVisibleProfileByUsername(username);
 
   if (error || !rawProfile) {
     notFound();
@@ -146,55 +124,16 @@ export default async function ProfilePage(
   const { user } = await getAuthUser();
   const isOwner = user?.id === profile.id;
 
-  // Check profile visibility unless it's the owner viewing their own profile
-  if (!isOwner && profile.profile_visibility !== "public") {
-    if (
-      profile.profile_visibility === "private" ||
-      !profile.profile_visibility
-    ) {
-      return (
-        <ProfileNotice
-          icon={<Lock />}
-          title="This profile is private"
-          description="Only its owner can view it. Contact them if you need access."
-        />
-      );
-    }
-
-    if (profile.profile_visibility === "organization_only") {
-      const { data: viewerOrgs } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user?.id || "");
-
-      const { data: ownerOrgs } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", profile.id);
-
-      const viewerOrgIds = viewerOrgs?.map((o) => o.organization_id) || [];
-      const ownerOrgIds = ownerOrgs?.map((o) => o.organization_id) || [];
-
-      const hasSharedOrg = viewerOrgIds.some((id) => ownerOrgIds.includes(id));
-
-      if (!hasSharedOrg) {
-        return (
-          <ProfileNotice
-            icon={<Users />}
-            title="Organization members only"
-            description="This profile is only visible to members of the same organization."
-          />
-        );
-      }
-    }
-  }
-
   const isTrusted = await isTrustedForDisplay(profile.id);
 
   const { data: createdProjects } = await supabase
     .from("projects")
     .select(PROJECT_CLIENT_SELECT)
     .eq("creator_id", profile.id)
+    .in(
+      "visibility",
+      isOwner ? ["public", "unlisted", "organization_only"] : ["public"],
+    )
     .eq("workflow_status", "published")
     .order("created_at", { ascending: false });
 
@@ -210,6 +149,10 @@ export default async function ProfilePage(
       .from("projects")
       .select(PROJECT_CLIENT_SELECT)
       .in("id", projectIds)
+      .in(
+        "visibility",
+        isOwner ? ["public", "unlisted", "organization_only"] : ["public"],
+      )
       .order("created_at", { ascending: false });
 
     attendedProjects = fetchedProjects || [];

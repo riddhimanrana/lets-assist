@@ -1,4 +1,5 @@
 "use server";
+import { projectContentIssue } from "@/lib/projects/content-policy";
 import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
 import { safeConsole } from "@/lib/safe-console";
 
@@ -461,6 +462,9 @@ export async function updateProject(
     };
 
     const mutableSanitizedUpdates = sanitizedUpdates as Record<string, unknown>;
+    const contentIssue = await projectContentIssue(sanitizedUpdates);
+    if (contentIssue) return { error: contentIssue };
+
     const submittedRecurrenceGeneration =
       sanitizedUpdates.recurrence_generation_id;
     const immutableProjectFields = [

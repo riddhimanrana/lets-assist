@@ -18,6 +18,7 @@ async function runAuthenticatedRequest(options: {
   factors?: Record<string, string>[];
   sessionFactors?: Record<string, string>[];
   userStatus?: number;
+  recoverAfterFirstRead?: boolean;
   userError?: string;
   freshUserId?: string;
   expired?: boolean;
@@ -96,7 +97,10 @@ async function runAuthenticatedRequest(options: {
       }
       if (url.endsWith("/user")) {
         userCalls++;
-        if (options.userStatus) {
+        if (
+          options.userStatus &&
+          (!options.recoverAfterFirstRead || userCalls === 1)
+        ) {
           return Response.json(
             {
               code: options.userError,
@@ -259,3 +263,15 @@ test(
     );
   },
 );
+
+test("a transient proxy auth read recovers before the report request is refused", async () => {
+  const result = await runAuthenticatedRequest({
+    pathname: "/api/report-content",
+    userStatus: 503,
+    userError: "unexpected_failure",
+    recoverAfterFirstRead: true,
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.userCalls, 2);
+  assert.equal(result.logoutCalls, 0);
+});

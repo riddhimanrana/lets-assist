@@ -1,4 +1,5 @@
 "use client";
+import { readContentReportResponse } from "@/lib/moderation/report-response";
 import { safeConsole } from "@/lib/safe-console";
 
 import {
@@ -153,11 +154,7 @@ export function ReportContentButton({
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to submit report");
-      }
+      await readContentReportResponse(response);
 
       toast.success("Report submitted successfully");
 

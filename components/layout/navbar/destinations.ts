@@ -8,16 +8,20 @@ export const featureLinks = [
       "Browse opportunities, confirm attendance, and earn certificates.",
   },
   {
-    title: "Platform features",
-    href: "/#features",
-    description:
-      "Calendar sync, dashboards, QR check-ins, and trusted event types.",
-  },
-  {
     title: "Organization tooling",
     href: "/#org-tooling",
     description:
       "Role-based member management, certified reports, and QR verification.",
+  },
+  {
+    title: "QR check-in",
+    href: "/#check-in",
+    description: "Record attendance at your volunteer event.",
+  },
+  {
+    title: "Community feedback",
+    href: "/#testimonials",
+    description: "Read feedback from teachers and local groups.",
   },
 ] as const;
 

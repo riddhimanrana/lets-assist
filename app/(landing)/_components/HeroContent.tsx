@@ -47,9 +47,9 @@ const {
   projectImage: PROJECT_IMAGE,
   coordinatorImage: COORDINATOR_IMAGE,
 } = landingDemoAssets(process.env.NEXT_PUBLIC_SUPABASE_URL);
-const PROJECT_HREF = `/projects/${PROJECT_ID}`;
+const PROJECT_HREF = "/projects";
 // Display only: the example is not a live signup destination.
-const PROJECT_DISPLAY_URL = `lets-assist.com${PROJECT_HREF}`;
+const PROJECT_DISPLAY_URL = "Interactive demo · Illustrative dates";
 
 const attendees = [
   { name: "Maya", avatar: "/demo/avatars/maya-chen.png" },
@@ -297,7 +297,7 @@ export function ProjectDemo({ demoDateAnchor }: { demoDateAnchor: string }) {
                     Volunteer Opportunities
                   </CardTitle>
                   <Button asChild variant="outline" size="sm">
-                    <Link href={PROJECT_HREF}>How It Works</Link>
+                    <Link href={PROJECT_HREF}>Find an opportunity</Link>
                   </Button>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3 pt-0">
@@ -452,7 +452,7 @@ export function ProjectDemo({ demoDateAnchor }: { demoDateAnchor: string }) {
                   Close
                 </Button>
                 <Button asChild>
-                  <Link href={PROJECT_HREF}>Open the real project</Link>
+                  <Link href={PROJECT_HREF}>Browse upcoming projects</Link>
                 </Button>
               </div>
             </div>

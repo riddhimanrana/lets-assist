@@ -1,4 +1,4 @@
-import { PROJECT_CLIENT_SELECT } from "@/lib/projects/client-projection";
+import { readOrganizationProjects } from "./server/organization-project-read";
 import { safeConsole } from "@/lib/safe-console";
 import { getPublicOrganizationForRender } from "./server/public-organization-read";
 import { loadVisibleOrganizationReport } from "./server/overview-report-read";
@@ -6,6 +6,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/supabase/auth-helpers";
 import { formatUtcCalendarDateLabel } from "@/lib/date-format";
+import { getOrganizationMemberProfiles } from "@/lib/profile/visible";
 import { getPublicProfilesByIds } from "@/lib/profile/public";
 import { Metadata } from "next";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -281,6 +282,18 @@ export default async function OrganizationPage({
         safeConsole.error("Error fetching member profiles:", profilesError);
       } else {
         profilesData = profiles || [];
+        if (previewSource !== "remote" && userRole) {
+          const privateProfiles = await getOrganizationMemberProfiles(
+            organization.id,
+            userIds,
+          );
+          const byId = new Map(
+            profilesData.map((profile) => [profile.id, profile]),
+          );
+          for (const profile of privateProfiles.data ?? [])
+            byId.set(profile.id, profile);
+          profilesData = [...byId.values()];
+        }
       }
     }
 
@@ -308,11 +321,11 @@ export default async function OrganizationPage({
   const { data: projects } =
     organizationExperience?.projects === "hidden" || !coreDataScope.projects
       ? { data: [] }
-      : await readClient
-          .from("projects")
-          .select(PROJECT_CLIENT_SELECT)
-          .eq("organization_id", organization.id)
-          .order("created_at", { ascending: false });
+      : await readOrganizationProjects(
+          readClient,
+          organization.id,
+          Boolean(userRole),
+        );
 
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,

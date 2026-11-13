@@ -358,7 +358,9 @@ test("the persisted schedule selection is honored instead of the whole project",
 test("a missing provider event is an incomplete update, not a recreate", async () => {
   providerEvents.clear();
 
-  await expect(update()).rejects.toThrow("Calendar outcome is unconfirmed");
+  await expect(update()).rejects.toThrow(
+    "The saved Google Calendar event could not be read",
+  );
 
   expect(writes()).toHaveLength(0);
   expect(steps).toEqual(["plan", "renew", "release"]);

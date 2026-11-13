@@ -237,3 +237,21 @@ read. The newly READY Development Preview is bound to SHA`1aedb7e7`;
 Production provider-input verification remains a separate prerequisite after
 later owner approval. No provider values were decrypted, printed or saved, and
 no environment or spending setting was changed.
+
+## Testing-report integration, November 12, 2026
+
+The fresh audit found advisories in follow-redirects, minimatch, glob, Hono, and
+its Node adapter. The candidate pins follow-redirects 1.16.3, minimatch 11.0.8,
+glob 14.0.6, Hono 4.13.18, and @hono/node-server 2.1.8. Private PR 671 repairs
+the standalone CSF application's independent redirect and matcher dependencies.
+Its 22 application tests, lint, build, and 398-package audit passed locally.
+
+Minimatch 11 removes its old regex-construction APIs. The application lint and
+build checks exercise the installed consumers; the integrated gate must also
+check the platform tooling. These upgrades do not change the CSF release version
+or activate an organization installation.
+
+No current lockfile resolves `braces`. The pin-reporting command now labels the
+old acceptance inactive instead of requesting renewal of an unused exception.
+The dependency audit continues to reject unaccepted findings, and the historical
+exception's expiry and hashes remain unchanged.

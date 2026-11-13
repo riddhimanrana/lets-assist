@@ -58,6 +58,8 @@ export function ReviewTable({
   onDiscard,
   onCommitted,
 }: Props) {
+  const [batchStatus, setBatchStatus] = useState(batch.status);
+  const canEdit = batchStatus === "review";
   const [rows, setRows] = useState(initialRows);
   const [editing, setEditing] = useState<PaperScanRowView | null>(null);
   const [images, setImages] = useState<
@@ -78,6 +80,7 @@ export function ReviewTable({
       toast.error(result.error);
       return null;
     }
+    setBatchStatus(result.status);
     setRows(result.rows ?? []);
     return result.rows;
   };
@@ -85,7 +88,10 @@ export function ReviewTable({
     let current = true;
     void loadAttendanceReview({ projectId, batchId: batch.id }).then(
       (result) => {
-        if (current && "rows" in result) setRows(result.rows ?? []);
+        if (current && result.status) {
+          setRows(result.rows ?? []);
+          setBatchStatus(result.status);
+        }
       },
     );
     void getPaperScanImageUrls({ projectId, batchId: batch.id }).then(
@@ -108,6 +114,7 @@ export function ReviewTable({
     [rows, window],
   );
   const add = async () => {
+    if (!canEdit || busy) return;
     setBusy(true);
     try {
       const result = await addAttendanceReviewRow({
@@ -146,6 +153,7 @@ export function ReviewTable({
     }
   };
   const commit = async () => {
+    if (!canEdit || busy) return;
     setBusy(true);
     try {
       const attempt = nextPaperCommitAttempt(commitAttempt.current, {
@@ -226,7 +234,7 @@ export function ReviewTable({
         <Button
           variant="outline"
           onClick={add}
-          disabled={busy || rows.length >= 300}
+          disabled={busy || !canEdit || rows.length >= 300}
         >
           Add missed row or walk-in
         </Button>
@@ -301,6 +309,15 @@ export function ReviewTable({
           No attendance rows yet. Add a volunteer manually, or scan a completed
           sheet.
         </p>
+      )}
+      {!canEdit && (
+        <Alert>
+          <AlertTitle>Saved attendance review</AlertTitle>
+          <AlertDescription>
+            This batch is closed. Start a new manual attendance review to add a
+            missed volunteer or walk-in.
+          </AlertDescription>
+        </Alert>
       )}
       <div className="space-y-3">
         {rows.map((row) => {
@@ -395,7 +412,7 @@ export function ReviewTable({
                     <input
                       type="checkbox"
                       checked={row.decision === "include"}
-                      disabled={busy || hasPersistedAttendance(row)}
+                      disabled={busy || !canEdit || hasPersistedAttendance(row)}
                       onChange={(e) => void include(row, e.target.checked)}
                     />
                     {hasPersistedAttendance(row)
@@ -404,7 +421,7 @@ export function ReviewTable({
                   </label>
                   <Button
                     variant="outline"
-                    disabled={busy}
+                    disabled={busy || !canEdit}
                     onClick={() => setEditing(row)}
                   >
                     Review row {row.sheetRowNumber}
@@ -415,7 +432,7 @@ export function ReviewTable({
           );
         })}
       </div>
-      {unfinished.length > 1 && (
+      {canEdit && unfinished.length > 1 && (
         <details className="rounded border p-3">
           <summary className="cursor-pointer font-medium">
             Combine repeated visits or separate sign-in/out rows
@@ -493,12 +510,17 @@ export function ReviewTable({
           Allow reviewed walk-ins to exceed the scheduled volunteer capacity.
         </label>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={commit} disabled={busy || !ready.length}>
+          <Button onClick={commit} disabled={busy || !canEdit || !ready.length}>
             {busy ? "Saving…" : `Save ${ready.length} reviewed rows`}
           </Button>
           <Button
             variant="ghost"
-            disabled={busy || discarding || rows.some(hasPersistedAttendance)}
+            disabled={
+              busy ||
+              !canEdit ||
+              discarding ||
+              rows.some(hasPersistedAttendance)
+            }
             onClick={onDiscard}
           >
             Discard draft

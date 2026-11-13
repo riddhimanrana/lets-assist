@@ -60,7 +60,19 @@ export async function loadAttendanceReview(input: {
     .order("sheet_row_number")
     .limit(300);
   if (error) return { error: "Could not load attendance rows." };
-  return { rows: (data ?? []).map(paperRowView) };
+  const batch = await access.admin
+    .from("project_paper_scan_batches")
+    .select("status")
+    .eq("project_id", input.projectId)
+    .eq("id", input.batchId)
+    .single();
+  if (batch.error || !batch.data)
+    return { error: "Could not load attendance batch status." };
+  return {
+    rows: (data ?? []).map(paperRowView),
+    status: batch.data.status as
+      "draft" | "extracting" | "review" | "failed" | "committed" | "committing",
+  };
 }
 
 export async function addAttendanceReviewRow(input: {

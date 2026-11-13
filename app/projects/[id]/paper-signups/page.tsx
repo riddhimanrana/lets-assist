@@ -182,10 +182,7 @@ export default async function PaperSignupsPage({
     openBatch = {
       id: batchRow.id,
       scheduleId: batchRow.schedule_id,
-      status:
-        batchRow.status === "committed"
-          ? "review"
-          : (batchRow.status as PaperScanBatchView["status"]),
+      status: batchRow.status as PaperScanBatchView["status"],
       imageCount: batchRow.image_count,
       inputMethod: batchRow.input_method,
     };

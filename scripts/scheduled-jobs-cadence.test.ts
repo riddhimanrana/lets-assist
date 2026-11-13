@@ -6,17 +6,17 @@ import { readFileSync } from "node:fs";
  * that declare `environment: production` wait for approval and are cancelled
  * by the next run, so they never execute unattended.
  */
-// Preserve the five schedules already enabled in Production. Other routes
-// remain available through their approval-gated manual workflows.
+// The release candidate adds protocol-2 exports to the five existing schedules.
+// Deployment approval controls when this cadence becomes live.
 const PRODUCTION_SCHEDULES = [
   { path: "/api/cron/csf-communications-dispatch", schedule: "* * * * *" },
   { path: "/api/cron/csf-class-workbook-refresh", schedule: "* * * * *" },
   { path: "/api/cron/csf-import-commit", schedule: "* * * * *" },
   { path: "/api/cron/csf-publication-notifications", schedule: "* * * * *" },
   { path: "/api/cron/project-feedback-followups", schedule: "17 * * * *" },
+  { path: "/api/cron/data-exports", schedule: "*/5 * * * *" },
 ] as const;
 const MANUAL_ONLY = [
-  "data-exports",
   "paper-signup-notifications",
   "project-cancellations",
   "organization-calendar-sync",
@@ -41,7 +41,7 @@ const crons = (
 ).crons;
 
 describe("scheduled Production jobs", () => {
-  test("retains exactly the five previously enabled Production schedules", () => {
+  test("adds export processing while preserving the existing schedules", () => {
     expect(crons).toEqual([...PRODUCTION_SCHEDULES]);
   });
 

@@ -253,20 +253,6 @@ export default function InitialOnboardingModal({
   async function onSubmit(values: InitialOnboardingValues) {
     setIsSubmitting(true);
 
-    if (checkingUsername) {
-      toast.error("Username availability is still being checked.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (usernameAvailable === false) {
-      toast.error(
-        "Username not available. Please choose a different username.",
-      );
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
       const result = await completeInitialOnboarding(
         values.username,
@@ -448,6 +434,7 @@ export default function InitialOnboardingModal({
                           onChange={(e) => {
                             const noSpaces = e.target.value.replace(/\s/g, "");
                             const lower = noSpaces.toLowerCase();
+                            usernameRequestIdRef.current += 1;
                             field.onChange(lower);
                             setUsernameLength(lower.length);
                             // Clear errors and reset availability when typing
@@ -548,11 +535,7 @@ export default function InitialOnboardingModal({
               <DialogFooter>
                 <Button
                   type="submit"
-                  disabled={
-                    isSubmitting ||
-                    checkingUsername ||
-                    usernameAvailable !== true
-                  }
+                  disabled={isSubmitting}
                   className="w-full sm:w-auto"
                 >
                   {isSubmitting ? (

@@ -248,6 +248,21 @@ async function advisoryExceptionReport(root) {
   const file = "scripts/security/braces-exception.mjs";
   const { BRACES_EXCEPTION, fileHash, assertReviewedBracesInputs } =
     await import(join(root, file));
+  // An expired historical exception cannot accept a package that is absent.
+  // The dependency audit still checks every graph and refuses new findings.
+  const present = Object.keys(BRACES_EXCEPTION.graphHashes).some((directory) =>
+    readFileSync(join(root, directory, "bun.lock"), "utf8").includes(
+      '"braces@',
+    ),
+  );
+  if (!present)
+    return {
+      lines: [
+        "[pins] inactive: historical braces exception; no graph resolves braces",
+      ],
+      stale: false,
+      reviewRequired: false,
+    };
   const { findings, expired, daysLeft } = advisoryExceptionFindings(
     BRACES_EXCEPTION,
     (path) => fileHash(join(root, path)),

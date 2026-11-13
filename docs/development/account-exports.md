@@ -94,3 +94,14 @@ Unit, caller, access, recovery and database protocol tests passed on the owned
 local candidate. Integrated worker and browser acceptance remain pending. The
 [cleanup register](cleanup-register.md) records current acceptance and release
 status. Nothing here establishes a hosted or Production release.
+
+## Testing-report candidate
+
+PR 928 adds a Vercel Cron call every five minutes with a 300-second route budget.
+Each scheduled call claims one protocol-2 job through the existing lease and
+artifact-verification protocol. It does not adopt protocol-1 jobs or resend an
+uncertain notification. The manual workflow remains the operator recovery path.
+The schedule becomes live only after the separately authorized application release.
+Before promotion, repeat the count-only protocol/status/delivery audit and verify
+synthetic worker acceptance. After promotion, confirm the pending job advances to
+archive-ready and inspect its separate delivery receipt. Do not reset its state.

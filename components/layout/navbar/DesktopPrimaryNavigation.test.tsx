@@ -19,3 +19,15 @@ for (const pathname of ["/projects", "/organization"]) {
     expect(current[0]).toContain("focus-visible:ring-");
   });
 }
+
+test("Home navigates independently of the section menu", () => {
+  const html = renderToStaticMarkup(
+    <DesktopPrimaryNavigation
+      isLoading={false}
+      isAuthenticated={false}
+      pathname="/"
+    />,
+  );
+  expect(html).toMatch(/<a[^>]*href="\/"[^>]*>Home<\/a>/);
+  expect(html).toContain('aria-label="Home sections"');
+});

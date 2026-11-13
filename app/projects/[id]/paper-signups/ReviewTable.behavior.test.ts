@@ -25,7 +25,7 @@ mock.module("./actions", () => ({
 mock.module("./manual-actions", () => ({
   addAttendanceReviewRow: async () => ({}),
   combineAttendanceReviewRows: async () => ({}),
-  loadAttendanceReview: async () => ({ rows: [] }),
+  loadAttendanceReview: async () => ({ rows: [], status: "review" }),
   loadAttendanceCandidates: async () => ({ candidates: [] }),
 }));
 const { ReviewTable } = await import("./ReviewTable");
@@ -59,7 +59,10 @@ const baseRow: PaperScanRowView = {
 };
 
 type Element = { props: Record<string, unknown> };
-function render(row: PaperScanRowView | PaperScanRowView[]) {
+function render(
+  row: PaperScanRowView | PaperScanRowView[],
+  status: "review" | "committed" = "review",
+) {
   patches.length = 0;
   const elements: Element[] = [];
   const tree = ReviewTable({
@@ -67,7 +70,7 @@ function render(row: PaperScanRowView | PaperScanRowView[]) {
     batch: {
       id: "fictional-batch",
       scheduleId: "oneTime",
-      status: "review",
+      status,
       imageCount: 0,
     },
     initialRows: Array.isArray(row) ? row : [row],
@@ -239,4 +242,19 @@ test("combined sources are absent from the remaining combine choices", () => {
   expect(elements.filter(({ props }) => props.value === "target")).toHaveLength(
     2,
   );
+});
+
+test("saved batches cannot add walk-ins and keep refresh available", () => {
+  const elements = render({ ...baseRow, outcome: "roster_only" }, "committed");
+  expect(
+    elements.find(({ props }) => props.children === "Add missed row or walk-in")
+      ?.props.disabled,
+  ).toBe(true);
+  expect(
+    elements.find(({ props }) => props.children === "Refresh saved review")
+      ?.props.disabled,
+  ).toBe(false);
+  expect(
+    elements.some(({ props }) => props.children === "Saved attendance review"),
+  ).toBe(true);
 });

@@ -413,7 +413,7 @@ test("project page, calendar and mutation reads omit review fields and wildcards
     "app/projects/[id]/paper-signups/page.tsx",
     "app/projects/[id]/paper-signups/access.ts",
     "app/anonymous/[id]/page.tsx",
-    "app/organization/[id]/page.tsx",
+    "app/organization/[id]/server/organization-project-read.ts",
   ]);
   const selections = analysis
     .flatMap((result) => result.projectSelections)

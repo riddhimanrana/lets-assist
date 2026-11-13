@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/project-feedback-followups",
       "schedule": "17 * * * *"
+    },
+    {
+      "path": "/api/cron/data-exports",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

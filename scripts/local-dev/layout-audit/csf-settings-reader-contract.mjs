@@ -58,8 +58,10 @@ export const CSF_SETTINGS_SOURCE_HASHES = Object.freeze({
     "8add4e79df8c1aef46c0dca72086d67b2e98eb1366f780ef7124505ee565a52a",
   "lib/supabase/admin.ts":
     "c0c47cff0b65bfc041a1c5aaeb8636799aa5c757b94fcc34dc9e5ddd7cdd5e83",
+  "lib/supabase/auth-errors.ts":
+    "bb9be875ae8b59c9613eca5d0447949843b3f728aeefb36074b618bc176d8f4f",
   "lib/supabase/auth-helpers.ts":
-    "dd76b397455e7ecea380dbcdac913be5703b1a5714b2c0a109da569a64cb6a93",
+    "21c682935587b552e5059e702064e81f66d842f96810d1a5cddd1be4174dd955",
   "services/calendar.ts":
     "23c0803b8b66cd7bffb8036e24e6cf36f22d7a2b8c0dcc5738b1ca9b9a305d4d",
   "services/calendar-operations.ts":

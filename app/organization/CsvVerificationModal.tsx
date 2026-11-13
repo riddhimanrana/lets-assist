@@ -95,7 +95,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
   const {
     isOpen,
     setIsOpen,
-    file,
+    files,
     results,
     summary,
     error,
@@ -142,7 +142,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           />
           <TooltipContent>
             <p>
-              Upload a CSV file to verify certificate data format and validity
+              Upload CSV files to verify certificate data format and validity
             </p>
           </TooltipContent>
         </Tooltip>
@@ -153,7 +153,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
           <div className="grid gap-2 pr-8">
             <DialogTitle>Certificate CSV verification</DialogTitle>
             <DialogDescription>
-              Upload a CSV file, verify its format, and check certificates
+              Upload CSV files, verify its format, and check certificates
               against our database.
             </DialogDescription>
           </div>
@@ -172,7 +172,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
 
           {step === "upload" ? (
             <CsvVerificationUploadStep
-              file={file}
+              files={files}
               disabled={isBusy}
               onFileChange={handleFileChange}
               onRemove={resetModal}
@@ -221,7 +221,7 @@ export function CsvVerificationModal({ children }: CsvVerificationModalProps) {
                 </Button>
                 <Button
                   onClick={processAndVerifyCsv}
-                  disabled={!file || isBusy}
+                  disabled={!files.length || isBusy}
                 >
                   {isBusy ? (
                     <>

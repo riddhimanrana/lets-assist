@@ -183,9 +183,11 @@ export function MobileNavigation({
             </nav>
           )}
           {!isLoading && !isAuthenticated && (
-            <nav aria-label="Features" className="mt-4 space-y-1">
+            <nav aria-label="Home sections" className="mt-4 space-y-1">
               <p className="px-4 text-xs font-medium text-muted-foreground">
-                Features
+                <Link href="/" onClick={() => onOpenChange(false)}>
+                  Home
+                </Link>
               </p>
               {featureLinks.map(({ title, href }) => (
                 <Link

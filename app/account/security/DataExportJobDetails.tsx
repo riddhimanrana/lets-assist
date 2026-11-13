@@ -26,6 +26,14 @@ export function DataExportJobDetails({
         </span>
       </div>
       <p>{state.description}</p>
+      {state.delayed && (
+        <div className="grid gap-2">
+          <p className="break-all font-mono text-xs">Request ID: {job.id}</p>
+          <a className="underline" href="/help">
+            Get export help
+          </a>
+        </div>
+      )}
       <p className="text-muted-foreground break-words">
         {state.emailLabel}
         {job.delivery_email ? `: ${job.delivery_email}` : ""}

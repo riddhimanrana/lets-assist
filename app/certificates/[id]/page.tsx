@@ -163,6 +163,7 @@ export default async function VolunteerRecordPage({
   );
 
   const certificateData: PrintCertificateData = {
+    isSelfReported,
     id: data.id,
     project_title: data.project_title,
     creator_name: data.creator_name,
