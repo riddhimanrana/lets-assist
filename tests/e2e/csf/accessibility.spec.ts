@@ -363,30 +363,18 @@ test.describe("DVHS CSF accessibility acceptance", () => {
     await expect(heading).toBeVisible();
     const letters = heading.locator(".la-hero-letter");
     await expect(letters.first()).toBeAttached();
-    const animated = await letters.first().evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        name: style.animationName,
-        duration: style.animationDuration,
-      };
-    });
-    expect(animated.name).toBe("la-hero-letter-in");
-    expect(animated.duration).not.toBe("0s");
+    await expect(letters.first()).toHaveCSS(
+      "animation-name",
+      "la-hero-letter-in",
+    );
+    await expect(letters.first()).not.toHaveCSS("animation-duration", "0s");
 
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(heading).toBeVisible();
     await expect(letters.first()).toBeAttached();
-    const reduced = await letters.first().evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        name: style.animationName,
-        opacity: style.opacity,
-        transform: style.transform,
-      };
-    });
-    expect(reduced.name).toBe("none");
-    expect(reduced.opacity).toBe("1");
-    expect(reduced.transform).toBe("none");
+    await expect(letters.first()).toHaveCSS("animation-name", "none");
+    await expect(letters.first()).toHaveCSS("opacity", "1");
+    await expect(letters.first()).toHaveCSS("transform", "none");
   });
 });
