@@ -30,6 +30,13 @@ export function CertificatesSection() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-sm">
+            Organizers issue certificates after reviewing and publishing
+            attendance. Self-reported certificates record hours entered by the
+            volunteer. They are not organizer-verified, and their verification
+            page confirms the record type, not independent approval of the
+            hours.
+          </p>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <h4 className="font-semibold">What are certificates?</h4>

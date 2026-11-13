@@ -29,7 +29,9 @@ test("real auth helper denies pending accounts and limits the resume bypass to f
     assert.equal(freshCalls, 1);
     assert.equal(rpcCalls, callsBeforeResume);
     pending = false; rpcError = { message: "unavailable" };
-    assert.equal((await getAuthUser()).user, null);
+    const unavailable = await getAuthUser();
+    assert.equal(unavailable.user, null);
+    assert.equal(unavailable.error.status, 503);
   `;
   const result = spawnSync(process.execPath, ["--eval", script], {
     cwd: process.cwd(),

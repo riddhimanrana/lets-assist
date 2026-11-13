@@ -169,7 +169,7 @@ export default function CalendarClient({
     <>
       <PageHeader
         title="Calendar"
-        description="Sync your projects and signups to Google Calendar."
+        description="Sync your projects and signups to Google Calendar. Organization Google Sheets connections are managed by admins under the organization Reports tab."
       />
 
       <CalendarConnectionSection

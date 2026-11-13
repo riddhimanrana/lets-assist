@@ -10,7 +10,7 @@ mock.module("server-only", () => ({}));
 
 type AuthResult = {
   user: { id: string } | null;
-  error: { message: string } | null;
+  error: { message: string; status?: number } | null;
 };
 
 let authResult: AuthResult = { user: { id: "reporter" }, error: null };

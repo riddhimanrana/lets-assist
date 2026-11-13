@@ -67,6 +67,7 @@ describe("report cells for a spreadsheet", () => {
       12.5,
       10,
       2.5,
+      0,
       3,
       "2026-01-02",
       "Registered",
@@ -77,6 +78,7 @@ describe("report cells for a spreadsheet", () => {
       "100",
       10,
       2.5,
+      0,
       12.5,
       1,
     ]);
@@ -84,17 +86,19 @@ describe("report cells for a spreadsheet", () => {
       "Jan 2026",
       10,
       2.5,
+      0,
       12.5,
     ]);
   });
 
-  test("the text rows used for CSV and preview are unchanged", () => {
+  test("CSV and preview include unpublished attendance", () => {
     expect(buildReportRows(report, "member-hours")[1]).toEqual([
       "2024",
       "5550100",
       "12.5",
       "10.0",
       "2.5",
+      "0.0",
       "3",
       "2026-01-02",
       "Registered",
@@ -104,6 +108,7 @@ describe("report cells for a spreadsheet", () => {
       "Status",
       "Verified Hours",
       "Pending Hours",
+      "Unpublished Attendance Hours",
       "Total Hours",
       "Volunteer Count",
     ]);
@@ -141,4 +146,12 @@ describe("report cells for a spreadsheet", () => {
       ["Events", 3],
     ]);
   });
+});
+
+test("empty default reports retain all selected fields", () => {
+  const empty = { ...report, volunteers: [], projects: [], monthlyHours: [] };
+  expect(buildReportSheetRows(empty, "member-hours")[0]).toHaveLength(9);
+  expect(buildReportSheetRows(empty, "member-hours")[0]).toContain(
+    "Unpublished Attendance Hours",
+  );
 });

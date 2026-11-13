@@ -272,9 +272,13 @@ not supported by the Production schema gate. If the private plugin changes,
 merge one private integration pull request first and update its exact gitlink
 in the root integration pull request.
 
-This release preserves only the five Vercel Cron schedules already enabled in
-Production: the four CSF workers run every minute, and project feedback followups
-run at minute 17 of each UTC hour. The other nine cron routes retain their manual
+The testing-report candidate preserves the five existing Vercel Cron schedules
+and adds protocol-2 account exports every five minutes. The four CSF workers run
+every minute, and project feedback followups run at minute 17 of each UTC hour.
+The export schedule becomes active only with the approved application release.
+Before promotion, inspect queue and delivery states as described in
+[account exports](account-exports.md); never replay legacy or uncertain sends.
+The other eight cron routes retain their manual
 workflows but have no automatic schedule in `vercel.json`. In particular, waiver
 cleanup is not automatically enabled: it can archive/delete existing data and
 drain Storage deletion work. Enabling additional jobs requires separate review.

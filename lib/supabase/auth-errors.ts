@@ -50,3 +50,15 @@ export function isRetryableSupabaseAuthError(error: unknown): boolean {
       candidate.status <= 599)
   );
 }
+
+/** Retry one transient read. Rate limits wait for a later request instead. */
+export async function retryTransientAuthRead<T extends { error: unknown }>(
+  read: () => Promise<T>,
+): Promise<T> {
+  const first = await read();
+  const status = (first.error as { status?: number } | null)?.status;
+  if (!isRetryableSupabaseAuthError(first.error) || status === 429)
+    return first;
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  return read();
+}

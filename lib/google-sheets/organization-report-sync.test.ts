@@ -453,6 +453,7 @@ describe("the shared organization sheet sync", () => {
       "Total Hours",
       "Verified Hours",
       "Pending Hours",
+      "Unpublished Attendance Hours",
       "Events Attended",
       "Last Activity",
       "Source",
@@ -508,6 +509,7 @@ describe("the shared organization sheet sync", () => {
       12.5,
       10,
       2.5,
+      0,
       3,
       "",
       "Registered",
@@ -625,7 +627,7 @@ describe("the shared organization sheet sync", () => {
     }) as typeof fetch;
 
     // A narrower layout leaves stale cells, so the clear requests run too.
-    await run({ range_a1: "A1:H21" });
+    await run({ range_a1: "A1:J21" });
 
     expect(signals.length).toBeGreaterThan(2);
     expect(signals.every((signal) => signal instanceof AbortSignal)).toBe(true);

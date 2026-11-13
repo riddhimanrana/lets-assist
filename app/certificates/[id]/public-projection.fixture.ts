@@ -93,6 +93,7 @@ function visit(value: unknown) {
 visit(tree);
 assert.equal(printProps.length, 1);
 assert.deepEqual(printProps[0].data, {
+  isSelfReported: scenario === "self-reported",
   id: record.id,
   project_title: record.project_title,
   creator_name: record.creator_name,

@@ -1,4 +1,5 @@
 import "server-only";
+import { calendarUpdateFailure } from "./update-failure";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
 import type { Project } from "@/types";
@@ -14,6 +15,7 @@ import {
   createPersonalCalendarEvent,
   createPersonalCalendarEventRemover,
   createPersonalCalendarEventUpdater,
+  type PersonalCalendarUpdateFailure,
 } from "./provider";
 import {
   CalendarSyncError,
@@ -377,11 +379,25 @@ export async function updatePersonalCalendarProject(input: {
       (await fence.authorizeWrite()).connection.preferences
         ?.volunteering_calendar_id ?? null,
     authorize: async () => (await fence.authorizeWrite()).connection.id,
-    update: async (calendarId, id, event, legacy, beforeWrite) =>
-      update(await fence.accessTokenForWrite(), calendarId, id, event, {
-        legacy,
-        beforeWrite,
-      }),
+    update: async (calendarId, id, event, legacy, beforeWrite) => {
+      let failure: PersonalCalendarUpdateFailure | undefined;
+      const confirmed = await update(
+        await fence.accessTokenForWrite(),
+        calendarId,
+        id,
+        event,
+        {
+          legacy,
+          beforeWrite,
+          onFailure: (reason) => {
+            failure = reason;
+          },
+        },
+      );
+      if (!confirmed && failure && failure !== "unconfirmed")
+        throw calendarUpdateFailure(failure);
+      return confirmed;
+    },
   });
   await markPersonalCalendarConnectionSynced(userId).catch(() => undefined);
   return result;

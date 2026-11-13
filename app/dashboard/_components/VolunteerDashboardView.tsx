@@ -146,8 +146,8 @@ export function VolunteerDashboardView({
             <StatStrip items={stats} />
           </div>
 
-          <div className="grid items-start gap-6 lg:grid-cols-3">
-            <div className="grid min-w-0 gap-6 lg:col-span-2">
+          <div className="grid items-stretch gap-6 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-6 lg:col-span-2 lg:grid-rows-2">
               <ActivityChart data={statistics.recentActivity} />
 
               <Card>

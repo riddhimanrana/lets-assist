@@ -12,6 +12,7 @@ export type VolunteerSummary = {
   totalHours: number;
   verifiedHours: number;
   pendingHours: number;
+  attendanceHours?: number;
   eventsAttended: number;
   lastActivity?: string;
 };
@@ -21,6 +22,7 @@ export type MonthlyHours = {
   sortKey: string;
   verified: number;
   pending: number;
+  attendance?: number;
   total: number;
 };
 
@@ -30,6 +32,7 @@ export type ProjectSummary = {
   status: string | null;
   verifiedHours: number;
   pendingHours: number;
+  attendanceHours?: number;
   totalHours: number;
   volunteerCount: number;
 };
@@ -40,6 +43,7 @@ export type ReportMetrics = {
   anonymousVolunteers: number;
   verifiedHours: number;
   pendingHours: number;
+  attendanceHours?: number;
   totalHours: number;
   totalProjects: number;
 };

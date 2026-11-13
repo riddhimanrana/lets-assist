@@ -173,3 +173,11 @@ describe("export job presentation", () => {
       expect(validExportDownloadUrl(value)).toBe(false);
   });
 });
+
+test("old queued exports show a recoverable delay without permitting duplicate requests", () => {
+  const state = exportJobPresentation({ ...ready, status: "pending" }, now);
+  expect(state.label).toBe("Delayed");
+  expect(state.description).toContain("request ID");
+  expect(state.active).toBe(true);
+  expect(state.canDownload).toBe(false);
+});

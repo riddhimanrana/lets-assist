@@ -7,6 +7,8 @@ import { cronAuthShapeProbe } from "@/lib/cron/auth-shape-probe";
 import { observeWorkerRun } from "@/lib/cron/worker-observation";
 import { classifyDataExportResponse } from "@/lib/cron/data-export-outcome";
 
+export const maxDuration = 300;
+
 function authorizeCronRequest(request: NextRequest) {
   const tokens = cronTokens();
 

@@ -15,6 +15,7 @@ export interface PrintCertificateData {
   project_title: string;
   creator_name: string | null;
   is_certified: boolean;
+  isSelfReported?: boolean;
   event_start: string;
   timeZone?: string | null;
   organization_name: string | null;
@@ -37,58 +38,78 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
   const handlePrint = () => {
     cleanupPrintRef.current?.();
 
-    // Collect current stylesheets
-    const links = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
-      .map((link) => link.outerHTML)
-      .join("");
+    const certificateHtml = buildCertificatePrintHtml(data);
 
-    const timeZone = certificateTimezone(data.timeZone);
-
-    // Printed dates match the saved zone used by the certificate document.
-    const printEventDate = format(parseISO(data.event_start), "MMMM d, yyyy", {
-      in: tz(timeZone),
-    });
-
-    const printIssuedDate = format(parseISO(data.issued_at), "MMM d, yyyy", {
-      in: tz(timeZone),
-    });
-
-    const safeCertificateId = escapeHtml(data.id);
-    const safeIssuedDate = escapeHtml(printIssuedDate);
-    const safeEventDate = escapeHtml(printEventDate);
-    const safeVolunteerName = escapeHtml(
-      data.volunteer_name || "Unnamed Volunteer",
+    cleanupPrintRef.current = mountCertificatePrintFrame(
+      certificateHtml,
+      (error) => {
+        safeConsole.error("Printing failed:", error);
+        alert(
+          "Could not open print dialog. Please try again or check browser settings.",
+        );
+      },
     );
-    const safeDurationText = escapeHtml(data.durationText);
-    const safeProjectTitle = escapeHtml(data.project_title);
-    const safeOrganizationName = data.organization_name
-      ? escapeHtml(data.organization_name)
-      : "";
-    const safeProjectLocation = data.project_location
-      ? escapeHtml(data.project_location)
-      : "";
-    const safeCreatorName = escapeHtml(
-      data.creator_name || "Let's Assist Admin",
-    );
-    const safeCertificateUrl = escapeHtml(
-      `lets-assist.com/certificates/${data.id}`,
-    );
+  };
 
-    // Assemble the HTML content for the certificate
-    const certificateHtml = `
+  return (
+    <Button
+      onClick={handlePrint}
+      disabled={!mounted}
+      className="print:hidden"
+      aria-label="Print certificate"
+    >
+      <Printer data-icon="inline-start" aria-hidden="true" />
+      Print certificate
+    </Button>
+  );
+}
+
+export function buildCertificatePrintHtml(data: PrintCertificateData): string {
+  const timeZone = certificateTimezone(data.timeZone);
+
+  // Printed dates match the saved zone used by the certificate document.
+  const printEventDate = format(parseISO(data.event_start), "MMMM d, yyyy", {
+    in: tz(timeZone),
+  });
+
+  const printIssuedDate = format(parseISO(data.issued_at), "MMM d, yyyy", {
+    in: tz(timeZone),
+  });
+
+  const safeCertificateId = escapeHtml(data.id);
+  const safeIssuedDate = escapeHtml(printIssuedDate);
+  const safeEventDate = escapeHtml(printEventDate);
+  const safeVolunteerName = escapeHtml(
+    data.volunteer_name || "Unnamed Volunteer",
+  );
+  const safeDurationText = escapeHtml(data.durationText);
+  const safeProjectTitle = escapeHtml(data.project_title);
+  const safeOrganizationName = data.organization_name
+    ? escapeHtml(data.organization_name)
+    : "";
+  const safeProjectLocation = data.project_location
+    ? escapeHtml(data.project_location)
+    : "";
+  const safeCreatorName = escapeHtml(data.creator_name || "Let's Assist Admin");
+  const safeCertificateUrl = escapeHtml(
+    `lets-assist.com/certificates/${data.id}`,
+  );
+
+  // Assemble the HTML content for the certificate
+  const certificateHtml = `
       <html>
         <head>
           <title>Certificate</title>
-          ${links}
           <style>
-            @page { size: landscape; margin: 0 }
-            body { margin: 0; padding: 0; }
-            .print-certificate { width:100vw; height:100vh; display:flex; flex-direction:column; padding: 2rem; box-sizing:border-box; }
+            @page { size: letter landscape; margin: 0.5in }
+            body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: white; color: black; }
+            .print-certificate { width:100%; min-height:6in; display:flex; flex-direction:column; padding: 0.15in; break-inside:avoid; box-sizing:border-box; }
             .print-header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #22c55e; padding-bottom:1rem; }
             .print-text { color:#000; }
             .print-accent { color:#22c55e; }
             .print-body { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-            .print-footer { display:flex; justify-content:space-between; border-top:2px solid #22c55e; padding-top:1rem; }
+            .print-footer { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:1rem; border-top:2px solid #22c55e; padding-top:1rem; font-size:0.85rem; line-height:1.35; }
+            .print-footer > div { min-width:0; overflow-wrap:anywhere; }
           </style>
         </head>
         <body>
@@ -97,7 +118,7 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
               <div style="display:flex;align-items:center">
                 <img src="/logo.png" alt="Let's Assist Logo" width="64" height="64" style="margin-right:1rem" />
                 <div>
-                  <h1 style="font-size:2rem;margin:0" class="print-text">Certificate of Volunteer Service</h1>
+                  <h1 style="font-size:1.5rem;margin:0" class="print-text">${data.isSelfReported ? "Self-reported volunteer service" : "Certificate of Volunteer Service"}</h1>
                   <p style="margin:0" class="print-text">Let's Assist</p>
                 </div>
               </div>
@@ -108,16 +129,16 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
             </div>
 
             <div class="print-body">
-              <p class="print-text" style="font-size:1.25rem">This certifies that</p>
-              <h2 class="print-text print-accent" style="font-size:2.5rem;margin:0 0 1rem;border-bottom:2px solid #22c55e;padding-bottom:.5rem">
+              <p class="print-text" style="font-size:1.25rem">${data.isSelfReported ? "The volunteer reports that" : "This certifies that"}</p>
+              <h2 class="print-text print-accent" style="font-size:2rem;margin:0 0 1rem;border-bottom:2px solid #22c55e;padding-bottom:.5rem">
                 ${safeVolunteerName}
               </h2>
-              <p class="print-text" style="font-size:1.25rem;margin:1rem 0">has successfully completed</p>
+              <p class="print-text" style="font-size:1.25rem;margin:1rem 0">${data.isSelfReported ? "has logged" : "has successfully completed"}</p>
               <p class="print-text print-accent" style="font-size:2rem;margin:0">
                 ${safeDurationText}
               </p>
               <p class="print-text" style="margin:.5rem 0">of volunteer service for</p>
-              <h3 class="print-text" style="font-size:1.75rem;margin:0 0 1rem">
+              <h3 class="print-text" style="font-size:1.5rem;margin:0 0 1rem">
                 ${safeProjectTitle}
               </h3>
               <div style="display:flex;gap:2rem;margin-top:1rem">
@@ -152,17 +173,19 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
 
             <div class="print-footer">
               <div>
-                <p class="print-text" style="margin:0">Issued by:</p>
+                <p class="print-text" style="margin:0">${data.isSelfReported ? "Supervisor listed by volunteer:" : "Issued by:"}</p>
                 <p class="print-text" style="font-weight:bold;margin:.25rem 0">${safeCreatorName}</p>
                 <p class="print-text" style="margin:0;font-size:0.9rem;">Issued: ${safeIssuedDate}</p>
               </div>
               ${
-                data.is_certified
-                  ? `
+                data.isSelfReported
+                  ? `<div><strong>Self-reported hours</strong><p>Not verified by an organizer.</p></div>`
+                  : data.is_certified
+                    ? `
               <div style="display:flex;align-items:center">
                 <span class="print-text print-accent" style="font-weight:bold">OFFICIALLY VERIFIED</span>
               </div>`
-                  : ""
+                    : ""
               }
               <div style="text-align:right">
                 <p class="print-text" style="margin:0">Verify at:</p>
@@ -174,26 +197,5 @@ export function PrintCertificate({ data }: { data: PrintCertificateData }) {
       </html>
     `;
 
-    cleanupPrintRef.current = mountCertificatePrintFrame(
-      certificateHtml,
-      (error) => {
-        safeConsole.error("Printing failed:", error);
-        alert(
-          "Could not open print dialog. Please try again or check browser settings.",
-        );
-      },
-    );
-  };
-
-  return (
-    <Button
-      onClick={handlePrint}
-      disabled={!mounted}
-      className="print:hidden"
-      aria-label="Print certificate"
-    >
-      <Printer data-icon="inline-start" aria-hidden="true" />
-      Print certificate
-    </Button>
-  );
+  return certificateHtml;
 }

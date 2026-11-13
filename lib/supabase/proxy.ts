@@ -18,6 +18,7 @@ import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
 import { isMfaProtectedPath } from "@/lib/auth/mfa-paths";
 import {
   isRetryableSupabaseAuthError,
+  retryTransientAuthRead,
   isStaleSupabaseAuthUserError,
 } from "@/lib/supabase/auth-errors";
 import {
@@ -321,8 +322,9 @@ export async function updateSession(
 
   // Supabase SSR requires this validation to run immediately after client
   // creation. getClaims verifies the JWT and lets setAll persist any refresh.
-  const { data: claimsData, error: claimsError } =
-    await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } = await retryTransientAuthRead(
+    () => supabase.auth.getClaims(),
+  );
 
   if (isRetryableSupabaseAuthError(claimsError)) {
     return authRetryResponse();
@@ -343,7 +345,7 @@ export async function updateSession(
   // using app_metadata or treating the request as authenticated.
   if (claims?.sub) {
     const { data: freshUserData, error: freshUserError } =
-      await supabase.auth.getUser();
+      await retryTransientAuthRead(() => supabase.auth.getUser());
     const freshUser = freshUserData.user;
     const validationDisposition = classifyFreshUserValidation({
       error: freshUserError,

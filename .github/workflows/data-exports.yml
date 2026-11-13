@@ -1,8 +1,8 @@
 name: Background Data Exports
 
 on:
-  # Vercel Cron owns the schedule (vercel.json). This approval-gated
-  # dispatch is the manual fallback.
+  # Manual recovery path. The application release schedules protocol-2 exports
+  # through Vercel Cron every five minutes.
   workflow_dispatch:
 
 permissions:

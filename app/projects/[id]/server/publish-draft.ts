@@ -1,4 +1,5 @@
 "use server";
+import { projectContentIssue } from "@/lib/projects/content-policy";
 
 import "server-only";
 
@@ -125,6 +126,9 @@ export async function publishProjectDraft(
           "Add a title, location and description before publishing.",
       );
     }
+
+    const contentIssue = await projectContentIssue(content.data);
+    if (contentIssue) return refuse("invalid_project", contentIssue);
 
     if (!isEventType(project.event_type)) {
       return refuse(

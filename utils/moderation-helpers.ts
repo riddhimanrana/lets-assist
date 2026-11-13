@@ -14,14 +14,18 @@ const wordPattern = new RegExp(
 /** A bounded local word-list check. No submitted text leaves this process. */
 export async function checkOffensiveLanguage(
   text: string,
-): Promise<{ isProfane: boolean; error?: string }> {
+): Promise<{ isProfane: boolean; error?: string; matchedText?: string }> {
   if (typeof text !== "string" || text.length > MAX_LOCAL_CONTENT_LENGTH) {
     throw new Error("Content is not valid for the local language check.");
   }
   const normalizedText = text.normalize("NFKC").trim();
-  const isProfane =
-    normalizedText.length > 0 && wordPattern.test(normalizedText);
+  const match = normalizedText.match(wordPattern);
+  const isProfane = Boolean(match);
   return isProfane
-    ? { isProfane: true, error: "This content contains inappropriate language" }
+    ? {
+        isProfane: true,
+        matchedText: match?.[0].trim(),
+        error: `The term "${match?.[0].trim()}" was flagged by the language check`,
+      }
     : { isProfane: false };
 }

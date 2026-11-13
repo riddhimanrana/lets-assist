@@ -1,11 +1,11 @@
 "use client";
 
+import { parseCertificateFiles } from "./csv-files";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import {
   formatHours,
-  parseCertificateCsv,
   summarizeVerifiedHours,
   verifyCertificateId,
 } from "./csv-verification-logic";
@@ -20,7 +20,7 @@ export const CSV_FILE_INPUT_ID = "csv-file";
 /** State and handlers for the certificate CSV checker dialog. */
 export function useCsvVerification() {
   const [isOpen, setIsOpen] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<CertificateRow[]>([]);
   const [summary, setSummary] = useState<CsvVerificationSummary | null>(null);
@@ -30,27 +30,20 @@ export function useCsvVerification() {
   const [verificationProgress, setVerificationProgress] = useState<number>(0);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-
-    // Reset any previous errors
+    const selected = Array.from(event.target.files ?? []);
     setError(null);
     setResults([]);
     setSummary(null);
-
-    if (selectedFile && selectedFile.type === "text/csv") {
-      setFile(selectedFile);
-    } else if (selectedFile) {
-      setError("Please select a valid CSV file");
-      setFile(null);
-      // Clear the input
-      event.target.value = "";
-    } else {
-      setFile(null);
+    if (selected.some((file) => !/\.csv$/i.test(file.name))) {
+      setFiles([]);
+      setError("Please select CSV files.");
+      return;
     }
+    setFiles(selected);
   };
 
   const processAndVerifyCsv = async () => {
-    if (!file) return;
+    if (!files.length || isProcessing || verifying) return;
 
     setIsProcessing(true);
     setError(null);
@@ -58,15 +51,7 @@ export function useCsvVerification() {
     setVerificationProgress(0);
 
     try {
-      const text = await file.text();
-      const parsed = parseCertificateCsv(text);
-
-      if (!("rows" in parsed)) {
-        setError(parsed.error);
-        return;
-      }
-
-      const processedResults = parsed.rows;
+      const processedResults = await parseCertificateFiles(files);
       const seenCertificateIds = new Set<string>();
       const duplicateIds = new Set<string>();
 
@@ -200,8 +185,12 @@ export function useCsvVerification() {
           description: `Processed ${processedResults.length} records, verified ${formatHours(totalHours)} total hours`,
         });
       }
-    } catch {
-      setError("Failed to process CSV file. Please check the file format.");
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Failed to read CSV files.",
+      );
     } finally {
       setIsProcessing(false);
       setVerifying(false);
@@ -211,7 +200,7 @@ export function useCsvVerification() {
   };
 
   const resetModal = () => {
-    setFile(null);
+    setFiles([]);
     setResults([]);
     setSummary(null);
     setError(null);
@@ -237,7 +226,7 @@ export function useCsvVerification() {
   return {
     isOpen,
     setIsOpen,
-    file,
+    files,
     results,
     summary,
     error,

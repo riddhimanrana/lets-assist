@@ -35,33 +35,41 @@ export function exportJobPresentation(job: ExportJob, now = Date.now()) {
     !legacy && (job.status === "pending" || job.status === "processing");
   const expired =
     job.status === "completed" && Number.isFinite(expiry) && expiry <= now;
-  const label = legacy
-    ? "Needs review"
-    : job.status === "pending"
-      ? "Queued"
-      : job.status === "processing"
-        ? "Preparing"
-        : job.status === "failed"
-          ? "Failed"
-          : ready
-            ? "Ready"
-            : expired
-              ? "Expired"
-              : "Download unavailable";
-  const description = legacy
-    ? "This request needs review. Its archive and email status cannot be confirmed."
-    : job.status === "failed"
-      ? job.error_message ||
-        "The archive could not be prepared. Try again when a new request is available."
-      : expired
-        ? "This archive has expired. Request another export when available."
-        : job.status === "completed" && !ready
-          ? "Download availability could not be confirmed. Refresh the request status."
-          : job.status === "pending"
-            ? "Your request is waiting to be processed."
-            : job.status === "processing"
-              ? "Your archive is being prepared. You can return to this page later."
-              : "Your archive is ready to download.";
+  const delayed =
+    active &&
+    Number.isFinite(Date.parse(job.requested_at)) &&
+    now - Date.parse(job.requested_at) > 60 * 60 * 1000;
+  const label = delayed
+    ? "Delayed"
+    : legacy
+      ? "Needs review"
+      : job.status === "pending"
+        ? "Queued"
+        : job.status === "processing"
+          ? "Preparing"
+          : job.status === "failed"
+            ? "Failed"
+            : ready
+              ? "Ready"
+              : expired
+                ? "Expired"
+                : "Download unavailable";
+  const description = delayed
+    ? "This export is taking longer than expected. Refresh its status. If it remains delayed, contact support with the request ID below so they can inspect the worker and recover the existing request."
+    : legacy
+      ? "This request needs review. Its archive and email status cannot be confirmed."
+      : job.status === "failed"
+        ? job.error_message ||
+          "The archive could not be prepared. Try again when a new request is available."
+        : expired
+          ? "This archive has expired. Request another export when available."
+          : job.status === "completed" && !ready
+            ? "Download availability could not be confirmed. Refresh the request status."
+            : job.status === "pending"
+              ? "Your request is queued. Processing normally starts within five minutes; this page refreshes its status while you wait."
+              : job.status === "processing"
+                ? "Your archive is being prepared. You can return to this page later."
+                : "Your archive is ready to download.";
   const emailLabel = legacy
     ? "Email status unknown"
     : job.delivery_status === "accepted"
@@ -82,6 +90,7 @@ export function exportJobPresentation(job: ExportJob, now = Date.now()) {
         : null;
   return {
     label,
+    delayed,
     description,
     emailLabel,
     emailWarning,

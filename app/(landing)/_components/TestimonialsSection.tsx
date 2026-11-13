@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { Quote } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,7 @@ function arrowScrollStep(row: HTMLDivElement) {
 // the row handles them. The scroll is instant: it does not wait on animation
 // frames, and the browser clamps the position at either end. Keys aimed at
 // something inside the row, and key combinations, are left alone.
-function scrollRowFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
+export function scrollRowFromKeyboard(event: KeyboardEvent<HTMLDivElement>) {
   if (event.target !== event.currentTarget) return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 
@@ -185,6 +186,32 @@ function TestimonialCard({
 }
 
 export default function TestimonialsSection() {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    const row = rowRef.current;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!row || paused) return;
+    const timer = window.setInterval(() => {
+      if (
+        preference.matches ||
+        document.hidden ||
+        row.matches(":hover, :focus-within")
+      )
+        return;
+      const bounds = row.getBoundingClientRect();
+      if (bounds.bottom <= 0 || bounds.top >= window.innerHeight) return;
+      const end = row.scrollWidth - row.clientWidth;
+      row.scrollTo({
+        left:
+          row.scrollLeft >= end - 2
+            ? 0
+            : Math.min(end, row.scrollLeft + arrowScrollStep(row)),
+        behavior: "smooth",
+      });
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [paused]);
   return (
     <section
       id="testimonials"
@@ -201,15 +228,21 @@ export default function TestimonialsSection() {
           </p>
         </div>
 
-        {/*
-          The row scrolls by hand for everyone. It used to drift on its own,
-          which moved quotes away mid-sentence and left keyboard users no way
-          to reach the ones off screen. The row takes focus so the arrow keys
-          scroll it, and it renders the same with or without a motion
-          preference. The landing smooth-scroll layer is told to leave
-          sideways wheel gestures to the row.
-        */}
+        <div className="mb-3 flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setPaused((value) => !value)}
+            aria-pressed={paused}
+          >
+            {paused ? "Resume scrolling" : "Pause scrolling"}
+          </Button>
+        </div>
         <div
+          ref={rowRef}
+          onPointerDown={() => setPaused(true)}
+          onWheel={() => setPaused(true)}
+          onFocus={() => setPaused(true)}
           role="region"
           aria-label="Feedback from teachers, advisors and community groups"
           tabIndex={0}

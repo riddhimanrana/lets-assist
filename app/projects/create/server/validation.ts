@@ -48,18 +48,29 @@ export async function checkProfanity(content: {
           "Check the title, location, and description lengths and try again.",
       };
     }
-    const fieldResults: Record<string, { isProfanity: boolean }> = {};
+    const fieldResults: Record<
+      string,
+      { isProfanity: boolean; flaggedFor?: string[] }
+    > = {};
     for (const [field, text] of Object.entries(parsed.data)) {
+      const check = await checkOffensiveLanguage(text);
       fieldResults[field] = {
-        isProfanity: (await checkOffensiveLanguage(text)).isProfane,
+        isProfanity: check.isProfane,
+        ...(check.matchedText ? { flaggedFor: [check.matchedText] } : {}),
       };
     }
+    const message = Object.entries(fieldResults)
+      .filter(([, result]) => result.isProfanity)
+      .map(
+        ([field, result]) =>
+          `Review ${field}: "${result.flaggedFor?.join(", ")}" was flagged.`,
+      )
+      .join(" ");
     return {
       success: true,
-      hasProfanity: Object.values(fieldResults).some(
-        (result) => result.isProfanity,
-      ),
+      hasProfanity: Boolean(message),
       fieldResults,
+      ...(message ? { error: message } : {}),
     };
   } catch {
     return {

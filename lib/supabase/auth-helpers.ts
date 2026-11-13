@@ -3,10 +3,13 @@ import { safeConsole } from "@/lib/safe-console";
 
 import { createClient } from "./server";
 import type { AuthUser } from "./types";
-import type { AuthError } from "@supabase/supabase-js";
+import { AuthError } from "@supabase/supabase-js";
 import { type MfaListFactorsLike } from "@/lib/auth/mfa";
 import { resolveMfaSessionState } from "@/lib/auth/mfa-session-state";
-import { isStaleSupabaseAuthUserError } from "@/lib/supabase/auth-errors";
+import {
+  isStaleSupabaseAuthUserError,
+  retryTransientAuthRead,
+} from "@/lib/supabase/auth-errors";
 
 export type AuthResult = {
   user: AuthUser | null;
@@ -68,7 +71,7 @@ async function resolveAuthUser(
     const {
       data: { user },
       error,
-    } = await supabase.auth.getUser();
+    } = await retryTransientAuthRead(() => supabase.auth.getUser());
 
     if (error) {
       if (isStaleSupabaseAuthUserError(error)) {
@@ -126,7 +129,9 @@ async function resolveAuthUser(
   }
 
   // Validate the session claims before the account-status database check.
-  const { data: claimsData, error } = await supabase.auth.getClaims();
+  const { data: claimsData, error } = await retryTransientAuthRead(() =>
+    supabase.auth.getClaims(),
+  );
 
   if (error) {
     return { user: null, error };
@@ -200,7 +205,12 @@ export async function getAuthUser(
     return result;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("account_deletion_pending");
-  if (error || data !== false) return { user: null, error: null };
+  if (error || (data !== false && data !== true))
+    return {
+      user: null,
+      error: new AuthError("Account status is temporarily unavailable.", 503),
+    };
+  if (data === true) return { user: null, error: null };
   return result;
 }
 
