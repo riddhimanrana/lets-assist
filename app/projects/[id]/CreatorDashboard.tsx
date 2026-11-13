@@ -1,5 +1,6 @@
 "use client";
 
+import { canSyncCalendarProject } from "@/lib/calendar-project-eligibility";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -87,8 +88,10 @@ function ToolTooltip({
 export default function CreatorDashboard({
   project,
   allSignups = [],
-  canSyncProjectCalendar = true,
+  canSyncProjectCalendar: calendarPermission = true,
 }: Props) {
+  const canSyncProjectCalendar =
+    calendarPermission && canSyncCalendarProject(project);
   const router = useRouter();
   const editIcon = useAnimatedIcon();
   const [isDeleting, setIsDeleting] = useState(false);
