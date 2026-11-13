@@ -38,9 +38,21 @@ mock.module("@/services/calendar", () => ({
 
 const steps: string[] = [];
 let receipt: PersonalCalendarReceipt;
+let source: { status: string; workflow_status: string | null } | null;
+let sourceError: { message: string } | null;
+let claims = 0;
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => ({ data: source, error: sourceError }),
+      };
+      return query;
+    },
     rpc: async (_name: string, args: Record<string, unknown>) => {
+      if (_name === "claim_personal_calendar_sync") claims++;
       const step = args.p_step as string | undefined;
       if (step) steps.push(step);
       if (step === "confirm")
@@ -82,6 +94,9 @@ function plannedEvent(id: string) {
 }
 
 beforeEach(() => {
+  source = { status: "upcoming", workflow_status: "published" };
+  sourceError = null;
+  claims = 0;
   activeConnectionId = CONNECTION_ID;
   bindingReads.length = 0;
   requests.length = 0;
@@ -189,4 +204,75 @@ test("no active binding never fetches a credential", async () => {
 
   expect(tokenFetches).toBe(0);
   expect(requests).toHaveLength(0);
+});
+
+test.each(["cancelled", "draft"])(
+  "refuses an unavailable source before claiming: %s",
+  async (state) => {
+    source =
+      state === "cancelled"
+        ? { status: "cancelled", workflow_status: "published" }
+        : { status: "upcoming", workflow_status: "draft" };
+    await expect(sync()).rejects.toMatchObject({ status: 409 });
+    expect(claims).toBe(0);
+    expect(tokenFetches).toBe(0);
+    expect(requests).toEqual([]);
+  },
+);
+
+test("a removed receipt for a cancelled project cannot restart", async () => {
+  receipt.phase = "removed";
+  source!.status = "cancelled";
+  await expect(sync()).rejects.toMatchObject({ status: 409 });
+  expect(claims).toBe(0);
+  expect(receipt.phase).toBe("removed");
+});
+
+test("cancellation during token resolution stops the first create", async () => {
+  onTokenFetch = () => {
+    source!.status = "cancelled";
+  };
+  await expect(sync()).rejects.toMatchObject({ status: 409 });
+  expect(requests).toEqual([]);
+  expect(steps).toEqual(["renew", "release"]);
+});
+
+test("cancellation between occurrences stops the next create and retains cleanup evidence", async () => {
+  onProviderWrite = () => {
+    source!.status = "cancelled";
+  };
+  await expect(sync()).rejects.toMatchObject({ status: 409 });
+  expect(requests).toHaveLength(1);
+  expect(receipt.confirmed_event_ids).toEqual(["la0123456789"]);
+  expect(steps.at(-1)).toBe("release");
+});
+
+test("a failed source read cannot create events", async () => {
+  sourceError = { message: "unavailable" };
+  await expect(sync()).rejects.toMatchObject({ status: 503 });
+  expect(claims).toBe(0);
+  expect(requests).toEqual([]);
+});
+
+test("a missing source cannot create events", async () => {
+  source = null;
+  await expect(sync()).rejects.toMatchObject({ status: 404 });
+  expect(claims).toBe(0);
+  expect(requests).toEqual([]);
+});
+
+test("a signup cannot add a cancelled project", async () => {
+  source!.status = "cancelled";
+  await expect(
+    synchronizePersonalCalendar({
+      userId: USER_ID,
+      sourceKind: "signup",
+      sourceId: "00000000-0000-4000-8000-000000000299",
+      operation: "sync",
+      project: { id: receipt.project_id } as import("@/types").Project,
+      scheduleId: "oneTime",
+    }),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(claims).toBe(0);
+  expect(requests).toEqual([]);
 });

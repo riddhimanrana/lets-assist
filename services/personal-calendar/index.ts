@@ -1,4 +1,5 @@
 import "server-only";
+import { canSyncCalendarProject } from "@/lib/calendar-project-eligibility";
 import { calendarUpdateFailure } from "./update-failure";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getGoogleOAuthConnectionForBinding } from "@/lib/auth/google-oauth-connection-store";
@@ -228,6 +229,28 @@ export async function synchronizePersonalCalendar(input: {
   expectedEventId?: string;
   project?: Project;
 }) {
+  async function requireAvailableSource(projectId: string | undefined) {
+    if (input.operation !== "sync") return;
+    if (!projectId) throw new CalendarSyncError("Project not found", 404);
+    const { data, error } = await getAdminClient()
+      .from("projects")
+      .select("status, workflow_status")
+      .eq("id", projectId)
+      .maybeSingle();
+    if (error)
+      throw new CalendarSyncError(
+        "Could not confirm project availability. Retry shortly.",
+      );
+    if (!data) throw new CalendarSyncError("Project not found", 404);
+    if (!canSyncCalendarProject(data))
+      throw new CalendarSyncError(
+        RECEIPT_REFUSALS.calendar_source_unavailable,
+        409,
+      );
+  }
+  await requireAvailableSource(
+    input.sourceKind === "project" ? input.sourceId : input.project?.id,
+  );
   const store = createReceiptStore({
     userId: input.userId,
     sourceKind: input.sourceKind,
@@ -290,13 +313,12 @@ export async function synchronizePersonalCalendar(input: {
         Array.isArray(formatted) ? formatted : formatted ? [formatted] : []
       ) as PersonalCalendarEvent[];
     },
-    create: async (calendarId, id, event) =>
-      createPersonalCalendarEvent(
-        await fence.accessTokenForWrite(),
-        calendarId,
-        id,
-        event,
-      ),
+    create: async (calendarId, id, event) => {
+      const token = await fence.accessTokenForWrite();
+      // Recheck after credential resolution and before each provider create.
+      await requireAvailableSource(initial.project_id);
+      return createPersonalCalendarEvent(token, calendarId, id, event);
+    },
     remove: (calendarId, id, beforeWrite) =>
       guardedWrite(
         // After the ownership lookup: renew the receipt, then recheck the binding.

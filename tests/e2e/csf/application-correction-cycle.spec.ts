@@ -284,7 +284,9 @@ test("existing member correction remains reviewable after the duplicate entry po
     page.getByRole("button", { name: /Something is wrong\?/ }),
   ).toBeVisible();
   await expect(
-    page.getByText("Profile correction under review", { exact: true }),
+    page
+      .getByRole("tabpanel", { name: "My CSF", exact: true })
+      .getByText("Profile correction under review", { exact: true }),
   ).toBeVisible();
   await expect
     .poll(async () => (await corrections())[0]?.status)

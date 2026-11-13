@@ -40,6 +40,17 @@ let receipt: PersonalCalendarReceipt;
 let onPlan: () => void = () => undefined;
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => ({
+          data: { status: "upcoming", workflow_status: "published" },
+          error: null,
+        }),
+      };
+      return query;
+    },
     rpc: async (_name: string, args: Record<string, unknown>) => {
       const step = args.p_step as string | undefined;
       const payload = args.p_payload as Record<string, unknown>;
