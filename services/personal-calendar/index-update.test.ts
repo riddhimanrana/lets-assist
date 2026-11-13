@@ -57,6 +57,17 @@ let updateClaim: () => { data: unknown; error: RpcError | null };
 let nextAdvanceError: RpcError | null = null;
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => ({
+          data: { status: "upcoming", workflow_status: "published" },
+          error: null,
+        }),
+      };
+      return query;
+    },
     rpc: async (name: string, args: Record<string, unknown>) => {
       rpcCalls.push({ name, args });
       if (name === "claim_personal_calendar_update") return updateClaim();

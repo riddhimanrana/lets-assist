@@ -60,6 +60,17 @@ mock.module("@/services/calendar", () => ({
 }));
 mock.module("@/lib/supabase/admin", () => ({
   getAdminClient: () => ({
+    from: () => {
+      const query = {
+        select: () => query,
+        eq: () => query,
+        maybeSingle: async () => ({
+          data: { status: "upcoming", workflow_status: "published" },
+          error: null,
+        }),
+      };
+      return query;
+    },
     rpc: async (_name: string, args: Record<string, unknown>) => {
       if (args.p_step) steps.push(args.p_step);
       if (args.p_step === "plan") {
