@@ -27,8 +27,10 @@ export const INVITATION_SOURCE_HASHES = Object.freeze({
     "9f41662bb378a9b5b4ac4e46cc9b355821cd641711cef86e3d58adb91b90bfb2",
   "lib/organization/active-membership.ts":
     "952f712bf7d520b461d10d67601938bfcbf8edda520ca18ba667c8f5b0199e4c",
+  "lib/supabase/auth-errors.ts":
+    "bb9be875ae8b59c9613eca5d0447949843b3f728aeefb36074b618bc176d8f4f",
   "lib/supabase/auth-helpers.ts":
-    "dd76b397455e7ecea380dbcdac913be5703b1a5714b2c0a109da569a64cb6a93",
+    "21c682935587b552e5059e702064e81f66d842f96810d1a5cddd1be4174dd955",
   "lib/supabase/server.ts":
     "8add4e79df8c1aef46c0dca72086d67b2e98eb1366f780ef7124505ee565a52a",
   "lib/supabase/admin.ts":

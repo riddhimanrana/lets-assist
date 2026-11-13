@@ -28,8 +28,10 @@ export const PLUGIN_SOURCE_HASHES = Object.freeze({
     "8add4e79df8c1aef46c0dca72086d67b2e98eb1366f780ef7124505ee565a52a",
   "lib/supabase/admin.ts":
     "c0c47cff0b65bfc041a1c5aaeb8636799aa5c757b94fcc34dc9e5ddd7cdd5e83",
+  "lib/supabase/auth-errors.ts":
+    "bb9be875ae8b59c9613eca5d0447949843b3f728aeefb36074b618bc176d8f4f",
   "lib/supabase/auth-helpers.ts":
-    "dd76b397455e7ecea380dbcdac913be5703b1a5714b2c0a109da569a64cb6a93",
+    "21c682935587b552e5059e702064e81f66d842f96810d1a5cddd1be4174dd955",
   "lib/plugins/application-environment.ts":
     "604d44711e8ed5a08bee3631871842a564e9bb939923747ff72e0264a0924a7c",
   "lib/plugins/registry.ts":

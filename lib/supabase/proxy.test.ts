@@ -211,9 +211,9 @@ test("project management routes match creator and organization permissions", () 
 
 test("proxy refreshes authoritative auth state before trusting account-access metadata", () => {
   const source = readFileSync(`${process.cwd()}/lib/supabase/proxy.ts`, "utf8");
-  const claimsIndex = source.indexOf("await supabase.auth.getClaims()");
+  const claimsIndex = source.indexOf("supabase.auth.getClaims()");
   const freshUserIndex = source.indexOf(
-    "await supabase.auth.getUser()",
+    "supabase.auth.getUser()",
     claimsIndex,
   );
   const relativeAccessIndex = source
