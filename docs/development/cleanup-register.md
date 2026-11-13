@@ -2,6 +2,8 @@
 
 ## Testing report repair candidate, November 12, 2026
 
+Release print acceptance found footer crowding with a full-length certificate ID. The follow-up uses spaced, wrapping columns. Two automated Chromium regressions now check visible column separation, content bounds, and one-page Letter PDF output with browser headers and footers. The self-reported, organizer-verified, and long-field synthetic PDF renders were also inspected locally. This is Chromium evidence, not manual Zen print-preview acceptance.
+
 This table tracks the supplied testing PDF against `codex/testing-report-fixes`, based on `development`. "Candidate" means local implementation, not deployment or browser acceptance. Private dependency PR 671 merged as `460ad01`; the candidate pins that exact commit. No live accounts, provider records, exports, attendance, or Production configuration were changed.
 
 | Finding                 | Priority                  | Candidate and remaining evidence                                                                                                                                                                                                                                                                                                                                                   |
