@@ -32,8 +32,49 @@ const records = [
     workflow_status: "published",
   },
 ];
-function client() {
-  let rows: Record<string, string>[] = records;
+const troopId = "26bc1fa3-7f83-403c-bde1-2737bb71ca79";
+const troopRecords = [
+  ...records.map((record) => ({
+    ...record,
+    organization_id: record.organization_id === "one" ? troopId : "two",
+    title: "Volunteer project",
+    status: "completed",
+  })),
+  {
+    id: "test-colon",
+    organization_id: troopId,
+    title: "TEST: signup",
+    visibility: "unlisted",
+    workflow_status: "published",
+    status: "completed",
+  },
+  {
+    id: "test-bracket",
+    organization_id: troopId,
+    title: "[TEST] camp",
+    visibility: "unlisted",
+    workflow_status: "published",
+    status: "completed",
+  },
+  {
+    id: "cancelled",
+    organization_id: troopId,
+    title: "Cancelled project",
+    visibility: "unlisted",
+    workflow_status: "published",
+    status: "cancelled",
+  },
+  {
+    id: "not-linked",
+    organization_id: "",
+    title: "Not linked",
+    visibility: "unlisted",
+    workflow_status: "published",
+    status: "completed",
+  },
+];
+function client(input: Record<string, string>[] = records) {
+  let rows: Record<string, string>[] = input;
   const query = {
     select: () => query,
     eq: (field: string, value: string) => {
@@ -42,6 +83,19 @@ function client() {
     },
     in: (field: string, values: string[]) => {
       rows = rows.filter((r) => values.includes(r[field]));
+      return query;
+    },
+    or: (expression: string) => {
+      expect(expression).toBe(
+        "visibility.in.(public,organization_only),and(visibility.eq.unlisted,status.neq.cancelled,title.not.ilike.TEST:*,title.not.ilike.[TEST]*)",
+      );
+      rows = rows.filter(
+        (row) =>
+          ["public", "organization_only"].includes(row.visibility) ||
+          (row.visibility === "unlisted" &&
+            row.status !== "cancelled" &&
+            !/^(TEST:|\[TEST\])/i.test(row.title)),
+      );
       return query;
     },
     order: async () => ({ data: rows, error: null }),
@@ -63,4 +117,26 @@ test("membership adds member projects without listing unlisted links", async () 
       (p) => p.id,
     ),
   ).toEqual(["public", "members"]);
+});
+
+test("Troop active member discovery adds real unlisted projects only", async () => {
+  expect(
+    (
+      await readOrganizationProjects(client(troopRecords), troopId, true)
+    ).data?.map((p) => p.id),
+  ).toEqual(["public", "unlisted", "members"]);
+});
+test("Troop nonmember discovery stays public-only", async () => {
+  expect(
+    (
+      await readOrganizationProjects(client(troopRecords), troopId, false)
+    ).data?.map((p) => p.id),
+  ).toEqual(["public"]);
+});
+test("Troop opt-in never carries into another organization", async () => {
+  expect(
+    (
+      await readOrganizationProjects(client(troopRecords), "two", true)
+    ).data?.map((p) => p.id),
+  ).toEqual(["other-org"]);
 });
