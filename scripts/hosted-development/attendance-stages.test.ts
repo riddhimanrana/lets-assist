@@ -34,10 +34,18 @@ function reportFailure(result: Record<string, unknown>) {
 describe("hosted attendance stage codes", () => {
   test("the stages are a closed, ordered list of fixed codes", () => {
     expect(Object.isFrozen(ATTENDANCE_STAGES)).toBe(true);
-    ATTENDANCE_STAGES.forEach((stage, index) => {
+    ATTENDANCE_STAGES.forEach((stage) => {
       expect(stage).toMatch(/^S\d{2}_[A-Z_]+$/u);
-      expect(stage.slice(1, 3)).toBe(String(index + 1).padStart(2, "0"));
+      expect(Number(stage.slice(1, 3))).toBeGreaterThanOrEqual(1);
+      expect(Number(stage.slice(1, 3))).toBeLessThanOrEqual(17);
     });
+    expect([
+      ...new Set(ATTENDANCE_STAGES.map((stage) => stage.slice(1, 3))),
+    ]).toEqual(
+      Array.from({ length: 17 }, (_, index) =>
+        String(index + 1).padStart(2, "0"),
+      ),
+    );
     expect(new Set(ATTENDANCE_STAGES).size).toBe(ATTENDANCE_STAGES.length);
     expect(() => hostedJourneyFailure("S99_UNKNOWN")).toThrow(
       "Unknown hosted attendance stage.",

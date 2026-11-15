@@ -228,7 +228,7 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
     await expect(page).toHaveTitle(/Volunteer hours/);
     console.info("Attendance acceptance: authenticated hours page loaded");
 
-    stage = "S05_PRINT_SHEETS";
+    stage = "S05_PRINT_NAVIGATION";
     await page
       .locator(`a[href="/projects/${projectId}/attendance-sheet"]`)
       .filter({ visible: true })
@@ -241,13 +241,18 @@ test("fictional guest attendance prints, publishes, exports, corrects, and links
       name: "Prepare sheets",
       exact: true,
     });
+    stage = "S05_PRINT_DESELECT";
     const printSession = page.getByRole("checkbox").first();
     await printSession.uncheck();
     await expect(prepareSheets).toBeDisabled();
+    stage = "S05_PRINT_SELECT";
     await printSession.check();
     await expect(prepareSheets).toBeEnabled();
+    stage = "S05_PRINT_PREPARE";
     await prepareSheets.click();
+    stage = "S05_PRINT_PREVIEW";
     await expect(page.locator(".attendance-print-page").first()).toBeVisible();
+    stage = "S05_PRINT_WALKINS";
     await expect(page.locator(".attendance-print-sheets")).toContainText(
       "Walk-ins",
     );
