@@ -1,7 +1,7 @@
 # picomatch compatibility repair
 
 A local copy of [picomatch](https://github.com/micromatch/picomatch) 4.0.7 with
-one repair for
+repairs for
 [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf), a
 regular expression denial of service through single-branch repeated extglobs
 such as `+(*)`, `+(*a)` and `+(!(b))`. Upstream lists no patched release. It is
@@ -12,10 +12,13 @@ for every consumer.
 ## Provenance
 
 - `index.js`, `posix.js`, `lib/constants.js`, `lib/picomatch.js`,
-  `lib/scan.js` and `lib/utils.js` are byte-identical to the 4.0.7 registry
+  `lib/scan.js` are byte-identical to the 4.0.7 registry
   tarball (integrity in `package.json` `upstream`).
 - `lib/parse.js` is the tarball file (SHA-256 in `package.json` `upstream`)
   with `ghsa-fc5q-39xc-vjpf.patch` applied.
+- `lib/utils.js` starts from upstream SHA-256
+  `f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935`
+  with `linear-unescape.patch` applied for CodeQL alert 68.
 - `license.txt` is the byte-identical upstream MIT license.
 - `bun audit` does not query `file:` packages, so the dependency audit in
   `scripts/security/audit-package-graphs.mjs` (in the platform repository)
@@ -48,3 +51,18 @@ identical match results for every collapsed pattern.
 
 Remove this package and the override when upstream publishes a fixed release
 that the consumers accept.
+
+## Backslash removal
+
+The upstream backslash-removal regex repeatedly scans an unmatched bracket
+suffix. The repair indexes the nearest valid bracket close in one reverse pass,
+then removes only backslashes outside those ranges in one forward pass. Both
+passes are linear; the suffix index uses linear space. It preserves the regex's
+non-dotAll behavior, including a line terminator directly before a closing
+bracket. No pattern is rejected, truncated or reinterpreted.
+
+`picomatch-unescape-behavior.test.mjs` compares 299,593 short synthetic strings
+against the original regex and exercises the public scan entrypoint in a child
+with a hard timeout. The scan entrypoint does not use the parser's length cap.
+This repairs the helper; it does not assert that an application request supplied
+the affected patterns or that a production deployment has changed.

@@ -103,11 +103,12 @@ export const PICOMATCH_COMPAT = Object.freeze({
     "lib/scan.js":
       "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae",
     "lib/utils.js":
-      "f04604f70cd1a3f6ace80b84766468674ff38b4bb83818d2ef1d81fc6355f935",
+      "f7d5de7e49ee138c5b9f3b46165e4cec8e67989a696a410b2503566ee4ad8c9a",
   }),
   documents: Object.freeze([
     "README.md",
     "ghsa-fc5q-39xc-vjpf.patch",
+    "linear-unescape.patch",
     "license.txt",
   ]),
 });

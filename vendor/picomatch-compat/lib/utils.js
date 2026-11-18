@@ -3,7 +3,6 @@
 
 const {
   REGEX_BACKSLASH,
-  REGEX_REMOVE_BACKSLASH,
   REGEX_SPECIAL_CHARS,
   REGEX_SPECIAL_CHARS_GLOBAL
 } = require('./constants');
@@ -28,9 +27,34 @@ exports.isWindows = () => {
 };
 
 exports.removeBackslashes = str => {
-  return str.replace(REGEX_REMOVE_BACKSLASH, match => {
-    return match === '\\' ? '' : match;
-  });
+  // Index the earliest bracket close available to each suffix. A failed
+  // bracket search must not rescan the suffix at every subsequent '['.
+  // Match upstream's non-dotAll regex exactly: a line terminator can be
+  // the final non-backslash before ']', but cannot occur in the .*? part.
+  const ends = new Int32Array(str.length + 1);
+  ends.fill(-1);
+  let end = -1;
+  const isLineTerminator = code => code === 10 || code === 13 || code === 0x2028 || code === 0x2029;
+  for (let i = str.length - 1; i >= 0; i--) {
+    const code = str.charCodeAt(i);
+    if (isLineTerminator(code)) end = -1;
+    if (code !== 92 && str.charCodeAt(i + 1) === 93) end = i + 1;
+    ends[i] = end;
+  }
+
+  const chunks = [];
+  let start = 0;
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i);
+    if (code === 91 && ends[i + 1] !== -1) {
+      i = ends[i + 1];
+    } else if (code === 92 && i + 1 < str.length && !isLineTerminator(str.charCodeAt(i + 1))) {
+      chunks.push(str.slice(start, i));
+      start = i + 1;
+    }
+  }
+  chunks.push(str.slice(start));
+  return chunks.join('');
 };
 
 exports.escapeLast = (input, char, lastIdx) => {

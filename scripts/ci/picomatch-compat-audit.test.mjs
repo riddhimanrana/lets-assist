@@ -122,6 +122,9 @@ describe("vendored picomatch repair", () => {
     "modified parser"(data, repository, vendor) {
       appendFileSync(join(vendor, "lib/parse.js"), "\n");
     },
+    "modified unescape helper"(data, repository, vendor) {
+      appendFileSync(join(vendor, "lib/utils.js"), "\n");
+    },
     "manifest gaining a dependency"(data, repository, vendor) {
       const path = join(vendor, "package.json");
       const manifest = JSON.parse(readFileSync(path, "utf8"));
