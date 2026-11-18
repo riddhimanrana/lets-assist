@@ -106,14 +106,14 @@ function client(input: Record<string, string>[] = records) {
 }
 test("public organization discovery excludes unlisted, drafts and other organizations", async () => {
   expect(
-    (await readOrganizationProjects(client(), "one", false)).data?.map(
+    (await readOrganizationProjects(client(), "one", null)).data?.map(
       (p) => p.id,
     ),
   ).toEqual(["public"]);
 });
 test("membership adds member projects without listing unlisted links", async () => {
   expect(
-    (await readOrganizationProjects(client(), "one", true)).data?.map(
+    (await readOrganizationProjects(client(), "one", "member")).data?.map(
       (p) => p.id,
     ),
   ).toEqual(["public", "members"]);
@@ -122,21 +122,52 @@ test("membership adds member projects without listing unlisted links", async () 
 test("Troop active member discovery adds real unlisted projects only", async () => {
   expect(
     (
-      await readOrganizationProjects(client(troopRecords), troopId, true)
+      await readOrganizationProjects(client(troopRecords), troopId, "member")
     ).data?.map((p) => p.id),
   ).toEqual(["public", "unlisted", "members"]);
 });
 test("Troop nonmember discovery stays public-only", async () => {
   expect(
     (
-      await readOrganizationProjects(client(troopRecords), troopId, false)
+      await readOrganizationProjects(client(troopRecords), troopId, null)
     ).data?.map((p) => p.id),
   ).toEqual(["public"]);
 });
 test("Troop opt-in never carries into another organization", async () => {
   expect(
     (
-      await readOrganizationProjects(client(troopRecords), "two", true)
+      await readOrganizationProjects(client(troopRecords), "two", "member")
     ).data?.map((p) => p.id),
   ).toEqual(["other-org"]);
+});
+
+test("organization admins and staff see their own unlisted projects", async () => {
+  for (const role of ["admin", "staff"]) {
+    expect(
+      (await readOrganizationProjects(client(), "one", role)).data?.map(
+        (p) => p.id,
+      ),
+    ).toEqual(["public", "unlisted", "members"]);
+  }
+});
+test("admin listing stays inside the organization being viewed", async () => {
+  expect(
+    (await readOrganizationProjects(client(), "two", "admin")).data?.map(
+      (p) => p.id,
+    ),
+  ).toEqual(["other-org"]);
+});
+test("Troop admins see every unlisted project they manage", async () => {
+  expect(
+    (
+      await readOrganizationProjects(client(troopRecords), troopId, "admin")
+    ).data?.map((p) => p.id),
+  ).toEqual([
+    "public",
+    "unlisted",
+    "members",
+    "test-colon",
+    "test-bracket",
+    "cancelled",
+  ]);
 });
