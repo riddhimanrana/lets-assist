@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { EventFormState } from "@/hooks/use-event-form";
 import { canonicalSignUpGeniusUrl } from "./url";
+import { readSourceDateTime } from "./timing";
 
 const date = z
   .string()
@@ -40,14 +41,19 @@ export const importPreviewSchema = z
     timezone: z
       .string()
       .max(100)
-      .refine((s) => {
-        try {
-          new Intl.DateTimeFormat("en", { timeZone: s });
-          return true;
-        } catch {
-          return false;
-        }
-      })
+      .refine(
+        (s) => {
+          try {
+            new Intl.DateTimeFormat("en", { timeZone: s });
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        {
+          message: "Enter a valid event timezone, such as America/Los_Angeles.",
+        },
+      )
       .nullable(),
     slots: z
       .array(
@@ -58,9 +64,25 @@ export const importPreviewSchema = z
             startTime: time,
             endTime: time,
             capacity: z.number().int().min(1).max(10000),
+            sourceTiming: z
+              .object({
+                start: z
+                  .string()
+                  .max(40)
+                  .refine((s) => readSourceDateTime(s) !== null),
+                end: z
+                  .string()
+                  .max(40)
+                  .refine((s) => readSourceDateTime(s) !== null),
+              })
+              .strict()
+              .optional(),
           })
           .strict()
-          .refine((s) => s.endTime > s.startTime),
+          .refine((s) => s.endTime > s.startTime, {
+            path: ["endTime"],
+            message: "End time must be after start time",
+          }),
       )
       .min(1)
       .max(100),
@@ -97,7 +119,10 @@ function escapeHtml(s: string): string {
 }
 
 /** Projection into the existing editor only; this never creates or publishes a project. */
-export function importPreviewToDraft(input: unknown): Partial<EventFormState> {
+export function importPreviewToDraft(
+  input: unknown,
+  organizationId: string | null = null,
+): Partial<EventFormState> {
   const p = importPreviewSchema.parse(input);
   if (!p.timezone)
     throw new Error("Choose the event timezone before continuing.");
@@ -113,7 +138,7 @@ export function importPreviewToDraft(input: unknown): Partial<EventFormState> {
       title: p.title,
       description: `<p>${escapeHtml(p.description).replaceAll("\n", "<br>")}</p>`,
       location: p.location,
-      organizationId: null,
+      organizationId,
       projectTimezone: p.timezone,
     },
     schedule: {

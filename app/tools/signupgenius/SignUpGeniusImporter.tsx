@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Link2, LoaderCircle, ShieldCheck } from "lucide-react";
@@ -26,15 +32,20 @@ import { storeImportPreview } from "@/lib/signupgenius/handoff";
 import { IMPORT_ERROR_MESSAGES } from "@/lib/signupgenius/errors";
 import { TEXT_LINK_CLASS } from "@/lib/text-link";
 import ImportPreviewEditor from "./ImportPreviewEditor";
+import { getImportReadinessIssues } from "@/lib/signupgenius/readiness";
 
-export default function SignUpGeniusImporter() {
+export default function SignUpGeniusImporter({
+  organizationId,
+}: {
+  organizationId?: string;
+}) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reviewed, setReviewed] = useState(false);
-  const [continuing, setContinuing] = useState(false);
+  const [continuing, startNavigation] = useTransition();
   const active = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const handoffId = useRef<string | null>(null);
@@ -54,7 +65,6 @@ export default function SignUpGeniusImporter() {
     setPreview(null);
     setError("");
     setReviewed(false);
-    setContinuing(false);
     handoffId.current = null;
   }
 
@@ -114,6 +124,10 @@ export default function SignUpGeniusImporter() {
     if (!preview || !reviewed || continuing) return;
     try {
       const validated = importPreviewSchema.parse(preview);
+      if (Object.keys(getImportReadinessIssues(validated)).length) {
+        setError("Correct the highlighted fields before continuing.");
+        return;
+      }
       importPreviewToDraft(validated);
       const id = handoffId.current ?? crypto.randomUUID();
       handoffId.current = id;
@@ -121,10 +135,13 @@ export default function SignUpGeniusImporter() {
         window.sessionStorage,
         id,
         validated,
+        Date.now(),
+        organizationId ??
+          new URL(window.location.href).searchParams.get("org") ??
+          undefined,
       );
       setError("");
-      setContinuing(true);
-      router.push(destination);
+      startNavigation(() => router.push(destination));
     } catch {
       setError(
         "Check the timezone, dates, times, and capacities. Your browser must allow tab storage to continue.",
@@ -132,6 +149,7 @@ export default function SignUpGeniusImporter() {
     }
   }
 
+  const readiness = preview ? getImportReadinessIssues(preview) : {};
   return (
     <div className="space-y-6">
       <Card>
@@ -218,9 +236,11 @@ export default function SignUpGeniusImporter() {
           )}
           <ImportPreviewEditor
             preview={preview}
+            issues={readiness}
             onChange={(next) => {
               setPreview(next);
               setReviewed(false);
+              setError("");
             }}
           />
           <label className="flex items-start gap-3 text-sm">
@@ -236,7 +256,23 @@ export default function SignUpGeniusImporter() {
               timezone, location, and total slot capacities.
             </span>
           </label>
-          <Button type="submit" disabled={!reviewed || continuing}>
+          {Object.keys(readiness).length > 0 && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Correct the highlighted fields to continue. Source values have not
+              been shortened or capped.
+            </p>
+          )}
+          {readiness.form && (
+            <p role="alert" className="text-sm text-destructive">
+              {readiness.form}
+            </p>
+          )}
+          <Button
+            type="submit"
+            disabled={
+              !reviewed || continuing || Object.keys(readiness).length > 0
+            }
+          >
             {continuing
               ? "Opening project review…"
               : "Continue to project review"}

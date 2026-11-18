@@ -61,7 +61,7 @@ const preview = {
   title: "Fictional park cleanup",
   description: "Bring gloves & water.",
   location: "Fictional park",
-  timezone: "America/Los_Angeles",
+  timezone: null,
   slots: [
     {
       name: "Setup crew",
@@ -69,6 +69,10 @@ const preview = {
       startTime: "09:00",
       endTime: "11:00",
       capacity: 6,
+      sourceTiming: {
+        start: "2025-10-12T09:00:00-07:00",
+        end: "2025-10-12T11:00:00-07:00",
+      },
     },
   ],
 };
@@ -92,7 +96,8 @@ try {
       if (new URL(route.request().url()).origin !== base) return route.abort();
       return route.continue();
     });
-    await page.goto(base);
+    const organization = "22222222-2222-4222-8222-222222222222";
+    await page.goto(`${base}/?org=${organization}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.screenshot({ path: `${artifacts}/initial-${width}.png` });
     await page.route("**/api/import/signupgenius", (route) =>
@@ -144,7 +149,11 @@ try {
       .click();
     await expect(page.getByLabel("Project title")).toHaveValue(preview.title);
     release();
-    await expect(page.getByRole("alert")).toContainText("past dates");
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "This signup includes past dates" }),
+    ).toBeVisible();
     await page
       .getByLabel("Event timezone", { exact: true })
       .fill("invalid/zone");
@@ -155,6 +164,30 @@ try {
     await expect(page.getByLabel("Date", { exact: true })).toHaveValue(
       "2025-10-12",
     );
+    await expect(page.getByLabel("Date", { exact: true })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await page.screenshot({
+      path: `${artifacts}/needs-correction-${width}.png`,
+      fullPage: true,
+    });
+    // Historical source dates remain visible until the organizer explicitly corrects them.
+    await page.getByLabel("Date", { exact: true }).fill("2099-10-12");
+    for (const [label, invalid, valid] of [
+      ["Project title", "T".repeat(126), preview.title],
+      ["Description", "D".repeat(2001), preview.description],
+      ["Location", "L".repeat(251), preview.location],
+      ["Slot name", "S".repeat(76), preview.slots[0].name],
+      ["Total places", "1001", "6"],
+    ]) {
+      const field = page.getByLabel(label, { exact: true });
+      await field.fill(invalid);
+      await expect(field).toHaveValue(invalid);
+      await expect(field).toHaveAttribute("aria-invalid", "true");
+      await field.fill(valid);
+      await expect(field).toHaveAttribute("aria-invalid", "false");
+    }
     await expect(page.getByLabel("Total places", { exact: true })).toHaveValue(
       "6",
     );
@@ -173,13 +206,32 @@ try {
     await expect
       .poll(() => page.evaluate(() => Reflect.get(window, "importDestination")))
       .toMatch(/^\/projects\/create\?import=/u);
+    const firstDestination = await page.evaluate(() =>
+      Reflect.get(window, "importDestination"),
+    );
+    expect(new URL(firstDestination, base).searchParams.get("org")).toBe(
+      organization,
+    );
+    // A completed navigation transition must not leave a restored importer locked.
+    await expect(
+      page.getByRole("button", {
+        name: "Continue to project review",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Continue to project review", exact: true })
+      .click();
+    expect(
+      await page.evaluate(() => Reflect.get(window, "importDestination")),
+    ).toBe(firstDestination);
     const saved = await page.evaluate(() =>
       Object.entries(sessionStorage)
         .filter(([key]) => key.startsWith("lets-assist:signupgenius:"))
         .map(([, value]) => JSON.parse(value)),
     );
     expect(saved).toHaveLength(1);
-    expect(saved[0].preview.slots[0].date).toBe("2025-10-12");
+    expect(saved[0].preview.slots[0].date).toBe("2099-10-12");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

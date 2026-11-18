@@ -18,12 +18,16 @@ function ImportedProjectCreator({
   useEffect(() => {
     try {
       const preview = readImportPreview(window.sessionStorage, importId);
-      setDraft(preview ? importPreviewToDraft(preview) : null);
+      setDraft(
+        preview
+          ? importPreviewToDraft(preview, props.initialOrgId ?? null)
+          : null,
+      );
     } catch {
       setDraft(null);
     }
     setLoaded(true);
-  }, [importId]);
+  }, [importId, props.initialOrgId]);
   if (!loaded) return <p role="status">Opening your imported preview…</p>;
   if (!draft)
     return (
@@ -57,7 +61,11 @@ export default function ProjectCreateEntry({
   ...props
 }: ProjectCreatorProps & { importId?: string }) {
   return importId && !props.initialDraftId ? (
-    <ImportedProjectCreator key={importId} {...props} importId={importId} />
+    <ImportedProjectCreator
+      key={`${importId}:${props.initialOrgId ?? "personal"}`}
+      {...props}
+      importId={importId}
+    />
   ) : (
     <ProjectCreator {...props} />
   );

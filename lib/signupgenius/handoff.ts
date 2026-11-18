@@ -11,6 +11,7 @@ export function storeImportPreview(
   id: string,
   preview: ImportPreview,
   now = Date.now(),
+  organizationId?: string,
 ): string {
   if (!IMPORT_ID_PATTERN.test(id)) throw new Error("Invalid import reference");
   storage.setItem(
@@ -21,7 +22,13 @@ export function storeImportPreview(
       preview: importPreviewSchema.parse(preview),
     }),
   );
-  return `/projects/create?import=${id}&creation=${id}`;
+  const url = `/projects/create?import=${id}&creation=${id}`;
+  return organizationId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+      organizationId,
+    )
+    ? `${url}&org=${organizationId}`
+    : url;
 }
 
 export function readImportPreview(

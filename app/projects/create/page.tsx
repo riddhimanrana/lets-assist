@@ -9,7 +9,10 @@ import { notFound, redirect } from "next/navigation";
 import type { EventFormState } from "@/hooks/use-event-form";
 import type { ProjectCreateAdditionalStep } from "@/types/plugin";
 import { headers } from "next/headers";
-import { projectCreationSessionId } from "@/lib/projects/creation-session";
+import {
+  projectCreationSessionId,
+  projectCreationLoginUrl,
+} from "@/lib/projects/creation-session";
 
 // Define a type for the combobox options
 interface OrganizationOption {
@@ -130,11 +133,7 @@ export default async function CreateProjectPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return redirect(
-      importId
-        ? `/login?redirect=${encodeURIComponent(`/projects/create?import=${importId}&creation=${importId}`)}`
-        : "/login?redirect=/projects/create",
-    );
+    return redirect(projectCreationLoginUrl(search));
   }
 
   // Get user profile information including profile picture

@@ -9,6 +9,28 @@ export function projectCreationSessionId(requested?: string): string {
     : crypto.randomUUID();
 }
 
+/** Preserve only bounded editor context across the server's authentication redirect. */
+export function projectCreationLoginUrl(search: {
+  org?: string;
+  draft?: string;
+  creation?: string;
+  import?: string;
+}): string {
+  const params = new URLSearchParams();
+  for (const field of ["org", "draft"] as const) {
+    const value = search[field];
+    if (value && /^[A-Za-z0-9_-]{1,128}$/u.test(value))
+      params.set(field, value);
+  }
+  for (const field of ["creation", "import"] as const) {
+    const value = search[field];
+    if (value && UUID_PATTERN.test(value)) params.set(field, value);
+  }
+  return params.size
+    ? `/login?redirect=${encodeURIComponent(`/projects/create?${params}`)}`
+    : "/login?redirect=/projects/create";
+}
+
 export function projectCreationUrl(
   href: string,
   sessionId: string,

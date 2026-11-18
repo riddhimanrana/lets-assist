@@ -1,11 +1,12 @@
-import { SignUpGeniusImportError } from "@/lib/signupgenius/errors";
 import type { ImportPreview } from "@/lib/signupgenius/model";
+import { readJsonLdDocuments } from "./signupgenius-jsonld-source";
+import { projectJsonLdEvent } from "./signupgenius-jsonld-event";
 
-/** Source adapters must be backed by inspected public markup, never guessed selectors. */
+/** Documented structured-data semantics only; never guessed provider selectors. */
 export function parsePublicSignUpGenius(
-  _html: string,
-  _sourceUrl: string,
+  html: string,
+  sourceUrl: string,
 ): ImportPreview {
-  // Fail closed while the supported public markup contract is being verified.
-  throw new SignUpGeniusImportError("unsupported");
+  // Standards-backed structured data only. SUG-specific markup remains unverified.
+  return projectJsonLdEvent(readJsonLdDocuments(html), sourceUrl);
 }

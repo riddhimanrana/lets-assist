@@ -1,11 +1,12 @@
 # Public SignUpGenius import candidate
 
 This candidate is **not ready for release**. It implements the fetch boundary,
-typed preview, public tool and project-editor handoff. The public markup adapter
-deliberately returns `unsupported` until an inspected, sanitized structural
-fixture establishes the source contract. No real signup has been successfully
-extracted in this environment. Do not merge or advertise working import support
-on the strength of synthetic preview tests.
+typed preview, public tool, project-editor handoff and a narrow standards-backed
+JSON-LD Event adapter. There is no evidence that SignUpGenius emits the supported
+structured data, and no SignUpGenius-specific DOM adapter has been implemented.
+Ordinary unverified signup markup returns `unsupported`. No real signup has been
+successfully extracted in this environment. Do not merge or advertise working
+SignUpGenius import support on the strength of synthetic standards fixtures.
 
 ## User flow and data boundary
 
@@ -19,8 +20,18 @@ description, location, optional timezone and at most 100 named dated slots with
 explicit start/end times and total capacities. It has no participant collection,
 occupancy, contact, comment or arbitrary draft field. Unknown/missing dates,
 times or capacities cannot be presented as an extracted preview. A missing
-timezone requires an explicit choice before editor handoff. Dates are never
-shifted into the future; a historical-date notice appears in the preview.
+timezone requires an explicit choice before editor handoff. Original structured
+timestamps and offsets remain visible in each slot; an offset is not treated as
+an IANA regional timezone. A timezone choice conflicting with unchanged source
+timing requires correction. Dates are never shifted into the future; historical
+dates remain visible until the organizer explicitly changes them.
+
+Bounded source preservation and destination readiness are separate. The preview
+can retain a title of 200 characters, description of 10,000, location of 500,
+slot name of 200 and capacity of 10,000. Before handoff, the **existing destination
+schemas** enforce their actual title/description/location/slot-name/capacity
+limits (125/2000/250/75/1000), required fields and future schedule rule. Each
+problem is shown at its field. Values are never silently shortened or capped.
 
 An organizer checks the details and authorizes the import, then continues to the
 existing authenticated project editor. Tab-scoped storage holds only that
@@ -30,6 +41,37 @@ normal draft autosave, validation and final review. A supplied existing draft
 takes precedence over import storage. The importer neither changes a different
 autosave nor calls create/publish actions. Imported defaults use unlisted
 visibility, require login and keep public attendee display off.
+The login fallback preserves bounded organization, draft, creation and import
+context. Organization authority still comes from server-side membership checks;
+source data cannot select an organization. A server-validated organization is
+kept when initializing the imported editor. Navigation uses a React transition
+so a completed or restored importer is not permanently stuck in a loading state.
+
+## Standards-backed adapter
+
+This is a conservative subset of the official [Schema.org Event](https://schema.org/Event)
+and [maximumAttendeeCapacity](https://schema.org/maximumAttendeeCapacity) contracts.
+It does not assert that SignUpGenius uses either field.
+
+- Read only inline `application/ld+json` using the existing HTML parser. Never
+  execute scripts, fetch a remote script/context or resolve an `@id` reference.
+  Inert templates and unknown contexts are unsupported.
+- Require a canonical Schema.org context and one explicit Event, directly or
+  in an `@graph`. Multiple unrelated events, recurrence schedules, cancelled or
+  rescheduled status, unresolved child references and nested sub-events fail.
+- A single event or its inline `subEvent` records must supply explicit full
+  dates, minute-resolution start/end times and positive integer
+  `maximumAttendeeCapacity`. Remaining places, offers and participant counts are
+  never used as total capacity. Parent envelope and child timing must agree;
+  unsupported overnight slots and contradictory offsets fail.
+- Project only event metadata, selected Place/PostalAddress text and explicit
+  slots. Do not traverse attendee, organizer, Person, contact or comment
+  payloads. Strip markup and contact-like email/phone text in selected fields.
+  This projection proof is synthetic and does not establish isolation of a
+  live provider's DOM or page payload.
+- Bound each script to 64 KiB, all structured data to 128 KiB, eight scripts,
+  nesting depth 16 and 2,000 JSON nodes, within the existing 1 MiB page limit.
+  No dependency version or lockfile change is required.
 
 ## Fetch constraints
 
@@ -50,23 +92,27 @@ visibility, require login and keep public attendee display off.
 
 ## Evidence and remaining gates
 
-| Boundary                                                  | Candidate status                                                         |
-| --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| URL, SSRF, size/time limits, typed projection and storage | Synthetic unit coverage                                                  |
-| API metering, origin checks and error responses           | Isolated mocked service coverage                                         |
-| Public UI at 1280, 390 and 320 pixels                     | Synthetic browser component coverage; real UI/CSS, mocked API/navigation |
-| Actual public markup extraction and participant exclusion | Blocked pending inspected structural fixture and real fetch proof        |
-| Authenticated persisted draft/create workflow             | Existing route regression only; full authenticated acceptance required   |
-| Full static/build gates                                   | Environment missing existing SheetJS dependency; no waiver implied       |
-| Hosted Development and Production                         | Not deployed or verified                                                 |
+| Boundary                                                   | Candidate status                                                                                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| URL, SSRF, size/time limits, typed projection and storage  | Synthetic unit coverage                                                                                    |
+| Standards-backed structured Event projection and readiness | Synthetic JSON-LD, privacy, offset, bounds and destination-limit coverage                                  |
+| API metering, origin checks and error responses            | Isolated mocked service coverage                                                                           |
+| Public UI at 1280, 390 and 320 pixels                      | Synthetic browser component coverage; real UI/CSS, mocked API/navigation                                   |
+| Actual SignUpGenius extraction and participant exclusion   | Blocked pending inspected source representation and real fetch proof                                       |
+| Authenticated persisted draft/create workflow              | Route, organization-context and saved-draft precedence regressions; full authenticated acceptance required |
+| Full static/build gates                                    | Environment missing existing SheetJS dependency; no waiver implied                                         |
+| Hosted Development and Production                          | Not deployed or verified                                                                                   |
 
 Focused commands:
 
 ```sh
 bun test lib/signupgenius/import.test.ts services/signupgenius-fetch.test.ts services/signupgenius-parser.test.ts
+bun test services/signupgenius-jsonld.test.ts lib/signupgenius/readiness.test.ts lib/projects/creation-session.test.ts
 bun test app/api/import/signupgenius/route.test.ts
+bun test app/api/import/signupgenius/structured-data.integration.test.ts
 bun test services/signupgenius-transport.test.ts
 bun test app/projects/create/page.draft-intent.test.tsx
+bun test app/projects/create/ProjectCreateEntry.test.tsx
 bun tests/e2e/signupgenius/import.browser.ts
 ```
 
@@ -90,9 +136,9 @@ observations remain: event metadata inside `#signupcontainer`, a table headed
 Available Slot, slot labels/occupancy alongside distinct participant subtrees.
 No exact DOM fixture or server HTML was preserved. These observations do not
 establish selector semantics, event-date provenance or participant isolation,
-so they do not authorize replacing the failing adapter with guessed parsing.
+so they do not authorize adding a DOM adapter with guessed selectors.
 
-Before replacing the failing adapter, inspect the actual **server-fetch** HTML,
+Before adding a provider-specific adapter, inspect the actual **server-fetch** HTML,
 not just the rendered browser DOM. Preserve structural attributes but replace
 text and remove participant subtrees in any committed fixture. Extract event
 and slot fields by explicit context, never whole-table text. The source event
