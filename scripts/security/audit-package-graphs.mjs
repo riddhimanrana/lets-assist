@@ -79,6 +79,96 @@ function assertDeepmergeCompat(repository, tracked, manifest, lockfiles) {
   }
 }
 
+// The reviewed local repair of picomatch 4.0.7 (GHSA-fc5q-39xc-vjpf), which
+// has no patched release. Bun does not audit `file:` packages, so this binds
+// the override, direct dependency, manifest, sources and lock resolutions of
+// each application graph that installs it.
+export const PICOMATCH_COMPAT = Object.freeze({
+  override: "file:./vendor/picomatch-compat",
+  dependency: "^4.0.7",
+  version: "4.0.7-lets-assist.1",
+  files: Object.freeze({
+    "package.json":
+      "6b9636f964b5500cb1a92eba44403680cb0abd21deebb0fdf38e1edb84b8ef9d",
+    "index.js":
+      "02ae26406508e28f9ba0865be16cf77f0b33de6c4d4d49c212c4176df1d5625a",
+    "posix.js":
+      "5695ff5dfcd5a338a40630bd506056f2950bcb08fe1cc068519cbbfe60add480",
+    "lib/constants.js":
+      "c28f952d2758261fe5428a121add485cc25b03e0193633f649de903dc0e5e222",
+    "lib/parse.js":
+      "aa032da6b40d47a15bcac6cd4f8946648a247361c7fd7ff3c0e0a0d62ced8a5e",
+    "lib/picomatch.js":
+      "fdd249d7ffff853f3bb1c77eafc8baa1a437bea85a94c35877b83c6a40d9ca94",
+    "lib/scan.js":
+      "6457a1764e5c2e543cc3a0c00ce12ebb3764097628868198370b64d4e642aaae",
+    "lib/utils.js":
+      "f7d5de7e49ee138c5b9f3b46165e4cec8e67989a696a410b2503566ee4ad8c9a",
+  }),
+  documents: Object.freeze([
+    "README.md",
+    "ghsa-fc5q-39xc-vjpf.patch",
+    "linear-unescape.patch",
+    "license.txt",
+  ]),
+});
+
+export function assertPicomatchCompat(
+  repository,
+  tracked,
+  owner,
+  manifest,
+  lockfiles,
+) {
+  const { override, dependency, version, files, documents } = PICOMATCH_COMPAT;
+  const prefix = owner ? `${owner}/` : "";
+  const directory = `${prefix}vendor/picomatch-compat`;
+  const refusal =
+    "The vendored picomatch repair must remain the exact reviewed package bound to its application lockfile.";
+  if (
+    !tracked.has(`${prefix}package.json`) ||
+    !tracked.has(`${prefix}bun.lock`)
+  )
+    throw new Error(refusal);
+  const ownerManifest = JSON.parse(
+    readFileSync(join(repository, prefix, "package.json"), "utf8"),
+  );
+  const lock = readFileSync(join(repository, prefix, "bun.lock"), "utf8");
+  const resolutions = [...lock.matchAll(/\["picomatch@([^"]*)"/gu)].map(
+    (match) => match[1],
+  );
+  const local = [...tracked]
+    .filter((file) => file.startsWith(`${directory}/`))
+    .map((file) => file.slice(directory.length + 1))
+    .sort();
+  if (
+    ownerManifest.overrides?.picomatch !== override ||
+    ownerManifest.dependencies?.picomatch !== dependency ||
+    manifest.name !== "picomatch" ||
+    manifest.version !== version ||
+    manifest.dependencies !== undefined ||
+    manifest.scripts !== undefined ||
+    lockfiles.length !== 0 ||
+    !resolutions.length ||
+    resolutions.some(
+      (resolution) =>
+        resolution !== override &&
+        resolution !== "file:vendor/picomatch-compat",
+    ) ||
+    JSON.stringify(local) !==
+      JSON.stringify([...Object.keys(files), ...documents].sort())
+  )
+    throw new Error(refusal);
+  for (const [file, expected] of Object.entries(files)) {
+    const path = join(repository, directory, file);
+    if (
+      !lstatSync(path).isFile() ||
+      createHash("sha256").update(readFileSync(path)).digest("hex") !== expected
+    )
+      throw new Error(refusal);
+  }
+}
+
 function trackedFiles(root) {
   return execFileSync("git", ["ls-files", "-z"], {
     cwd: root,
@@ -147,6 +237,23 @@ export function discoverPackageGraphs(root, listFiles = trackedFiles) {
       const label = relative(root, join(repository, directory)) || ".";
       if (repository === root && directory === DEEPMERGE_COMPAT.directory) {
         assertDeepmergeCompat(repository, tracked, manifest, lockfiles);
+        continue;
+      }
+      const picomatchOwner =
+        repository === root && directory === "vendor/picomatch-compat"
+          ? ""
+          : repository === privateRoot &&
+              directory === "apps/csf/vendor/picomatch-compat"
+            ? "apps/csf"
+            : null;
+      if (picomatchOwner !== null) {
+        assertPicomatchCompat(
+          repository,
+          tracked,
+          picomatchOwner,
+          manifest,
+          lockfiles,
+        );
         continue;
       }
       // Each exact local compatibility package belongs to its application's

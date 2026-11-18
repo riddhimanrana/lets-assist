@@ -7,6 +7,37 @@ or pass ambient provider credentials to Bun. A missing lockfile, missing private
 checkout, unaccepted advisory, or registry failure is an error. The daily dependency
 workflow scans both protected branches without running database or browser gates.
 
+## November 17 advisories
+
+Three advisories published on November 17 failed every audit, including the
+scheduled `main` scan:
+[GHSA-mfr8-8qww-v76h](https://github.com/advisories/GHSA-mfr8-8qww-v76h) and
+[GHSA-vc7v-qv4w-wrv8](https://github.com/advisories/GHSA-vc7v-qv4w-wrv8)
+(moderate, Next.js 16.2.0 through 16.4.4, `use cache` root-param leaks) and
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+(high, picomatch through 4.0.7, ReDoS through single-branch repeated
+extglobs). The root and the CSF application both resolved `next` 16.4.1 and
+picomatch 4.0.5.
+
+- Next.js, `@next/env`, `@next/eslint-plugin-next` and `eslint-config-next`
+  move to 16.4.5, the smallest fixed release, in both graphs. The Next.js
+  floor in `scripts/ci/dependency-floors.test.mjs` now accepts 16.4.5 and
+  later 16.4 patches only. The app defines no `use cache` functions.
+- picomatch lists no patched release. Each graph installs
+  `vendor/picomatch-compat`, picomatch 4.0.7 with one reviewed repair to
+  `lib/parse.js`, through a `file:` override and a direct `^4.0.7`
+  dependency that Bun needs to install it. Its README records provenance, the
+  patch and the parity check. `PICOMATCH_COMPAT` in
+  `scripts/security/audit-package-graphs.mjs` binds the override, dependency,
+  manifest, every source hash, the file set and every lock resolution in the
+  root and `apps/csf` graphs, because Bun does not audit `file:` packages.
+  `scripts/ci/picomatch-compat-audit.test.mjs` covers the refusals.
+- After the private repair, `bun run security:audit` passed all three graphs
+  with no advisories (local run with Bun 1.4.2, November 17).
+
+Remove the vendored package and both overrides when upstream publishes a fixed
+picomatch that the consumers accept.
+
 ## October 2026 patches
 
 These are source changes. A lockfile update does not change an existing

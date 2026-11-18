@@ -35,6 +35,8 @@ export default tseslint.config(
       "lib/plugins/private/apps/**",
       // Archived reference code is outside the active product.
       "lib/plugins/private/plugins/dv-speech-debate/**",
+      // Byte-reviewed upstream picomatch 4.0.7 with one hash-bound repair.
+      "vendor/picomatch-compat/**",
     ],
   },
   js.configs.recommended,
