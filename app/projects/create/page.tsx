@@ -1,5 +1,6 @@
 import { Metadata } from "next";
-import ProjectCreator from "./ProjectCreator";
+import ProjectCreateEntry from "./ProjectCreateEntry";
+import { IMPORT_ID_PATTERN } from "@/lib/signupgenius/handoff";
 import { createClient } from "@/lib/supabase/server";
 import { getProjectCreatorProfileById } from "@/lib/profile/public";
 import { resolveOrganizationPluginBehaviorHook } from "@/lib/plugins/resolve-plugin-behaviors";
@@ -52,7 +53,12 @@ export const metadata: Metadata = {
 export default async function CreateProjectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ org?: string; draft?: string; creation?: string }>;
+  searchParams: Promise<{
+    org?: string;
+    draft?: string;
+    creation?: string;
+    import?: string;
+  }>;
 }) {
   // Defensive: if this route is accidentally served on the Supabase API custom domain,
   // redirect back to the primary site domain where Next routes are hosted.
@@ -112,6 +118,11 @@ export default async function CreateProjectPage({
     );
   }
 
+  const search = await searchParams;
+  const importId =
+    search.import && IMPORT_ID_PATTERN.test(search.import)
+      ? search.import
+      : undefined;
   const supabase = await createClient();
 
   // Authentication check on the server
@@ -119,7 +130,11 @@ export default async function CreateProjectPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return redirect("/login?redirect=/projects/create");
+    return redirect(
+      importId
+        ? `/login?redirect=${encodeURIComponent(`/projects/create?import=${importId}&creation=${importId}`)}`
+        : "/login?redirect=/projects/create",
+    );
   }
 
   // Get user profile information including profile picture
@@ -137,7 +152,6 @@ export default async function CreateProjectPage({
     userProfile?.trusted_member === true || tmApp?.status === true;
 
   // Get organization ID from URL params if provided - fixed approach
-  const search = await searchParams;
   const orgIdFromUrl = search?.org || undefined;
   const draftIdFromUrl = search?.draft || undefined;
   const creationSessionId = projectCreationSessionId(search?.creation);
@@ -246,7 +260,8 @@ export default async function CreateProjectPage({
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-      <ProjectCreator
+      <ProjectCreateEntry
+        importId={importId}
         key={creationSessionId}
         creationSessionId={creationSessionId}
         initialOrgId={initialOrgId}

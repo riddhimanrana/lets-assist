@@ -168,6 +168,7 @@ export function Footer() {
       { href: "/privacy", label: "Privacy" },
       { href: "/terms", label: "Terms" },
       { href: "/help", label: "Help" },
+      { href: "/tools/signupgenius", label: "Import a signup" },
       { href: "/contact", label: "Contact" },
       { href: "/acknowledgements", label: "Acknowledgements" },
     ],

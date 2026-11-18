@@ -1,0 +1,89 @@
+# Public SignUpGenius import candidate
+
+This candidate is **not ready for release**. It implements the fetch boundary,
+typed preview, public tool and project-editor handoff. The public markup adapter
+deliberately returns `unsupported` until an inspected, sanitized structural
+fixture establishes the source contract. No real signup has been successfully
+extracted in this environment. Do not merge or advertise working import support
+on the strength of synthetic preview tests.
+
+## User flow and data boundary
+
+The main-site footer links to `/tools/signupgenius`. A public POST to
+`/api/import/signupgenius` accepts one URL, consumes the existing durable quota,
+fetches only an allowed public event page and validates the extracted projection.
+It never writes a project or a signup. Failure to meter requests fails closed.
+
+The editable projection contains only a canonical source URL, event title,
+description, location, optional timezone and at most 100 named dated slots with
+explicit start/end times and total capacities. It has no participant collection,
+occupancy, contact, comment or arbitrary draft field. Unknown/missing dates,
+times or capacities cannot be presented as an extracted preview. A missing
+timezone requires an explicit choice before editor handoff. Dates are never
+shifted into the future; a historical-date notice appears in the preview.
+
+An organizer checks the details and authorizes the import, then continues to the
+existing authenticated project editor. Tab-scoped storage holds only that
+validated projection for up to 24 hours, under a random per-import reference.
+The existing create route enforces authentication; its existing editor performs
+normal draft autosave, validation and final review. A supplied existing draft
+takes precedence over import storage. The importer neither changes a different
+autosave nor calls create/publish actions. Imported defaults use unlisted
+visibility, require login and keep public attendee display off.
+
+## Fetch constraints
+
+- Only `signupgenius.com`, `www.signupgenius.com` and `m.signupgenius.com`, public
+  `/go/<id>` paths and the documented-in-source mobile hash shape are accepted.
+  HTTP inputs become HTTPS; queries are discarded. Userinfo, explicit ports,
+  alternate hosts, arbitrary paths and encoded path components are refused.
+- Actual requests use HTTPS to the canonical `www` host, fixed request headers,
+  no cookies or caller headers, no connection pooling and a validated pinned DNS
+  address. Every DNS answer must be globally routed; private, reserved and
+  transition networks fail closed. Each redirect receives the same checks.
+- One 10-second deadline covers resolution, at most two redirects and reading
+  the body. HTML bodies are capped at 1 MiB including streamed chunks. Compressed
+  or non-HTML responses are refused. No source HTML is persisted or logged.
+- Browser challenges are reported without alternate endpoints, challenge
+  solving, cookies, proxies or access-control workarounds. Public POST responses
+  are private/no-store and use fixed error messages.
+
+## Evidence and remaining gates
+
+| Boundary                                                  | Candidate status                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------ |
+| URL, SSRF, size/time limits, typed projection and storage | Synthetic unit coverage                                                  |
+| API metering, origin checks and error responses           | Isolated mocked service coverage                                         |
+| Public UI at 1280, 390 and 320 pixels                     | Synthetic browser component coverage; real UI/CSS, mocked API/navigation |
+| Actual public markup extraction and participant exclusion | Blocked pending inspected structural fixture and real fetch proof        |
+| Authenticated persisted draft/create workflow             | Existing route regression only; full authenticated acceptance required   |
+| Full static/build gates                                   | Environment missing existing SheetJS dependency; no waiver implied       |
+| Hosted Development and Production                         | Not deployed or verified                                                 |
+
+Focused commands:
+
+```sh
+bun test lib/signupgenius/import.test.ts services/signupgenius-fetch.test.ts services/signupgenius-parser.test.ts
+bun test app/api/import/signupgenius/route.test.ts
+bun test app/projects/create/page.draft-intent.test.tsx
+bun tests/e2e/signupgenius/import.browser.ts
+```
+
+The browser harness owns a loopback server and uses only fictional data. Its
+navigation stub proves a validated tab handoff, not authentication or database
+persistence. Screenshots remain ignored under `.artifacts/signupgenius-import`.
+
+Before replacing the failing adapter, inspect the actual **server-fetch** HTML,
+not just the rendered browser DOM. Preserve structural attributes but replace
+text and remove participant subtrees in any committed fixture. Extract event
+and slot fields by explicit context, never whole-table text. The source event
+description can mention training dates distinct from the event; absent explicit
+event/slot dates must fail rather than using prose guesses or AI defaults. Do
+not use participant-report endpoints. The official key-based API requires owner
+authorization and is not an anonymous arbitrary-signup-link API.
+
+Release follows the existing [deployment workflow](deployment.md): one reviewed
+integration into `development`, exact hosted Development acceptance, then the
+separately authorized `development` to `main` release and protected Production
+workflow. A feature push creates no Preview deployment. This candidate must
+remain draft until source extraction and required gates are verified.
