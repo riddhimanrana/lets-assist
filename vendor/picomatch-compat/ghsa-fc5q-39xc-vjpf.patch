@@ -1,0 +1,72 @@
+--- a/lib/parse.js	1985-10-26 08:15:00.000000000 +0000
++++ b/lib/parse.js	2026-11-18 02:44:25.895230225 +0000
+@@ -284,6 +284,40 @@
+   return depth;
+ };
+ 
++// Let's Assist repair for GHSA-fc5q-39xc-vjpf. A single-branch `+(...)` or
++// `*(...)` whose branch contains a wildcard nests that wildcard's unbounded
++// quantifier inside the outer repeat, which backtracks catastrophically.
++const hasUnescapedWildcard = branch => {
++  let escaped = false;
++
++  for (let i = 0; i < branch.length; i++) {
++    const ch = branch[i];
++
++    if (escaped === true) {
++      escaped = false;
++      continue;
++    }
++
++    if (ch === '\\') {
++      escaped = true;
++      continue;
++    }
++
++    if (ch === '*' || (ch === '!' && branch[i + 1] === '(')) {
++      return true;
++    }
++  }
++
++  return false;
++};
++
++// Text, `?` and single `*` within one path segment. Every string such a branch
++// matches is slash-free and the branch contains a `*` that matches any
++// slash-free string, so one or more repetitions match exactly what one does.
++const isSegmentWildcardBranch = branch => {
++  return /^[A-Za-z0-9 ._~?*-]*$/.test(branch) && branch.includes('*') && !branch.includes('**');
++};
++
+ const analyzeRepeatedExtglob = (body, options) => {
+   if (options.maxExtglobRecursion === false) {
+     return { risky: false };
+@@ -306,6 +340,16 @@
+     }
+   }
+ 
++  if (
++    branches.length === 1 &&
++    hasUnescapedWildcard(branches[0]) &&
++    !getStarExtglobSequenceChars(branches[0])
++  ) {
++    return isSegmentWildcardBranch(branches[0])
++      ? { risky: false, collapse: true }
++      : { risky: true };
++  }
++
+   // A repeated extglob is "risky" (prone to catastrophic backtracking) when a
+   // branch is itself a `*(...)` sequence, since that nests an unbounded quantifier
+   // inside the outer `+(...)`/`*(...)`. When *every* branch reduces to single
+@@ -565,7 +609,10 @@
+       return;
+     }
+ 
+-    let output = token.close + (opts.capture ? ')' : '');
++    const close = analysis.collapse && (token.type === 'plus' || token.type === 'star')
++      ? (token.type === 'star' ? '){0,1}' : '){1}')
++      : token.close;
++    let output = close + (opts.capture ? ')' : '');
+     let rest;
+ 
+     if (token.type === 'negate') {

@@ -9,12 +9,10 @@ const lock = JSONC.parse(
   readFileSync(new URL("../../bun.lock", import.meta.url), "utf8"),
 );
 
-// GHSA-vcvr-r3jv-pc5j fixes Node ImageResponse SVG processing in 16.3.6.
-// Keep the reviewed 16.4 line while preserving the earlier patched floor.
-const minimumNextPatchByMinor = new Map([
-  [3, 6],
-  [4, 0],
-]);
+// GHSA-vcvr-r3jv-pc5j fixed Node ImageResponse SVG processing in 16.3.6.
+// GHSA-mfr8-8qww-v76h and GHSA-vc7v-qv4w-wrv8 affect 16.2.0 through 16.4.4,
+// so only the reviewed 16.4 line from 16.4.5 remains accepted.
+const minimumNextPatchByMinor = new Map([[4, 5]]);
 
 function isReviewedPatchedNext(version) {
   if (typeof version !== "string") return false;
@@ -43,7 +41,7 @@ function resolvedNextVersions(packages) {
 }
 
 describe("Next.js security patch policy", () => {
-  test.each(["16.3.6", "16.3.12", "16.4.0", "16.4.12"])(
+  test.each(["16.4.5", "16.4.6", "16.4.12"])(
     "accepts reviewed stable release %s",
     (version) => {
       expect(isReviewedPatchedNext(version)).toBe(true);
@@ -51,6 +49,11 @@ describe("Next.js security patch policy", () => {
   );
 
   test.each([
+    "16.4.4",
+    "16.4.1",
+    "16.4.0",
+    "16.3.12",
+    "16.3.6",
     "16.3.5",
     "16.2.99",
     "15.5.99",
