@@ -65,6 +65,7 @@ Focused commands:
 ```sh
 bun test lib/signupgenius/import.test.ts services/signupgenius-fetch.test.ts services/signupgenius-parser.test.ts
 bun test app/api/import/signupgenius/route.test.ts
+bun test services/signupgenius-transport.test.ts
 bun test app/projects/create/page.draft-intent.test.tsx
 bun tests/e2e/signupgenius/import.browser.ts
 ```
@@ -72,6 +73,24 @@ bun tests/e2e/signupgenius/import.browser.ts
 The browser harness owns a loopback server and uses only fictional data. Its
 navigation stub proves a validated tab handoff, not authentication or database
 persistence. Screenshots remain ignored under `.artifacts/signupgenius-import`.
+Run the native transport test separately: it mocks Node HTTPS and DNS modules,
+as detected by the repository's isolated test orchestrator. It verifies the
+actual transport's URL, fixed request headers, DNS pin, address family and
+private-address refusal without opening a network connection.
+
+Supplemental coordinator evidence for `5cdc88af`: the 65 synthetic importer
+tests and full typecheck passed on an isolated Mac checkout using existing
+dependencies. That machine used Bun 1.3.14, so this is not the pinned Bun 1.4.2
+release gate. No Mac build or deployment was reported. This implementation
+worker continues to use only the selected cloud container.
+
+The source researcher later lost the previously accessible browser tab; a fresh
+navigation failed with `net::ERR_HTTP_RESPONSE_CODE_FAILURE`. Only earlier AX
+observations remain: event metadata inside `#signupcontainer`, a table headed
+Available Slot, slot labels/occupancy alongside distinct participant subtrees.
+No exact DOM fixture or server HTML was preserved. These observations do not
+establish selector semantics, event-date provenance or participant isolation,
+so they do not authorize replacing the failing adapter with guessed parsing.
 
 Before replacing the failing adapter, inspect the actual **server-fetch** HTML,
 not just the rendered browser DOM. Preserve structural attributes but replace
