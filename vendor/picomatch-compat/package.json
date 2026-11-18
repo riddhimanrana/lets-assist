@@ -1,0 +1,19 @@
+{
+  "name": "picomatch",
+  "version": "4.0.7-lets-assist.1",
+  "private": true,
+  "description": "picomatch 4.0.7 with a local repair for GHSA-fc5q-39xc-vjpf. Not an upstream release.",
+  "license": "MIT",
+  "main": "index.js",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=12"
+  },
+  "upstream": {
+    "name": "picomatch",
+    "version": "4.0.7",
+    "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==",
+    "file": "lib/parse.js",
+    "sha256": "4e1e05447668aa1e94366c5516a2bcd8f5fff800cc92b1d0cd7d77703b8618c4"
+  }
+}

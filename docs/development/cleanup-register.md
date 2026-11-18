@@ -1,5 +1,15 @@
 # Repository cleanup register
 
+## Dependency advisories, November 17, 2026
+
+`DEPS-NEXT-PICOMATCH-20261117`, P1, dependency security, fixed locally,
+release pending. New Next.js (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8) and
+picomatch (GHSA-fc5q-39xc-vjpf, no upstream fix) advisories failed every
+dependency audit and blocked all pull requests. Next.js moves to 16.4.5 and
+both graphs install the vendored picomatch repair; see
+[dependency security](dependency-security.md#november-17-advisories). The
+private repair merges first, then the root gitlink moves to it.
+
 ## Organization admin discovery, November 17, 2026
 
 `QA-20261117-ADMIN-UNLISTED`, P2, fixed locally, release pending. The

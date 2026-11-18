@@ -33,3 +33,7 @@ scripts/local-dev/layout-audit/upstream/runtime-cache-source-proof.json
 # patch and hashes stay exact.
 vendor/deepmerge-compat/index.cjs
 vendor/deepmerge-compat/index.d.ts
+
+# Upstream picomatch 4.0.7 sources, kept in upstream style so the reviewed
+# patch and hashes stay exact.
+vendor/picomatch-compat/
