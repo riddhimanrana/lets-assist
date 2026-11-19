@@ -427,38 +427,42 @@ export default function LoginClient({
                 )}
               />
 
-              <div className="flex justify-center">
-                <SecureCheckPanel
-                  phase={secureCheck.phase}
-                  onRetry={secureCheck.retry}
-                  fallbackClassName="max-w-75"
-                >
-                  <TurnstileComponent
-                    key={secureCheck.widgetKey}
-                    ref={turnstileRef}
-                    onLoad={secureCheck.handleLoad}
-                    onVerify={(token: string) => {
-                      setTurnstileVerified(true);
-                      form.setValue("turnstileToken", token);
-                    }}
-                    onError={() => {
-                      const wasReady = secureCheck.isReady;
-                      secureCheck.handleError();
-                      setTurnstileVerified(false);
+              <SecureCheckPanel
+                phase={secureCheck.phase}
+                onRetry={secureCheck.retry}
+                className="h-auto min-h-16.25 min-w-0 max-w-none rounded-xl"
+                fallbackClassName="rounded-xl"
+              >
+                {/* Keep the provider's 300px frame intact; a narrow card can scroll instead of clipping it. */}
+                <div className="w-full min-w-0 overflow-x-auto">
+                  <div className="mx-auto w-max px-2 py-1">
+                    <TurnstileComponent
+                      key={secureCheck.widgetKey}
+                      ref={turnstileRef}
+                      onLoad={secureCheck.handleLoad}
+                      onVerify={(token: string) => {
+                        setTurnstileVerified(true);
+                        form.setValue("turnstileToken", token);
+                      }}
+                      onError={() => {
+                        const wasReady = secureCheck.isReady;
+                        secureCheck.handleError();
+                        setTurnstileVerified(false);
 
-                      if (wasReady) {
-                        toast.error(
-                          "Security verification failed. Please try again.",
-                        );
-                      }
-                    }}
-                    onExpire={() => {
-                      setTurnstileVerified(false);
-                      form.setValue("turnstileToken", "");
-                    }}
-                  />
-                </SecureCheckPanel>
-              </div>
+                        if (wasReady) {
+                          toast.error(
+                            "Security verification failed. Please try again.",
+                          );
+                        }
+                      }}
+                      onExpire={() => {
+                        setTurnstileVerified(false);
+                        form.setValue("turnstileToken", "");
+                      }}
+                    />
+                  </div>
+                </div>
+              </SecureCheckPanel>
 
               <Button
                 type="submit"
