@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { HERO_HEADLINE_TEXT } from "./homepage-copy";
+import { HERO_HEADLINE_TEXT } from "./homepage-headline";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
 

@@ -1,9 +1,12 @@
 import { Fragment, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
-import { HERO_HEADLINE_COPY_LINES, HERO_HEADLINE_TEXT } from "../homepage-copy";
+import {
+  HERO_HEADLINE_COPY_LINES,
+  HERO_HEADLINE_TEXT,
+} from "../homepage-headline";
 
-export { HERO_HEADLINE_TEXT } from "../homepage-copy";
+export { HERO_HEADLINE_TEXT } from "../homepage-headline";
 
 type LetterStyle = CSSProperties & { "--la-delay": string };
 

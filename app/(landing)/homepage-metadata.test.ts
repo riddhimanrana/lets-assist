@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { HERO_HEADLINE_TEXT } from "./homepage-copy";
+import { HERO_HEADLINE_TEXT } from "./homepage-headline";
 import { homepageMetadata } from "./homepage-metadata";
 
 test("the homepage document and share titles match the visible tagline", () => {
