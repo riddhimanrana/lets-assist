@@ -1,6 +1,12 @@
 import { Fragment, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
+import {
+  HERO_HEADLINE_COPY_LINES,
+  HERO_HEADLINE_TEXT,
+} from "../homepage-headline";
+
+export { HERO_HEADLINE_TEXT } from "../homepage-headline";
 
 type LetterStyle = CSSProperties & { "--la-delay": string };
 
@@ -10,17 +16,13 @@ type LetterStyle = CSSProperties & { "--la-delay": string };
 const LETTER_STAGGER = 0.018;
 
 export const HERO_HEADLINE_LINES = [
-  { text: "The modern way to do", delay: 0.04, className: undefined },
+  { text: HERO_HEADLINE_COPY_LINES[0], delay: 0.04, className: undefined },
   {
-    text: "volunteering",
+    text: HERO_HEADLINE_COPY_LINES[1],
     delay: 0.46,
     className: "text-[color:var(--primary)]",
   },
 ] as const;
-
-export const HERO_HEADLINE_TEXT = HERO_HEADLINE_LINES.map(
-  (line) => line.text,
-).join(" ");
 
 /**
  * The landing headline with its restored letter entrance. This animation is
