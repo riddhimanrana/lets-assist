@@ -1,4 +1,3 @@
-import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
@@ -15,6 +14,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
 import { Hero } from "./_components/Hero";
+import { homepageMetadata } from "./homepage-metadata";
 import { HomeDemoExperience } from "@/components/home/HomeDemoExperience";
 import { HomeGreeting } from "@/components/home/HomeGreeting";
 import { readPublicLandingDemoMode } from "@/lib/home/landing-demo-mode";
@@ -27,42 +27,7 @@ import { getProjectCalendarDate } from "@/lib/projects/recurrence-occurrence-dat
 // Supabase env vars are not available at build time.
 export const dynamic = "force-dynamic";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lets-assist.com";
-
-export const metadata: Metadata = {
-  title: {
-    absolute: "Let's Assist: A workspace for volunteer organizations",
-  },
-  description:
-    "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
-  metadataBase: new URL(siteUrl),
-  openGraph: {
-    title: "Let's Assist: A workspace for volunteer organizations",
-    description:
-      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
-    url: siteUrl,
-    siteName: "Let's Assist",
-    type: "website",
-    images: [
-      {
-        url: `${siteUrl}/opengraph-image`,
-        width: 1200,
-        height: 630,
-        alt: "Let's Assist volunteer project tools",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Let's Assist: A workspace for volunteer organizations",
-    description:
-      "Manage volunteer signups, QR or reviewed paper attendance, verified hours, and service certificates in one organization workspace.",
-    images: [`${siteUrl}/opengraph-image`],
-  },
-  alternates: {
-    canonical: siteUrl,
-  },
-};
+export const metadata = homepageMetadata;
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

@@ -321,11 +321,7 @@ export default async function OrganizationPage({
   const { data: projects } =
     organizationExperience?.projects === "hidden" || !coreDataScope.projects
       ? { data: [] }
-      : await readOrganizationProjects(
-          readClient,
-          organization.id,
-          Boolean(userRole),
-        );
+      : await readOrganizationProjects(readClient, organization.id, userRole);
 
   const organizationCreatedLabel = formatUtcCalendarDateLabel(
     organization.created_at,

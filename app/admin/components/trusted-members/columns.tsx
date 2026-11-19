@@ -24,19 +24,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TrustedMemberReasonCell } from "./reason-cell";
 
 // Define the shape of our data
 export interface TrustedMember {
@@ -103,16 +95,11 @@ export const columns: ColumnDef<TrustedMember>[] = [
     cell: ({ row }) => {
       const member = row.original;
       return (
-        <div className="max-w-75">
-          <p className="text-muted-foreground truncate text-sm">
-            "{member.reason}"
-          </p>
-          <ReasonDialog
-            reason={member.reason}
-            name={member.profiles?.full_name || member.name}
-            email={member.email}
-          />
-        </div>
+        <TrustedMemberReasonCell
+          reason={member.reason}
+          name={member.profiles?.full_name || member.name}
+          email={member.email}
+        />
       );
     },
   },
@@ -253,46 +240,5 @@ function ActionsCell({ member }: { member: TrustedMember }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-function ReasonDialog({
-  reason,
-  name,
-  email,
-}: {
-  reason: string;
-  name: string;
-  email: string;
-}) {
-  const shouldShow = reason.length > 80 || reason.includes("\n");
-  if (!reason || !shouldShow) {
-    return null;
-  }
-
-  return (
-    <Dialog>
-      <DialogTrigger
-        render={
-          <Button variant="link" className="h-auto p-0 text-xs">
-            View full reason
-          </Button>
-        }
-      />
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Application reason</DialogTitle>
-          <DialogDescription>
-            <span className="text-foreground font-medium">{name}</span> ({email}
-            )
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="max-h-[40vh]">
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            "{reason}"
-          </p>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
   );
 }
