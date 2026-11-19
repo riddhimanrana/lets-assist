@@ -14,7 +14,9 @@ mock.module("@/lib/supabase/client", () => ({
 }));
 mock.module("@/components/ui/turnstile", () => ({
   ...turnstile,
-  TurnstileComponent: () => null,
+  TurnstileComponent: () => (
+    <iframe title="Secure check fixture" width="300" height="65" />
+  ),
 }));
 const { default: LoginClient } = await import("./LoginClient");
 
@@ -42,4 +44,13 @@ test("the password field asks for the current password", () => {
 
 test("the schema, not the browser, still reports an invalid email", () => {
   expect(html).toMatch(/<form\b[^>]*\bnovalidate\b/iu);
+});
+
+test("the login secure-check frame matches the fields and can scroll without shrinking the widget", () => {
+  expect(html).toMatch(/<div class="[^"]*max-w-none[^"]*rounded-xl[^"]*">/u);
+  expect(html).toContain('class="w-full min-w-0 overflow-x-auto"');
+  expect(html).toContain('class="mx-auto w-max px-2 py-1"');
+  expect(html).toContain(
+    '<iframe title="Secure check fixture" width="300" height="65">',
+  );
 });
