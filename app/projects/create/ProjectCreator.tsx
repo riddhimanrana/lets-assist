@@ -40,7 +40,7 @@ import { useOrganizationSteps } from "./use-organization-steps";
 import { useProjectFileUploads } from "./use-project-file-uploads";
 import { useStepValidation } from "./use-step-validation";
 
-interface ProjectCreatorProps {
+export interface ProjectCreatorProps {
   creationSessionId: string;
   initialOrgId?: string;
   initialOrgOptions?: CreateOrgOption[];
